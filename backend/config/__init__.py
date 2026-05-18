@@ -1,0 +1,1 @@
+"""Mòdul de configuració"""

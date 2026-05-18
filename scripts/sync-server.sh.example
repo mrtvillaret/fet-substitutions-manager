@@ -1,0 +1,63 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Configura aquí les teves dades del servidor:
+SERVER_IP="IP_DEL_SERVIDOR"       # ex: 12.34.56.78
+SERVER_PATH="/opt/gestor"
+
+echo "🚀 Sincronitzant codi local → servidor..."
+echo ""
+echo "⚠️  Fitxers EXCLOSOS (configuració compartida amb altres serveis al servidor):"
+echo "   - Caddyfile            (té bloc del domini del servidor)"
+echo "   - docker-compose.yml  (té xarxa web-shared que no tenim en local)"
+echo "   - frontend/vite.config.js"
+echo ""
+
+rsync -av --delete \
+  --exclude '.git/' \
+  --exclude '.gitignore' \
+  --exclude '.env' \
+  --exclude '.env_server' \
+  --exclude '.env.example' \
+  --exclude 'data/' \
+  --exclude 'backend/data/' \
+  --exclude 'backend/auth.db' \
+  --exclude 'auth.db' \
+  --exclude 'frontend/node_modules/' \
+  --exclude 'frontend/dist/' \
+  --exclude '__pycache__/' \
+  --exclude '.pytest_cache/' \
+  --exclude '*.pyc' \
+  --exclude '*.pyo' \
+  --exclude '*.pyd' \
+  --exclude '*.log' \
+  --exclude '*.sqlite' \
+  --exclude '*.db-journal' \
+  --exclude '.DS_Store' \
+  --exclude 'Thumbs.db' \
+  --exclude '*.swp' \
+  --exclude '*.swo' \
+  --exclude '*~' \
+  --exclude '.vscode/' \
+  --exclude '.idea/' \
+  --exclude '.claude/' \
+  --exclude '_archive/' \
+  --exclude 'arxius_desktop/' \
+  --exclude 'arxius_data_backup/' \
+  --exclude 'visualitzacio_html/' \
+  --exclude 'backend/migrate_*.py' \
+  --exclude 'backend/test_api.py' \
+  --exclude 'backend/tests/' \
+  --exclude 'backend/venv/' \
+  --exclude 'backend/exports/' \
+  --exclude 'Caddyfile' \
+  --exclude 'docker-compose.yml' \
+  --exclude 'frontend/vite.config.js' \
+  "${ROOT_DIR}/" "root@${SERVER_IP}:${SERVER_PATH}/"
+
+echo "✅ Sincronització completada!"
+echo "⚠️  Recorda reiniciar els contenidors si cal:"
+echo "   ssh root@${SERVER_IP} 'cd ${SERVER_PATH} && docker compose restart'"

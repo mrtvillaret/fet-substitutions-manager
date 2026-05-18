@@ -1,0 +1,218 @@
+  <div class="scheduler-gemini">
+    <Toast />
+    
+    <header class="view-header">
+      <div class="header-left">
+        <Button id="btn-home" icon="pi pi-home" class="p-button-rounded p-button-text p-button-lg" @click="tornarGestor" />
+        <div>
+          <h1>🚀 {{ t('scheduler.view.title') }}</h1>
+          <p class="subtitle">{{ t('scheduler.view.subtitle') }}</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <Button v-if="result" :label="t('scheduler.view.actions.printPdf')" icon="pi pi-print" class="p-button-text" @click="imprimirHorari" />
+        <Button v-if="result" id="btn-pub-vigs" :label="t('scheduler.publish.publishButton')" icon="pi pi-upload" class="p-button-success shadow-sm" @click="publicarVigilancies" />
+        <Button v-if="intentsLog.length" :label="t('scheduler.view.actions.attempts')" icon="pi pi-chart-line" class="p-button-text" @click="mostrarDialogIntents = true" />
+      </div>
+    </header>
+
+    <div ref="stepperContainerRef" class="stepper-container content-card mb-4">
+      <Steps :model="passos" :activeStep="pasActiu" @update:activeStep="pasActiu = $event" :readonly="false" />
+    </div>
+
+    <div class="step-content" v-if="config">
+      <!-- PAS 0: CONFIGURACIÓ D'EXÀMENS PER NIVELL -->
+      <SchedulerStepConfig
+        v-if="pasActiu === 0"
+        :config="config"
+        :nivells-actius="genConfig.nivells_actius"
+        :dates-per-nivell-model="datesPerNivellModel"
+        :llista-hores-disponibles="llistaHoresDisponibles"
+        :on-dates-change="onDatesChange"
+        :get-dates-per-nivell-ordenades="getDatesPerNivellOrdenades"
+        :format-data-curta="formatDataCurta"
+        :is-alliberat="isAlliberat"
+        :toggle-alliberat="toggleAlliberat"
+        :is-inici-examen="isIniciExamen"
+        :toggle-inici-examen="toggleIniciExamen"
+        :mostrar-menu-columna="mostrarMenuColumna"
+        :mostrar-menu-fila="mostrarMenuFila"
+        @update:nivellsActius="(value) => { genConfig.nivells_actius = value; onNivellsChange() }"
+      />
+
+      <!-- Menús contextuals per accions ràpides -->
+      <Menu ref="menuFila" :model="menuFilaItems" :popup="true" />
+      <Menu ref="menuColumna" :model="menuColumnaItems" :popup="true" />
+      <ConfirmDialog />
+
+      <!-- PAS 1: AGRUPACIONS -->
+      <SchedulerStepGroups
+        v-if="pasActiu === 1"
+        :filtre-nivell-agrupacio="filtreNivellAgrupacio"
+        :nivells-filtre-options="nivellsFiltreOptions"
+        :sessions-soltes="sessionsSoltes"
+        :agrupacions-filtrades="agrupacionsFiltrades"
+        :obrir-dialog-agrupacio="obrirDialogAgrupacio"
+        :eliminar-agrupacio="eliminarAgrupacio"
+        @update:filtreNivellAgrupacio="filtreNivellAgrupacio = $event"
+      />
+
+      <!-- PAS 2: RESTRICCIONS -->
+      <SchedulerStepRestrictions
+        v-if="pasActiu === 2"
+        :durada-titular="config?.durada_titular ?? 1"
+        :durada-examen="duradaExamen"
+        :durades-grups="duradesGrups"
+        :obrir-dialog-durada="obrirDialogDurada"
+        :obrir-editar-durada-grup="obrirEditarDuradaGrup"
+        :eliminar-durada-grup="eliminarDuradaGrup"
+        :restriccions-professors="restriccionsProfessors"
+        :restriccions-dies-hores="restriccionsDiesHores"
+        :restriccions-preferencies="restriccionsPreferencies"
+        :restriccions-incompatibilitats="restriccionsIncompatibilitats"
+        :llista-professors="llistaProfessors"
+        :professors-horari-estricte="professorsHorariEstricte"
+        :pesos="pesos"
+        :pesos-info="pesosInfo"
+        :costos-professors="costosProfessors"
+        :costos-info="costosInfo"
+        :costos-professors-individuals="costosProfessorsIndividuals"
+        :to-dom-id="toDomId"
+        :obrir-dialog-professor="obrirDialogProfessor"
+        :eliminar-restriccio="eliminarRestriccio"
+        :obrir-dialog-dia-hora="obrirDialogDiaHora"
+        :obrir-dialog-preferencia-dia="obrirDialogPreferenciaDia"
+        :eliminar-preferencia="eliminarPreferencia"
+        :obrir-dialog-incompatibilitat="obrirDialogIncompatibilitat"
+        :obrir-dialog-cost-professor="obrirDialogCostProfessor"
+        :eliminar-cost-professor="eliminarCostProfessor"
+        @update:professorsHorariEstricte="professorsHorariEstricte = $event"
+        @update:peso="({ key, value }) => { pesos[key] = value }"
+        @update:costGlobal="({ key, value }) => { costosProfessors.globals[key] = value }"
+        @update:duradaTitular="(v) => { if (config) config.durada_titular = v }"
+        @update:duradaExamen="(v) => { duradaExamen = v }"
+      />
+
+      <!-- PAS 3: ANÀLISI -->
+      <SchedulerStepAnalysis
+        v-if="pasActiu === 3"
+        :analisi-loading="analisiLoading"
+        :analisi-result="analisiResult"
+        :analysis-active-index="analysisActiveIndex"
+        :analysis-tab-info="analysisTabInfo"
+        :per-slots-parsed="perSlotsParsed"
+        :per-sessio-parsed="perSessioParsed"
+        :professors-slot-parsed="professorsSlotParsed"
+        :analysis-fila-class="analysisFilaClass"
+        @analitzar="analitzarDisponibilitat"
+        @imprimir="imprimirAnalisi"
+        @update:analysis-active-index="analysisActiveIndex = $event"
+      />
+
+      <!-- PAS 4: RESULTATS -->
+      <SchedulerStepResults
+        v-if="pasActiu === 4"
+        :generating="generating"
+        :result="result"
+        :mode-edicio="modeEdicio"
+        :mostrar-parametres-avancats="mostrarParametresAvancats"
+        :gen-config="genConfig"
+        :motors="motors"
+        :main-params="mainParams"
+        :advanced-params="advancedParams"
+        :recompte-tooltip="recompteTooltip"
+        :recompte-totals-text="recompteTotalsText"
+        :incidencies-count="incidenciesCount"
+        :incidencies-agrupades="incidenciesAgrupades"
+        :logs-incidencies="logsIncidencies"
+        :hores-examen-config="horesExamenConfig"
+        :horaris-per-setmana="horarisPerSetmana"
+        :data-referencia-scheduler="dataReferenciaScheduler"
+        :selected-dates="selectedDates"
+        :format-local-date="formatLocalDate"
+        :get-slot-per-hora="getSlotPerHora"
+        :get-sessions-per-nivell="getSessionsPerNivell"
+        :get-nivell-class="getNivellClass"
+        :get-exams-unics="getExamsUnics"
+        :get-avisos-icons-examen="getAvisosIconsExamen"
+        :get-avisos-title-examen="getAvisosTitleExamen"
+        :format-incident-full="formatIncidentFull"
+        :format-incident-short="formatIncidentShort"
+        :on-horari-actualitzat="onHorariActualitzat"
+        :on-cost-changed="onCostChanged"
+        :pinned-noms="pinnedNoms"
+        :on-pin-changed="onPinChanged"
+        :on-clear-pins="clearAllPins"
+        @generar="generarHorari"
+        @update:modeEdicio="modeEdicio = $event"
+        @update:mostrarParametresAvancats="mostrarParametresAvancats = $event"
+        @update:genConfigField="({ key, value }) => { genConfig[key] = value }"
+      />
+    </div>
+
+    <SchedulerDialogs
+      :mostrar-dialog-durada="mostrarDialogDurada"
+      :editant-durada-id="editantDuradaId"
+      :formulari-durada="formulariDurada"
+      :desar-dialog-durada="desarDialogDurada"
+      :mostrar-dialog-professor="mostrarDialogProfessor"
+      :professor-editant-id="professorEditantId"
+      :formulari-professor="formulariProfessor"
+      :mostrar-dialog-dia-hora="mostrarDialogDiaHora"
+      :dia-hora-editant-id="diaHoraEditantId"
+      :formulari-dia-hora="formulariDiaHora"
+      :mostrar-dialog-preferencia-dia="mostrarDialogPreferenciaDia"
+      :preferencia-editant-id="preferenciaEditantId"
+      :formulari-preferencia="formulariPreferencia"
+      :mostrar-dialog-incompatibilitat="mostrarDialogIncompatibilitat"
+      :incompat-editant-id="incompatEditantId"
+      :formulari-incompat="formulariIncompat"
+      :mostrar-dialog-agrupacio="mostrarDialogAgrupacio"
+      :agrupacio-editant-id="agrupacioEditantId"
+      :formulari-agrupacio="formulariAgrupacio"
+      :mostrar-dialog-cost-professor="mostrarDialogCostProfessor"
+      :cost-professor-editant-id="costProfessorEditantId"
+      :formulari-cost-professor="formulariCostProfessor"
+      :mostrar-dialog-intents="mostrarDialogIntents"
+      :mostrar-dialog-incompat="mostrarDialogIncompat"
+      :llista-professors="llistaProfessors"
+      :llista-sessions="llistaSessions"
+      :dies-setmana="diesSetmana"
+      :llista-hores-disponibles="llistaHoresDisponibles"
+      :tipus-preferencia-dia="tipusPreferenciaDia"
+      :sessions-filtrades="sessionsFiltrades"
+      :intents-log="intentsLog"
+      :best-intent="bestIntent"
+      :incompatibilitats="incompatibilitats"
+      :incompat-error-msg="incompatErrorMsg"
+      :desar-dialog-professor="desarDialogProfessor"
+      :desar-dialog-dia-hora="desarDialogDiaHora"
+      :desar-dialog-preferencia-dia="desarDialogPreferenciaDia"
+      :desar-dialog-incompatibilitat="desarDialogIncompatibilitat"
+      :desar-dialog-agrupacio="desarDialogAgrupacio"
+      :desar-dialog-cost-professor="desarDialogCostProfessor"
+      @update:mostrarDialogDurada="mostrarDialogDurada = $event"
+      @update:mostrarDialogProfessor="mostrarDialogProfessor = $event"
+      @update:mostrarDialogDiaHora="mostrarDialogDiaHora = $event"
+      @update:mostrarDialogPreferenciaDia="mostrarDialogPreferenciaDia = $event"
+      @update:mostrarDialogIncompatibilitat="mostrarDialogIncompatibilitat = $event"
+      @update:mostrarDialogAgrupacio="mostrarDialogAgrupacio = $event"
+      @update:mostrarDialogCostProfessor="mostrarDialogCostProfessor = $event"
+      @update:mostrarDialogIntents="mostrarDialogIntents = $event"
+      @update:mostrarDialogIncompat="mostrarDialogIncompat = $event"
+    />
+
+    <PublicarVigilanciesDialog
+      v-model:visible="mostrarPublicarDialog"
+      :horari="result?.horari"
+      :setmanes="publicarSetmanes"
+      @publicat="onPublicat"
+    />
+
+    <footer class="footer-nav">
+      <Button :label="t('scheduler.view.actions.previous')" icon="pi pi-chevron-left" text @click="pasAnterior" :disabled="pasActiu === 0 || loading" />
+      <div class="spacer"></div>
+      <Button id="btn-save" :label="t('scheduler.view.actions.saveChanges')" icon="pi pi-save" outlined :loading="savingRestr" @click="desarTotAlBackend" />
+      <Button :label="t('scheduler.view.actions.next')" icon="pi pi-chevron-right" iconPos="right" @click="pasSeguent" :disabled="pasActiu === 4 || loading" />
+    </footer>
+  </div>

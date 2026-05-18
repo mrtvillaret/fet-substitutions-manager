@@ -1,0 +1,603 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-23 18:01+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: export/base_pdf.py:131
+msgid "✅ S'ha obert el PDF amb xdg-open"
+msgstr ""
+
+#: export/base_pdf.py:133 export/pdf/engine.py:64
+#, python-brace-format
+msgid "⚠️ No s'ha pogut obrir automàticament: {error}"
+msgstr ""
+
+#: export/base_pdf.py:170
+#, python-brace-format
+msgid "RESUM: {num} elements"
+msgstr ""
+
+#: export/base_pdf.py:173 export/pdf.py:200
+#, python-brace-format
+msgid "✅ S'ha generat el fitxer de text: {filename}"
+msgstr ""
+
+#: export/base_pdf.py:177 export/pdf.py:204
+#, python-brace-format
+msgid "❌ Error en generar fitxer de text: {error}"
+msgstr ""
+
+#: export/pdf_interval.py:52
+msgid "Atenció"
+msgstr ""
+
+#: export/pdf_interval.py:52
+msgid "No hi ha dates vàlides a l'interval seleccionat"
+msgstr ""
+
+#: export/pdf_interval.py:57
+msgid "Cap nivell seleccionat"
+msgstr ""
+
+#: export/pdf_interval.py:58
+msgid "❌ Has de seleccionar almenys un nivell per generar el PDF."
+msgstr ""
+
+#: export/pdf_interval.py:89
+msgid "PDF d'Interval Generat"
+msgstr ""
+
+#: export/pdf_interval.py:90
+#, python-brace-format
+msgid ""
+"✅ PDF generat correctament:\n"
+"\n"
+"📅 Període: {data_inici_cat} - {data_final_cat}\n"
+"🎓 Nivells: {nivells}\n"
+"📊 {total_vigilancies} vigilàncies en {dies_amb_vigilancies} dies\n"
+"📄 Fitxer: {filename}"
+msgstr ""
+
+#: export/pdf_interval.py:104 export/pdf_interval.py:109
+#: export/pdf/combined_exporter.py:213 export/pdf/combined_exporter.py:217
+#: export/pdf/dialogs.py:288
+msgid "Error"
+msgstr ""
+
+#: export/pdf_interval.py:104
+msgid "No s'ha pogut exportar el PDF d'interval"
+msgstr ""
+
+#: export/pdf_interval.py:109
+#, python-brace-format
+msgid "Error en generar PDF d'interval: {e}"
+msgstr ""
+
+#: export/pdf_interval.py:213
+#, python-brace-format
+msgid "📋 Substitucions de vigilàncies en l'interval: {count}"
+msgstr ""
+
+#: export/pdf_interval.py:222
+msgid "🗜️ Compressió manual activada per a interval de vigilàncies"
+msgstr ""
+
+#: export/pdf_interval.py:235
+#, python-brace-format
+msgid "Error en generar PDF concatenat: {error}"
+msgstr ""
+
+#: export/pdf.py:50
+msgid "<b>Substitucions de Professors</b>"
+msgstr ""
+
+#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:600
+#: export/pdf/engine.py:604 export/pdf/engine.py:618 export/pdf/engine.py:622
+msgid "Hora"
+msgstr ""
+
+#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:592
+#: export/pdf/engine.py:596 export/pdf/engine.py:600 export/pdf/engine.py:604
+msgid "Absent"
+msgstr ""
+
+#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:592
+#: export/pdf/engine.py:596 export/pdf/engine.py:600 export/pdf/engine.py:604
+#: export/pdf/engine.py:610 export/pdf/engine.py:614 export/pdf/engine.py:618
+#: export/pdf/engine.py:622
+msgid "Assignatura"
+msgstr ""
+
+#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:592
+#: export/pdf/engine.py:596 export/pdf/engine.py:600 export/pdf/engine.py:604
+msgid "Grup"
+msgstr ""
+
+#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:592
+#: export/pdf/engine.py:596 export/pdf/engine.py:600 export/pdf/engine.py:604
+msgid "Substitut"
+msgstr ""
+
+#: export/pdf.py:55 export/pdf.py:168
+msgid "Comentaris"
+msgstr ""
+
+#: export/pdf.py:121
+msgid "No hi ha substitucions per aquest dia."
+msgstr ""
+
+#: export/pdf.py:131
+#, python-brace-format
+msgid ""
+"<b>Resum:</b> {total} substitucions totals | {assignades} assignades | "
+"{pendents} pendents"
+msgstr ""
+
+#: export/pdf.py:145
+#, python-brace-format
+msgid "✅ S'ha generat el PDF: {filename}"
+msgstr ""
+
+#: export/pdf.py:149
+msgid "⚠️ ReportLab no disponible, es generarà un fitxer de text..."
+msgstr ""
+
+#: export/pdf.py:153
+#, python-brace-format
+msgid "❌ Error en exportar PDF: {error}"
+msgstr ""
+
+#: export/pdf.py:163
+msgid "SUBSTITUCIONS DE PROFESSORS"
+msgstr ""
+
+#: export/pdf.py:192
+#, python-brace-format
+msgid "RESUM: {total} substitucions"
+msgstr ""
+
+#: export/pdf.py:194
+#, python-brace-format
+msgid "Assignades: {assignades} | Pendents: {pendents}"
+msgstr ""
+
+#: export/pdf.py:197
+#, python-brace-format
+msgid ""
+"\n"
+"Generat: {timestamp}"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:68
+#, python-brace-format
+msgid "Error en obtenir vigilàncies: {error}"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:95
+msgid ""
+"⚠️ AVÍS: Hi ha professors de major prioritat disponibles:\n"
+"\n"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:97
+msgid ""
+"\n"
+"\n"
+"Voleu continuar amb l'exportació?"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:101
+msgid "Professors de major prioritat disponibles"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:103 export/pdf/combined_exporter.py:275
+msgid "Sí"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:104 export/pdf/combined_exporter.py:276
+msgid "No"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:112
+#, python-brace-format
+msgid ""
+"📋 PDF Complet per {data}\n"
+"\n"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:115 export/pdf/combined_exporter.py:154
+#: export/pdf/combined_exporter.py:202
+#, python-brace-format
+msgid "📝 Substitucions: {assignades} assignades de {totals}\n"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:118 export/pdf/combined_exporter.py:162
+#: export/pdf/combined_exporter.py:205
+#, python-brace-format
+msgid "👁️ Vigilàncies: {assignades} assignades de {totals}\n"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:151
+#, python-brace-format
+msgid ""
+"📋 PDF per {data}\n"
+"\n"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:159
+#, python-brace-format
+msgid "👁️ Vigilàncies ({nivells}): {assignades} assignades de {totals}\n"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:166
+msgid "S'està generant el PDF complet..."
+msgstr ""
+
+#: export/pdf/combined_exporter.py:194
+msgid ""
+"\n"
+"❌ Error en desar dades localment"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:196
+#, python-brace-format
+msgid ""
+"\n"
+"❌ Error inesperat: {error}"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:200
+#, python-brace-format
+msgid ""
+"✅ PDF creat i obert correctament!\n"
+"\n"
+"📄 Fitxer: {filename}\n"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:209
+msgid "PDF generat"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:211
+#, python-brace-format
+msgid "✅ PDF creat: {filename}"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:213
+msgid "❌ No s'ha pogut generar el PDF complet"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:214
+msgid "❌ Error en generar PDF complet"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:217
+msgid "Error en exportar el PDF complet"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:218
+msgid "❌ Error d'exportació"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:252
+msgid ""
+"S'han detectat conflictes:\n"
+"\n"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:269
+msgid ""
+"\n"
+"Voleu continuar amb l'exportació?"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:273
+msgid "Conflictes detectats"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:307
+msgid "🗜️ Compressió manual activada per l'usuari"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:323
+#, python-brace-format
+msgid "Error en generar PDF combinat: {error}"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:347
+msgid "⚠️ Fitxer vigilancies_examens.json no trobat"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:350
+#, python-brace-format
+msgid "❌ Error en carregar vigilàncies del JSON: {error}"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:375
+#, python-brace-format
+msgid "⚠️ Error en obtenir vigilàncies de finestra existent: {error}"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:417
+#, python-brace-format
+msgid "❌ Error en carregar vigilàncies directament: {error}"
+msgstr ""
+
+#: export/pdf/combined_exporter.py:466
+#, python-brace-format
+msgid "⚠️ Error en comptar canvis respecte al PDF: {error}"
+msgstr ""
+
+#: export/pdf/dialogs.py:13 export/pdf/dialogs.py:211
+msgid "Exportació del PDF de vigilàncies"
+msgstr ""
+
+#: export/pdf/dialogs.py:43
+msgid "📄 Configureu les opcions:"
+msgstr ""
+
+#: export/pdf/dialogs.py:57
+msgid "🎓 Nivells"
+msgstr ""
+
+#: export/pdf/dialogs.py:63
+msgid "✅ Tots"
+msgstr ""
+
+#: export/pdf/dialogs.py:65
+msgid "❌ Cap"
+msgstr ""
+
+#: export/pdf/dialogs.py:109
+msgid "⚙️ Opcions"
+msgstr ""
+
+#: export/pdf/dialogs.py:114 export/pdf/dialogs.py:132
+#: export/pdf/dialogs.py:261
+msgid "🗜️ Compressió del PDF"
+msgstr ""
+
+#: export/pdf/dialogs.py:116 export/pdf/dialogs.py:134
+#: export/pdf/dialogs.py:263
+msgid "Redueix l'espaiat per a estalviar pàgines"
+msgstr ""
+
+#: export/pdf/dialogs.py:119 export/pdf/dialogs.py:137
+#: export/pdf/dialogs.py:266
+msgid "💬 Mostrar columna comentaris"
+msgstr ""
+
+#: export/pdf/dialogs.py:121 export/pdf/dialogs.py:139
+#: export/pdf/dialogs.py:268
+msgid "Mostra o amaga la columna d'observacions al PDF"
+msgstr ""
+
+#: export/pdf/dialogs.py:124 export/pdf/dialogs.py:142
+#: export/pdf/dialogs.py:271
+msgid "🕒 Mostrar columna hores"
+msgstr ""
+
+#: export/pdf/dialogs.py:126 export/pdf/dialogs.py:144
+#: export/pdf/dialogs.py:273
+msgid "Afegeix una columna amb la franja horària"
+msgstr ""
+
+#: export/pdf/dialogs.py:149 export/pdf/dialogs.py:278
+msgid "D'acord"
+msgstr ""
+
+#: export/pdf/dialogs.py:150 export/pdf/dialogs.py:279
+msgid "Cancel·la"
+msgstr ""
+
+#: export/pdf/dialogs.py:217
+msgid "📄 Exportació del PDF complet"
+msgstr ""
+
+#: export/pdf/dialogs.py:247
+msgid "📄 Seleccioneu les opcions del PDF:"
+msgstr ""
+
+#: export/pdf/dialogs.py:251
+msgid "📚 Substitucions"
+msgstr ""
+
+#: export/pdf/dialogs.py:253
+msgid "Inclou la llista de substitucions del dia"
+msgstr ""
+
+#: export/pdf/dialogs.py:256
+msgid "👁️ Vigilàncies"
+msgstr ""
+
+#: export/pdf/dialogs.py:258
+msgid "Inclou les vigilàncies d'exàmens i activitats"
+msgstr ""
+
+#: export/pdf/dialogs.py:288
+msgid "Heu de seleccionar almenys una opció per a generar el PDF."
+msgstr ""
+
+#: export/pdf/engine.py:61
+#, python-brace-format
+msgid "📖 S'ha obert el PDF amb xdg-open: {filepath}"
+msgstr ""
+
+#: export/pdf/engine.py:65
+#, python-brace-format
+msgid "📁 Fitxer disponible a: {filepath}"
+msgstr ""
+
+#: export/pdf/engine.py:97
+#, python-brace-format
+msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
+msgstr ""
+
+#: export/pdf/engine.py:120
+msgid "📄 Compressió activada manualment per l'usuari"
+msgstr ""
+
+#: export/pdf/engine.py:122
+msgid "📄 PDF normal sense compressió"
+msgstr ""
+
+#: export/pdf/engine.py:244 export/pdf/engine.py:256
+msgid "SUBSTITUCIONS"
+msgstr ""
+
+#: export/pdf/engine.py:246 export/pdf/engine.py:248 export/pdf/engine.py:258
+msgid "VIGILÀNCIES"
+msgstr ""
+
+#: export/pdf/engine.py:250 export/pdf/engine.py:254
+msgid "SUBSTITUCIONS I VIGILÀNCIES"
+msgstr ""
+
+#: export/pdf/engine.py:260
+msgid "DOCUMENT BUIT"
+msgstr ""
+
+#: export/pdf/engine.py:329
+#, python-brace-format
+msgid "Hora {hora}"
+msgstr ""
+
+#: export/pdf/engine.py:360
+#, python-brace-format
+msgid "RESUM: {num} substitucions"
+msgstr ""
+
+#: export/pdf/engine.py:362
+#, python-brace-format
+msgid "RESUM: {num} vigilàncies"
+msgstr ""
+
+#: export/pdf/engine.py:364 export/pdf/engine.py:368
+#, python-brace-format
+msgid "RESUM: {subs} substitucions, {vig} vigilàncies"
+msgstr ""
+
+#: export/pdf/engine.py:377
+msgid "<b>CONFLICTES DETECTATS:</b>"
+msgstr ""
+
+#: export/pdf/engine.py:387
+#, python-brace-format
+msgid "Generat el {data} a les {hora}"
+msgstr ""
+
+#: export/pdf/engine.py:397
+#, python-brace-format
+msgid "✅ S'ha generat el PDF combinat: {output_path}"
+msgstr ""
+
+#: export/pdf/engine.py:403
+#, python-brace-format
+msgid "❌ Error en generar PDF: {error}"
+msgstr ""
+
+#: export/pdf/engine.py:592 export/pdf/engine.py:600 export/pdf/engine.py:610
+#: export/pdf/engine.py:618
+msgid "Observacions"
+msgstr ""
+
+#: export/pdf/engine.py:610 export/pdf/engine.py:614 export/pdf/engine.py:618
+#: export/pdf/engine.py:622
+msgid "Curs"
+msgstr ""
+
+#: export/pdf/engine.py:610 export/pdf/engine.py:614 export/pdf/engine.py:618
+#: export/pdf/engine.py:622
+msgid "Aula"
+msgstr ""
+
+#: export/pdf/engine.py:610 export/pdf/engine.py:614 export/pdf/engine.py:618
+#: export/pdf/engine.py:622
+msgid "Vigilant"
+msgstr ""
+
+#: export/pdf/engine.py:655 export/pdf/engine.py:803
+#, python-brace-format
+msgid "🔍 Compressió automàtica: fonts reduïdes a H:{header} B:{body}"
+msgstr ""
+
+#: export/pdf/engine.py:985
+#, python-brace-format
+msgid "⚠️ {hora}: Substitut {substitut} {absence_text}"
+msgstr ""
+
+#: export/pdf/engine.py:990
+#, python-brace-format
+msgid "🕐 {hora}: Substitut {substitut} duplicat"
+msgstr ""
+
+#: export/pdf/engine.py:1001
+#, python-brace-format
+msgid "❌ {hora}: {professor} - {assignatura} sense substitut assignat"
+msgstr ""
+
+#: export/pdf/engine.py:1014
+#, python-brace-format
+msgid "⚠️ {hora}: Vigilant {vigilant} {absence_text}"
+msgstr ""
+
+#: export/pdf/engine.py:1019
+#, python-brace-format
+msgid "🕐 {hora}: Vigilant {vigilant} duplicat"
+msgstr ""
+
+#: export/pdf/engine.py:1027
+#, python-brace-format
+msgid "🏫 {hora}: Aula {aula} duplicada"
+msgstr ""
+
+#: export/pdf/engine.py:1036
+#, python-brace-format
+msgid "❌ {hora}: {tipus} sense vigilant assignat"
+msgstr ""
+
+#: export/pdf/engine.py:1039
+#, python-brace-format
+msgid "❌ {hora}: Assignatura {tipus} sense vigilant assignat"
+msgstr ""
+
+#: export/pdf/engine.py:1046
+#, python-brace-format
+msgid "🏫 {hora}: {tipus} sense aula assignada"
+msgstr ""
+
+#: export/pdf/engine.py:1049
+#, python-brace-format
+msgid "🏫 {hora}: Assignatura {tipus} sense aula assignada"
+msgstr ""
+
+#: export/pdf/engine.py:1080
+#, python-brace-format
+msgid ""
+"🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | "
+"Assignatures: {assignatures})"
+msgstr ""
+
+#: export/pdf/engine.py:1132
+#, python-brace-format
+msgid "📅 {dia}"
+msgstr ""
+
+#: export/pdf/engine.py:1151
+#, python-brace-format
+msgid "🕐 {hora}"
+msgstr ""

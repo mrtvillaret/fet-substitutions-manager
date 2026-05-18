@@ -1,0 +1,21 @@
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+python-multipart==0.0.12
+sqlalchemy>=2.0.0
+python-jose[cryptography]==3.3.0
+passlib[argon2]==1.7.4
+argon2-cffi==23.1.0
+slowapi==0.1.9
+
+# PDF generation
+reportlab>=4.0.0
+
+# i18n (traduccions)
+babel>=2.12.0
+
+# XML parsing (per processar horari FET)
+lxml>=4.9.0
+
+# Nota: Dependències del projecte principal que també necessita el backend
+# (reutilitza core/, data/, config/ però necessita les seves llibreries)

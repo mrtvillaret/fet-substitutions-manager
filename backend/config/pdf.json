@@ -1,0 +1,81 @@
+{
+  "font_sizes": {
+    "title": 18,
+    "hora": 12,
+    "conflicte": 10,
+    "table_header": 11,
+    "table_body": 11.5
+  },
+  "hyphenation": {
+    "enabled": true,
+    "language": "es"
+  },
+  "print_profile": "screen",
+  "single_page_mode": true,
+  "show_comments_column": false,
+  "show_hours_column": false,
+  "include_substitutions": true,
+  "include_vigilancies": true,
+  "compress_pdf": true,
+  "auto_compression": {
+    "min_lines": 50,
+    "max_lines": 70,
+    "description": "Compressió automàtica entre 1.0-1.9 pàgines",
+    "font_reduction": {
+      "title": 0.8,
+      "hour": 0.85,
+      "table_header": 0.85,
+      "table_body": 0.95
+    },
+    "min_font_sizes": {
+      "title": 14,
+      "hour": 10,
+      "table_header": 8,
+      "table_body": 7
+    }
+  },
+  "print_profiles": {
+    "bw_ink_saver": {
+      "name": "B/N Alta Llegibilitat",
+      "description": "Blanc i negre amb contrast òptim i línies suaus",
+      "substitutions_header_bg": "#e6e6e6",
+      "substitutions_header_text": "#111111",
+      "vigilances_header_bg": "#f0f0f0",
+      "vigilances_header_text": "#111111",
+      "content_bg": "#ffffff",
+      "grid_color": "#9e9e9e",
+      "grid_width": 0.25,
+      "use_header_line": true,
+      "conflict_color": "#000000",
+      "hour_color": "#000000"
+    },
+    "color_ink_saver": {
+      "name": "Color Alta Llegibilitat",
+      "description": "Color suau amb alt contrast i estalvi de tinta",
+      "substitutions_header_bg": "#e8f2ff",
+      "substitutions_header_text": "#0f2b46",
+      "vigilances_header_bg": "#eaf7ef",
+      "vigilances_header_text": "#1f3d2d",
+      "content_bg": "#ffffff",
+      "grid_color": "#c9d1d9",
+      "grid_width": 0.3,
+      "use_header_line": false,
+      "conflict_color": "#a80000",
+      "hour_color": "#1f4b99"
+    },
+    "screen": {
+      "name": "Pantalla/Digital",
+      "description": "Optimitzat per visualització digital i pantalla",
+      "substitutions_header_bg": "#2c3e50",
+      "substitutions_header_text": "#ffffff",
+      "vigilances_header_bg": "#17a2b8",
+      "vigilances_header_text": "#ffffff",
+      "content_bg": "#f8f9fa",
+      "grid_color": "#dee2e6",
+      "grid_width": 0.5,
+      "use_header_line": false,
+      "conflict_color": "#c0392b",
+      "hour_color": "#c0392b"
+    }
+  }
+}

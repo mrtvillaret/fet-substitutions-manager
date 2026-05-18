@@ -1,0 +1,1603 @@
+{
+  "app": {
+    "title": "📚 Gestor de Sustituciones",
+    "footer": "Prototipo FastAPI + Vue 3 | Gestor Sustituciones FET",
+    "login": {
+      "title": "Gestor de Sustituciones",
+      "subtitle": "Inicia sesión para continuar",
+      "username": "Usuario",
+      "password": "Contraseña",
+      "submit": "Entrar",
+      "error": "Usuario o contraseña incorrectos",
+      "rateLimit": "🕐 Demasiados intentos de inicio de sesión. Vuelve a intentarlo en un minuto.",
+      "rateLimitWithWait": "🕐 Demasiados intentos de inicio de sesión. Vuelve a intentarlo en {seconds} segundos."
+    },
+    "errors": {
+      "title": "Error",
+      "connection": "Error de conexión con el servidor",
+      "server": "Error interno del servidor",
+      "unexpected": "Error inesperado"
+    },
+    "nav": {
+      "prevDay": "Día anterior",
+      "nextDay": "Día siguiente",
+      "selectDate": "Selecciona fecha",
+      "teachers": "Profesores",
+      "hours": "Horas",
+      "menu": "Menú",
+      "settings": "Configuración",
+      "examSettings": "Configuración exámenes",
+      "scheduler": "Planificador de exámenes",
+      "stats": "Estadísticas",
+      "profile": "Perfil",
+      "help": "Ayuda",
+      "logout": "Cerrar sesión",
+      "pdfToday": "PDF del día"
+    },
+    "tabs": {
+      "substitucions": "Sustituciones",
+      "grups": "Grupos sin clase",
+      "vigilancies": "Vigilancias"
+    }
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "add": "Añadir",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "new": "Nueva",
+    "total": "Total",
+    "actions": "Acciones",
+    "comments": "💬 Observaciones",
+    "commentsPlaceholder": "Observaciones...",
+    "status": "⚡ Estado",
+    "hour": "🕐 Hora",
+    "subject": "📖 Asignatura",
+    "group": "🎓 Grupo",
+    "room": "Aula",
+    "selectOption": "-- Seleccionar --",
+    "inactive": "inactivo",
+    "none": "(ninguno)",
+    "noneDash": "—",
+    "all": "Todos",
+    "empty": "(vacío)",
+    "loadingConfig": "Cargando configuración...",
+    "loading": "Cargando...",
+    "error": "Error",
+    "warning": "Aviso",
+    "xmlMissing": "Debes subir un archivo XML de horario para continuar.",
+    "saved": "Guardado",
+    "added": "Añadido",
+    "updated": "Actualizado",
+    "deleted": "Eliminado",
+    "generated": "Generado",
+    "regenerated": "Regenerado",
+    "created": "Creado",
+    "uploading": "Subiendo archivo...",
+    "uploaded": "Subido",
+    "downloading": "Descargando...",
+    "detected": "Detectado",
+    "duplicate": "Duplicado",
+    "reload": "Recargar",
+    "download": "Descargar",
+    "upload": "Subir",
+    "load": "Cargar",
+    "confirmation": "Confirmación",
+    "confirmDelete": "Confirmar eliminación",
+    "continue": "Sí, continuar",
+    "closeAnyway": "Sí, cerrar",
+    "discard": "Sí, descartar",
+    "unsavedChanges": "⚠️ Cambios sin guardar",
+    "unsavedChangesTitle": "Cambios sin guardar",
+    "unsavedChangesPrompt": "Hay cambios sin guardar. ¿Quieres cerrar igualmente?",
+    "unsavedChangesSwitchDay": "Hay cambios sin guardar. ¿Quieres descartarlos y cambiar de día?",
+    "moreItems": "... y {count} más",
+    "conflict": {
+      "title": "Cambios detectados",
+      "message": "Este registro ha sido modificado por otro usuario. ¿Quieres recargar o sobrescribir?",
+      "reload": "Recargar",
+      "overwrite": "Sobrescribir"
+    },
+    "noData": "No hay datos"
+  },
+  "profile": {
+    "title": "Perfil",
+    "username": "Usuario",
+    "institution": "Institución",
+    "switchInstitution": "Cambiar institución",
+    "institutionSwitched": "Institución cambiada.",
+    "institutionError": "No se ha podido cambiar la institución.",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirma la nueva contraseña",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "passwordUpdated": "Contraseña actualizada.",
+    "passwordError": "No se ha podido actualizar la contraseña."
+  },
+  "config": {
+    "title": "⚙️ Configuración general",
+    "tabs": {
+      "system": "🔧 Sistema y archivos",
+      "groups": "👥 Grupos y abreviaturas",
+      "absences": "🏥 Profesores de baja",
+      "priorities": "🎯 Prioridades",
+      "users": "👤 Usuarios",
+      "systemLine1": "Sistema y",
+      "systemLine2": "Archivos",
+      "groupsLine1": "Grupos y",
+      "groupsLine2": "Abreviaturas",
+      "leaveLine1": "Profesores",
+      "leaveLine2": "de baja",
+      "prioritiesLine1": "Prioridades",
+      "usersLine1": "Usuarios",
+      "institutionsLine1": "Instituciones"
+    },
+    "system": {
+      "institution": "Institución",
+      "institutionPlaceholder": "Nombre de la institución",
+      "logoLabel": "Logo de la institución",
+      "logoPlaceholder": "Selecciona un logo...",
+      "logoAlt": "Logo institución",
+      "logoHint": "Formatos admitidos: PNG, JPG",
+      "language": "Idioma de la interfaz",
+      "languagePlaceholder": "Selecciona idioma",
+      "xmlLabel": "Archivo XML de FET",
+      "xmlPlaceholder": "Selecciona un archivo XML...",
+      "xmlUpload": "Subir archivo XML",
+      "xmlHint": "Archivo XML generado por FET con el horario",
+      "xmlVersions": "Versiones de XML",
+      "noXmlVersions": "No hay versiones de XML",
+      "xmlCurrent": "Actual",
+      "xmlStart": "Fecha inicio",
+      "xmlEnd": "Fecha final",
+      "xmlSaved": "Versión de XML guardada",
+      "xmlDeleted": "Versión de XML eliminada",
+      "lastTeacher": "Último profesor a considerar",
+      "allTeachers": "Todos los profesores",
+      "lastTeacherHintLine1": "Limita la lista de profesores disponibles hasta este profesor (incluido).",
+      "lastTeacherHintLine2": "Útil para excluir profesores sustitutos o auxiliares.",
+      "generatedPdfs": "PDFs generados",
+      "noPdfs": "No hay PDFs generados",
+      "logoUploaded": "Logo subido",
+      "uploadingFile": "Subiendo {name}",
+      "openingPdf": "Abriendo {name}",
+      "pdfDeleted": "PDF {name} eliminado correctamente",
+      "institutionCode": "Código de institución",
+      "institutionCodeHint": "Identificador interno (no se puede cambiar).",
+      "institutionName": "Institución",
+      "institutionNamePlaceholder": "Nombre visible de la institución",
+      "institutionNameHint": "Nombre visible para los usuarios."
+    },
+    "groups": {
+      "detectedLabel": "Grupos detectados del XML",
+      "detectButton": "Detectar grupos",
+      "detectHint": "Pulsa \"Detectar grupos\" para cargar los grupos del XML",
+      "abbrevLabel": "Abreviaturas de grupos",
+      "addAbbrev": "➕ Añadir abreviatura",
+      "noAbbrev": "No hay abreviaturas configuradas",
+      "abbrevHint": "Las abreviaturas simplifican la visualización de grupos combinados (ej: \"1-ESO-A,1-ESO-B\" → \"1-ESO-AB\")",
+      "editAbbrevTitle": "✏️ Editar abreviatura",
+      "addAbbrevTitle": "➕ Añadir abreviatura",
+      "originalGroups": "Grupos originales",
+      "selectGroups": "Selecciona grupos...",
+      "selectGroupsHint": "Selecciona los grupos que se abreviarán.",
+      "detectInline": "Detectar grupos del XML",
+      "abbrevPlaceholder": "Ej: 1-ESO-AB",
+      "abbrevHintShort": "La forma abreviada que se mostrará",
+      "abbrevAdded": "Abreviatura añadida correctamente",
+      "abbrevUpdated": "Abreviatura actualizada correctamente",
+      "abbrevDeleted": "Abreviatura eliminada correctamente",
+      "detectedCount": "Se han detectado {count} grupos del XML"
+    },
+    "absences": {
+      "count": "{count} profesores de baja",
+      "none": "No hay profesores de baja",
+      "hint": "Los profesores de baja NO sustituyen ni son sustituidos durante el período especificado",
+      "editTitle": "✏️ Editar profesor de baja",
+      "addTitle": "➕ Añadir profesor de baja",
+      "teacher": "Profesor",
+      "selectTeacher": "Selecciona profesor",
+      "startDate": "Fecha inicio",
+      "endDate": "Fecha final",
+      "reasonOptional": "Motivo (opcional)",
+      "reasonPlaceholder": "Ej: Enfermedad, permiso, etc.",
+      "updated": "Profesor de baja actualizado correctamente",
+      "added": "Profesor de baja añadido correctamente",
+      "deleted": "Profesor de baja eliminado correctamente"
+    },
+    "priorities": {
+      "introLine1": "Configura el orden y pesos de las categorías de prioridad para asignar sustituciones.",
+      "introLine2": "Orden menor = más prioridad. Peso más alto = más probabilidad dentro de la categoría.",
+      "orderTitle": "📋 Orden de categorías de prioridad",
+      "moveUp": "⬆️ Subir",
+      "moveDown": "⬇️ Bajar",
+      "addCategory": "➕ Añadir categoría",
+      "moveUpHint": "Aumenta la prioridad de la categoría seleccionada",
+      "moveDownHint": "Disminuye la prioridad de la categoría seleccionada",
+      "order": "Orden",
+      "active": "Activa",
+      "categories": "Categorías (separadas por comas)",
+      "weightsTitle": "⚖️ Pesos de aleatoriedad por categoría",
+      "weightsHint": "Peso más alto = más probabilidad. Ejemplo: peso 3 = triple de posibilidades que peso 1",
+      "categoryHeader": "▼ Categoría {index}: {items}",
+      "deleteSubject": "Eliminar asignatura",
+      "freeHint": "ℹ️ \"liberado\" se asigna automáticamente a los profesores de grupos sin clase",
+      "addSubjectToCategory": "➕ Añadir asignatura a categoría {index}",
+      "noSubstTitle": "🚫 Actividades no sustituibles",
+      "noSubstHint": "Lista de actividades/asignaturas que NO se sustituyen automáticamente",
+      "noSubstCount": "{count} asignaturas",
+      "generateAllDaysPDF": "📄 Generar PDF de Todos los Días",
+      "pdfGenerated": "PDF generado correctamente",
+      "startDate": "Desde el día",
+      "startDateHint": "(vacío = hoy)",
+      "saveAll": "💾 Guardar todas las prioridades",
+      "addNoSubstTitle": "➕ Añadir asignatura a no sustituir",
+      "selectSubjectXml": "Selecciona asignatura del XML",
+      "selectSubjectPlaceholder": "Selecciona una asignatura...",
+      "customSubjectHint": "Puedes escribir un nombre personalizado si no está en la lista",
+      "addCategoryTitle": "➕ Añadir nueva categoría",
+      "subjectsComma": "Asignaturas (separadas por comas)",
+      "categoryPlaceholder": "Ej: Refuerzo, liberado",
+      "subjectsCommaHint": "Separa múltiples asignaturas con comas",
+      "addSubjectTitle": "➕ Añadir asignatura a categoría {index}",
+      "categoryAdded": "Categoría añadida con {count} asignaturas",
+      "deleteCategoryConfirm": "¿Eliminar categoría {index} con {count} asignaturas?",
+      "categoryDeleted": "Categoría eliminada",
+      "subjectDuplicate": "\"{subject}\" ya existe en la categoría {index}",
+      "subjectAdded": "\"{subject}\" añadida a la categoría {index}",
+      "deleteSubjectConfirm": "¿Eliminar \"{subject}\" de la categoría {index}?",
+      "subjectDeleted": "Asignatura \"{subject}\" eliminada",
+      "noSubstAdded": "Asignatura añadida a no sustituir",
+      "noSubstDeleted": "Asignatura eliminada de no sustituir"
+    },
+    "errors": {
+      "loadConfig": "No se ha podido cargar la configuración",
+      "uploadLogo": "No se ha podido subir el logo",
+      "savePriorities": "No se han podido guardar las prioridades",
+      "saveConfig": "No se ha podido guardar la configuración",
+      "loadXmlVersions": "No se han podido cargar las versiones de XML",
+      "saveXmlVersion": "No se ha podido guardar la versión de XML",
+      "deleteXmlVersion": "No se ha podido eliminar la versión de XML",
+      "saveAbbrev": "No se ha podido guardar la abreviatura",
+      "deleteAbbrev": "No se ha podido eliminar la abreviatura",
+      "saveAbsence": "No se ha podido guardar el profesor de baja",
+      "deleteAbsence": "No se ha podido eliminar el profesor de baja",
+      "addNoSubst": "No se ha podido añadir la asignatura",
+      "deleteNoSubst": "No se ha podido eliminar la asignatura",
+      "detectGroups": "No se han podido detectar los grupos",
+      "uploadXml": "No se ha podido subir el archivo",
+      "loadPdfs": "No se ha podido cargar la lista de PDFs",
+      "downloadPdf": "No se ha podido descargar el PDF",
+      "deletePdf": "No se ha podido eliminar el PDF"
+    },
+    "users": {
+      "title": "Gestión de usuarios",
+      "add": "Nuevo usuario",
+      "addTitle": "Añadir usuario",
+      "editTitle": "Editar usuario",
+      "username": "Nombre de usuario",
+      "password": "Contraseña",
+      "passwordOptional": "Déjala en blanco para no cambiarla",
+      "role": "Rol",
+      "institucio": "Institución",
+      "active": "Activo",
+      "activeYes": "Sí",
+      "activeNo": "No",
+      "saved": "Usuario guardado",
+      "loadError": "No se han podido cargar los usuarios",
+      "saveError": "No se ha podido guardar el usuario",
+      "deleteError": "No se ha podido desactivar el usuario",
+      "deleted": "Usuario eliminado",
+      "deactivated": "Usuario desactivado",
+      "deactivateTitle": "Desactivar usuario",
+      "deactivateConfirm": "¿Quieres desactivar el usuario {username}?",
+      "deactivateAction": "Desactivar",
+      "deleteTitle": "Eliminar usuario",
+      "deleteConfirm": "¿Quieres eliminar el usuario {username}? Esta acción no se puede deshacer.",
+      "sort": "Ordenar por nombre",
+      "filterInstitution": "Filtrar por institución",
+      "superAdminLocked": "El superadmin no se puede editar"
+    },
+    "confirm": {
+      "deleteXmlTitle": "Eliminar versión de XML",
+      "deleteXmlMessage": "¿Quieres eliminar la versión {path}?"
+    },
+    "institutions": {
+      "title": "Instituciones",
+      "add": "Nueva institución",
+      "addTitle": "Nueva institución",
+      "editTitle": "Editar institución",
+      "name": "Nombre visible",
+      "code": "Código",
+      "status": "Estado",
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "deactivate": "Desactivar",
+      "activate": "Activar",
+      "delete": "Eliminar",
+      "deactivateTitle": "Desactivar institución",
+      "activateTitle": "Activar institución",
+      "deleteTitle": "Eliminar institución",
+      "deactivateMessage": "Se desactivará {slug}. Escribe {confirm} para confirmar.",
+      "deleteMessage": "Se eliminará definitivamente {slug}. Escribe {confirm} para confirmar.",
+      "confirmLabel": "Confirmación",
+      "confirmMismatch": "La confirmación no coincide.",
+      "saved": "Institución guardada.",
+      "updated": "Institución actualizada.",
+      "saveError": "No se pudo guardar la institución.",
+      "codePlaceholder": "slug (ej: ejemplo_centro)",
+      "namePlaceholder": "Nombre visible"
+    }
+  },
+  "groups": {
+    "title": "🎓 Grupos sin clase",
+    "instructionsLine1": "Selecciona grupos y horas específicas donde NO tienen clase.",
+    "instructionsLine2": "💡 Haz clic en el nombre del grupo para marcar/desmarcar todas las horas.",
+    "all": "Todos",
+    "none": "Ninguno",
+    "eso": "ESO",
+    "batx": "Bach",
+    "groupClass": "Grupo/Clase",
+    "summary": "Total: {groups} grupos en {hours} horas",
+    "errors": {
+      "load": "Error al cargar la configuración de grupos",
+      "save": "No se ha podido guardar la configuración"
+    }
+  },
+  "substitutions": {
+    "title": "📋 Gestión de sustituciones",
+    "actions": {
+      "generatePending": "Generar pendientes",
+      "generatePendingHint": "Asigna solo las sustituciones pendientes, preservando las existentes",
+      "regenerateAll": "Regenerar todo",
+      "regenerateAllHint": "Regenera todas las sustituciones desde cero siguiendo el orden de prioridades",
+      "savePdf": "Guardar y PDF",
+      "savePdfHint": "Genera PDF completo del día (sustituciones + vigilancias)",
+      "deleteRow": "Eliminar esta hora",
+      "manageAbsences": "Gestionar ausencias del profesor",
+      "addNew": "Nueva"
+    },
+    "stats": {
+      "substitutionsLabel": "sustituciones",
+      "vigilanciesLabel": "vigilancias",
+      "assigned": "Asignadas",
+      "pending": "Pendientes"
+    },
+    "empty": {
+      "title": "No hay sustituciones para esta fecha",
+      "hint": "Haz clic en \"Generar automáticamente\" para crearlas"
+    },
+    "columns": {
+      "absentTeacher": "👤 Profesor ausente",
+      "substitute": "🔄 Sustituto",
+      "pickSubstitute": "Elige sustituto..."
+    },
+    "status": {
+      "assigned": "✓ Asignada",
+      "pending": "⏳ Pendiente"
+    },
+    "range": {
+      "onlyToday": "Solo hoy",
+      "until": "Hasta el",
+      "summary": "{count} días lectivos",
+      "daysRegistered": "días registrados para {teacher}"
+    },
+    "dialogs": {
+      "absences": {
+        "title": "📋 Gestionar ausencias",
+        "absentTeacher": "👤 Profesor ausente *",
+        "selectTeacher": "Selecciona profesor...",
+        "absentHours": "🕐 Horas de ausencia *",
+        "selectHours": "Selecciona horas...",
+        "hoursHint": "La asignatura y grupo se cargarán automáticamente del horario del profesor",
+        "isService": "Es por servicio",
+        "emptyWarning": "⚠️ Si no seleccionas ninguna hora, se eliminarán todas las ausencias de este profesor",
+        "absentTeacherLabel": "Profesor ausente *",
+        "normalHoursLabel": "Horas de ausencia",
+        "normalBadge": "Normal",
+        "serviceHoursLabel": "Horas de servicio",
+        "serviceBadge": "Servicio",
+        "selectNone": "Ninguna",
+        "selectAll": "Todas",
+        "todayAbsences": "Ausencias de hoy:",
+        "addAbsence": "+ Añadir ausencia"
+      },
+      "pdfValidation": {
+        "criticalTitle": "⚠️ Problemas críticos detectados - ¿Exportar PDF?",
+        "warningTitle": "📋 Avisos detectados - ¿Exportar PDF?",
+        "detectedIssues": "Problemas detectados:",
+        "critical": "🚨 CRÍTICOS:",
+        "warnings": "⚠️ AVISOS:",
+        "appliedChanges": "🔄 CAMBIOS APLICADOS:",
+        "totalIssues": "Total: {count} problemas detectados",
+        "continueQuestion": "🔍 ¿Quieres continuar con la exportación del PDF?",
+        "reassign": "Reasignar"
+      },
+      "pdf": {
+        "title": "📄 Exportar PDF completo",
+        "includeContent": "Contenido a incluir",
+        "substitutions": "Sustituciones",
+        "vigilancies": "Vigilancias",
+        "options": "Opciones de exportación",
+        "showComments": "Mostrar observaciones",
+        "showHours": "Mostrar columna horas",
+        "showConflicts": "Mostrar conflictos y avisos",
+        "compress": "Compresión automática",
+        "selectAtLeastOne": "⚠️ Debes seleccionar al menos un tipo de contenido (sustituciones o vigilancias)",
+        "selectAtLeastOneShort": "Debes seleccionar al menos un tipo de contenido",
+        "generate": "Generar PDF"
+      }
+    },
+    "confirm": {
+      "regenerateAllMessage": "⚠️ Esto regenerará todas las sustituciones desde cero siguiendo el orden de prioridades.\n\nTodas las asignaciones actuales se perderán.\n\n¿Quieres continuar?",
+      "regenerateAllTitle": "Confirmar regeneración",
+      "regenerateAllAccept": "Sí, regenerar",
+      "deleteAbsenceMessage": "¿Quieres eliminar la ausencia de {teacher} a las {hour}?",
+      "deleteAllAbsencesMessage": "¿Quieres eliminar todas las ausencias de {teacher}?",
+      "deleteAbsenceTitle": "Confirmar eliminación"
+    },
+    "messages": {
+      "substituteAssigned": "Sustituto asignado: {name}",
+      "commentSaved": "Observación guardada correctamente",
+      "absenceDeleted": "Ausencia de {teacher} a las {hour} eliminada",
+      "allAbsencesDeleted": "Todas las ausencias de {teacher} eliminadas",
+      "absencesSaved": "Ausencias de {teacher} actualizadas",
+      "vigilanciesUnassignedTitle": "Vigilancias añadidas a sustituciones",
+      "vigilanciesUnassignedDetail": "Se han creado {count} sustitución(es) de tipo VIGILANCIA para cubrir las vigilancias del profesor ausente.",
+      "pdfGeneratedTitle": "PDF generado",
+      "pdfGeneratedDetail": "Se ha descargado el PDF completo para {date}",
+      "reassignVigilanciesTitle": "Vigilancias reasignadas",
+      "reassignVigilanciesDetail": "Se han revisado {count} vigilancias problemáticas",
+      "reassignSubstitutionsTitle": "Sustituciones reasignadas",
+      "reassignSubstitutionsDetail": "Se han revisado {count} sustituciones problemáticas",
+      "reassignDoneTitle": "Reasignación hecha",
+      "reassignDoneDetail": "Todavía hay incidencias. Revisa la lista."
+    },
+    "senseCobertura": "Sin cobertura",
+    "pendentsSenseCobertura": "{n} sin cobertura",
+    "errors": {
+      "generatePending": "No se han podido generar las sustituciones pendientes",
+      "regenerateAll": "No se han podido regenerar las sustituciones",
+      "updateSubstitute": "No se ha podido actualizar el sustituto",
+      "saveComment": "No se ha podido guardar la observación",
+      "deleteAbsence": "No se ha podido eliminar la ausencia",
+      "selectTeacher": "Debes seleccionar un profesor",
+      "saveAbsences": "No se han podido guardar los cambios",
+      "validatePdf": "Error validando el PDF",
+      "generatePdf": "No se ha podido generar el PDF",
+      "reassignProblematics": "No se ha podido reasignar"
+    }
+  },
+  "examConfig": {
+    "title": "⚡ Configuración exámenes",
+    "tabs": {
+      "levels": "📊 Niveles",
+      "groups": "👥 Grupos",
+      "subjects": "📖 Asignaturas",
+      "rooms": "🚪 Aulas",
+      "assignments": "📝 Asignaciones",
+      "affinities": "🧭 Afinidades"
+    },
+    "levels": {
+      "count": "{count} niveles",
+      "empty": "No hay niveles configurados",
+      "hint": "Los niveles determinan la estructura organizativa (1-ESO, 2-ESO, 1-BACH, etc.)",
+      "addTitle": "➕ Añadir nivel",
+      "codeLabel": "Código del nivel",
+      "codePlaceholder": "Ej: 3-BACH, CFGM, etc.",
+      "added": "Nivel añadido correctamente",
+      "deleted": "Nivel eliminado correctamente",
+      "deleteConfirmMessage": "¿Quieres eliminar el nivel \"{code}\"? Esto eliminará también todas sus asignaturas y grupos."
+    },
+    "groups": {
+      "selectLevel": "Selecciona nivel",
+      "empty": "No hay grupos para este nivel",
+      "selectLevelHint": "Selecciona un nivel para ver los grupos",
+      "addTitle": "➕ Añadir grupo",
+      "codeLabel": "Código del grupo",
+      "codePlaceholder": "Ej: 1-ESO-A",
+      "added": "Grupo añadido correctamente",
+      "deleted": "Grupo eliminado correctamente",
+      "deleteConfirmMessage": "¿Quieres eliminar el grupo \"{code}\"?"
+    },
+    "subjects": {
+      "selectLevel": "Selecciona nivel",
+      "empty": "No hay asignaturas para este nivel",
+      "selectLevelHint": "Selecciona un nivel para ver las asignaturas",
+      "addTitle": "➕ Añadir asignatura",
+      "nameLabel": "Nombre de la asignatura",
+      "namePlaceholder": "Ej: MATEMÁTICAS",
+      "added": "Asignatura añadida correctamente",
+      "deleted": "Asignatura eliminada correctamente",
+      "deleteConfirmMessage": "¿Quieres eliminar la asignatura \"{name}\"?"
+    },
+    "rooms": {
+      "count": "{count} aulas",
+      "empty": "No hay aulas configuradas",
+      "addTitle": "➕ Añadir aula",
+      "codeLabel": "Código del aula",
+      "codePlaceholder": "Ej: A01",
+      "added": "Aula añadida correctamente",
+      "deleted": "Aula eliminada correctamente",
+      "deleteConfirmMessage": "¿Quieres eliminar el aula \"{code}\"?"
+    },
+    "assignments": {
+      "filterLevel": "Filtrar por nivel:",
+      "filterSubject": "Filtrar por asignatura:",
+      "count": "{shown} / {total}",
+      "newRow": "Nueva fila",
+      "selectSubject": "Selecciona asignatura",
+      "selectGroup": "Selecciona grupo",
+      "owner": "Titular",
+      "selectTeacher": "Selecciona profesor",
+      "selectRoom": "Selecciona aula",
+      "created": "Asignación creada correctamente",
+      "updated": "Asignación actualizada",
+      "deleted": "Asignación eliminada correctamente",
+      "deleteConfirmMessage": "¿Quieres eliminar esta asignación?"
+    },
+    "affinities": {
+      "title": "Orden de proximidad por prefijo de grupo",
+      "subtitle": "Formato: BASE | BASE,PROP1,PROP2,...",
+      "base": "Prefijo base",
+      "order": "Orden de proximidad",
+      "orderPlaceholder": "Ej: BAC2,BAC1,ESO4,ESO3,ESO2,ESO1",
+      "flowInfo": "Flujo de asignación: 1) mismo grupo, 2) mismo prefijo, 3) prefijos cercanos, 4) liberados sin prefijo, 5) disponibles (si se activa).",
+      "saved": "Afinidades guardadas correctamente"
+    },
+    "errors": {
+      "loadLevels": "No se han podido cargar los niveles",
+      "addLevel": "No se ha podido añadir el nivel",
+      "deleteLevel": "No se ha podido eliminar el nivel",
+      "addSubject": "No se ha podido añadir la asignatura",
+      "deleteSubject": "No se ha podido eliminar la asignatura",
+      "addGroup": "No se ha podido añadir el grupo",
+      "deleteGroup": "No se ha podido eliminar el grupo",
+      "addRoom": "No se ha podido añadir el aula",
+      "deleteRoom": "No se ha podido eliminar el aula",
+      "createAssignment": "No se ha podido crear la asignación",
+      "updateAssignment": "No se ha podido actualizar",
+      "deleteAssignment": "No se ha podido eliminar la asignación",
+      "saveAffinities": "No se han podido guardar las afinidades"
+    }
+  },
+  "vigilancies": {
+    "title": "👁️ Vigilancias de exámenes",
+    "loading": "Cargando vigilancias...",
+    "actions": {
+      "new": "Nueva vigilancia",
+      "newHint": "Añade una nueva vigilancia de examen",
+      "assignOwners": "Asignar titulares",
+      "assignOwnersHint": "Asigna solo titulares liberados/disponibles",
+      "assignPending": "Asignar pendientes",
+      "assignPendingHint": "Asigna vigilancias pendientes con puntuación inteligente",
+      "clear": "Limpiar",
+      "clearHint": "Limpia todas las asignaciones de vigilantes",
+      "deleteSelected": "Eliminar seleccionadas ({count})",
+      "deleteSelectedHint": "Elimina las vigilancias seleccionadas",
+      "sort": "Ordenar",
+      "sortHint": "Ordena vigilancias por hora",
+      "exportPdf": "Exportar PDF",
+      "exportPdfHint": "Genera PDF de vigilancias del día",
+      "exportInterval": "PDF intervalo",
+      "exportIntervalHint": "Genera PDF de intervalo de fechas",
+      "addRow": "Añadir vigilancia"
+    },
+    "filters": {
+      "level": "Filtrar por nivel",
+      "hour": "Filtrar por hora",
+      "status": "Estado"
+    },
+    "stats": {
+      "assigned": "Asignadas",
+      "pending": "Pendientes"
+    },
+    "empty": {
+      "title": "No hay vigilancias programadas para esta fecha",
+      "hint": "Haz clic en \"➕ Nueva vigilancia\" para añadir una"
+    },
+    "columns": {
+      "level": "📊 Nivel",
+      "type": "📝 Tipo",
+      "supervisor": "👤 Vigilante"
+    },
+    "placeholders": {
+      "level": "-- Nivel --",
+      "type": "-- Tipo --",
+      "groups": "-- Grupos --",
+      "room": "-- Aula --",
+      "supervisor": "-- Selecciona vigilante --",
+      "supervisorSelect": "-- Selecciona vigilante --",
+      "hour": "Selecciona hora",
+      "groupsSelect": "Selecciona grupos",
+      "roomSelect": "Selecciona aula",
+      "notes": "Observaciones..."
+    },
+    "dialogs": {
+      "newTitle": "➕ Nueva vigilancia",
+      "hourLabel": "Hora *",
+      "levelLabel": "Nivel",
+      "typeLabel": "Tipo de examen",
+      "groupsLabel": "Grupos",
+      "roomLabel": "Aula",
+      "supervisorLabel": "Vigilante",
+      "selectHourFirst": "Primero selecciona una hora",
+      "pdfTitle": "📄 Exportar PDF vigilancias",
+      "levelsLabel": "Niveles a incluir *",
+      "levelsPlaceholder": "Selecciona niveles",
+      "levelsHint": "Selecciona los niveles a incluir en el PDF",
+      "options": "Opciones",
+      "showComments": "Mostrar columna observaciones",
+      "showHours": "Mostrar columna horas",
+      "showHoursShort": "Mostrar horas",
+      "compress": "Compresión automática",
+      "generatePdf": "Generar PDF",
+      "intervalTitle": "📅 Exportar PDF intervalo",
+      "startDateLabel": "Fecha inicio *",
+      "startDate": "Fecha inicio",
+      "endDateLabel": "Fecha final *",
+      "endDate": "Fecha final",
+      "includeWeekends": "Incluir fines de semana",
+      "includeEmpty": "Incluir días vacíos",
+      "includeSubstitucions": "Incluir sustituciones generadas"
+    },
+    "confirm": {
+      "deleteMessage": "¿Quieres eliminar la vigilancia de las {hour}?",
+      "assignAvailableMessage": "📋 Se han asignado {assigned} profesores liberados.\n\nTodavía quedan {pending} vigilancias pendientes.\n\n¿Quieres asignar también profesores disponibles (guardia, libres, etc.)?",
+      "assignAvailableTitle": "¿Asignar disponibles?",
+      "assignAvailableAccept": "✅ Sí, asignar {count} disponibles",
+      "assignAvailableReject": "❌ No, dejar pendientes",
+      "clearMessage": "🗑️ ¿Quieres limpiar todas las asignaciones de vigilantes?\n\nSolo se eliminarán los profesores asignados, manteniendo asignaturas y aulas.",
+      "clearTitle": "Confirmar limpieza",
+      "clearAccept": "Sí, limpiar",
+      "deleteSelectedMessage": "¿Quieres eliminar las {count} vigilancias seleccionadas?"
+    },
+    "messages": {
+      "updated": "Vigilancia actualizada correctamente",
+      "created": "Vigilancia creada correctamente",
+      "added": "Vigilancia añadida correctamente",
+      "deleted": "Vigilancia eliminada correctamente",
+      "deletedSelected": "{count} vigilancias eliminadas correctamente",
+      "deletedSelectedPartial": "{ok} vigilancias eliminadas, {errors} errores",
+      "assignOwnersTitle": "Asignación completada",
+      "assignedFreeTitle": "Liberados asignados",
+      "assignedFreeDetail": "✅ Se han asignado {count} profesores liberados",
+      "availableAssignedTitle": "Disponibles asignados",
+      "allAssignedTitle": "Todo asignado",
+      "allAssignedDetail": "🎉 ¡Todas las vigilancias están asignadas!",
+      "clearedTitle": "Limpiado",
+      "sortedTitle": "Ordenado",
+      "pdfGeneratedTitle": "PDF generado",
+      "pdfGeneratedDetail": "El PDF se ha descargado correctamente",
+      "pdfIntervalTitle": "PDF generado",
+      "pdfIntervalDetail": "El PDF de intervalo se ha descargado correctamente"
+    },
+    "errors": {
+      "load": "Error al cargar las vigilancias",
+      "update": "No se ha podido actualizar la vigilancia",
+      "create": "No se ha podido crear la vigilancia",
+      "delete": "No se ha podido eliminar la vigilancia",
+      "assignOwners": "No se han podido asignar los titulares",
+      "assignAvailable": "No se han podido asignar los disponibles",
+      "assignFree": "No se han podido asignar los liberados",
+      "clear": "No se han podido limpiar las asignaciones",
+      "sort": "No se han podido ordenar las vigilancias",
+      "generatePdf": "No se ha podido generar el PDF",
+      "datesRequiredTitle": "Fechas requeridas",
+      "datesRequired": "Debes seleccionar fecha de inicio y fecha final",
+      "levelsRequiredTitle": "Niveles requeridos",
+      "levelsRequired": "Debes seleccionar al menos un nivel",
+      "dateFormatTitle": "Error de formato",
+      "dateFormat": "Las fechas seleccionadas no son válidas",
+      "generatePdfInterval": "No se ha podido generar el PDF de intervalo"
+    }
+  },
+  "help": {
+    "title": "Ayuda - Gestor de Sustituciones",
+    "footerVersion": "v1.0.0 | FastAPI + Vue 3 + PrimeVue",
+    "tabs": {
+      "intro": "Introducción",
+      "substitutions": "Sustituciones",
+      "vigilancies": "Vigilancias",
+      "config": "Configuración",
+      "tips": "Consejos"
+    },
+    "intro": {
+      "welcomeTitle": "Bienvenido al Gestor de Sustituciones",
+      "welcomeBody": "Esta aplicación web permite gestionar sustituciones y vigilancias de exámenes para instituciones educativas.",
+      "featuresTitle": "Características principales:",
+      "features": {
+        "items": {
+          "substitutions": "Gestión automática de sustituciones con prioridades",
+          "vigilancies": "Asignación inteligente de vigilancias de exámenes",
+          "groups": "Control de grupos sin clase",
+          "pdf": "Generación de PDF para comunicación",
+          "stats": "Estadísticas e informes"
+        }
+      },
+      "navigationTitle": "Navegación:",
+      "navigationBody": "Usa las pestañas superiores para cambiar entre:",
+      "navigation": {
+        "items": {
+          "substitutionsTitle": "Sustituciones",
+          "substitutionsBody": "Gestión de ausencias y asignación de sustitutos",
+          "groupsTitle": "Grupos sin clase",
+          "groupsBody": "Definir qué grupos están liberados por hora",
+          "vigilanciesTitle": "Vigilancias",
+          "vigilanciesBody": "Organizar vigilancias de exámenes"
+        }
+      }
+    },
+    "substitutions": {
+      "title": "Gestión de Sustituciones",
+      "generatePending": {
+        "title": "Generar pendientes",
+        "body": "Asigna automáticamente solo las sustituciones pendientes, manteniendo las asignaciones existentes. Es útil para añadir nuevas ausencias sin recalcularlo todo."
+      },
+      "regenerate": {
+        "title": "Regenerar todo",
+        "body": "Regenera todas las sustituciones desde cero siguiendo el orden de prioridades configurado. <strong>Atención:</strong> esto eliminará todas las asignaciones manuales actuales."
+      },
+      "newAbsence": {
+        "title": "Nueva ausencia",
+        "body": "Añade o modifica las ausencias de un profesor para el día seleccionado. Puedes seleccionar múltiples horas e indicar si es por servicio."
+      },
+      "savePdf": {
+        "title": "Guardar y PDF",
+        "body": "Genera un PDF completo con sustituciones y/o vigilancias del día. El sistema valida posibles conflictos antes de generar el documento."
+      },
+      "assignManual": {
+        "title": "Asignar sustituto manualmente",
+        "body": "Haz clic en el desplegable de «Sustituto» para ver todos los profesores disponibles. Los colores indican el estado:",
+        "colors": {
+          "free": {
+            "title": "Verde",
+            "body": "Liberado (prioridad alta)"
+          },
+          "guard": {
+            "title": "Azul",
+            "body": "En guardia"
+          },
+          "available": {
+            "title": "Amarillo",
+            "body": "Disponible"
+          },
+          "assigned": {
+            "title": "Rojo",
+            "body": "Ya asignado (evitar)"
+          }
+        }
+      }
+    },
+    "vigilancies": {
+      "title": "Vigilancias de Exámenes",
+      "new": {
+        "title": "Nueva vigilancia",
+        "body": "Crea una nueva vigilancia indicando hora, nivel, tipo de examen, grupos y aula. El vigilante se puede asignar manualmente o dejar en blanco para asignación automática."
+      },
+      "assignOwners": {
+        "title": "Asignar titulares",
+        "body": "Fase 1 de la asignación automática. Asigna solo profesores titulares que tienen clase con el grupo examinado y están liberados. <strong>Preferencia:</strong> titular con el grupo > titular liberado."
+      },
+      "assignPending": {
+        "title": "Asignar pendientes",
+        "body": "Fase 2 de la asignación automática en dos pasadas:",
+        "steps": {
+          "free": {
+            "title": "Liberados",
+            "body": "Asigna profesores liberados restantes"
+          },
+          "available": {
+            "title": "Disponibles",
+            "body": "Si quedan pendientes, pregunta si quiere asignar profesores disponibles (guardia, libres)"
+          }
+        }
+      },
+      "export": {
+        "title": "Exportar PDF",
+        "body": "Genera un PDF de vigilancias para el día seleccionado. Puedes elegir:",
+        "items": {
+          "levels": "Niveles a incluir (1-ESO, 2-BACH, etc.)",
+          "comments": "Mostrar/ocultar observaciones y horas",
+          "compress": "Compresión automática para PDF grandes"
+        }
+      },
+      "interval": {
+        "title": "PDF intervalo",
+        "body": "Genera un único PDF con vigilancias de múltiples días. Es útil para planificar periodos de exámenes completos."
+      }
+    },
+    "config": {
+      "title": "Configuración del Sistema",
+      "general": {
+        "title": "Configuración general",
+        "body": "Accede mediante el botón de configuración (⚙️) en la barra superior.",
+        "items": {
+          "institution": {
+            "title": "Institución",
+            "body": "Directorio de datos a utilizar"
+          },
+          "language": {
+            "title": "Idioma",
+            "body": "Catalán, español o inglés"
+          },
+          "xml": {
+            "title": "Path XML",
+            "body": "Archivo de horario generado por FET"
+          },
+          "export": {
+            "title": "Directorio de exportación",
+            "body": "Dónde se guardan los PDF"
+          }
+        }
+      },
+      "exam": {
+        "title": "Configuración de exámenes",
+        "body": "Accede mediante el botón de configuración de exámenes (⚡).",
+        "items": {
+          "subjects": {
+            "title": "Asignaturas",
+            "body": "Gestiona asignaturas por nivel"
+          },
+          "groups": {
+            "title": "Grupos",
+            "body": "Añade o elimina grupos por nivel"
+          },
+          "rooms": {
+            "title": "Aulas",
+            "body": "Lista de aulas disponibles"
+          }
+        }
+      }
+    },
+    "tips": {
+      "title": "Consejos y buenas prácticas",
+      "substitutions": {
+        "title": "Flujo de trabajo recomendado para sustituciones",
+        "steps": {
+          "selectDate": "Selecciona la fecha en el calendario superior",
+          "addAbsence": "Añade ausencias con «➕ Nueva»",
+          "generate": "Haz clic en «⚡ Generar pendientes» para asignar automáticamente",
+          "review": "Revisa y ajusta manualmente si es necesario",
+          "pdf": "Genera un PDF para comunicar al profesorado"
+        }
+      },
+      "vigilancies": {
+        "title": "Optimizar vigilancias de exámenes",
+        "items": {
+          "define": "Primero define todas las vigilancias del día",
+          "assignOwners": "Ejecuta «🎯 Asignar titulares» para cubrir con profesorado del grupo",
+          "assignPending": "Después «📋 Asignar pendientes» para completar",
+          "adjust": "Ajusta manualmente los casos especiales"
+        }
+      },
+      "groups": {
+        "title": "Grupos sin clase",
+        "body": "Configura correctamente los grupos liberados por cada hora. Esto mejora la asignación automática de sustituciones y vigilancias, ya que el sistema prioriza al profesorado liberado."
+      },
+      "filters": {
+        "title": "Filtros y búsqueda",
+        "body": "En la vista de vigilancias puedes filtrar por:",
+        "items": {
+          "level": "Nivel (1-ESO, 2-BACH, etc.)",
+          "hour": "Hora",
+          "status": "Estado (asignadas / pendientes)"
+        }
+      }
+    }
+  },
+  "stats": {
+    "title": "Estadísticas",
+    "period": {
+      "start": "Fecha de inicio",
+      "end": "Fecha final",
+      "datePlaceholder": "AAAA-MM-DD",
+      "refresh": "Actualizar"
+    },
+    "loading": "Cargando estadísticas...",
+    "tabs": {
+      "summary": "Resumen",
+      "temporal": "Temporales",
+      "classes": "Clases",
+      "informes": "Informes PDF"
+    },
+    "informes": {
+      "direccio": {
+        "titol": "Informe de dirección",
+        "desc": "Informe global de ausencias, sustituciones y vigilancias del período seleccionado.",
+        "btn": "Generar y descargar PDF"
+      },
+      "professor": {
+        "titol": "Informe por profesor",
+        "desc": "Grid horario para cada profesor con ausencias y sustituciones realizadas.",
+        "tots": "Todos los profesores",
+        "taules": "Incluir tablas de detalle",
+        "btn": "Generar y descargar PDF"
+      },
+      "error": "No se ha podido generar el informe"
+    },
+    "summary": {
+      "totalAbsences": "Ausencias totales",
+      "totalVigilancies": "Vigilancias totales",
+      "daysWithSubs": "Días con sustituciones",
+      "daysWithVigs": "Días con vigilancias",
+      "perTeacher": "Detalle por profesor",
+      "perTeacherHint": "Haz clic en un profesor para ver el detalle por días",
+      "substitutionsDetail": "{count} sustituciones ({percent}%)",
+      "vigilanciesDetail": "{count} asignadas ({percent}%)",
+      "topAbsences": "Top 5 ausencias",
+      "topSubstitutions": "Top 5 sustituciones"
+    },
+    "columns": {
+      "teacher": "Profesor",
+      "absNormal": "Aus. normales",
+      "absBreak": "Aus. patio",
+      "absOther": "Otras aus.",
+      "absTotal": "Total aus.",
+      "subsNormal": "Subs. normales",
+      "subsBreak": "Subs. patio",
+      "subsTotal": "Total subs.",
+      "ratio": "Ratio S/A",
+      "score": "Puntuación"
+    },
+    "temporal": {
+      "byDay": "Distribución por día",
+      "byHour": "Distribución por hora",
+      "legendSubs": "Sustituciones",
+      "legendVigs": "Vigilancias",
+      "summaryBySlot": "Resumen por franjas"
+    },
+    "classes": {
+      "detailButton": "Análisis detallado por clase",
+      "columns": {
+        "class": "Clase",
+        "totalSubs": "Total sustituciones",
+        "topSubject": "Asignatura más afectada",
+        "topTeacher": "Profesor más ausente",
+        "hours": "Horas"
+      },
+      "detailTitle": "Análisis detallado por clase",
+      "detailClasses": "Clases",
+      "detailPlaceholder": "Selecciona clases...",
+      "detailLoading": "Cargando detalle...",
+      "summary": {
+        "totalHours": "Total horas: {count}",
+        "topSubject": "Asignatura top: {name} ({total})",
+        "topTeacher": "Profesor top: {name} ({total})",
+        "topSubstitute": "Sustituto top: {name} ({total})",
+        "groupTotal": "{group}: {total}"
+      },
+      "selectionRequired": "Selección necesaria",
+      "selectAtLeastOne": "Selecciona al menos una clase"
+    },
+    "detail": {
+      "title": "Detalle de {name}",
+      "loading": "Cargando detalle...",
+      "absencesTitle": "Ausencias",
+      "substitutionsTitle": "Sustituciones",
+      "emptyAbsences": "Sin ausencias",
+      "emptySubs": "Sin sustituciones",
+      "columns": {
+        "day": "Día",
+        "date": "Fecha",
+        "hour": "Hora",
+        "group": "Grupo",
+        "subject": "Asignatura",
+        "substitute": "Sustituto",
+        "absenceType": "Tipo",
+        "absentTeacher": "Profesor ausente",
+        "substituteType": "Tipo sustituto"
+      }
+    },
+    "slots": {
+      "title": "Resumen por franjas",
+      "day": "Día",
+      "hour": "Hora",
+      "selectDay": "Selecciona un día",
+      "selectHour": "Selecciona una hora",
+      "loading": "Cargando resumen...",
+      "summarySlots": "Franjas: {count}",
+      "summarySubs": "Sustituciones: {count}",
+      "columns": {
+        "concurrentSubs": "Sustituciones simultáneas",
+        "teachers": "Profesores"
+      }
+    },
+    "errors": {
+      "load": "No se han podido cargar las estadísticas",
+      "slots": "No se ha podido cargar el resumen por franjas",
+      "teacherDetail": "No se ha podido cargar el detalle del profesor",
+      "classesDetail": "No se ha podido cargar el detalle por clases"
+    }
+  },
+  "scheduler": {
+    "title": "Planificador de exámenes",
+    "subtitle": "Entorno de pruebas del planificador basado en la configuración actual.",
+    "back": "Volver al gestor",
+    "loading": "Cargando información del planificador...",
+    "errorLoad": "No se ha podido cargar el estado del planificador",
+    "errorGenerate": "No se ha podido generar el horario",
+    "noAccess": "No tienes permisos para ver el planificador",
+    "statusTitle": "Estado del motor",
+    "statusLabel": "Disponibilidad",
+    "statusAvailable": "Disponible",
+    "statusMissing": "Pendiente de importar",
+    "enginePath": "Ruta del motor",
+    "message": "Mensaje",
+    "configTitle": "Configuración actual",
+    "generateTitle": "Generar horario",
+    "selectDays": "Días seleccionados",
+    "selectedDays": "Días seleccionados",
+    "clearDays": "Limpiar días",
+    "noDaysSelected": "No hay días seleccionados.",
+    "generateAction": "Generar horario",
+    "resultTitle": "Resultado",
+    "resultEmpty": "Todavía no se ha generado ningún horario.",
+    "restrictionsTitle": "Restricciones",
+    "restrictionsHint": "Edita las restricciones de exámenes y guárdalas en la base de datos.",
+    "restrictionsSave": "Guardar restricciones",
+    "restrictionsInvalid": "El formato JSON no es válido.",
+    "restrictionsSaveError": "No se han podido guardar las restricciones.",
+    "restrictions": {
+      "noSameSlot": "Incompatibilidades (no mismo slot)",
+      "fixedDay": "Asignaturas con día fijo",
+      "fixedHour": "Asignaturas con hora fija",
+      "groupPlaceholder": "Grupo o clave",
+      "subjectsPlaceholder": "Asignaturas",
+      "subjectPlaceholder": "Asignatura",
+      "dayPlaceholder": "Día",
+      "hourPlaceholder": "Hora",
+      "add": "Añadir",
+      "empty": "Sin restricciones"
+    },
+    "days": {
+      "monday": "Lunes",
+      "tuesday": "Martes",
+      "wednesday": "Miércoles",
+      "thursday": "Jueves",
+      "friday": "Viernes",
+      "saturday": "Sábado",
+      "sunday": "Domingo"
+    },
+    "summary": {
+      "cost": "Coste total",
+      "substitutions": "Sustituciones ESO",
+      "days": "Días necesarios",
+      "before": "Profesores antes",
+      "after": "Profesores después"
+    },
+    "motors": {
+      "v3": "Optimización progresiva",
+      "v2": "Mejor de muchos intentos",
+      "v2-backtrack": "Exploración exhaustiva (Backtracking)",
+      "advancedParams": "Parámetros avanzados",
+      "generate": "Generar Horario",
+      "params": {
+        "temperatura_inicial": {
+          "label": "Temperatura inicial",
+          "help": "Controla la exploración inicial (más alto = más exploración)"
+        },
+        "temperatura_final": {
+          "label": "Temperatura final",
+          "help": "Punto donde se detiene el refinamiento"
+        },
+        "factor_refredament": {
+          "label": "Factor de enfriamiento",
+          "help": "Velocidad de convergencia (cerca de 1 = más lento pero mejor)"
+        },
+        "iteracions_per_temperatura": {
+          "label": "Iteraciones por temperatura",
+          "help": "Pruebas por cada nivel de temperatura"
+        },
+        "max_iteracions": {
+          "label": "Límite global de iteraciones",
+          "help": "Número máximo total de iteraciones"
+        },
+        "estrategia": {
+          "label": "Estrategia",
+          "help": "Cómo se prioriza la búsqueda",
+          "options": {
+            "ponderada": "Ponderada",
+            "epsilon_greedy": "Epsilon Greedy",
+            "greedy": "Greedy"
+          }
+        },
+        "max_intents_validacio": {
+          "label": "Número de intentos",
+          "help": "Cuántas soluciones se prueban para encontrar la mejor"
+        },
+        "epsilon": {
+          "label": "Epsilon",
+          "help": "Probabilidad de aceptar peores soluciones (exploración)"
+        },
+        "random_seed": {
+          "label": "Semilla aleatoria",
+          "help": "Cambia el resultado del backtracking (misma semilla = misma solución)"
+        },
+        "seeds_count": {
+          "label": "Número de semillas",
+          "help": "Probar múltiples semillas y quedarse con la mejor solución"
+        }
+      }
+    },
+    "editable": {
+      "totalCost": "Coste total",
+      "levelConflictsDetected": "Conflictos de nivel detectados",
+      "pinAll": "Fijar todo",
+      "unpinAll": "Desfijar todo",
+      "pinCount": "{count} fijado/s",
+      "pin": "Fijar",
+      "unpin": "Desfijar",
+      "actions": {
+        "undo": "Deshacer",
+        "apply": "Aplicar"
+      },
+      "staging": {
+        "itemsTitle": "Zona de aparcado (ítems)",
+        "itemsHint": "Arrastra ítems individuales aquí",
+        "itemsEmpty": "Arrastra ítems individuales aquí",
+        "groupsTitle": "Zona de aparcado (agrupaciones)",
+        "groupsHint": "Arrastra desde la cabecera del grupo (⋮⋮)",
+        "groupsEmpty": "Arrastra agrupaciones completas aquí",
+        "dragWholeGroup": "Arrastra para mover toda la agrupación",
+        "moreItems": "{count} más"
+      },
+      "table": {
+        "hour": "Hora",
+        "dragHere": "Arrastra aquí"
+      },
+      "breakdown": {
+        "title": "Desglose",
+        "substitucions": "Sustituciones",
+        "abans_jornada": "Antes de jornada",
+        "despres_jornada": "Después de jornada",
+        "no_treballa_dia": "No trabaja",
+        "limit_dies_professor": "Límite días prof.",
+        "profCount": "{count} prof."
+      },
+      "toasts": {
+        "levelConflictTitle": "Conflicto de nivel",
+        "levelConflictDetail": "Ya hay un examen de {level} en este slot",
+        "recalcErrorTitle": "Error",
+        "recalcErrorDetail": "No se ha podido recalcular el coste",
+        "pendingConflictsTitle": "Conflictos pendientes",
+        "pendingConflictsDetail": "Resuelve los conflictos de nivel antes de aplicar",
+        "changesAppliedTitle": "Cambios aplicados",
+        "changesAppliedDetail": "Nuevo coste: {cost}"
+      }
+    },
+    "duplicatesTitle": "Profesores con exámenes simultáneos",
+    "sessionCount": "{count} sesiones",
+    "levels": "Niveles",
+    "subjects": "Asignaturas",
+    "groups": "Grupos",
+    "rooms": "Aulas",
+    "assignments": "Asignaciones",
+    "publish": {
+      "title": "Publicar vigilancias",
+      "description": "Se crearán vigilancias para las siguientes fechas a partir del horario generado:",
+      "week": "Semana",
+      "day": "Día",
+      "date": "Fecha",
+      "exams": "Exámenes",
+      "examGroups": "Grupos exam.",
+      "freeGroupsTitle": "Grupos sin clase (liberados)",
+      "freeGroupsDesc": "Selecciona los niveles que no tienen clase durante los exámenes. Todos los grupos del nivel serán marcados como liberados.",
+      "groupsLabel": "grupos:",
+      "totalFreeGroups": "Total grupos liberados:",
+      "durationTitle": "Duración del examen",
+      "durationDesc": "Número de horas lectivas que dura cada examen. Los grupos liberados se crearán para todas las horas que dure el examen.",
+      "hourSingular": "hora lectiva",
+      "hourPlural": "horas lectivas",
+      "schoolHours": "Horas del centro:",
+      "optionClear": "Limpiar vigilancias existentes para estas fechas",
+      "optionAutoAssign": "Asignar titulares automáticamente",
+      "successTitle": "Publicación completada",
+      "errorTitle": "Error en la publicación",
+      "datesProcessed": "Fechas procesadas:",
+      "vigilanciesCreated": "Vigilancias creadas:",
+      "vigilanciesUpdated": "Vigilancias actualizadas:",
+      "vigilanciesUnchanged": "Vigilancias sin cambios:",
+      "vigilanciesDeleted": "Vigilancias eliminadas:",
+      "freeGroupsCreated": "Grupos liberados:",
+      "titularsAssigned": "Titulares asignados:",
+      "errors": "Errores:",
+      "goToVigilancies": "Ir a Vigilancias",
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "back": "Atrás",
+      "previewButton": "Previsualizar",
+      "previewTitle": "Resumen de cambios previstos",
+      "previewDesc": "Esto es lo que pasará cuando confirmes la publicación. Todavía no se ha escrito nada en la base de datos.",
+      "confirmPublish": "Confirmar publicación",
+      "publishButton": "Publicar"
+    },
+    "view": {
+      "title": "Planificador Gemini",
+      "subtitle": "Gestión universal de horarios de exámenes",
+      "steps": {
+        "dates": "Fechas",
+        "groups": "Agrupaciones",
+        "restrictions": "Restricciones",
+        "analysis": "Análisis",
+        "generation": "Generación"
+      },
+      "analysis": {
+        "tabs": {
+          "perSlot": {
+            "title": "Por Hora/Día",
+            "desc": "Para cada hora y día: agrupaciones ordenadas por coste (óptimas, buenas y aceptables)."
+          },
+          "perGroup": {
+            "title": "Por Agrupación",
+            "desc": "Para cada agrupación: todos los slots disponibles con el coste y los detalles de impacto."
+          },
+          "teachersPerSlot": {
+            "title": "Profesores por Slot",
+            "desc": "Disponibles y liberados para cada slot, según los niveles activos."
+          }
+        }
+      },
+      "actions": {
+        "printPdf": "Imprimir (PDF)",
+        "attempts": "Intentos",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "saveChanges": "Guardar cambios"
+      },
+      "defaults": {
+        "groupName": "Grupo {index}"
+      },
+      "validations": {
+        "selectTeacher": "Selecciona un profesor",
+        "selectSubjects": "Selecciona asignaturas",
+        "selectSubject": "Selecciona asignatura",
+        "selectDayOrHour": "Marca día y/o hora",
+        "selectDay": "Selecciona un día",
+        "selectHour": "Selecciona una hora",
+        "selectAtLeastTwoSubjects": "Selecciona al menos 2 asignaturas",
+        "writeGroupName": "Escribe el nombre del grupo",
+        "selectAtLeastOneSubject": "Selecciona al menos 1 asignatura"
+      },
+      "weights": {
+        "restriccioDura": {
+          "label": "Restricción dura",
+          "desc": "Penaliza violaciones de restricciones obligatorias."
+        },
+        "preferenciaMateixDia": {
+          "label": "Preferencia mismo día",
+          "desc": "Bonifica/penaliza tener asignaturas el mismo día."
+        },
+        "preferenciaMateixSlot": {
+          "label": "Preferencia mismo slot",
+          "desc": "Bonifica/penaliza compartir el mismo slot."
+        },
+        "preferenciaDiesDiferents": {
+          "label": "Preferencia días diferentes",
+          "desc": "Bonifica/penaliza separar asignaturas en días diferentes."
+        }
+      },
+      "costs": {
+        "substitucioDesc": "Coste por profesor con clase durante el examen.",
+        "abansJornadaDesc": "Coste si el profesor viene antes de su horario.",
+        "despresJornadaDesc": "Coste si el profesor sale más tarde de su horario.",
+        "noTreballaDiaDesc": "Coste si el profesor no trabaja ese día."
+      },
+      "messages": {
+        "configSaved": "Configuración guardada",
+        "vigilanciesPublished": "Publicadas {count} vigilancias",
+        "scheduleUpdated": "Horario actualizado",
+        "localChangesApplied": "Los cambios se han aplicado localmente",
+        "notViable": "No viable",
+        "notViableDetail": "{message} ({items} items > {slots} slots)"
+      }
+    },
+    "steps": {
+      "config": {
+        "title": "Configuración de exámenes por nivel",
+        "levelsLabel": "Niveles a planificar",
+        "levelsPlaceholder": "Elige niveles...",
+        "examDaysTitle": "Días de examen",
+        "durationLabel": "Duración:",
+        "durationHoursSuffix": "hora/s",
+        "freeAndStartTitle": "Sin clase e 🟦 Inicio de examen",
+        "legend": {
+          "free": "Sin clase",
+          "start": "Inicio de examen"
+        },
+        "menu": {
+          "allReleased": "Todo liberado",
+          "releasedAndStart": "Liberado + inicio",
+          "clearRow": "Limpiar fila",
+          "deleteDay": "Eliminar día",
+          "clearColumn": "Limpiar columna"
+        },
+        "confirm": {
+          "deleteSavedConfigMessage": "El día {day} tiene configuración guardada. ¿Quieres borrarla?"
+        },
+        "noDatesMessage": "Selecciona fechas en el calendario para configurar las franjas sin clase.",
+        "noLevelsMessage": "Selecciona los niveles que quieres planificar."
+      },
+      "groups": {
+        "title": "Agrupaciones de exámenes",
+        "subtitle": "Define los paquetes que deben colocarse como una sola unidad.",
+        "filterPlaceholder": "Selecciona nivel",
+        "description": "Puedes añadir asignaturas sueltas o grupos. Filtra por nivel para trabajar más rápido.",
+        "ungroupedTitle": "Asignaturas sueltas (no agrupadas)",
+        "emptyMessage": "Ninguna agrupación definida",
+        "columns": {
+          "name": "Nombre",
+          "subjects": "Asignaturas"
+        }
+      },
+      "restrictions": {
+        "tabs": {
+          "durades": "Duraciones",
+          "teachers": "Profesores",
+          "daysHours": "Días/Horas",
+          "strictSchedule": "Horarios estrictos",
+          "dayPreferences": "Preferencias de día",
+          "incompatibilities": "Incompatibilidades",
+          "weights": "Pesos"
+        },
+        "durades": {
+          "title": "Duraciones en el examen",
+          "globalLabel": "Duración titular por defecto:",
+          "globalSuffix": "hora/s que supervisa el titular",
+          "examGlobalLabel": "Duración examen por defecto:",
+          "examGlobalSuffix": "hora/s que dura el examen (alumnos)",
+          "exceptionsTitle": "Grupos de duración personalizada",
+          "exceptionsDesc": "Asignaturas que necesitan duraciones diferentes al defecto. Puedes agrupar varias con la misma duración.",
+          "emptyMessage": "Ningún grupo definido. Todas las asignaturas usan la duración por defecto.",
+          "columns": {
+            "name": "Nombre",
+            "session": "Asignaturas",
+            "duration": "Titular (h)",
+            "examDuration": "Examen (h)"
+          },
+          "dialog": {
+            "titleAdd": "Añadir grupo de duración",
+            "titleEdit": "Editar grupo de duración",
+            "nameLabel": "Nombre del grupo (opcional)",
+            "namePlaceholder": "p.ej. Exámenes largos...",
+            "sessionsLabel": "Asignaturas",
+            "sessionsPlaceholder": "Selecciona asignaturas...",
+            "durationLabel": "Duración del titular",
+            "durationSuffix": "hora/s supervisando",
+            "examDurationLabel": "Duración del examen",
+            "examDurationSuffix": "hora/s para los alumnos"
+          }
+        },
+        "teachers": {
+          "title": "Limitar exámenes por profesor en días específicos",
+          "description": "Limita cuántos exámenes de un profesor pueden estar en días específicos.",
+          "example": "Ejemplo: Cognom_M → máx. 2 exámenes (Lu‑Ma), peso 50.",
+          "emptyMessage": "Ninguna restricción de profesor definida",
+          "columns": {
+            "professor": "Profesor",
+            "subjects": "Asignaturas",
+            "restrictedDays": "Días restringidos",
+            "max": "Máx",
+            "weight": "Peso"
+          }
+        },
+        "daysHours": {
+          "title": "Asignaturas fijadas o prohibidas en un día y/u hora específicos",
+          "description": "Fija asignaturas a un slot concreto (modo Fijar) o prohíbe que caigan en él (modo Prohibir). Ejemplo: Inglés → Prohibir Viernes 11:30.",
+          "emptyMessage": "Ninguna restricción de día/hora definida",
+          "columns": {
+            "type": "Tipo",
+            "subjects": "Asignaturas",
+            "day": "Día",
+            "hour": "Hora"
+          }
+        },
+        "strictSchedule": {
+          "description": "Profesores que NO pueden venir antes ni salir después de su horario habitual"
+        },
+        "dayPreferences": {
+          "title": "Preferencias: mismo día o días diferentes (con peso individual)",
+          "description": "Ejemplo: Modalidades 1.x en días diferentes (peso 100).",
+          "emptyMessage": "Ninguna preferencia de día definida",
+          "columns": {
+            "subjects": "Asignaturas",
+            "type": "Tipo",
+            "weightPercent": "Peso %"
+          },
+          "type": {
+            "sameDay": "Mismo día",
+            "sameSlot": "Mismo día y hora",
+            "differentDays": "Días diferentes"
+          }
+        },
+        "incompatibilities": {
+          "title": "Grupos de asignaturas que NO pueden coincidir en el mismo slot",
+          "description": "Grupos de asignaturas que no pueden coincidir en el mismo día y hora (slot). Útil para evitar exámenes simultáneos de un mismo profesor.",
+          "example": "Ejemplo: Mates → Modalidad 1.1 (1), Modalidad 2.1 (2), FILOSOFÍA 1.",
+          "emptyMessage": "Ninguna incompatibilidad definida",
+          "columns": {
+            "groupName": "Nombre grupo",
+            "subjects": "Asignaturas incompatibles",
+            "weight": "Peso"
+          }
+        },
+        "weights": {
+          "title": "Pesos de optimización"
+        },
+        "costs": {
+          "title": "Costes de profesores",
+          "description": "Estos costes se muestran en las incidencias y se usan para calcular el coste total.",
+          "addIndividual": "Añadir coste individual",
+          "individualEmptyMessage": "Ningún coste individual definido",
+          "columns": {
+            "professor": "Profesor",
+            "subst": "Sust.",
+            "before": "Antes",
+            "after": "Después",
+            "noWork": "No trab"
+          }
+        }
+      },
+      "analysis": {
+        "title": "Análisis de posibilidades",
+        "subtitle": "Analiza qué agrupaciones pueden colocarse en cada slot y qué profesores están disponibles.",
+        "actions": {
+          "analyze": "Analizar disponibilidad",
+          "printPdf": "Imprimir (PDF)"
+        },
+        "tabs": {
+          "byHourDay": "Por Hora/Día",
+          "byGrouping": "Por Agrupación",
+          "teachersPerSlot": "Profesores por Slot"
+        },
+        "substitutionsTitle": "Sustituciones",
+        "teachersPrefix": "Profesores:",
+        "pills": {
+          "optimal": "Óptimas",
+          "good": "Buenas",
+          "acceptable": "Aceptables"
+        },
+        "columns": {
+          "category": "Categoría",
+          "groupings": "Agrupaciones",
+          "day": "Día",
+          "hour": "Hora",
+          "subs": "Sust",
+          "before": "Antes",
+          "after": "Después",
+          "noWork": "No trab",
+          "details": "Detalles",
+          "availableCount": "Disponibles ({count})",
+          "releasedCount": "Liberados ({count})"
+        },
+        "hourPrefix": "Hora {hour}",
+        "noneShort": "(Ninguno)",
+        "noneReason": "(Todos los profesores tienen clase de otros niveles o no tienen actividad)"
+      },
+      "results": {
+        "motorLabel": "Motor",
+        "motorHelp": "Selecciona el perfil de cálculo principal.",
+        "advancedParamsToggle": "Parámetros avanzados",
+        "runHelp": "Ejecuta el cálculo con la configuración actual.",
+        "generatingTitle": "Analizando alternativas...",
+        "statsTitle": "Estadísticas",
+        "incidentsTitle": "Incidencias detectadas ({count})",
+        "noIncidents": "No se han detectado incidencias.",
+        "weekLabel": "Semana {num}",
+        "actions": {
+          "generateSchedule": "Generar horario",
+          "viewMode": "Visualizar",
+          "editMode": "Editar"
+        },
+        "kpis": {
+          "totalCost": "Coste total",
+          "placedExams": "Exámenes colocados",
+          "substitutions": "Sustituciones",
+          "before": "Llegan antes",
+          "after": "Se quedan después"
+        },
+        "incidents": {
+          "groups": {
+            "conflicts": "Conflictos (niveles diferentes)",
+            "substitutions": "Sustituciones necesarias",
+            "stayLate": "Se quedan más tiempo",
+            "arriveEarly": "Llegan antes",
+            "links": "Enlaces (mismo nivel)",
+            "zoneExam": "Zona examen (sin titular, sin coste)",
+            "others": "Otros"
+          },
+          "short": {
+            "before": "antes",
+            "after": "después",
+            "first": "primera",
+            "last": "última",
+            "noWork": "no trabaja",
+            "cost": "coste",
+            "exams": "exámenes"
+          },
+          "full": {
+            "substitution": "{teacher} → debe ser sustituido en {subject} con {group} a las {hour} el {day}",
+            "manage": "{teacher} → gestiona {count} {exams} de {level} a las {hour} el {day}: {subject}",
+            "arriveEarly": "{teacher} → llega antes a las {hour} el {day} (primera hora: {firstHour})",
+            "stayLate": "{teacher} → se queda más tiempo a las {hour} el {day} (última hora: {lastHour})",
+            "noWork": "{teacher} → no trabaja ese día a las {hour} el {day}"
+          }
+        },
+        "otherLevel": "Otros"
+      }
+    },
+    "dialogs": {
+      "restriction": {
+        "editTitle": "Editar restricción",
+        "newTitle": "Nueva restricción"
+      },
+      "preference": {
+        "editTitle": "Editar preferencia",
+        "newTitle": "Nueva preferencia",
+        "weightHelp": "100% = obligatorio, 0-99% = preferencia"
+      },
+      "incompatibility": {
+        "editTitle": "Editar incompatibilidad",
+        "newTitle": "Nueva incompatibilidad"
+      },
+      "grouping": {
+        "editTitle": "Editar agrupación",
+        "newTitle": "Nueva agrupación",
+        "namePlaceholder": "Ej: Inglés 1 + Inglés 2"
+      },
+      "cost": {
+        "editTitle": "Editar coste individual",
+        "newTitle": "Nuevo coste individual",
+        "fields": {
+          "substitution": "Sustitución",
+          "beforeShift": "Antes jornada",
+          "afterShift": "Después jornada",
+          "noWorkDay": "No trabaja día"
+        }
+      },
+      "attempts": {
+        "title": "Registro de intentos",
+        "shownBest": "Horario mostrado: mejor intento #{intent} (coste {cost})",
+        "shownLast": "Horario mostrado: último intento (coste {cost})",
+        "emptyMessage": "Sin intentos",
+        "columns": {
+          "cost": "Coste",
+          "best": "Mejor",
+          "sessions": "Ses.",
+          "substitutions": "Sust.",
+          "before": "Antes",
+          "after": "Después",
+          "valid": "Válido"
+        }
+      },
+      "incompatibilities": {
+        "title": "Incompatibilidades detectadas",
+        "defaultMessage": "No es posible colocar todos los exámenes",
+        "undetermined": "No se han podido determinar las incompatibilidades."
+      },
+      "daysHours": {
+        "typeLabel": "Modo",
+        "typeFix": "Fijar",
+        "typeProhibit": "Prohibir"
+      },
+      "fields": {
+        "teacher": "Profesor",
+        "subjects": "Asignaturas",
+        "sessionsPlaceholder": "Elige sesiones...",
+        "restrictedDays": "Días restringidos",
+        "maxExams": "Máximo exámenes",
+        "weightPercent": "Peso (%)",
+        "subject": "Asignatura",
+        "fixedDay": "Día fijo",
+        "fixedHour": "Hora fija",
+        "type": "Tipo",
+        "groupName": "Nombre del grupo",
+        "incompatibleSubjects": "Asignaturas incompatibles",
+        "optionalName": "Nombre (opcional)"
+      }
+    }
+  }
+}

@@ -1,0 +1,136 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor backups
+*.po~
+*.png~
+
+# Backend dades locals (nova estructura: data/ al root)
+backend/gestor.db
+backend/exports/
+data/auth.db
+data/demo/
+data/*/exports/
+
+# Només mantenim dades d'exemple
+data/*/
+!data/exemple/
+!data/exemple/**
+
+# Google Sheets credentials (sensible)
+data/google_credentials.json
+
+# Logs
+*.log
+data/*.log
+
+# Exports generats
+exports/
+export/*.pdf
+
+# Configuracions locals específiques de cada escola
+config/config.json
+
+# Backups
+*.backup
+*.bak
+
+# Compiled translations (generat automàticament)
+# locales/*/LC_MESSAGES/*.mo  # Comentat: Els .mo s'han d'incloure per distribució
+
+# PyInstaller
+*.spec
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# XML horaris locals (cada escola té el seu)
+*.xml
+!exam_scheduler/example.xml
+!data/exemple/teachers.xml
+.aider*
+*.zip
+*.tar.gz
+gestor-backup_*/
+
+# Entorns locals i secrets
+.env
+.env_server
+.env.production
+
+# Fitxers de configuració del servidor (usa *.example per compartir)
+Caddyfile
+docker-compose.yml
+scripts/sync-server.sh
+
+# Dades locals del centre (no pujar mai a git)
+arxius_desktop/
+arxius_data_backup/
+
+# Arxius i carpetes d'arxiu
+_archive/
+
+# Fitxers de bloqueig LibreOffice
+.~lock.*.odt#
+.~lock.*.ods#
+
+# Fitxers generats / locals
+horari_*.odt
+plantilla_*.odt
+frontend/.vite/
+backend/data/*.db
+backend/data/*.db-*
+backend/data/*.log
+frontend/node_modules/
+
+# Scripts d'anonimització (contenen noms reals, ús intern)
+
+# Scripts de migració one-shot i dead code (ús intern)
+backend/migrate_*.py
+backend/migrations/
+backend/routes/horaris_dist.py
+backend/test_api.py
+data/exemple/gestor.db

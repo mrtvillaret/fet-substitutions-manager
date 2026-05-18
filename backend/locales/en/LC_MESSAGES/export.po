@@ -1,0 +1,246 @@
+# English translations for Gestor Substitucions - Export package.
+msgid ""
+msgstr ""
+"Project-Id-Version: Gestor Substitucions - Export 2.5.5\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Informe de Substitucions"
+msgstr "Substitution Report"
+
+msgid "Informe individual de substitucions"
+msgstr "Individual substitution report"
+
+msgid "Informe generat el {timestamp} · {nom_centre}"
+msgstr "Report generated on {timestamp} · {nom_centre}"
+
+msgid "Evolució mensual"
+msgstr "Monthly evolution"
+
+msgid "Professors amb més absències"
+msgstr "Teachers with most absences"
+
+msgid "Evolució d'absències per professor i mes"
+msgstr "Absence evolution by teacher and month"
+
+msgid "Evolució de substitucions fetes per professor i mes"
+msgstr "Substitutions made evolution by teacher and month"
+
+msgid "Professors que han fet més substitucions"
+msgstr "Teachers with most substitutions made"
+
+msgid "Impacte per grup i nivell"
+msgstr "Impact by group and level"
+
+msgid "Resum per nivell"
+msgstr "Summary by level"
+
+msgid "Evolució d'absències per grup i mes"
+msgstr "Absence evolution by group and month"
+
+msgid "Distribució per dia de la setmana i hora"
+msgstr "Distribution by weekday and hour"
+
+msgid "Distribució per dia i hora"
+msgstr "Distribution by day and hour"
+
+msgid "Vigilàncies d'examen"
+msgstr "Exam supervisions"
+
+msgid "Absències"
+msgstr "Absences"
+
+msgid "Absències reals"
+msgstr "Real absences"
+
+msgid "Absències pròpies"
+msgstr "Own absences"
+
+msgid "Absències (triangle sup)"
+msgstr "Absences (top triangle)"
+
+msgid "Serveis"
+msgstr "Services"
+
+msgid "Serveis / comissions"
+msgstr "Services / commissions"
+
+msgid "Substitucions"
+msgstr "Substitutions"
+
+msgid "Substitucions fetes"
+msgstr "Substitutions made"
+
+msgid "Substitucions fetes (triangle inf)"
+msgstr "Substitutions made (bottom triangle)"
+
+msgid "Cobertura"
+msgstr "Coverage"
+
+msgid "Cobertes"
+msgstr "Covered"
+
+msgid "Baixes"
+msgstr "Sick leaves"
+
+msgid "Dies amb incid."
+msgstr "Days with incid."
+
+msgid "Mes"
+msgstr "Month"
+
+msgid "Total incid."
+msgstr "Total incid."
+
+msgid "Hora"
+msgstr "Hour"
+
+msgid "Dia"
+msgstr "Day"
+
+msgid "Data"
+msgstr "Date"
+
+msgid "Grup"
+msgstr "Group"
+
+msgid "Grups"
+msgstr "Groups"
+
+msgid "Nivell"
+msgstr "Level"
+
+msgid "Niv."
+msgstr "Lev."
+
+msgid "Assignatura"
+msgstr "Subject"
+
+msgid "Tipus"
+msgstr "Type"
+
+msgid "Substitut"
+msgstr "Substitute"
+
+msgid "Professor absent"
+msgstr "Absent teacher"
+
+msgid "Professor/a"
+msgstr "Teacher"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Tot."
+msgstr "Tot."
+
+msgid "TOTAL"
+msgstr "TOTAL"
+
+msgid "Abs"
+msgstr "Abs"
+
+msgid "Serv"
+msgstr "Serv"
+
+msgid "% sobre total"
+msgstr "% of total"
+
+msgid "Concepte"
+msgstr "Concept"
+
+msgid "Pendent"
+msgstr "Pending"
+
+msgid "Pendents"
+msgstr "Pending"
+
+msgid "Subs. fetes"
+msgstr "Subs. made"
+
+msgid "Absència"
+msgstr "Absence"
+
+msgid "Servei"
+msgstr "Service"
+
+msgid "Vig. absent"
+msgstr "Sup. absent"
+
+msgid "Cap absència registrada."
+msgstr "No absences recorded."
+
+msgid "Cap substitució feta."
+msgstr "No substitution made."
+
+msgid "Cap dada disponible."
+msgstr "No data available."
+
+msgid "Total vigilàncies programades"
+msgstr "Total scheduled supervisions"
+
+msgid "Vigilants absents (cobertura necessària)"
+msgstr "Absent supervisors (coverage needed)"
+
+msgid "Vigilants absents coberts"
+msgstr "Absent supervisors covered"
+
+msgid "Vigilants absents pendents"
+msgstr "Absent supervisors pending"
+
+msgid "Intensitat de color: proporció d'absències respecte al màxim del curs"
+msgstr "Color intensity: proportion of absences relative to course maximum"
+
+msgid "Intensitat de color: proporció respecte al màxim del curs"
+msgstr "Color intensity: proportion relative to course maximum"
+
+msgid "Intensitat: proporció respecte al màxim del curs"
+msgstr "Intensity: proportion relative to course maximum"
+
+msgid "* Mostrant els {top} primers de {total} professors"
+msgstr "* Showing the top {top} of {total} teachers"
+
+msgid "Dilluns"
+msgstr "Monday"
+
+msgid "Dimarts"
+msgstr "Tuesday"
+
+msgid "Dimecres"
+msgstr "Wednesday"
+
+msgid "Dijous"
+msgstr "Thursday"
+
+msgid "Divendres"
+msgstr "Friday"
+
+msgid "Dissabte"
+msgstr "Saturday"
+
+msgid "Diumenge"
+msgstr "Sunday"
+
+msgid "Dll"
+msgstr "Mon"
+
+msgid "Dmt"
+msgstr "Tue"
+
+msgid "Dmc"
+msgstr "Wed"
+
+msgid "Djo"
+msgstr "Thu"
+
+msgid "Div"
+msgstr "Fri"
+
+msgid "Període"
+msgstr "Period"
+
+msgid "Generat"
+msgstr "Generated"

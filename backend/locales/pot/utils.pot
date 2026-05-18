@@ -1,0 +1,242 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-23 18:01+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: utils/exception_chain.py:64
+msgid "operació desconeguda"
+msgstr ""
+
+#: utils/exception_chain.py:65
+msgid "Error inesperat"
+msgstr ""
+
+#: utils/exception_chain.py:66
+msgid "Excepció no gestionada"
+msgstr ""
+
+#: utils/exception_chain.py:87
+msgid "Error en {}"
+msgstr ""
+
+#: utils/exception_chain.py:138 utils/exception_chain.py:145
+msgid "accés a fitxer"
+msgstr ""
+
+#: utils/exception_chain.py:139
+msgid "Fitxer no trobat. Comprova que el fitxer existeix."
+msgstr ""
+
+#: utils/exception_chain.py:146
+msgid "Permisos insuficients per accedir al fitxer."
+msgstr ""
+
+#: utils/exception_chain.py:153
+msgid "processament de dades"
+msgstr ""
+
+#: utils/exception_chain.py:154
+msgid "Error en format de dades. Comprova l'entrada."
+msgstr ""
+
+#: utils/exception_chain.py:161
+msgid "connexió externa"
+msgstr ""
+
+#: utils/exception_chain.py:162
+msgid "Error de connexió. Comprova la connectivitat."
+msgstr ""
+
+#: utils/exception_chain.py:176
+msgid "descodificació JSON"
+msgstr ""
+
+#: utils/exception_chain.py:177
+msgid "Format de fitxer corrupte. Regenera el fitxer."
+msgstr ""
+
+#: utils/exception_chain.py:184
+msgid "accés a dades"
+msgstr ""
+
+#: utils/exception_chain.py:185
+msgid "Dada no trobada. Comprova la configuració."
+msgstr ""
+
+#: utils/exception_chain.py:192
+msgid "tipus de dades"
+msgstr ""
+
+#: utils/exception_chain.py:193
+msgid "Error en tipus de dada. Comprova l'entrada."
+msgstr ""
+
+#: utils/exception_chain.py:206
+msgid "accés a llista"
+msgstr ""
+
+#: utils/exception_chain.py:207
+msgid "Índex fora de rang. Comprova les dades."
+msgstr ""
+
+#: utils/exception_chain.py:214
+msgid "accés a propietat"
+msgstr ""
+
+#: utils/exception_chain.py:215
+msgid "Propietat no trobada. Comprova l'objecte."
+msgstr ""
+
+#: utils/exception_chain.py:222
+msgid "càlcul matemàtic"
+msgstr ""
+
+#: utils/exception_chain.py:223
+msgid "Divisió per zero. Comprova els valors."
+msgstr ""
+
+#: utils/grups_utils.py:65
+msgid "⚠️ No existeix {}"
+msgstr ""
+
+#: utils/grups_utils.py:72
+msgid "✅ Carregades {} abreviatures de grups des de {}"
+msgstr ""
+
+#: utils/grups_utils.py:75
+msgid "❌ Error en descodificar JSON de {}: {}"
+msgstr ""
+
+#: utils/grups_utils.py:78
+msgid "⚠️ Error en carregar abreviatures de {}: {}"
+msgstr ""
+
+#: utils/unsaved_changes.py:96
+msgid "Error en comparar substitucions: {}"
+msgstr ""
+
+#: utils/unsaved_changes.py:106
+msgid "Canvis no desats"
+msgstr ""
+
+#: utils/unsaved_changes.py:112
+msgid "⚠️ Canvis no desats al dia {}"
+msgstr ""
+
+#: utils/unsaved_changes.py:124 utils/unsaved_changes.py:186
+msgid "🆕 NOVES SUBSTITUCIONS:\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:126 utils/unsaved_changes.py:136
+#: utils/unsaved_changes.py:188 utils/unsaved_changes.py:198
+#, python-brace-format
+msgid "  • {hora} - {absent} ({assignatura}, {grup}) → {substitut}\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:130 utils/unsaved_changes.py:140
+#: utils/unsaved_changes.py:192 utils/unsaved_changes.py:202
+#, python-brace-format
+msgid "    💬 Comentari: {comentaris}\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:134 utils/unsaved_changes.py:196
+msgid "🗑️ SUBSTITUCIONS ELIMINADES:\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:144 utils/unsaved_changes.py:206
+msgid "✏️ SUBSTITUCIONS MODIFICADES:\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:146 utils/unsaved_changes.py:208
+#, python-brace-format
+msgid "  • {hora} - {absent} ({assignatura}, {grup})\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:151 utils/unsaved_changes.py:213
+#, python-brace-format
+msgid "    Substitut: {anterior} → {actual}\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:152 utils/unsaved_changes.py:153
+#: utils/unsaved_changes.py:158 utils/unsaved_changes.py:159
+#: utils/unsaved_changes.py:214 utils/unsaved_changes.py:215
+#: utils/unsaved_changes.py:220 utils/unsaved_changes.py:221
+msgid "(buit)"
+msgstr ""
+
+#: utils/unsaved_changes.py:157 utils/unsaved_changes.py:219
+#, python-brace-format
+msgid "    💬 Comentari: {anterior} → {actual}\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:167
+msgid "🆕 NOVES ABSÈNCIES:\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:169 utils/unsaved_changes.py:175
+#, python-brace-format
+msgid "  • {absent}\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:173
+msgid "🗑️ ABSÈNCIES ELIMINADES:\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:179
+msgid "🔄 CANVIS DE TIPUS D'ABSÈNCIA:\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:181
+#, python-brace-format
+msgid "  • {canvi}\n"
+msgstr ""
+
+#: utils/unsaved_changes.py:226
+msgid "No s'han detectat canvis."
+msgstr ""
+
+#: utils/unsaved_changes.py:234
+msgid "💾 Desar canvis"
+msgstr ""
+
+#: utils/unsaved_changes.py:235
+msgid "🗑️ Descartar canvis"
+msgstr ""
+
+#: utils/unsaved_changes.py:236
+msgid "❌ Cancel·lar"
+msgstr ""
+
+#: utils/unsaved_changes.py:341
+msgid "Error en comparar absents: {}"
+msgstr ""
+
+#: utils/unsaved_changes.py:386
+msgid "Error en comparar grups: {}"
+msgstr ""
+
+#: utils/unsaved_changes.py:441
+msgid "💾 Canvis desats i sincronitzats"
+msgstr ""
+
+#: utils/unsaved_changes.py:444
+msgid "❌ Error en desar canvis"
+msgstr ""
+
+#: utils/unsaved_changes.py:453
+msgid "Error en comprovar canvis no desats: {}"
+msgstr ""

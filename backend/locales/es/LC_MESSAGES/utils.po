@@ -1,0 +1,266 @@
+# Spanish translations for Gestor Substitucions - Utils package.
+# Copyright (C) 2025 THE Gestor Substitucions - Utils'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Gestor Substitucions - Utils package.
+# Automatically generated, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Gestor Substitucions - Utils 2.5.5\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-20 12:51+0100\n"
+"PO-Revision-Date: 2025-12-13 00:29+0100\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: utils/exception_chain.py:64
+msgid "operació desconeguda"
+msgstr "operación desconocida"
+
+#: utils/exception_chain.py:65
+msgid "Error inesperat"
+msgstr "Error inesperado"
+
+#: utils/exception_chain.py:66
+msgid "Excepció no gestionada"
+msgstr "Excepción no gestionada"
+
+#: utils/exception_chain.py:87
+msgid "Error en {}"
+msgstr "Error en {}"
+
+#: utils/exception_chain.py:138 utils/exception_chain.py:145
+msgid "accés a fitxer"
+msgstr "acceso a archivo"
+
+#: utils/exception_chain.py:139
+msgid "Fitxer no trobat. Comprova que el fitxer existeix."
+msgstr "Archivo no encontrado. Comprueba que el archivo existe."
+
+#: utils/exception_chain.py:146
+msgid "Permisos insuficients per accedir al fitxer."
+msgstr "Permisos insuficientes para acceder al archivo."
+
+#: utils/exception_chain.py:153
+msgid "processament de dades"
+msgstr "procesamiento de datos"
+
+#: utils/exception_chain.py:154
+msgid "Error en format de dades. Comprova l'entrada."
+msgstr "Error en formato de datos. Comprueba la entrada."
+
+#: utils/exception_chain.py:161
+msgid "connexió externa"
+msgstr "conexión externa"
+
+#: utils/exception_chain.py:162
+msgid "Error de connexió. Comprova la connectivitat."
+msgstr "Error de conexión. Comprueba la conectividad."
+
+#: utils/exception_chain.py:176
+msgid "descodificació JSON"
+msgstr "decodificación JSON"
+
+#: utils/exception_chain.py:177
+msgid "Format de fitxer corrupte. Regenera el fitxer."
+msgstr "Formato de archivo corrupto. Regenera el archivo."
+
+#: utils/exception_chain.py:184
+msgid "accés a dades"
+msgstr "acceso a datos"
+
+#: utils/exception_chain.py:185
+msgid "Dada no trobada. Comprova la configuració."
+msgstr "Dato no encontrado. Comprueba la configuración."
+
+#: utils/exception_chain.py:192
+msgid "tipus de dades"
+msgstr "tipo de datos"
+
+#: utils/exception_chain.py:193
+msgid "Error en tipus de dada. Comprova l'entrada."
+msgstr "Error en tipo de dato. Comprueba la entrada."
+
+#: utils/exception_chain.py:206
+msgid "accés a llista"
+msgstr "acceso a lista"
+
+#: utils/exception_chain.py:207
+msgid "Índex fora de rang. Comprova les dades."
+msgstr "Índice fuera de rango. Comprueba los datos."
+
+#: utils/exception_chain.py:214
+msgid "accés a propietat"
+msgstr "acceso a propiedad"
+
+#: utils/exception_chain.py:215
+msgid "Propietat no trobada. Comprova l'objecte."
+msgstr "Propiedad no encontrada. Comprueba el objeto."
+
+#: utils/exception_chain.py:222
+msgid "càlcul matemàtic"
+msgstr "cálculo matemático"
+
+#: utils/exception_chain.py:223
+msgid "Divisió per zero. Comprova els valors."
+msgstr "División por cero. Comprueba los valores."
+
+#: utils/grups_utils.py:65
+msgid "⚠️ No existeix {}"
+msgstr "⚠️ No existe {}"
+
+#: utils/grups_utils.py:72
+msgid "✅ Carregades {} abreviatures de grups des de {}"
+msgstr "✅ Cargadas {} abreviaturas de grupos desde {}"
+
+#: utils/grups_utils.py:75
+msgid "❌ Error en descodificar JSON de {}: {}"
+msgstr "❌ Error al descodificar JSON de {}: {}"
+
+#: utils/grups_utils.py:78
+msgid "⚠️ Error en carregar abreviatures de {}: {}"
+msgstr "⚠️ Error al cargar abreviaturas de {}: {}"
+
+#: utils/unsaved_changes.py:96
+msgid "Error en comparar substitucions: {}"
+msgstr "Error al comparar sustituciones: {}"
+
+#: utils/unsaved_changes.py:106
+msgid "Canvis no desats"
+msgstr "Cambios no guardados"
+
+#: utils/unsaved_changes.py:112
+msgid "⚠️ Canvis no desats al dia {}"
+msgstr "⚠️ Cambios no guardados en el día {}"
+
+#: utils/unsaved_changes.py:124 utils/unsaved_changes.py:186
+msgid "🆕 NOVES SUBSTITUCIONS:\n"
+msgstr "🆕 NUEVAS SUSTITUCIONES:\n"
+
+#: utils/unsaved_changes.py:126 utils/unsaved_changes.py:136
+#: utils/unsaved_changes.py:188 utils/unsaved_changes.py:198
+#, python-brace-format
+msgid "  • {hora} - {absent} ({assignatura}, {grup}) → {substitut}\n"
+msgstr "  • {hora} - {absent} ({assignatura}, {grup}) → {substitut}\n"
+
+#: utils/unsaved_changes.py:130 utils/unsaved_changes.py:140
+#: utils/unsaved_changes.py:192 utils/unsaved_changes.py:202
+#, python-brace-format
+msgid "    💬 Comentari: {comentaris}\n"
+msgstr "    💬 Comentario: {comentaris}\n"
+
+#: utils/unsaved_changes.py:134 utils/unsaved_changes.py:196
+msgid "🗑️ SUBSTITUCIONS ELIMINADES:\n"
+msgstr "🗑️ SUSTITUCIONES ELIMINADAS:\n"
+
+#: utils/unsaved_changes.py:144 utils/unsaved_changes.py:206
+msgid "✏️ SUBSTITUCIONS MODIFICADES:\n"
+msgstr "✏️ SUSTITUCIONES MODIFICADAS:\n"
+
+#: utils/unsaved_changes.py:146 utils/unsaved_changes.py:208
+#, python-brace-format
+msgid "  • {hora} - {absent} ({assignatura}, {grup})\n"
+msgstr "  • {hora} - {absent} ({assignatura}, {grup})\n"
+
+#: utils/unsaved_changes.py:151 utils/unsaved_changes.py:213
+#, python-brace-format
+msgid "    Substitut: {anterior} → {actual}\n"
+msgstr "    Sustituto: {anterior} → {actual}\n"
+
+#: utils/unsaved_changes.py:152 utils/unsaved_changes.py:153
+#: utils/unsaved_changes.py:158 utils/unsaved_changes.py:159
+#: utils/unsaved_changes.py:214 utils/unsaved_changes.py:215
+#: utils/unsaved_changes.py:220 utils/unsaved_changes.py:221
+msgid "(buit)"
+msgstr "(vacío)"
+
+#: utils/unsaved_changes.py:157 utils/unsaved_changes.py:219
+#, python-brace-format
+msgid "    💬 Comentari: {anterior} → {actual}\n"
+msgstr "    💬 Comentario: {anterior} → {actual}\n"
+
+#: utils/unsaved_changes.py:167
+msgid "🆕 NOVES ABSÈNCIES:\n"
+msgstr "🆕 NUEVAS AUSENCIAS:\n"
+
+#: utils/unsaved_changes.py:169 utils/unsaved_changes.py:175
+#, python-brace-format
+msgid "  • {absent}\n"
+msgstr "  • {absent}\n"
+
+#: utils/unsaved_changes.py:173
+msgid "🗑️ ABSÈNCIES ELIMINADES:\n"
+msgstr "🗑️ AUSENCIAS ELIMINADAS:\n"
+
+#: utils/unsaved_changes.py:179
+msgid "🔄 CANVIS DE TIPUS D'ABSÈNCIA:\n"
+msgstr "🔄 CAMBIOS DE TIPO DE AUSENCIA:\n"
+
+#: utils/unsaved_changes.py:181
+#, python-brace-format
+msgid "  • {canvi}\n"
+msgstr "  • {canvi}\n"
+
+#: utils/unsaved_changes.py:226
+msgid "No s'han detectat canvis."
+msgstr "No se han detectado cambios."
+
+#: utils/unsaved_changes.py:234
+msgid "💾 Desar canvis"
+msgstr "💾 Guardar cambios"
+
+#: utils/unsaved_changes.py:235
+msgid "🗑️ Descartar canvis"
+msgstr "🗑️ Descartar cambios"
+
+#: utils/unsaved_changes.py:236
+msgid "❌ Cancel·lar"
+msgstr "❌ Cancelar"
+
+#: utils/unsaved_changes.py:341
+msgid "Error en comparar absents: {}"
+msgstr "Error al comparar ausentes: {}"
+
+#: utils/unsaved_changes.py:386
+msgid "Error en comparar grups: {}"
+msgstr "Error al comparar ausentes: {}"
+
+#: utils/unsaved_changes.py:441
+msgid "💾 Canvis desats i sincronitzats"
+msgstr "💾 Cambios guardados y sincronizados"
+
+#: utils/unsaved_changes.py:444
+msgid "❌ Error en desar canvis"
+msgstr "❌ Error al guardar cambios"
+
+#: utils/unsaved_changes.py:453
+msgid "Error en comprovar canvis no desats: {}"
+msgstr "Error al comprobar cambios no guardados: {}"
+
+#~ msgid "Sense connexió a Internet"
+#~ msgstr "Sin conexión a Internet"
+
+#~ msgid "Temps d'espera esgotat connectant a Google Sheets"
+#~ msgstr "Tiempo de espera agotado conectando a Google Sheets"
+
+#~ msgid "Error d'autenticació amb Google Sheets"
+#~ msgstr "Error de autenticación con Google Sheets"
+
+#~ msgid "Error de connexió amb Google Sheets"
+#~ msgstr "Error de conexión con Google Sheets"
+
+#~ msgid "Error desconegut durant la sincronització"
+#~ msgstr "Error desconocido durante la sincronización"
+
+#~ msgid "Permisos insuficients per modificar Google Sheets"
+#~ msgstr "Permisos insuficientes para modificar Google Sheets"
+
+#~ msgid "Límit de peticions a Google Sheets exhaurit"
+#~ msgstr "Límite de peticiones a Google Sheets agotado"
+
+#~ msgid "Error: {error}"
+#~ msgstr "Error en {}"

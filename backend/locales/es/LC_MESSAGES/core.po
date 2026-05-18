@@ -1,0 +1,287 @@
+# Spanish translations for Gestor Substitucions - Core package.
+# Copyright (C) 2025 THE Gestor Substitucions - Core'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Gestor Substitucions - Core package.
+# Automatically generated, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-23 18:01+0100\n"
+"PO-Revision-Date: 2025-12-13 00:00+0100\n"
+"Last-Translator: Claude AI\n"
+"Language-Team: es <LL@li.org>\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Generated-By: Babel 2.17.0\n"
+"X-Generator: Poedit 3.8\n"
+
+#: core/absencies.py:34 core/substitucions.py:93
+msgid "   🔄 Convertit dia ISO a nom XML: '{}'"
+msgstr "   📄 Convertido día ISO a nombre XML: '{}'"
+
+#: core/absencies.py:36 core/substitucions.py:95
+msgid "⚠️ Error en convertir dia ISO: {}"
+msgstr "⚠️ Error al convertir día ISO: {}"
+
+#: core/alliberats.py:47
+#, python-brace-format
+msgid "⚠️ Error en comprovar baixa de {professor}: {e}"
+msgstr "⚠️ Error al comprobar baja de {professor}: {e}"
+
+#: core/alliberats.py:70 core/alliberats.py:85
+#, python-brace-format
+msgid "{detall} - VIGILÀNCIA"
+msgstr "{detall} - VIGILANCIA"
+
+#: core/alliberats.py:71 core/alliberats.py:86
+msgid "vigilància"
+msgstr "vigilancia"
+
+#: core/alliberats.py:111 core/alliberats.py:113 core/alliberats.py:115
+#, python-brace-format
+msgid "{detall} - {num_subs} subs"
+msgstr "{detall} - {num_subs} subs"
+
+#: core/alliberats.py:172
+#, python-brace-format
+msgid "tenia {assignatura} - {grup}"
+msgstr "tenía {assignatura} - {grup}"
+
+#: core/alliberats.py:174
+#, python-brace-format
+msgid "Grup {grup}"
+msgstr "Grupo {grup}"
+
+#: core/baixes.py:63
+msgid "⚠️ Error en carregar baixes: {}"
+msgstr "⚠️ Error al cargar bajas: {}"
+
+#: core/baixes.py:95
+msgid "⚠️ Error en parsear dates baixa {}: {}"
+msgstr "⚠️ Error al procesar fechas de baja {}: {}"
+
+#: core/baixes.py:161
+msgid "🔄 Cache de baixes invalidat"
+msgstr "🔄 Caché de bajas invalidado"
+
+#: core/horari.py:56
+#, python-brace-format
+msgid "Aplicat límit de professor: fins '{professor}' ({count} professors)"
+msgstr "Aplicado límite de profesor: hasta '{professor}' ({count} profesores)"
+
+#: core/horari.py:58
+#, python-brace-format
+msgid "Professor límit '{professor}' no trobat, en carregar tots"
+msgstr "Profesor límite '{professor}' no encontrado, cargando todos"
+
+#: core/horari.py:61
+#, python-brace-format
+msgid "Sense límit de professor o '{professor}' no trobat"
+msgstr "Sin límite de profesor o '{professor}' no encontrado"
+
+#: core/horari.py:126
+#, python-brace-format
+msgid "Horari carregat: {prof_count} professors, {grup_count} grups"
+msgstr "Horario cargado: {prof_count} profesores, {grup_count} grupos"
+
+#: core/horari.py:127
+#, python-brace-format
+msgid "Dies: {dies}"
+msgstr "Días: {dies}"
+
+#: core/horari.py:128
+#, python-brace-format
+msgid "Hores: {hores}"
+msgstr "Horas: {hores}"
+
+#: core/horari.py:129 core/horari.py:401
+#, python-brace-format
+msgid "Primers 10 grups: {grups}"
+msgstr "Primeros 10 grupos: {grups}"
+
+#: core/horari.py:132
+#, python-brace-format
+msgid "Error en carregar horari: {error}"
+msgstr "Error al cargar horario: {error}"
+
+#: core/horari.py:241
+msgid "Dissabte"
+msgstr "Sábado"
+
+#: core/horari.py:241
+msgid "Diumenge"
+msgstr "Domingo"
+
+#: core/horari.py:242
+msgid "Sábado"
+msgstr "Sábado"
+
+#: core/horari.py:242
+msgid "Domingo"
+msgstr "Domingo"
+
+#: core/horari.py:243
+msgid "Saturday"
+msgstr "Sábado"
+
+#: core/horari.py:243
+msgid "Sunday"
+msgstr "Domingo"
+
+#: core/horari.py:244
+msgid "Samedi"
+msgstr "Sábado"
+
+#: core/horari.py:244
+msgid "Dimanche"
+msgstr "Domingo"
+
+#: core/horari.py:254
+#, python-brace-format
+msgid "Índex de dia invàlid: {index} (rang vàlid: 0-6)"
+msgstr "Índice de día inválido: {index} (rango válido: 0-6)"
+
+#: core/horari.py:394
+#, python-brace-format
+msgid "Fitxer XML: {path}"
+msgstr "Archivo XML: {path}"
+
+#: core/horari.py:395
+#, python-brace-format
+msgid "Professor límit configurat: {professor}"
+msgstr "Profesor límite configurado: {professor}"
+
+#: core/horari.py:396
+#, python-brace-format
+msgid "Professors carregats: {count}"
+msgstr "Profesores cargados: {count}"
+
+#: core/horari.py:397
+#, python-brace-format
+msgid "Primers 5: {professors}"
+msgstr "Primeros 5: {professors}"
+
+#: core/horari.py:399
+#, python-brace-format
+msgid "Últims 5: {professors}"
+msgstr "Últimos 5: {professors}"
+
+#: core/horari.py:400
+#, python-brace-format
+msgid "Grups consolidats (ESO/BATX): {count}"
+msgstr "Grupos consolidados (ESO/BACH): {count}"
+
+#: core/horari.py:405
+#, python-brace-format
+msgid "Grups individuals (ESO/BATX): {count}"
+msgstr "Grupos individuales (ESO/BACH): {count}"
+
+#: core/horari.py:406
+#, python-brace-format
+msgid "Primers 10 individuals: {grups}"
+msgstr "Primeros 10 individuales: {grups}"
+
+#: core/horari.py:407
+msgid "===================="
+msgstr "===================="
+
+#: core/json_loader.py:43 core/substitutions_data_manager.py:45
+msgid "⚠️ Fitxer vigilancies_examens.json no trobat"
+msgstr "⚠️ Archivo vigilancies_examens.json no encontrado"
+
+#: core/json_loader.py:46 core/substitutions_data_manager.py:48
+msgid "❌ Error en carregar vigilàncies del JSON: {}"
+msgstr "❌ Error al cargar vigilancias del JSON: {}"
+
+#: core/json_loader.py:89 core/substitutions_data_manager.py:93
+msgid "⚠️ Error extraient absents: {}"
+msgstr "⚠️ Error al extraer ausentes: {}"
+
+#: core/json_loader.py:196 core/substitutions_data_manager.py:182
+msgid "⚠️ Error en formatejar substitucions: {}"
+msgstr "⚠️ Error al formatear sustituciones: {}"
+
+#: core/substitucions.py:113
+msgid "   📌 hores carregades de l'XML: {}"
+msgstr "   📌 horas cargadas del XML: {}"
+
+#: core/substitucions.py:131
+msgid "   📋 get_substitucions_necessaries retorna {} substitucions"
+msgstr "   📋 get_substitucions_necessaries devuelve {} sustituciones"
+
+#: core/substitucions.py:238
+msgid "🔵 assignar_substitucions() END: retorna {} substitucions"
+msgstr "🔵 assignar_substitucions() FIN: devuelve {} sustituciones"
+
+#: core/substitucions.py:317
+msgid "   🟡 _assignar_substitucions_per_hora(): dia='{}', hora='{}', {} subs"
+msgstr "   🟡 _assignar_substitucions_per_hora(): dia='{}', hora='{}', {} subs"
+
+#: core/substitucions.py:326
+msgid "      📊 {} candidats trobats per hora {}"
+msgstr "      📊 {} candidatos encontrados para hora {}"
+
+#: core/substitucions.py:578
+msgid "ℹ️ No hi ha substitucions publicades per {}: {}"
+msgstr "ℹ️ No hay sustituciones publicadas para {}: {}"
+
+#: core/substitutions_data_manager.py:202
+msgid "⚠️ Error en obtenir substitucions del JSON: {}"
+msgstr "⚠️ Error al obtener sustituciones del JSON: {}"
+
+#: core/substitutions_data_manager.py:232
+msgid "⚠️ Error en obtenir substitucions actuals: {}"
+msgstr "⚠️ Error al obtener sustituciones actuales: {}"
+
+#: core/substitutions_data_manager.py:264
+msgid "⚠️ Error en obtenir disponibles per {} a {}: {}"
+msgstr "⚠️ Error al obtener disponibles para {} a {}: {}"
+
+#: core/substitutions_data_manager.py:300
+msgid "⚠️ Error en comptar canvis: {}"
+msgstr "⚠️ Error al contar cambios: {}"
+
+#: core/vigilancia_core.py:161
+msgid "ABSENT"
+msgstr "AUSENTE"
+
+#: core/vigilancia_core.py:167
+msgid "OCUPAT VIGILÀNCIA"
+msgstr "OCUPADO VIGILANCIA"
+
+#: core/vigilancia_core.py:171
+msgid "JA ASSIGNAT"
+msgstr "YA ASIGNADO"
+
+#: core/vigilancia_data.py:212
+#, fuzzy
+msgid ""
+"📁 master_configuracio.json ja existeix, no es regenera (edita'l manualment)"
+msgstr "📝 grups.json ya existe, no se regenera (permite edición manual)"
+
+#: core/vigilancia_data.py:266
+#, fuzzy
+msgid ""
+"✅ Grups generats automàticament a master_configuracio.json amb {} nivells:"
+msgstr "✅ grups.json generado automáticamente con {} niveles:"
+
+#: core/vigilancia_data.py:268
+msgid "   - {}: {} grups"
+msgstr "   - {}: {} grupos"
+
+#: core/vigilancia_data.py:273
+#, fuzzy
+msgid "❌ Error en generar grups a master_configuracio.json: {}"
+msgstr "❌ Error al generar grups.json: {}"
+
+#: core/vigilancia_data.py:284
+msgid "Missing required field: {}"
+msgstr "Falta campo requerido: {}"
+
+#: core/vigilancia_data.py:289
+msgid "Invalid hour format: {}"
+msgstr "Formato de hora inválido: {}"

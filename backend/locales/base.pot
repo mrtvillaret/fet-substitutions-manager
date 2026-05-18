@@ -1,0 +1,197 @@
+# Translations template for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-11-11 21:40+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: main.py:50
+msgid "Sistema de Gestió de Substitucions"
+msgstr ""
+
+#: main.py:52
+msgid "Mode sense GUI per testing"
+msgstr ""
+
+#: main.py:54
+msgid "Idioma de la interfície (ca/es/en)"
+msgstr ""
+
+#: main.py:103
+msgid "=== GESTIÓ DE SUBSTITUCIONS - VERSIÓ MODULAR ==="
+msgstr ""
+
+#: gui/grups_widget.py:31
+msgid ""
+"Selecciona grups i hores específiques on NO tenen classe.\n"
+"💡 Clica el nom del grup per marcar/desmarcar totes les hores."
+msgstr ""
+
+#: gui/grups_widget.py:43
+msgid "Grup/Classe"
+msgstr ""
+
+#: gui/grups_widget.py:81
+msgid "Tots"
+msgstr ""
+
+#: gui/grups_widget.py:82
+msgid "Marca tots els grups i totes les hores"
+msgstr ""
+
+#: gui/grups_widget.py:86
+msgid "Cap"
+msgstr ""
+
+#: gui/grups_widget.py:87
+msgid "Desmarca tot"
+msgstr ""
+
+#: gui/grups_widget.py:91
+msgid "ESO"
+msgstr ""
+
+#: gui/grups_widget.py:92
+msgid "Marca tots els grups d'ESO (totes les hores)"
+msgstr ""
+
+#: gui/grups_widget.py:96
+msgid "Batx"
+msgstr ""
+
+#: gui/grups_widget.py:97
+msgid "Marca tots els grups de Batxillerat (totes les hores)"
+msgstr ""
+
+#: gui/main_window.py:69
+msgid "📚 Gestió de Substitucions - Amb Vigilàncies"
+msgstr ""
+
+#: gui/main_window.py:114
+msgid "📚 Gestió de Substitucions"
+msgstr ""
+
+#: gui/main_window.py:127
+msgid "📅 Data:"
+msgstr ""
+
+#: gui/main_window.py:138
+msgid "◀ Anterior"
+msgstr ""
+
+#: gui/main_window.py:140
+msgid "Dia anterior"
+msgstr ""
+
+#: gui/main_window.py:143
+msgid "📅 Avui"
+msgstr ""
+
+#: gui/main_window.py:145
+msgid "Tornar a avui"
+msgstr ""
+
+#: gui/main_window.py:148
+msgid "Següent ▶"
+msgstr ""
+
+#: gui/main_window.py:150
+msgid "Dia següent"
+msgstr ""
+
+#: gui/main_window.py:158
+msgid "⚙️ Config. Exàmens"
+msgstr ""
+
+#: gui/main_window.py:160
+msgid "Editor de configuració d'exàmens"
+msgstr ""
+
+#: gui/main_window.py:163
+msgid "⚙️ Configuració"
+msgstr ""
+
+#: gui/main_window.py:165
+msgid "Configuració general de l'aplicació"
+msgstr ""
+
+#: gui/main_window.py:168
+msgid "📊 Estadístiques"
+msgstr ""
+
+#: gui/main_window.py:170
+msgid "Estadístiques globals de substitucions"
+msgstr ""
+
+#: gui/main_window.py:173
+msgid "❓ Ajuda"
+msgstr ""
+
+#: gui/main_window.py:175
+msgid "Obre el manual ràpid d'ús"
+msgstr ""
+
+#: gui/main_window.py:201
+msgid "🔄 Gen. Substitucions"
+msgstr ""
+
+#: gui/main_window.py:203
+msgid "Regenera totes les substitucions des de zero"
+msgstr ""
+
+#: gui/main_window.py:206
+msgid "💾📋 Desa i PDF"
+msgstr ""
+
+#: gui/main_window.py:208
+msgid "Desa les dades i exporta PDF combinat"
+msgstr ""
+
+#: gui/main_window.py:228
+msgid "📝 Substitucions"
+msgstr ""
+
+#: gui/main_window.py:243
+msgid "💾 Desar Grups"
+msgstr ""
+
+#: gui/main_window.py:244
+msgid "Desa la configuració de grups sense classe"
+msgstr ""
+
+#: gui/main_window.py:250
+msgid "🏫 Grups"
+msgstr ""
+
+#: gui/main_window.py:264
+msgid "👁️ Vigilàncies"
+msgstr ""
+
+#: gui/main_window.py:315
+msgid "Error carregant horari"
+msgstr ""
+
+#: gui/main_window.py:316
+#, python-brace-format
+msgid ""
+"No s'ha pogut carregar l'horari: {}\n"
+"\n"
+"Pots accedir a '⚙️ Configuració' per arreglar el problema."
+msgstr ""
+
+#: gui/main_window.py:318
+msgid "❌ Error carregant horari - Revisa la configuració"
+msgstr ""
+
