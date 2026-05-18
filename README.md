@@ -16,6 +16,8 @@ Aplicació web per gestionar substitucions i vigilàncies d'un centre educatiu.
 
 ## Arquitectura
 
+### Topologia (runtime)
+
 ```
 Caddy (reverse proxy + HTTPS)
   ├── /api/*  →  backend:8000  (FastAPI)
@@ -24,8 +26,37 @@ Caddy (reverse proxy + HTTPS)
 data/
   ├── auth.db          # Usuaris globals
   └── {institucio}/
-      └── gestor.db    # Dades del centre
+      ├── gestor.db    # Dades del centre
+      ├── *.xml        # Horari FET del centre
+      └── exports/     # PDFs generats
 ```
+
+### Backend (FastAPI)
+
+- `main.py` — punt d'entrada, registra 15 routers a `/api/*`
+- `routes/` — endpoints per àrea funcional (substitucions, vigilàncies,
+  scheduler, informes, PDFs, auth, files, settings...)
+- `core/` — lògica de negoci (parseig d'horari XML, assignació automàtica
+  de substituts i vigilàncies, gestió d'absències i baixes)
+- `scheduler_engine/` — motor de planificació d'exàmens amb 3 generadors
+  (v2-intents, v2-backtrack, v3-SA Simulated Annealing) i model de
+  restriccions configurable
+- `export/` — exportadors PDF (substitucions, vigilàncies, intervals,
+  informes de direcció i professorat)
+- `repositories.py` + `models.py` — accés a dades SQLAlchemy
+- `auth_utils.py` — autenticació JWT amb cookie httpOnly
+
+### Frontend (Vue 3)
+
+- Sense Vue Router: navegació per pestanyes amb PrimeVue TabView
+- 4 vistes principals: `SubstitucionsView`, `VigilanciesView`, `GrupsView`,
+  `SchedulerView` (planificador d'exàmens)
+- Composables a `views/scheduler/use*.js` per a la lògica de cada subàrea
+  del planificador (API, resultats, restriccions, slots, incidències)
+- i18n amb `vue-i18n`: traduccions a `locales/{ca,es,en}.json`
+- Pinia per a estat compartit (preparada però amb poc ús actual)
+
+Per al mapa de dependències complet veure [ARQUITECTURA.md](ARQUITECTURA.md).
 
 ---
 
