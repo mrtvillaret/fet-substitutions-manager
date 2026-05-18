@@ -60,85 +60,43 @@ Per al mapa de dependències complet veure [ARQUITECTURA.md](ARQUITECTURA.md).
 
 ---
 
-## Posada en marxa amb Docker (recomanat)
+## Prova ràpida en local
 
-### Prerequisits
+Per provar l'aplicació amb les dades d'exemple incloses, sense Docker ni domini.
 
-- Docker i Docker Compose
-- Un domini apuntant al servidor (per HTTPS automàtic via Caddy)
+**Requisits:** Python 3.10+ i Node.js 18+
 
-### 1. Clonar i configurar
+### 1. Clonar
 
 ```bash
 git clone https://github.com/mrtvillaret/fet-substitutions-manager.git
 cd fet-substitutions-manager
-
-# Copiar fitxers de configuració
-cp .env.example .env
-cp Caddyfile.example Caddyfile
-cp docker-compose.yml.example docker-compose.yml
 ```
 
-Editar `.env` com a mínim:
-
-```env
-SECRET_KEY=    # genera amb: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
-APP_INSTITUCIO=nom_del_centre      # slug del centre (sense espais ni accents)
-ADMIN_INSTITUCIO=nom_del_centre    # ha de ser igual que APP_INSTITUCIO
-ADMIN_PASSWORD=una-contrasenya-segura
-```
-
-Editar `Caddyfile` i substituir `el-teu-domini.exemple.com` pel teu domini.
-
-### 2. Crear la carpeta de dades
-
-```bash
-mkdir -p data
-```
-
-### 3. Arrencar
-
-```bash
-docker compose up --build -d
-```
-
-Caddy obté el certificat TLS automàticament. L'app estarà disponible a `https://el-teu-domini.exemple.com`.
-
-### 4. Primer accés
-
-En el primer arrencada es crea l'usuari `super_admin` amb la contrasenya definida a `ADMIN_PASSWORD` al `.env`. **Canvia-la immediatament** des de Configuració > Usuaris un cop dins l'app.
-
-Per importar les dades del centre, entra com a `super_admin`, crea la institució i importa el fitxer `teachers.xml` generat per [FET](https://lalescu.ro/liviu/fet/).
-
----
-
-## Desenvolupament local (sense Docker)
-
-### Prerequisits
-
-- Python 3.10+
-- Node.js 18+
-
-### Backend
+### 2. Backend
 
 ```bash
 cd backend
 python3 -m venv venv
-source venv/bin/activate       # Linux/Mac
-# venv\Scripts\activate        # Windows
-
+source venv/bin/activate        # Linux/macOS
+# venv\Scripts\activate         # Windows
 pip install -r requirements.txt
 
-# Configuració local (diferent del .env arrel que usa Docker)
-cp .env.example .env           # edita DATA_DIR i AUTH_DB_PATH amb rutes absolutes locals
+cp .env.example .env
+# Edita .env: posa rutes absolutes a DATA_DIR i AUTH_DB_PATH apuntant a
+# {ruta del projecte}/data i {ruta del projecte}/data/auth.db
 
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Backend disponible a: http://localhost:8000
-Documentació API (dev): http://localhost:8000/docs
+El backend crea automàticament les BDs (`auth.db` i `data/{APP_INSTITUCIO}/gestor.db`)
+al primer arrencat, i un super_admin segons `ADMIN_USERNAME`/`ADMIN_PASSWORD` del `.env`.
 
-### Frontend
+API disponible a `http://localhost:8000` · Documentació a `http://localhost:8000/docs`.
+
+### 3. Frontend
+
+En una altra terminal:
 
 ```bash
 cd frontend
@@ -146,9 +104,92 @@ npm install
 npm run dev
 ```
 
-Frontend disponible a: http://localhost:5173
+Obre `http://localhost:5173` i entra amb les credencials `super_admin` definides
+al `.env` del backend (per defecte `admin123`). El frontend en dev apunta al backend
+mitjançant el proxy de Vite.
 
-> El frontend en dev apunta al backend a `localhost:8000` via proxy Vite.
+### 4. Carregar les dades d'exemple
+
+Un cop dins, ves a **Configuració > Importar XML** i puja `data/exemple/teachers.xml`.
+Aquest XML és la plantilla "Spain / 2-secondary-school" del programari FET amb noms
+genèrics (`Prof 1`, `Prof 2`...).
+
+---
+
+## Docker local (sense domini)
+
+Si vols provar-ho amb Docker sense haver de configurar un domini ni HTTPS, hi ha un
+`docker-compose.local.yml.example` que aixeca només backend + frontend (sense Caddy)
+i serveix l'app a `http://localhost:8080`.
+
+```bash
+cp .env.example .env
+cp docker-compose.local.yml.example docker-compose.local.yml
+# Edita .env: posa COOKIE_SECURE=false (cal per HTTP plain) i una ADMIN_PASSWORD
+
+docker compose -f docker-compose.local.yml up --build -d
+```
+
+Obre `http://localhost:8080`.
+
+> ⚠️ Aquest mode no té HTTPS; només per a desenvolupament local. **No usar en
+> producció**, els tokens viatgen en clar.
+
+---
+
+## Desplegar en producció
+
+Recomanat amb Docker + Caddy (HTTPS automàtic). Et caldrà:
+
+- Un servidor amb Docker i Docker Compose
+- Un domini apuntant al servidor
+
+### 1. Clonar i configurar
+
+```bash
+git clone https://github.com/mrtvillaret/fet-substitutions-manager.git
+cd fet-substitutions-manager
+
+cp .env.example .env
+cp Caddyfile.example Caddyfile
+cp docker-compose.yml.example docker-compose.yml
+```
+
+Edita el `.env`:
+
+```env
+SECRET_KEY=        # genera amb: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+APP_INSTITUCIO=nom_del_centre      # slug sense espais/accents
+ADMIN_INSTITUCIO=nom_del_centre    # idèntic a APP_INSTITUCIO
+ADMIN_PASSWORD=una-contrasenya-segura
+```
+
+Edita el `Caddyfile` i substitueix `el-teu-domini.exemple.com` pel teu domini real
+(amb DNS apuntant ja al servidor).
+
+### 2. Arrencar
+
+```bash
+docker compose up --build -d
+```
+
+Caddy obté el certificat TLS automàticament. L'aplicació estarà a
+`https://{el-teu-domini}`.
+
+### 3. Primer accés
+
+- Entra com a `super_admin` amb la contrasenya definida a `ADMIN_PASSWORD`
+- **Canvia la contrasenya** immediatament des de Configuració > Usuaris
+- Puja l'XML del teu centre (generat per [FET](https://lalescu.ro/liviu/fet/))
+  des de Configuració > Importar XML
+
+### Actualitzacions
+
+```bash
+cd /ruta/al/projecte
+git pull
+docker compose up --build -d
+```
 
 ---
 
@@ -202,20 +243,6 @@ Totes les dades es troben a la carpeta `./data/`. Fes còpies periòdiques d'aqu
 ```bash
 # Exemple mínim amb rsync
 rsync -a /opt/gestor/data/ /backup/gestor-data/
-```
-
----
-
-## Actualitzacions al servidor
-
-```bash
-# Sincronitzar codi (adaptar el script d'exemple)
-cp scripts/sync-server.sh.example scripts/sync-server.sh
-# editar SERVER_IP i SERVER_PATH
-bash scripts/sync-server.sh
-
-# Reconstruir i reiniciar
-ssh root@SERVER_IP 'cd /opt/gestor && docker compose up --build -d'
 ```
 
 ---

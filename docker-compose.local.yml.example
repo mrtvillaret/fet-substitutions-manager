@@ -1,0 +1,29 @@
+# Docker Compose per a ÚS LOCAL sense domini (sense HTTPS).
+# Aixeca només backend + frontend, sense Caddy. El nginx del frontend
+# proxieja /api/ al backend internament. Accedeix a http://localhost:8080
+#
+# Ús:
+#   cp docker-compose.local.yml.example docker-compose.local.yml
+#   cp .env.example .env  &&  edita ADMIN_PASSWORD i APP_INSTITUCIO
+#   docker compose -f docker-compose.local.yml up --build -d
+#
+# Per a producció amb HTTPS i domini, usa docker-compose.yml.example.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./.env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    restart: unless-stopped
