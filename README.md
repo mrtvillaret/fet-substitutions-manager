@@ -186,3 +186,11 @@ bash scripts/sync-server.sh
 # Reconstruir i reiniciar
 ssh root@SERVER_IP 'cd /opt/gestor && docker compose up --build -d'
 ```
+
+---
+
+## Llicència
+
+Publicat sota la [GNU General Public License v3.0](LICENSE).
+
+Copyright (C) 2026 Martí Villaret Ausellé.
