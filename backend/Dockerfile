@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app
 
-ENV AUTH_DB_PATH=/app/data/auth.db \
+ENV DATA_DIR=/app/data \
+    AUTH_DB_PATH=/app/data/auth.db \
     APP_INSTITUCIO=exemple
 
 EXPOSE 8000
