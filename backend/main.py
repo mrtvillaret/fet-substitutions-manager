@@ -9,6 +9,7 @@ load_dotenv()
 from fastapi import FastAPI, Depends, Request
 from fastapi.responses import JSONResponse
 import logging
+import os
 import time
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
@@ -44,7 +45,8 @@ def _inicialitzar_prioritats():
     from routes.prioritats import _recarregar_prioritats_desde_bd
 
     try:
-        with get_data_db_session(config.global_data.get("institucio") or "exemple") as db:
+        institucio = os.getenv("APP_INSTITUCIO") or config.global_data.get("institucio") or "exemple"
+        with get_data_db_session(institucio) as db:
             _recarregar_prioritats_desde_bd(db)
     except Exception as e:
         print(f"⚠️  No s'han pogut carregar prioritats des de BD: {e}")
