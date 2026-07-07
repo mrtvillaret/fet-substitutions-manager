@@ -80,7 +80,6 @@ STYLES = {
         alignment=TA_CENTER, leading=11),
 }
 
-DIES = [_("Dilluns"), _("Dimarts"), _("Dimecres"), _("Dijous"), _("Divendres"), _("Dissabte"), _("Diumenge")]
 
 
 def _table_style_base(header_color=C_NAVY, row_alt=C_GREY_BG):
@@ -792,7 +791,9 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
     """Matriu hores × dies amb heatmap d'absències"""
     elems = _section_title(_("Distribució per dia de la setmana i hora"))
 
-    dies_ordre = [_("Dilluns"), _("Dimarts"), _("Dimecres"), _("Dijous"), _("Divendres")]
+    # Claus canòniques neutres d'idioma (índex del dia, 0=dilluns) — coincideixen
+    # amb les guardades a informes.py. La traducció es fa només a l'etiqueta mostrada.
+    dies_ordre = list(range(5))
     dies_curt  = [_("Dll"), _("Dmt"), _("Dmc"), _("Djo"), _("Div")]
 
     # Usar ordre del XML si disponible, sinó ordenar cronològicament amb no-hora al final
@@ -923,12 +924,12 @@ def _taula_distribucio(per_dia: dict, per_hora: dict) -> list:
     """Taules de distribució per dia i hora"""
     elems = _section_title(_("Distribució per dia de la setmana i hora"))
 
-    # Subtaula: per dia
-    dies_ordre = [_("Dilluns"), _("Dimarts"), _("Dimecres"), _("Dijous"), _("Divendres")]
+    # Subtaula: per dia. Clau canònica = índex (0=dilluns); nom traduït només per mostrar.
+    dies_nom = [_("Dilluns"), _("Dimarts"), _("Dimecres"), _("Dijous"), _("Divendres")]
     rows_dia = [[_("Dia"), _("Absències"), _("Substitucions")]]
-    for dia in dies_ordre:
-        d = per_dia.get(dia, {})
-        rows_dia.append([dia, str(d.get("absencies", 0)), str(d.get("substitucions", 0))])
+    for idx, nom in enumerate(dies_nom):
+        d = per_dia.get(idx, {})
+        rows_dia.append([nom, str(d.get("absencies", 0)), str(d.get("substitucions", 0))])
 
     # Subtaula: per hora
     hores_ordre = sorted(per_hora.keys(), key=lambda h: h if h != "Pati" else "ZZ")

@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 
 from auth_utils import require_admin, get_current_user
 from database import get_data_dir_for_institucio, get_export_dir_for_institucio
-from repositories import ConfiguracioRepository
+from repositories import ConfiguracioRepository, MasterConfigRepository
 from utils.hores import normalitzar_hora as _normalitzar_hora
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -20,12 +20,19 @@ from export.pdf.informe_professors import generar_informe_professors_pdf
 
 router = APIRouter(prefix="/api/informes", tags=["informes"])
 
-MESOS_CA = {
-    1: "Gener", 2: "Febrer", 3: "Març", 4: "Abril",
-    5: "Maig", 6: "Juny", 7: "Juliol", 8: "Agost",
-    9: "Setembre", 10: "Octubre", 11: "Novembre", 12: "Desembre"
+# Noms de mes per idioma. El render del PDF no re-tradueix: mostra aquestes etiquetes
+# tal qual i n'abreuja els 3 primers caràcters (Novembre→Nov, Noviembre→Nov, November→Nov).
+MESOS = {
+    "ca": {1: "Gener", 2: "Febrer", 3: "Març", 4: "Abril",
+           5: "Maig", 6: "Juny", 7: "Juliol", 8: "Agost",
+           9: "Setembre", 10: "Octubre", 11: "Novembre", 12: "Desembre"},
+    "es": {1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+           5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+           9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"},
+    "en": {1: "January", 2: "February", 3: "March", 4: "April",
+           5: "May", 6: "June", 7: "July", 8: "August",
+           9: "September", 10: "October", 11: "November", 12: "December"},
 }
-DIES = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte", "Diumenge"]
 
 
 
@@ -68,9 +75,57 @@ def _es_substitucio_real(s: dict, no_sub: set, grups_all: dict) -> bool:
     return True
 
 
-def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, institucio: str) -> dict:
+def _carregar_nivells_grups(institucio: str) -> tuple:
+    """Mapa grup -> nivell i ordre de nivells segons la configuració d'exàmens del centre.
+
+    Font de veritat: el master config (nivells/grups/abreviatures), el mateix que gestiona
+    la configuració d'exàmens. Cada centre anomena nivells i grups a la seva manera, així que
+    no s'infereix res del nom del grup.
+
+    Retorna (ordre_nivells, grup2nivell):
+      - ordre_nivells: nivells en l'ordre configurat + "Altres" al final
+      - grup2nivell: codi de grup -> nivell ("Altres" per GENERAL/RECERCA i desconeguts)
+    """
+    from database import get_data_db_session
+    ALTRES = "Altres"
+    EXCLOSOS = {"GENERAL", "RECERCA"}
+    try:
+        with get_data_db_session(institucio) as db:
+            master = MasterConfigRepository.get_master_config(db)
+    except Exception:
+        return [ALTRES], {}
+
+    nivells = master.get("nivells", {})  # {codi: {"grups": [...], ...}}, ja ordenat
+    grup2nivell = {}
+    ordre_nivells = []
+    for codi, data in nivells.items():
+        if codi in EXCLOSOS:
+            nom_niv = ALTRES
+        else:
+            nom_niv = codi
+            ordre_nivells.append(codi)
+        for g in data.get("grups", []):
+            grup2nivell[g] = nom_niv
+
+    # Grups combinats (abreviatures): hereten el nivell del primer grup original conegut.
+    for originals, abreviatura in master.get("abreviatures", {}).items():
+        if abreviatura in grup2nivell:
+            continue
+        for og in (originals or "").split(","):
+            og = og.strip()
+            if og in grup2nivell:
+                grup2nivell[abreviatura] = grup2nivell[og]
+                break
+
+    ordre_nivells.append(ALTRES)
+    return ordre_nivells, grup2nivell
+
+
+def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, institucio: str,
+                             lang: str = "ca") -> dict:
     conn, no_sub, grups_all = _get_db_and_helpers(institucio)
     cur = conn.cursor()
+    mesos_nom = MESOS.get(lang, MESOS["ca"])
 
     cur.execute("SELECT * FROM substitucions WHERE data >= ? AND data <= ?",
                 (data_inici, data_final))
@@ -119,7 +174,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
     for (any_, mes), v in sorted(per_mes_raw.items()):
         total_m = v["absencies"] + v["serveis"]
         per_mes.append({
-            "mes": f"{MESOS_CA[mes]} {any_}",
+            "mes": f"{mesos_nom[mes]} {any_}",
             "absencies":     v["absencies"],
             "serveis":       v["serveis"],
             "substitucions": v["substitucions"],
@@ -160,7 +215,9 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
     per_dia_hora = defaultdict(lambda: {"absencies": 0, "substitucions": 0})
     for s in subs_reals:
         try:
-            dia = DIES[datetime.strptime(s["data"], "%Y-%m-%d").weekday()]
+            # Clau canònica neutra d'idioma: índex del dia de la setmana (0=dilluns).
+            # La traducció a nom de dia es fa només al render del PDF.
+            dia = datetime.strptime(s["data"], "%Y-%m-%d").weekday()
         except Exception:
             continue
         hora = _normalitzar_hora(s.get("hora", "") or "") or "Desconeguda"
@@ -186,7 +243,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
             continue
         try:
             d = datetime.strptime(s["data"], "%Y-%m-%d")
-            mes_str = f"{MESOS_CA[d.month]} {d.year}"
+            mes_str = f"{mesos_nom[d.month]} {d.year}"
         except Exception:
             continue
         if mes_str not in mesos_ordenats:
@@ -202,24 +259,17 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
             continue
         try:
             d = datetime.strptime(s["data"], "%Y-%m-%d")
-            mes_str = f"{MESOS_CA[d.month]} {d.year}"
+            mes_str = f"{mesos_nom[d.month]} {d.year}"
         except Exception:
             continue
         if mes_str in mesos_ordenats:
             per_substitut_mes[sub][mes_str] += 1
 
-    # Grups
-    def _nivell(g):
-        u = g.upper()
-        if "BATX" in u:
-            n = u.split("-")[0]
-            return f"{n}r Batx" if n == "1" else f"{n}n Batx"
-        if "ESO" in u:
-            n = u.split("-")[0]
-            return f"{n}{'r' if n in ('1','3') else 'n' if n=='2' else 't'} ESO"
-        return "Altres"
+    # Grups — nivell segons la configuració d'exàmens del centre (no s'infereix del nom)
+    ORDRE_NIVELLS, grup2nivell = _carregar_nivells_grups(institucio)
 
-    ORDRE_NIVELLS = ["1r ESO", "2n ESO", "3r ESO", "4t ESO", "1r Batx", "2n Batx", "Altres"]
+    def _nivell(g):
+        return grup2nivell.get(g, "Altres")
     per_grup = defaultdict(lambda: {"absencies": 0, "cobertes": 0})
     per_grup_mes = {}
     for s in subs_reals:
@@ -231,7 +281,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
             per_grup[grup]["cobertes"] += 1
         try:
             d = datetime.strptime(s["data"], "%Y-%m-%d")
-            mes_str = f"{MESOS_CA[d.month]} {d.year}"
+            mes_str = f"{mesos_nom[d.month]} {d.year}"
         except Exception:
             continue
         if grup not in per_grup_mes:
@@ -370,7 +420,7 @@ async def informe_direccio(
     nom_centre = _get_nom_centre(institucio)
     lang = _get_idioma(institucio)
     hores_xml = _get_hores_xml(institucio)
-    dades = _calcular_dades_direccio(data_inici, data_final, hores_xml, institucio)
+    dades = _calcular_dades_direccio(data_inici, data_final, hores_xml, institucio, lang)
     export_dir = str(get_export_dir_for_institucio(institucio))
     data_dir = get_data_dir_for_institucio(institucio)
     logo_path = data_dir / "logo.png"
