@@ -85,6 +85,31 @@ async def desar_grups_sense_classe(data: str, grups_per_hora: Dict[str, List[str
             print(f"⚠️ Error regenerant substitucions: {e}")
             # No fallar si falla la regeneració
 
+        # 🔧 IMPORTANT: Reconciliar les cobertures de vigilància (Tipus B) de les hores afectades.
+        # En alliberar un grup, un professor que abans "calia substituir" pot quedar alliberat
+        # (el seu grup fa examen) i la seva cobertura VIGILANCIA esdevé innecessària. Si no es
+        # reconcilia, queda un registre ranci amb substitut buit que provoca falsos avisos
+        # ("vigilàncies cobertes automàticament sense substitut assignat").
+        # Reutilitzem la mateixa reconciliació que ja s'executa en crear/editar vigilàncies,
+        # perquè el resultat NO depengui de l'ordre d'entrada de dades (abans calia editar
+        # l'hora manualment perquè es netegés).
+        try:
+            from routes.vigilancies import _refresh_vigilancia_substitucions
+            from repositories import VigilanciaRepository
+
+            vig_dict = VigilanciaRepository.get_by_date(db, data)
+            hores_amb_vig = {
+                (v.get("hora") or "").strip()
+                for vigs in vig_dict.values() for v in vigs
+                if (v.get("hora") or "").strip()
+            }
+            hores_afectades = hores_amb_vig | {h.strip() for h in grups_per_hora.keys() if h.strip()}
+            for hora in hores_afectades:
+                _refresh_vigilancia_substitucions(data, hora, db)
+        except Exception as e:
+            print(f"⚠️ Error reconciliant cobertures de vigilància: {e}")
+            # No fallar si falla la reconciliació
+
         return {
             "success": True,
             "message": f"Grups sense classe actualitzats per {data}",
