@@ -97,26 +97,6 @@ def _ensure_substitucions_aula_column(engine):
         pass
 
 
-def _ensure_cursos_schema(engine):
-    """Elimina la columna obsoleta `actiu` de cursos (migració simple).
-
-    Els cursos són una seqüència contígua resolta per data (com xml_versions);
-    ja no hi ha cap curs "actiu". SQLite no permet DROP COLUMN d'una columna
-    indexada, així que primer cal eliminar l'índex.
-    """
-    try:
-        with engine.connect() as conn:
-            columns = conn.exec_driver_sql("PRAGMA table_info(cursos);").fetchall()
-            if not columns:
-                return  # la taula encara no existeix
-            if "actiu" in {col[1] for col in columns}:
-                conn.exec_driver_sql("DROP INDEX IF EXISTS idx_cursos_actiu")
-                conn.exec_driver_sql("ALTER TABLE cursos DROP COLUMN actiu")
-                conn.commit()
-    except Exception as exc:
-        print(f"⚠️  Migració cursos (treure 'actiu') no aplicada: {exc}")
-
-
 @lru_cache(maxsize=None)
 def get_engine_for_institucio(institucio: str):
     data_dir = get_data_dir_for_institucio(institucio)
@@ -125,7 +105,6 @@ def get_engine_for_institucio(institucio: str):
     engine = _create_engine(db_path)
     create_data_tables(engine)
     _ensure_substitucions_aula_column(engine)
-    _ensure_cursos_schema(engine)
     return engine
 
 
