@@ -32,7 +32,9 @@
       "profile": "Profile",
       "help": "Help",
       "logout": "Sign out",
-      "pdfToday": "Today PDF"
+      "pdfToday": "Today PDF",
+      "course": "Academic year of the selected date",
+      "courseNone": "Outside any year"
     },
     "tabs": {
       "substitucions": "Substitutions",
@@ -133,7 +135,8 @@
       "leaveLine2": "on leave",
       "prioritiesLine1": "Priorities",
       "usersLine1": "Users",
-      "institutionsLine1": "Institutions"
+      "institutionsLine1": "Institutions",
+      "coursesLine1": "Courses"
     },
     "system": {
       "institution": "Institution",
@@ -169,7 +172,13 @@
       "institutionCodeHint": "Internal identifier (cannot be changed).",
       "institutionName": "Institution",
       "institutionNamePlaceholder": "Institution display name",
-      "institutionNameHint": "Display name for users."
+      "institutionNameHint": "Display name for users.",
+      "xmlEffectiveFrom": "Effective from",
+      "xmlEffectiveHint": "Leave empty to apply it from today. Set a future date to prepare next year's timetable without replacing the current one.",
+      "xmlUseCourseStart": "Use start of year {nom}",
+      "xmlScheduled": "Timetable scheduled: it takes effect on {data}. The current timetable is unchanged.",
+      "xmlCourseDesync": "Year {curs} starts on {inici}, but the timetable in effect on that date took effect on {xmlInici} (previous year). Upload the new timetable effective {inici}.",
+      "xmlFixDesync": "Prepare it"
     },
     "groups": {
       "detectedLabel": "Groups detected from XML",
@@ -330,6 +339,23 @@
       "saveError": "Could not save institution.",
       "codePlaceholder": "slug (e.g. example_centre)",
       "namePlaceholder": "Display name"
+    },
+    "courses": {
+      "title": "Academic years",
+      "new": "New year",
+      "help": "An academic year is a named date range. Only the start date is needed: a year ends the day before the next one starts, and the last one stays open. The year for a given day is derived from the date you are working on.",
+      "empty": "No academic year defined yet",
+      "name": "Name",
+      "namePlaceholder": "e.g. 2025-2026",
+      "start": "Start date",
+      "startHint": "The previous year will be closed automatically the day before",
+      "end": "End date (derived)",
+      "open": "Open",
+      "newTitle": "New academic year",
+      "editTitle": "Edit academic year",
+      "loadError": "Could not load academic years",
+      "saveError": "Could not save the academic year",
+      "deleteConfirm": "Delete the year “{nom}”? No substitution or supervision data will be removed."
     }
   },
   "groups": {
@@ -895,7 +921,9 @@
       "start": "Start date",
       "end": "End date",
       "datePlaceholder": "YYYY-MM-DD",
-      "refresh": "Refresh"
+      "refresh": "Refresh",
+      "course": "Academic year",
+      "customRange": "Custom range"
     },
     "loading": "Loading statistics...",
     "tabs": {

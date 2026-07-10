@@ -164,6 +164,29 @@ class XMLVersion(Base):
     )
 
 
+class Curs(Base):
+    """
+    Curs acadèmic: seqüència CONTÍGUA de períodes, com `xml_versions`.
+
+    Només es defineix `data_inici`; `data_fi` la manté el sistema (= inici del curs
+    següent − 1 dia), i l'últim curs queda obert (`data_fi = NULL`). Així tota data
+    pertany exactament a un curs i no cal cap flag d'"actiu": el curs d'una data es
+    resol amb `CursRepository.get_for_date()`, igual que la versió d'XML.
+    """
+    __tablename__ = 'cursos'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nom = Column(String, nullable=False)         # p.ex. "2025-2026"
+    data_inici = Column(Date, nullable=False)
+    data_fi = Column(Date)                        # derivada; NULL = últim curs (obert)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_cursos_data_inici', 'data_inici'),
+    )
+
+
 class ConfiguracioExamen(Base):
     """
     Assignacions professor-titular per exàmens

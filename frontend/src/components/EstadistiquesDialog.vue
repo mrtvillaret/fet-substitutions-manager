@@ -11,6 +11,18 @@
     <div class="estadistiques-container">
       <!-- Selector de període -->
       <div class="periode-selector">
+        <div v-if="cursos && cursos.length" class="field">
+          <label>{{ $t('stats.period.course') }}</label>
+          <Dropdown
+            v-model="cursTriatId"
+            :options="cursos"
+            optionLabel="nom"
+            optionValue="id"
+            :placeholder="$t('stats.period.customRange')"
+            :showClear="true"
+            @change="onCursTriat"
+          />
+        </div>
         <div class="field">
           <label>{{ $t('stats.period.start') }}</label>
           <Calendar
@@ -548,6 +560,21 @@ const props = defineProps({
   visible: {
     type: Boolean,
     required: true
+  },
+  // Curs de la data on s'està treballant. Marca el rang de dates per defecte.
+  curs: {
+    type: Object,
+    default: null
+  },
+  // Tots els cursos, com a presets del selector de període.
+  cursos: {
+    type: Array,
+    default: () => []
+  },
+  // Data global de treball (per acotar el final d'un curs encara obert).
+  dataTreball: {
+    type: Date,
+    default: null
   }
 })
 
@@ -600,8 +627,42 @@ const classesDisponibles = computed(() => {
   return options.sort((a, b) => a.label.localeCompare(b.label, locale.value || 'ca'))
 })
 
-// Inicialitzar dates (recuperar de la BD o últims 30 dies)
+// Curs triat al selector del diàleg (null = rang personalitzat)
+const cursTriatId = ref(null)
+
+// Aplica el rang d'un curs. L'últim curs és obert (data_fi = null): el tanquem amb la
+// data més tardana entre avui, l'inici i la data de treball — així no queda un rang
+// invertit quan es preparen dades d'un curs que encara no ha començat.
+const aplicarRangCurs = (curs) => {
+  if (!curs?.data_inici) return false
+  const inici = new Date(curs.data_inici)
+  let fi
+  if (curs.data_fi) {
+    fi = new Date(curs.data_fi)
+  } else {
+    const candidats = [Date.now(), inici.getTime()]
+    if (props.dataTreball) candidats.push(new Date(props.dataTreball).getTime())
+    fi = new Date(Math.max(...candidats))
+  }
+  dataInici.value = inici
+  dataFinal.value = fi
+  return true
+}
+
+const onCursTriat = () => {
+  const curs = props.cursos.find(c => c.id === cursTriatId.value)
+  if (curs && aplicarRangCurs(curs)) {
+    carregarEstadistiques()
+    carregarInformeProfessors()
+  }
+}
+
+// Inicialitzar dates: el curs de la data de treball mana; si no n'hi ha, la BD o
+// últims 30 dies. Les dates es poden ajustar lliurement (un rang pot creuar cursos).
 const inicialitzarDates = async () => {
+  cursTriatId.value = props.curs?.id ?? null
+  if (aplicarRangCurs(props.curs)) return
+
   try {
     const response = await axios.get('/api/settings')
     const cfg = response.data || {}
@@ -870,6 +931,17 @@ watch(() => props.visible, (newVal) => {
       carregarEstadistiques()
       carregarInformeProfessors()
     })
+  }
+})
+
+// Si canvia la data de treball (i per tant el seu curs) amb el diàleg obert,
+// reescopa les estadístiques al nou curs
+watch(() => props.curs?.id, (nou, antic) => {
+  if (!props.visible || nou === antic || !nou) return
+  cursTriatId.value = nou
+  if (aplicarRangCurs(props.curs)) {
+    carregarEstadistiques()
+    carregarInformeProfessors()
   }
 })
 </script>

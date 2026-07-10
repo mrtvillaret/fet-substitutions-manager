@@ -32,7 +32,9 @@
       "profile": "Perfil",
       "help": "Ayuda",
       "logout": "Cerrar sesión",
-      "pdfToday": "PDF del día"
+      "pdfToday": "PDF del día",
+      "course": "Curso de la fecha seleccionada",
+      "courseNone": "Fuera de curso"
     },
     "tabs": {
       "substitucions": "Sustituciones",
@@ -133,7 +135,8 @@
       "leaveLine2": "de baja",
       "prioritiesLine1": "Prioridades",
       "usersLine1": "Usuarios",
-      "institutionsLine1": "Instituciones"
+      "institutionsLine1": "Instituciones",
+      "coursesLine1": "Cursos"
     },
     "system": {
       "institution": "Institución",
@@ -169,7 +172,13 @@
       "institutionCodeHint": "Identificador interno (no se puede cambiar).",
       "institutionName": "Institución",
       "institutionNamePlaceholder": "Nombre visible de la institución",
-      "institutionNameHint": "Nombre visible para los usuarios."
+      "institutionNameHint": "Nombre visible para los usuarios.",
+      "xmlEffectiveFrom": "Vigente a partir de",
+      "xmlEffectiveHint": "Déjalo vacío para aplicarlo desde hoy. Pon una fecha futura para preparar el horario de un curso próximo sin que sustituya al actual.",
+      "xmlUseCourseStart": "Usar el inicio del curso {nom}",
+      "xmlScheduled": "Horario programado: entrará en vigor el {data}. El horario actual no ha cambiado.",
+      "xmlCourseDesync": "El curso {curs} empieza el {inici}, pero el horario vigente en esa fecha entró en vigor el {xmlInici} (curso anterior). Sube el nuevo horario con fecha de vigencia {inici}.",
+      "xmlFixDesync": "Prepararlo"
     },
     "groups": {
       "detectedLabel": "Grupos detectados del XML",
@@ -330,6 +339,23 @@
       "saveError": "No se pudo guardar la institución.",
       "codePlaceholder": "slug (ej: ejemplo_centro)",
       "namePlaceholder": "Nombre visible"
+    },
+    "courses": {
+      "title": "Cursos académicos",
+      "new": "Nuevo curso",
+      "help": "Un curso es un rango de fechas con nombre. Solo hace falta la fecha de inicio: el curso termina el día antes de que empiece el siguiente, y el último queda abierto. El curso de un día se deduce de la fecha en la que trabajas.",
+      "empty": "Todavía no hay ningún curso definido",
+      "name": "Nombre",
+      "namePlaceholder": "p. ej. 2025-2026",
+      "start": "Fecha de inicio",
+      "startHint": "El curso anterior se cerrará automáticamente el día antes",
+      "end": "Fecha de fin (derivada)",
+      "open": "Abierto",
+      "newTitle": "Nuevo curso",
+      "editTitle": "Editar curso",
+      "loadError": "No se han podido cargar los cursos",
+      "saveError": "No se ha podido guardar el curso",
+      "deleteConfirm": "¿Seguro que quieres eliminar el curso «{nom}»? No se borrará ningún dato de sustituciones ni vigilancias."
     }
   },
   "groups": {
@@ -895,7 +921,9 @@
       "start": "Fecha de inicio",
       "end": "Fecha final",
       "datePlaceholder": "AAAA-MM-DD",
-      "refresh": "Actualizar"
+      "refresh": "Actualizar",
+      "course": "Curso",
+      "customRange": "Rango personalizado"
     },
     "loading": "Cargando estadísticas...",
     "tabs": {

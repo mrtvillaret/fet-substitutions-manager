@@ -16,7 +16,9 @@ from typing import List, Optional
 from collections import defaultdict
 
 from dependencies import get_db
-from repositories import SubstitucioRepository, VigilanciaRepository, GrupsAlliberatsRepository
+from repositories import (
+    SubstitucioRepository, VigilanciaRepository, GrupsAlliberatsRepository, CursRepository
+)
 from helpers import get_horari, get_gestors, MissingXmlError
 from routes.vigilancia_absent import (
     es_vigilancia_absent,
@@ -43,16 +45,30 @@ def _raise_missing_xml(exc: MissingXmlError):
     )
 
 
-def _calcular_estadistiques_substitucions(db: Session, horari) -> dict:
-    """Calcula estadístiques de substitucions com el desktop (dia/hora i total)."""
+def _calcular_estadistiques_substitucions(db: Session, horari, data: str = None) -> dict:
+    """Calcula estadístiques de substitucions com el desktop (dia/hora i total).
+
+    Es compten NOMÉS les substitucions del curs al qual pertany `data`: el comptador
+    que es mostra al selector de substitut ha de reflectir la càrrega d'aquest curs,
+    no l'històric acumulat de tots els anys. Si encara no hi ha cursos definits (o la
+    data és anterior al primer), es compta tot, com abans.
+    """
     estadistiques = {}
 
-    subs = db.query(Substitucio).filter(
+    query = db.query(Substitucio).filter(
         Substitucio.substitut.isnot(None),
         Substitucio.substitut != '',
         Substitucio.professor_absent.isnot(None),
         Substitucio.professor_absent != ''
-    ).all()
+    )
+
+    curs = CursRepository.get_for_date(db, data) if data else None
+    if curs:
+        query = query.filter(Substitucio.data >= curs.data_inici)
+        if curs.data_fi:
+            query = query.filter(Substitucio.data <= curs.data_fi)
+
+    subs = query.all()
 
     for sub in subs:
         substitut = (sub.substitut or '').strip()
@@ -1553,7 +1569,7 @@ async def get_disponibles(data: str, hora: str, db: Session = Depends(get_db)):
         disponibles = alliberats.get_tots_disponibles(dia_name, hora, grups_hora)
 
         # Estadístiques de substitucions (dia/hora i total) per mostrar al combo
-        estadistiques_subs = _calcular_estadistiques_substitucions(db, horari)
+        estadistiques_subs = _calcular_estadistiques_substitucions(db, horari, data)
 
         # Funció per obtenir categoria de prioritat
         def get_categoria_prioritat(tipus_activitat: str) -> int:

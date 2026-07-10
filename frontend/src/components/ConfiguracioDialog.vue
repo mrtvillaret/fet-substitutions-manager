@@ -111,6 +111,46 @@
               @change="pujarXML"
             />
             <small class="field-hint">{{ $t('config.system.xmlHint') }}</small>
+
+            <!-- Avís: un curs arrencaria amb l'horari del curs anterior -->
+            <div
+              v-for="avis in avisosXml"
+              :key="avis.curs_id"
+              class="xml-avis-desync"
+            >
+              <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+              <div class="xml-avis-text">
+                {{ $t('config.system.xmlCourseDesync', {
+                  curs: avis.curs_nom,
+                  inici: avis.curs_inici,
+                  xmlInici: avis.xml_inici
+                }) }}
+              </div>
+              <Button
+                :label="$t('config.system.xmlFixDesync')"
+                class="p-button-sm p-button-warning"
+                @click="xmlVigentDesDe = parseIsoDate(avis.curs_inici)"
+              />
+            </div>
+
+            <!-- Data de vigència: permet PREPARAR l'horari d'un curs futur -->
+            <div class="xml-vigencia">
+              <label class="date-inline-label">{{ $t('config.system.xmlEffectiveFrom') }}:</label>
+              <Calendar
+                v-model="xmlVigentDesDe"
+                dateFormat="yy-mm-dd"
+                :showIcon="true"
+                :showButtonBar="true"
+                class="xml-date"
+              />
+              <Button
+                v-if="cursFuturSuggerit"
+                :label="$t('config.system.xmlUseCourseStart', { nom: cursFuturSuggerit.nom })"
+                class="p-button-text p-button-sm"
+                @click="xmlVigentDesDe = parseIsoDate(cursFuturSuggerit.data_inici)"
+              />
+            </div>
+            <small class="field-hint">{{ $t('config.system.xmlEffectiveHint') }}</small>
           </div>
 
           <!-- Versions XML -->
@@ -643,7 +683,66 @@
         </div>
         </TabPanel>
 
-        <!-- TAB 5: USUARIS -->
+        <!-- TAB 5: CURSOS -->
+        <TabPanel v-if="canManageUsers">
+          <template #header>
+            <span class="tab-header-lines">
+              <span>{{ $t('config.tabs.coursesLine1') }}</span>
+              <span>&nbsp;</span>
+            </span>
+          </template>
+          <div class="tab-content">
+            <div class="toolbar" style="margin-bottom: 0.75rem;">
+              <label>{{ $t('config.courses.title') }}</label>
+              <Button
+                :label="$t('config.courses.new')"
+                icon="pi pi-plus"
+                size="small"
+                @click="obrirNouCurs"
+              />
+            </div>
+
+            <p class="camp-ajuda" style="margin-bottom: 0.75rem;">
+              {{ $t('config.courses.help') }}
+            </p>
+
+            <DataTable :value="cursos" size="small" dataKey="id" :loading="carregantCursos">
+              <template #empty>{{ $t('config.courses.empty') }}</template>
+
+              <Column field="nom" :header="$t('config.courses.name')" />
+
+              <Column :header="$t('config.courses.start')">
+                <template #body="{ data }">{{ data.data_inici }}</template>
+              </Column>
+
+              <Column :header="$t('config.courses.end')">
+                <template #body="{ data }">
+                  <span v-if="data.data_fi">{{ data.data_fi }}</span>
+                  <Tag v-else severity="success" :value="$t('config.courses.open')" />
+                </template>
+              </Column>
+
+              <Column :header="$t('common.actions')" style="width: 110px;">
+                <template #body="{ data }">
+                  <Button
+                    icon="pi pi-pencil"
+                    class="p-button-text p-button-sm"
+                    v-tooltip.top="$t('common.edit')"
+                    @click="obrirEditarCurs(data)"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    class="p-button-text p-button-sm p-button-danger"
+                    v-tooltip.top="$t('common.delete')"
+                    @click="eliminarCurs(data)"
+                  />
+                </template>
+              </Column>
+            </DataTable>
+          </div>
+        </TabPanel>
+
+        <!-- TAB 6: USUARIS -->
         <TabPanel v-if="canManageUsers">
           <template #header>
             <span class="tab-header-lines">
@@ -1164,6 +1263,44 @@
       </template>
     </Dialog>
 
+    <!-- Diàleg: nou / editar curs -->
+    <Dialog
+      v-model:visible="mostrarDialegCurs"
+      :modal="true"
+      :style="{ width: '460px' }"
+      :contentStyle="{ padding: '1rem 1.25rem' }"
+    >
+      <template #header>
+        <span class="dialog-header">
+          <i class="pi pi-calendar" aria-hidden="true"></i>
+          <span>{{ cursForm.id ? $t('config.courses.editTitle') : $t('config.courses.newTitle') }}</span>
+        </span>
+      </template>
+
+      <div class="p-fluid">
+        <div class="field">
+          <label>{{ $t('config.courses.name') }}</label>
+          <InputText v-model="cursForm.nom" :placeholder="$t('config.courses.namePlaceholder')" />
+        </div>
+        <div class="field">
+          <label>{{ $t('config.courses.start') }}</label>
+          <Calendar v-model="cursForm.data_inici" dateFormat="dd/mm/yy" :showIcon="true" />
+          <small class="field-hint">{{ $t('config.courses.startHint') }}</small>
+        </div>
+      </div>
+
+      <template #footer>
+        <Button :label="$t('common.cancel')" class="p-button-text" @click="mostrarDialegCurs = false" />
+        <Button
+          :label="$t('common.save')"
+          icon="pi pi-check"
+          :disabled="!cursForm.nom || !cursForm.data_inici"
+          :loading="desantCurs"
+          @click="desarCurs"
+        />
+      </template>
+    </Dialog>
+
     <template #footer>
       <Button
         :label="$t('common.close')"
@@ -1220,7 +1357,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:visible'])
+const emit = defineEmits(['update:visible', 'cursos-canviats'])
 
 const loading = ref(false)
 const xmlMissingNotified = ref(false)
@@ -1522,6 +1659,8 @@ const carregarSettings = async () => {
 
     if (canManageUsers.value) {
       await carregarUsuaris()
+      await carregarCursos()
+      await carregarAvisosXml()
     }
 
     // Carregar prioritats
@@ -1619,6 +1758,110 @@ const formatIsoDate = (dateObj) => {
   const month = String(dateObj.getMonth() + 1).padStart(2, '0')
   const day = String(dateObj.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+// ===== CURSOS =====
+const cursos = ref([])
+const carregantCursos = ref(false)
+const desantCurs = ref(false)
+const mostrarDialegCurs = ref(false)
+// Un curs només té nom + data d'inici: la data de fi la deriva el sistema
+// (= inici del curs següent − 1 dia; l'últim queda obert).
+const cursForm = ref({ id: null, nom: '', data_inici: null })
+
+// Data de vigència del pròxim XML que es pugi (null = avui)
+const xmlVigentDesDe = ref(null)
+
+// Cursos vigents/futurs que arrencarien amb l'horari d'un curs anterior
+const avisosXml = ref([])
+
+const carregarAvisosXml = async () => {
+  try {
+    const { data } = await axios.get('/api/cursos/validacio-xml')
+    avisosXml.value = data
+  } catch (error) {
+    avisosXml.value = []
+  }
+}
+
+// Si hi ha un curs que comença en el futur, oferir la seva data d'inici com a drecera:
+// és el cas típic de "preparar l'horari del curs vinent".
+const cursFuturSuggerit = computed(() => {
+  const avui = formatIsoDate(new Date())
+  return [...cursos.value]
+    .filter(c => c.data_inici > avui)
+    .sort((a, b) => a.data_inici.localeCompare(b.data_inici))[0] || null
+})
+
+const carregarCursos = async () => {
+  carregantCursos.value = true
+  try {
+    const { data } = await axios.get('/api/cursos')
+    cursos.value = data
+  } catch (error) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: t('config.courses.loadError'), life: 3000 })
+  } finally {
+    carregantCursos.value = false
+  }
+}
+
+const obrirNouCurs = () => {
+  cursForm.value = { id: null, nom: '', data_inici: null }
+  mostrarDialegCurs.value = true
+}
+
+const obrirEditarCurs = (curs) => {
+  cursForm.value = {
+    id: curs.id,
+    nom: curs.nom,
+    data_inici: parseIsoDate(curs.data_inici)
+  }
+  mostrarDialegCurs.value = true
+}
+
+const desarCurs = async () => {
+  desantCurs.value = true
+  try {
+    const payload = {
+      nom: cursForm.value.nom,
+      data_inici: formatIsoDate(cursForm.value.data_inici)
+    }
+    if (cursForm.value.id) {
+      await axios.put(`/api/cursos/${cursForm.value.id}`, payload)
+    } else {
+      await axios.post('/api/cursos', payload)
+    }
+    mostrarDialegCurs.value = false
+    await carregarCursos()
+    await carregarAvisosXml()
+    emit('cursos-canviats')
+    toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
+  } catch (error) {
+    const detail = error?.response?.data?.detail || t('config.courses.saveError')
+    toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 })
+  } finally {
+    desantCurs.value = false
+  }
+}
+
+const eliminarCurs = (curs) => {
+  confirm.require({
+    message: t('config.courses.deleteConfirm', { nom: curs.nom }),
+    header: t('common.confirmation'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await axios.delete(`/api/cursos/${curs.id}`)
+        await carregarCursos()
+        await carregarAvisosXml()
+        emit('cursos-canviats')
+        toast.add({ severity: 'success', summary: t('common.deleted'), life: 2000 })
+      } catch (error) {
+        toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
+      }
+    }
+  })
 }
 
 const xmlVersionsDisplay = computed(() => {
@@ -2678,6 +2921,10 @@ const pujarXML = async (event) => {
   try {
     const formData = new FormData()
     formData.append('file', file)
+    // Si no s'indica, el backend l'aplica des d'avui
+    if (xmlVigentDesDe.value) {
+      formData.append('data_inici', formatIsoDate(xmlVigentDesDe.value))
+    }
 
     toast.add({
       severity: 'info',
@@ -2692,17 +2939,26 @@ const pujarXML = async (event) => {
       }
     })
 
-    settings.value.xml_horari_path = response.data.path
-    actualitzarSnapshot()
+    // El path "actual" només canvia si la versió nova ja és vigent avui.
+    // Si s'ha programat per a un curs futur, l'horari vigent segueix sent l'anterior.
+    if (response.data.vigent_avui !== false) {
+      settings.value.xml_horari_path = response.data.path
+      actualitzarSnapshot()
+    }
 
     toast.add({
       severity: 'success',
       summary: t('common.uploaded'),
-      detail: response.data.message,
-      life: 3000
+      detail: response.data.vigent_avui === false
+        ? t('config.system.xmlScheduled', { data: response.data.data_inici })
+        : response.data.message,
+      life: 4000
     })
 
-    // Netejar input
+    // Refrescar versions i avisos (pujar un XML pot resoldre una desincronització)
+    await carregarXmlVersions()
+    await carregarAvisosXml()
+    xmlVigentDesDe.value = null
     event.target.value = ''
   } catch (error) {
     console.error('Error pujant XML:', error)
@@ -2942,6 +3198,40 @@ watch(() => props.visible, (newVal) => {
 
 .xml-date {
   max-width: 150px;
+}
+
+/* Data de vigència del pròxim XML a pujar (preparar curs futur) */
+.xml-vigencia {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+/* Avís: un curs arrencaria amb l'horari del curs anterior */
+.xml-avis-desync {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #f59e0b;
+  border-radius: 4px;
+  background: #fffbeb;
+  color: #78350f;
+  font-size: 0.85rem;
+}
+
+.xml-avis-desync .pi {
+  color: #d97706;
+  font-size: 1.1rem;
+}
+
+.xml-avis-text {
+  flex: 1;
+  line-height: 1.35;
 }
 
 .xml-version-actions {

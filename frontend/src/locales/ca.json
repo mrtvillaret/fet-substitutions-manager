@@ -32,7 +32,9 @@
       "profile": "Perfil",
       "help": "Ajuda",
       "logout": "Tancar sessió",
-      "pdfToday": "PDF del dia"
+      "pdfToday": "PDF del dia",
+      "course": "Curs de la data seleccionada",
+      "courseNone": "Fora de curs"
     },
     "tabs": {
       "substitucions": "Substitucions",
@@ -133,7 +135,8 @@
       "leaveLine2": "de baixa",
       "prioritiesLine1": "Prioritats",
       "usersLine1": "Usuaris",
-      "institutionsLine1": "Institucions"
+      "institutionsLine1": "Institucions",
+      "coursesLine1": "Cursos"
     },
     "system": {
       "institution": "Institució",
@@ -169,7 +172,13 @@
       "institutionCodeHint": "Identificador intern (no es pot canviar).",
       "institutionName": "Institució",
       "institutionNamePlaceholder": "Nom visible de la institució",
-      "institutionNameHint": "Nom visible per als usuaris."
+      "institutionNameHint": "Nom visible per als usuaris.",
+      "xmlEffectiveFrom": "Vigent a partir de",
+      "xmlEffectiveHint": "Deixa-ho buit per aplicar-lo des d'avui. Posa-hi una data futura per preparar l'horari d'un curs vinent sense que substitueixi l'actual.",
+      "xmlUseCourseStart": "Usar l'inici del curs {nom}",
+      "xmlScheduled": "Horari programat: entrarà en vigor el {data}. L'horari actual no ha canviat.",
+      "xmlCourseDesync": "El curs {curs} comença el {inici}, però l'horari vigent en aquella data va entrar en vigor el {xmlInici} (curs anterior). Puja el nou horari amb data de vigència {inici}.",
+      "xmlFixDesync": "Preparar-lo"
     },
     "groups": {
       "detectedLabel": "Grups detectats de l'XML",
@@ -333,6 +342,23 @@
       "saveError": "No s'ha pogut desar la institució.",
       "codePlaceholder": "slug (ex: exemple_centre)",
       "namePlaceholder": "Nom visible"
+    },
+    "courses": {
+      "title": "Cursos acadèmics",
+      "new": "Nou curs",
+      "help": "Un curs és un rang de dates amb nom. Només cal la data d'inici: el curs acaba el dia abans que comenci el següent, i l'últim queda obert. El curs d'un dia es dedueix de la data on treballes.",
+      "empty": "Encara no hi ha cap curs definit",
+      "name": "Nom",
+      "namePlaceholder": "p. ex. 2025-2026",
+      "start": "Data d'inici",
+      "startHint": "El curs anterior es tancarà automàticament el dia abans",
+      "end": "Data de fi (derivada)",
+      "open": "Obert",
+      "newTitle": "Nou curs",
+      "editTitle": "Editar curs",
+      "loadError": "No s'han pogut carregar els cursos",
+      "saveError": "No s'ha pogut desar el curs",
+      "deleteConfirm": "Segur que vols eliminar el curs «{nom}»? No s'esborrarà cap dada de substitucions ni vigilàncies."
     }
   },
   "groups": {
@@ -898,7 +924,9 @@
       "start": "Data d'inici",
       "end": "Data final",
       "datePlaceholder": "AAAA-MM-DD",
-      "refresh": "Actualitza"
+      "refresh": "Actualitza",
+      "course": "Curs",
+      "customRange": "Rang personalitzat"
     },
     "loading": "Carregant estadístiques...",
     "tabs": {

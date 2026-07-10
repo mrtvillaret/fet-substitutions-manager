@@ -5,9 +5,9 @@ Routes per gestió de fitxers:
 - Descàrrega de PDFs
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import FileResponse
-from typing import List
+from typing import List, Optional
 from datetime import datetime, date, timedelta
 import hashlib
 import os
@@ -21,14 +21,32 @@ router = APIRouter(prefix="/api/files", tags=["Fitxers"])
 
 
 @router.post("/upload-xml")
-async def upload_xml(file: UploadFile = File(...), current_user=Depends(get_current_user)):
+async def upload_xml(
+    file: UploadFile = File(...),
+    data_inici: Optional[str] = Form(None),
+    current_user=Depends(get_current_user)
+):
     """
-    Puja un fitxer XML de FET i el guarda al directori de dades
+    Puja un fitxer XML de FET i el versiona a partir d'una data de vigència.
+
+    `data_inici` (YYYY-MM-DD, per defecte avui) permet **preparar** l'horari d'un curs
+    futur sense que passi a ser vigent immediatament: la versió anterior es tanca el dia
+    abans, i el punter "actual" (`xml_horari_path`) només es mou si la nova versió ja és
+    vigent avui.
     """
     try:
         # Validar que és un fitxer XML
         if not file.filename.endswith('.xml'):
             raise HTTPException(status_code=400, detail="El fitxer ha de ser XML")
+
+        # Data de vigència de la nova versió
+        if data_inici:
+            try:
+                vigent_des_de = date.fromisoformat(data_inici)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+        else:
+            vigent_des_de = date.today()
 
         data_dir = str(get_data_dir_for_institucio(current_user.institucio))
         os.makedirs(data_dir, exist_ok=True)
@@ -56,6 +74,18 @@ async def upload_xml(file: UploadFile = File(...), current_user=Depends(get_curr
 
             # Informació de l'XML actual (si existeix)
             current_version = XMLVersionRepository.get_current(db)
+
+            # La cadena de versions ha de ser creixent: no es pot inserir una versió
+            # que comenci abans (o el mateix dia) que la vigent.
+            if current_version and vigent_des_de <= current_version.data_inici:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"La data de vigència ({vigent_des_de.isoformat()}) ha de ser posterior "
+                        f"a la de la versió actual ({current_version.data_inici.isoformat()})"
+                    )
+                )
+
             previous_path = ConfiguracioRepository.get(db, 'xml_horari_path')
 
             if previous_path and not os.path.isabs(previous_path):
@@ -119,7 +149,7 @@ async def upload_xml(file: UploadFile = File(...), current_user=Depends(get_curr
                     db,
                     path=stored_prev_path,
                     data_inici=date(2000, 1, 1),
-                    data_fi=date.today() - timedelta(days=1),
+                    data_fi=vigent_des_de - timedelta(days=1),
                     hash_contingut=previous_hash
                 )
 
@@ -134,21 +164,25 @@ async def upload_xml(file: UploadFile = File(...), current_user=Depends(get_curr
             except ValueError:
                 pass
 
-            # Tancar versió anterior i crear nova
+            # Tancar versió anterior el dia abans que entri en vigor la nova
             if current_version:
-                XMLVersionRepository.close_current(db, date.today() - timedelta(days=1))
+                XMLVersionRepository.close_current(db, vigent_des_de - timedelta(days=1))
 
             XMLVersionRepository.create(
                 db,
                 path=stored_path,
-                data_inici=date.today(),
+                data_inici=vigent_des_de,
                 hash_contingut=hash_contingut
             )
 
-            ConfiguracioRepository.set(
-                db, 'xml_horari_path', stored_path,
-                'Path del fitxer XML de FET'
-            )
+            # El punter "actual" només es mou si la nova versió ja és vigent avui.
+            # Si es prepara un horari futur, l'XML vigent continua sent l'anterior.
+            es_vigent_avui = vigent_des_de <= date.today()
+            if es_vigent_avui:
+                ConfiguracioRepository.set(
+                    db, 'xml_horari_path', stored_path,
+                    'Path del fitxer XML de FET'
+                )
 
         # IMPORTANT: Invalidar cache del horari per forçar recàrrega del nou XML
         from helpers import invalidar_horari
@@ -159,6 +193,8 @@ async def upload_xml(file: UploadFile = File(...), current_user=Depends(get_curr
             "success": True,
             "filename": file.filename,
             "path": stored_path,
+            "data_inici": vigent_des_de.isoformat(),
+            "vigent_avui": es_vigent_avui,
             "message": f"Fitxer '{file.filename}' pujat correctament"
         }
 

@@ -6,7 +6,7 @@ Encapsula tota la lògica d'accés a dades
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from typing import List, Optional, Dict, Any
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 import sys
 
@@ -22,7 +22,7 @@ try:
     from .models import (
         Nivell, Assignatura, Grup, Aula, AbreviaturaGrup,
         Vigilancia, Substitucio,
-        GrupAlliberat, Configuracio, XMLVersion, User
+        GrupAlliberat, Configuracio, XMLVersion, Curs, User
     )
 except ImportError:
     # When running as script, add current dir to path to find local models
@@ -30,7 +30,7 @@ except ImportError:
     from models import (
         Nivell, Assignatura, Grup, Aula, AbreviaturaGrup,
         Vigilancia, Substitucio,
-        GrupAlliberat, Configuracio, XMLVersion, User
+        GrupAlliberat, Configuracio, XMLVersion, Curs, User
     )
 
 
@@ -418,6 +418,76 @@ class XMLVersionRepository:
         if actual:
             actual.data_fi = data_fi
             db.commit()
+
+
+class CursRepository:
+    """Cursos acadèmics: seqüència CONTÍGUA de períodes (mateix patró que xml_versions).
+
+    Només es defineix `data_inici`. `data_fi` es deriva sempre: el curs acaba el dia
+    abans que comenci el següent, i l'últim queda obert (`data_fi = NULL`). Així tota
+    data pertany exactament a un curs i no cal cap flag d'"actiu".
+    """
+
+    @staticmethod
+    def _rechain(db: Session) -> None:
+        """Recalcula data_fi de tots els cursos perquè la seqüència sigui contígua."""
+        cursos = db.query(Curs).order_by(Curs.data_inici.asc()).all()
+        for i, curs in enumerate(cursos):
+            seguent = cursos[i + 1] if i + 1 < len(cursos) else None
+            nova_fi = (seguent.data_inici - timedelta(days=1)) if seguent else None
+            if curs.data_fi != nova_fi:
+                curs.data_fi = nova_fi
+        db.commit()
+
+    @staticmethod
+    def list_all(db: Session) -> List[Curs]:
+        return db.query(Curs).order_by(Curs.data_inici.desc()).all()
+
+    @staticmethod
+    def get(db: Session, curs_id: int) -> Optional[Curs]:
+        return db.query(Curs).filter(Curs.id == curs_id).first()
+
+    @staticmethod
+    def get_for_date(db: Session, data: str) -> Optional[Curs]:
+        """Curs al qual pertany una data. Cap si la data és anterior al primer curs."""
+        data_obj = parse_date(data)
+        return db.query(Curs).filter(
+            and_(
+                Curs.data_inici <= data_obj,
+                or_(Curs.data_fi.is_(None), Curs.data_fi >= data_obj)
+            )
+        ).order_by(Curs.data_inici.desc()).first()
+
+    @staticmethod
+    def create(db: Session, nom: str, data_inici: date) -> Curs:
+        nou = Curs(nom=nom, data_inici=data_inici, data_fi=None)
+        db.add(nou)
+        db.commit()
+        CursRepository._rechain(db)
+        db.refresh(nou)
+        return nou
+
+    @staticmethod
+    def update(db: Session, curs_id: int, nom: str, data_inici: date) -> Optional[Curs]:
+        curs = db.query(Curs).filter(Curs.id == curs_id).first()
+        if not curs:
+            return None
+        curs.nom = nom
+        curs.data_inici = data_inici
+        db.commit()
+        CursRepository._rechain(db)
+        db.refresh(curs)
+        return curs
+
+    @staticmethod
+    def delete(db: Session, curs_id: int) -> bool:
+        curs = db.query(Curs).filter(Curs.id == curs_id).first()
+        if not curs:
+            return False
+        db.delete(curs)
+        db.commit()
+        CursRepository._rechain(db)
+        return True
 
 
 class GrupsAlliberatsRepository:

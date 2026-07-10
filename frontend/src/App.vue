@@ -81,6 +81,14 @@
           <div class="config-info" v-if="config">
             <span>👥 {{ $t('app.nav.teachers') }} {{ config.num_professors }}</span>
             <span>🕐 {{ $t('app.nav.hours') }} {{ config.num_hores }}</span>
+            <span
+              v-if="cursos.length"
+              class="curs-indicador"
+              :class="{ 'curs-indicador--cap': !cursDeLaData }"
+              v-tooltip.bottom="$t('app.nav.course')"
+            >
+              📅 {{ cursDeLaData ? cursDeLaData.nom : $t('app.nav.courseNone') }}
+            </span>
           </div>
         </div>
 
@@ -248,9 +256,15 @@
         v-model:visible="mostrarConfiguracio"
         :currentRole="userProfile?.role"
         :currentInstitucio="userProfile?.institucio"
+        @cursos-canviats="carregarCursos"
       />
       <ConfiguracioExamensDialog v-model:visible="mostrarConfiguracioExamens" />
-      <EstadistiquesDialog v-model:visible="mostrarEstadistiques" />
+      <EstadistiquesDialog
+        v-model:visible="mostrarEstadistiques"
+        :curs="cursDeLaData"
+        :cursos="cursos"
+        :dataTreball="dataSeleccionada"
+      />
       <AjudaDialog v-model:visible="mostrarAjuda" />
       <ProfileDialog
         v-model:visible="mostrarPerfil"
@@ -392,6 +406,38 @@ const netejarToken = () => {
 const carregarConfig = async () => {
   const response = await axios.get('/api/config')
   config.value = response.data
+  await carregarCursos()
+}
+
+// ===== CURSOS (per institució) =====
+// Els cursos són una seqüència contígua de rangs amb nom. NO es trien: el curs es
+// deriva de la data on treballes, igual que la versió d'XML. Aquí només es mostra.
+const cursos = ref([])
+
+const _isoDate = (d) => {
+  if (!d) return null
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+const cursDeLaData = computed(() => {
+  const iso = _isoDate(dataSeleccionada.value)
+  if (!iso) return null
+  // Comparació lexicogràfica: les dates ISO ho permeten
+  return cursos.value.find(
+    c => c.data_inici <= iso && (!c.data_fi || iso <= c.data_fi)
+  ) || null
+})
+
+const carregarCursos = async () => {
+  try {
+    const { data } = await axios.get('/api/cursos')
+    cursos.value = data
+  } catch (error) {
+    cursos.value = []
+  }
 }
 
 const carregarPerfil = async () => {
@@ -406,7 +452,7 @@ const carregarPerfil = async () => {
 
 const handleInstitucioCanviada = async () => {
   await carregarPerfil()
-  await carregarConfig()
+  await carregarConfig()   // recarrega també els cursos (són per institució)
   tabActiu.value = 'substitucions'
   institucioKey.value += 1
 }
@@ -833,8 +879,22 @@ input.p-inputtext.p-inputtext-sm {
 .config-info {
   display: flex;
   gap: 1rem;
+  align-items: center;
   font-size: 0.85rem;
   opacity: 0.9;
+}
+
+/* Indicador de curs a la barra: només lectura, derivat de la data seleccionada */
+.curs-indicador {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* Data anterior al primer curs definit */
+.curs-indicador--cap {
+  opacity: 0.6;
+  font-style: italic;
 }
 
 .date-selector {
