@@ -1,20 +1,56 @@
-# Gestor de Substitucions
+# Gestor de Guàrdies, Substitucions i Vigilàncies d'Exàmens
 
-Aplicació web per gestionar substitucions i vigilàncies d'un centre educatiu.
+> Aplicació web **de codi obert** per organitzar les **guàrdies i substitucions**
+> del professorat i les **vigilàncies d'exàmens** d'un centre educatiu: assignació
+> automàtica i equitativa, informes en PDF i importació de l'horari des de
+> [FET](https://lalescu.ro/liviu/fet/).
 
-**Stack:** FastAPI + Vue 3 + PrimeVue · SQLite · Docker + Caddy
+**🇨🇦 Català** · [🇪🇸 Castellano](README.es.md) · [🇬🇧 English](README.en.md)
+
+[![Llicència: GPL v3](https://img.shields.io/badge/Llic%C3%A8ncia-GPLv3-blue.svg)](LICENSE)
+![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
+![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20%2B%20Caddy-2496ED)
+
+**Demo pública:** [gestor.alienamrt.org](https://gestor.alienamrt.org)
+
+<!--
+  Paraules clau (per a la descoberta a cercadors):
+  gestió de guàrdies · substitucions del professorat · vigilàncies d'exàmens ·
+  cobertura d'absències · guardias y sustituciones · reparto de guardias ·
+  teacher cover / substitute scheduling · exam invigilation · cover supervision.
+-->
+
+Si busques un **programa de guàrdies escolars**, un **gestor de substitucions de
+professorat** o una eina per **repartir vigilàncies d'exàmens** de manera justa,
+aquest projecte cobreix tot el flux en una sola aplicació, autoallotjable i gratuïta.
+
+---
+
+## Captures de pantalla
+
+| Substitucions diàries | Vigilàncies i grups | Planificador d'exàmens |
+|---|---|---|
+| ![Vista de substitucions](docs/img/substitucions.png) | ![Vista de vigilàncies](docs/img/vigilancies.png) | ![Planificador d'exàmens](docs/img/planificador.png) |
+
+> _Captures fetes amb la institució d'exemple (`Prof 1`, `Prof 2`…); cap dada real._
+
+---
 
 ## Funcionalitats
 
-- Gestió de substitucions diàries amb assignació de substituts
-- Vigilàncies i grups sense classe
-- Exportació PDF (substitucions, vigilàncies, intervals)
-- Planificador d'exàmens amb optimització automàtica
-- Multi-institució: una BD per centre, auth global
-- Rols: `super_admin`, `admin`, `user`
-- i18n: català, castellà, anglès
+- **Guàrdies i substitucions diàries** amb assignació automàtica de substituts
+- **Vigilàncies d'exàmens** i gestió de grups sense classe
+- **Repartiment equitatiu** de tasques segons càrrega i restriccions configurables
+- **Exportació a PDF** (substitucions, vigilàncies, intervals, informes de direcció)
+- **Planificador d'exàmens** amb optimització automàtica (3 motors de generació)
+- **Importació d'horari des de FET** (XML de _Free Timetabling Software_)
+- **Multi-institució**: una base de dades per centre, autenticació global
+- **Rols**: `super_admin`, `admin`, `user`
+- **Multilingüe**: català, castellà i anglès
 
 ## Arquitectura
+
+**Stack:** FastAPI + Vue 3 + PrimeVue · SQLite · Docker + Caddy
 
 ### Topologia (runtime)
 
