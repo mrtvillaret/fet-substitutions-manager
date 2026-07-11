@@ -331,7 +331,6 @@ const settings = ref({
 })
 
 const idiomes = ref([])
-const professors = ref([])
 const professorsAll = ref([])
 const pdfs = ref([])
 
@@ -389,13 +388,11 @@ const carregarSettings = async () => {
     const [
       settingsResp,
       idiomesResp,
-      professorsResp,
       professorsAllResp,
       xmlVersionsResp
     ] = await Promise.all([
       axios.get('/api/settings'),
       axios.get('/api/settings/idiomes'),
-      axios.get('/api/professors'),
       axios.get('/api/horari/professors/all'),
       axios.get('/api/settings/xml-versions')
     ])
@@ -416,7 +413,6 @@ const carregarSettings = async () => {
     await carregarLogo()
     logoNom.value = settings.value.logo_path ? settings.value.logo_path.split('/').pop() : ''
     idiomes.value = idiomesResp.data.idiomes
-    professors.value = professorsResp.data.professors
     professorsAll.value = professorsAllResp.data.professors
     xmlVersions.value = xmlVersionsResp.data.versions || []
 

@@ -490,25 +490,31 @@ const afegirCategoriaDialog = () => {
 const eliminarCategoria = () => {
   if (categoriaSeleccionadaIndex.value === null) return
 
-  const categoria = ordreCategories.value[categoriaSeleccionadaIndex.value]
+  const idx = categoriaSeleccionadaIndex.value
+  const categoria = ordreCategories.value[idx]
 
-  // Confirmar
-  if (!confirm(t('config.priorities.deleteCategoryConfirm', {
-    index: categoriaSeleccionadaIndex.value + 1,
-    count: categoria.categories.length
-  }))) {
-    return
-  }
+  confirm.require({
+    message: t('config.priorities.deleteCategoryConfirm', {
+      index: idx + 1,
+      count: categoria.categories.length
+    }),
+    header: t('common.confirmation'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.delete'),
+    rejectLabel: t('common.cancel'),
+    acceptClass: 'p-button-danger',
+    accept: () => {
+      ordreCategories.value.splice(idx, 1)
+      categoriaSeleccionada.value = null
+      categoriaSeleccionadaIndex.value = null
 
-  ordreCategories.value.splice(categoriaSeleccionadaIndex.value, 1)
-  categoriaSeleccionada.value = null
-  categoriaSeleccionadaIndex.value = null
-
-  toast.add({
-    severity: 'success',
-    summary: t('common.deleted'),
-    detail: t('config.priorities.categoryDeleted'),
-    life: 3000
+      toast.add({
+        severity: 'success',
+        summary: t('common.deleted'),
+        detail: t('config.priorities.categoryDeleted'),
+        life: 3000
+      })
+    }
   })
 }
 
@@ -557,19 +563,27 @@ const desarAssignaturaCategoria = () => {
 }
 
 const eliminarAssignaturaCategoria = (assignatura, categoriaIdx) => {
-  if (!confirm(t('config.priorities.deleteSubjectConfirm', { subject: assignatura, index: categoriaIdx + 1 }))) return
+  confirm.require({
+    message: t('config.priorities.deleteSubjectConfirm', { subject: assignatura, index: categoriaIdx + 1 }),
+    header: t('common.confirmation'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.delete'),
+    rejectLabel: t('common.cancel'),
+    acceptClass: 'p-button-danger',
+    accept: () => {
+      const idx = ordreCategories.value[categoriaIdx].categories.indexOf(assignatura)
+      if (idx !== -1) {
+        ordreCategories.value[categoriaIdx].categories.splice(idx, 1)
 
-  const idx = ordreCategories.value[categoriaIdx].categories.indexOf(assignatura)
-  if (idx !== -1) {
-    ordreCategories.value[categoriaIdx].categories.splice(idx, 1)
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.deleted'),
-      detail: t('config.priorities.subjectDeleted', { subject: assignatura }),
-      life: 3000
-    })
-  }
+        toast.add({
+          severity: 'success',
+          summary: t('common.deleted'),
+          detail: t('config.priorities.subjectDeleted', { subject: assignatura }),
+          life: 3000
+        })
+      }
+    }
+  })
 }
 
 const carregarAssignaturesXML = async () => {
