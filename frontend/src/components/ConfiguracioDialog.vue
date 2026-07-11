@@ -742,6 +742,17 @@
           </div>
         </TabPanel>
 
+        <!-- TAB: GOVERNANÇA DE DADES (RGPD) -->
+        <TabPanel v-if="canManageUsers">
+          <template #header>
+            <span class="tab-header-lines">
+              <span>{{ $t('config.tabs.dataLine1') }}</span>
+              <span>{{ $t('config.tabs.dataLine2') }}</span>
+            </span>
+          </template>
+          <GestioDadesTab />
+        </TabPanel>
+
         <!-- TAB 6: USUARIS -->
         <TabPanel v-if="canManageUsers">
           <template #header>
@@ -1336,6 +1347,7 @@ import AccordionTab from 'primevue/accordiontab'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Checkbox from 'primevue/checkbox'
+import GestioDadesTab from './GestioDadesTab.vue'
 import { setLocale } from '../i18n'
 
 const toast = useToast()
