@@ -429,7 +429,7 @@
       "generatePendingHint": "Assigna només les substitucions pendents, preservant les existents",
       "regenerateAll": "Regenera tot",
       "regenerateAllHint": "Regenera totes les substitucions des de zero seguint l'ordre de prioritats",
-      "savePdf": "Desa i PDF",
+      "savePdf": "Genera PDF",
       "savePdfHint": "Genera PDF complet del dia (substitucions + vigilàncies)",
       "deleteRow": "Elimina aquesta hora",
       "manageAbsences": "Gestiona absències del professor",
@@ -821,7 +821,7 @@
         "body": "Afegeix o modifica les absències d'un professor per al dia seleccionat. Pots seleccionar múltiples hores i indicar si és per servei."
       },
       "savePdf": {
-        "title": "Desar i PDF",
+        "title": "Genera PDF",
         "body": "Genera un PDF complet amb substitucions i/o vigilàncies del dia. El sistema valida possibles conflictes abans de generar el document."
       },
       "assignManual": {

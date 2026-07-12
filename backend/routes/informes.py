@@ -2,15 +2,18 @@
 Endpoints per generar informes PDF de direcció i per professor.
 """
 import sys
+import shutil
+import tempfile
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from auth_utils import require_admin, get_current_user
-from database import get_data_dir_for_institucio, get_export_dir_for_institucio
+from database import get_data_dir_for_institucio
 from repositories import ConfiguracioRepository, MasterConfigRepository
 from utils.hores import normalitzar_hora as _normalitzar_hora
 
@@ -421,7 +424,9 @@ async def informe_direccio(
     lang = _get_idioma(institucio)
     hores_xml = _get_hores_xml(institucio)
     dades = _calcular_dades_direccio(data_inici, data_final, hores_xml, institucio, lang)
-    export_dir = str(get_export_dir_for_institucio(institucio))
+    # Directori temporal per petició: el PDF no es desa al servidor, es genera i
+    # es retorna; s'esborra un cop enviada la resposta.
+    temp_dir = tempfile.mkdtemp()
     data_dir = get_data_dir_for_institucio(institucio)
     logo_path = data_dir / "logo.png"
     pdf_path = generar_informe_pdf(
@@ -429,7 +434,7 @@ async def informe_direccio(
         nom_centre=nom_centre,
         data_inici=data_inici,
         data_final=data_final,
-        export_dir=export_dir,
+        export_dir=temp_dir,
         logo_path=str(logo_path) if logo_path.exists() else None,
         lang=lang,
     )
@@ -437,6 +442,7 @@ async def informe_direccio(
         pdf_path,
         media_type="application/pdf",
         filename=f"informe_direccio_{data_inici}_{data_final}.pdf",
+        background=BackgroundTask(shutil.rmtree, temp_dir, ignore_errors=True),
     )
 
 
@@ -457,7 +463,8 @@ async def informe_professor(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Cap professor trobat")
 
-    export_dir = str(get_export_dir_for_institucio(institucio))
+    # Directori temporal per petició (el PDF no es desa al servidor).
+    temp_dir = tempfile.mkdtemp()
     pdf_path = generar_informe_professors_pdf(
         professors_data=professors_data,
         nom_centre=nom_centre,
@@ -465,7 +472,7 @@ async def informe_professor(
         data_final=data_final,
         hores_xml=hores_xml,
         mostrar_taules=mostrar_taules,
-        export_dir=export_dir,
+        export_dir=temp_dir,
         lang=lang,
     )
     nom_fitxer = (
@@ -473,7 +480,12 @@ async def informe_professor(
         if professor else
         f"informe_professors_{data_inici}_{data_final}.pdf"
     )
-    return FileResponse(pdf_path, media_type="application/pdf", filename=nom_fitxer)
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=nom_fitxer,
+        background=BackgroundTask(shutil.rmtree, temp_dir, ignore_errors=True),
+    )
 
 
 @router.get("/professors-llista")

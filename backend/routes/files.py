@@ -15,7 +15,7 @@ import shutil
 from pathlib import Path
 
 from auth_utils import get_current_user
-from database import get_data_dir_for_institucio, get_data_db_session, get_export_dir_for_institucio
+from database import get_data_dir_for_institucio, get_data_db_session
 
 router = APIRouter(prefix="/api/files", tags=["Fitxers"])
 
@@ -291,108 +291,3 @@ async def get_logo(current_user=Depends(get_current_user)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error retornant logo: {str(e)}")
 
-@router.get("/pdfs")
-async def list_pdfs(current_user=Depends(get_current_user)):
-    """
-    Llista tots els PDFs del directori d'exports
-    """
-    try:
-        export_path = get_export_dir_for_institucio(current_user.institucio)
-
-        # Crear directori si no existeix
-        os.makedirs(export_path, exist_ok=True)
-
-        # Llistar PDFs
-        pdfs = []
-        for filename in os.listdir(export_path):
-            if filename.endswith('.pdf'):
-                file_path = os.path.join(export_path, filename)
-                stat = os.stat(file_path)
-
-                pdfs.append({
-                    "filename": filename,
-                    "size": stat.st_size,
-                    "created": stat.st_ctime,
-                    "modified": stat.st_mtime
-                })
-
-        # Ordenar per data de modificació (més recent primer)
-        pdfs.sort(key=lambda x: x['modified'], reverse=True)
-
-        return {
-            "pdfs": pdfs,
-            "total": len(pdfs),
-            "directory": os.path.abspath(export_path)
-        }
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error llistant PDFs: {str(e)}")
-
-
-@router.get("/pdfs/{filename}")
-async def download_pdf(filename: str, current_user=Depends(get_current_user)):
-    """
-    Descarrega un PDF específic
-    """
-    try:
-        # Validar nom de fitxer (seguretat)
-        if '..' in filename or '/' in filename or '\\' in filename:
-            raise HTTPException(status_code=400, detail="Nom de fitxer invàlid")
-
-        if not filename.endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="El fitxer ha de ser PDF")
-
-        export_path = get_export_dir_for_institucio(current_user.institucio)
-        file_path = os.path.join(export_path, filename)
-
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="Fitxer no trobat")
-
-        return FileResponse(
-            path=file_path,
-            filename=filename,
-            media_type='application/pdf'
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error descarregant PDF: {str(e)}")
-
-
-@router.delete("/pdfs/{filename}")
-async def delete_pdf(filename: str, current_user=Depends(get_current_user)):
-    """
-    Elimina un PDF
-    """
-    try:
-        # Validar nom de fitxer
-        if '..' in filename or '/' in filename or '\\' in filename:
-            raise HTTPException(status_code=400, detail="Nom de fitxer invàlid")
-
-        if not filename.endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="El fitxer ha de ser PDF")
-
-        export_path = get_export_dir_for_institucio(current_user.institucio)
-        file_path = os.path.join(export_path, filename)
-
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="Fitxer no trobat")
-
-        os.remove(file_path)
-
-        return {
-            "success": True,
-            "message": f"Fitxer '{filename}' eliminat correctament"
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error eliminant PDF: {str(e)}")

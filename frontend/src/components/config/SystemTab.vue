@@ -227,49 +227,6 @@
       </small>
     </div>
 
-    <Divider />
-
-    <!-- PDFs generats -->
-    <div class="field">
-      <div class="toolbar" style="margin-bottom: 0.5rem;">
-        <label>{{ $t('config.system.generatedPdfs') }}</label>
-        <Button
-          icon="pi pi-refresh"
-          @click="carregarPDFs"
-          size="small"
-          class="p-button-secondary"
-          v-tooltip.top="$t('common.reload')"
-        />
-      </div>
-
-      <div class="pdfs-list" v-if="pdfs.length > 0">
-        <div v-for="pdf in pdfs" :key="pdf.filename" class="pdf-card">
-          <div class="pdf-info">
-            <i class="pi pi-file-pdf" style="color: #ef4444; font-size: 1.2rem;"></i>
-            <span class="pdf-name">{{ pdf.filename }}</span>
-            <span class="pdf-size">{{ formatFileSize(pdf.size) }}</span>
-          </div>
-          <div class="pdf-actions">
-            <Button
-              icon="pi pi-download"
-              @click="descarregarPDF(pdf.filename)"
-              class="p-button-rounded p-button-text p-button-sm"
-              v-tooltip.top="$t('common.download')"
-            />
-            <Button
-              icon="pi pi-trash"
-              @click="eliminarPDF(pdf.filename)"
-              class="p-button-rounded p-button-text p-button-danger p-button-sm"
-              v-tooltip.top="$t('common.delete')"
-            />
-          </div>
-        </div>
-      </div>
-      <div v-else class="empty-message" style="margin-top: 0.5rem;">
-        {{ $t('config.system.noPdfs') }}
-      </div>
-    </div>
-
     <div class="config-save-actions">
       <Tag v-if="teCanvis" severity="warning" :value="$t('common.unsavedChanges')" />
       <Button
@@ -332,7 +289,6 @@ const settings = ref({
 
 const idiomes = ref([])
 const professorsAll = ref([])
-const pdfs = ref([])
 
 const logoUrl = ref('')
 let logoObjectUrl = ''
@@ -704,84 +660,8 @@ const pujarXML = async (event) => {
   }
 }
 
-const carregarPDFs = async () => {
-  try {
-    const response = await axios.get('/api/files/pdfs')
-    pdfs.value = response.data.pdfs
-  } catch (error) {
-    console.error('Error carregant PDFs:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('config.errors.loadPdfs'),
-      life: 3000
-    })
-  }
-}
-
-const descarregarPDF = async (filename) => {
-  try {
-    const response = await axios.get(
-      `/api/files/pdfs/${encodeURIComponent(filename)}`,
-      { responseType: 'blob' }
-    )
-    const contentType = response.headers['content-type'] || 'application/pdf'
-    const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: contentType }))
-    window.open(blobUrl, '_blank', 'noopener')
-    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000)
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.downloading'),
-      detail: t('config.system.openingPdf', { name: filename }),
-      life: 2000
-    })
-  } catch (error) {
-    console.error('Error descarregant PDF:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('config.errors.downloadPdf'),
-      life: 3000
-    })
-  }
-}
-
-const eliminarPDF = async (filename) => {
-  try {
-    await axios.delete(`/api/files/pdfs/${encodeURIComponent(filename)}`)
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.deleted'),
-      detail: t('config.system.pdfDeleted', { name: filename }),
-      life: 3000
-    })
-
-    // Recarregar llista
-    await carregarPDFs()
-  } catch (error) {
-    console.error('Error eliminant PDF:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('config.errors.deletePdf'),
-      life: 3000
-    })
-  }
-}
-
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
-}
-
 onMounted(() => {
   carregarSettings()
-  carregarPDFs()
 })
 </script>
 
@@ -978,64 +858,6 @@ onMounted(() => {
     max-width: 100%;
     width: 100%;
   }
-}
-
-.pdfs-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 300px;
-  overflow-y: auto;
-  margin-top: 0.5rem;
-}
-
-.pdf-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background: #fff5f5;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.pdf-card:hover {
-  background: #fef2f2;
-  border-color: #fca5a5;
-}
-
-.pdf-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-}
-
-.pdf-name {
-  font-weight: 500;
-  color: #374151;
-  flex: 1;
-}
-
-.pdf-size {
-  color: #9ca3af;
-  font-size: 0.85rem;
-}
-
-.pdf-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.empty-message {
-  padding: 2rem;
-  text-align: center;
-  color: #9ca3af;
-  font-style: italic;
-  background: #f9fafb;
-  border: 1px dashed #e5e7eb;
-  border-radius: 6px;
 }
 
 .config-save-actions {

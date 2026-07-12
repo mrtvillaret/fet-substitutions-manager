@@ -9,16 +9,17 @@ Routes per generació i validació de PDFs:
 from fastapi import APIRouter, HTTPException, Depends, Body
 from typing import Optional
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from collections import defaultdict
 import tempfile
 import shutil
 import os
+from pathlib import Path
 
 from dependencies import get_db
 from auth_utils import get_current_user
-from database import get_export_dir_for_institucio
 from helpers import get_gestors, get_horari
 from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository
 from export.pdf.engine import PDFCompletExporter
@@ -633,7 +634,8 @@ async def generar_pdf_complet(
         if include_substitutions and substitucions_data:
             _omplir_aula_substitucions(substitucions_data, horari_mgr, date_obj)
 
-        export_dir = get_export_dir_for_institucio(current_user.institucio)
+        # Directori temporal per petició: el PDF no es desa al servidor.
+        export_dir = Path(tempfile.mkdtemp())
         exporter = PDFCompletExporter(hores=hores, export_dir=str(export_dir))
 
         # Configurar opcions via atributs
@@ -648,7 +650,7 @@ async def generar_pdf_complet(
         if show_conflicts:
             all_issues = (validacio_response.get("conflicts") or []) + (validacio_response.get("warnings") or [])
 
-        # Generar PDF (es desa a exports/)
+        # Generar PDF al directori temporal
         filename = exporter.exportar(
             substitucions=substitucions_data,
             vigilancies=vigilancies_list,
@@ -658,23 +660,20 @@ async def generar_pdf_complet(
             conflictes=all_issues  # Passar conflictes al PDF
         )
 
-        # Moure PDF a temp dir
         if not filename:
+            shutil.rmtree(export_dir, ignore_errors=True)
             raise HTTPException(status_code=500, detail="Error intern en generar el PDF")
         exports_path = export_dir / filename
-        temp_dir = tempfile.gettempdir()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         pdf_filename = f"complet_{data}_{timestamp}.pdf"
-        pdf_path = os.path.join(temp_dir, pdf_filename)
 
-        shutil.copy(str(exports_path), pdf_path)
-
-        # Retornar fitxer
+        # Retornar el fitxer i esborrar el temporal un cop enviat
         return FileResponse(
-            pdf_path,
+            str(exports_path),
             media_type="application/pdf",
             filename=pdf_filename,
-            headers={"Content-Disposition": f"attachment; filename={pdf_filename}"}
+            headers={"Content-Disposition": f"attachment; filename={pdf_filename}"},
+            background=BackgroundTask(shutil.rmtree, str(export_dir), True)
         )
 
     except HTTPException:
@@ -814,7 +813,8 @@ async def generar_pdf_interval(
             interval_title = f"{interval_title} ({nivells_text})"
 
         # Generar PDF UNA SOLA VEGADA amb totes les vigilàncies (com desktop)
-        export_dir = get_export_dir_for_institucio(current_user.institucio)
+        # Directori temporal per petició: el PDF no es desa al servidor.
+        export_dir = Path(tempfile.mkdtemp())
         exporter = PDFCompletExporter(hores=hores, export_dir=str(export_dir), horari_mgr=horari_mgr)
 
         # Configurar opcions via atributs
@@ -832,20 +832,16 @@ async def generar_pdf_interval(
             tipus_pdf="vigilancies_interval"
         )
 
-        # Copiar PDF generat a temp per retornar
         exports_path = export_dir / filename
-        temp_dir = tempfile.gettempdir()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         pdf_filename = f"vigilancies_interval_{data_inici}_a_{data_final}_{timestamp}.pdf"
-        pdf_path = os.path.join(temp_dir, pdf_filename)
-
-        shutil.copy(str(exports_path), pdf_path)
 
         return FileResponse(
-            pdf_path,
+            str(exports_path),
             media_type="application/pdf",
             filename=pdf_filename,
-            headers={"Content-Disposition": f"attachment; filename={pdf_filename}"}
+            headers={"Content-Disposition": f"attachment; filename={pdf_filename}"},
+            background=BackgroundTask(shutil.rmtree, str(export_dir), True)
         )
 
     except HTTPException:
@@ -900,7 +896,8 @@ async def generar_pdf_vigilancies(
         horari_mgr = get_horari(current_user.institucio, data)
         hores = horari_mgr.hores
 
-        export_dir = get_export_dir_for_institucio(current_user.institucio)
+        # Directori temporal per petició: el PDF no es desa al servidor.
+        export_dir = Path(tempfile.mkdtemp())
         exporter = PDFCompletExporter(hores=hores, export_dir=str(export_dir))
 
         # Configurar opcions via atributs
@@ -925,22 +922,19 @@ async def generar_pdf_vigilancies(
             tipus_pdf="vigilancies"
         )
 
-        # Moure PDF a temp dir
         if not filename:
+            shutil.rmtree(export_dir, ignore_errors=True)
             raise HTTPException(status_code=500, detail="Error intern en generar el PDF")
         exports_path = export_dir / filename
-        temp_dir = tempfile.gettempdir()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         pdf_filename = f"vigilancies_{data}_{timestamp}.pdf"
-        pdf_path = os.path.join(temp_dir, pdf_filename)
-
-        shutil.copy(str(exports_path), pdf_path)
 
         return FileResponse(
-            pdf_path,
+            str(exports_path),
             media_type="application/pdf",
             filename=pdf_filename,
-            headers={"Content-Disposition": f"attachment; filename={pdf_filename}"}
+            headers={"Content-Disposition": f"attachment; filename={pdf_filename}"},
+            background=BackgroundTask(shutil.rmtree, str(export_dir), True)
         )
 
     except HTTPException:

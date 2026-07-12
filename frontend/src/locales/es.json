@@ -426,7 +426,7 @@
       "generatePendingHint": "Asigna solo las sustituciones pendientes, preservando las existentes",
       "regenerateAll": "Regenerar todo",
       "regenerateAllHint": "Regenera todas las sustituciones desde cero siguiendo el orden de prioridades",
-      "savePdf": "Guardar y PDF",
+      "savePdf": "Generar PDF",
       "savePdfHint": "Genera PDF completo del día (sustituciones + vigilancias)",
       "deleteRow": "Eliminar esta hora",
       "manageAbsences": "Gestionar ausencias del profesor",
@@ -818,7 +818,7 @@
         "body": "Añade o modifica las ausencias de un profesor para el día seleccionado. Puedes seleccionar múltiples horas e indicar si es por servicio."
       },
       "savePdf": {
-        "title": "Guardar y PDF",
+        "title": "Generar PDF",
         "body": "Genera un PDF completo con sustituciones y/o vigilancias del día. El sistema valida posibles conflictos antes de generar el documento."
       },
       "assignManual": {

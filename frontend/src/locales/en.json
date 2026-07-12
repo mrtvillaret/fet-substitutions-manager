@@ -426,7 +426,7 @@
       "generatePendingHint": "Assign only pending substitutions, preserving existing ones",
       "regenerateAll": "Regenerate all",
       "regenerateAllHint": "Regenerate all substitutions from scratch following priority order",
-      "savePdf": "Save & PDF",
+      "savePdf": "Generate PDF",
       "savePdfHint": "Generate a full day PDF (substitutions + supervisions)",
       "deleteRow": "Delete this hour",
       "manageAbsences": "Manage teacher absences",
@@ -818,7 +818,7 @@
         "body": "Add or edit a teacher's absences for the selected day. You can select multiple hours and indicate if it's for service."
       },
       "savePdf": {
-        "title": "Save and PDF",
+        "title": "Generate PDF",
         "body": "Generate a full PDF with substitutions and/or supervisions for the day. The system validates conflicts before generating the document."
       },
       "assignManual": {
