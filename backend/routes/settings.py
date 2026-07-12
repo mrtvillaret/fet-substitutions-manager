@@ -53,6 +53,7 @@ async def get_settings(db: Session = Depends(get_db)):
     """
     try:
         config_db = ConfiguracioRepository.get_all_as_dict(db)
+        # Buit ('') = sense límit ("Tots"). None (mai desat) → també buit.
         ultim_professor_subs = config_db.get('ultim_professor_subs') or ""
         idioma_institucio = config_db.get("idioma") or config.global_data.get("idioma", "ca")
         display_name = config_db.get("institucio_display_name") or config.global_data.get("institucio")

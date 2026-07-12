@@ -341,9 +341,18 @@ const logoNom = ref('')
 const canManageUsers = computed(() => ['admin', 'super_admin'].includes(props.currentRole || ''))
 const isSuperAdmin = computed(() => props.currentRole === 'super_admin')
 
+// Els professors venen en ordre de l'XML (el mateix que fa servir el límit) i
+// amb el nom cru: els espais inicials (secundària vs primària a FET) es mostren
+// com a sagnat visible (nbsp, perquè l'HTML no col·lapsi), però el valor desat
+// és sempre el nom net.
+const indentaEspaisInicials = (prof) => {
+  const nLead = prof.nom_cru.length - prof.nom_cru.trimStart().length
+  return '\u00A0'.repeat(nLead) + prof.nom
+}
+
 const ultimProfessorOptions = computed(() => ([
   { label: t('common.all'), value: '' },
-  ...professorsAll.value.map((prof) => ({ label: prof, value: prof }))
+  ...professorsAll.value.map((prof) => ({ label: indentaEspaisInicials(prof), value: prof.nom }))
 ]))
 
 // Cursos: estat compartit (avisos XML + suggeriment de curs futur).
@@ -413,7 +422,10 @@ const carregarSettings = async () => {
     await carregarLogo()
     logoNom.value = settings.value.logo_path ? settings.value.logo_path.split('/').pop() : ''
     idiomes.value = idiomesResp.data.idiomes
-    professorsAll.value = professorsAllResp.data.professors
+    // Ordre XML + nom cru (per veure els espais). Fallback a la llista plana
+    // si el backend encara no retorna `professors_ordenats`.
+    professorsAll.value = professorsAllResp.data.professors_ordenats
+      || (professorsAllResp.data.professors || []).map((n) => ({ nom: n, nom_cru: n }))
     xmlVersions.value = xmlVersionsResp.data.versions || []
 
     if (canManageUsers.value) {
@@ -607,7 +619,9 @@ const desar = async () => {
       idioma: settings.value.idioma,
       xml_horari_path: settings.value.xml_horari_path,
       export_dir: settings.value.export_dir,
-      ultim_professor_subs: settings.value.ultim_professor_subs || null
+      // '' = "Tots" (el backend l'accepta i esborra el límit); no enviem null,
+      // que el backend interpreta com "no modificar".
+      ultim_professor_subs: settings.value.ultim_professor_subs || ''
     })
 
     toast.add({

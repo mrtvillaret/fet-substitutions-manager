@@ -26,16 +26,22 @@ async def get_all_professors():
         tree = ET.parse(horari.xml_path)
         root = tree.getroot()
 
-        professors = []
+        # En ORDRE del document XML (és l'ordre que fa servir el límit
+        # ultim_professor_subs a horari_web.py), amb el nom cru (amb els espais
+        # inicials, que a FET distingeixen secundària de primària) i el net.
+        professors_ordenats = []
         for teacher in root.findall("Teacher"):
-            nom = teacher.get("name", "").strip()
+            nom_cru = teacher.get("name", "")
+            nom = nom_cru.strip()
             if nom:
-                professors.append(nom)
+                professors_ordenats.append({"nom": nom, "nom_cru": nom_cru})
 
-        professors.sort()
+        # Llista plana ordenada alfabèticament (compatibilitat: professors de baixa)
+        professors = sorted(p["nom"] for p in professors_ordenats)
 
         return {
             "professors": professors,
+            "professors_ordenats": professors_ordenats,
             "total": len(professors)
         }
     except MissingXmlError:
