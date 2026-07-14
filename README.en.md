@@ -6,7 +6,7 @@
 
 [🇨🇦 Català](README.md) · [🇪🇸 Castellano](README.es.md) · **🇬🇧 English**
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20%2B%20Caddy-2496ED)
 
@@ -214,7 +214,7 @@ docker compose up --build -d
 The `data/exemple/` directory includes a `teachers.xml` based on the official
 **"Spain / 2-secondary-school"** example from
 [FET - Free Timetabling Software](https://lalescu.ro/liviu/fet/)
-(Liviu Lalescu, [GPL v2+](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)).
+(Liviu Lalescu, [AGPL v3](https://www.gnu.org/licenses/agpl-3.0.html)).
 Teacher names were replaced with generic identifiers (`Prof 1`, `Prof 2`...).
 
 ---
@@ -233,6 +233,6 @@ rsync -a /opt/gestor/data/ /backup/gestor-data/
 
 ## License
 
-Released under the [GNU General Public License v3.0](LICENSE).
+Released under the [GNU Affero General Public License v3.0](LICENSE).
 
 Copyright (C) 2026 Martí Villaret Ausellé.

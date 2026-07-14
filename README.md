@@ -7,7 +7,7 @@
 
 **🇨🇦 Català** · [🇪🇸 Castellano](README.es.md) · [🇬🇧 English](README.en.md)
 
-[![Llicència: GPL v3](https://img.shields.io/badge/Llic%C3%A8ncia-GPLv3-blue.svg)](LICENSE)
+[![Llicència: AGPL v3](https://img.shields.io/badge/Llic%C3%A8ncia-AGPLv3-blue.svg)](LICENSE)
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20%2B%20Caddy-2496ED)
 
@@ -267,7 +267,7 @@ fet-substitutions-manager/
 
 El directori `data/exemple/` inclou un `teachers.xml` basat en l'exemple oficial
 **"Spain / 2-secondary-school"** de [FET - Free Timetabling Software](https://lalescu.ro/liviu/fet/)
-(Liviu Lalescu, [GPL v2+](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)).
+(Liviu Lalescu, [AGPL v3](https://www.gnu.org/licenses/agpl-3.0.html)).
 Els noms de professors han estat substituïts per identificadors genèrics (`Prof 1`, `Prof 2`...).
 
 ---
@@ -285,6 +285,6 @@ rsync -a /opt/gestor/data/ /backup/gestor-data/
 
 ## Llicència
 
-Publicat sota la [GNU General Public License v3.0](LICENSE).
+Publicat sota la [GNU Affero General Public License v3.0](LICENSE).
 
 Copyright (C) 2026 Martí Villaret Ausellé.
