@@ -4,7 +4,7 @@
 > **exam invigilation** in a school: automatic, fair duty assignment, PDF reports
 > and timetable import from [FET](https://lalescu.ro/liviu/fet/).
 
-[🇨🇦 Català](README.md) · [🇪🇸 Castellano](README.es.md) · **🇬🇧 English**
+[Català](README.md) · [Castellano](README.es.md) · **English**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)

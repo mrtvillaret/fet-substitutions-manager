@@ -5,7 +5,7 @@
 > automática y equitativa, informes en PDF e importación del horario desde
 > [FET](https://lalescu.ro/liviu/fet/).
 
-[🇨🇦 Català](README.md) · **🇪🇸 Castellano** · [🇬🇧 English](README.en.md)
+[Català](README.md) · **Castellano** · [English](README.en.md)
 
 [![Licencia: AGPL v3](https://img.shields.io/badge/Licencia-AGPLv3-blue.svg)](LICENSE)
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
