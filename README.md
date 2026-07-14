@@ -7,7 +7,7 @@
 
 **Català** · [Castellano](README.es.md) · [English](README.en.md)
 
-[![Llicència: AGPL v3](https://img.shields.io/badge/Llic%C3%A8ncia-AGPLv3-blue.svg)](LICENSE)
+[![Llicència: AGPL v3+](https://img.shields.io/badge/Llic%C3%A8ncia-AGPLv3%2B-blue.svg)](LICENSE)
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20%2B%20Caddy-2496ED)
 
@@ -285,6 +285,6 @@ rsync -a /opt/gestor/data/ /backup/gestor-data/
 
 ## Llicència
 
-Publicat sota la [GNU Affero General Public License v3.0](LICENSE).
+Publicat sota la [GNU Affero General Public License, versió 3 o posterior](LICENSE).
 
 Copyright (C) 2026 Martí Villaret Ausellé.
