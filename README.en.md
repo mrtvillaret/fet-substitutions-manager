@@ -10,7 +10,7 @@
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20%2B%20Caddy-2496ED)
 
-**Live demo:** [gestor.alienamrt.org](https://gestor.alienamrt.org)
+**Live demo:** [gestor.alienamrt.org](https://gestor.alienamrt.org) — log in with `user_demo` or `admin_demo` (to see the admin features), password `demo1234`. _The demo resets daily._
 
 <!--
   Keywords (for search discovery):
