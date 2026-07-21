@@ -1,6 +1,27 @@
 el-teu-domini.exemple.com {
     encode zstd gzip
 
+    # Access log persistent.
+    #
+    # Sense aquest bloc, l'únic registre de peticions són els logs del
+    # contenidor (`docker compose logs`), que es perden cada cop que es
+    # reconstrueix la imatge — és a dir, a cada desplegament. Escriure'l a un
+    # volum del host permet revisar a posteriori qui ha accedit al sistema.
+    # Cal muntar-hi el volum: `- ./logs/caddy:/var/log/caddy`.
+    #
+    # ATENCIÓ (RGPD): aquests registres contenen adreces IP, que són dades
+    # personals. Conservar-les per motius de seguretat és lícit per interès
+    # legítim, però cal declarar-ho al registre d'activitats de tractament i
+    # fixar un termini de conservació. Aquí són 90 dies (2160 h).
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10MiB
+            roll_keep 10
+            roll_keep_for 2160h
+        }
+        format json
+    }
+
     header {
         X-Frame-Options "SAMEORIGIN"
         X-Content-Type-Options "nosniff"
