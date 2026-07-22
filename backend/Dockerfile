@@ -5,13 +5,14 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libffi-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# --only-binary=:all: instal·la només paquets ja compilats. Totes les
+# dependències en publiquen, de manera que la imatge no necessita compilador ni
+# capçaleres de desenvolupament. Si algun dia se n'afegeix una que no en tingui,
+# la construcció s'aturarà aquí amb un error clar en lloc de fallar de forma
+# críptica; aleshores caldrà tornar a instal·lar les eines de compilació (millor
+# en una etapa a part, perquè no acabin a la imatge final).
+RUN pip install --no-cache-dir --only-binary=:all: -r /app/requirements.txt
 
 COPY . /app
 
