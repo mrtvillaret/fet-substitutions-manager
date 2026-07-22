@@ -5,7 +5,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 from fastapi import Depends, HTTPException, Request, Response, status
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -135,7 +136,7 @@ def get_current_user(
         institucio = payload.get("institucio")
         if not username:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid")
-    except JWTError as exc:
+    except PyJWTError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid") from exc
 
     user = UserRepository.get_by_username(db, username)
