@@ -124,7 +124,7 @@ npm run dev
 ```
 
 Abre `http://localhost:5173` y entra con las credenciales `super_admin` definidas
-en el `.env` del backend (por defecto `admin123`). El frontend en dev apunta al
+en el `.env` del backend. El frontend en dev apunta al
 backend mediante el proxy de Vite.
 
 ### 4. Cargar los datos de ejemplo
@@ -177,7 +177,7 @@ cp docker-compose.yml.example docker-compose.yml
 Edita el `.env`:
 
 ```env
-SECRET_KEY=        # genera con: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+SECRET_KEY=        # obligatoria — genérala con: openssl rand -hex 32
 APP_INSTITUCIO=nombre_del_centro    # slug sin espacios/acentos
 ADMIN_INSTITUCIO=nombre_del_centro  # idéntico a APP_INSTITUCIO
 ADMIN_PASSWORD=una-contrasena-segura
@@ -194,6 +194,10 @@ docker compose up --build -d
 
 Caddy obtiene el certificado TLS automáticamente. La aplicación estará en
 `https://{tu-dominio}`.
+
+La aplicación **no arranca** si falta `SECRET_KEY` o, mientras no exista el
+administrador, `ADMIN_PASSWORD`. No tienen valor por defecto a propósito: así
+ninguna instalación queda abierta con credenciales que constan en este repositorio.
 
 ### 3. Primer acceso
 

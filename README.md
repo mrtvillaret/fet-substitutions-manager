@@ -143,7 +143,7 @@ npm run dev
 ```
 
 Obre `http://localhost:5173` i entra amb les credencials `super_admin` definides
-al `.env` del backend (per defecte `admin123`). El frontend en dev apunta al backend
+al `.env` del backend. El frontend en dev apunta al backend
 mitjançant el proxy de Vite.
 
 ### 4. Carregar les dades d'exemple
@@ -196,10 +196,10 @@ cp docker-compose.yml.example docker-compose.yml
 Edita el `.env`:
 
 ```env
-SECRET_KEY=        # genera amb: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+SECRET_KEY=        # obligatòria — genera-la amb: openssl rand -hex 32
 APP_INSTITUCIO=nom_del_centre      # slug sense espais/accents
 ADMIN_INSTITUCIO=nom_del_centre    # idèntic a APP_INSTITUCIO
-ADMIN_PASSWORD=una-contrasenya-segura
+ADMIN_PASSWORD=una-contrasenya-segura   # obligatòria al primer arrencada
 ```
 
 Edita el `Caddyfile` i substitueix `el-teu-domini.exemple.com` pel teu domini real
@@ -213,6 +213,12 @@ docker compose up --build -d
 
 Caddy obté el certificat TLS automàticament. L'aplicació estarà a
 `https://{el-teu-domini}`.
+
+### 3. Primer accés
+
+L'aplicació **no arrenca** si falta `SECRET_KEY` o, quan encara no existeix
+l'administrador, `ADMIN_PASSWORD`. No tenen valor per defecte a propòsit: així
+cap instal·lació queda oberta amb credencials que consten en aquest repositori.
 
 ### 3. Primer accés
 
