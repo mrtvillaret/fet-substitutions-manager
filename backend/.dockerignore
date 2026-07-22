@@ -1,0 +1,35 @@
+# Sense això, `COPY . /app` s'endú tot el directori a la imatge: el virtualenv
+# de desenvolupament (uns 175 MB que la imatge no fa servir, perquè té els seus
+# propis paquets), les bases de dades i qualsevol fitxer que hi hagi quedat.
+# Les dades reals arriben pel volum ./data, no per la imatge.
+
+# Entorn de desenvolupament
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Bases de dades i dades: van pel volum
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+data/
+data_*/
+
+# Configuració: la injecta docker compose amb env_file
+.env
+.env.*
+
+# Sortides generades
+exports/
+*.pdf
+*.log
+
+# Control de versions i eines
+.git/
+.gitignore
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
