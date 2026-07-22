@@ -78,9 +78,16 @@ def decode_access_token(token: str) -> Dict[str, Any]:
 
 
 def ensure_default_users() -> None:
-    """Crea usuaris per defecte (admin/user) si no existeixen."""
+    """Crea els usuaris inicials si no existeixen.
+
+    Les contrasenyes han de venir per variable d'entorn: si en falta alguna,
+    l'aplicació s'atura en lloc d'usar un valor fix. Un valor per defecte al
+    codi és públic per definició, i una instal·lació que no llegís les
+    instruccions quedaria oberta amb credencials conegudes.
+    """
     defaults = [{"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD,
-                 "institucio": ADMIN_INSTITUCIO, "role": "super_admin"}]
+                 "institucio": ADMIN_INSTITUCIO, "role": "super_admin",
+                 "obligatori": True}]
     defaults.extend(DEFAULT_USERS)
 
     with get_auth_db_session() as db:
@@ -92,12 +99,25 @@ def ensure_default_users() -> None:
 
             existing = UserRepository.get_by_username(db, username)
             if existing:
-                if not existing.password_hash.startswith("$argon2"):
+                # Rehash d'un format antic: només és possible si sabem la
+                # contrasenya, o sigui si ve de la variable d'entorn.
+                if password and not existing.password_hash.startswith("$argon2"):
                     existing.password_hash = hash_password(password)
                 existing.role = role
                 existing.active = True
                 existing.institucio = institucio
                 db.commit()
+                continue
+
+            if not password:
+                if entry.get("obligatori"):
+                    raise SystemExit(
+                        f"\nERROR: cal definir ADMIN_PASSWORD per crear l'usuari "
+                        f"'{username}'.\n"
+                        f"Afegeix-la al fitxer .env i torna a arrencar.\n"
+                    )
+                # Els altres usuaris de mostra són opcionals: sense contrasenya
+                # definida, simplement no es creen.
                 continue
 
             UserRepository.create(
