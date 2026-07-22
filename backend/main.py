@@ -20,6 +20,7 @@ from slowapi.middleware import SlowAPIMiddleware
 # SQLAlchemy imports
 from database import create_auth_tables
 from auth_utils import ensure_default_users, get_current_user, require_admin
+from config.auth import IS_DEVELOPMENT
 from rate_limit import limiter
 
 # Imports de schemas i helpers
@@ -54,10 +55,15 @@ def _inicialitzar_prioritats():
 
 _inicialitzar_prioritats()
 
+# Fora de desenvolupament no es publica ni la documentació interactiva ni
+# l'esquema OpenAPI: donen el mapa complet de l'API a qui no ha entrat.
 app = FastAPI(
     title="Gestor Substitucions API",
     description="API REST per gestionar substitucions i vigilàncies",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url="/docs" if IS_DEVELOPMENT else None,
+    redoc_url="/redoc" if IS_DEVELOPMENT else None,
+    openapi_url="/openapi.json" if IS_DEVELOPMENT else None,
 )
 
 

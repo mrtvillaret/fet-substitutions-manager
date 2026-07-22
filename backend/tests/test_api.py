@@ -1,91 +1,85 @@
 """
-Script de test per verificar que l'API funciona correctament
-Executa: python test_api.py
+Comprovació de fum contra un backend ja engegat.
+
+Aquest mòdul no arrenca res: si a BASE_URL no hi respon ningú, es salta
+sencer. Les credencials surten de l'entorn, les mateixes que el .env del
+backend, perquè els endpoints demanen sessió.
+
+    pip install -r requirements-dev.txt
+    uvicorn main:app &            # en una altra terminal
+    pytest tests/test_api.py
 """
-import requests
-import json
+import os
 from datetime import datetime
 
-BASE_URL = "http://localhost:8000"
+import pytest
 
-def test_health():
-    """Test endpoint /"""
-    print("🧪 Test: Health check...")
-    response = requests.get(f"{BASE_URL}/")
-    assert response.status_code == 200
-    print(f"   ✅ Status: {response.json()['status']}")
+requests = pytest.importorskip(
+    "requests", reason="instal·la requirements-dev.txt per a les proves"
+)
 
-def test_config():
-    """Test endpoint /api/config"""
-    print("\n🧪 Test: Config...")
-    response = requests.get(f"{BASE_URL}/api/config")
-    assert response.status_code == 200
-    data = response.json()
-    print(f"   ✅ Professors: {data['num_professors']}")
-    print(f"   ✅ Hores: {data['num_hores']}")
+BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+USERNAME = os.getenv("ADMIN_USERNAME", "super_admin")
+PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
-def test_professors():
-    """Test endpoint /api/professors"""
-    print("\n🧪 Test: Llista professors...")
-    response = requests.get(f"{BASE_URL}/api/professors")
-    assert response.status_code == 200
-    data = response.json()
-    print(f"   ✅ Total: {len(data['professors'])} professors")
-    print(f"   ✅ Primers 5: {data['professors'][:5]}")
 
-def test_hores():
-    """Test endpoint /api/hores"""
-    print("\n🧪 Test: Llista hores...")
-    response = requests.get(f"{BASE_URL}/api/hores")
-    assert response.status_code == 200
-    data = response.json()
-    print(f"   ✅ Total: {len(data['hores'])} hores")
-    print(f"   ✅ Hores: {data['hores']}")
-
-def test_substitucions():
-    """Test endpoint /api/substitucions/{data}"""
-    data = datetime.now().strftime("%Y-%m-%d")
-    print(f"\n🧪 Test: Substitucions del {data}...")
-    response = requests.get(f"{BASE_URL}/api/substitucions/{data}")
-    assert response.status_code == 200
-    substitucions = response.json()
-    print(f"   ✅ Total: {len(substitucions)} substitucions")
-    if substitucions:
-        print(f"   ✅ Primera: {substitucions[0]}")
-
-def test_generar_substitucions():
-    """Test endpoint POST /api/substitucions/{data}/generar"""
-    data = datetime.now().strftime("%Y-%m-%d")
-    print(f"\n🧪 Test: Generar substitucions del {data}...")
-    response = requests.post(f"{BASE_URL}/api/substitucions/{data}/generar")
-    assert response.status_code == 200
-    result = response.json()
-    print(f"   ✅ {result['message']}")
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("🧪 TESTS API - Gestor Substitucions")
-    print("=" * 60)
-
+@pytest.fixture(scope="module")
+def sessio():
+    """Sessió autenticada, o skip si no hi ha backend a l'altra banda."""
+    client = requests.Session()
     try:
-        test_health()
-        test_config()
-        test_professors()
-        test_hores()
-        test_substitucions()
-        # test_generar_substitucions()  # Descomenteu si voleu provar generació
+        client.get(BASE_URL, timeout=2)
+    except requests.exceptions.RequestException:
+        pytest.skip(f"cap backend escoltant a {BASE_URL}")
 
-        print("\n" + "=" * 60)
-        print("✅ TOTS ELS TESTS HAN PASSAT!")
-        print("=" * 60)
+    if not PASSWORD:
+        pytest.skip("cal ADMIN_PASSWORD a l'entorn per poder entrar")
 
-    except requests.exceptions.ConnectionError:
-        print("\n❌ ERROR: No es pot connectar al servidor")
-        print("   Assegura't que el backend està executant a http://localhost:8000")
-        print("   Executa: python main.py")
+    resposta = client.post(
+        f"{BASE_URL}/api/login",
+        json={"username": USERNAME, "password": PASSWORD},
+        timeout=5,
+    )
+    if resposta.status_code != 200:
+        pytest.skip(f"login rebutjat per a {USERNAME}: {resposta.status_code}")
+    return client
 
-    except AssertionError as e:
-        print(f"\n❌ TEST FALLIT: {e}")
 
-    except Exception as e:
-        print(f"\n❌ ERROR INESPERAT: {e}")
+def test_health(sessio):
+    assert sessio.get(f"{BASE_URL}/", timeout=5).status_code == 200
+
+
+def test_config(sessio):
+    resposta = sessio.get(f"{BASE_URL}/api/config", timeout=5)
+    assert resposta.status_code == 200
+    dades = resposta.json()
+    assert dades["num_professors"] >= 0
+    assert dades["num_hores"] >= 0
+
+
+def test_professors(sessio):
+    resposta = sessio.get(f"{BASE_URL}/api/professors", timeout=5)
+    assert resposta.status_code == 200
+    assert isinstance(resposta.json()["professors"], list)
+
+
+def test_hores(sessio):
+    resposta = sessio.get(f"{BASE_URL}/api/hores", timeout=5)
+    assert resposta.status_code == 200
+    assert isinstance(resposta.json()["hores"], list)
+
+
+@pytest.fixture(scope="module")
+def amb_horari(sessio):
+    """Skip si la institució encara no té cap XML d'horari carregat."""
+    dades = sessio.get(f"{BASE_URL}/api/professors", timeout=5).json()
+    if dades.get("xml_missing"):
+        pytest.skip("la institució no té cap XML d'horari carregat")
+    return sessio
+
+
+def test_substitucions(amb_horari):
+    avui = datetime.now().strftime("%Y-%m-%d")
+    resposta = amb_horari.get(f"{BASE_URL}/api/substitucions/{avui}", timeout=10)
+    assert resposta.status_code == 200
+    assert isinstance(resposta.json(), list)

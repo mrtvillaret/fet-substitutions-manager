@@ -130,7 +130,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 El backend crea automàticament les BDs (`auth.db` i `data/{APP_INSTITUCIO}/gestor.db`)
 al primer arrencat, i un super_admin segons `ADMIN_USERNAME`/`ADMIN_PASSWORD` del `.env`.
 
-API disponible a `http://localhost:8000` · Documentació a `http://localhost:8000/docs`.
+API disponible a `http://localhost:8000` · Documentació a `http://localhost:8000/docs`
+(només amb `ENVIRONMENT=development`; en qualsevol altre entorn no es publica).
 
 ### 3. Frontend
 
@@ -151,6 +152,20 @@ mitjançant el proxy de Vite.
 Un cop dins, ves a **Configuració > Importar XML** i puja `data/exemple/teachers.xml`.
 Aquest XML és la plantilla "Spain / 2-secondary-school" del programari FET amb noms
 genèrics (`Prof 1`, `Prof 2`...).
+
+### 5. Proves (opcional)
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest tests/
+```
+
+`tests/test_api.py` són comprovacions de fum contra un backend engegat: si no
+n'hi ha cap a `http://localhost:8000`, se salten. Els tests de regressió del
+planificador comparen la sortida del motor amb un resultat fix i necessiten el
+conjunt de dades que el va generar, que no es distribueix; apunta-hi
+`TEST_DATA_DIR` si en tens un de propi.
 
 ---
 

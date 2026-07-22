@@ -172,13 +172,19 @@ def _derive_dies_utilitzar(selected_dates):
 class SchedulerRegressiondemoBAC2Test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        root = BACKEND_DIR.parent
-        cls.db_path = root / "data" / "demo" / "gestor.db"
-        cls.xml_path = root / "data" / "demo" / "teachers.xml"
+        # Aquest test compara la sortida del motor amb un snapshot fix, així
+        # que necessita el mateix conjunt de dades que el va generar. No es
+        # distribueix amb el repositori: apunta TEST_DATA_DIR a un directori
+        # teu amb gestor.db i teachers.xml per executar-lo.
+        arrel = BACKEND_DIR.parent
+        data_dir = Path(os.environ.get("TEST_DATA_DIR", arrel / "data" / "demo"))
+        cls.db_path = data_dir / "gestor.db"
+        cls.xml_path = data_dir / "teachers.xml"
 
         if not cls.db_path.exists() or not cls.xml_path.exists():
             raise unittest.SkipTest(
-                "Fixture absent: calen web-prototype/data/demo/gestor.db i teachers.xml"
+                f"Fixture absent a {data_dir}: calen gestor.db i teachers.xml. "
+                "Defineix TEST_DATA_DIR per apuntar al teu conjunt de dades."
             )
 
         con = sqlite3.connect(cls.db_path)
