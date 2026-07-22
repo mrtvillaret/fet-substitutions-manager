@@ -104,7 +104,11 @@ gestor-backup_*/
 # Fitxers de configuració del servidor (usa *.example per compartir)
 Caddyfile
 docker-compose.yml
+docker-compose.local.yml
 scripts/sync-server.sh
+
+# Registres del proxy (contenen adreces IP)
+logs/
 
 # Dades locals del centre (no pujar mai a git)
 arxius_desktop/

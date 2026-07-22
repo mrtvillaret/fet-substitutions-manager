@@ -163,7 +163,8 @@ i serveix l'app a `http://localhost:8080`.
 ```bash
 cp .env.example .env
 cp docker-compose.local.yml.example docker-compose.local.yml
-# Edita .env: posa COOKIE_SECURE=false (cal per HTTP plain) i una ADMIN_PASSWORD
+# Edita .env: genera SECRET_KEY (openssl rand -hex 32), posa COOKIE_SECURE=false
+# (cal per HTTP plain) i una ADMIN_PASSWORD
 
 docker compose -f docker-compose.local.yml up --build -d
 ```
@@ -214,8 +215,6 @@ docker compose up --build -d
 Caddy obté el certificat TLS automàticament. L'aplicació estarà a
 `https://{el-teu-domini}`.
 
-### 3. Primer accés
-
 L'aplicació **no arrenca** si falta `SECRET_KEY` o, quan encara no existeix
 l'administrador, `ADMIN_PASSWORD`. No tenen valor per defecte a propòsit: així
 cap instal·lació queda oberta amb credencials que consten en aquest repositori.
@@ -229,21 +228,15 @@ cap instal·lació queda oberta amb credencials que consten en aquest repositori
 
 ### Protecció de dades
 
-En desplegar aquest programari passeu a tractar dades personals del vostre
-professorat (nom, horari, absències i qui les cobreix), i el centre n'és el
-responsable del tractament. Segons on sigueu, això sol implicar:
+L'aplicació tracta dades personals del professorat (nom, horari, absències i qui
+les cobreix). Qui la desplega decideix com les tracta i amb quines garanties;
+consulteu-ho amb qui porti la protecció de dades al vostre centre.
 
-- Incorporar el tractament al **registre d'activitats** del centre.
-- **Informar el professorat** de què es tracta, amb quina base jurídica i
-  durant quant de temps es conserva (art. 13 del RGPD a la UE).
-- Si l'allotja un tercer (empresa, proveïdor, personal extern), signar-hi un
-  **contracte d'encarregat del tractament**.
+Per si us ajuda a documentar-ho, això és el que desa el programari:
 
-L'aplicació no registra el motiu de les absències ni cap dada de salut. Sí que
-desa **registres d'accés amb adreces IP** si activeu l'`access log` del proxy
-(vegeu `Caddyfile.example`): fixeu-ne un termini de conservació.
-
-Consulteu-ho amb el delegat de protecció de dades del vostre centre.
+- No registra el motiu de les absències ni cap dada de salut.
+- Si activeu l'`access log` del proxy (vegeu `Caddyfile.example`), es desen
+  adreces IP. L'exemple porta un termini de conservació configurable.
 
 ### Actualitzacions
 
@@ -265,7 +258,7 @@ fet-substitutions-manager/
 │   ├── core/                  # Lògica de negoci (horari, alliberats, substitucions)
 │   ├── scheduler_engine/      # Motor de planificació d'exàmens
 │   ├── config/                # Configuració, constants, settings
-│   ├── repositories/          # Accés a dades (SQLAlchemy)
+│   ├── repositories.py        # Accés a dades (SQLAlchemy)
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env.example
@@ -281,8 +274,10 @@ fet-substitutions-manager/
 │   └── exemple/
 │       └── teachers.xml       # XML d'exemple (FET Spain secondary school)
 ├── scripts/
+│   ├── setup-server.sh        # Preparació inicial del servidor
 │   └── sync-server.sh.example # Script de sincronització al servidor
-├── docker-compose.yml.example # Plantilla Docker Compose (copia a docker-compose.yml)
+├── docker-compose.yml.example      # Plantilla Docker Compose (copia a docker-compose.yml)
+├── docker-compose.local.yml.example # Plantilla per a proves locals sense domini
 ├── Caddyfile.example          # Plantilla Caddy (copia a Caddyfile)
 └── .env.example               # Plantilla variables d'entorn (copia a .env)
 ```

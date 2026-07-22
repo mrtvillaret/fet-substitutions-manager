@@ -144,7 +144,8 @@ y sirve la app en `http://localhost:8080`.
 ```bash
 cp .env.example .env
 cp docker-compose.local.yml.example docker-compose.local.yml
-# Edita .env: pon COOKIE_SECURE=false (necesario para HTTP plano) y una ADMIN_PASSWORD
+# Edita .env: genera SECRET_KEY (openssl rand -hex 32), pon COOKIE_SECURE=false
+# (necesario para HTTP plano) y una ADMIN_PASSWORD
 
 docker compose -f docker-compose.local.yml up --build -d
 ```
@@ -208,22 +209,15 @@ ninguna instalación queda abierta con credenciales que constan en este reposito
 
 ### Protección de datos
 
-Al desplegar este software pasáis a tratar datos personales de vuestro
-profesorado (nombre, horario, ausencias y quién las cubre), y el centro es el
-responsable del tratamiento. Según dónde estéis, esto suele implicar:
+La aplicación trata datos personales del profesorado (nombre, horario, ausencias
+y quién las cubre). Quien la despliega decide cómo los trata y con qué
+garantías; consultadlo con quien lleve la protección de datos en vuestro centro.
 
-- Incorporar el tratamiento al **registro de actividades** del centro.
-- **Informar al profesorado** de qué se trata, con qué base jurídica y durante
-  cuánto tiempo se conserva (art. 13 del RGPD en la UE).
-- Si lo aloja un tercero (empresa, proveedor, personal externo), firmar un
-  **contrato de encargado del tratamiento**.
+Por si os ayuda a documentarlo, esto es lo que guarda el software:
 
-La aplicación no registra el motivo de las ausencias ni ningún dato de salud.
-Sí guarda **registros de acceso con direcciones IP** si activáis el
-`access log` del proxy (ver `Caddyfile.example`): fijadle un plazo de
-conservación.
-
-Consultadlo con el delegado de protección de datos de vuestro centro.
+- No registra el motivo de las ausencias ni ningún dato de salud.
+- Si activáis el `access log` del proxy (ver `Caddyfile.example`), se guardan
+  direcciones IP. El ejemplo trae un plazo de conservación configurable.
 
 ### Actualizaciones
 

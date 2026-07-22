@@ -143,7 +143,8 @@ and serves the app at `http://localhost:8080`.
 ```bash
 cp .env.example .env
 cp docker-compose.local.yml.example docker-compose.local.yml
-# Edit .env: set COOKIE_SECURE=false (required for plain HTTP) and an ADMIN_PASSWORD
+# Edit .env: generate SECRET_KEY (openssl rand -hex 32), set COOKIE_SECURE=false
+# (required for plain HTTP) and an ADMIN_PASSWORD
 
 docker compose -f docker-compose.local.yml up --build -d
 ```
@@ -208,21 +209,16 @@ are published in this repository.
 
 ### Data protection
 
-Deploying this software means you process personal data about your teaching
-staff (names, timetables, absences and who covers them), and the school is the
-data controller. Depending on your jurisdiction, this usually means:
+The application handles personal data about teaching staff (names, timetables,
+absences and who covers them). Whoever deploys it decides how that data is
+handled and under what safeguards; check with whoever looks after data
+protection at your school.
 
-- Adding the processing to the school's **record of processing activities**.
-- **Informing staff** what is processed, on what legal basis and for how long
-  it is kept (art. 13 GDPR in the EU).
-- If a third party hosts it (a company, a vendor, external staff), signing a
-  **data processing agreement** with them.
+In case it helps you document it, this is what the software stores:
 
-The application records neither the reason for absences nor any health data.
-It does keep **access logs containing IP addresses** if you enable the proxy's
-access log (see `Caddyfile.example`): set a retention period for them.
-
-Check with your school's data protection officer.
+- It records neither the reason for absences nor any health data.
+- If you enable the proxy's access log (see `Caddyfile.example`), IP addresses
+  are stored. The example ships with a configurable retention period.
 
 ### Updates
 

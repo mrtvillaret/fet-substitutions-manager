@@ -33,6 +33,9 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # L'access log del Caddyfile s'escriu aquí. Sense aquest muntatge es
+      # quedaria dins del contenidor i es perdria a cada reconstrucció.
+      - ./logs/caddy:/var/log/caddy
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
