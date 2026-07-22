@@ -15,7 +15,6 @@ sqlalchemy==2.0.51
 # arrossegava ecdsa, rsa i pyasn1.
 PyJWT[crypto]==2.13.0
 
-passlib[argon2]==1.7.4
 argon2-cffi==25.1.0
 slowapi==0.1.10
 

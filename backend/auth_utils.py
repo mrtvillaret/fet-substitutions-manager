@@ -7,7 +7,8 @@ from typing import Dict, Any
 from fastapi import Depends, HTTPException, Request, Response, status
 import jwt
 from jwt import PyJWTError
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy.orm import Session
 
 from config.auth import (
@@ -24,8 +25,12 @@ from config.settings import config
 from database import get_auth_db_session, get_auth_db
 from repositories import UserRepository
 
-# Argon2 per evitar problemes amb bcrypt a Python 3.13
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+# Argon2 per evitar problemes amb bcrypt a Python 3.13.
+# S'usa argon2-cffi directament: passlib només feia de capa intermèdia i porta
+# des del 2020 sense cap versió nova. Els paràmetres per defecte són els
+# mateixos que aplicava passlib (m=65536, t=3, p=4), i el format del hash és
+# l'estàndard PHC, de manera que les contrasenyes ja desades continuen valent.
+_hasher = PasswordHasher()
 _prioritats_loaded_for = None
 
 COOKIE_NAME = "gestor_token"
@@ -47,11 +52,18 @@ def clear_auth_cookie(response: Response) -> None:
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return _hasher.hash(password)
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
-    return pwd_context.verify(plain_password, password_hash)
+    # Compte amb l'ordre dels arguments: argon2-cffi rep (hash, contrasenya),
+    # a l'inrevés que passlib. I `verify` no retorna mai False: o retorna True
+    # o llança, també si el hash desat està malmès (InvalidHashError, que hereta
+    # de ValueError i no d'Argon2Error).
+    try:
+        return _hasher.verify(password_hash, plain_password)
+    except (VerificationError, InvalidHashError):
+        return False
 
 
 def create_access_token(data: Dict[str, Any], expires_hours: int = ACCESS_TOKEN_EXPIRE_HOURS) -> str:
