@@ -93,6 +93,13 @@
       />
       <small class="field-hint">{{ $t('config.system.xmlHint') }}</small>
 
+      <!-- A la demo, l'XML és l'única via per on hi poden entrar dades reals
+           d'un centre de debò (i és d'accés públic i compartit). -->
+      <div v-if="esDemo" class="xml-avis-desync">
+        <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+        <div class="xml-avis-text">{{ $t('config.system.xmlDemoWarning') }}</div>
+      </div>
+
       <!-- Avís: un curs arrencaria amb l'horari del curs anterior -->
       <div
         v-for="avis in avisosXml"
@@ -286,6 +293,10 @@ const settings = ref({
   no_substituir: [],
   logo_path: ''
 })
+
+// La instància de demostració és pública i compartida: qualsevol pot entrar-hi
+// amb les credencials del README i veure el que hi hagi.
+const esDemo = computed(() => settings.value.institucio === 'demo')
 
 const idiomes = ref([])
 const professorsAll = ref([])

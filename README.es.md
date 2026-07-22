@@ -11,7 +11,9 @@
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20%2B%20Caddy-2496ED)
 
-**Demo pública:** [gestor.alienamrt.org](https://gestor.alienamrt.org) — entra con `user_demo` o `admin_demo` (para ver las funciones de administración), contraseña `demo1234`. _La demo se reinicia cada día._
+**Demo pública:** [gestor.alienamrt.org](https://gestor.alienamrt.org) — entra con `user_demo` o `admin_demo` (para ver las funciones de administración), contraseña `demo1234`. _La demo se reinicia cada día a las 4:00._
+
+> ⚠️ La demo es **pública y compartida**: otras personas pueden estar trabajando a la vez y ver lo que introduzcáis. No subáis horarios ni datos personales reales de vuestro centro.
 
 <!--
   Palabras clave (para descubrimiento en buscadores):
@@ -199,6 +201,25 @@ Caddy obtiene el certificado TLS automáticamente. La aplicación estará en
 - **Cambia la contraseña** de inmediato desde Configuración > Usuarios
 - Sube el XML de tu centro (generado por [FET](https://lalescu.ro/liviu/fet/))
   desde Configuración > Importar XML
+
+### Protección de datos
+
+Al desplegar este software pasáis a tratar datos personales de vuestro
+profesorado (nombre, horario, ausencias y quién las cubre), y el centro es el
+responsable del tratamiento. Según dónde estéis, esto suele implicar:
+
+- Incorporar el tratamiento al **registro de actividades** del centro.
+- **Informar al profesorado** de qué se trata, con qué base jurídica y durante
+  cuánto tiempo se conserva (art. 13 del RGPD en la UE).
+- Si lo aloja un tercero (empresa, proveedor, personal externo), firmar un
+  **contrato de encargado del tratamiento**.
+
+La aplicación no registra el motivo de las ausencias ni ningún dato de salud.
+Sí guarda **registros de acceso con direcciones IP** si activáis el
+`access log` del proxy (ver `Caddyfile.example`): fijadle un plazo de
+conservación.
+
+Consultadlo con el delegado de protección de datos de vuestro centro.
 
 ### Actualizaciones
 

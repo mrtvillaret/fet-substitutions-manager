@@ -203,6 +203,16 @@
         </div>
       </div>
 
+      <!-- La demo és pública i compartida: qui hi entra ha de saber que el que
+           escrigui el veuran altres visitants i que s'esborra cada nit. -->
+      <div v-if="esDemo" class="demo-avis">
+        <i class="pi pi-info-circle" aria-hidden="true"></i>
+        <span>
+          <strong>{{ $t('config.system.demoBannerTitle') }}.</strong>
+          {{ $t('config.system.demoBannerText') }}
+        </span>
+      </div>
+
       <!-- Contingut -->
       <main class="main-content">
         <SubstitucionsView
@@ -381,6 +391,7 @@ let mediaQuery = null
 const userProfile = ref(null)
 const institucioKey = ref(0)
 const isAdmin = computed(() => ['admin', 'super_admin'].includes(userProfile.value?.role || ''))
+const esDemo = computed(() => userProfile.value?.institucio === 'demo')
 const isSchedulerRoute = ref(window.location.pathname === '/scheduler')
 
 const actualitzarModeMobil = () => {
@@ -1026,6 +1037,31 @@ input.p-inputtext.p-inputtext-sm {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Informatiu, no d'error: la demo funciona correctament, però convé saber
+   que és compartida i efímera abans de posar-hi res. */
+.demo-avis {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 1400px;
+  margin: 1rem auto 0;
+  padding: 0.6rem 0.9rem;
+  width: calc(100% - 4rem);
+  border: 1px solid #bae6fd;
+  border-left: 4px solid #0284c7;
+  border-radius: 4px;
+  background: #f0f9ff;
+  color: #075985;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.demo-avis .pi {
+  color: #0284c7;
+  font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
 /* Footer */

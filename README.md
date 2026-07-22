@@ -11,7 +11,9 @@
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20%2B%20Caddy-2496ED)
 
-**Demo pública:** [gestor.alienamrt.org](https://gestor.alienamrt.org) — entra amb `user_demo` o `admin_demo` (per veure les funcions d'administració), contrasenya `demo1234`. _La demo es reinicia cada dia._
+**Demo pública:** [gestor.alienamrt.org](https://gestor.alienamrt.org) — entra amb `user_demo` o `admin_demo` (per veure les funcions d'administració), contrasenya `demo1234`. _La demo es reinicia cada dia a les 4:00._
+
+> ⚠️ La demo és **pública i compartida**: altres persones hi poden estar treballant alhora i veure el que hi introduïu. No hi pugeu horaris ni dades personals reals del vostre centre.
 
 <!--
   Paraules clau (per a la descoberta a cercadors):
@@ -218,6 +220,24 @@ Caddy obté el certificat TLS automàticament. L'aplicació estarà a
 - **Canvia la contrasenya** immediatament des de Configuració > Usuaris
 - Puja l'XML del teu centre (generat per [FET](https://lalescu.ro/liviu/fet/))
   des de Configuració > Importar XML
+
+### Protecció de dades
+
+En desplegar aquest programari passeu a tractar dades personals del vostre
+professorat (nom, horari, absències i qui les cobreix), i el centre n'és el
+responsable del tractament. Segons on sigueu, això sol implicar:
+
+- Incorporar el tractament al **registre d'activitats** del centre.
+- **Informar el professorat** de què es tracta, amb quina base jurídica i
+  durant quant de temps es conserva (art. 13 del RGPD a la UE).
+- Si l'allotja un tercer (empresa, proveïdor, personal extern), signar-hi un
+  **contracte d'encarregat del tractament**.
+
+L'aplicació no registra el motiu de les absències ni cap dada de salut. Sí que
+desa **registres d'accés amb adreces IP** si activeu l'`access log` del proxy
+(vegeu `Caddyfile.example`): fixeu-ne un termini de conservació.
+
+Consulteu-ho amb el delegat de protecció de dades del vostre centre.
 
 ### Actualitzacions
 
