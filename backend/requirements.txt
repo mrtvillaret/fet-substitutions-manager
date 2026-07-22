@@ -1,26 +1,29 @@
+# Versions fixades exactament perquè la construcció sigui reproduïble: amb
+# rangs (>=), dues imatges del mateix commit poden acabar portant programari
+# diferent, i una versió major nova entra sola el dia que es publica.
+# Actualitzar de manera deliberada i tornar a passar `pip-audit`.
+# Revisat: 2026-07-22
+
 fastapi==0.139.2
 uvicorn[standard]==0.51.0
-pydantic==2.9.2
+pydantic==2.13.4
 python-multipart==0.0.32
-sqlalchemy>=2.0.0
+sqlalchemy==2.0.51
+
 # PyJWT en lloc de python-jose: és el que recomana la documentació de FastAPI
 # des que python-jose va quedar sense manteniment. A més, python-jose
-# arrossegava ecdsa, rsa i pyasn1, i ecdsa té una vulnerabilitat sense
-# correcció disponible que aquí ni tan sols és aplicable (només fem servir
-# HS256, mai signatura ECDSA).
+# arrossegava ecdsa, rsa i pyasn1.
 PyJWT[crypto]==2.13.0
+
 passlib[argon2]==1.7.4
-argon2-cffi==23.1.0
-slowapi==0.1.9
+argon2-cffi==25.1.0
+slowapi==0.1.10
 
 # PDF generation
-reportlab>=4.0.0
+reportlab==5.0.0
 
 # i18n (traduccions)
-babel>=2.12.0
+babel==2.18.0
 
 # XML parsing (per processar horari FET)
-lxml>=4.9.0
-
-# Nota: Dependències del projecte principal que també necessita el backend
-# (reutilitza core/, data/, config/ però necessita les seves llibreries)
+lxml==6.1.1
