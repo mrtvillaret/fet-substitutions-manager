@@ -204,7 +204,16 @@
       "abbrevAdded": "Abreviatura afegida correctament",
       "abbrevUpdated": "Abreviatura actualitzada correctament",
       "abbrevDeleted": "Abreviatura eliminada correctament",
-      "detectedCount": "S'han detectat {count} grups de l'XML"
+      "detectedCount": "S'han detectat {count} grups de l'XML",
+      "groupsLabel": "Grups del centre",
+      "hideHint": "Es mostren tots els grups de l'horari. Clica els que NO vulguis veure a «grups sense classe» (per exemple, primària o infantil) per amagar-los. Els amagats queden ratllats.",
+      "xmlContext": "Configurant sobre l'horari vigent el {data}",
+      "xmlVersion": "versió del {versio}",
+      "showAllBtn": "Mostra'ls tots",
+      "hiddenCount": "{n} amagats",
+      "saveHidden": "Desa",
+      "hiddenSaved": "Grups amagats desats",
+      "hiddenSaveError": "No s'han pogut desar els grups amagats"
     },
     "absences": {
       "count": "{count} professors de baixa",

@@ -150,8 +150,7 @@ mitjançant el proxy de Vite.
 ### 4. Carregar les dades d'exemple
 
 Un cop dins, ves a **Configuració > Importar XML** i puja `data/exemple/teachers.xml`.
-Aquest XML és la plantilla "Spain / 2-secondary-school" del programari FET amb noms
-genèrics (`Prof 1`, `Prof 2`...).
+És un horari d'exemple generat amb FET.
 
 ### 5. Proves (opcional)
 
@@ -287,7 +286,7 @@ fet-substitutions-manager/
 │   └── package.json
 ├── data/
 │   └── exemple/
-│       └── teachers.xml       # XML d'exemple (FET Spain secondary school)
+│       └── teachers.xml       # Horari d'exemple generat amb FET
 ├── scripts/
 │   ├── setup-server.sh        # Preparació inicial del servidor
 │   └── sync-server.sh.example # Script de sincronització al servidor
@@ -301,10 +300,8 @@ fet-substitutions-manager/
 
 ## Dades d'exemple
 
-El directori `data/exemple/` inclou un `teachers.xml` basat en l'exemple oficial
-**"Spain / 2-secondary-school"** de [FET - Free Timetabling Software](https://lalescu.ro/liviu/fet/)
-(Liviu Lalescu, [AGPL v3](https://www.gnu.org/licenses/agpl-3.0.html)).
-Els noms de professors han estat substituïts per identificadors genèrics (`Prof 1`, `Prof 2`...).
+El directori `data/exemple/` inclou un `teachers.xml`: un horari d'exemple
+generat amb [FET](https://lalescu.ro/liviu/fet/).
 
 ---
 

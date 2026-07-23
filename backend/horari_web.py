@@ -24,12 +24,32 @@ class GestorHorariWeb:
         self.ultim_professor_subs = ultim_professor_subs
         self.horari = {}  # {dia: {hora: {professor: dades}}}
         self.professors = []
-        self.grups = set()  # Grups amb abreviatures aplicades
-        self.grups_raw = set()  # Grups RAW del XML abans d'aplicar abreviatures
+        self.grups = set()  # Grups visibles (tots menys els amagats; amb abreviatures)
+        self.grups_raw = set()  # Grups visibles RAW (abans d'aplicar abreviatures)
+        self.tots_grups = set()  # TOTS els grups detectats a l'XML (per al selector)
+        self.tots_grups_raw = set()  # TOTS els grups detectats, versió RAW
         self.hores = []  # Hores extretes del XML en ordre cronològic
         self.dies = []   # Dies extrets del XML
         self._abreviatures_cache = None  # Cache d'abreviatures de la BD
+        self._grups_amagats = None  # Grups amagats (llista d'exclusió; buit = cap)
         self.carregar()
+
+    def _carregar_grups_amagats_bd(self) -> set:
+        """Carrega la llista de grups amagats des de la BD (buit = no s'amaga cap)."""
+        if self._grups_amagats is not None:
+            return self._grups_amagats
+
+        from database import get_db_session
+        from repositories import GrupsAmagatsRepository
+
+        try:
+            with get_db_session() as db:
+                self._grups_amagats = set(GrupsAmagatsRepository.get_all(db))
+                return self._grups_amagats
+        except Exception as e:
+            print(f"⚠️  Error carregant grups amagats de BD: {e}")
+            self._grups_amagats = set()
+            return self._grups_amagats
 
     def _carregar_abreviatures_bd(self) -> Dict[str, str]:
         """Carrega abreviatures des de la base de dades SQLite"""
@@ -83,8 +103,14 @@ class GestorHorariWeb:
             self.professors = []
             self.grups = set()
             self.grups_raw = set()
+            self.tots_grups = set()
+            self.tots_grups_raw = set()
             self.hores = []
             self.dies = []
+
+            # Grups amagats (llista d'exclusió; buit = no s'amaga cap)
+            grups_amagats = self._carregar_grups_amagats_bd()
+
             tree = ET.parse(self.xml_path)
             root = tree.getroot()
 
@@ -134,14 +160,24 @@ class GestorHorariWeb:
                         subject_elem = hour.find("Subject")
                         subject = subject_elem.get("name", "") if subject_elem is not None else ""
 
-                        # NOVA FUNCIONALITAT: Consolida múltiples Students (només ESO i BATX)
+                        # Consolida múltiples Students d'una mateixa hora.
+                        # `tots_grups` recull tot el que apareix a l'XML (per al
+                        # selector de configuració). `grups` són els VISIBLES: tots
+                        # menys els amagats. Cap filtre per nom (res d'ESO/BATX
+                        # hardcodejat); l'amagat es fa sobre la versió RAW (estable
+                        # davant canvis d'abreviatures).
                         students_consolidat = self._consolidar_students(hour)
-                        if students_consolidat and self._es_grup_valid(students_consolidat):
-                            # Guarda versió RAW (abans d'abreviatures) i versió final
+                        if students_consolidat:
                             students_raw = self._consolidar_students_raw(hour)
-                            if students_raw and self._es_grup_valid(students_raw):
-                                self.grups_raw.add(students_raw)
-                            self.grups.add(students_consolidat)
+                            if students_raw:
+                                self.tots_grups_raw.add(students_raw)
+                            self.tots_grups.add(students_consolidat)
+
+                            clau = students_raw or students_consolidat
+                            if clau not in grups_amagats:
+                                if students_raw:
+                                    self.grups_raw.add(students_raw)
+                                self.grups.add(students_consolidat)
 
                         # Carrega l'aula (Room)
                         room_elem = hour.find("Room")
@@ -201,22 +237,6 @@ class GestorHorariWeb:
 
         return grups_ordenats
 
-    def _es_grup_valid(self, grup: str) -> bool:
-        """
-        Comprova si un grup és vàlid (conté ESO o BAC/BATX)
-        Exemples:
-        - "BAC1A" → True
-        - "ESO4A" → True
-        - "1-BATX-AB" → True
-        - "Professors" → False
-        - "Tutoria-X" → False
-        """
-        if not grup:
-            return False
-
-        # Comprova si conté ESO, BAC o BATX (case-insensitive)
-        grup_upper = grup.upper()
-        return "ESO" in grup_upper or "BAC" in grup_upper or "BATX" in grup_upper
 
     def _consolidar_students_raw(self, hour_elem) -> str:
         """
@@ -362,23 +382,19 @@ class GestorHorariWeb:
 
     def get_grups_individuals(self) -> Set[str]:
         """
-        Retorna tots els grups individuals que formen part dels grups consolidats
-        Només inclou grups que contenen ESO o BATX
+        Retorna tots els grups individuals que formen part dels grups consolidats.
         """
         grups_individuals = set()
 
         for grup_consolidat in self.grups:
             if "," in grup_consolidat:
                 # Grup múltiple: "1-BATX-AB,2-ESO-C" → ["1-BATX-AB", "2-ESO-C"]
-                parts = grup_consolidat.split(",")
-                for part in parts:
+                for part in grup_consolidat.split(","):
                     part_clean = part.strip()
-                    if self._es_grup_valid(part_clean):
+                    if part_clean:
                         grups_individuals.update(self._expandir_grup_consolidat(part_clean))
-            else:
-                # Grup simple
-                if self._es_grup_valid(grup_consolidat):
-                    grups_individuals.update(self._expandir_grup_consolidat(grup_consolidat))
+            elif grup_consolidat:
+                grups_individuals.update(self._expandir_grup_consolidat(grup_consolidat))
 
         return grups_individuals
 

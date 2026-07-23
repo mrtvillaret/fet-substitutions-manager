@@ -130,11 +130,12 @@ app.add_middleware(
 )
 
 # ===== Registre de routers modularitzats =====
-from routes import auth, config_examens, grups, pdf, vigilancies, substitucions, settings, estadistiques, prioritats, horari, files, users, disponibles, scheduler, informes, cursos, dades
+from routes import auth, config_examens, grups, grups_amagats, pdf, vigilancies, substitucions, settings, estadistiques, prioritats, horari, files, users, disponibles, scheduler, informes, cursos, dades
 
 app.include_router(auth.router)
 app.include_router(config_examens.router, dependencies=[Depends(require_admin)])
 app.include_router(grups.router, dependencies=[Depends(get_current_user)])
+app.include_router(grups_amagats.router, dependencies=[Depends(require_admin)])
 app.include_router(pdf.router, dependencies=[Depends(get_current_user)])
 app.include_router(vigilancies.router, dependencies=[Depends(get_current_user)])
 app.include_router(substitucions.router, dependencies=[Depends(get_current_user)])

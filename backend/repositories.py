@@ -1174,6 +1174,31 @@ class AbreviaturaGrupRepository:
         return count
 
 
+class GrupsAmagatsRepository:
+    """Grups que el centre amaga (llista d'exclusió; buida = es mostren tots)."""
+
+    @staticmethod
+    def get_all(db: Session) -> List[str]:
+        """Llista dels grups amagats (buida si no se n'amaga cap)."""
+        from models import GrupAmagat
+        return [g.grup for g in db.query(GrupAmagat).order_by(GrupAmagat.grup).all()]
+
+    @staticmethod
+    def set_all(db: Session, grups: List[str]) -> int:
+        """Reemplaça la llista d'amagats sencera per la donada."""
+        from models import GrupAmagat
+
+        db.query(GrupAmagat).delete()
+        vistos = set()
+        for grup in grups:
+            grup = (grup or "").strip()
+            if grup and grup not in vistos:
+                vistos.add(grup)
+                db.add(GrupAmagat(grup=grup))
+        db.commit()
+        return len(vistos)
+
+
 # ===========================
 # PROFESSORS DE BAIXA
 # ===========================

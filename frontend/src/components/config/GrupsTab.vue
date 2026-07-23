@@ -1,9 +1,9 @@
 <template>
   <div class="tab-content">
-    <!-- Grups detectats -->
+    <!-- Grups del centre: mostra tots i permet amagar-ne -->
     <div class="field" style="margin-bottom: 1.5rem;">
       <div class="toolbar" style="margin-bottom: 0.5rem;">
-        <label>{{ $t('config.groups.detectedLabel') }}</label>
+        <label>{{ $t('config.groups.groupsLabel') }}</label>
         <Button
           icon="pi pi-refresh"
           :label="$t('config.groups.detectButton')"
@@ -13,12 +13,43 @@
         />
       </div>
 
-      <div v-if="grupsDetectats.length > 0" class="grups-detectats">
-        <Tag
-          v-for="(grup, idx) in grupsDetectats"
-          :key="idx"
-          :value="grup"
-          severity="info"
+      <!-- Indicador de quin XML/data s'està configurant -->
+      <p class="xml-indicator">
+        <i class="pi pi-calendar"></i>
+        <span>{{ $t('config.groups.xmlContext', { data: dataText }) }}</span>
+        <span v-if="xmlDataInici"> · {{ $t('config.groups.xmlVersion', { versio: xmlVersioText }) }}</span>
+      </p>
+
+      <p class="info-text" style="margin-top: 0.25rem;">
+        <i class="pi pi-info-circle"></i>
+        {{ $t('config.groups.hideHint') }}
+      </p>
+
+      <div v-if="grupsDetectats.length > 0">
+        <div class="working-toolbar">
+          <Button :label="$t('config.groups.showAllBtn')" @click="mostrarTots" text size="small" />
+          <span v-if="grupsAmagats.length" class="working-count">
+            {{ $t('config.groups.hiddenCount', { n: grupsAmagats.length }) }}
+          </span>
+        </div>
+        <div class="grups-detectats">
+          <Tag
+            v-for="grup in grupsDetectats"
+            :key="grup"
+            :value="grup"
+            :severity="grupsAmagats.includes(grup) ? 'secondary' : 'success'"
+            :class="['grup-chip', { 'grup-amagat': grupsAmagats.includes(grup) }]"
+            @click="toggleAmagat(grup)"
+          />
+        </div>
+        <Button
+          :label="$t('config.groups.saveHidden')"
+          icon="pi pi-save"
+          @click="desarGrupsAmagats"
+          :loading="desantAmagats"
+          class="p-button-success"
+          size="small"
+          style="margin-top: 0.9rem;"
         />
       </div>
       <div v-else class="empty-message" style="margin-top: 0.5rem;">
@@ -131,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
@@ -142,8 +173,33 @@ import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Divider from 'primevue/divider'
 
+const props = defineProps({
+  // Data del calendari general: la configuració detecta els grups sobre l'XML
+  // vigent per aquesta data (el mateix que veurà la vista de sense classe).
+  dataGlobal: { type: Date, default: () => new Date() }
+})
+
 const toast = useToast()
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+// Data en format ISO (per l'endpoint) i text (per mostrar)
+const dataISO = computed(() => {
+  const d = props.dataGlobal || new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+})
+const dataText = computed(() =>
+  (props.dataGlobal || new Date()).toLocaleDateString(locale.value || 'ca-ES',
+    { day: '2-digit', month: '2-digit', year: 'numeric' })
+)
+const xmlDataInici = ref(null)
+const xmlVersioText = computed(() => {
+  if (!xmlDataInici.value) return ''
+  const [y, m, d] = xmlDataInici.value.split('-')
+  return `${d}/${m}/${y}`
+})
 
 const abreviatures = ref([])
 const mostrarDialogAfegirAbreviatura = ref(false)
@@ -157,6 +213,10 @@ const novaAbreviatura = ref({
 const grupsDetectats = ref([])
 const grupsSeleccionats = ref([])
 
+// Grups amagats: llista d'exclusió (es mostren tots menys aquests)
+const grupsAmagats = ref([])
+const desantAmagats = ref(false)
+
 const carregarAbreviatures = async () => {
   try {
     const response = await axios.get('/api/config/abreviatures')
@@ -166,29 +226,78 @@ const carregarAbreviatures = async () => {
   }
 }
 
-const detectarGrupsXML = async () => {
+const detectarGrupsXML = async (silent = false) => {
   try {
-    const response = await axios.get('/api/horari/grups/detectar')
+    // Detecta sobre l'XML vigent per la data del calendari general
+    const response = await axios.get('/api/horari/grups/detectar', {
+      params: { data: dataISO.value }
+    })
 
     // Guardar grups detectats (usem grups_raw, els grups originals sense abreviar)
     grupsDetectats.value = response.data.grups_raw
+    xmlDataInici.value = response.data.xml_data_inici || null
 
-    toast.add({
-      severity: 'success',
-      summary: t('common.detected'),
-      detail: t('config.groups.detectedCount', { count: response.data.total_raw }),
-      life: 3000
-    })
-
-    console.log('Grups detectats:', response.data)
+    if (!silent) {
+      toast.add({
+        severity: 'success',
+        summary: t('common.detected'),
+        detail: t('config.groups.detectedCount', { count: response.data.total_raw }),
+        life: 3000
+      })
+    }
   } catch (error) {
     console.error('Error detectant grups:', error)
+    if (!silent) {
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: error.response?.data?.detail || t('config.errors.detectGroups'),
+        life: 3000
+      })
+    }
+  }
+}
+
+// ===== Grups amagats (llista d'exclusió) =====
+const carregarGrupsAmagats = async () => {
+  try {
+    const response = await axios.get('/api/grups-amagats')
+    grupsAmagats.value = response.data.grups || []
+  } catch (error) {
+    console.error('Error carregant grups amagats:', error)
+  }
+}
+
+const toggleAmagat = (grup) => {
+  const idx = grupsAmagats.value.indexOf(grup)
+  if (idx >= 0) grupsAmagats.value.splice(idx, 1)
+  else grupsAmagats.value.push(grup)
+}
+
+const mostrarTots = () => {
+  grupsAmagats.value = []
+}
+
+const desarGrupsAmagats = async () => {
+  desantAmagats.value = true
+  try {
+    await axios.put('/api/grups-amagats', { grups: grupsAmagats.value })
+    toast.add({
+      severity: 'success',
+      summary: t('common.saved'),
+      detail: t('config.groups.hiddenSaved'),
+      life: 3000
+    })
+  } catch (error) {
+    console.error('Error desant grups amagats:', error)
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.detectGroups'),
+      detail: error.response?.data?.detail || t('config.groups.hiddenSaveError'),
       life: 3000
     })
+  } finally {
+    desantAmagats.value = false
   }
 }
 
@@ -294,7 +403,11 @@ const cancelarAbreviatura = () => {
   grupsSeleccionats.value = []
 }
 
-onMounted(carregarAbreviatures)
+onMounted(async () => {
+  await carregarAbreviatures()
+  await carregarGrupsAmagats()
+  await detectarGrupsXML(true)   // silenciós: omple els grups per poder-los amagar
+})
 </script>
 
 <style scoped>
@@ -416,5 +529,56 @@ onMounted(carregarAbreviatures)
 
 .w-full {
   width: 100%;
+}
+
+.grups-detectats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.grup-chip {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s;
+}
+
+.grup-chip:hover {
+  opacity: 0.8;
+}
+
+.grup-amagat {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.xml-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.25rem;
+  padding: 0.4rem 0.6rem;
+  background: #f1f5f9;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.xml-indicator i {
+  color: #64748b;
+}
+
+.working-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.working-count {
+  margin-left: auto;
+  color: #6b7280;
+  font-size: 0.85rem;
 }
 </style>

@@ -130,8 +130,7 @@ backend mediante el proxy de Vite.
 ### 4. Cargar los datos de ejemplo
 
 Una vez dentro, ve a **Configuración > Importar XML** y sube `data/exemple/teachers.xml`.
-Este XML es la plantilla "Spain / 2-secondary-school" del programa FET con nombres
-genéricos (`Prof 1`, `Prof 2`...).
+Es un horario de ejemplo generado con FET.
 
 ---
 
@@ -231,10 +230,8 @@ docker compose up --build -d
 
 ## Datos de ejemplo
 
-El directorio `data/exemple/` incluye un `teachers.xml` basado en el ejemplo oficial
-**"Spain / 2-secondary-school"** de [FET - Free Timetabling Software](https://lalescu.ro/liviu/fet/)
-(Liviu Lalescu, [AGPL v3](https://www.gnu.org/licenses/agpl-3.0.html)).
-Los nombres de profesores se han sustituido por identificadores genéricos (`Prof 1`, `Prof 2`...).
+El directorio `data/exemple/` incluye un `teachers.xml`: un horario de ejemplo
+generado con [FET](https://lalescu.ro/liviu/fet/).
 
 ---
 

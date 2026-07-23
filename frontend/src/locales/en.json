@@ -204,7 +204,16 @@
       "abbrevAdded": "Abbreviation added successfully",
       "abbrevUpdated": "Abbreviation updated successfully",
       "abbrevDeleted": "Abbreviation deleted successfully",
-      "detectedCount": "Detected {count} groups from the XML"
+      "detectedCount": "Detected {count} groups from the XML",
+      "groupsLabel": "School groups",
+      "hideHint": "All timetable groups are shown. Click the ones you do NOT want in \"groups without class\" (e.g. primary or pre-school) to hide them. Hidden ones are struck through.",
+      "xmlContext": "Configuring against the timetable in effect on {data}",
+      "xmlVersion": "version from {versio}",
+      "showAllBtn": "Show all",
+      "hiddenCount": "{n} hidden",
+      "saveHidden": "Save",
+      "hiddenSaved": "Hidden groups saved",
+      "hiddenSaveError": "Could not save hidden groups"
     },
     "absences": {
       "count": "{count} teachers on leave",

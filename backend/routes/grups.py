@@ -33,7 +33,8 @@ async def obtenir_grups_sense_classe(data: str, db: Session = Depends(get_db)):
         # Obtenir gestors per carregar horari
         substitucions_mgr, horari, alliberats, absencies = get_gestors(data_iso=data)
 
-        # Obtenir tots els grups disponibles del centre
+        # horari.grups ja és el conjunt de grups de treball (selecció manual;
+        # si no n'hi ha, tots els detectats). El filtre viu al parser.
         tots_grups = sorted(horari.grups)
 
         # Obtenir hores del dia (sense Pati)

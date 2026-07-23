@@ -6,7 +6,7 @@ Routes per accedir a dades de l'horari (XML de FET):
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import List
+from typing import List, Optional
 from helpers import get_horari, MissingXmlError
 
 router = APIRouter(prefix="/api/horari", tags=["Horari"])
@@ -82,25 +82,45 @@ async def get_professors_filtered():
 
 
 @router.get("/grups/detectar")
-async def detectar_grups():
+async def detectar_grups(data: Optional[str] = None):
     """
-    Detecta tots els grups del XML
+    Detecta tots els grups del XML vigent per una data (o l'actual si no se'n dóna).
+    Usar la data fa que la configuració treballi sobre el MATEIX XML que veurà la
+    vista de grups sense classe per aquella data (evita barreges entre cursos).
+
     Retorna:
     - grups_raw: Grups tal com apareixen al XML (ex: "1-BATX-A,1-BATX-B")
     - grups: Grups amb abreviatures aplicades (ex: "1-BATX-AB")
+    - xml_data_inici: data d'inici de la versió d'XML carregada (per indicar-la)
     """
     try:
-        horari = get_horari()
+        horari = get_horari(data_iso=data)
 
-        # Grups detectats amb i sense abreviatures
-        grups_raw = sorted(list(horari.grups_raw))
-        grups_abreviats = sorted(list(horari.grups))
+        # Detecció: TOTS els grups de l'XML (no només els visibles), perquè el
+        # selector de configuració els pugui oferir tots.
+        grups_raw = sorted(list(horari.tots_grups_raw))
+        grups_abreviats = sorted(list(horari.tots_grups))
+
+        # Versió d'XML carregada, per poder-la indicar a la configuració
+        xml_data_inici = None
+        try:
+            from database import get_data_db_session
+            from repositories import XMLVersionRepository
+            from helpers import _get_institucio_actual
+            with get_data_db_session(_get_institucio_actual()) as db:
+                versio = (XMLVersionRepository.get_for_date(db, data) if data
+                          else XMLVersionRepository.get_current(db))
+                if versio and versio.data_inici:
+                    xml_data_inici = versio.data_inici.isoformat()
+        except Exception:
+            pass
 
         return {
             "grups_raw": grups_raw,
             "grups": grups_abreviats,
             "total_raw": len(grups_raw),
-            "total_abreviats": len(grups_abreviats)
+            "total_abreviats": len(grups_abreviats),
+            "xml_data_inici": xml_data_inici,
         }
     except MissingXmlError:
         return {

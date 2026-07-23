@@ -129,8 +129,7 @@ via Vite.
 ### 4. Load the sample data
 
 Once inside, go to **Settings > Import XML** and upload `data/exemple/teachers.xml`.
-This XML is the "Spain / 2-secondary-school" FET template with generic names
-(`Prof 1`, `Prof 2`...).
+It is a sample timetable generated with FET.
 
 ---
 
@@ -232,11 +231,8 @@ docker compose up --build -d
 
 ## Sample data
 
-The `data/exemple/` directory includes a `teachers.xml` based on the official
-**"Spain / 2-secondary-school"** example from
-[FET - Free Timetabling Software](https://lalescu.ro/liviu/fet/)
-(Liviu Lalescu, [AGPL v3](https://www.gnu.org/licenses/agpl-3.0.html)).
-Teacher names were replaced with generic identifiers (`Prof 1`, `Prof 2`...).
+The `data/exemple/` directory includes a `teachers.xml`: a sample timetable
+generated with [FET](https://lalescu.ro/liviu/fet/).
 
 ---
 

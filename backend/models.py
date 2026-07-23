@@ -228,6 +228,23 @@ class AbreviaturaGrup(Base):
     )
 
 
+class GrupAmagat(Base):
+    """
+    Grups que el centre NO vol veure (p.ex. primària/infantil en un gestor de
+    secundària). Una fila per grup amagat. Per defecte (taula buida) es mostren
+    TOTS els grups detectats a l'XML.
+
+    És una llista d'EXCLUSIÓ a propòsit: així res desapareix mai en silenci quan
+    canvia l'XML (un grup nou surt sol; un grup amagat que ja no existeix,
+    simplement no es filtra). No té res a veure amb els nivells (només exàmens).
+    """
+    __tablename__ = 'grups_amagats'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    grup = Column(String, unique=True, nullable=False)   # p.ex. "1A" o "I3A"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Professor(Base):
     """
     Taula històrica de professors per evitar pèrdua de substitucions

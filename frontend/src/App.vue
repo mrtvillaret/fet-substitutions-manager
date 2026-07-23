@@ -266,6 +266,7 @@
         v-model:visible="mostrarConfiguracio"
         :currentRole="userProfile?.role"
         :currentInstitucio="userProfile?.institucio"
+        :dataGlobal="dataSeleccionada"
         @cursos-canviats="carregarCursos"
       />
       <ConfiguracioExamensDialog v-model:visible="mostrarConfiguracioExamens" />

@@ -204,7 +204,16 @@
       "abbrevAdded": "Abreviatura añadida correctamente",
       "abbrevUpdated": "Abreviatura actualizada correctamente",
       "abbrevDeleted": "Abreviatura eliminada correctamente",
-      "detectedCount": "Se han detectado {count} grupos del XML"
+      "detectedCount": "Se han detectado {count} grupos del XML",
+      "groupsLabel": "Grupos del centro",
+      "hideHint": "Se muestran todos los grupos del horario. Haz clic en los que NO quieras ver en «grupos sin clase» (por ejemplo, primaria o infantil) para ocultarlos. Los ocultos quedan tachados.",
+      "xmlContext": "Configurando sobre el horario vigente el {data}",
+      "xmlVersion": "versión del {versio}",
+      "showAllBtn": "Mostrarlos todos",
+      "hiddenCount": "{n} ocultos",
+      "saveHidden": "Guardar",
+      "hiddenSaved": "Grupos ocultos guardados",
+      "hiddenSaveError": "No se han podido guardar los grupos ocultos"
     },
     "absences": {
       "count": "{count} profesores de baja",

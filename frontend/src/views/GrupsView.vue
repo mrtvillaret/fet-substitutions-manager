@@ -27,8 +27,6 @@
         <div class="actions-group">
           <Button :label="$t('groups.all')" @click="marcarTots" severity="secondary" size="small" />
           <Button :label="$t('groups.none')" @click="desmarcarTots" severity="secondary" size="small" outlined />
-          <Button :label="$t('groups.eso')" @click="marcarESO" severity="info" size="small" />
-          <Button :label="$t('groups.batx')" @click="marcarBatx" severity="info" size="small" />
         </div>
 
         <div class="save-actions">
@@ -228,35 +226,6 @@ const desmarcarTots = () => {
     hores.value.forEach(hora => {
       checkboxes[grup][hora] = false
     })
-  })
-}
-
-const marcarESO = () => {
-  // Primer desmarca tot
-  desmarcarTots()
-
-  // Marca només ESO
-  grupsDisponibles.value.forEach(grup => {
-    if (grup.toUpperCase().includes('ESO')) {
-      hores.value.forEach(hora => {
-        checkboxes[grup][hora] = true
-      })
-    }
-  })
-}
-
-const marcarBatx = () => {
-  // Primer desmarca tot
-  desmarcarTots()
-
-  // Marca només Batxillerat
-  grupsDisponibles.value.forEach(grup => {
-    const grupUpper = grup.toUpperCase()
-    if (grupUpper.includes('BAC') || grupUpper.includes('BATX')) {
-      hores.value.forEach(hora => {
-        checkboxes[grup][hora] = true
-      })
-    }
   })
 }
 
