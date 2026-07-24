@@ -257,7 +257,7 @@
       "startDate": "From day",
       "startDateHint": "(empty = today)",
       "saveAll": "💾 Save all priorities",
-      "addNoSubstTitle": "➕ Add subject to no substitute",
+      "addNoSubstTitle": "Subjects for no substitute",
       "selectSubjectXml": "Select subject from XML",
       "selectSubjectPlaceholder": "Select a subject...",
       "customSubjectHint": "You can type a custom name if it is not in the list",
@@ -265,15 +265,18 @@
       "subjectsComma": "Subjects (comma-separated)",
       "categoryPlaceholder": "e.g. Reinforcement, free",
       "subjectsCommaHint": "Separate multiple subjects with commas",
-      "addSubjectTitle": "➕ Add subject to category {index}",
+      "addSubjectTitle": "Subjects in category {index}",
       "categoryAdded": "Category added with {count} subjects",
       "deleteCategoryConfirm": "Delete category {index} with {count} subjects?",
       "categoryDeleted": "Category deleted",
       "subjectDuplicate": "\"{subject}\" already exists in category {index}",
       "subjectAdded": "\"{subject}\" added to category {index}",
+      "categoryUpdated": "Category {index} updated",
+      "synthHint": "\"alliberat\" (teachers from classless groups) is added to the list so you can select it.",
       "deleteSubjectConfirm": "Delete \"{subject}\" from category {index}?",
       "subjectDeleted": "Subject \"{subject}\" deleted",
       "noSubstAdded": "Subject added to no substitute",
+      "noSubstUpdated": "No-substitute list updated",
       "noSubstDeleted": "Subject removed from no substitute"
     },
     "errors": {
@@ -1302,8 +1305,7 @@
       "publishButton": "Publish"
     },
     "view": {
-      "title": "Gemini Scheduler",
-      "subtitle": "Universal exam schedule management",
+      "title": "Exam Scheduler",
       "steps": {
         "dates": "Dates",
         "groups": "Groups",

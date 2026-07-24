@@ -6,6 +6,13 @@
       {{ $t('config.priorities.introLine2') }}
     </p>
 
+    <!-- Indicador de quin XML/data s'està configurant (assignatures del selector) -->
+    <p class="xml-indicator">
+      <i class="pi pi-calendar"></i>
+      <span>{{ $t('config.groups.xmlContext', { data: dataText }) }}</span>
+      <span v-if="xmlDataInici"> · {{ $t('config.groups.xmlVersion', { versio: xmlVersioText }) }}</span>
+    </p>
+
     <!-- SECCIÓ 1: Ordre de Categories -->
     <Panel
       :header="$t('config.priorities.orderTitle')"
@@ -151,7 +158,7 @@
         <Button
           :label="$t('common.add')"
           icon="pi pi-plus"
-          @click="mostrarDialogNoSubstituir = true"
+          @click="obrirDialogNoSubstituir"
           size="small"
           class="p-button-success"
         />
@@ -232,17 +239,17 @@
       <div class="p-fluid">
         <div class="field">
           <label>{{ $t('config.priorities.selectSubjectXml') }}</label>
-          <Dropdown
-            v-model="novaNoSubstituir"
-            :options="assignaturesDisponibles"
+          <MultiSelect
+            v-model="novesNoSubstituir"
+            :options="opcionsNoSubst"
+            optionLabel="label"
+            optionValue="value"
             :placeholder="$t('config.priorities.selectSubjectPlaceholder')"
             :filter="true"
-            :editable="true"
+            display="chip"
             class="w-full"
           />
-          <small class="field-hint">
-            {{ $t('config.priorities.customSubjectHint') }}
-          </small>
+          <small class="field-hint">{{ $t('config.priorities.synthHint') }}</small>
         </div>
       </div>
 
@@ -256,7 +263,6 @@
           :label="$t('common.save')"
           @click="desarNoSubstituir"
           class="p-button-success"
-          :disabled="!novaNoSubstituir"
         />
       </template>
     </Dialog>
@@ -305,31 +311,28 @@
       <div class="p-fluid">
         <div class="field">
           <label>{{ $t('config.priorities.selectSubjectXml') }}</label>
-          <Dropdown
-            v-model="assignaturaSeleccionada"
-            :options="assignaturesDisponibles"
+          <MultiSelect
+            v-model="assignaturesSeleccionades"
+            :options="opcionsCategoria"
             :placeholder="$t('config.priorities.selectSubjectPlaceholder')"
             :filter="true"
-            :editable="true"
+            display="chip"
             class="w-full"
           />
-          <small class="field-hint">
-            {{ $t('config.priorities.customSubjectHint') }}
-          </small>
+          <small class="field-hint">{{ $t('config.priorities.synthHint') }}</small>
         </div>
       </div>
 
       <template #footer>
         <Button
           :label="$t('common.cancel')"
-          @click="mostrarDialogAfegirAssignatura = false; assignaturaSeleccionada = null"
+          @click="mostrarDialogAfegirAssignatura = false; assignaturesSeleccionades = []"
           class="p-button-text"
         />
         <Button
-          :label="$t('common.add')"
+          :label="$t('common.save')"
           @click="desarAssignaturaCategoria"
           class="p-button-success"
-          :disabled="!assignaturaSeleccionada"
         />
       </template>
     </Dialog>
@@ -337,13 +340,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Dialog from 'primevue/dialog'
-import Dropdown from 'primevue/dropdown'
+import MultiSelect from 'primevue/multiselect'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
@@ -357,13 +360,42 @@ import Column from 'primevue/column'
 import Checkbox from 'primevue/checkbox'
 
 const toast = useToast()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const confirm = useConfirm()
+
+const props = defineProps({
+  // Data del calendari general: la configuració detecta les assignatures sobre
+  // l'XML vigent per aquesta data (evita barrejar XML de cursos diferents).
+  dataGlobal: { type: Date, default: () => new Date() }
+})
+
+// Data en format ISO (per l'endpoint) i text (per mostrar), + versió d'XML vigent
+const dataISO = computed(() => {
+  const d = props.dataGlobal || new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+})
+const dataText = computed(() =>
+  (props.dataGlobal || new Date()).toLocaleDateString(locale.value || 'ca-ES',
+    { day: '2-digit', month: '2-digit', year: 'numeric' })
+)
+const xmlDataInici = ref(null)
+const teBuits = ref(false)
+const xmlVersioText = computed(() => {
+  if (!xmlDataInici.value) return ''
+  const [y, m, d] = xmlDataInici.value.split('-')
+  return `${d}/${m}/${y}`
+})
+
+// Assignatures que no surten a l'XML però es poden assignar (grups sense classe)
+const ASSIGNATURES_SINTETIQUES = ['alliberat']
 
 // No substituir
 const noSubstituir = ref([])
 const mostrarDialogNoSubstituir = ref(false)
-const novaNoSubstituir = ref('')
+const novesNoSubstituir = ref([])
 
 // Prioritats
 const ordreCategories = ref([])  // Array de {categories: ["Reforç", "alliberat"], activa: true}
@@ -380,7 +412,34 @@ const desantPrioritats = ref(false)
 const mostrarDialogAfegirAssignatura = ref(false)
 const categoriaAfegirAssignaturaIdx = ref(null)
 const assignaturesDisponibles = ref([])
-const assignaturaSeleccionada = ref(null)
+
+// Opcions dels desplegables: assignatures de l'XML + les sintètiques
+// (alliberat…) + les que ja estan configurades (encara que vinguin d'un altre
+// XML), perquè totes es mostrin marcades i no se'n perdi cap en canviar de data.
+const opcionsCategoria = computed(() => {
+  const idx = categoriaAfegirAssignaturaIdx.value
+  const existents = idx !== null ? (ordreCategories.value[idx]?.categories || []) : []
+  return Array.from(new Set([
+    ...assignaturesDisponibles.value,
+    ...ASSIGNATURES_SINTETIQUES,
+    ...existents,
+  ])).sort()
+})
+// El «no substituir» pot incloure l'opció BUIDA (hores amb Subject buit), que
+// necessita etiqueta pròpia; per això les opcions són objectes {label, value}.
+const opcionsNoSubst = computed(() => {
+  const vals = new Set([
+    ...assignaturesDisponibles.value,
+    ...ASSIGNATURES_SINTETIQUES,
+    ...noSubstituir.value,
+  ])
+  if (teBuits.value || noSubstituir.value.includes('')) vals.add('')
+  return Array.from(vals).sort().map(v => ({
+    label: v === '' ? t('common.empty') : v,
+    value: v,
+  }))
+})
+const assignaturesSeleccionades = ref([])
 
 // Llista de disponibles (PDF)
 const generantPDFDisponibles = ref(false)
@@ -519,47 +578,41 @@ const eliminarCategoria = () => {
 }
 
 const afegirAssignaturaCategoria = async (categoriaIdx) => {
-  // Obrir diàleg
+  // Obrir diàleg amb les assignatures actuals ja marcades (desmarcar-les les treu)
   categoriaAfegirAssignaturaIdx.value = categoriaIdx
-  assignaturaSeleccionada.value = null
+  assignaturesSeleccionades.value = [...(ordreCategories.value[categoriaIdx]?.categories || [])]
   mostrarDialogAfegirAssignatura.value = true
 }
 
 const desarAssignaturaCategoria = () => {
-  if (!assignaturaSeleccionada.value) return
-
   const categoriaIdx = categoriaAfegirAssignaturaIdx.value
-  const assignatura = assignaturaSeleccionada.value
+  const categoria = ordreCategories.value[categoriaIdx]
+  const seleccio = assignaturesSeleccionades.value
+  const previes = categoria.categories
 
-  // Comprovar si ja existeix
-  if (ordreCategories.value[categoriaIdx].categories.includes(assignatura)) {
-    toast.add({
-      severity: 'warn',
-      summary: t('common.duplicate'),
-      detail: t('config.priorities.subjectDuplicate', { subject: assignatura, index: categoriaIdx + 1 }),
-      life: 3000
-    })
-    return
-  }
+  // Les que segueixen marcades (preservant l'ordre existent) + les noves al final.
+  // Desmarcar-ne una equival a treure-la de la categoria.
+  const mantingudes = previes.filter(a => seleccio.includes(a))
+  const nous = seleccio.filter(a => !previes.includes(a))
+  categoria.categories = [...mantingudes, ...nous]
 
-  // Afegir a la categoria
-  ordreCategories.value[categoriaIdx].categories.push(assignatura)
-
-  // Inicialitzar pes si no existeix
-  if (!pesos.value[assignatura]) {
-    pesos.value[assignatura] = 1
+  // Pes 1 per a les noves que no en tinguin (preserva els valors ja configurats)
+  for (const assignatura of nous) {
+    if (!pesos.value[assignatura]) {
+      pesos.value[assignatura] = 1
+    }
   }
 
   toast.add({
     severity: 'success',
-    summary: t('common.added'),
-    detail: t('config.priorities.subjectAdded', { subject: assignatura, index: categoriaIdx + 1 }),
+    summary: t('common.updated'),
+    detail: t('config.priorities.categoryUpdated', { index: categoriaIdx + 1 }),
     life: 3000
   })
 
   // Tancar diàleg
   mostrarDialogAfegirAssignatura.value = false
-  assignaturaSeleccionada.value = null
+  assignaturesSeleccionades.value = []
 }
 
 const eliminarAssignaturaCategoria = (assignatura, categoriaIdx) => {
@@ -588,12 +641,19 @@ const eliminarAssignaturaCategoria = (assignatura, categoriaIdx) => {
 
 const carregarAssignaturesXML = async () => {
   try {
-    const response = await axios.get('/api/horari/assignatures/detectar')
-    assignaturesDisponibles.value = response.data.assignatures
+    const response = await axios.get('/api/horari/assignatures/detectar', {
+      params: { data: dataISO.value }
+    })
+    assignaturesDisponibles.value = response.data.assignatures || []
+    xmlDataInici.value = response.data.xml_data_inici || null
+    teBuits.value = !!response.data.te_buits
   } catch (error) {
     console.error('Error carregant assignatures XML:', error)
   }
 }
+
+// Si canvia la data del calendari general, tornar a detectar sobre el nou XML
+watch(dataISO, () => { carregarAssignaturesXML() })
 
 const carregarNoSubstituir = async () => {
   try {
@@ -750,22 +810,37 @@ const generarPDFDisponiblesTotsDies = async () => {
 
 // ===== FUNCIONS NO SUBSTITUIR =====
 
-const desarNoSubstituir = async () => {
-  try {
-    await axios.post('/api/prioritats/no-substituir', {
-      assignatura: novaNoSubstituir.value
-    })
+const obrirDialogNoSubstituir = () => {
+  // Obrir amb les assignatures actuals ja marcades (desmarcar-les les treu)
+  novesNoSubstituir.value = [...noSubstituir.value]
+  mostrarDialogNoSubstituir.value = true
+}
 
-    toast.add({
-      severity: 'success',
-      summary: t('common.added'),
-      detail: t('config.priorities.noSubstAdded'),
-      life: 3000
-    })
+const desarNoSubstituir = async () => {
+  const seleccio = novesNoSubstituir.value
+  const previes = noSubstituir.value
+
+  const afegir = seleccio.filter(a => !previes.includes(a))
+  const treure = previes.filter(a => !seleccio.includes(a))
+
+  try {
+    for (const assignatura of afegir) {
+      await axios.post('/api/prioritats/no-substituir', { assignatura })
+    }
+    for (const assignatura of treure) {
+      await axios.delete(`/api/prioritats/no-substituir/${encodeURIComponent(assignatura)}`)
+    }
 
     // Recarregar no substituir
     const response = await axios.get('/api/prioritats/no-substituir')
     noSubstituir.value = response.data.assignatures
+
+    toast.add({
+      severity: 'success',
+      summary: t('common.updated'),
+      detail: t('config.priorities.noSubstUpdated'),
+      life: 3000
+    })
 
     cancelarNoSubstituir()
   } catch (error) {
@@ -806,7 +881,7 @@ const eliminarNoSubstituir = async (assignatura) => {
 
 const cancelarNoSubstituir = () => {
   mostrarDialogNoSubstituir.value = false
-  novaNoSubstituir.value = ''
+  novesNoSubstituir.value = []
 }
 
 // Fer que tot el header dels panels sigui clicable
@@ -852,6 +927,23 @@ onMounted(() => {
 
 .info-text i {
   color: #3b82f6;
+}
+
+.xml-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0.6rem;
+  background: #f1f5f9;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.xml-indicator i {
+  color: #64748b;
 }
 
 .field-hint {

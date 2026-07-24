@@ -137,19 +137,50 @@ async def detectar_grups(data: Optional[str] = None):
 
 
 @router.get("/assignatures/detectar")
-async def detectar_assignatures():
+async def detectar_assignatures(data: Optional[str] = None):
     """
-    Detecta totes les assignatures del XML
+    Detecta totes les assignatures de l'XML vigent per una data (o l'actual si
+    no se'n dóna). Igual que la detecció de grups, usar la data fa que la
+    configuració treballi sobre el MATEIX XML vigent per aquella data.
+
+    Retorna també:
+    - te_buits: si hi ha hores amb Subject buit (que NO s'han de substituir)
+    - xml_data_inici: data d'inici de la versió d'XML carregada (per indicar-la)
     """
     try:
-        horari = get_horari()
+        horari = get_horari(data_iso=data)
 
         # Obtenir totes les assignatures úniques
         assignatures = horari.get_all_subjects()
 
+        # Detectar si hi ha hores amb Subject buit (hores lliures): en aquest cas
+        # la config de "no substituir" ha de poder seleccionar l'opció buida.
+        te_buits = any(
+            not (dades.get("assignatura") or "").strip()
+            for dia_hores in horari.horari.values()
+            for hora_profs in dia_hores.values()
+            for dades in hora_profs.values()
+        )
+
+        # Versió d'XML carregada, per poder-la indicar a la configuració
+        xml_data_inici = None
+        try:
+            from database import get_data_db_session
+            from repositories import XMLVersionRepository
+            from helpers import _get_institucio_actual
+            with get_data_db_session(_get_institucio_actual()) as db:
+                versio = (XMLVersionRepository.get_for_date(db, data) if data
+                          else XMLVersionRepository.get_current(db))
+                if versio and versio.data_inici:
+                    xml_data_inici = versio.data_inici.isoformat()
+        except Exception:
+            pass
+
         return {
             "assignatures": sorted(list(assignatures)),
-            "total": len(assignatures)
+            "total": len(assignatures),
+            "te_buits": te_buits,
+            "xml_data_inici": xml_data_inici,
         }
     except MissingXmlError:
         return {

@@ -257,7 +257,7 @@
       "startDate": "Desde el día",
       "startDateHint": "(vacío = hoy)",
       "saveAll": "💾 Guardar todas las prioridades",
-      "addNoSubstTitle": "➕ Añadir asignatura a no sustituir",
+      "addNoSubstTitle": "Asignaturas a no sustituir",
       "selectSubjectXml": "Selecciona asignatura del XML",
       "selectSubjectPlaceholder": "Selecciona una asignatura...",
       "customSubjectHint": "Puedes escribir un nombre personalizado si no está en la lista",
@@ -265,15 +265,18 @@
       "subjectsComma": "Asignaturas (separadas por comas)",
       "categoryPlaceholder": "Ej: Refuerzo, liberado",
       "subjectsCommaHint": "Separa múltiples asignaturas con comas",
-      "addSubjectTitle": "➕ Añadir asignatura a categoría {index}",
+      "addSubjectTitle": "Asignaturas de la categoría {index}",
       "categoryAdded": "Categoría añadida con {count} asignaturas",
       "deleteCategoryConfirm": "¿Eliminar categoría {index} con {count} asignaturas?",
       "categoryDeleted": "Categoría eliminada",
       "subjectDuplicate": "\"{subject}\" ya existe en la categoría {index}",
       "subjectAdded": "\"{subject}\" añadida a la categoría {index}",
+      "categoryUpdated": "Categoría {index} actualizada",
+      "synthHint": "«alliberat» (profesores de grupos sin clase) se añade a la lista para poder seleccionarlo.",
       "deleteSubjectConfirm": "¿Eliminar \"{subject}\" de la categoría {index}?",
       "subjectDeleted": "Asignatura \"{subject}\" eliminada",
       "noSubstAdded": "Asignatura añadida a no sustituir",
+      "noSubstUpdated": "«No sustituir» actualizado",
       "noSubstDeleted": "Asignatura eliminada de no sustituir"
     },
     "errors": {
@@ -1302,8 +1305,7 @@
       "publishButton": "Publicar"
     },
     "view": {
-      "title": "Planificador Gemini",
-      "subtitle": "Gestión universal de horarios de exámenes",
+      "title": "Planificador de exámenes",
       "steps": {
         "dates": "Fechas",
         "groups": "Agrupaciones",

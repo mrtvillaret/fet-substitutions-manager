@@ -51,7 +51,7 @@
               <span>&nbsp;</span>
             </span>
           </template>
-          <PrioritatsTab />
+          <PrioritatsTab :dataGlobal="dataGlobal" />
         </TabPanel>
 
         <!-- TAB 5: CURSOS -->
