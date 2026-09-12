@@ -210,6 +210,26 @@ class ConfiguracioExamen(Base):
     )
 
 
+class PropostaDescartada(Base):
+    """
+    Recorda quines propostes d'importació (assignatura+grup+titular) l'usuari
+    ha desmarcat expressament, perquè la propera vegada que s'obri el diàleg
+    d'importació no es tornin a marcar soles (encara no existeixen a la
+    configuració, però ja s'ha decidit que no es volen).
+    """
+    __tablename__ = 'propostes_descartades'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    assignatura = Column(String, nullable=False)
+    grup = Column(String, nullable=False)
+    titular = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_proposta_descartada', 'assignatura', 'grup', 'titular', unique=True),
+    )
+
+
 class AbreviaturaGrup(Base):
     """
     Abreviatures per agrupar múltiples grups

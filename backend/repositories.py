@@ -899,6 +899,17 @@ class MasterConfigRepository:
         db.commit()
         return True
 
+    @staticmethod
+    def delete_aula(db: Session, codi: str) -> bool:
+        """Elimina una aula"""
+        aula = db.query(Aula).filter(Aula.codi == codi).first()
+        if not aula:
+            return False
+
+        db.delete(aula)
+        db.commit()
+        return True
+
 
 # ===========================
 # CONFIGURACIÓ EXÀMENS - ASSIGNACIONS
@@ -1075,6 +1086,51 @@ class ConfiguracioExamenRepository:
         count = db.query(ConfiguracioExamen).delete()
         db.commit()
         return count
+
+
+# ===========================
+# PROPOSTES DESCARTADES (importació)
+# ===========================
+
+class PropostaDescartadaRepository:
+    """Recorda quines propostes d'importació s'han desmarcat expressament."""
+
+    @staticmethod
+    def get_totes(db: Session) -> set:
+        """Retorna el conjunt de (assignatura, grup, titular) descartats."""
+        from models import PropostaDescartada
+
+        return {
+            (p.assignatura, p.grup, p.titular)
+            for p in db.query(PropostaDescartada).all()
+        }
+
+    @staticmethod
+    def marca(db: Session, assignatura: str, grup: str, titular) -> None:
+        """Marca una proposta com a descartada (idempotent)."""
+        from models import PropostaDescartada
+
+        existent = db.query(PropostaDescartada).filter_by(
+            assignatura=assignatura, grup=grup, titular=titular
+        ).first()
+        if not existent:
+            db.add(PropostaDescartada(assignatura=assignatura, grup=grup, titular=titular))
+
+    @staticmethod
+    def elimina(db: Session, assignatura: str, grup: str, titular) -> None:
+        """Treu una proposta de la llista de descartades (p.ex. si l'usuari la torna a marcar)."""
+        from models import PropostaDescartada
+
+        db.query(PropostaDescartada).filter_by(
+            assignatura=assignatura, grup=grup, titular=titular
+        ).delete()
+
+    @staticmethod
+    def elimina_totes(db: Session) -> None:
+        """Buida tota la llista de descartades (p.ex. amb l'opció 'Sobreescriu')."""
+        from models import PropostaDescartada
+
+        db.query(PropostaDescartada).delete()
 
 
 # ===========================
