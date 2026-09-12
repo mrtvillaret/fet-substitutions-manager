@@ -15,6 +15,48 @@
 
     <div v-else class="config-container">
       <TabView class="app-tabview app-tabview--dialog">
+        <!-- TAB 0: IMPORTACIÓ / EXPORTACIÓ -->
+        <TabPanel :header="$t('examConfig.tabs.import')">
+          <div class="tab-content">
+            <Message severity="info" :closable="false">
+              {{ $t('examConfig.import.tabIntro') }}
+            </Message>
+
+            <div class="import-section">
+              <h4>{{ $t('examConfig.import.mainTitle') }}</h4>
+              <p class="import-section-desc">{{ $t('examConfig.import.mainDesc') }}</p>
+              <div class="import-buttons-row">
+                <Button
+                  :label="$t('examConfig.import.button')"
+                  icon="pi pi-download"
+                  @click="obrirImportacio"
+                  class="p-button-help"
+                />
+                <Button
+                  :label="$t('examConfig.import.exportCsv')"
+                  icon="pi pi-file-export"
+                  @click="exportarAssignacionsCsv"
+                  class="p-button-secondary"
+                  :disabled="assignacions.length === 0"
+                />
+                <Button
+                  :label="$t('examConfig.import.importCsv')"
+                  icon="pi pi-file-import"
+                  @click="triarFitxerCsv"
+                  class="p-button-secondary"
+                />
+                <input
+                  ref="inputCsvRef"
+                  type="file"
+                  accept=".csv"
+                  style="display: none"
+                  @change="onFitxerCsvSeleccionat"
+                />
+              </div>
+            </div>
+          </div>
+        </TabPanel>
+
         <!-- TAB 1: NIVELLS -->
         <TabPanel :header="$t('examConfig.tabs.levels')">
           <div class="tab-content">
@@ -22,13 +64,15 @@
               <div class="toolbar-left">
                 <Tag severity="info" :value="$t('examConfig.levels.count', { count: nivells.length })" />
               </div>
-              <Button
-                :label="$t('common.add')"
-                icon="pi pi-plus"
-                @click="mostrarDialogAfegirNivell = true"
-                size="small"
-                class="p-button-success"
-              />
+              <div class="toolbar-right">
+                <Button
+                  :label="$t('common.add')"
+                  icon="pi pi-plus"
+                  @click="mostrarDialogAfegirNivell = true"
+                  size="small"
+                  class="p-button-success"
+                />
+              </div>
             </div>
 
             <div class="items-list">
@@ -246,6 +290,22 @@
                   @click="afegirFilaAssignacio"
                   size="small"
                   class="p-button-success"
+                />
+                <Button
+                  :label="$t('examConfig.assignments.deleteFiltered')"
+                  icon="pi pi-trash"
+                  @click="eliminarAssignacionsFiltrades"
+                  size="small"
+                  class="p-button-danger p-button-outlined"
+                  :disabled="assignacionsFiltrades.length === 0"
+                />
+                <Button
+                  :label="$t('examConfig.assignments.deleteAll')"
+                  icon="pi pi-trash"
+                  @click="eliminarTotesAssignacions"
+                  size="small"
+                  class="p-button-danger"
+                  :disabled="assignacions.length === 0"
                 />
               </div>
             </div>
@@ -534,6 +594,244 @@
       </template>
     </Dialog>
 
+    <!-- Diàleg d'importació des de l'XML -->
+    <Dialog
+      v-model:visible="mostrarDialegImport"
+      :header="$t('examConfig.import.title')"
+      :modal="true"
+      :style="{ width: '950px', maxHeight: '85vh' }"
+    >
+      <div v-if="carregantPropostes" class="loading">
+        <i class="pi pi-spin pi-spinner" style="font-size: 2rem;"></i>
+        <p>{{ $t('examConfig.import.loading') }}</p>
+      </div>
+
+      <div v-else>
+        <Message severity="info" :closable="false">
+          {{ $t('examConfig.import.helpText') }}
+        </Message>
+
+        <div class="filtres-import">
+          <MultiSelect
+            v-model="filtreNivellImport"
+            :options="nivellsImport"
+            :placeholder="$t('examConfig.assignments.filterLevel')"
+            :selectedItemsLabel="$t('examConfig.import.levelsSelected', { count: filtreNivellImport.length })"
+            :maxSelectedLabels="2"
+            display="chip"
+            class="filtre-dropdown"
+          />
+          <MultiSelect
+            v-model="filtreAssignaturaImport"
+            :options="assignaturesImport"
+            :placeholder="$t('examConfig.assignments.filterSubject')"
+            :selectedItemsLabel="$t('examConfig.import.subjectsSelected', { count: filtreAssignaturaImport.length })"
+            :maxSelectedLabels="2"
+            display="chip"
+            :filter="true"
+            class="filtre-dropdown"
+          />
+          <Dropdown
+            v-model="filtreEstatImport"
+            :options="[
+              { value: '', label: $t('common.all') },
+              { value: 'nova', label: $t('examConfig.import.newProposal') },
+              { value: 'existent', label: $t('examConfig.import.alreadyExists') }
+            ]"
+            optionLabel="label" optionValue="value"
+            :placeholder="$t('examConfig.import.status')"
+            class="filtre-dropdown"
+          />
+        </div>
+
+        <Tag severity="info" :value="$t('examConfig.import.selectedCount', {
+          selected: propostesSeleccionades.length, total: propostes.length })" style="margin: 8px 0; display: inline-block;" />
+        <Tag v-if="propostesFiltrades.length !== propostes.length" severity="secondary"
+          :value="$t('examConfig.import.filteredCount', { count: propostesFiltrades.length })" style="margin: 8px 0 8px 6px; display: inline-block;" />
+
+        <DataTable
+          :value="propostesFiltrades"
+          dataKey="_key"
+          :paginator="true"
+          :rows="15"
+          :rowsPerPageOptions="[15, 30, 50, 100]"
+          stripedRows
+          showGridlines
+          responsiveLayout="scroll"
+          class="assignacions-table p-datatable-sm"
+        >
+          <Column style="width: 3rem">
+            <template #header>
+              <Checkbox
+                :modelValue="dragSelectAssignacions.allSelected.value"
+                @update:modelValue="dragSelectAssignacions.toggleAll"
+                binary
+              />
+            </template>
+            <template #body="slotProps">
+              <Checkbox
+                :modelValue="dragSelectAssignacions.isSelected(slotProps.data)"
+                binary
+                @mousedown.prevent="dragSelectAssignacions.onMouseDown(slotProps.data, $event)"
+                @mouseenter="dragSelectAssignacions.onMouseEnter(slotProps.data)"
+              />
+            </template>
+          </Column>
+          <Column field="nivell" :header="$t('examConfig.tabs.levels')" sortable style="min-width: 100px" />
+          <Column field="assignatura" :header="$t('common.subject')" sortable style="min-width: 180px">
+            <template #editor="{ data, field }">
+              <InputText v-model="data[field]" class="w-full p-inputtext-sm" />
+            </template>
+          </Column>
+          <Column field="grup" :header="$t('common.group')" sortable style="min-width: 120px">
+            <template #editor="{ data, field }">
+              <InputText v-model="data[field]" class="w-full p-inputtext-sm" />
+            </template>
+          </Column>
+          <Column field="titular" :header="$t('examConfig.assignments.owner')" sortable style="min-width: 150px" />
+          <Column field="aula" :header="$t('common.room')" sortable style="min-width: 120px" />
+          <Column field="ja_existeix" :header="$t('examConfig.import.status')" style="min-width: 110px">
+            <template #body="slotProps">
+              <Tag v-if="slotProps.data.ja_existeix" severity="secondary" :value="$t('examConfig.import.alreadyExists')" />
+              <Tag v-else-if="slotProps.data.descartada" severity="warning" :value="$t('examConfig.import.previouslyDismissed')" />
+              <Tag v-else severity="success" :value="$t('examConfig.import.newProposal')" />
+            </template>
+          </Column>
+        </DataTable>
+      </div>
+
+      <template #footer>
+        <div class="import-footer">
+          <div class="overwrite-check">
+            <Checkbox v-model="sobreescriuImportacio" inputId="overwrite-xml" binary />
+            <label for="overwrite-xml">{{ $t('examConfig.import.overwrite') }}</label>
+          </div>
+          <div>
+            <Button :label="$t('common.cancel')" @click="mostrarDialegImport = false" class="p-button-text" />
+            <Button
+              :label="$t('examConfig.import.confirmButton', { count: propostesSeleccionades.length })"
+              icon="pi pi-check"
+              @click="previsualitzarImportacio"
+              class="p-button-success"
+              :loading="calculantResumPrevi"
+              :disabled="propostesSeleccionades.length === 0"
+            />
+          </div>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Diàleg de resum PREVI (abans d'escriure res): cal confirmar o cancel·lar -->
+    <Dialog
+      v-model:visible="mostrarResumPrevi"
+      :header="$t('examConfig.import.previewTitle')"
+      :modal="true"
+      :closable="false"
+      :style="{ width: '600px', maxHeight: '85vh' }"
+    >
+      <div v-if="resumPrevi" class="resum-import">
+        <Message severity="info" :closable="false">
+          {{ $t('examConfig.import.previewHelp') }}
+        </Message>
+
+        <Message v-if="resumPreviSobreescriu" severity="warn" :closable="false">
+          <div class="resum-avis-sobreescriu">
+            <span>{{ $t('examConfig.import.overwriteBackupWarning') }}</span>
+            <Button
+              :label="$t('examConfig.import.downloadBackup')"
+              icon="pi pi-download"
+              size="small"
+              class="p-button-outlined p-button-sm"
+              @click="exportarAssignacionsCsv"
+            />
+          </div>
+        </Message>
+
+        <template v-for="secio in [
+          { key: 'nivells_creats', label: $t('examConfig.tabs.levels') },
+          { key: 'grups_creats', label: $t('common.group') },
+          { key: 'assignatures_creades', label: $t('common.subject') },
+          { key: 'aules_creades', label: $t('examConfig.tabs.rooms') },
+          { key: 'assignacions_creades', label: $t('examConfig.tabs.assignments') },
+        ]" :key="secio.key">
+          <div v-if="resumPrevi[secio.key] && resumPrevi[secio.key].length" class="resum-seccio">
+            <h4>{{ secio.label }} ({{ resumPrevi[secio.key].length }})</h4>
+            <ul>
+              <li v-for="(item, i) in resumPrevi[secio.key]" :key="i">{{ item }}</li>
+            </ul>
+          </div>
+        </template>
+
+        <p v-if="resumPrevi.ja_existien">
+          {{ $t('examConfig.import.alreadyExistedCount', { count: resumPrevi.ja_existien }) }}
+        </p>
+
+        <Message
+          v-if="resumPrevi.avisos && resumPrevi.avisos.length"
+          severity="warn"
+          :closable="false"
+          class="resum-avisos"
+        >
+          <ul>
+            <li v-for="(avis, i) in resumPrevi.avisos" :key="i">{{ avis }}</li>
+          </ul>
+        </Message>
+      </div>
+
+      <template #footer>
+        <Button :label="$t('common.cancel')" @click="mostrarResumPrevi = false" class="p-button-text" />
+        <Button
+          :label="$t('examConfig.import.confirmImport')"
+          icon="pi pi-check"
+          @click="confirmarImportacioDefinitiva"
+          class="p-button-success"
+          :loading="important"
+        />
+      </template>
+    </Dialog>
+
+    <!-- Diàleg de resum FINAL (breu, després d'importar de veritat) -->
+    <Dialog
+      v-model:visible="mostrarResumFinal"
+      :header="$t('examConfig.import.summaryTitle')"
+      :modal="true"
+      :closable="false"
+      :style="{ width: '500px' }"
+    >
+      <div v-if="resumFinal">
+        <p>{{ $t('examConfig.import.doneBrief', {
+          nivells: resumFinal.nivells_creats.length,
+          grups: resumFinal.grups_creats.length,
+          assignatures: resumFinal.assignatures_creades.length,
+          aules: resumFinal.aules_creades.length,
+          assignacions: resumFinal.assignacions_creades.length,
+        }) }}</p>
+        <p v-if="resumFinal.ja_existien">
+          {{ $t('examConfig.import.alreadyExistedCount', { count: resumFinal.ja_existien }) }}
+        </p>
+        <Message
+          v-if="resumFinal.avisos && resumFinal.avisos.length"
+          severity="warn"
+          :closable="false"
+          class="resum-avisos"
+        >
+          <ul>
+            <li v-for="(avis, i) in resumFinal.avisos" :key="i">{{ avis }}</li>
+          </ul>
+        </Message>
+      </div>
+
+      <template #footer>
+        <Button
+          :label="$t('common.close')"
+          icon="pi pi-times"
+          @click="mostrarResumFinal = false"
+          class="p-button-success"
+        />
+      </template>
+    </Dialog>
+
+
     <template #footer>
       <Button
         :label="$t('common.close')"
@@ -546,7 +844,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
@@ -555,16 +853,78 @@ import Dialog from 'primevue/dialog'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import Dropdown from 'primevue/dropdown'
+import MultiSelect from 'primevue/multiselect'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Message from 'primevue/message'
+import Checkbox from 'primevue/checkbox'
 
 const toast = useToast()
 const { t } = useI18n()
 const confirm = useConfirm()
+
+// Selecció múltiple per a taules de revisió d'importació: clic normal
+// alterna una fila, Maj+clic selecciona el rang des de l'última clicada, i
+// arrossegar amb el botó premut "pinta" seleccionar/deseleccionar per on
+// passa el ratolí (mateix estat que la fila on ha començat l'arrossegament).
+function useDragSelect(itemsRef, selectedRef) {
+  // lastIndex es la POSICIÓ dins itemsRef.value (no un _key absolut), perquè
+  // el rang de Maj+clic funcioni bé encara que itemsRef estigui filtrat.
+  const lastIndex = ref(null)
+  const dragging = ref(false)
+  const dragValue = ref(true)
+
+  const isSelected = (item) => selectedRef.value.some(s => s._key === item._key)
+
+  const setSelected = (item, value) => {
+    const ja = isSelected(item)
+    if (value && !ja) selectedRef.value = [...selectedRef.value, item]
+    else if (!value && ja) selectedRef.value = selectedRef.value.filter(s => s._key !== item._key)
+  }
+
+  const onMouseDown = (item, event) => {
+    const idx = itemsRef.value.findIndex(i => i._key === item._key)
+    const nouEstat = !isSelected(item)
+    if (event.shiftKey && lastIndex.value !== null) {
+      const [des, fins] = [lastIndex.value, idx].sort((a, b) => a - b)
+      for (let i = des; i <= fins; i++) {
+        setSelected(itemsRef.value[i], true)
+      }
+    } else {
+      setSelected(item, nouEstat)
+      dragValue.value = nouEstat
+    }
+    lastIndex.value = idx
+    dragging.value = true
+  }
+
+  const onMouseEnter = (item) => {
+    if (dragging.value) setSelected(item, dragValue.value)
+  }
+
+  const stopDragging = () => { dragging.value = false }
+
+  onMounted(() => window.addEventListener('mouseup', stopDragging))
+  onUnmounted(() => window.removeEventListener('mouseup', stopDragging))
+
+  // "Selecciona/desselecciona tot" opera sobre itemsRef (passa-hi la llista
+  // FILTRADA perquè només afecti el que es veu en aquell moment).
+  const allSelected = computed(() => itemsRef.value.length > 0 && itemsRef.value.every(isSelected))
+  const toggleAll = (value) => {
+    if (value) {
+      const nous = itemsRef.value.filter(i => !isSelected(i))
+      selectedRef.value = [...selectedRef.value, ...nous]
+    } else {
+      const keys = new Set(itemsRef.value.map(i => i._key))
+      selectedRef.value = selectedRef.value.filter(s => !keys.has(s._key))
+    }
+  }
+
+  return { isSelected, onMouseDown, onMouseEnter, allSelected, toggleAll }
+}
 
 const props = defineProps({
   visible: {
@@ -1127,6 +1487,227 @@ const eliminarAssignacio = async (id) => {
   })
 }
 
+// ===== Eliminació massiva (netejar abans de re-importar) =====
+
+const eliminarAssignacionsFiltrades = () => {
+  if (assignacionsFiltrades.value.length === 0) return
+
+  confirm.require({
+    message: t('examConfig.assignments.deleteFilteredConfirmMessage', { count: assignacionsFiltrades.value.length }),
+    header: t('common.confirmDelete'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.delete'),
+    rejectLabel: t('common.cancel'),
+    accept: async () => {
+      try {
+        const ids = assignacionsFiltrades.value.filter(a => a.id > 0).map(a => a.id)
+        await axios.delete('/api/config/assignacions', { data: { ids } })
+        toast.add({ severity: 'success', summary: t('common.deleted'), detail: t('examConfig.assignments.deleted'), life: 2000 })
+        await carregarAssignacions()
+      } catch (error) {
+        console.error('Error eliminant assignacions:', error)
+        toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 })
+      }
+    }
+  })
+}
+
+const eliminarTotesAssignacions = () => {
+  if (assignacions.value.length === 0) return
+
+  confirm.require({
+    message: t('examConfig.assignments.deleteAllConfirmMessage', { count: assignacions.value.length }),
+    header: t('common.confirmDelete'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.delete'),
+    rejectLabel: t('common.cancel'),
+    accept: async () => {
+      try {
+        await axios.delete('/api/config/assignacions', { data: { tot: true } })
+        toast.add({ severity: 'success', summary: t('common.deleted'), detail: t('examConfig.assignments.deleted'), life: 2000 })
+        await carregarAssignacions()
+      } catch (error) {
+        console.error('Error eliminant totes les assignacions:', error)
+        toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 })
+      }
+    }
+  })
+}
+
+// ===== Importar des de l'XML =====
+
+const mostrarDialegImport = ref(false)
+const carregantPropostes = ref(false)
+const propostes = ref([])
+const propostesSeleccionades = ref([])
+const important = ref(false)
+const sobreescriuImportacio = ref(false)
+
+const filtreNivellImport = ref([])
+const filtreAssignaturaImport = ref([])
+const filtreEstatImport = ref('')
+
+const nivellsImport = computed(() => [...new Set(propostes.value.map(p => p.nivell))].sort())
+const assignaturesImport = computed(() => [...new Set(propostes.value.map(p => p.assignatura))].sort())
+
+const propostesFiltrades = computed(() => propostes.value.filter(p =>
+  (filtreNivellImport.value.length === 0 || filtreNivellImport.value.includes(p.nivell)) &&
+  (filtreAssignaturaImport.value.length === 0 || filtreAssignaturaImport.value.includes(p.assignatura)) &&
+  (!filtreEstatImport.value ||
+    (filtreEstatImport.value === 'nova' && !p.ja_existeix) ||
+    (filtreEstatImport.value === 'existent' && p.ja_existeix))
+))
+
+const dragSelectAssignacions = useDragSelect(propostesFiltrades, propostesSeleccionades)
+
+const obrirImportacio = async () => {
+  mostrarDialegImport.value = true
+  carregantPropostes.value = true
+  propostes.value = []
+  propostesSeleccionades.value = []
+  filtreNivellImport.value = []
+  filtreAssignaturaImport.value = []
+  filtreEstatImport.value = ''
+  try {
+    const { data } = await axios.get('/api/config/importar-assignacions/preview')
+    propostes.value = (data.propostes || []).map((p, idx) => ({ ...p, _key: idx }))
+    // Pre-selecciona només les que encara no existeixen i que no s'havien
+    // descartat expressament en una importació anterior
+    propostesSeleccionades.value = propostes.value.filter(p => !p.ja_existeix && !p.descartada)
+  } catch (error) {
+    console.error('Error generant propostes d\'importació:', error)
+    toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.import.errorPreview'), life: 3000 })
+    mostrarDialegImport.value = false
+  } finally {
+    carregantPropostes.value = false
+  }
+}
+
+// ===== Resum previ (dry-run) i confirmació final (compartit entre XML i CSV) =====
+
+const mostrarResumPrevi = ref(false)
+const resumPrevi = ref(null)
+const resumPreviSobreescriu = ref(false)
+const calculantResumPrevi = ref(false)
+const mostrarResumFinal = ref(false)
+const resumFinal = ref(null)
+const origenResumPrevi = ref('xml') // 'xml' | 'csv'
+const fitxerCsvPendent = ref(null)
+const overwriteCsvPendent = ref(false)
+
+const netejaProposta = ({ _key, ja_existeix, descartada, ...rest }) => rest
+
+const previsualitzarImportacio = async () => {
+  if (propostesSeleccionades.value.length === 0) return
+  calculantResumPrevi.value = true
+  try {
+    const { data } = await axios.post('/api/config/importar-assignacions/dry-run', {
+      propostes: propostesSeleccionades.value.map(netejaProposta),
+      overwrite: sobreescriuImportacio.value
+    })
+    origenResumPrevi.value = 'xml'
+    resumPreviSobreescriu.value = sobreescriuImportacio.value
+    resumPrevi.value = data
+    mostrarResumPrevi.value = true
+  } catch (error) {
+    console.error('Error calculant el resum previ:', error)
+    toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.import.errorPreview'), life: 3000 })
+  } finally {
+    calculantResumPrevi.value = false
+  }
+}
+
+const previsualitzarImportacioCsv = async (fitxer, overwrite) => {
+  const formData = new FormData()
+  formData.append('file', fitxer)
+  formData.append('overwrite', overwrite)
+  try {
+    const { data } = await axios.post('/api/config/importar-assignacions-csv/dry-run', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    origenResumPrevi.value = 'csv'
+    resumPreviSobreescriu.value = overwrite
+    fitxerCsvPendent.value = fitxer
+    overwriteCsvPendent.value = overwrite
+    resumPrevi.value = data
+    mostrarResumPrevi.value = true
+  } catch (error) {
+    console.error('Error calculant el resum previ del CSV:', error)
+    const detail = error.response?.data?.detail || t('examConfig.import.errorPreview')
+    toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 })
+  }
+}
+
+const confirmarImportacioDefinitiva = async () => {
+  important.value = true
+  try {
+    let data
+    if (origenResumPrevi.value === 'csv') {
+      const formData = new FormData()
+      formData.append('file', fitxerCsvPendent.value)
+      formData.append('overwrite', overwriteCsvPendent.value)
+      const resposta = await axios.post('/api/config/importar-assignacions-csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      data = resposta.data
+      fitxerCsvPendent.value = null
+    } else {
+      const seleccionadesKeys = new Set(propostesSeleccionades.value.map(p => p._key))
+      const descartades = propostes.value
+        .filter(p => !seleccionadesKeys.has(p._key) && !p.ja_existeix)
+        .map(({ assignatura, grup, titular }) => ({ assignatura, grup, titular }))
+
+      const resposta = await axios.post('/api/config/importar-assignacions', {
+        propostes: propostesSeleccionades.value.map(netejaProposta),
+        descartades,
+        overwrite: sobreescriuImportacio.value
+      })
+      data = resposta.data
+      mostrarDialegImport.value = false
+      sobreescriuImportacio.value = false
+    }
+
+    mostrarResumPrevi.value = false
+    resumFinal.value = data
+    mostrarResumFinal.value = true
+    await carregarAssignacions()
+  } catch (error) {
+    console.error('Error important:', error)
+    const detail = error.response?.data?.detail || t('examConfig.import.errorApply')
+    toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 })
+  } finally {
+    important.value = false
+  }
+}
+
+// ===== Exportar / Importar assignacions en CSV =====
+
+const inputCsvRef = ref(null)
+
+const exportarAssignacionsCsv = () => {
+  window.open('/api/config/exportar-assignacions-csv', '_blank')
+}
+
+const triarFitxerCsv = () => {
+  inputCsvRef.value?.click()
+}
+
+const onFitxerCsvSeleccionat = (event) => {
+  const fitxer = event.target.files?.[0]
+  event.target.value = ''
+  if (!fitxer) return
+
+  confirm.require({
+    message: t('examConfig.import.overwriteConfirmCsv', { filename: fitxer.name }),
+    header: t('examConfig.import.importCsv'),
+    icon: 'pi pi-question-circle',
+    acceptLabel: t('examConfig.import.overwrite'),
+    rejectLabel: t('examConfig.import.merge'),
+    accept: () => previsualitzarImportacioCsv(fitxer, true),
+    reject: () => previsualitzarImportacioCsv(fitxer, false)
+  })
+}
+
 const carregarAfinitats = async () => {
   try {
     const response = await axios.get('/api/config/afinitats')
@@ -1318,6 +1899,14 @@ watch(() => props.visible, (newVal) => {
 </script>
 
 <style scoped>
+.resum-avis-sobreescriu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .loading {
   display: flex;
   flex-direction: column;
@@ -1428,6 +2017,21 @@ watch(() => props.visible, (newVal) => {
   margin-top: 1rem;
 }
 
+.import-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.overwrite-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .accions-buttons {
   display: flex;
   gap: 0.25rem;
@@ -1441,6 +2045,30 @@ watch(() => props.visible, (newVal) => {
 
 .item-card-readonly:hover {
   transform: none;
+}
+
+.import-section {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.import-section h4 {
+  margin: 0 0 0.5rem 0;
+  color: #111827;
+}
+
+.import-section-desc {
+  margin: 0 0 1rem 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.import-buttons-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .info-text {
@@ -1490,6 +2118,13 @@ watch(() => props.visible, (newVal) => {
 
 .filtre-dropdown {
   min-width: 180px;
+}
+
+.filtres-import {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
 }
 
 .toolbar-right {
