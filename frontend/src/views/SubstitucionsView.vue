@@ -1421,7 +1421,7 @@ const aplicarPreferenciesPdf = (prefs) => {
 
 const carregarPreferenciesPdf = async () => {
   try {
-    const response = await axios.get('/api/settings/pdf-preferences')
+    const response = await axios.get('/api/pdf/preferences', { _silent: true })
     aplicarPreferenciesPdf(response.data?.substitucions)
   } catch (error) {
     console.error('Error carregant preferències PDF:', error)
@@ -1430,7 +1430,7 @@ const carregarPreferenciesPdf = async () => {
 
 const desarPreferenciesPdf = async () => {
   try {
-    await axios.put('/api/settings/pdf-preferences', {
+    await axios.put('/api/pdf/preferences', {
       substitucions: {
         includeSubstitutions: pdfConfig.value.includeSubstitutions,
         includeVigilancies: pdfConfig.value.includeVigilancies,
@@ -1439,7 +1439,7 @@ const desarPreferenciesPdf = async () => {
         showConflicts: pdfConfig.value.showConflicts,
         compress: pdfConfig.value.compress
       }
-    })
+    }, { _silent: true })
   } catch (error) {
     console.error('Error desant preferències PDF:', error)
   }
