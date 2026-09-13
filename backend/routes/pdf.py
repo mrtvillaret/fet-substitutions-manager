@@ -7,12 +7,14 @@ Routes per generació i validació de PDFs:
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Body
-from typing import Optional
+from typing import Optional, Dict, Any
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from collections import defaultdict
+from pydantic import BaseModel
+import json
 import tempfile
 import shutil
 import os
@@ -21,11 +23,83 @@ from pathlib import Path
 from dependencies import get_db
 from auth_utils import get_current_user
 from helpers import get_gestors, get_horari
-from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository
+from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository, ConfiguracioRepository
 from export.pdf.engine import PDFCompletExporter
 from i18n_setup import translate
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF"])
+
+
+class PDFPreferencesUpdate(BaseModel):
+    substitucions: Optional[Dict[str, Any]] = None
+    vigilancies: Optional[Dict[str, Any]] = None
+    vigilancies_interval: Optional[Dict[str, Any]] = None
+
+
+@router.get("/preferences")
+async def get_pdf_preferences(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Retorna les preferències PDF desades per institució
+    """
+    try:
+        prefs_subs = ConfiguracioRepository.get(db, "pdf_prefs_substitucions")
+        prefs_vigs = ConfiguracioRepository.get(db, "pdf_prefs_vigilancies")
+        prefs_vigs_interval = ConfiguracioRepository.get(db, "pdf_prefs_vigilancies_interval")
+
+        return {
+            "substitucions": json.loads(prefs_subs) if prefs_subs else None,
+            "vigilancies": json.loads(prefs_vigs) if prefs_vigs else None,
+            "vigilancies_interval": json.loads(prefs_vigs_interval) if prefs_vigs_interval else None
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error en obtenir preferències PDF: {str(e)}")
+
+
+@router.put("/preferences")
+async def update_pdf_preferences(
+    prefs: PDFPreferencesUpdate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Desa les preferències PDF per institució
+    """
+    try:
+        if prefs.substitucions is not None:
+            ConfiguracioRepository.set(
+                db,
+                "pdf_prefs_substitucions",
+                json.dumps(prefs.substitucions),
+                tipus="json",
+                descripcio="Preferències PDF de substitucions"
+            )
+        if prefs.vigilancies is not None:
+            ConfiguracioRepository.set(
+                db,
+                "pdf_prefs_vigilancies",
+                json.dumps(prefs.vigilancies),
+                tipus="json",
+                descripcio="Preferències PDF de vigilàncies"
+            )
+        if prefs.vigilancies_interval is not None:
+            ConfiguracioRepository.set(
+                db,
+                "pdf_prefs_vigilancies_interval",
+                json.dumps(prefs.vigilancies_interval),
+                tipus="json",
+                descripcio="Preferències PDF interval de vigilàncies"
+            )
+
+        return {"success": True}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error en desar preferències PDF: {str(e)}")
 
 
 def _extract_real_type(tipus_actual: str) -> str:

@@ -1583,7 +1583,7 @@ const aplicarPreferenciesPdf = (prefs, target, keys) => {
 
 const carregarPreferenciesPdf = async () => {
   try {
-    const response = await axios.get('/api/settings/pdf-preferences')
+    const response = await axios.get('/api/pdf/preferences', { _silent: true })
     aplicarPreferenciesPdf(
       response.data?.vigilancies,
       pdfConfig,
@@ -1602,18 +1602,18 @@ const carregarPreferenciesPdf = async () => {
 const desarPreferenciesPdf = async (tipus) => {
   try {
     if (tipus === 'vigilancies') {
-      await axios.put('/api/settings/pdf-preferences', {
+      await axios.put('/api/pdf/preferences', {
         vigilancies: {
           showComments: pdfConfig.value.showComments,
           showHours: pdfConfig.value.showHours,
           compress: pdfConfig.value.compress,
           includeSubstitucions: pdfConfig.value.includeSubstitucions
         }
-      })
+      }, { _silent: true })
       return
     }
     if (tipus === 'interval') {
-      await axios.put('/api/settings/pdf-preferences', {
+      await axios.put('/api/pdf/preferences', {
         vigilancies_interval: {
           includeWeekends: intervalConfig.value.includeWeekends,
           includeEmptyDays: intervalConfig.value.includeEmptyDays,
@@ -1622,7 +1622,7 @@ const desarPreferenciesPdf = async (tipus) => {
           compress: intervalConfig.value.compress,
           includeSubstitucions: intervalConfig.value.includeSubstitucions
         }
-      })
+      }, { _silent: true })
     }
   } catch (error) {
     console.error('Error desant preferències PDF:', error)
