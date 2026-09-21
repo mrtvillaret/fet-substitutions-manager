@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n'
 import ca from './locales/ca.json'
 import es from './locales/es.json'
 import en from './locales/en.json'
+import it from './locales/it.json'
 
 const storedLocale = localStorage.getItem('app_locale') || 'ca'
 
@@ -41,6 +42,18 @@ export const primeLocales = {
     clear: 'Clear',
     weekHeader: 'Wk',
     dateFormat: 'dd/mm/yy'
+  },
+  it: {
+    firstDayOfWeek: 1,
+    dayNames: ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'],
+    dayNamesShort: ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'],
+    dayNamesMin: ['do', 'lu', 'ma', 'me', 'gi', 've', 'sa'],
+    monthNames: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
+    monthNamesShort: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
+    today: 'Oggi',
+    clear: 'Cancella',
+    weekHeader: 'Sett',
+    dateFormat: 'dd/mm/yy'
   }
 }
 
@@ -49,7 +62,7 @@ const i18n = createI18n({
   globalInjection: true,
   locale: storedLocale,
   fallbackLocale: 'ca',
-  messages: { ca, es, en }
+  messages: { ca, es, en, it }
 })
 
 export const setLocale = (locale) => {

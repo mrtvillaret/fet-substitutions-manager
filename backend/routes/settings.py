@@ -430,7 +430,8 @@ async def get_idiomes():
         "idiomes": [
             {"code": "ca", "name": "Català"},
             {"code": "es", "name": "Español"},
-            {"code": "en", "name": "English"}
+            {"code": "en", "name": "English"},
+            {"code": "it", "name": "Italiano"}
         ],
         "actual": config.institucio_data.get("idioma", config.global_data.get("idioma", "ca"))
     }

@@ -1,0 +1,258 @@
+# Italian translations for Gestor Substitucions FET.
+# Copyright (C) 2025 Martí Villaret Ausellé
+# This file is distributed under the same license as the Gestor
+# Substitucions FET project.
+# Claude AI, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-21 00:00+0100\n"
+"PO-Revision-Date: 2026-09-21 00:00+0100\n"
+"Last-Translator: Claude AI\n"
+"Language-Team: it <LL@li.org>\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Generated-By: Babel 2.17.0\n"
+
+msgid "Informe de Substitucions"
+msgstr "Report delle Sostituzioni"
+
+msgid "Informe individual de substitucions"
+msgstr "Report individuale delle sostituzioni"
+
+msgid "Informe generat el {timestamp} · {nom_centre}"
+msgstr "Report generato il {timestamp} · {nom_centre}"
+
+msgid "Evolució mensual"
+msgstr "Andamento mensile"
+
+msgid "Professors amb més absències"
+msgstr "Docenti con più assenze"
+
+msgid "Evolució d'absències per professor i mes"
+msgstr "Andamento delle assenze per docente e mese"
+
+msgid "Evolució de substitucions fetes per professor i mes"
+msgstr "Andamento delle sostituzioni effettuate per docente e mese"
+
+msgid "Professors que han fet més substitucions"
+msgstr "Docenti che hanno effettuato più sostituzioni"
+
+msgid "Impacte per grup i nivell"
+msgstr "Impatto per gruppo e livello"
+
+msgid "Resum per nivell"
+msgstr "Riepilogo per livello"
+
+msgid "Evolució d'absències per grup i mes"
+msgstr "Andamento delle assenze per gruppo e mese"
+
+msgid "Distribució per dia de la setmana i hora"
+msgstr "Distribuzione per giorno della settimana e ora"
+
+msgid "Distribució per dia i hora"
+msgstr "Distribuzione per giorno e ora"
+
+msgid "Vigilàncies d'examen"
+msgstr "Vigilanze d'esame"
+
+msgid "Absències"
+msgstr "Assenze"
+
+msgid "Absències reals"
+msgstr "Assenze reali"
+
+msgid "Absències pròpies"
+msgstr "Assenze proprie"
+
+msgid "Absències (triangle sup)"
+msgstr "Assenze (triangolo sup.)"
+
+msgid "Serveis"
+msgstr "Servizi"
+
+msgid "Serveis / comissions"
+msgstr "Servizi / commissioni"
+
+msgid "Substitucions"
+msgstr "Sostituzioni"
+
+msgid "Substitucions fetes"
+msgstr "Sostituzioni effettuate"
+
+msgid "Substitucions fetes (triangle inf)"
+msgstr "Sostituzioni effettuate (triangolo inf.)"
+
+msgid "Cobertura"
+msgstr "Copertura"
+
+msgid "Cobertes"
+msgstr "Coperte"
+
+msgid "Baixes"
+msgstr "Congedi"
+
+msgid "Dies amb incid."
+msgstr "Giorni con incid."
+
+msgid "Mes"
+msgstr "Mese"
+
+msgid "Total incid."
+msgstr "Totale incid."
+
+msgid "Hora"
+msgstr "Ora"
+
+msgid "Dia"
+msgstr "Giorno"
+
+msgid "Data"
+msgstr "Data"
+
+msgid "Grup"
+msgstr "Gruppo"
+
+msgid "Grups"
+msgstr "Gruppi"
+
+msgid "Nivell"
+msgstr "Livello"
+
+msgid "Niv."
+msgstr "Liv."
+
+msgid "Assignatura"
+msgstr "Materia"
+
+msgid "Tipus"
+msgstr "Tipo"
+
+msgid "Substitut"
+msgstr "Supplente"
+
+msgid "Professor absent"
+msgstr "Docente assente"
+
+msgid "Professor/a"
+msgstr "Docente"
+
+msgid "Total"
+msgstr "Totale"
+
+msgid "Tot."
+msgstr "Tot."
+
+msgid "TOTAL"
+msgstr "TOTALE"
+
+msgid "Abs"
+msgstr "Ass"
+
+msgid "Serv"
+msgstr "Serv"
+
+msgid "% sobre total"
+msgstr "% sul totale"
+
+msgid "Concepte"
+msgstr "Voce"
+
+msgid "Pendent"
+msgstr "In sospeso"
+
+msgid "Pendents"
+msgstr "In sospeso"
+
+msgid "Subs. fetes"
+msgstr "Sost. effettuate"
+
+msgid "Absència"
+msgstr "Assenza"
+
+msgid "Servei"
+msgstr "Servizio"
+
+msgid "Vig. absent"
+msgstr "Sorv. assente"
+
+msgid "Cap absència registrada."
+msgstr "Nessuna assenza registrata."
+
+msgid "Cap substitució feta."
+msgstr "Nessuna sostituzione effettuata."
+
+msgid "Cap dada disponible."
+msgstr "Nessun dato disponibile."
+
+msgid "Total vigilàncies programades"
+msgstr "Totale vigilanze programmate"
+
+msgid "Vigilants absents (cobertura necessària)"
+msgstr "Sorveglianti assenti (copertura necessaria)"
+
+msgid "Vigilants absents coberts"
+msgstr "Sorveglianti assenti coperti"
+
+msgid "Vigilants absents pendents"
+msgstr "Sorveglianti assenti in sospeso"
+
+msgid "Intensitat de color: proporció d'absències respecte al màxim del curs"
+msgstr "Intensità del colore: proporzione di assenze rispetto al massimo dell'anno"
+
+msgid "Intensitat de color: proporció respecte al màxim del curs"
+msgstr "Intensità del colore: proporzione rispetto al massimo dell'anno"
+
+msgid "Intensitat: proporció respecte al màxim del curs"
+msgstr "Intensità: proporzione rispetto al massimo dell'anno"
+
+msgid "* Mostrant els {top} primers de {total} professors"
+msgstr "* Mostrando i primi {top} di {total} docenti"
+
+msgid "Dilluns"
+msgstr "Lunedì"
+
+msgid "Dimarts"
+msgstr "Martedì"
+
+msgid "Dimecres"
+msgstr "Mercoledì"
+
+msgid "Dijous"
+msgstr "Giovedì"
+
+msgid "Divendres"
+msgstr "Venerdì"
+
+msgid "Dissabte"
+msgstr "Sabato"
+
+msgid "Diumenge"
+msgstr "Domenica"
+
+msgid "Dll"
+msgstr "Lun"
+
+msgid "Dmt"
+msgstr "Mar"
+
+msgid "Dmc"
+msgstr "Mer"
+
+msgid "Djo"
+msgstr "Gio"
+
+msgid "Div"
+msgstr "Ven"
+
+msgid "Període"
+msgstr "Periodo"
+
+msgid "Generat"
+msgstr "Generato"
+
