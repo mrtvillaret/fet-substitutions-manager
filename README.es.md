@@ -1,6 +1,6 @@
 # Gestor de Guardias, Sustituciones y Vigilancias de Exámenes
 
-> Aplicación web **de código abierto** para organizar las **guardias y sustituciones**
+> Aplicación web **de código abierto**, desarrollada con **Claude Code**, para organizar las **guardias y sustituciones**
 > del profesorado y las **vigilancias de exámenes** de un centro educativo: asignación
 > automática y equitativa, informes en PDF e importación del horario desde
 > [FET](https://lalescu.ro/liviu/fet/).
@@ -206,17 +206,10 @@ ninguna instalación queda abierta con credenciales que constan en este reposito
 - Sube el XML de tu centro (generado por [FET](https://lalescu.ro/liviu/fet/))
   desde Configuración > Importar XML
 
-### Protección de datos
+### Registro de accesos
 
-La aplicación trata datos personales del profesorado (nombre, horario, ausencias
-y quién las cubre). Quien la despliega decide cómo los trata y con qué
-garantías; consultadlo con quien lleve la protección de datos en vuestro centro.
-
-Por si os ayuda a documentarlo, esto es lo que guarda el software:
-
-- No registra el motivo de las ausencias ni ningún dato de salud.
-- Si activáis el `access log` del proxy (ver `Caddyfile.example`), se guardan
-  direcciones IP. El ejemplo trae un plazo de conservación configurable.
+Si activáis el `access log` del proxy (ver `Caddyfile.example`), se guardan
+direcciones IP. El ejemplo trae un plazo de conservación configurable.
 
 ### Actualizaciones
 

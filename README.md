@@ -1,6 +1,6 @@
 # Gestor de Guàrdies, Substitucions i Vigilàncies d'Exàmens
 
-> Aplicació web **de codi obert** per organitzar les **guàrdies i substitucions**
+> Aplicació web **de codi obert**, desenvolupada amb **Claude Code**, per organitzar les **guàrdies i substitucions**
 > del professorat i les **vigilàncies d'exàmens** d'un centre educatiu: assignació
 > automàtica i equitativa, informes en PDF i importació de l'horari des de
 > [FET](https://lalescu.ro/liviu/fet/).
@@ -240,17 +240,10 @@ cap instal·lació queda oberta amb credencials que consten en aquest repositori
 - Puja l'XML del teu centre (generat per [FET](https://lalescu.ro/liviu/fet/))
   des de Configuració > Importar XML
 
-### Protecció de dades
+### Registre d'accessos
 
-L'aplicació tracta dades personals del professorat (nom, horari, absències i qui
-les cobreix). Qui la desplega decideix com les tracta i amb quines garanties;
-consulteu-ho amb qui porti la protecció de dades al vostre centre.
-
-Per si us ajuda a documentar-ho, això és el que desa el programari:
-
-- No registra el motiu de les absències ni cap dada de salut.
-- Si activeu l'`access log` del proxy (vegeu `Caddyfile.example`), es desen
-  adreces IP. L'exemple porta un termini de conservació configurable.
+Si activeu l'`access log` del proxy (vegeu `Caddyfile.example`), es desen
+adreces IP. L'exemple porta un termini de conservació configurable.
 
 ### Actualitzacions
 
