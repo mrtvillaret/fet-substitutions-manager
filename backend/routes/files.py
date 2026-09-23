@@ -14,7 +14,7 @@ import os
 import shutil
 from pathlib import Path
 
-from auth_utils import get_current_user
+from auth_utils import require_admin
 from database import get_data_dir_for_institucio, get_data_db_session
 
 router = APIRouter(prefix="/api/files", tags=["Fitxers"])
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/files", tags=["Fitxers"])
 async def upload_xml(
     file: UploadFile = File(...),
     data_inici: Optional[str] = Form(None),
-    current_user=Depends(get_current_user)
+    current_user=Depends(require_admin)
 ):
     """
     Puja un fitxer XML de FET i el versiona a partir d'una data de vigència.
@@ -207,7 +207,7 @@ async def upload_xml(
 
 
 @router.post("/upload-logo")
-async def upload_logo(file: UploadFile = File(...), current_user=Depends(get_current_user)):
+async def upload_logo(file: UploadFile = File(...), current_user=Depends(require_admin)):
     """
     Puja un logo de la institució i el guarda al directori de dades
     """
@@ -250,7 +250,7 @@ async def upload_logo(file: UploadFile = File(...), current_user=Depends(get_cur
 
 
 @router.get("/logo")
-async def get_logo(current_user=Depends(get_current_user)):
+async def get_logo(current_user=Depends(require_admin)):
     """
     Retorna el logo configurat de la institució
     """
