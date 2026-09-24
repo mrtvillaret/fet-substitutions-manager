@@ -1470,15 +1470,31 @@ class CategoriaPrioritatRepository:
 
     @staticmethod
     def update_ordre(db: Session, categories_ordenades: List[int]):
-        """Actualitza l'ordre de les categories"""
+        """Actualitza l'ordre de les categories.
+
+        `ordre` té restricció UNIQUE a la BD: assignar els valors finals
+        directament, fila a fila, pot col·lidir amb l'ordre encara no
+        actualitzat d'una altra categoria (l'autoflush de SQLAlchemy executa
+        la col·lisió abans del commit final). Per evitar-ho, primer es
+        passen totes per valors negatius temporals (que mai col·lideixen amb
+        cap ordre real, sempre >= 0) i després s'assignen els definitius.
+        """
         from models import CategoriaPrioritat
 
-        for idx, categoria_id in enumerate(categories_ordenades):
+        cats = []
+        for categoria_id in categories_ordenades:
             cat = db.query(CategoriaPrioritat).filter(
                 CategoriaPrioritat.id == categoria_id
             ).first()
             if cat:
-                cat.ordre = idx
+                cats.append(cat)
+
+        for idx, cat in enumerate(cats):
+            cat.ordre = -(idx + 1)
+        db.flush()
+
+        for idx, cat in enumerate(cats):
+            cat.ordre = idx
 
         db.commit()
 
