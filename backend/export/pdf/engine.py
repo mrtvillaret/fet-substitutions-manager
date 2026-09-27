@@ -18,6 +18,16 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 
+
+def _text(valor) -> str:
+    """Text de les dades (noms, aules, comentaris...) apte per a un Paragraph.
+
+    ReportLab interpreta etiquetes dins dels Paragraph (<b>, <font>, <img
+    src=...>): sense escapar, un "<" escrit per un usuari trencava el PDF i un
+    <img> li feia llegir fitxers del servidor."""
+    return html.escape(str(valor or ""), quote=False)
+
+
 # PDF Constants
 class PDFConstants:
     """Constants for PDF generation"""
@@ -419,17 +429,23 @@ class PDFCompletExporter:
         try:
             from PIL import Image
             from pathlib import Path
-            from config.settings import config
+            from database import get_data_db_session, get_data_dir_for_institucio
+            from helpers import _get_institucio_actual
+            from repositories import ConfiguracioRepository
 
+            # Logo de la institució de la petició (no el de la institució amb
+            # què va arrencar el servidor).
+            institucio = _get_institucio_actual()
+            with get_data_db_session(institucio) as db:
+                configured_logo = ConfiguracioRepository.get(db, "logo_path")
             logo_path = None
-            configured_logo = config.institucio_data.get("logo_path")
             if configured_logo:
                 candidate = Path(configured_logo)
                 if candidate.exists():
                     logo_path = candidate
 
             if logo_path is None:
-                data_dir = Path(config.data_dir)
+                data_dir = get_data_dir_for_institucio(institucio)
                 for name in ("logo.png", "logo.jpg", "logo.jpeg"):
                     candidate = data_dir / name
                     if candidate.exists():
@@ -740,29 +756,27 @@ class PDFCompletExporter:
 
             # Construcció dinàmica de fila segons ordre de columnes
             # Escape HTML characters in comments to avoid ReportLab parsing errors
-            comentaris_text = sub.get("comentaris", "") or ""
-            if comentaris_text:
-                comentaris_text = html.escape(comentaris_text)
+            comentaris_text = _text(sub.get("comentaris"))
 
             if self.show_hours_column:
                 # ORDRE: Hora | Absent | Grup | Assignatura | Substitut | [Observacions]
                 hora_text = sub.get("hora", "") or ""
                 fila = [
-                    Paragraph(hora_text, cell_style),
-                    Paragraph(sub.get("professor_absent", sub.get("professor", "")) or "", cell_style),
-                    Paragraph(grup_display, cell_style),
-                    Paragraph(sub.get("assignatura", "") or "", cell_style),
-                    Paragraph(substitut_text, substitut_style)
+                    Paragraph(_text(hora_text), cell_style),
+                    Paragraph(_text(sub.get("professor_absent", sub.get("professor", ""))), cell_style),
+                    Paragraph(_text(grup_display), cell_style),
+                    Paragraph(_text(sub.get("assignatura")), cell_style),
+                    Paragraph(_text(substitut_text), substitut_style)
                 ]
                 if self.show_comments_column:
                     fila.append(Paragraph(comentaris_text, cell_style))
             else:
                 # ORDRE ORIGINAL: Absent | Assignatura | Grup | Substitut | [Observacions]
                 fila = [
-                    Paragraph(sub.get("professor_absent", sub.get("professor", "")) or "", cell_style),
-                    Paragraph(sub.get("assignatura", "") or "", cell_style),
-                    Paragraph(grup_display, cell_style),
-                    Paragraph(substitut_text, substitut_style)
+                    Paragraph(_text(sub.get("professor_absent", sub.get("professor", ""))), cell_style),
+                    Paragraph(_text(sub.get("assignatura")), cell_style),
+                    Paragraph(_text(grup_display), cell_style),
+                    Paragraph(_text(substitut_text), substitut_style)
                 ]
                 if self.show_comments_column:
                     fila.append(Paragraph(comentaris_text, cell_style))
@@ -911,31 +925,28 @@ class PDFCompletExporter:
                 vigilant_style = cell_style
             
             # Escape HTML characters in comments to avoid ReportLab parsing errors
-            comentaris_text = vig.get("comentaris", "") or ""
-            if comentaris_text:
-                import html
-                comentaris_text = html.escape(comentaris_text)
+            comentaris_text = _text(vig.get("comentaris"))
 
             # Construcció dinàmica de fila segons ordre de columnes
             if self.show_hours_column:
                 # ORDRE: Hora | Curs | Aula | Assignatura (tipus) | Vigilant | [Observacions]
                 hora_text = vig.get("hora", "") or ""
                 fila = [
-                    Paragraph(hora_text, cell_style),
-                    Paragraph(nivell or "", cell_style),
-                    Paragraph(vig.get("aula", "") or "", cell_style),
-                    Paragraph(tipus or "", cell_style),
-                    Paragraph(vigilant_text, vigilant_style)
+                    Paragraph(_text(hora_text), cell_style),
+                    Paragraph(_text(nivell), cell_style),
+                    Paragraph(_text(vig.get("aula")), cell_style),
+                    Paragraph(_text(tipus), cell_style),
+                    Paragraph(_text(vigilant_text), vigilant_style)
                 ]
                 if self.show_comments_column:
                     fila.append(Paragraph(comentaris_text, cell_style))
             else:
                 # ORDRE ORIGINAL: Curs | Assignatura (tipus) | Aula | Vigilant | [Observacions]
                 fila = [
-                    Paragraph(nivell or "", cell_style),
-                    Paragraph(tipus or "", cell_style),
-                    Paragraph(vig.get("aula", "") or "", cell_style),
-                    Paragraph(vigilant_text, vigilant_style)
+                    Paragraph(_text(nivell), cell_style),
+                    Paragraph(_text(tipus), cell_style),
+                    Paragraph(_text(vig.get("aula")), cell_style),
+                    Paragraph(_text(vigilant_text), vigilant_style)
                 ]
                 if self.show_comments_column:
                     fila.append(Paragraph(comentaris_text, cell_style))

@@ -17,6 +17,10 @@ if str(BACKEND_DIR) not in sys.path:
 os.environ.setdefault("SECRET_KEY", "test-secret-key-nomes-per-als-tests")
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="gestor_tests_data_")
+# Fixat explícitament: main.py fa load_dotenv(), que no sobreescriu variables
+# ja definides. Així el .env de desenvolupament no pot redirigir els tests a
+# l'auth.db de veritat.
+os.environ["AUTH_DB_PATH"] = os.path.join(os.environ["DATA_DIR"], "auth.db")
 
 import pytest
 

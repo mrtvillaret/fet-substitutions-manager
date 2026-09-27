@@ -1,6 +1,8 @@
+import builtins
 import gettext
 import os
 import logging
+from contextvars import ContextVar
 
 # Dominis de traducció modular
 DOMAINS = ["messages", "gui", "core", "export", "utils", "manual"]
@@ -8,66 +10,82 @@ DOMAINS = ["messages", "gui", "core", "export", "utils", "manual"]
 # Camí al directori de traduccions
 LOCALE_DIR = os.path.join(os.path.dirname(__file__), "locales")
 
-# Variable global per a la funció de traducció
-_ = gettext.gettext
+# Idioma per defecte (fora d'una petició: arrencada, scripts)
+IDIOMA_PER_DEFECTE = 'ca'
 
-# Variable global per l'idioma actual (usat per Babel i altres components)
-CURRENT_LANGUAGE = 'ca'
+# Idioma de la petició en curs. Un mateix backend pot servir institucions amb
+# idiomes diferents: si l'idioma fos global, dues peticions simultànies el
+# trepitjarien (un PDF podria sortir en l'idioma de l'altre centre). Una
+# ContextVar té un valor propi per a cada petició.
+_idioma_peticio: ContextVar = ContextVar("idioma_peticio", default=None)
+
+# Traduccions ja carregades, per idioma (es carreguen un sol cop)
+_traductors: dict = {}
 
 
-def translate(text: str) -> str:
-    """Wrapper per obtenir la traducció amb l'estat actual."""
-    return _(text)
+def _carrega(language: str):
+    """Funció gettext per a un idioma, combinant tots els dominis."""
+    if language in _traductors:
+        return _traductors[language]
+    traductor = gettext.gettext
+    try:
+        translations = []
+        for domain in DOMAINS:
+            try:
+                translations.append(gettext.translation(
+                    domain, localedir=LOCALE_DIR, languages=[language], fallback=True
+                ))
+            except FileNotFoundError:
+                logging.warning(f"No s'ha trobat el domini '{domain}' per a l'idioma '{language}'")
+        if translations:
+            combined_translation = translations[0]
+            for trans in translations[1:]:
+                combined_translation.add_fallback(trans)
+            traductor = combined_translation.gettext
+            logging.info(f"Traduccions per a l'idioma '{language}' carregades des de {LOCALE_DIR}.")
+        else:
+            logging.warning(f"No s'ha pogut carregar cap traducció per a '{language}'. S'utilitzarà el text original.")
+    except Exception as e:
+        logging.error(f"S'ha produït un error en carregar les traduccions: {e}")
+    _traductors[language] = traductor
+    return traductor
+
+
+def carrega_idioma(language: str) -> None:
+    """Deixa carregades les traduccions d'un idioma (sense canviar l'actiu)."""
+    _carrega(language or IDIOMA_PER_DEFECTE)
+
+
+def idioma_actual() -> str:
+    return _idioma_peticio.get() or IDIOMA_PER_DEFECTE
 
 
 def setup_translation(language: str = 'ca'):
-    """
-    Configura gettext per carregar les traduccions de l'idioma especificat.
-    Carrega múltiples dominis (gui, core, export, utils) i els combina.
+    """Fixa l'idioma de la petició en curs (o del context on es cridi) i en
+    carrega les traduccions si cal.
 
     Args:
         language (str): El codi de l'idioma (p.ex., 'en', 'es', 'ca').
     """
-    global _, CURRENT_LANGUAGE
+    language = language or IDIOMA_PER_DEFECTE
+    _carrega(language)
+    _idioma_peticio.set(language)
 
-    try:
-        # Carrega tots els dominis i combina'ls
-        translations = []
-        for domain in DOMAINS:
-            try:
-                trans = gettext.translation(
-                    domain,
-                    localedir=LOCALE_DIR,
-                    languages=[language],
-                    fallback=True
-                )
-                translations.append(trans)
-                logging.info(f"Domini '{domain}' carregat per a l'idioma '{language}'")
-            except FileNotFoundError:
-                logging.warning(f"No s'ha trobat el domini '{domain}' per a l'idioma '{language}'")
 
-        # Si hem carregat algun domini, combinem les traduccions
-        if translations:
-            # Utilitzem el primer com a base
-            combined_translation = translations[0]
+def translate(text: str) -> str:
+    """Tradueix a l'idioma de la petició en curs."""
+    return _carrega(idioma_actual())(text)
 
-            # Afegim els altres dominis
-            for trans in translations[1:]:
-                combined_translation.add_fallback(trans)
 
-            combined_translation.install()
-            _ = combined_translation.gettext
+# Alguns mòduls fan servir `_` directament (sense importar-la): abans
+# gettext.install() la desava a builtins en cada canvi d'idioma. Ara és
+# sempre `translate`, que tria l'idioma de la petició.
+_ = translate
+builtins._ = translate
 
-            logging.info(f"Traduccions per a l'idioma '{language}' carregades correctament des de {LOCALE_DIR}.")
-        else:
-            # Si no hem carregat cap domini, usem fallback
-            _ = gettext.gettext
-            logging.warning(f"No s'ha pogut carregar cap traducció per a '{language}'. S'utilitzarà el text original.")
 
-        # Actualitza idioma actual per Babel
-        CURRENT_LANGUAGE = language
-
-    except Exception as e:
-        logging.error(f"S'ha produït un error en carregar les traduccions: {e}")
-        _ = gettext.gettext
-        CURRENT_LANGUAGE = language
+def __getattr__(nom):
+    # Compatibilitat: i18n_setup.CURRENT_LANGUAGE és l'idioma de la petició.
+    if nom == "CURRENT_LANGUAGE":
+        return idioma_actual()
+    raise AttributeError(nom)

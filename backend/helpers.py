@@ -28,12 +28,13 @@ from repositories import (
 from database import get_db_session, get_data_db_session, get_data_dir_for_institucio
 
 
-# ===== Variables globals (singleton pattern) =====
+# ===== Memòria cau per institució =====
+# Només l'horari (llegir i processar l'XML és costós). Els gestors d'alliberats,
+# absències i substitucions es creen a cada petició (get_gestors): cada petició
+# hi fixa la seva data i els seus vigilants, i compartits entre peticions es
+# podrien trepitjar.
 _horari: Dict[str, GestorHorariWeb] = {}
-_alliberats: Dict[str, GestorAlliberats] = {}
 _vigilancia_core: Dict[str, VigilanciaCore] = {}
-_absencies: Dict[str, GestorAbsencies] = {}
-_substitucions_mgr: Dict[str, GestorSubstitucions] = {}
 
 VIGILANCIES_AFINITATS_KEY = "vigilancies_afinitats"
 
@@ -51,24 +52,24 @@ def _cache_key(institucio: str, xml_path: str) -> str:
 
 
 def _get_institucio_actual() -> str:
+    """Institució de la petició en curs; fora d'una petició, la per defecte."""
+    from config.context import institucio_peticio
     from config.settings import config
-    return config.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or "exemple"
+    return (institucio_peticio() or config.global_data.get("institucio")
+            or os.getenv("APP_INSTITUCIO") or "exemple")
 
 
 def invalidar_horari(institucio: str = None):
     """Invalida el singleton de l'horari per forçar recàrrega"""
-    global _horari, _alliberats, _absencies, _substitucions_mgr, _vigilancia_core
+    global _horari, _vigilancia_core
     if institucio:
         prefix = f"{institucio}:"
-        for cache in (_horari, _alliberats, _absencies, _substitucions_mgr, _vigilancia_core):
+        for cache in (_horari, _vigilancia_core):
             for key in list(cache.keys()):
                 if key.startswith(prefix):
                     cache.pop(key, None)
     else:
         _horari = {}
-        _alliberats = {}
-        _absencies = {}
-        _substitucions_mgr = {}
         _vigilancia_core = {}
     print("🔄 Singleton d'horari invalidat - es recarregarà en proper ús")
 
@@ -161,39 +162,26 @@ def get_horari(institucio: str = None, data_iso: str = None) -> GestorHorariWeb:
 
 
 def get_gestors(institucio: str = None, data_iso: str = None):
-    """Retorna tots els gestors necessaris (singleton)"""
-    global _horari, _alliberats, _absencies, _substitucions_mgr
+    """Retorna (substitucions, horari, alliberats, absencies) per a una petició.
+
+    L'horari surt de la memòria cau (get_horari). Els altres tres gestors es
+    creen nous a cada crida: són lleugers (només guarden referències a
+    l'horari) i cada petició hi fixa el seu estat (data, vigilants, grups sense
+    classe), que no s'ha de compartir amb cap altra."""
     institucio = institucio or _get_institucio_actual()
-
-    xml_path = _resolve_xml_path(institucio, data_iso)
-    key = _cache_key(institucio, xml_path or "none")
-
-    if key not in _substitucions_mgr:
-        horari = get_horari(institucio, data_iso)
-        alliberats = GestorAlliberats(horari)
-        absencies = GestorAbsencies(horari)
-        substitucions_mgr = GestorSubstitucions(horari, alliberats, absencies)
-
-        _horari[key] = horari
-        _alliberats[key] = alliberats
-        _absencies[key] = absencies
-        _substitucions_mgr[key] = substitucions_mgr
-
-        print(f"✅ Gestors inicialitzats correctament ({institucio})")
+    horari = get_horari(institucio, data_iso)
+    alliberats = GestorAlliberats(horari)
+    absencies = GestorAbsencies(horari)
+    substitucions_mgr = GestorSubstitucions(horari, alliberats, absencies)
 
     # El gestor d'alliberats necessita la data per filtrar professors de baixa.
     if data_iso:
         try:
-            _alliberats[key].set_data_actual(datetime.strptime(data_iso, "%Y-%m-%d").date())
+            alliberats.set_data_actual(datetime.strptime(data_iso, "%Y-%m-%d").date())
         except Exception:
             pass
 
-    return (
-        _substitucions_mgr[key],
-        _horari[key],
-        _alliberats[key],
-        _absencies[key]
-    )
+    return substitucions_mgr, horari, alliberats, absencies
 
 
 def get_vigilancia_core(data: str, db: Session = None) -> VigilanciaCore:

@@ -9,6 +9,7 @@ from collections import defaultdict
 from i18n_setup import translate as _, setup_translation
 from utils.hores import normalitzar_hora as _normalitzar_hora
 
+import html
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
@@ -37,6 +38,13 @@ CONTENT_W = PAGE_W - 2 * MARGIN
 
 DIES_ORDRE = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
 DIES_CURT  = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+
+
+def _text(valor) -> str:
+    """Text de les dades apte per a un Paragraph: ReportLab hi interpreta
+    etiquetes (<b>, <font>, <img src=...>), i un "<" escrit per un usuari
+    trencava l'informe o li feia llegir fitxers del servidor."""
+    return html.escape(str(valor or ""), quote=False)
 
 
 def _s(name, **kw):
@@ -139,7 +147,7 @@ class DiagonalCell(Flowable):
 
 def _capçalera_professor(nom: str, periode: str, timestamp: str) -> list:
     data = [[
-        Paragraph(nom, _s("pn",
+        Paragraph(_text(nom), _s("pn",
             fontName="Helvetica-Bold", fontSize=18, textColor=C_WHITE,
             alignment=TA_LEFT, leading=22)),
         Paragraph(
@@ -285,7 +293,7 @@ def _grid_horari(absencies: list, subs_fetes: list, hores_xml: list) -> list:
 
     for r_idx, hora in enumerate(hores_ordre, start=1):
         row = [
-            Paragraph(hora, _s("hr", fontName="Helvetica-Bold", fontSize=7.5,
+            Paragraph(_text(hora), _s("hr", fontName="Helvetica-Bold", fontSize=7.5,
                                textColor=C_NAVY, alignment=TA_CENTER, leading=10))
         ]
         for dia in DIES_ORDRE:

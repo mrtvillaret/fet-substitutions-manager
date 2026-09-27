@@ -79,6 +79,19 @@
         />
       </div>
 
+      <div class="field">
+        <label>{{ $t('profile.otherSessions') }}</label>
+        <small class="profile-help">{{ $t('profile.otherSessionsHelp') }}</small>
+        <div class="profile-actions">
+          <Button
+            :label="$t('profile.closeOtherSessions')"
+            class="p-button-secondary"
+            :loading="tancantSessions"
+            @click="tancarAltresSessions"
+          />
+        </div>
+      </div>
+
       <p v-if="errorMessage" class="profile-error">{{ errorMessage }}</p>
       <p v-if="successMessage" class="profile-success">{{ successMessage }}</p>
     </div>
@@ -141,6 +154,7 @@ const saving = ref(false)
 const institucions = ref([])
 const institucioSeleccionada = ref('')
 const canviantInstitucio = ref(false)
+const tancantSessions = ref(false)
 
 const isSuperAdmin = computed(() => props.role === 'super_admin')
 
@@ -163,6 +177,7 @@ const resetForm = () => {
   successMessage.value = ''
   saving.value = false
   canviantInstitucio.value = false
+  tancantSessions.value = false
 }
 
 const handleVisibleChange = (value) => {
@@ -219,6 +234,22 @@ const carregarInstitucions = async () => {
   }
 }
 
+// Tanca la sessió a tots els altres dispositius (p.ex. un ordinador compartit
+// on no es va tancar). Aquesta continua oberta.
+const tancarAltresSessions = async () => {
+  tancantSessions.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    await axios.post('/api/users/profile/tancar-altres-sessions')
+    successMessage.value = t('profile.otherSessionsClosed')
+  } catch (error) {
+    errorMessage.value = error.response?.data?.detail || t('profile.otherSessionsError')
+  } finally {
+    tancantSessions.value = false
+  }
+}
+
 const canviarInstitucio = async () => {
   if (!institucioSeleccionada.value || institucioSeleccionada.value === props.institucio) {
     return
@@ -272,6 +303,11 @@ const canviarInstitucio = async () => {
 .profile-label {
   color: #6b7280;
   font-weight: 600;
+}
+
+.profile-help {
+  color: #6b7280;
+  font-size: 0.85rem;
 }
 
 .profile-value {

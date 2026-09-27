@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from config.settings import config
 import os
 from auth_utils import require_admin, require_super_admin
-from database import get_auth_db, get_engine_for_institucio
+from database import get_auth_db, get_data_dir_for_institucio, get_engine_for_institucio
 from repositories import UserRepository
 import shutil
 from config.constants import NO_SUBST
@@ -48,15 +48,16 @@ async def get_settings(db: Session = Depends(get_db)):
         config_db = ConfiguracioRepository.get_all_as_dict(db)
         # Buit ('') = sense límit ("Tots"). None (mai desat) → també buit.
         ultim_professor_subs = config_db.get('ultim_professor_subs') or ""
+        from helpers import get_xml_path_for_date, _get_institucio_actual
+        institucio = _get_institucio_actual()
         idioma_institucio = config_db.get("idioma") or config.global_data.get("idioma", "ca")
-        display_name = config_db.get("institucio_display_name") or config.global_data.get("institucio")
-        from helpers import get_xml_path_for_date
-        xml_path = get_xml_path_for_date(config.global_data.get("institucio"))
+        display_name = config_db.get("institucio_display_name") or institucio
+        xml_path = get_xml_path_for_date(institucio)
         xml_missing = not xml_path or not os.path.exists(xml_path)
 
         return {
-            # Configuració global
-            "institucio": config.global_data.get("institucio"),
+            # Institució de la petició (la de l'usuari)
+            "institucio": institucio,
             "idioma": idioma_institucio,
 
             # Configuració per institució (SQLite)
@@ -71,7 +72,7 @@ async def get_settings(db: Session = Depends(get_db)):
             "ultim_professor_subs": ultim_professor_subs,
 
             # Paths computats
-            "data_dir": config.data_dir,
+            "data_dir": str(get_data_dir_for_institucio(institucio)),
             "xml_missing": xml_missing,
 
             # Llistes de no substituïbles
@@ -99,7 +100,11 @@ async def update_settings(
         invalidar_cache = False
 
         # Actualitzar configuració global
-        if settings.institucio is not None:
+        # La institució per defecte del servidor només la pot canviar el
+        # superadmin. El frontend envia sempre aquest camp: per a la resta
+        # s'ignora (no decideix res de les peticions, que van per usuari).
+        if settings.institucio is not None and current_user.role == "super_admin" \
+                and settings.institucio != config.global_data.get("institucio"):
             config.global_data["institucio"] = settings.institucio
             config.save_global()
             config.load_institucio()  # Recarregar config de la nova institució
@@ -238,7 +243,7 @@ async def get_institucions(current_user=Depends(require_admin)):
             })
         return {
             "institucions": institucions_info,
-            "actual": config.global_data.get("institucio")
+            "actual": current_user.institucio
         }
     except Exception as e:
         import traceback
@@ -422,7 +427,7 @@ async def delete_institucio(
 
 
 @router.get("/idiomes")
-async def get_idiomes():
+async def get_idiomes(db: Session = Depends(get_db)):
     """
     Retorna llista d'idiomes disponibles
     """
@@ -433,7 +438,7 @@ async def get_idiomes():
             {"code": "en", "name": "English"},
             {"code": "it", "name": "Italiano"}
         ],
-        "actual": config.institucio_data.get("idioma", config.global_data.get("idioma", "ca"))
+        "actual": ConfiguracioRepository.get(db, "idioma") or config.global_data.get("idioma", "ca")
     }
 
 

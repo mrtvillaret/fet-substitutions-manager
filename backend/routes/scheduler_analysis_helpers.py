@@ -1,5 +1,6 @@
 """Helpers d'analisi i report pel scheduler."""
 
+import html
 from collections import defaultdict
 
 from reportlab.lib import colors
@@ -509,7 +510,7 @@ def _write_analysis_pdf(path: str, sections: list[tuple[str, str, str]]):
         return None
 
     for title, tab, text in sections:
-        flow.append(Paragraph(title, section_style))
+        flow.append(Paragraph(html.escape(title, quote=False), section_style))
         bullet_items = []
         for line, bold, indent in _format_report_lines(tab, text):
             if not line:
@@ -519,12 +520,15 @@ def _write_analysis_pdf(path: str, sections: list[tuple[str, str, str]]):
                 flow.append(Spacer(1, 6))
                 continue
 
-            clean = (
+            # Escapat: ReportLab interpreta etiquetes dins dels Paragraph, i
+            # els noms d'assignatures o professors podrien contenir "<".
+            clean = html.escape(
                 line.replace("📅", "")
                 .replace("⏰", "")
                 .replace("📝", "")
                 .replace("⏱️", "")
-                .strip()
+                .strip(),
+                quote=False,
             )
             if line.startswith("- "):
                 bullet_items.append(ListItem(Paragraph(clean[2:], body_style), leftIndent=18))

@@ -116,8 +116,13 @@
     "newPassword": "Nueva contraseña",
     "confirmPassword": "Confirma la nueva contraseña",
     "passwordMismatch": "Las contraseñas no coinciden.",
-    "passwordUpdated": "Contraseña actualizada.",
-    "passwordError": "No se ha podido actualizar la contraseña."
+    "passwordUpdated": "Contraseña actualizada. Se ha cerrado la sesión en los demás dispositivos.",
+    "passwordError": "No se ha podido actualizar la contraseña.",
+    "otherSessions": "Sesiones en otros dispositivos",
+    "otherSessionsHelp": "Si has dejado la sesión abierta en otro ordenador (por ejemplo, uno compartido), puedes cerrarla desde aquí.",
+    "closeOtherSessions": "Cerrar la sesión en los demás dispositivos",
+    "otherSessionsClosed": "Se ha cerrado la sesión en todos los demás dispositivos.",
+    "otherSessionsError": "No se han podido cerrar las demás sesiones."
   },
   "config": {
     "title": "⚙️ Configuración general",
@@ -226,7 +231,7 @@
       "startDate": "Fecha inicio",
       "endDate": "Fecha final",
       "reasonOptional": "Motivo (opcional)",
-      "reasonPlaceholder": "Ej: Enfermedad, permiso, etc.",
+      "reasonPlaceholder": "Ej: permiso, formación…",
       "updated": "Profesor de baja actualizado correctamente",
       "added": "Profesor de baja añadido correctamente",
       "deleted": "Profesor de baja eliminado correctamente"

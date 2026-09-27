@@ -116,8 +116,13 @@
     "newPassword": "Nova contrasenya",
     "confirmPassword": "Confirma la nova contrasenya",
     "passwordMismatch": "Les contrasenyes no coincideixen.",
-    "passwordUpdated": "Contrasenya actualitzada.",
-    "passwordError": "No s'ha pogut actualitzar la contrasenya."
+    "passwordUpdated": "Contrasenya actualitzada. S'ha tancat la sessió als altres dispositius.",
+    "passwordError": "No s'ha pogut actualitzar la contrasenya.",
+    "otherSessions": "Sessions en altres dispositius",
+    "otherSessionsHelp": "Si has deixat la sessió oberta en un altre ordinador (per exemple, un de compartit), la pots tancar des d'aquí.",
+    "closeOtherSessions": "Tanca la sessió als altres dispositius",
+    "otherSessionsClosed": "S'ha tancat la sessió a tots els altres dispositius.",
+    "otherSessionsError": "No s'han pogut tancar les altres sessions."
   },
   "config": {
     "title": "⚙️ Configuració General",
@@ -226,7 +231,7 @@
       "startDate": "Data inici",
       "endDate": "Data final",
       "reasonOptional": "Motiu (opcional)",
-      "reasonPlaceholder": "Ex: Malaltia, permís, etc.",
+      "reasonPlaceholder": "Ex: permís, formació…",
       "updated": "Professor de baixa actualitzat correctament",
       "added": "Professor de baixa afegit correctament",
       "deleted": "Professor de baixa eliminat correctament"

@@ -3,11 +3,19 @@ Models SQLAlchemy per a la base de dades SQLite
 """
 
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Date, Index
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
-from datetime import datetime
+from datetime import datetime, timezone
 
 Base = declarative_base()
+
+
+def ara_utc() -> datetime:
+    """Hora actual en UTC sense fus horari, com l'antic ara_utc()
+    (obsolet des de Python 3.12). Es manté sense fus a propòsit: les dates ja
+    desades i el format d'updated_at (que el frontend compara per detectar
+    conflictes) han de continuar sent idèntics."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Nivell(Base):
@@ -18,8 +26,8 @@ class Nivell(Base):
     nom = Column(String, nullable=False)
     ordre = Column(Integer, nullable=False)
     actiu = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
 
 class Assignatura(Base):
@@ -30,8 +38,8 @@ class Assignatura(Base):
     nivell_id = Column(Integer, ForeignKey('nivells.id', ondelete='CASCADE'), nullable=False)
     ordre = Column(Integer)
     activa = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_assignatura_nivell', 'nom', 'nivell_id', unique=True),
@@ -49,8 +57,8 @@ class Grup(Base):
     grups_components = Column(Text)
     ordre = Column(Integer)
     actiu = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
 
 class Aula(Base):
@@ -63,8 +71,8 @@ class Aula(Base):
     capacitat = Column(Integer)
     ordre = Column(Integer)
     activa = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
 
 class Vigilancia(Base):
@@ -79,8 +87,8 @@ class Vigilancia(Base):
     vigilant = Column(String)
     comentaris = Column(Text)
     nivell = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_vigilancies_data', 'data'),
@@ -104,8 +112,8 @@ class Substitucio(Base):
     tipus_substitut = Column(String)
     tipus_absencia = Column(String)
     comentaris = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_substitucions_data', 'data'),
@@ -121,8 +129,8 @@ class GrupAlliberat(Base):
     data = Column(Date, nullable=False)
     hora = Column(String, nullable=False)
     grups = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_grups_alliberats_data', 'data'),
@@ -137,7 +145,7 @@ class Configuracio(Base):
     valor = Column(Text)
     tipus = Column(String, default='string')
     descripcio = Column(Text)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_configuracio_clau', 'clau'),
@@ -155,8 +163,8 @@ class XMLVersion(Base):
     data_inici = Column(Date, nullable=False)
     data_fi = Column(Date)
     hash_contingut = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_xml_versions_inici', 'data_inici'),
@@ -179,8 +187,8 @@ class Curs(Base):
     nom = Column(String, nullable=False)         # p.ex. "2025-2026"
     data_inici = Column(Date, nullable=False)
     data_fi = Column(Date)                        # derivada; NULL = últim curs (obert)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_cursos_data_inici', 'data_inici'),
@@ -200,8 +208,8 @@ class ConfiguracioExamen(Base):
     titular = Column(String, nullable=True)  # Pot estar buit
     aula = Column(String, nullable=True)  # Pot estar buida
     ordre = Column(Integer, default=0)  # Ordre dins de l'assignatura
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_config_examens_assignatura', 'assignatura'),
@@ -223,7 +231,7 @@ class PropostaDescartada(Base):
     assignatura = Column(String, nullable=False)
     grup = Column(String, nullable=False)
     titular = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
 
     __table_args__ = (
         Index('idx_proposta_descartada', 'assignatura', 'grup', 'titular', unique=True),
@@ -240,8 +248,8 @@ class AbreviaturaGrup(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     grups_originals = Column(String, unique=True, nullable=False)  # "1-ESO-A,1-ESO-B,1-ESO-C"
     abreviatura = Column(String, nullable=False)  # "1-ESO-ABC"
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_abreviatura', 'abreviatura'),
@@ -262,7 +270,7 @@ class GrupAmagat(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     grup = Column(String, unique=True, nullable=False)   # p.ex. "1A" o "I3A"
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
 
 
 class Professor(Base):
@@ -277,8 +285,8 @@ class Professor(Base):
     actiu = Column(Boolean, default=True)
     primera_aparicio = Column(Date)
     ultima_aparicio = Column(Date)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_professors_nom', 'nom'),
@@ -297,9 +305,9 @@ class ProfessorBaixa(Base):
     professor = Column(String, nullable=False)
     data_inici = Column(Date, nullable=False)
     data_final = Column(Date, nullable=False)
-    motiu = Column(String)  # Opcional: malaltia, permís, etc.
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    motiu = Column(String)  # Opcional: permís, formació...
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_professor_baixa', 'professor'),
@@ -318,8 +326,8 @@ class CategoriaPrioritat(Base):
     nom = Column(String, nullable=False)  # Nom descriptiu (opcional)
     ordre = Column(Integer, nullable=False, unique=True)
     activa = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
 
 class AssignaturaPrioritat(Base):
@@ -335,8 +343,8 @@ class AssignaturaPrioritat(Base):
     pes = Column(Integer, default=1)  # 1-10: menor = més prioritat dins categoria
     ordre = Column(Integer, default=0)  # Ordre dins de la categoria
     auto_assignada = Column(Boolean, default=False)  # S'assigna automàticament (ex: "alliberat")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_assignatura_prioritat', 'assignatura'),
@@ -353,8 +361,8 @@ class NoSubstituir(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     assignatura = Column(String, unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
 
 class User(Base):
@@ -366,8 +374,11 @@ class User(Base):
     institucio = Column(String, nullable=False)
     role = Column(String, default="user")
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Va dins del testimoni de sessió: augmentar-la invalida tots els
+    # testimonis emesos abans (canvi de contrasenya, "tancar les altres sessions").
+    versio_sessio = Column(Integer, default=0, nullable=False, server_default="0")
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
 
 class ExamRestriccio(Base):
@@ -385,8 +396,8 @@ class ExamRestriccio(Base):
     configuracio = Column(Text)  # JSON amb detalls
     pes = Column(Integer, default=100)  # 0-100% (100 = obligatori)
     activa = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_exam_restriccio_tipus', 'tipus'),
@@ -403,8 +414,8 @@ class ExamPreferencia(Base):
     assignatures = Column(Text, nullable=False)
     pes = Column(Integer, default=1)
     activa = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_exam_preferencia_tipus', 'tipus'),
@@ -419,8 +430,8 @@ class ExamPesOptimitzacio(Base):
     clau = Column(String, unique=True, nullable=False)
     valor = Column(Integer, nullable=False)
     descripcio = Column(Text)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
+    created_at = Column(DateTime, default=ara_utc)
 
 
 class ExamCostProfessor(Base):
@@ -442,8 +453,8 @@ class ExamCostProfessor(Base):
     professor = Column(String, nullable=True)  # NULL = global, "Nom" = individual
     tipus = Column(String, nullable=False)  # substitucio, abans_jornada, despres_jornada, no_treballa_dia
     pes = Column(Integer, default=100)  # 0-100%
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
         Index('idx_exam_cost_professor', 'professor'),
@@ -456,7 +467,7 @@ class ExamSchedule(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     nom = Column(String)
-    data_generacio = Column(DateTime, default=datetime.utcnow)
+    data_generacio = Column(DateTime, default=ara_utc)
     dies_seleccionats = Column(Text, nullable=False)
     horari_resultat = Column(Text, nullable=False)
     cost_total = Column(Integer)
@@ -464,5 +475,5 @@ class ExamSchedule(Base):
     conflictes_detectats = Column(Text)
     usuari_generador = Column(String)
     estat = Column(String, default='generat')
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=ara_utc)
+    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)

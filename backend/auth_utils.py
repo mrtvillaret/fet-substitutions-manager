@@ -10,8 +10,10 @@ from jwt import PyJWTError
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from config.auth import (
+    COOKIE_NAME,
     SECRET_KEY,
     ALGORITHM,
     ACCESS_TOKEN_EXPIRE_HOURS,
@@ -21,6 +23,7 @@ from config.auth import (
     ADMIN_INSTITUCIO,
     DEFAULT_USERS
 )
+from config.context import fixa_institucio_peticio
 from config.settings import config
 from database import get_auth_db_session, get_auth_db
 from repositories import UserRepository
@@ -31,9 +34,6 @@ from repositories import UserRepository
 # mateixos que aplicava passlib (m=65536, t=3, p=4), i el format del hash és
 # l'estàndard PHC, de manera que les contrasenyes ja desades continuen valent.
 _hasher = PasswordHasher()
-_prioritats_loaded_for = None
-
-COOKIE_NAME = "gestor_token"
 
 
 def set_auth_cookie(response: Response, token: str) -> None:
@@ -71,6 +71,16 @@ def create_access_token(data: Dict[str, Any], expires_hours: int = ACCESS_TOKEN_
     expire = datetime.now(timezone.utc) + timedelta(hours=expires_hours)
     to_encode["exp"] = expire
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def testimoni_de_sessio(user, institucio: str = None) -> str:
+    """Testimoni de sessió d'un usuari, amb la seva versió de sessió actual."""
+    return create_access_token({
+        "sub": user.username,
+        "institucio": institucio or user.institucio,
+        "role": user.role,
+        "sv": user.versio_sessio or 0,
+    })
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
@@ -130,35 +140,34 @@ def ensure_default_users() -> None:
             )
 
 
-def _apply_institucio(institucio: str) -> None:
-    """Assigna institució global per la petició actual."""
-    global _prioritats_loaded_for
-    if not institucio:
-        return
-    if config.global_data.get("institucio") != institucio:
-        config.global_data["institucio"] = institucio
-        config.load_institucio()
+def _prepara_institucio(institucio: str) -> str:
+    """Deixa a punt la institució de la petició en curs: traduccions del seu
+    idioma i prioritats (es carreguen un cop per institució i es recorden).
+    Retorna l'idioma, que fixa get_current_user: s'executa en un fil i una
+    ContextVar fixada aquí no arribaria a la ruta."""
+    from database import get_data_db_session
+    from repositories import ConfiguracioRepository
+    import config.constants as constants
+
+    idioma = config.global_data.get("idioma", "ca")
     try:
-        from i18n_setup import setup_translation
-        idioma = config.institucio_data.get("idioma") or config.global_data.get("idioma", "ca")
-        setup_translation(idioma)
+        import i18n_setup
+        with get_data_db_session(institucio) as db:
+            idioma = ConfiguracioRepository.get(db, "idioma") or idioma
+        i18n_setup.carrega_idioma(idioma)
     except Exception:
         pass
-    if _prioritats_loaded_for != institucio:
+    if not constants.te_prioritats(institucio):
         try:
             from routes.prioritats import _recarregar_prioritats_desde_bd
-            from database import get_data_db_session
             with get_data_db_session(institucio) as db:
                 _recarregar_prioritats_desde_bd(db)
-            _prioritats_loaded_for = institucio
         except Exception as exc:
-            print(f"⚠️ No s'han pogut recarregar prioritats per {institucio}: {exc}")
+            print(f"⚠️ No s'han pogut carregar prioritats per {institucio}: {exc}")
+    return idioma
 
 
-def get_current_user(
-    request: Request,
-    db: Session = Depends(get_auth_db)
-):
+def _valida_usuari(request: Request, db: Session):
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticat")
@@ -175,13 +184,20 @@ def get_current_user(
     if not user or not user.active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuari inactiu o inexistent")
 
+    # Testimoni d'abans d'un canvi de contrasenya o d'un "tancar les altres
+    # sessions". Els testimonis antics sense "sv" valen com a versió 0.
+    if payload.get("sv", 0) != (user.versio_sessio or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessió tancada")
+
     if user.role == "super_admin":
         institucio_activa = institucio or user.institucio
         if not institucio_activa:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid")
         if not config.is_institucio_activa(institucio_activa):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Institució inactiva")
-        _apply_institucio(institucio_activa)
+        # La institució activa només val per a aquesta petició: es desvincula
+        # l'usuari de la sessió perquè cap commit posterior la desi a auth.db.
+        db.expunge(user)
         user.institucio = institucio_activa
         return user
 
@@ -191,7 +207,22 @@ def get_current_user(
     if user.role != "super_admin" and not config.is_institucio_activa(user.institucio):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Institució inactiva")
 
-    _apply_institucio(user.institucio)
+    return user
+
+
+async def get_current_user(
+    request: Request,
+    db: Session = Depends(get_auth_db)
+):
+    """Usuari autenticat de la petició. També fixa la institució de la petició
+    (config.context), que és la que fa servir tot el codi que no rep la
+    institució explícitament. Ha de ser async: una ContextVar fixada dins d'un
+    fil (on FastAPI executa les dependències síncrones) no arribaria a la ruta."""
+    user = await run_in_threadpool(_valida_usuari, request, db)
+    fixa_institucio_peticio(user.institucio)
+    idioma = await run_in_threadpool(_prepara_institucio, user.institucio)
+    import i18n_setup
+    i18n_setup.setup_translation(idioma)
     return user
 
 

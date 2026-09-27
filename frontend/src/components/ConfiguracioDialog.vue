@@ -18,7 +18,7 @@
               <span>{{ $t('config.tabs.systemLine2') }}</span>
             </span>
           </template>
-          <SystemTab :current-role="currentRole" @update:dirty="systemDirty = $event" />
+          <SystemTab :current-role="currentRole" @update:dirty="systemDirty = $event" @xml-importat="emit('xml-importat')" />
         </TabPanel>
 
       <!-- TAB 2: GRUPS I ABREVIATURES -->
@@ -150,7 +150,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:visible', 'cursos-canviats'])
+const emit = defineEmits(['update:visible', 'cursos-canviats', 'xml-importat'])
 
 const canManageUsers = computed(() => ['admin', 'super_admin'].includes(props.currentRole || ''))
 const isSuperAdmin = computed(() => props.currentRole === 'super_admin')

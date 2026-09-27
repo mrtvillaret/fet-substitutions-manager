@@ -19,7 +19,8 @@ from auth_utils import require_admin
 from helpers import (
     get_vigilancies_afinitats,
     save_vigilancies_afinitats,
-    get_horari
+    get_horari,
+    MissingXmlError
 )
 
 router = APIRouter(prefix="/api/config", tags=["Configuració Exàmens"])
@@ -623,6 +624,8 @@ async def importar_assignacions_preview(db: Session = Depends(get_db),
             p["descartada"] = clau in descartades
 
         return {"propostes": propostes, "nivells_valids": sorted(nivells_valids)}
+    except MissingXmlError as e:
+        raise HTTPException(status_code=400, detail={"xml_missing": True, "message": str(e)})
     except Exception as e:
         import traceback
         traceback.print_exc()

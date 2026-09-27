@@ -45,6 +45,20 @@ def _raise_missing_xml(exc: MissingXmlError):
     )
 
 
+def _canvia_tipus_cobertures(db: Session, data: str, professor: str, hores, de: str, a: str) -> set:
+    """Canvia el tipus de les files d'un professor a unes hores (de → a) i
+    retorna les (hora, assignatura, grup) canviades. És la mateixa classe i
+    el mateix substitut: només canvia si la cobreix una VIGILANCIA (el
+    professor vigila un examen) o una ABSENCIA (el professor és absent)."""
+    canviades = set()
+    for sub in SubstitucioRepository.get_by_date(db, data):
+        if (sub.get("professor_absent") == professor and sub.get("hora") in hores
+                and sub.get("tipus_absencia") == de):
+            SubstitucioRepository.update(db, int(sub["id"]), {"tipus_absencia": a})
+            canviades.add((sub.get("hora"), sub.get("assignatura", ""), sub.get("grup", "")))
+    return canviades
+
+
 def _calcular_estadistiques_substitucions(db: Session, horari, data: str = None) -> dict:
     """Calcula estadístiques de substitucions com el desktop (dia/hora i total).
 
@@ -734,31 +748,40 @@ async def actualitzar_absencies_professor(data: str, professor: str, update: Act
             print(f"   A eliminar: {sorted(hores_a_eliminar_tipus)}")
             print(f"   A afegir: {sorted(hores_a_afegir_tipus)}")
 
-            # Eliminar hores d'aquest tipus que s'han tret
+            # Hores que es treuen. Si a alguna el professor vigila un examen, la
+            # seva classe torna a cobrir-la una VIGILANCIA (la mateixa fila, amb
+            # el mateix substitut); _refresh deixa després l'hora com toca.
+            hores_vigilant = {
+                h for h in hores_a_eliminar_tipus
+                if professor in VigilanciaRepository.get_vigilants_per_hora(db, data, h)
+            }
+            _canvia_tipus_cobertures(db, data, professor, hores_vigilant, tipus, "VIGILANCIA")
             for sub in substitucions_list:
                 if (sub.get("professor_absent") == professor
                         and sub.get("tipus_absencia") == tipus
-                        and sub.get("hora") in hores_a_eliminar_tipus):
+                        and sub.get("hora") in hores_a_eliminar_tipus - hores_vigilant):
                     SubstitucioRepository.delete(db, int(sub['id']))
+            if hores_vigilant:
+                from routes.vigilancies import _refresh_vigilancia_substitucions
+                for hora_vigilant in hores_vigilant:
+                    _refresh_vigilancia_substitucions(data, hora_vigilant, db)
 
 
             # Afegir hores noves d'aquest tipus
             if hores_a_afegir_tipus:
-                # Hores on el professor ja té Tipus B VIGILANCIA (classe coberta per vigilància)
-                # → no cal crear ABSENCIA per aquella hora (evita triple substitució)
-                hores_vigil_b = {
-                    s.get('hora') for s in substitucions_list
-                    if s.get('professor_absent') == professor
-                    and s.get('tipus_absencia') == 'VIGILANCIA'
-                }
+                # Si vigila un examen a alguna d'aquestes hores, la seva classe ja
+                # la cobria una VIGILANCIA: ara que és absent, aquella mateixa
+                # fila (amb el seu substitut) passa a ser l'absència.
+                ja_cobertes = _canvia_tipus_cobertures(
+                    db, data, professor, hores_a_afegir_tipus, "VIGILANCIA", tipus)
 
                 absents_nous = {professor: list(hores_a_afegir_tipus)}
                 absents_nous_tipus = {professor: tipus}
                 subs_generades = absencies.get_substitucions_necessaries(dia_name, absents_nous, absents_nous_tipus)
 
                 for sub in subs_generades:
-                    if sub.get('hora') in hores_vigil_b:
-                        continue  # Classe ja coberta pel Tipus B VIGILANCIA
+                    if (sub.get('hora'), sub.get('assignatura', ''), sub.get('grup', '')) in ja_cobertes:
+                        continue
                     sub_data = {
                         'data': data,
                         'hora': sub.get('hora', ''),
@@ -773,10 +796,8 @@ async def actualitzar_absencies_professor(data: str, professor: str, update: Act
                     }
                     SubstitucioRepository.create(db, sub_data)
 
-                hores_amb_substitucio = {sub.get("hora") for sub in subs_generades}
+                hores_amb_substitucio = {sub.get("hora") for sub in subs_generades} | {h for h, _, _ in ja_cobertes}
                 for hora in hores_a_afegir_tipus:
-                    if hora in hores_vigil_b:
-                        continue  # Classe ja coberta pel Tipus B VIGILANCIA
                     if hora not in hores_amb_substitucio:
                         activitat = horari.get_activitat(dia_name, hora, professor)
                         assignatura_absent = activitat.get("assignatura", "") if activitat else ""
@@ -952,24 +973,17 @@ async def update_substitucio(
 
                     # Si té grup específic, comprovar si està alliberat
                     if grup_sub and grup_sub.strip():
-                        # Carregar grups alliberats (grups sense classe)
+                        # Només l'allibera que el seu grup estigui marcat sense
+                        # classe: un examen (vigilància) no n'hi ha prou, pot
+                        # ser un examen extra i el grup continua tenint classe.
                         grups_alliberats_data = GrupsAlliberatsRepository.get_by_date(db, data)
                         grups_alliberats_hora = set(grups_alliberats_data.get(hora, []))
 
-                        # Carregar grups que fan examen (de vigilàncies)
-                        vigilancies_data = VigilanciaRepository.get_by_date(db, data)
-                        for nivell_vigs in vigilancies_data.values():
-                            for vig in nivell_vigs:
-                                if vig.get("hora") == hora:
-                                    grups_vig = vig.get("grups", "")
-                                    if grups_vig:
-                                        grups_alliberats_hora.add(grups_vig)
-
                         # Comprovar si el grup del substitut està alliberat
                         grup_alliberat = False
-                        for grup_exam in grups_alliberats_hora:
+                        for grup_lliure in grups_alliberats_hora:
                             # Funció simple de compatibilitat de grups
-                            if grup_sub == grup_exam or grup_exam in grup_sub or grup_sub in grup_exam:
+                            if grup_sub == grup_lliure or grup_lliure in grup_sub or grup_sub in grup_lliure:
                                 grup_alliberat = True
                                 break
 
@@ -1137,6 +1151,10 @@ async def afegir_nova_substitucio(data: str, nova: NovaSubstitucioRequest, db: S
         absents_nous_tipus = {nova.professor: nova.tipus_absencia}
         noves_subs_generades = absencies.get_substitucions_necessaries(dia_name, absents_nous, absents_nous_tipus)
 
+        # Si vigila un examen a alguna d'aquestes hores, la fila VIGILANCIA de la
+        # seva classe (amb el seu substitut) passa a ser l'absència.
+        _canvia_tipus_cobertures(db, data, nova.professor, set(nova.hores), "VIGILANCIA", nova.tipus_absencia)
+
         # Carregar substitucions existents de SQLite
         substitucions_existents = SubstitucioRepository.get_by_date(db, data)
 
@@ -1211,7 +1229,16 @@ async def afegir_nova_substitucio(data: str, nova: NovaSubstitucioRequest, db: S
                     }
                     SubstitucioRepository.create(db, sub_data)
 
-        # ✅ Dades desades només a SQLite (no cal JSON)
+        # Si és vigilant d'un examen a alguna hora en què és absent, cal cobrir
+        # l'examen. Es passen TOTES les seves hores d'absència del dia: la
+        # funció també esborra les VIGILANCIA_ABSENT de les hores que no rep.
+        subs_dia = SubstitucioRepository.get_by_date(db, data)
+        hores_absent = {
+            s.get("hora") for s in subs_dia
+            if s.get("professor_absent") == nova.professor
+            and s.get("tipus_absencia") not in ("VIGILANCIA", "ENCADENADA", "VIGILANCIA_ABSENT")
+        }
+        sincronitzar_vigilancies_absents(db, data, nova.professor, subs_dia, hores_absent)
 
         return {
             "success": True,
@@ -1226,7 +1253,7 @@ async def afegir_nova_substitucio(data: str, nova: NovaSubstitucioRequest, db: S
     except Exception as e:
         import traceback
         traceback.print_exc()
-    raise HTTPException(status_code=500, detail=f"Error en afegir substitució: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error en afegir substitució: {str(e)}")
 
 
 @router.post("/{data}/reassign-problematics")
@@ -1279,15 +1306,11 @@ async def reassignar_problematics(data: str, db: Session = Depends(get_db)):
         dia_name = horari_mgr.get_dia_name(date_obj.weekday())
         grups_alliberats_data = GrupsAlliberatsRepository.get_by_date(db, data)
 
-        grups_examen_per_hora = defaultdict(set)
-        for hora, vigs in vigilancies_dict.items():
-            for vig in vigs:
-                grups_vig = (vig.get("grups") or "").strip()
-                if grups_vig:
-                    grups_examen_per_hora[hora].add(grups_vig)
+        # Només alliberen els grups marcats sense classe (no els exàmens).
+        grups_alliberats_per_hora = defaultdict(set)
         for hora, grups in grups_alliberats_data.items():
             for grup in grups:
-                grups_examen_per_hora[hora].add(grup)
+                grups_alliberats_per_hora[hora].add(grup)
 
         def grups_compatible(grup_classe: str, grup_examen: str) -> bool:
             if not grup_classe or not grup_examen:
@@ -1338,8 +1361,8 @@ async def reassignar_problematics(data: str, db: Session = Depends(get_db)):
                     grup_sub = activitat_sub.get("grup", "")
                     if grup_sub and assignatura_sub:
                         grup_alliberat = False
-                        for grup_exam in grups_examen_per_hora.get(hora, set()):
-                            if grups_compatible(grup_sub, grup_exam):
+                        for grup_lliure in grups_alliberats_per_hora.get(hora, set()):
+                            if grups_compatible(grup_sub, grup_lliure):
                                 grup_alliberat = True
                                 break
                         if not grup_alliberat:

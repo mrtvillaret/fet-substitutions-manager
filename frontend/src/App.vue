@@ -268,6 +268,7 @@
         :currentInstitucio="userProfile?.institucio"
         :dataGlobal="dataSeleccionada"
         @cursos-canviats="carregarCursos"
+        @xml-importat="handleInstitucioCanviada"
       />
       <ConfiguracioExamensDialog v-model:visible="mostrarConfiguracioExamens" />
       <EstadistiquesDialog
@@ -349,6 +350,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { BASE, ruta, esRutaLocal } from './basePath'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import Calendar from 'primevue/calendar'
@@ -393,7 +395,7 @@ const userProfile = ref(null)
 const institucioKey = ref(0)
 const isAdmin = computed(() => ['admin', 'super_admin'].includes(userProfile.value?.role || ''))
 const esDemo = computed(() => userProfile.value?.institucio === 'demo')
-const isSchedulerRoute = ref(window.location.pathname === '/scheduler')
+const isSchedulerRoute = ref(window.location.pathname === ruta('scheduler'))
 
 const actualitzarModeMobil = () => {
   if (!mediaQuery) return
@@ -401,7 +403,7 @@ const actualitzarModeMobil = () => {
 }
 
 const actualitzarRuta = () => {
-  isSchedulerRoute.value = window.location.pathname === '/scheduler'
+  isSchedulerRoute.value = window.location.pathname === ruta('scheduler')
 }
 
 const aplicarToken = () => {
@@ -462,6 +464,7 @@ const carregarPerfil = async () => {
   }
 }
 
+// També després d'importar un XML nou (issue #1): mateixa recàrrega de dades.
 const handleInstitucioCanviada = async () => {
   await carregarPerfil()
   await carregarConfig()   // recarrega també els cursos (són per institució)
@@ -470,17 +473,19 @@ const handleInstitucioCanviada = async () => {
 }
 
 const tornarAlGestor = () => {
-  window.history.pushState({}, '', '/')
+  window.history.pushState({}, '', ruta())
   actualitzarRuta()
 }
 
 const anarScheduler = () => {
-  window.history.pushState({}, '', '/scheduler')
+  window.history.pushState({}, '', ruta('scheduler'))
   actualitzarRuta()
 }
 
 onMounted(async () => {
   axios.defaults.withCredentials = true
+  // Les crides '/api/...' van a la instal·lació on s'ha obert la pàgina ('' o '/demo')
+  axios.defaults.baseURL = BASE.replace(/\/$/, '')
   mediaQuery = window.matchMedia('(max-width: 720px)')
   actualitzarModeMobil()
   mediaQuery.addEventListener('change', actualitzarModeMobil)
@@ -496,9 +501,12 @@ onMounted(async () => {
       }
       if (!error.config?._silent) {
         const detail = error.response?.data?.detail
+        // Els errors 5xx no porten detall (és al registre del servidor), només
+        // una referència per poder-lo trobar.
+        const ref = error.response?.data?.error_ref
         const msg = typeof detail === 'string' ? detail
           : !error.response ? t('app.errors.connection')
-          : status >= 500 ? t('app.errors.server')
+          : status >= 500 ? t('app.errors.server') + (ref ? ` (ref. ${ref})` : '')
           : t('app.errors.unexpected')
         toast.add({ severity: 'error', summary: t('app.errors.title'), detail: msg, life: 5000 })
       }
@@ -529,13 +537,21 @@ const ferLogin = async () => {
   loginError.value = ''
   loginLoading.value = true
   try {
-    const response = await axios.post('/api/login', {
-      username: loginUser.value,
-      password: loginPass.value
-    })
+    const credencials = { username: loginUser.value, password: loginPass.value }
+    const response = await axios.post('/api/login', credencials)
+    const delegacio = response.data?.redirect
+    if (delegacio && esRutaLocal(delegacio)) {
+      // L'usuari és d'una altra instal·lació del mateix domini (p.ex. la demo a
+      // /demo/): s'hi entra amb les mateixes credencials i s'hi va.
+      await axios.post(`${delegacio.replace(/\/$/, '')}/api/login`, credencials, { baseURL: '' })
+      window.location.href = delegacio
+      return
+    }
     aplicarToken()
+    // Només es redirigeix dins del mateix domini: un ?redirect=https://... extern
+    // portaria l'usuari fora just després d'entrar.
     const redirectUrl = new URLSearchParams(window.location.search).get('redirect')
-    if (redirectUrl) { window.location.href = redirectUrl; return; }
+    if (redirectUrl && esRutaLocal(redirectUrl)) { window.location.href = redirectUrl; return; }
     await carregarPerfil()
     await carregarConfig()
   } catch (error) {

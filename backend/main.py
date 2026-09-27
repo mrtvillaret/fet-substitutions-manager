@@ -26,7 +26,7 @@ from rate_limit import limiter
 # Imports de schemas i helpers
 from schemas import ConfigResponse
 from helpers import get_horari, MissingXmlError
-from auth_utils import decode_access_token
+from auth_utils import COOKIE_NAME, decode_access_token
 
 access_logger = logging.getLogger("uvicorn.error")
 access_logger.setLevel(logging.INFO)
@@ -67,6 +67,11 @@ app = FastAPI(
 )
 
 
+# Errors 5xx: detall al registre, a l'usuari només una referència
+from errors_servidor import registra_gestors_errors
+registra_gestors_errors(app)
+
+
 @app.exception_handler(MissingXmlError)
 async def missing_xml_exception_handler(request: Request, exc: MissingXmlError):
     return JSONResponse(
@@ -97,7 +102,7 @@ def _log_request(request: Request, duration_ms: int, status_code: int) -> None:
     username = "-"
     role = "-"
     instit = "-"
-    token = request.cookies.get("gestor_token")
+    token = request.cookies.get(COOKIE_NAME)
     if token:
         try:
             payload = decode_access_token(token)

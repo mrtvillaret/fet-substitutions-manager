@@ -179,6 +179,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import axios from 'axios'
+import { ruta } from '../basePath'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
@@ -331,7 +332,7 @@ const tancar = () => {
 
 const anarAVigilancies = () => {
   tancar()
-  window.history.pushState({}, '', '/')
+  window.history.pushState({}, '', ruta())
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 </script>

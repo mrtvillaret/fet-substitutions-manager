@@ -116,8 +116,13 @@
     "newPassword": "Nuova password",
     "confirmPassword": "Conferma nuova password",
     "passwordMismatch": "Le password non coincidono.",
-    "passwordUpdated": "Password aggiornata.",
-    "passwordError": "Impossibile aggiornare la password."
+    "passwordUpdated": "Password aggiornata. La sessione è stata chiusa sugli altri dispositivi.",
+    "passwordError": "Impossibile aggiornare la password.",
+    "otherSessions": "Sessioni su altri dispositivi",
+    "otherSessionsHelp": "Se hai lasciato la sessione aperta su un altro computer (per esempio, uno condiviso), puoi chiuderla da qui.",
+    "closeOtherSessions": "Chiudi la sessione sugli altri dispositivi",
+    "otherSessionsClosed": "La sessione è stata chiusa su tutti gli altri dispositivi.",
+    "otherSessionsError": "Impossibile chiudere le altre sessioni."
   },
   "config": {
     "title": "⚙️ Impostazioni generali",
@@ -226,7 +231,7 @@
       "startDate": "Data di inizio",
       "endDate": "Data di fine",
       "reasonOptional": "Motivo (facoltativo)",
-      "reasonPlaceholder": "es. Malattia, congedo, ecc.",
+      "reasonPlaceholder": "es. congedo, formazione…",
       "updated": "Docente in congedo aggiornato correttamente",
       "added": "Docente in congedo aggiunto correttamente",
       "deleted": "Docente in congedo eliminato correttamente"

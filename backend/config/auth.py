@@ -49,6 +49,27 @@ _comprova_valor_de_mostra("SECRET_KEY", SECRET_KEY)
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "8"))
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
+# Nom de la galeta de sessió. Dues instal·lacions al mateix domini (p.ex. la
+# principal a / i una demo a /demo/) necessiten noms diferents: si no, entrar a
+# una tancaria la sessió de l'altra.
+COOKIE_NAME = os.getenv("COOKIE_NAME", "gestor_token").strip() or "gestor_token"
+
+# Delegació del login: usuaris que no són d'aquesta instal·lació sinó d'una
+# altra servida al mateix domini (p.ex. una demo a /demo/). Si algú entra amb
+# un d'aquests noms, el login no valida res i indica on ha d'anar. Els noms
+# queden reservats: aquí mai no poden correspondre a cap usuari.
+#   LOGIN_DELEGACIO_USUARIS=user_demo,admin_demo
+#   LOGIN_DELEGACIO_URL=/demo/
+LOGIN_DELEGACIO_USUARIS = frozenset(
+    u.strip() for u in os.getenv("LOGIN_DELEGACIO_USUARIS", "").split(",") if u.strip()
+)
+LOGIN_DELEGACIO_URL = os.getenv("LOGIN_DELEGACIO_URL", "").strip()
+if LOGIN_DELEGACIO_USUARIS and not (LOGIN_DELEGACIO_URL.startswith("/")
+                                    and not LOGIN_DELEGACIO_URL.startswith("//")):
+    raise SystemExit(
+        "\nERROR: LOGIN_DELEGACIO_URL ha de ser una ruta del mateix domini "
+        "que comenci per '/' (p.ex. /demo/).\n"
+    )
 
 # Les contrasenyes no tenen valor per defecte a propòsit. Si no es defineixen
 # per variable d'entorn, l'usuari administrador no es pot crear i l'aplicació

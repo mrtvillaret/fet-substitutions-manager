@@ -274,7 +274,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:dirty'])
+const emit = defineEmits(['update:dirty', 'xml-importat'])
 
 const loading = ref(false)
 const xmlMissingNotified = ref(false)
@@ -660,6 +660,12 @@ const pujarXML = async (event) => {
     await carregarAvisosXml()
     xmlVigentDesDe.value = null
     event.target.value = ''
+
+    // Si el nou horari ja és vigent, la resta de l'aplicació (professors,
+    // hores, substitucions...) s'ha de tornar a carregar amb ell.
+    if (response.data.vigent_avui !== false) {
+      emit('xml-importat')
+    }
   } catch (error) {
     console.error('Error pujant XML:', error)
     toast.add({

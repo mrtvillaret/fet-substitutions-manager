@@ -7,6 +7,9 @@ WORKDIR /app
 COPY package.json package-lock.json /app/
 RUN npm ci
 COPY . /app
+# Subruta on es publicarà (p.ex. /demo/); per defecte, l'arrel del domini.
+ARG VITE_BASE_PATH=/
+ENV VITE_BASE_PATH=$VITE_BASE_PATH
 RUN npm run build
 
 FROM nginx:alpine

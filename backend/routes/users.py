@@ -7,13 +7,23 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from auth_utils import require_admin, require_super_admin, require_user, hash_password, verify_password, create_access_token, set_auth_cookie
+from auth_utils import require_admin, require_super_admin, require_user, hash_password, verify_password, set_auth_cookie, testimoni_de_sessio
 from database import get_auth_db, get_engine_for_institucio
 from repositories import UserRepository, ConfiguracioRepository
 from config.settings import config
 from sqlalchemy.orm import sessionmaker
 
 router = APIRouter(prefix="/api/users", tags=["Usuaris"])
+
+LONGITUD_MINIMA_CONTRASENYA = 8
+
+
+def _valida_contrasenya(contrasenya: str) -> None:
+    if len(contrasenya or "") < LONGITUD_MINIMA_CONTRASENYA:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La contrasenya ha de tenir almenys {LONGITUD_MINIMA_CONTRASENYA} caràcters",
+        )
 
 
 class UserCreate(BaseModel):
@@ -111,6 +121,7 @@ def create_user(
     existing = UserRepository.get_by_username(db, payload.username)
     if existing:
         raise HTTPException(status_code=409, detail="Ja existeix un usuari amb aquest nom")
+    _valida_contrasenya(payload.password)
 
     user = UserRepository.create(
         db=db,
@@ -141,6 +152,7 @@ def create_user(
 def update_user(
     user_id: int,
     payload: UserUpdate,
+    response: Response,
     current_user=Depends(require_admin),
     db: Session = Depends(get_auth_db)
 ):
@@ -175,9 +187,15 @@ def update_user(
             raise HTTPException(status_code=400, detail="Institució inexistent")
         updates["institucio"] = payload.institucio
     if payload.password:
+        _valida_contrasenya(payload.password)
         updates["password_hash"] = hash_password(payload.password)
+        # Una contrasenya nova tanca totes les sessions obertes de l'usuari
+        updates["versio_sessio"] = (user.versio_sessio or 0) + 1
 
     user = UserRepository.update(db, user, **updates)
+    if payload.password and user.username == current_user.username:
+        # L'admin s'ha canviat la seva: no se'l fa fora d'aquesta sessió
+        set_auth_cookie(response, testimoni_de_sessio(user, current_user.institucio))
     engine = get_engine_for_institucio(user.institucio)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     data_db = SessionLocal()
@@ -235,8 +253,15 @@ def delete_user(
 
 @router.get("/profile")
 def get_profile(current_user=Depends(require_user)):
-    idioma = config.institucio_data.get("idioma", "ca")
-    display_name = config.institucio_data.get("institucio_display_name", current_user.institucio)
+    # De la BD de la institució de l'usuari: config.institucio_data és de la
+    # institució amb què va arrencar el servidor, no necessàriament la seva.
+    engine = get_engine_for_institucio(current_user.institucio)
+    data_db = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+    try:
+        idioma = ConfiguracioRepository.get(data_db, "idioma") or "ca"
+        display_name = ConfiguracioRepository.get(data_db, "institucio_display_name") or current_user.institucio
+    finally:
+        data_db.close()
     return {
         "username": current_user.username,
         "role": current_user.role,
@@ -249,6 +274,7 @@ def get_profile(current_user=Depends(require_user)):
 @router.put("/profile/password")
 def update_password(
     payload: PasswordUpdate,
+    response: Response,
     current_user=Depends(require_user),
     db: Session = Depends(get_auth_db)
 ):
@@ -259,7 +285,27 @@ def update_password(
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contrasenya actual incorrecta")
 
-    user = UserRepository.update(db, user, password_hash=hash_password(payload.new_password))
+    _valida_contrasenya(payload.new_password)
+    # Una contrasenya nova tanca les altres sessions; aquesta continua oberta
+    user = UserRepository.update(db, user, password_hash=hash_password(payload.new_password),
+                                 versio_sessio=(user.versio_sessio or 0) + 1)
+    set_auth_cookie(response, testimoni_de_sessio(user, current_user.institucio))
+    return {"success": True}
+
+
+@router.post("/profile/tancar-altres-sessions")
+def tancar_altres_sessions(
+    response: Response,
+    current_user=Depends(require_user),
+    db: Session = Depends(get_auth_db)
+):
+    """Tanca la sessió a tots els altres dispositius (p.ex. un ordinador
+    compartit on no es va tancar). Aquesta sessió continua oberta."""
+    user = UserRepository.get_by_username(db, current_user.username)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuari no trobat")
+    user = UserRepository.update(db, user, versio_sessio=(user.versio_sessio or 0) + 1)
+    set_auth_cookie(response, testimoni_de_sessio(user, current_user.institucio))
     return {"success": True}
 
 
@@ -276,10 +322,5 @@ def switch_institucio(
     if not config.is_institucio_activa(payload.institucio):
         raise HTTPException(status_code=403, detail="Institució inactiva")
 
-    token = create_access_token({
-        "sub": current_user.username,
-        "institucio": payload.institucio,
-        "role": current_user.role
-    })
-    set_auth_cookie(response, token)
+    set_auth_cookie(response, testimoni_de_sessio(current_user, payload.institucio))
     return {"ok": True}

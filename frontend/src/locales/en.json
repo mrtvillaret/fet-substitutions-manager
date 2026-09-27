@@ -116,8 +116,13 @@
     "newPassword": "New password",
     "confirmPassword": "Confirm new password",
     "passwordMismatch": "Passwords do not match.",
-    "passwordUpdated": "Password updated.",
-    "passwordError": "Could not update password."
+    "passwordUpdated": "Password updated. You have been signed out on your other devices.",
+    "passwordError": "Could not update password.",
+    "otherSessions": "Sessions on other devices",
+    "otherSessionsHelp": "If you left your session open on another computer (for example, a shared one), you can close it from here.",
+    "closeOtherSessions": "Sign out on other devices",
+    "otherSessionsClosed": "You have been signed out on all your other devices.",
+    "otherSessionsError": "Could not close the other sessions."
   },
   "config": {
     "title": "⚙️ General settings",
@@ -226,7 +231,7 @@
       "startDate": "Start date",
       "endDate": "End date",
       "reasonOptional": "Reason (optional)",
-      "reasonPlaceholder": "e.g. Sickness, leave, etc.",
+      "reasonPlaceholder": "e.g. leave, training…",
       "updated": "Teacher on leave updated successfully",
       "added": "Teacher on leave added successfully",
       "deleted": "Teacher on leave deleted successfully"

@@ -4,7 +4,8 @@ Endpoints d'autenticació
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
 from sqlalchemy.orm import Session
 
-from auth_utils import create_access_token, verify_password, set_auth_cookie, clear_auth_cookie
+from auth_utils import testimoni_de_sessio, verify_password, set_auth_cookie, clear_auth_cookie
+from config.auth import LOGIN_DELEGACIO_URL, LOGIN_DELEGACIO_USUARIS
 from database import get_auth_db
 from rate_limit import limiter
 from repositories import UserRepository
@@ -16,6 +17,11 @@ router = APIRouter(tags=["auth"])
 @router.post("/api/login")
 @limiter.limit("5/minute")
 def login(request: Request, credentials: LoginRequest, response: Response, db: Session = Depends(get_auth_db)):
+    if credentials.username in LOGIN_DELEGACIO_USUARIS:
+        # Usuari d'una altra instal·lació del mateix domini: no es valida res
+        # aquí; el frontend hi reenvia les credencials.
+        return {"ok": False, "redirect": LOGIN_DELEGACIO_URL}
+
     user = UserRepository.get_by_username(db, credentials.username)
     if not user or not user.active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credencials incorrectes")
@@ -23,12 +29,7 @@ def login(request: Request, credentials: LoginRequest, response: Response, db: S
     if not verify_password(credentials.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credencials incorrectes")
 
-    token = create_access_token({
-        "sub": user.username,
-        "institucio": user.institucio,
-        "role": user.role
-    })
-    set_auth_cookie(response, token)
+    set_auth_cookie(response, testimoni_de_sessio(user))
     return {"ok": True}
 
 

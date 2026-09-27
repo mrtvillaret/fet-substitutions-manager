@@ -71,6 +71,29 @@ def test_recarrega_bd_buida_dona_tot_buit(db_session):
     assert constants.PROFESSORS_BAIXA == []
 
 
+def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
+    # Aquests mòduls fan "from config.constants import ..." en carregar-se:
+    # la recàrrega ha d'omplir els mateixos objectes, no crear-ne de nous.
+    import core.absencies
+    import core.vigilancia_assignacio
+    import helpers
+    import routes.disponibles
+    import routes.settings
+
+    cat = CategoriaPrioritatRepository.create(db_session, "Guàrdies", ordre=0, activa=True)
+    AssignaturaPrioritatRepository.create(db_session, "Guàrdia", cat, pes=4)
+    NoSubstituirRepository.create(db_session, "Reunió")
+
+    _recarregar_prioritats_desde_bd(db_session)
+
+    for modul in (helpers, core.vigilancia_assignacio, routes.disponibles):
+        assert modul.PRIORITATS == {"Guàrdia": 4}, modul.__name__
+    for modul in (core.vigilancia_assignacio, routes.disponibles):
+        assert modul.ORDRE_PRIORITATS == [["Guàrdia"]], modul.__name__
+    for modul in (core.absencies, routes.settings):
+        assert modul.NO_SUBST == {"Reunió"}, modul.__name__
+
+
 def test_recarrega_construeix_ordre_i_pesos(db_session):
     cat1 = CategoriaPrioritatRepository.create(db_session, "Reforç", ordre=0, activa=True)
     cat2 = CategoriaPrioritatRepository.create(db_session, "Guàrdia", ordre=1, activa=True)
@@ -120,7 +143,7 @@ def test_recarrega_no_subst_i_genera_encadenades(db_session):
 
 def test_recarrega_professors_baixa(db_session):
     ProfessorBaixaRepository.create(
-        db_session, "Prof Test", "2026-01-10", "2026-01-20", motiu="Malaltia"
+        db_session, "Prof Test", "2026-01-10", "2026-01-20", motiu="Permís"
     )
 
     _recarregar_prioritats_desde_bd(db_session)
@@ -130,7 +153,7 @@ def test_recarrega_professors_baixa(db_session):
     assert baixa["professor"] == "Prof Test"
     assert baixa["data_inici"] == "2026-01-10"
     assert baixa["data_final"] == "2026-01-20"
-    assert baixa["motiu"] == "Malaltia"
+    assert baixa["motiu"] == "Permís"
 
 
 def test_recarrega_professor_baixa_sense_motiu_dona_string_buit(db_session):

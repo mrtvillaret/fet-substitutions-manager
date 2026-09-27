@@ -8,6 +8,7 @@ from collections import defaultdict
 
 from i18n_setup import translate as _, setup_translation
 
+import html
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
@@ -34,6 +35,13 @@ C_BLACK    = colors.HexColor("#2c3e50")
 PAGE_W, PAGE_H = A4
 MARGIN = 1.5 * cm
 CONTENT_W = PAGE_W - 2 * MARGIN
+
+
+def _text(valor) -> str:
+    """Text de les dades apte per a un Paragraph: ReportLab hi interpreta
+    etiquetes (<b>, <font>, <img src=...>), i un "<" escrit per un usuari
+    trencava l'informe o li feia llegir fitxers del servidor."""
+    return html.escape(str(valor or ""), quote=False)
 
 
 def _s(name, **kwargs):
@@ -119,7 +127,7 @@ def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: 
     text_cell = [
         Paragraph(_("Informe de Substitucions"), STYLES["title"]),
         Paragraph(
-            f"<font size='13'><b>{nom_centre}</b></font><br/>"
+            f"<font size='13'><b>{_text(nom_centre)}</b></font><br/>"
             f"<font size='9' color='#a8c8e8'>{_('Període')}: {fmt(data_inici)} – {fmt(data_final)}"
             f" &nbsp;|&nbsp; {_('Generat')}: {timestamp}</font>",
             STYLES["subtitle"]
@@ -393,7 +401,7 @@ def _taula_matriu_professors_mesos(per_professor_mes_abs: dict, per_professor_me
         tot_abs  = p["absencies"]
         tot_serv = p["serveis"]
 
-        row = [Paragraph(nom, _s("pn", fontName="Helvetica", fontSize=7.5,
+        row = [Paragraph(_text(nom), _s("pn", fontName="Helvetica", fontSize=7.5,
                                  textColor=C_BLACK, alignment=TA_LEFT, leading=10))]
         for mes in mesos:
             a = abs_data.get(mes, 0)
@@ -509,7 +517,7 @@ def _taula_matriu_substitucions_mesos(per_substitut_mes: dict, mesos: list,
         nom = p["nom"]
         mes_data = per_substitut_mes.get(nom, {})
         total = p["total"]
-        row = [Paragraph(nom, _s("spn", fontName="Helvetica", fontSize=7.5,
+        row = [Paragraph(_text(nom), _s("spn", fontName="Helvetica", fontSize=7.5,
                                  textColor=C_BLACK, alignment=TA_LEFT, leading=10))]
         for mes in mesos:
             val = mes_data.get(mes, 0)
@@ -721,9 +729,9 @@ def _taula_matriu_grups_mesos(grups_data: dict) -> list:
         nom = g["nom"]
         mes_data = per_grup_mes.get(nom, {})
         row = [
-            Paragraph(nom, _s("gn", fontName="Helvetica", fontSize=7.5,
+            Paragraph(_text(nom), _s("gn", fontName="Helvetica", fontSize=7.5,
                               textColor=C_BLACK, alignment=TA_LEFT, leading=10)),
-            Paragraph(g["nivell"].replace(" ", "\n"), _s("gnv", fontName="Helvetica", fontSize=6.5,
+            Paragraph(_text(g["nivell"]).replace(" ", "\n"), _s("gnv", fontName="Helvetica", fontSize=6.5,
                               textColor=C_GREY_TXT, alignment=TA_CENTER, leading=8)),
         ]
         for mes in mesos:
@@ -828,7 +836,7 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
     rows = [header_row]
 
     for hora in hores_ordre:
-        row = [Paragraph(hora, _s("mhr", fontName="Helvetica-Bold", fontSize=8,
+        row = [Paragraph(_text(hora), _s("mhr", fontName="Helvetica-Bold", fontSize=8,
                                   textColor=C_NAVY, alignment=TA_CENTER, leading=10))]
         for dia in dies_ordre:
             d = per_dia_hora.get((dia, hora), {"absencies": 0, "substitucions": 0})

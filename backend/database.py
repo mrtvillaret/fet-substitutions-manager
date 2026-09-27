@@ -55,6 +55,19 @@ AuthSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=AUTH_ENG
 def create_auth_tables():
     """Crea només taules d'autenticació"""
     Base.metadata.create_all(bind=AUTH_ENGINE, tables=[User.__table__])
+    _ensure_users_versio_sessio_column(AUTH_ENGINE)
+
+
+def _ensure_users_versio_sessio_column(engine):
+    """Afegeix users.versio_sessio a les auth.db creades abans que existís.
+    Els usuaris existents comencen a 0: ningú no ha de tornar a entrar."""
+    try:
+        with engine.begin() as conn:
+            columns = conn.exec_driver_sql("PRAGMA table_info(users);").fetchall()
+            if "versio_sessio" not in {col[1] for col in columns}:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN versio_sessio INTEGER NOT NULL DEFAULT 0")
+    except Exception:
+        pass
 
 
 def get_data_dir_for_institucio(institucio: str) -> Path:

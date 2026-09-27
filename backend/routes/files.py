@@ -12,6 +12,7 @@ from datetime import datetime, date, timedelta
 import hashlib
 import os
 import shutil
+import uuid
 from pathlib import Path
 
 from auth_utils import require_admin
@@ -34,9 +35,15 @@ async def upload_xml(
     abans, i el punter "actual" (`xml_horari_path`) només es mou si la nova versió ja és
     vigent avui.
     """
+    # El nom que envia el navegador només es fa servir per mostrar-lo: el fitxer
+    # es desa amb un nom propi. Un nom com "../altra_institucio/teachers.xml"
+    # escriuria fora de la carpeta de la institució, i un de coincident amb
+    # l'XML actual el sobreescriuria abans d'haver-lo desat a l'històric.
+    nom_original = os.path.basename(file.filename or "")
+    file_path = None
     try:
         # Validar que és un fitxer XML
-        if not file.filename.endswith('.xml'):
+        if not nom_original.endswith('.xml'):
             raise HTTPException(status_code=400, detail="El fitxer ha de ser XML")
 
         # Data de vigència de la nova versió
@@ -51,8 +58,8 @@ async def upload_xml(
         data_dir = str(get_data_dir_for_institucio(current_user.institucio))
         os.makedirs(data_dir, exist_ok=True)
 
-        # Guardar fitxer
-        file_path = os.path.join(data_dir, file.filename)
+        # Guardar fitxer (temporalment, fins que se'n fa la còpia a l'històric)
+        file_path = os.path.join(data_dir, f".pujada_{uuid.uuid4().hex}.xml")
 
         with open(file_path, 'wb') as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -107,7 +114,7 @@ async def upload_xml(
                 )
                 return {
                     "success": True,
-                    "filename": file.filename,
+                    "filename": nom_original,
                     "path": current_version.path,
                     "message": "XML idèntic a l'actual; no s'ha creat nova versió"
                 }
@@ -140,7 +147,7 @@ async def upload_xml(
 
                     return {
                         "success": True,
-                        "filename": file.filename,
+                        "filename": nom_original,
                         "path": stored_prev_path,
                         "message": "XML idèntic a l'anterior; s'ha creat la versió inicial"
                     }
@@ -187,15 +194,15 @@ async def upload_xml(
         # IMPORTANT: Invalidar cache del horari per forçar recàrrega del nou XML
         from helpers import invalidar_horari
         invalidar_horari(current_user.institucio)
-        print(f"✅ Cache del horari invalidada - nou XML carregat: {file_path}")
+        print(f"✅ Cache del horari invalidada - nou XML carregat: {stored_path}")
 
         return {
             "success": True,
-            "filename": file.filename,
+            "filename": nom_original,
             "path": stored_path,
             "data_inici": vigent_des_de.isoformat(),
             "vigent_avui": es_vigent_avui,
-            "message": f"Fitxer '{file.filename}' pujat correctament"
+            "message": f"Fitxer '{nom_original}' pujat correctament"
         }
 
     except HTTPException:
@@ -204,6 +211,9 @@ async def upload_xml(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error pujant fitxer: {str(e)}")
+    finally:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
 
 
 @router.post("/upload-logo")

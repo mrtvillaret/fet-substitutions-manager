@@ -119,10 +119,26 @@ def _refresh_vigilancia_substitucions(data: str, hora: str, db: Session) -> None
 
     if existing_subs:
         ids_cobertura = [s.id for s in existing_subs]
+        # Sincronitza la sessió: sense això els objectes esborrats hi quedaven
+        # i SQLite reaprofitava els seus IDs per a les substitucions noves.
         db.query(Substitucio).filter(
             Substitucio.id.in_(ids_cobertura)
-        ).delete(synchronize_session=False)
+        ).delete(synchronize_session="fetch")
         db.commit()
+
+    # Professors absents a aquesta hora (ABSENCIA o SERVEI). La classe d'un
+    # vigilant absent la cobreix la seva ABSENCIA, no una VIGILANCIA.
+    absents_hora = {
+        (s.professor_absent or "").strip()
+        for s in db.query(Substitucio).filter(
+            and_(
+                Substitucio.data == parse_date(data),
+                Substitucio.hora == hora,
+                Substitucio.tipus_absencia.notin_(["VIGILANCIA", "ENCADENADA", "VIGILANCIA_ABSENT"])
+            )
+        ).all()
+        if (s.professor_absent or "").strip()
+    }
 
     vigilants = VigilanciaRepository.get_vigilants_per_hora(db, data, hora)
 
@@ -155,7 +171,10 @@ def _refresh_vigilancia_substitucions(data: str, hora: str, db: Session) -> None
     substitucions_mgr.grups_sense_classe_dict = {hora: grups_hora}
     substitucions_mgr.grups_sense_classe_actual = set(grups_hora)
 
-    noves = substitucions_mgr._generar_substitucions_vigilants(dia_name, substitucions_mgr.grups_sense_classe_actual)
+    noves = substitucions_mgr._generar_substitucions_vigilants(
+        dia_name, substitucions_mgr.grups_sense_classe_actual,
+        absents={professor: [hora] for professor in absents_hora},
+    )
 
     for sub in noves:
         if (sub.get("hora") or "").strip() != hora:
@@ -190,17 +209,6 @@ def _refresh_vigilancia_substitucions(data: str, hora: str, db: Session) -> None
                 Substitucio.tipus_absencia == "VIGILANCIA_ABSENT"
             )
         ).all()
-    }
-    absents_hora = {
-        (s.professor_absent or "").strip()
-        for s in db.query(Substitucio).filter(
-            and_(
-                Substitucio.data == parse_date(data),
-                Substitucio.hora == hora,
-                Substitucio.tipus_absencia.notin_(["VIGILANCIA", "ENCADENADA", "VIGILANCIA_ABSENT"])
-            )
-        ).all()
-        if (s.professor_absent or "").strip()
     }
     vigilancies_dia = VigilanciaRepository.get_by_date(db, data)
     for nivell_vigs in vigilancies_dia.values():
@@ -697,17 +705,11 @@ async def crear_vigilancia(data: str, vigilancia: VigilanciaCreate, db: Session 
         nova_vig = VigilanciaRepository.create(db, data, vigilancia_data)
         _refresh_vigilancia_substitucions(data, vigilancia.hora, db)
 
-        # Generar ID compatible amb frontend
-        # Obtenir totes les vigilàncies de la mateixa hora i nivell per calcular index
-        vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
-        nivell_vigs = vigilancies_dict.get(vigilancia.nivell, [])
-
-        # Trobar l'index de la nova vigilància
-        idx = next((i for i, v in enumerate(nivell_vigs)
-                   if v['hora'] == vigilancia.hora and v['vigilant'] == vigilant_normalized),
-                  len(nivell_vigs) - 1)
-
-        vig_id = f"{vigilancia.hora}|{vigilancia.nivell}|{idx}"
+        # ID real de la BD, el mateix que retorna el llistat. L'antic ID compost
+        # "hora|nivell|posició" deixava de ser vàlid si s'afegia o s'esborrava
+        # una altra vigilància de la mateixa hora (i, amb vigilants buits,
+        # podia apuntar a una altra vigilància des del principi).
+        vig_id = str(nova_vig.id)
 
         return {
             "success": True,
@@ -866,7 +868,11 @@ async def assignar_titulars(data: str, db: Session = Depends(get_db)):
         vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
 
         if not vigilancies_dict:
-            return {"changes": [], "message": f"No hi ha vigilàncies per {data}"}
+            return AssignmentResponse(
+                assigned_count=0,
+                remaining_count=0,
+                message=f"No hi ha vigilàncies per {data}"
+            )
 
         vigilants_abans = _collect_vigilants_by_hour(vigilancies_dict)
 
@@ -942,7 +948,11 @@ async def assignar_pendents(data: str, disponibles: bool = False, db: Session = 
         vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
 
         if not vigilancies_dict:
-            return {"changes": [], "message": f"No hi ha vigilàncies per {data}"}
+            return AssignmentResponse(
+                assigned_count=0,
+                remaining_count=0,
+                message=f"No hi ha vigilàncies per {data}"
+            )
 
         vigilants_abans = _collect_vigilants_by_hour(vigilancies_dict)
 

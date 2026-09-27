@@ -6,13 +6,6 @@ Són "characterization tests": capturen el comportament REAL del codi
 actual (incloent-hi branques secundàries i casos "lletjos", com
 excepcions silencioses) perquè serveixin de xarxa de seguretat davant
 de qualsevol canvi futur, encara que algun comportament no sigui ideal.
-
-NOTA: core/vigilancia_data.py (VigilanciaDataManager) queda FORA d'aquest
-fitxer: `from models import Vigilancia, converters` hi falla en import
-(`converters` no existeix a models.py) — el mòdul no es pot ni carregar
-ara mateix. És codi mort/orfe: cap route ni core l'importa actualment
-(confirmat: `import main` carrega l'app sencera sense error). No s'ha
-arreglat aquí, fora de l'abast d'aquesta tasca.
 """
 from config import constants
 from core.vigilancia_core import VigilanciaCore

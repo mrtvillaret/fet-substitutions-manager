@@ -3,6 +3,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import axios from 'axios'
+import { ruta } from '../basePath'
 import { useToast } from 'primevue/usetoast'
 import { useI18n } from 'vue-i18n'
 
@@ -734,7 +735,7 @@ const showSessioTitle = (sessio) => {
 const formatIncidentFull = (group, incident) => formatIncidentFullRaw(group, incident, t)
 const formatIncidentShort = (group, incident) => formatIncidentShortRaw(group, incident, t)
 
-const tornarGestor = () => { window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }
+const tornarGestor = () => { window.history.pushState({}, '', ruta()); window.dispatchEvent(new PopStateEvent('popstate')) }
 const mostrarPublicarDialog = ref(false)
 const publicarSetmanes = ref([])
 

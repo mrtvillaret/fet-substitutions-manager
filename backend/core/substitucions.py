@@ -66,6 +66,13 @@ class GestorSubstitucions:
         self.alliberats = gestor_alliberats
         self.absencies = gestor_absencies
         self.validator = None
+        # Estat d'una assignació: el fixa assignar_substitucions (o qui cridi
+        # _generar_substitucions_vigilants). Buit fins llavors.
+        self.dia_actual = None
+        self.professors_ocupats_examens = {}
+        self.grups_sense_classe_dict = {}
+        self.grups_sense_classe_actual = set()
+        self.substitucions_existents = {}
  
  
  
@@ -166,7 +173,7 @@ class GestorSubstitucions:
 
         # 🚀 NOVA FUNCIÓ: AFEGEIX SUBSTITUCIONS PER VIGILANTS AMB CLASSE
         # Passa tots els grups per compatibilitat (la funció filtrarà internament)
-        substitucions_vigilants = self._generar_substitucions_vigilants(dia, self.grups_sense_classe_actual)
+        substitucions_vigilants = self._generar_substitucions_vigilants(dia, self.grups_sense_classe_actual, absents)
         
         # Afegeix les noves substitucions a la llista
         substitucions.extend(substitucions_vigilants)
@@ -246,9 +253,16 @@ class GestorSubstitucions:
         logger.debug(_("🔵 assignar_substitucions() END: retorna {} substitucions").format(len(substitucions)))
         return substitucions
 
-    def _generar_substitucions_vigilants(self, dia: str, grups_sense_classe: Set[str]) -> List[Dict]:
-        """Genera substitucions per professors que fan vigilància però tenen classe assignada"""
+    def _generar_substitucions_vigilants(self, dia: str, grups_sense_classe: Set[str],
+                                         absents: Dict[str, List[str]] = None) -> List[Dict]:
+        """Genera substitucions per professors que fan vigilància però tenen classe assignada.
+
+        `absents` ({professor: [hores]}): si el vigilant és absent a aquella hora,
+        no se'n genera cap: la seva classe ja la cobreix la seva ABSENCIA (i
+        l'examen, la VIGILANCIA_ABSENT). Si no, la classe quedaria coberta dues
+        vegades."""
         substitucions_vigilants = []
+        absents = absents or {}
 
         try:
             if not self.professors_ocupats_examens:
@@ -258,6 +272,8 @@ class GestorSubstitucions:
 
             for hora, vigilants in self.professors_ocupats_examens.items():
                 for vigilant in vigilants:
+                    if hora in absents.get(vigilant, ()):
+                        continue
                     # Comprova si aquest vigilant té classe assignada a aquesta hora
                     activitat = self.horari.get_activitat(dia, hora, vigilant)
 

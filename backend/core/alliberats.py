@@ -41,8 +41,8 @@ class GestorAlliberats:
 
         try:
             from core.baixes import gestor_baixes
-            from config.settings import config
-            instit = config.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or "exemple"
+            from helpers import _get_institucio_actual
+            instit = _get_institucio_actual()
 
             return gestor_baixes.esta_de_baixa(professor, self.data_actual, instit)
         except Exception as e:

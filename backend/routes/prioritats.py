@@ -69,12 +69,18 @@ def _recarregar_prioritats_desde_bd(db: Session):
     ]
 
     # Actualitzar constants globals
-    constants.ORDRE_PRIORITATS = ordre_prioritats
-    constants.CATEGORIES_ACTIVES = categories_actives
-    constants.PRIORITATS = prioritats
-    constants.NO_SUBST = no_subst
-    constants.GENERA_ENCADENADES = [tipus for tipus in prioritats if tipus not in no_subst]
-    constants.PROFESSORS_BAIXA = professors_baixa
+    # Es desen per a la institució de la petició en curs (config.context);
+    # constants.PRIORITATS i companyia en mostren les d'aquesta institució.
+    from config.context import institucio_peticio
+    constants.desa_prioritats(
+        institucio_peticio(),
+        ORDRE_PRIORITATS=ordre_prioritats,
+        CATEGORIES_ACTIVES=categories_actives,
+        PRIORITATS=prioritats,
+        NO_SUBST=no_subst,
+        GENERA_ENCADENADES=[tipus for tipus in prioritats if tipus not in no_subst],
+        PROFESSORS_BAIXA=professors_baixa,
+    )
 
     print(f"✅ Prioritats recarregades des de BD: {len(ordre_prioritats)} categories, {len(prioritats)} assignatures")
     print(f"   Categories actives: {categories_actives}")

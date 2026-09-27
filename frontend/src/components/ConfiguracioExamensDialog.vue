@@ -847,6 +847,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { ruta } from '../basePath'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Dialog from 'primevue/dialog'
@@ -1685,7 +1686,7 @@ const confirmarImportacioDefinitiva = async () => {
 const inputCsvRef = ref(null)
 
 const exportarAssignacionsCsv = () => {
-  window.open('/api/config/exportar-assignacions-csv', '_blank')
+  window.open(ruta('api/config/exportar-assignacions-csv'), '_blank')
 }
 
 const triarFitxerCsv = () => {
