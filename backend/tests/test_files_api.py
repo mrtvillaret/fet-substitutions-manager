@@ -70,6 +70,23 @@ def test_nomes_s_accepten_fitxers_xml(client):
     assert _puja(client, nom="horari.txt").status_code == 400
 
 
+XML_INVALIDS = {
+    "mal format": b"<Teachers_Timetable><Teacher>",
+    "entitat externa": (b'<?xml version="1.0"?><!DOCTYPE t [<!ENTITY x SYSTEM "file:///etc/passwd">]>'
+                        b"<Teachers_Timetable>&x;</Teachers_Timetable>"),
+    "bomba d'entitats": (b'<?xml version="1.0"?><!DOCTYPE t [<!ENTITY a "aaaaaaaaaa">'
+                         b'<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;"><!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;">]>'
+                         b"<Teachers_Timetable>&c;</Teachers_Timetable>"),
+}
+
+
+@pytest.mark.parametrize("contingut", XML_INVALIDS.values(), ids=XML_INVALIDS.keys())
+def test_es_rebutja_un_xml_mal_format_o_amb_entitats(client, centre, contingut):
+    assert _puja(client, contingut=contingut).status_code == 400
+    assert _xml_actual(centre) is None
+    assert _fitxers(centre) == []
+
+
 # ---------------------------------------------------------------- versionat
 
 def test_pujar_desa_l_horari_a_l_historic_i_el_fa_vigent(client, centre):

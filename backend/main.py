@@ -13,7 +13,6 @@ import os
 import time
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -21,7 +20,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from database import create_auth_tables
 from auth_utils import ensure_default_users, get_current_user, require_admin
 from config.auth import IS_DEVELOPMENT
-from rate_limit import limiter
+from rate_limit import limit_superat, limiter
 
 # Imports de schemas i helpers
 from schemas import ConfigResponse
@@ -122,13 +121,15 @@ def _log_request(request: Request, duration_ms: int, status_code: int) -> None:
     )
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, limit_superat)
 app.add_middleware(SlowAPIMiddleware)
 
-# CORS - permet crides des del frontend Vue (localhost:5173)
+# CORS: només cal en desenvolupament, quan el frontend de Vite (localhost:5173)
+# crida el backend en un altre port. En producció el frontend i l'API són al
+# mateix domini, i cap altre origen ha de poder fer crides amb la sessió.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"] if IS_DEVELOPMENT else [],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

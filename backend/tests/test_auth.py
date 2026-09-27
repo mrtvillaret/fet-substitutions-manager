@@ -15,7 +15,6 @@ import jwt
 import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from auth_utils import (
@@ -30,7 +29,7 @@ from auth_utils import (
 from config.auth import ALGORITHM, SECRET_KEY
 from config.settings import config
 from database import AuthSessionLocal, create_auth_tables, get_data_db_session
-from rate_limit import limiter
+from rate_limit import limit_superat, limiter
 from repositories import UserRepository
 from routes import auth, users
 
@@ -40,7 +39,7 @@ CONTRASENYA = "contrasenya-de-prova"
 def _app():
     app = FastAPI()
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, limit_superat)
     app.include_router(auth.router)
     app.include_router(users.router)
 
@@ -185,6 +184,14 @@ def test_login_limitat_a_5_intents_per_minut_i_ip(client, escenari):
     for _ in range(5):
         assert _login(client, escenari["noms"]["user_a"], "incorrecta").status_code == 401
     assert _login(client, escenari["noms"]["user_a"]).status_code == 429
+
+
+def test_el_429_diu_quants_segons_cal_esperar(client, escenari):
+    for _ in range(5):
+        _login(client, escenari["noms"]["user_a"], "incorrecta")
+    resp = _login(client, escenari["noms"]["user_a"])
+    assert resp.status_code == 429
+    assert 1 <= int(resp.headers["Retry-After"]) <= 60
 
 
 def test_canviar_x_forwarded_for_no_salta_el_limit_de_login(client, escenari):

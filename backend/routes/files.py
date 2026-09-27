@@ -10,15 +10,24 @@ from fastapi.responses import FileResponse
 from typing import List, Optional
 from datetime import datetime, date, timedelta
 import hashlib
+import io
 import os
 import shutil
 import uuid
 from pathlib import Path
 
+import defusedxml.ElementTree as SafeET
+from PIL import Image, UnidentifiedImageError
+from defusedxml import DefusedXmlException
+
 from auth_utils import require_admin
 from database import get_data_dir_for_institucio, get_data_db_session
 
 router = APIRouter(prefix="/api/files", tags=["Fitxers"])
+
+# Logo: el PDF el mostra petit; se'n desa una còpia de com a molt 1000 px de costat.
+LOGO_COSTAT_MAX = 1000
+LOGO_MAX_PIXELS_ORIGINAL = 25_000_000
 
 
 @router.post("/upload-xml")
@@ -63,6 +72,14 @@ async def upload_xml(
 
         with open(file_path, 'wb') as buffer:
             shutil.copyfileobj(file.file, buffer)
+
+        # Ha de ser un XML ben format i sense entitats ni referències externes:
+        # la resta de l'aplicació el llegeix amb xml.etree, que no es protegeix
+        # de tot. Un horari de FET no en fa servir mai.
+        try:
+            SafeET.parse(file_path)
+        except (SafeET.ParseError, DefusedXmlException):
+            raise HTTPException(status_code=400, detail="El fitxer no és un XML d'horari vàlid")
 
         # Actualitzar configuració amb el nou path i versionar XML
         from repositories import ConfiguracioRepository, XMLVersionRepository
@@ -228,14 +245,37 @@ async def upload_logo(file: UploadFile = File(...), current_user=Depends(require
         if ext not in allowed_exts:
             raise HTTPException(status_code=400, detail="El logo ha de ser PNG o JPG")
 
+        # No n'hi ha prou amb l'extensió: s'obre la imatge i se'n desa una còpia
+        # nova en PNG. Així el que queda al servidor (i va als PDF) és sempre una
+        # imatge vàlida, sense metadades ni res afegit al fitxer original.
+        try:
+            imatge = Image.open(io.BytesIO(await file.read()))
+            if imatge.format not in ("PNG", "JPEG"):
+                raise ValueError(imatge.format)
+            # Abans de descomprimir-la: una imatge petita en bytes pot ocupar
+            # gigues en memòria si declara unes dimensions enormes.
+            if imatge.width * imatge.height > LOGO_MAX_PIXELS_ORIGINAL:
+                raise HTTPException(status_code=400, detail="La imatge del logo és massa gran")
+            imatge.load()
+        except HTTPException:
+            raise
+        except (UnidentifiedImageError, Image.DecompressionBombError, OSError, ValueError):
+            raise HTTPException(status_code=400, detail="El logo ha de ser una imatge PNG o JPG vàlida")
+
+        imatge.thumbnail((LOGO_COSTAT_MAX, LOGO_COSTAT_MAX))
+        if imatge.mode not in ("RGB", "RGBA", "L", "LA"):
+            imatge = imatge.convert("RGBA")
+
         data_dir = str(get_data_dir_for_institucio(current_user.institucio))
         os.makedirs(data_dir, exist_ok=True)
 
-        logo_filename = f"logo{ext}"
+        logo_filename = "logo.png"
         file_path = os.path.join(data_dir, logo_filename)
-
-        with open(file_path, 'wb') as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        imatge.save(file_path, format="PNG")
+        # Un logo anterior en JPG ja no es fa servir
+        for antic in ("logo.jpg", "logo.jpeg"):
+            if os.path.exists(os.path.join(data_dir, antic)):
+                os.remove(os.path.join(data_dir, antic))
 
         from repositories import ConfiguracioRepository
         with get_data_db_session(current_user.institucio) as db:

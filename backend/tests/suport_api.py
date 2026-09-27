@@ -9,7 +9,6 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from auth_utils import hash_password
@@ -21,7 +20,7 @@ from database import (
     get_data_dir_for_institucio,
 )
 from models import AssignaturaPrioritat, CategoriaPrioritat
-from rate_limit import limiter
+from rate_limit import limit_superat, limiter
 from repositories import ConfiguracioRepository, UserRepository
 from routes import auth
 
@@ -32,7 +31,7 @@ XML_EXEMPLE = Path(__file__).resolve().parents[2] / "data" / "exemple" / "teache
 def crea_app(*routers):
     app = FastAPI()
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, limit_superat)
     registra_gestors_errors(app)
     app.include_router(auth.router)
     for router in routers:

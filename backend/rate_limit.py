@@ -1,7 +1,11 @@
 import ipaddress
+import math
+import time
 
-from slowapi import Limiter
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
+from starlette.responses import Response
 
 
 def _es_proxy_intern(host: str) -> bool:
@@ -32,3 +36,18 @@ def get_client_ip(request: Request) -> str:
 
 
 limiter = Limiter(key_func=get_client_ip)
+
+
+def limit_superat(request: Request, exc: RateLimitExceeded) -> Response:
+    """Resposta 429 amb Retry-After: els segons que falten perquè es
+    reiniciï la finestra del límit (el frontend ho mostra a l'usuari)."""
+    resposta = _rate_limit_exceeded_handler(request, exc)
+    if "Retry-After" not in resposta.headers:
+        try:
+            limit, claus = request.state.view_rate_limit
+            reinici, _ = request.app.state.limiter.limiter.get_window_stats(limit, *claus)
+            segons = max(1, math.ceil(reinici - time.time()))
+        except Exception:
+            segons = exc.limit.limit.get_expiry()
+        resposta.headers["Retry-After"] = str(segons)
+    return resposta

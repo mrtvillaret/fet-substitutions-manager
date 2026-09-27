@@ -20,9 +20,14 @@ slowapi==0.1.10
 
 # PDF generation
 reportlab==5.0.0
+# Imatges: la fa servir ReportLab, i també es fa servir directament per
+# validar i tornar a desar el logo que puja l'usuari.
+pillow==12.3.0
 
 # i18n (traduccions)
 babel==2.18.0
 
-# XML parsing (per processar horari FET)
-lxml==6.1.1
+# Validació de l'XML que puja l'usuari: rebutja entitats i referències
+# externes (XXE, "bombes" d'entitats). La lectura de l'horari es fa amb
+# xml.etree de la biblioteca estàndard; lxml no es feia servir enlloc.
+defusedxml==0.7.1
