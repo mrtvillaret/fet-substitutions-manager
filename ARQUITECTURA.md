@@ -82,8 +82,7 @@
 │  ├── core/baixes.py               ← gestió de baixes             │
 │  ├── core/json_loader.py          ← càrrega fitxers JSON         │
 │  ├── core/vigilancia_core.py      ← lògica vigilàncies           │
-│  ├── core/vigilancia_assignacio.py                               │
-│  └── core/vigilancia_data.py                                     │
+│  └── core/vigilancia_assignacio.py                               │
 │                                                                  │
 │  SCHEDULER ENGINE (planificador exàmens)                         │
 │  ├── factory.py                   ← selecciona motor             │
@@ -111,15 +110,10 @@
 │        └── google_storage.py ← integració Google Drive           │
 │                                                                  │
 │  EXPORTACIÓ PDF                                                  │
-│  ├── export/base_pdf.py           ← classe base                  │
 │  ├── export/pdf_styles.py         ← estils comuns                │
 │  ├── export/pdf_images.py         ← imatges embegudes            │
-│  ├── export/pdf.py                ← exportador substitucions     │
-│  ├── export/pdf_interval.py       ← exportador intervals         │
 │  └── export/pdf/                                                 │
 │        ├── engine.py              ← motor principal              │
-│        ├── combined_exporter.py   ← subs + vigilàncies           │
-│        ├── dialogs.py             ← PDF diàlegs                  │
 │        ├── informe_direccio.py                                   │
 │        └── informe_professors.py                                 │
 │                                                                  │

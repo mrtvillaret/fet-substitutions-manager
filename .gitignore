@@ -130,8 +130,6 @@ backend/data/*.db-*
 backend/data/*.log
 frontend/node_modules/
 
-# Scripts d'anonimització (contenen noms reals, ús intern)
-
 # Scripts de migració one-shot i dead code (ús intern)
 backend/migrate_*.py
 backend/migrations/
