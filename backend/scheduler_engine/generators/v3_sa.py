@@ -6,6 +6,7 @@ Versió corregida amb totes les restriccions i agrupament modular.
 import math
 import re
 import random
+import time
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Set, Optional, Any, Union
 from collections import defaultdict
@@ -54,6 +55,16 @@ class Solucio:
 # =============================================================================
 # MOTOR PRINCIPAL
 # =============================================================================
+
+# Solucions inicials viables que es comparen per triar el punt de partida
+SOLUCIONS_INICIALS_A_COMPARAR = 10
+# Reinicis del recuit i iteracions sense millora per aturar-ne un: millor molts
+# reinicis curts que pocs de llargs (cada un acaba en un mínim local diferent)
+REINICIS = 12
+ITERACIONS_SENSE_MILLORA = 2000
+# Temps màxim per començar reinicis nous (un centre gran no ha d'esperar massa)
+SEGONS_MAXIMS_REINICIS = 20
+
 
 class GeneradorV3SA(GeneradorSessionsExamensBase):
     """Motor de generació d'horaris d'exàmens amb Simulated Annealing"""
@@ -218,7 +229,6 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         self.pes_abans_jornada_global = cp.get('abans_jornada', DEFAULT_COST_PROFESSORS["abans_jornada"])
         self.pes_despres_jornada_global = cp.get('despres_jornada', DEFAULT_COST_PROFESSORS["despres_jornada"])
         self.pes_no_treballa_global = cp.get('no_treballa_dia', DEFAULT_COST_PROFESSORS["no_treballa_dia"])
-        self.costos_professors_individuals = costos_profs.get('individuals', {}) if costos_profs else {}
 
     def crear_slots(self, dies_utilitzar: List[str]):
         from datetime import datetime as _dt
@@ -461,6 +471,8 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
 
         cost_slot = 0.0
         violacions_slot = []
+        # Un professor amb dos exàmens a la franja deixa una sola classe
+        comptats = set()
 
         for sessio in sess_list:
             altres = [s for s in sess_list if s is not sessio]
@@ -503,6 +515,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 sessions_dia=sessions_dia,
                 sessions_slot=altres,
                 data_iso=data_iso,
+                ja_comptats=comptats,
             )
             cost_slot += resultat.get('cost_total', 0)
             # Soft cost per conflictes a zona examen (guia SA cap a slots nets)
@@ -644,67 +657,6 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                         
         return cost, viols
 
-    def _avaluar_costos_professors(self, sol: Solucio) -> Tuple[float, List[Dict]]:
-        cost, violacions = 0.0, []
-        seen = set() # Evitar duplicats
-        
-        for iid, slot in sol.assignacions.items():
-            it = self.items_per_id[iid]
-            for s in it.sessions:
-                dn, hr = normalitzar_dia(slot.dia), slot.hora
-                # slot.data té la data ISO concreta; fallback al mapa (List[str])
-                if slot.data:
-                    data_iso = slot.data
-                else:
-                    _dates = getattr(self, 'dia_a_data_iso', {}).get(dn)
-                    data_iso = _dates[0] if isinstance(_dates, list) else _dates
-                # Construir objecte sessió dict compatible amb core
-                s_dict = {'nom': s.nom, 'nom_base': s.nom_base, 'examens': s.examens}
-                durada_sessio = self.get_durada_per_sessio_key(s.nom, s.curs)
-                an = analitzar_disponibilitat_sessio(
-                    sessio=s_dict, dia=dn, hora=hr,
-                    horaris_professors=self.horaris_professors,
-                    totes_hores=self.totes_hores,
-                    nivells_actius=self.nivells_actius,
-                    durada_titular=durada_sessio,
-                    no_substituir_norm=self.no_substituir_norm,
-                    alliberaments_per_nivell=self.alliberaments_per_nivell,
-                    data_iso=data_iso
-                )
-                
-                # Mapejar resultats core a costos SA
-                # No treballa
-                for x in an['no_treballa_dia']:
-                    k = (x['professor'], dn, 'nt')
-                    if k not in seen:
-                        seen.add(k); p = self._get_cost_professor(x['professor'], 'no_treballa_dia'); cost += p
-                        violacions.append({'tipus': 'nt', 'pes': p, 'missatge': f"{x['professor']} NT {dn}"})
-                # Sub
-                for x in an['substitucions']:
-                    k = (x['professor'], dn, x['hora'], 'sub')
-                    if k not in seen:
-                        seen.add(k); p = self._get_cost_professor(x['professor'], 'substitucio'); cost += p
-                        violacions.append({'tipus': 'sub', 'pes': p, 'missatge': f"{x['professor']} SUB {x['hora']}"})
-                # Abans
-                for x in an['abans_jornada']:
-                    k = (x['professor'], dn, 'ab')
-                    if k not in seen:
-                        seen.add(k); p = self._get_cost_professor(x['professor'], 'abans_jornada'); cost += p
-                        violacions.append({'tipus': 'ab', 'pes': p, 'missatge': f"{x['professor']} ABANS"})
-                # Despres
-                for x in an['despres_jornada']:
-                    k = (x['professor'], dn, 'de')
-                    if k not in seen:
-                        seen.add(k); p = self._get_cost_professor(x['professor'], 'despres_jornada'); cost += p
-                        violacions.append({'tipus': 'de', 'pes': p, 'missatge': f"{x['professor']} DESPRES"})
-                        
-        return cost, violacions
-
-    def _get_cost_professor(self, prof, t):
-        if prof in self.costos_professors_individuals and t in self.costos_professors_individuals[prof]: return self.costos_professors_individuals[prof][t]
-        m = {'substitucio': self.pes_substitucio_global, 'abans_jornada': self.pes_abans_jornada_global, 'despres_jornada': self.pes_despres_jornada_global, 'no_treballa_dia': self.pes_no_treballa_global}
-        return m.get(t, 50)
-
     def _detectar_items_congelats(self):
         """Pre-computa els ítems que tenen exactament 1 slot compatible (fixats per restricció).
         Guarda l'únic slot per als ítems congelats per evitar recalcular-lo després."""
@@ -744,8 +696,10 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                     candidats.append(s)
             self._slots_candidats_per_item[it.id] = candidats if candidats else self.slots
 
-    def executar_simulated_annealing(self, verbose=True, reinicis=3):
+    def executar_simulated_annealing(self, verbose=True, reinicis=None):
         """Executa l'algorisme de Simulated Annealing amb múltiples reinicis."""
+        if reinicis is None:
+            reinicis = REINICIS
         self._detectar_items_congelats()
         n_con = len(self.items_congelats_ids)
         n_mob = len(self.items_mobils)
@@ -791,7 +745,12 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             _iter_per_t = self.iteracions_per_temperatura
             _max_iter   = self.max_iteracions
 
+        inici_sa = time.monotonic()
         for reinici in range(reinicis):
+            if reinici > 0 and time.monotonic() - inici_sa > SEGONS_MAXIMS_REINICIS:
+                if verbose:
+                    print(f"   ⏱️ Temps esgotat després de {reinici} reinicis")
+                break
             if reinici > 0 and verbose:
                 print(f"\n🔄 Reinici {reinici + 1}/{reinicis}...")
 
@@ -848,7 +807,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
 
                 # Early stopping: només si estem a temperatura baixa (explotació) i cost raonable
                 # Condició t < 100 evita tallar l'exploració a T alta (on la solució no ha convergit)
-                if sense_millora > 10000 and ms.cost < 100000 and t < 100:
+                if sense_millora > ITERACIONS_SENSE_MILLORA and ms.cost < 100000 and t < 100:
                     if verbose:
                         print(f"   ⚡ Early stopping: {sense_millora} iter sense millora, T={t:.2f}")
                     break
@@ -856,16 +815,12 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             if verbose:
                 print(f"   Reinici {reinici + 1}: {it} iteracions, cost={ms.cost:.2f}")
 
-            # Actualitzar millor global
+            # Actualitzar millor global. Es fan tots els reinicis, encara que
+            # el primer ja sigui viable: cada reinici parteix d'una solució
+            # diferent i és la manera d'escapar d'un mínim local.
             if millor_global is None or ms.cost < millor_global.cost:
                 millor_global = deepcopy(ms)
 
-            # Si ja és viable, podem acabar
-            violacions_dures = len([v for v in millor_global.violacions if v.get('pes', 0) >= 100])
-            if violacions_dures == 0:
-                if verbose:
-                    print(f"   ✨ Solució viable trobada!")
-                break
 
         if verbose and millor_global:
             print(f"✅ SA completat. Millor cost: {millor_global.cost:.2f}")
@@ -883,7 +838,14 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 return None
 
         items_sorted = sorted(self.items, key=lambda it: compat_counts.get(it.id, 0))
+        # Es parteix de la més barata d'unes quantes solucions viables (no de la
+        # primera que surt): en un problema ajustat, el recuit difícilment surt
+        # d'un mal punt de partida.
+        millor = None
+        viables = 0
         for _ in range(self.intents_solucio_inicial):
+            if viables >= SOLUCIONS_INICIALS_A_COMPARAR:
+                break
             sol = Solucio(assignacions={})
             # Aleatorietat controlada dins el mateix nombre de compatibilitats
             grouped = defaultdict(list)
@@ -906,8 +868,10 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                     break
             if ok:
                 sol.cost, sol.violacions = self.calcular_cost(sol)
-                return sol
-        return None
+                viables += 1
+                if millor is None or sol.cost < millor.cost:
+                    millor = sol
+        return millor
 
     def _generar_veí(self, sol):
         """Genera una solució veïna movent o intercanviant items.
@@ -932,7 +896,15 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
 
         items_per_moviment = (self.items_mobils if hasattr(self, 'items_mobils') and self.items_mobils else self.items)
         if moviment == 'intercanviar' and len(items_per_moviment) >= 2:
-            item1, item2 = random.sample(items_per_moviment, 2)
+            # S'intercanvien dos ítems dels mateixos nivells: amb nivells
+            # diferents, quasi sempre quedarien dos exàmens del mateix nivell
+            # a la mateixa franja i el moviment es descartaria.
+            item1 = random.choice(items_per_moviment)
+            nivells1 = {s.curs for s in item1.sessions}
+            parelles = [it for it in items_per_moviment
+                        if it is not item1 and {s.curs for s in it.sessions} == nivells1]
+            item2 = random.choice(parelles) if parelles else random.choice(
+                [it for it in items_per_moviment if it is not item1])
             slot1 = nv.assignacions.get(item1.id)
             slot2 = nv.assignacions.get(item2.id)
 

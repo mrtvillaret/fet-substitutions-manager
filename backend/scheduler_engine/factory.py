@@ -19,7 +19,7 @@ MOTORS = {
             "temperatura_inicial": {
                 "label": "Temperatura inicial",
                 "help": "Controla l'exploració inicial (més alt = més exploració)",
-                "type": "number", "min": 1, "max": 10000, "step": 100,
+                "type": "number", "min": 1, "max": 10000, "step": 10,
             },
             "temperatura_final": {
                 "label": "Temperatura final",

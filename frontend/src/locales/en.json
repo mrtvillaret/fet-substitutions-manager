@@ -634,7 +634,17 @@
       "deleteFiltered": "Delete filtered",
       "deleteAll": "Delete all",
       "deleteFilteredConfirmMessage": "Delete the {count} assignments shown with the current filter?",
-      "deleteAllConfirmMessage": "Delete ALL {count} assignments? This action cannot be undone."
+      "deleteAllConfirmMessage": "Delete ALL {count} assignments? This action cannot be undone.",
+      "obsolete": {
+        "text": "There are {count} assignments with a group or teacher that is no longer in the current timetable (probably from a previous year):",
+        "reason": {
+          "grup": "the group no longer exists",
+          "titular": "the teacher is no longer there"
+        },
+        "remove": "Remove them",
+        "confirm": "{count} assignments that no longer match the current timetable will be removed. Existing invigilations and substitutions are not affected.",
+        "removed": "{count} assignments removed"
+      }
     },
     "import": {
       "tabIntro": "Import exam configuration (levels, groups, subjects, rooms and who teaches what) from the active timetable, or from a CSV exported earlier.",
@@ -1391,7 +1401,8 @@
         "selectHour": "Select an hour",
         "selectAtLeastTwoSubjects": "Select at least 2 subjects",
         "writeGroupName": "Enter the group name",
-        "selectAtLeastOneSubject": "Select at least 1 subject"
+        "selectAtLeastOneSubject": "Select at least 1 subject",
+        "groupSingleLevel": "A grouping must contain exams of a single level. For different levels, use {cami}."
       },
       "weights": {
         "restriccioDura": {
@@ -1424,7 +1435,14 @@
         "localChangesApplied": "Changes were applied locally",
         "notViable": "Not viable",
         "notViableDetail": "{message} ({items} items > {slots} slots)"
-      }
+      },
+      "staleSubjects": {
+        "text": "Some restrictions contain subjects that are no longer in the exam configuration (from a previous year or before a level was renamed) and do not apply to any exam:",
+        "remove": "Remove them from the restrictions",
+        "removed": "{count} subjects removed from the restrictions"
+      },
+      "previousCourse": "The selected dates belong to {cursos}, before the current year ({actual}). The planner uses the current year's exam configuration and cannot publish them. Invigilations from previous years can be viewed in Invigilations.",
+      "lastResult": "This is the last schedule generated or edited ({data}). If you have changed the configuration or the dates, generate again."
     },
     "steps": {
       "config": {
@@ -1457,6 +1475,7 @@
         "subtitle": "Define bundles that should be placed as a single unit.",
         "filterPlaceholder": "Select level",
         "description": "You can add standalone subjects or groups. Filter by level to work faster.",
+        "levelsHint": "A grouping must contain exams of a single level. To place exams of different levels at the same time, use {cami}.",
         "ungroupedTitle": "Standalone subjects (not grouped)",
         "emptyMessage": "No grouping defined",
         "columns": {

@@ -29,6 +29,26 @@ def test_deriva_nivell_combinat():
     assert deriva_nivell("1-BATX-AB") == "1-BATX"
 
 
+def test_deriva_nivell_grups_junts_sense_abreviatura():
+    # Classe amb alumnes de diversos grups (p.ex. franges d'optatives) quan
+    # el centre no hi ha definit cap abreviatura: el nivell és el comú.
+    assert deriva_nivell("1-BAT-A,1-BAT-B") == "1-BAT"
+    assert deriva_nivell("2-ESO-A, 2-ESO-B, 2-ESO-C") == "2-ESO"
+
+
+def test_deriva_nivell_grups_junts_de_nivells_diferents():
+    # Sense un nivell comú no n'hi ha cap de bo: es deixa tal qual.
+    assert deriva_nivell("1-ESO-A,2-ESO-A") == "1-ESO-A,2-ESO-A"
+
+
+def test_generar_propostes_de_grups_junts_tenen_el_nivell_comu():
+    horari = HorariFals({"Dilluns": {"09:00": {
+        "Prof 7": {"assignatura": "1.1", "grup": "1-BAT-A,1-BAT-B", "aula": "A01"},
+    }}})
+    [proposta] = generar_propostes(horari)
+    assert (proposta["grup"], proposta["nivell"]) == ("1-BAT-A,1-BAT-B", "1-BAT")
+
+
 def test_generar_propostes_ignora_activitats_sense_grup():
     horari = HorariFals({
         "Dilluns": {

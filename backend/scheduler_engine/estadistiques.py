@@ -9,7 +9,7 @@ from collections import defaultdict
 from utils.hores import normalitzar_hora as _normalitzar_hora
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.durada import get_durada_per_sessio_key, detectar_nivell_sessio
-from scheduler_engine.core.scoring import calcular_cost_slot
+from scheduler_engine.core.scoring import calcular_cost_slot, costos_professors_analisi
 from scheduler_engine.core.constraints import calcular_penalitzacio_total_professors
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.context import SchedulerContext
@@ -108,13 +108,6 @@ def recalcular_cost_i_breakdown(horari: Dict, ctx: SchedulerContext) -> Dict:
     Torna un dict: {cost_total, cost_breakdown}.
     """
     restriccions = ctx.restriccions
-    costos_globals = (restriccions.get('costos_professors', {}) or {}).get('globals', {})
-
-    pes_sub = costos_globals.get('substitucio', DEFAULT_COST_PROFESSORS["substitucio"])
-    pes_abans = costos_globals.get('abans_jornada', DEFAULT_COST_PROFESSORS["abans_jornada"])
-    pes_despres = costos_globals.get('despres_jornada', DEFAULT_COST_PROFESSORS["despres_jornada"])
-    pes_no_treballa = costos_globals.get('no_treballa_dia', DEFAULT_COST_PROFESSORS["no_treballa_dia"])
-
     cost_total = 0.0
     breakdown = defaultdict(int)
     total_subs = 0
@@ -152,11 +145,9 @@ def recalcular_cost_i_breakdown(horari: Dict, ctx: SchedulerContext) -> Dict:
             hora_norm = _normalitzar_hora(hora)
             sessions_slot = slot.get('sessions_simultanees', [])
 
-            # Costos de professors (dedup per (professor,hora))
-            seen_subs = set()
-            seen_abans = set()
-            seen_despres = set()
-            seen_no_treballa = set()
+            # Costos de professors: un cop per professor i hora a la franja, amb
+            # el cost individual si en té (el mateix càlcul que fan els motors)
+            costos_slot = {}
 
             for idx, sessio in enumerate(sessions_slot):
                 altres = [s for i, s in enumerate(sessions_slot) if i != idx]
@@ -190,38 +181,20 @@ def recalcular_cost_i_breakdown(horari: Dict, ctx: SchedulerContext) -> Dict:
                     alliberaments_per_nivell=ctx.alliberaments_per_nivell,
                     data_iso=data_iso,
                 )
-                for item in analisi.get('substitucions', []):
-                    if isinstance(item, dict) and item.get('professor'):
-                        seen_subs.add((item['professor'], item.get('hora', hora)))
-                for item in analisi.get('abans_jornada', []):
-                    if isinstance(item, dict) and item.get('professor'):
-                        seen_abans.add((item['professor'], item.get('hora', hora)))
-                for item in analisi.get('despres_jornada', []):
-                    if isinstance(item, dict) and item.get('professor'):
-                        seen_despres.add((item['professor'], item.get('hora', hora)))
-                for item in analisi.get('no_treballa_dia', []):
-                    if isinstance(item, dict) and item.get('professor'):
-                        seen_no_treballa.add((item['professor'], item.get('hora', hora)))
+                costos_slot.update(costos_professors_analisi(analisi, hora, restriccions, set(costos_slot)))
 
-            subs_count = len(seen_subs)
-            abans_count = len(seen_abans)
-            despres_count = len(seen_despres)
-            nt_count = len(seen_no_treballa)
-
-            total_subs += subs_count
-            total_abans += abans_count
-            total_despres += despres_count
-            total_no_treballa += nt_count
-
-            cost_total += subs_count * pes_sub
-            cost_total += abans_count * pes_abans
-            cost_total += despres_count * pes_despres
-            cost_total += nt_count * pes_no_treballa
-
-            breakdown['substitucio'] += subs_count * pes_sub
-            breakdown['abans_jornada'] += abans_count * pes_abans
-            breakdown['despres_jornada'] += despres_count * pes_despres
-            breakdown['no_treballa_dia'] += nt_count * pes_no_treballa
+            per_tipus = defaultdict(list)
+            for (tipus, _, _), cost in costos_slot.items():
+                per_tipus[tipus].append(cost)
+            total_subs += len(per_tipus['substitucio'])
+            total_abans += len(per_tipus['abans_jornada'])
+            total_despres += len(per_tipus['despres_jornada'])
+            total_no_treballa += len(per_tipus['no_treballa_dia'])
+            cost_total += sum(costos_slot.values())
+            breakdown['substitucio'] += sum(per_tipus['substitucio'])
+            breakdown['abans_jornada'] += sum(per_tipus['abans_jornada'])
+            breakdown['despres_jornada'] += sum(per_tipus['despres_jornada'])
+            breakdown['no_treballa_dia'] += sum(per_tipus['no_treballa_dia'])
 
             # Penalitzacions de restriccions i preferències (sense costos de professors)
             pesos_opt = restriccions.get('pesos_optimitzacio', {})

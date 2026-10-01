@@ -11,7 +11,7 @@
 ![Stack](https://img.shields.io/badge/FastAPI-Vue%203-009688)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20%2B%20Caddy-2496ED)
 
-**Demo pública:** [gestor.alienamrt.org](https://gestor.alienamrt.org) — entra amb `user_demo` o `admin_demo` (per veure les funcions d'administració), contrasenya `demo1234`. _La demo es reinicia cada dia a les 4:00._
+**Demo pública:** [demo.gestor.alienamrt.org](https://demo.gestor.alienamrt.org) — entra amb `user_demo` o `admin_demo` (per veure les funcions d'administració), contrasenya `demo1234`. _La demo es reinicia cada dia a les 4:00._
 
 > ⚠️ La demo és **pública i compartida**: altres persones hi poden estar treballant alhora i veure el que hi introduïu. No hi pugeu horaris ni dades personals reals del vostre centre.
 

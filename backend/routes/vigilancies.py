@@ -227,7 +227,7 @@ def _refresh_vigilancia_substitucions(data: str, hora: str, db: Session) -> None
 
 
 @router.get("/{data}/pdf")
-async def generar_pdf_vigilancies_alias(
+def generar_pdf_vigilancies_alias(
     data: str,
     nivells: str = "",
     compress: bool = False,
@@ -239,7 +239,7 @@ async def generar_pdf_vigilancies_alias(
     """Alias per compatibilitat: delega a /api/pdf/vigilancies/{data}."""
     from routes.pdf import generar_pdf_vigilancies
 
-    return await generar_pdf_vigilancies(
+    return generar_pdf_vigilancies(
         data=data,
         nivells=nivells,
         compress=compress,
@@ -251,7 +251,7 @@ async def generar_pdf_vigilancies_alias(
 
 
 @router.get("/pdf/interval")
-async def generar_pdf_interval_alias(
+def generar_pdf_interval_alias(
     data_inici: str,
     data_final: str,
     nivells: str = "",
@@ -266,7 +266,7 @@ async def generar_pdf_interval_alias(
     """Alias per compatibilitat: delega a /api/pdf/vigilancies/interval."""
     from routes.pdf import generar_pdf_interval
 
-    return await generar_pdf_interval(
+    return generar_pdf_interval(
         data_inici=data_inici,
         data_final=data_final,
         nivells=nivells,

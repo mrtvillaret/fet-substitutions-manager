@@ -387,6 +387,43 @@ async def get_assignacions(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error en obtenir assignacions: {str(e)}")
 
 
+@router.get("/assignacions-obsoletes")
+async def get_assignacions_obsoletes(db: Session = Depends(get_db)):
+    """Assignacions amb un grup o un titular que no són a l'horari vigent avui
+    (p.ex. d'un curs anterior). El nom de l'assignatura no es té en compte: es
+    pot haver canviat a mà (p.ex. "1.1 Prof 7" per a una franja d'optatives).
+    Per treure-les: DELETE /assignacions amb els ids."""
+    from datetime import date as _date
+    from models import AbreviaturaGrup
+    try:
+        horari = get_horari(None, _date.today().isoformat())
+    except MissingXmlError:
+        return {"assignacions": []}
+
+    grups = set(horari.tots_grups) | set(horari.tots_grups_raw)
+    grups |= {part.strip() for g in list(grups) for part in g.split(",")}
+    abreviatures = {a.abreviatura: [g.strip() for g in a.grups_originals.split(",")]
+                    for a in db.query(AbreviaturaGrup).all()}
+    professors = set(horari.professors or [])
+
+    def grup_existeix(grup: str) -> bool:
+        if grup in grups:
+            return True
+        parts = abreviatures.get(grup) or [g.strip() for g in grup.split(",")]
+        return len(parts) > 1 and all(p in grups for p in parts)
+
+    obsoletes = []
+    for a in ConfiguracioExamenRepository.get_all(db):
+        motius = []
+        if a.get("grup") and not grup_existeix(a["grup"]):
+            motius.append("grup")
+        if a.get("titular") and a["titular"] not in professors:
+            motius.append("titular")
+        if motius:
+            obsoletes.append({**a, "motius": motius})
+    return {"assignacions": obsoletes}
+
+
 @router.get("/assignacions/{assignatura}")
 async def get_assignacions_by_assignatura(assignatura: str, db: Session = Depends(get_db)):
     """Retorna assignacions d'una assignatura específica"""

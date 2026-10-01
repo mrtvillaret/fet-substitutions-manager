@@ -18,7 +18,7 @@ from scheduler_engine.core.constraints import (
     calcular_penalitzacio_professors_dies, calcular_penalitzacio_assignatures_dies_exclosos,
     calcular_penalitzacio_total_professors, es_item_compatible_amb_slot,
     viola_limit_dies_professor_obligatori, viola_preferencia_dia_obligatoria,
-    calcular_penalitzacio_professors_dies_item
+    calcular_penalitzacio_professors_dies_item, percent_pref_mateix_slot_violation, _percent_penalty
 )
 from scheduler_engine.generators.base import GeneradorSessionsExamensBase
 from scheduler_engine.estadistiques import aplicar_estadistiques, recalcular_cost_i_breakdown
@@ -98,12 +98,12 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
     def _calcular_cost_sessio(self, sessio: Dict, dia: str, hora: str,
                               sessions_dia: List = None, sessions_slot: List = None,
                               hores_override: List[str] | None = None,
-                              data_iso: str = None) -> Dict:
+                              data_iso: str = None, ja_comptats: set | None = None) -> Dict:
         analisi = self.analitzar_disponibilitat_sessio(sessio, dia, hora, sessions_slot, hores_override=hores_override, data_iso=data_iso)
         resultat_scoring = calcular_cost_slot(
             sessio=sessio, dia=dia, hora=hora, analisi=analisi, restriccions=self.restriccions,
             sessions_dia=sessions_dia, sessions_slot=sessions_slot, include_limit_dies=False,
-            data_iso=data_iso or ""
+            data_iso=data_iso or "", ja_comptats=ja_comptats
         )
         breakdown = resultat_scoring.get('breakdown', {})
         subs_professors = [i['professor'] for i in analisi.get('substitucions', []) if i.get('professor')]
@@ -653,16 +653,21 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             except ValueError:
                 return prefix, None
 
+        # Professors ja comptats a cada franja (un que vigila dos exàmens alhora
+        # deixa una sola classe)
+        comptats_slot = defaultdict(set)
         sessions_per_dia = defaultdict(list)   # keyed per dia-nom: per professor limit functions
         data_sessions = defaultdict(list)       # keyed per data ISO o dia-nom: per no_mateix_dia
         total_assignades, cost_total = 0, 0
 
         for it in items_fixes + items_flex:
-            millor_s, min_p = None, float('inf')
+            millor_s, min_p, millors_comptats = None, float('inf'), None
             llista_slots = list(physical_slots)
             if estrategia != "greedy": random.shuffle(llista_slots)
 
             nivell_it = it['curs']
+            # On són les sessions ja col·locades (per a "Mateix dia i hora" entre nivells)
+            ubicacions = [(x['sessio'], k) for k, llista in slots.items() for x in llista]
             for sk in llista_slots:
                 _idx = sk.rfind('_')
                 prefix, hora = sk[:_idx], sk[_idx + 1:]
@@ -673,21 +678,26 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                     continue
 
                 p, possible = 0, True
+                comptats = set(comptats_slot[sk])
                 for s in it['sessions']:
                     if engine.check_hard(
                         s, dia, hora, prefix,
                         data_sessions[prefix], slots[sk], sessions_per_dia
                     ):
                         possible = False; break
-                    res_c = self._calcular_cost_sessio(s, dia, hora, sessions_dia=data_sessions[prefix], sessions_slot=slots[sk], data_iso=data_iso_sk)
+                    res_c = self._calcular_cost_sessio(s, dia, hora, sessions_dia=data_sessions[prefix], sessions_slot=slots[sk], data_iso=data_iso_sk, ja_comptats=comptats)
                     if res_c['cost_total'] >= DEFAULT_PES_RESTRICCIO_DURA: possible = False; break
                     p += res_c['cost_total']
+                    pct_pref = percent_pref_mateix_slot_violation(s, sk, ubicacions, self.restriccions)
+                    if pct_pref >= 100: possible = False; break
+                    p += _percent_penalty(DEFAULT_PES_RESTRICCIO_DURA, pct_pref)
                 if possible:
                     p += calcular_penalitzacio_professors_dies_item(it, dia, sessions_per_dia, self.restriccions)
 
-                if possible and p < min_p: min_p = p; millor_s = sk
+                if possible and p < min_p: min_p = p; millor_s = sk; millors_comptats = comptats
 
             if millor_s:
+                comptats_slot[millor_s] = millors_comptats
                 _idx_s = millor_s.rfind('_')
                 prefix_s = millor_s[:_idx_s]
                 dia_s, _ = _parse_prefix(prefix_s)

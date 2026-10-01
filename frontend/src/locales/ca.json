@@ -637,7 +637,17 @@
       "deleteFiltered": "Esborra els filtrats",
       "deleteAll": "Esborra-ho tot",
       "deleteFilteredConfirmMessage": "Vols eliminar les {count} assignacions que es mostren amb el filtre actual?",
-      "deleteAllConfirmMessage": "Vols eliminar TOTES les {count} assignacions? Aquesta acció no es pot desfer."
+      "deleteAllConfirmMessage": "Vols eliminar TOTES les {count} assignacions? Aquesta acció no es pot desfer.",
+      "obsolete": {
+        "text": "Hi ha {count} assignacions amb un grup o un titular que ja no són a l'horari vigent (probablement d'un curs anterior):",
+        "reason": {
+          "grup": "el grup ja no hi és",
+          "titular": "el titular ja no hi és"
+        },
+        "remove": "Treure-les",
+        "confirm": "Es treuran {count} assignacions que ja no corresponen a l'horari vigent. Les vigilàncies i substitucions fetes no es toquen.",
+        "removed": "S'han tret {count} assignacions"
+      }
     },
     "import": {
       "tabIntro": "Importa la configuració d'exàmens (nivells, grups, assignatures, aules i qui fa cada cosa) a partir de l'horari actiu, o des d'un CSV exportat abans.",
@@ -1394,7 +1404,8 @@
         "selectHour": "Selecciona una hora",
         "selectAtLeastTwoSubjects": "Selecciona almenys 2 assignatures",
         "writeGroupName": "Escriu el nom del grup",
-        "selectAtLeastOneSubject": "Selecciona almenys 1 assignatura"
+        "selectAtLeastOneSubject": "Selecciona almenys 1 assignatura",
+        "groupSingleLevel": "Una agrupació ha de ser d'exàmens d'un mateix nivell. Per a nivells diferents, fes servir {cami}."
       },
       "weights": {
         "restriccioDura": {
@@ -1427,7 +1438,14 @@
         "localChangesApplied": "Els canvis s'han aplicat localment",
         "notViable": "No viable",
         "notViableDetail": "{message} ({items} items > {slots} slots)"
-      }
+      },
+      "staleSubjects": {
+        "text": "Hi ha restriccions amb assignatures que ja no són a la configuració d'exàmens (d'un curs anterior o d'abans de canviar el nom d'un nivell) i no s'apliquen a cap examen:",
+        "remove": "Treure-les de les restriccions",
+        "removed": "S'han tret {count} assignatures de les restriccions"
+      },
+      "previousCourse": "Les dates triades són del curs {cursos}, anterior a l'actual ({actual}). El planificador fa servir la configuració d'exàmens del curs actual, i no es podrà publicar. Les vigilàncies de cursos anteriors es consulten a Vigilàncies.",
+      "lastResult": "Aquest és l'últim horari generat o modificat ({data}). Si has canviat la configuració o les dates, torna a generar."
     },
     "steps": {
       "config": {
@@ -1460,6 +1478,7 @@
         "subtitle": "Defineix els paquets que s'han de col·locar com una sola unitat.",
         "filterPlaceholder": "Selecciona nivell",
         "description": "Pots afegir assignatures soles o grups. Filtra per nivell per treballar més ràpid.",
+        "levelsHint": "Una agrupació ha de ser d'exàmens d'un mateix nivell. Per posar exàmens de nivells diferents al mateix moment, fes servir {cami}.",
         "ungroupedTitle": "Assignatures soltes (no agrupades)",
         "emptyMessage": "Cap agrupació definida",
         "columns": {

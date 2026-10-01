@@ -55,20 +55,25 @@ COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
 COOKIE_NAME = os.getenv("COOKIE_NAME", "gestor_token").strip() or "gestor_token"
 
 # Delegació del login: usuaris que no són d'aquesta instal·lació sinó d'una
-# altra servida al mateix domini (p.ex. una demo a /demo/). Si algú entra amb
-# un d'aquests noms, el login no valida res i indica on ha d'anar. Els noms
-# queden reservats: aquí mai no poden correspondre a cap usuari.
+# altra (p.ex. una demo). Si algú entra amb un d'aquests noms, el login no
+# valida res i indica on ha d'anar. Els noms queden reservats: aquí mai no
+# poden correspondre a cap usuari. La URL pot ser:
+#   - una ruta del mateix domini (p.ex. /demo/): el frontend hi entra amb les
+#     mateixes credencials;
+#   - una adreça https d'un altre (sub)domini: el frontend hi porta l'usuari,
+#     amb el nom ja escrit, però no hi envia la contrasenya.
 #   LOGIN_DELEGACIO_USUARIS=user_demo,admin_demo
-#   LOGIN_DELEGACIO_URL=/demo/
+#   LOGIN_DELEGACIO_URL=/demo/   o bé   https://demo.exemple.cat/
 LOGIN_DELEGACIO_USUARIS = frozenset(
     u.strip() for u in os.getenv("LOGIN_DELEGACIO_USUARIS", "").split(",") if u.strip()
 )
 LOGIN_DELEGACIO_URL = os.getenv("LOGIN_DELEGACIO_URL", "").strip()
-if LOGIN_DELEGACIO_USUARIS and not (LOGIN_DELEGACIO_URL.startswith("/")
-                                    and not LOGIN_DELEGACIO_URL.startswith("//")):
+_delegacio_ruta = LOGIN_DELEGACIO_URL.startswith("/") and not LOGIN_DELEGACIO_URL.startswith("//")
+_delegacio_https = LOGIN_DELEGACIO_URL.startswith("https://") and len(LOGIN_DELEGACIO_URL) > len("https://")
+if LOGIN_DELEGACIO_USUARIS and not (_delegacio_ruta or _delegacio_https):
     raise SystemExit(
-        "\nERROR: LOGIN_DELEGACIO_URL ha de ser una ruta del mateix domini "
-        "que comenci per '/' (p.ex. /demo/).\n"
+        "\nERROR: LOGIN_DELEGACIO_URL ha de ser una ruta del mateix domini que "
+        "comenci per '/' (p.ex. /demo/) o una adreça https (p.ex. https://demo.exemple.cat/).\n"
     )
 
 # Les contrasenyes no tenen valor per defecte a propòsit. Si no es defineixen

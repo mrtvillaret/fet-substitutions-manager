@@ -634,7 +634,17 @@
       "deleteFiltered": "Borrar filtradas",
       "deleteAll": "Borrar todo",
       "deleteFilteredConfirmMessage": "¿Quieres eliminar las {count} asignaciones que muestra el filtro actual?",
-      "deleteAllConfirmMessage": "¿Quieres eliminar TODAS las {count} asignaciones? Esta acción no se puede deshacer."
+      "deleteAllConfirmMessage": "¿Quieres eliminar TODAS las {count} asignaciones? Esta acción no se puede deshacer.",
+      "obsolete": {
+        "text": "Hay {count} asignaciones con un grupo o un titular que ya no están en el horario vigente (probablemente de un curso anterior):",
+        "reason": {
+          "grup": "el grupo ya no está",
+          "titular": "el titular ya no está"
+        },
+        "remove": "Quitarlas",
+        "confirm": "Se quitarán {count} asignaciones que ya no corresponden al horario vigente. Las vigilancias y sustituciones hechas no se tocan.",
+        "removed": "Se han quitado {count} asignaciones"
+      }
     },
     "import": {
       "tabIntro": "Importa la configuración de exámenes (niveles, grupos, asignaturas, aulas y quién hace cada cosa) a partir del horario activo, o desde un CSV exportado antes.",
@@ -1391,7 +1401,8 @@
         "selectHour": "Selecciona una hora",
         "selectAtLeastTwoSubjects": "Selecciona al menos 2 asignaturas",
         "writeGroupName": "Escribe el nombre del grupo",
-        "selectAtLeastOneSubject": "Selecciona al menos 1 asignatura"
+        "selectAtLeastOneSubject": "Selecciona al menos 1 asignatura",
+        "groupSingleLevel": "Una agrupación debe ser de exámenes de un mismo nivel. Para niveles distintos, usa {cami}."
       },
       "weights": {
         "restriccioDura": {
@@ -1424,7 +1435,14 @@
         "localChangesApplied": "Los cambios se han aplicado localmente",
         "notViable": "No viable",
         "notViableDetail": "{message} ({items} items > {slots} slots)"
-      }
+      },
+      "staleSubjects": {
+        "text": "Hay restricciones con asignaturas que ya no están en la configuración de exámenes (de un curso anterior o de antes de cambiar el nombre de un nivel) y no se aplican a ningún examen:",
+        "remove": "Quitarlas de las restricciones",
+        "removed": "Se han quitado {count} asignaturas de las restricciones"
+      },
+      "previousCourse": "Las fechas elegidas son del curso {cursos}, anterior al actual ({actual}). El planificador usa la configuración de exámenes del curso actual y no se podrá publicar. Las vigilancias de cursos anteriores se consultan en Vigilancias.",
+      "lastResult": "Este es el último horario generado o modificado ({data}). Si has cambiado la configuración o las fechas, vuelve a generar."
     },
     "steps": {
       "config": {
@@ -1457,6 +1475,7 @@
         "subtitle": "Define los paquetes que deben colocarse como una sola unidad.",
         "filterPlaceholder": "Selecciona nivel",
         "description": "Puedes añadir asignaturas sueltas o grupos. Filtra por nivel para trabajar más rápido.",
+        "levelsHint": "Una agrupación debe ser de exámenes de un mismo nivel. Para poner exámenes de niveles distintos en el mismo momento, usa {cami}.",
         "ungroupedTitle": "Asignaturas sueltas (no agrupadas)",
         "emptyMessage": "Ninguna agrupación definida",
         "columns": {

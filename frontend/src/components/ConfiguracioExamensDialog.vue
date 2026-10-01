@@ -260,6 +260,18 @@
         <!-- TAB 5: ASSIGNACIONS PROFESSOR-TITULAR -->
         <TabPanel :header="$t('examConfig.tabs.assignments')">
           <div class="tab-content-table">
+            <!-- Assignacions amb grups o titulars que ja no són a l'horari (curs anterior) -->
+            <Message v-if="assignacionsObsoletes.length" severity="warn" :closable="false" class="mb-3">
+              <div>{{ $t('examConfig.assignments.obsolete.text', { count: assignacionsObsoletes.length }) }}</div>
+              <ul class="my-2">
+                <li v-for="a in assignacionsObsoletes.slice(0, 10)" :key="a.id">
+                  {{ a.assignatura }} – {{ a.grup }}<span v-if="a.titular"> ({{ a.titular }})</span>:
+                  {{ a.motius.map(m => $t(`examConfig.assignments.obsolete.reason.${m}`)).join(', ') }}
+                </li>
+                <li v-if="assignacionsObsoletes.length > 10">…</li>
+              </ul>
+              <Button :label="$t('examConfig.assignments.obsolete.remove')" icon="pi pi-trash" size="small" severity="warning" @click="treureAssignacionsObsoletes" />
+            </Message>
             <!-- Filtres -->
             <div class="filtres-assignacions">
               <div class="filtre-group">
@@ -1335,7 +1347,38 @@ const carregarProfessors = async () => {
   }
 }
 
+// Assignacions amb grups o titulars que ja no són a l'horari vigent
+const assignacionsObsoletes = ref([])
+const carregarAssignacionsObsoletes = async () => {
+  try {
+    const response = await axios.get('/api/config/assignacions-obsoletes')
+    assignacionsObsoletes.value = response.data.assignacions || []
+  } catch (error) {
+    assignacionsObsoletes.value = []
+  }
+}
+const treureAssignacionsObsoletes = () => {
+  confirm.require({
+    message: t('examConfig.assignments.obsolete.confirm', { count: assignacionsObsoletes.value.length }),
+    header: t('common.confirmDelete'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.delete'),
+    rejectLabel: t('common.cancel'),
+    accept: async () => {
+      try {
+        const ids = assignacionsObsoletes.value.map(a => a.id)
+        const { data } = await axios.delete('/api/config/assignacions', { data: { ids } })
+        toast.add({ severity: 'success', summary: t('examConfig.assignments.obsolete.removed', { count: data.eliminades }), life: 3000 })
+        await carregarAssignacions()
+      } catch (error) {
+        toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 })
+      }
+    }
+  })
+}
+
 const carregarAssignacions = async () => {
+  carregarAssignacionsObsoletes()
   try {
     const response = await axios.get('/api/config/assignacions')
     assignacions.value = response.data.assignacions

@@ -20,6 +20,16 @@
     </div>
 
     <div class="step-content" v-if="config">
+      <!-- Dates d'un curs anterior -->
+      <Message v-if="(pasActiu === 0 || pasActiu === 4) && cursAnterior" severity="warn" :closable="false" class="mb-3">
+        {{ t('scheduler.view.previousCourse', { cursos: cursAnterior.cursos.join(', '), actual: cursAnterior.curs_actual }) }}
+      </Message>
+
+      <!-- Horari recuperat (l'últim generat o editat) -->
+      <Message v-if="pasActiu === 4 && result && result === resultatRecuperat" severity="info" :closable="false" class="mb-3">
+        {{ t('scheduler.view.lastResult', { data: ultimResultatDesat }) }}
+      </Message>
+
       <!-- PAS 0: CONFIGURACIÓ D'EXÀMENS PER NIVELL -->
       <SchedulerStepConfig
         v-if="pasActiu === 0"
@@ -43,6 +53,12 @@
       <Menu ref="menuFila" :model="menuFilaItems" :popup="true" />
       <Menu ref="menuColumna" :model="menuColumnaItems" :popup="true" />
       <ConfirmDialog />
+
+      <!-- Restriccions amb assignatures que ja no existeixen (curs anterior) -->
+      <Message v-if="(pasActiu === 1 || pasActiu === 2) && assignaturesInexistents.length" severity="warn" :closable="false" class="mb-3">
+        <div>{{ t('scheduler.view.staleSubjects.text') }} <strong>{{ assignaturesInexistents.join(', ') }}</strong></div>
+        <Button :label="t('scheduler.view.staleSubjects.remove')" icon="pi pi-trash" size="small" severity="warning" class="mt-2" @click="treureAssignaturesInexistents" />
+      </Message>
 
       <!-- PAS 1: AGRUPACIONS -->
       <SchedulerStepGroups

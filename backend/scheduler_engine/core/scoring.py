@@ -16,6 +16,48 @@ from scheduler_engine.defaults import (
     DEFAULT_PES_RESTRICCIO_VIOLADA,
 )
 
+# Camp de l'anàlisi de disponibilitat -> tipus de cost del professor
+TIPUS_COST_PROFESSOR = {
+    'substitucions': 'substitucio',
+    'abans_jornada': 'abans_jornada',
+    'despres_jornada': 'despres_jornada',
+    'no_treballa_dia': 'no_treballa_dia',
+}
+
+
+def pes_professor(restriccions: Dict, professor: str, tipus: str) -> int:
+    """Cost d'una incidència d'un professor: el seu cost individual si en té,
+    si no el global del centre."""
+    costos = restriccions.get('costos_professors') or {}
+    individual = (costos.get('individuals') or {}).get(professor) or {}
+    if tipus in individual:
+        return individual[tipus]
+    return (costos.get('globals') or {}).get(tipus, DEFAULT_COST_PROFESSORS[tipus])
+
+
+def costos_professors_analisi(analisi: Dict, hora: str, restriccions: Dict,
+                              ja_comptats: Optional[Set[tuple]] = None) -> Dict[tuple, int]:
+    """{(tipus, professor, hora): cost} de les incidències dels professors, una
+    sola vegada per professor i hora.
+
+    ja_comptats: claus ja comptades per altres exàmens de la mateixa franja. Un
+    professor que vigila dos exàmens alhora deixa una sola classe: no es torna
+    a comptar. Les claus noves s'hi afegeixen.
+    """
+    costos = {}
+    for camp, tipus in TIPUS_COST_PROFESSOR.items():
+        for item in analisi.get(camp, []):
+            if not isinstance(item, dict) or not item.get('professor'):
+                continue
+            clau = (tipus, item['professor'], item.get('hora', hora))
+            if clau in costos or (ja_comptats is not None and clau in ja_comptats):
+                continue
+            costos[clau] = pes_professor(restriccions, item['professor'], tipus)
+    if ja_comptats is not None:
+        ja_comptats.update(costos)
+    return costos
+
+
 def calcular_cost_slot(
     sessio: Union[Dict, Any],
     dia: str,
@@ -26,31 +68,19 @@ def calcular_cost_slot(
     sessions_slot: Optional[List[Union[Dict, Any]]] = None,
     include_limit_dies: bool = True,
     data_iso: str = "",
+    ja_comptats: Optional[Set[tuple]] = None,
 ) -> Dict:
     """
     Calcula el cost total i el desglossament de penalitzacions per col·locar 
     una sessió en un dia i hora concrets.
+
+    ja_comptats: veure costos_professors_analisi (per no comptar dues vegades
+    el mateix professor en exàmens de la mateixa franja).
     """
     pesos_opt = restriccions.get('pesos_optimitzacio', {})
-    costos_globals = (restriccions.get('costos_professors', {}) or {}).get('globals', {})
 
     pes_restriccio_dura = pesos_opt.get('restriccio_dura', DEFAULT_PES_RESTRICCIO_DURA)
     pes_restriccio_violada = pesos_opt.get('restriccio_dura_violada', DEFAULT_PES_RESTRICCIO_VIOLADA)
-
-    # Pesos de professors: només costos_professors (globals/individuals)
-    pes_substitucio = costos_globals.get('substitucio', DEFAULT_COST_PROFESSORS["substitucio"])
-    pes_abans = costos_globals.get('abans_jornada', DEFAULT_COST_PROFESSORS["abans_jornada"])
-    pes_despres = costos_globals.get('despres_jornada', DEFAULT_COST_PROFESSORS["despres_jornada"])
-    pes_no_treballa = costos_globals.get('no_treballa_dia', DEFAULT_COST_PROFESSORS["no_treballa_dia"])
-
-    # 1. Comptar incidències de professors
-    def _count_prof_hours(items: List[Dict], hora_slot: str) -> int:
-        return len({(i['professor'], i.get('hora', hora_slot)) for i in items})
-
-    count_subs = _count_prof_hours(analisi.get('substitucions', []), hora)
-    count_abans = _count_prof_hours(analisi.get('abans_jornada', []), hora)
-    count_despres = _count_prof_hours(analisi.get('despres_jornada', []), hora)
-    count_no_treballa = _count_prof_hours(analisi.get('no_treballa_dia', []), hora)
 
     # 2. Verificar professors amb horari estricte
     professors_estrictes = restriccions.get('restriccions_dures', {}).get('professors_horari_estricte', [])
@@ -75,18 +105,17 @@ def calcular_cost_slot(
             'professors_estrictes_violats': list(professors_estrictes_afectats)
         }
 
-    # 3. Calcular cost base (professors)
-    cost_base = (count_subs * pes_substitucio +
-                 count_abans * pes_abans +
-                 count_despres * pes_despres +
-                 count_no_treballa * pes_no_treballa)
-    
+    # 3. Cost dels professors (individual o global; un cop per professor i hora)
+    costos_prof = costos_professors_analisi(analisi, hora, restriccions, ja_comptats)
+    def _suma(tipus):
+        return sum(c for (t, _, _), c in costos_prof.items() if t == tipus)
     breakdown = {
-        'substitucio': count_subs * pes_substitucio,
-        'abans_jornada': count_abans * pes_abans,
-        'despres_jornada': count_despres * pes_despres,
-        'no_treballa': count_no_treballa * pes_no_treballa
+        'substitucio': _suma('substitucio'),
+        'abans_jornada': _suma('abans_jornada'),
+        'despres_jornada': _suma('despres_jornada'),
+        'no_treballa': _suma('no_treballa_dia'),
     }
+    cost_base = sum(breakdown.values())
 
     # 4. Calcular preferències d'alumnes (Mateix dia / Dies diferents / Mateix slot)
     cost_preferencies = 0
@@ -207,5 +236,6 @@ def calcular_cost_slot(
 
     return {
         'cost_total': cost_base + cost_preferencies + cost_restriccions,
-        'breakdown': breakdown
+        'breakdown': breakdown,
+        'costos_professors': costos_prof,
     }

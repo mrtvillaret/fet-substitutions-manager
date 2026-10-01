@@ -227,7 +227,7 @@ def _calcular_avisos_prioritat(
 
 
 @router.get("/{data}/validacions")
-async def validar_abans_pdf(
+def validar_abans_pdf(
     data: str,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
@@ -617,8 +617,10 @@ async def validar_abans_pdf(
         raise HTTPException(status_code=500, detail=f"Error en validar PDF: {str(e)}")
 
 
+# Les rutes que generen PDF són síncrones: FastAPI les atén en un fil a part i
+# el backend continua responent la resta de peticions mentre es generen.
 @router.get("/complete/{data}")
-async def generar_pdf_complet(
+def generar_pdf_complet(
     data: str,
     include_substitutions: bool = True,
     include_vigilancies: bool = True,
@@ -719,7 +721,7 @@ async def generar_pdf_complet(
             exporter._auto_compression_active = True
 
         # Obtenir conflictes i avisos
-        validacio_response = await validar_abans_pdf(data, db, current_user)
+        validacio_response = validar_abans_pdf(data, db, current_user)
         all_issues = []
         if show_conflicts:
             all_issues = (validacio_response.get("conflicts") or []) + (validacio_response.get("warnings") or [])
@@ -761,7 +763,7 @@ async def generar_pdf_complet(
 # ===== PDF VIGILÀNCIES =====
 
 @router.get("/vigilancies/interval")
-async def generar_pdf_interval(
+def generar_pdf_interval(
     data_inici: str,
     data_final: str,
     nivells: str = "",
@@ -925,7 +927,7 @@ async def generar_pdf_interval(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error en generar PDF interval: {str(e)}")
 @router.get("/vigilancies/{data}")
-async def generar_pdf_vigilancies(
+def generar_pdf_vigilancies(
     data: str,
     nivells: str = "",  # Comma-separated: "1-BATX,2-BATX"
     compress: bool = False,
@@ -1020,7 +1022,7 @@ async def generar_pdf_vigilancies(
 
 
 @router.post("/disponibles-tots-dies")
-async def generar_pdf_disponibles_tots_dies(
+def generar_pdf_disponibles_tots_dies(
     data_inici: Optional[str] = Body(None, embed=True),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)

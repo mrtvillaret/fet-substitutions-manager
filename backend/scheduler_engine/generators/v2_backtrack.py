@@ -17,7 +17,7 @@ from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso, DIES
 from scheduler_engine.core.constraints import (
     viola_restriccio_dura,
     es_item_compatible_amb_slot, percent_no_mateix_slot_violation,
-    _percent_penalty
+    percent_pref_mateix_slot_violation, _percent_penalty
 )
 from scheduler_engine.core.restriction_engine import RestrictionEngine
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
@@ -152,11 +152,15 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         items_info = []
         for item in items:
             slots_costs = {}
+            # Professors comptats a cada franja (per no tornar-los a comptar si un
+            # altre bloc de la mateixa franja els fa deixar la mateixa classe)
+            slots_claus = {}
             for sk in slots_disp:
                 _idx = sk.rfind('_')
                 prefix, h = sk[:_idx], sk[_idx + 1:]
                 d, data_iso_bt = _parse_prefix(prefix)  # d = dia_nom per restriccions
                 cost, possible = 0, True
+                claus = {}
                 for s in item['sessions']:
                     if engine.check_hard(s, d, h, prefix, [], [], {}):
                         possible = False
@@ -174,14 +178,16 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                     res_c = calcular_cost_slot(
                         sessio=s, dia=d, hora=h, analisi=analisi,
                         restriccions=self.restriccions, sessions_dia=[], sessions_slot=None,
-                        data_iso=data_iso_bt or ""
+                        data_iso=data_iso_bt or "", ja_comptats=set(claus)
                     )
                     if res_c['cost_total'] >= DEFAULT_PES_RESTRICCIO_DURA:
                         possible = False
                         break
                     cost += res_c['cost_total']
+                    claus.update(res_c.get('costos_professors') or {})
                 if possible:
                     slots_costs[sk] = cost
+                    slots_claus[sk] = claus
 
             if slots_costs:
                 nivell_mask = _get_nivell_mask(item['sessions'])
@@ -195,6 +201,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                     'item': item,
                     'millor_cost': millor,
                     'tots_slots': slots_costs,
+                    'claus_slot': slots_claus,
                     'slots_possibles': set(slots_costs.keys()),  # Per Forward Checking
                     'nivell_mask': nivell_mask,
                     '_rand': rng.random()
@@ -293,6 +300,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         # Estat mutable (undo/redo)
         slot_nivell_mask = {sk: 0 for sk in slots_disp}  # Bitmask de nivells ocupats per slot
         slot_items = {sk: [] for sk in slots_disp}       # Items assignats per slot (índexs)
+        slot_claus = {sk: Counter() for sk in slots_disp}  # Professors comptats per slot
         dia_sessions = defaultdict(list)    # keyed per dia-nom: usat per professor limit functions
         data_sessions = defaultdict(list)   # keyed per data ISO (o dia-nom si no hi ha ISO): usat per no_mateix_dia
         item_assigned_slot = [None] * num_items_valid     # Slot assignat a cada item
@@ -383,6 +391,10 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 rng.shuffle(top)
                 slots_to_try = top + slots_to_try[top_n:]
 
+            # On són les sessions ja col·locades (per a "Mateix dia i hora" entre nivells)
+            ubicacions = [(s, k) for k, idxs in slot_items.items()
+                          for i in idxs for s in items_info[i]['item']['sessions']]
+
             for sk, base_cost in slots_to_try:
                 # Verificar compatibilitat amb bitmask (O(1))
                 if slot_nivell_mask[sk] & nivell_mask:
@@ -423,9 +435,19 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                         pesos_opt = self.restriccions.get('pesos_optimitzacio', {})
                         pes_d = pesos_opt.get('restriccio_dura', DEFAULT_PES_RESTRICCIO_DURA)
                         cost_extra += _percent_penalty(pes_d, pct_slot)
+                    pct_pref = percent_pref_mateix_slot_violation(s, sk, ubicacions, self.restriccions)
+                    if pct_pref >= 100:
+                        possible = False
+                        break
+                    cost_extra += _percent_penalty(DEFAULT_PES_RESTRICCIO_DURA, pct_pref)
 
                 if not possible:
                     continue
+
+                # Un professor ja comptat a la franja per un altre bloc deixa la
+                # mateixa classe: no es torna a comptar
+                claus_item = it_info['claus_slot'].get(sk, {})
+                cost_extra -= sum(c for k, c in claus_item.items() if slot_claus[sk][k] > 0)
 
                 new_cost = cost_ac + base_cost + cost_extra
                 if new_cost >= millor_c[0]:
@@ -434,6 +456,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 # === ASSIGNAR (do) ===
                 slot_nivell_mask[sk] |= nivell_mask
                 slot_items[sk].append(idx)
+                slot_claus[sk].update(claus_item.keys())
                 item_assigned_slot[idx] = sk
                 for s in it_info['item']['sessions']:
                     dia_sessions[dia_s].append(s)
@@ -460,6 +483,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 undo_forward_check(fc_changes)
                 slot_nivell_mask[sk] ^= nivell_mask
                 slot_items[sk].pop()
+                slot_claus[sk].subtract(claus_item.keys())
                 item_assigned_slot[idx] = None
                 for s in it_info['item']['sessions']:
                     dia_sessions[dia_s].pop()

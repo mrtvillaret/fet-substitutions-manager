@@ -24,6 +24,9 @@
         </div>
       </div>
       <p class="text-xs text-color-secondary mt-0 mb-3 agrupacions-desc">{{ t('scheduler.steps.groups.description') }}</p>
+      <p class="text-xs text-color-secondary mt-0 mb-3 agrupacions-avis">
+        <i class="pi pi-info-circle mr-1"></i>{{ t('scheduler.steps.groups.levelsHint', { cami: camiMateixMoment }) }}
+      </p>
 
       <div class="mb-3 agrupacions-soltes-section">
         <div class="text-xs text-color-secondary mb-2">{{ t('scheduler.steps.groups.ungroupedTitle') }}</div>
@@ -56,6 +59,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
@@ -74,4 +78,11 @@ defineProps({
 
 const emit = defineEmits(['update:filtreNivellAgrupacio'])
 const { t } = useI18n()
+
+// On es configura "mateix moment" per a exàmens de nivells diferents
+const camiMateixMoment = computed(() => [
+  t('scheduler.view.steps.restrictions'),
+  t('scheduler.steps.restrictions.tabs.dayPreferences'),
+  `«${t('scheduler.steps.restrictions.dayPreferences.type.sameSlot')}»`
+].join(' → '))
 </script>

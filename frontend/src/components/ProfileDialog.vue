@@ -43,12 +43,11 @@
       <div class="field">
         <label for="current-password">{{ $t('profile.currentPassword') }}</label>
         <Password
-          id="current-password"
+          inputId="current-password"
           v-model="currentPassword"
           :feedback="false"
           toggleMask
-          autocomplete="new-password"
-          :inputProps="{ 'data-form-type': 'other', 'data-lpignore': 'true' }"
+          :inputProps="{ autocomplete: 'current-password', 'data-form-type': 'other', 'data-lpignore': 'true' }"
           class="w-full password-with-eye"
         />
       </div>
@@ -56,12 +55,11 @@
       <div class="field">
         <label for="new-password">{{ $t('profile.newPassword') }}</label>
         <Password
-          id="new-password"
+          inputId="new-password"
           v-model="newPassword"
           :feedback="false"
           toggleMask
-          autocomplete="new-password"
-          :inputProps="{ 'data-form-type': 'other', 'data-lpignore': 'true' }"
+          :inputProps="{ autocomplete: 'new-password', 'data-form-type': 'other', 'data-lpignore': 'true' }"
           class="w-full password-with-eye"
         />
       </div>
@@ -69,12 +67,11 @@
       <div class="field">
         <label for="confirm-password">{{ $t('profile.confirmPassword') }}</label>
         <Password
-          id="confirm-password"
+          inputId="confirm-password"
           v-model="confirmPassword"
           :feedback="false"
           toggleMask
-          autocomplete="new-password"
-          :inputProps="{ 'data-form-type': 'other', 'data-lpignore': 'true' }"
+          :inputProps="{ autocomplete: 'new-password', 'data-form-type': 'other', 'data-lpignore': 'true' }"
           class="w-full password-with-eye"
         />
       </div>

@@ -63,14 +63,88 @@ def _extract_assignatures_from_restriccions(restr: dict) -> set[str]:
         if isinstance(cfg, dict):
             resultat.update(cfg.get("assignatures", []) or [])
 
-    for item in preferencies.get("mateix_dia", []):
-        if isinstance(item, dict):
-            resultat.update(item.get("assignatures", []) or [])
-    for item in preferencies.get("dies_diferents", []):
-        if isinstance(item, dict):
-            resultat.update(item.get("assignatures", []) or [])
+    for tipus in ("combinacions_permeses", "assignatures_dies_exclosos", "assignatures_slot_prohibit"):
+        for item in dures.get(tipus, []) or []:
+            if isinstance(item, dict):
+                resultat.update(item.get("assignatures", []) or [])
+            elif isinstance(item, list):
+                resultat.update(item)
+
+    for tipus in ("mateix_dia", "dies_diferents", "mateix_slot"):
+        for item in preferencies.get(tipus, []):
+            if isinstance(item, dict):
+                resultat.update(item.get("assignatures", []) or [])
 
     return {a for a in resultat if a}
+
+
+def _treu_assignatures_de_restriccions(restr: dict, fora: set[str]) -> dict:
+    """Còpia de les restriccions sense les assignatures `fora` (p.ex. d'un curs
+    anterior). Les restriccions que es queden sense sentit s'eliminen: una
+    agrupació buida; una incompatibilitat, preferència o combinació amb menys
+    de dos exàmens; un examen fixat o un límit de professor sense exàmens."""
+    import copy
+    restr = copy.deepcopy(restr or {})
+    dures = restr.setdefault("restriccions_dures", {})
+    prefs = restr.setdefault("preferencies", {})
+
+    def neta(llista):
+        return [a for a in (llista or []) if a not in fora]
+
+    def amb_llista(item, minim):
+        """Item (dict amb 'assignatures' o llista) net, o None si queda massa curt."""
+        if isinstance(item, dict):
+            abans = item.get("assignatures", []) or []
+            ara = neta(abans)
+            if len(ara) < min(minim, len(abans)):
+                return None
+            return dict(item, assignatures=ara)
+        if isinstance(item, list):
+            ara = neta(item)
+            return ara if len(ara) >= min(minim, len(item)) else None
+        return None if item in fora else item
+
+    if "mateix_slot" in dures:
+        dures["mateix_slot"] = [i for i in (amb_llista(x, 1) for x in dures["mateix_slot"]) if i]
+    if "no_mateix_dia" in dures:
+        dures["no_mateix_dia"] = [i for i in (amb_llista(x, 2) for x in dures["no_mateix_dia"]) if i]
+    for tipus, minim in (("combinacions_permeses", 2), ("assignatures_dies_exclosos", 1),
+                         ("assignatures_slot_prohibit", 1)):
+        if tipus in dures:
+            dures[tipus] = [i for i in (amb_llista(x, minim) for x in dures[tipus] or []) if i]
+
+    if isinstance(dures.get("no_mateix_slot"), dict):
+        nou = {}
+        for nom, grup in dures["no_mateix_slot"].items():
+            if nom.startswith("_") or not isinstance(grup, list):
+                continue
+            ara = neta(grup)
+            if len(ara) >= min(2, len(grup)):
+                nou[nom] = ara
+                if f"_pes_{nom}" in dures["no_mateix_slot"]:
+                    nou[f"_pes_{nom}"] = dures["no_mateix_slot"][f"_pes_{nom}"]
+        dures["no_mateix_slot"] = nou
+
+    for tipus in ("assignatures_dia_fix", "assignatures_hora_fix"):
+        if isinstance(dures.get(tipus), dict):
+            dures[tipus] = {k: v for k, v in dures[tipus].items()
+                            if (k[5:] if k.startswith("_pes_") else k) not in fora}
+
+    if isinstance(dures.get("professors_limit_dies_especifics"), dict):
+        nou = {}
+        for prof, cfg in dures["professors_limit_dies_especifics"].items():
+            if isinstance(cfg, dict) and cfg.get("assignatures"):
+                ara = neta(cfg["assignatures"])
+                if not ara:
+                    continue
+                cfg = dict(cfg, assignatures=ara)
+            nou[prof] = cfg
+        dures["professors_limit_dies_especifics"] = nou
+
+    for tipus in ("mateix_dia", "dies_diferents", "mateix_slot"):
+        if tipus in prefs:
+            prefs[tipus] = [i for i in (amb_llista(x, 2) for x in prefs[tipus]) if i]
+    return restr
 
 
 def _selected_dates_from_alliberaments(

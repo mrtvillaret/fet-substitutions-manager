@@ -18,10 +18,14 @@ DEFAULT_COST_PROFESSORS = {
 }
 
 # Paràmetres Simulated Annealing (motor V3)
-# factor_refredament=0.9 → refredament molt ràpid; T inicial alta (8000) compensa amb bona exploració inicial
-# 0.9^passos: 8000→0.01 en ~107 passos → amb 500 iter/T = 53500 iteracions efectives
+# La temperatura inicial ha d'anar d'acord amb els costos: una substitució en
+# val 80. Amb 8000 la primera part de la cerca acceptava qualsevol canvi i, en
+# un problema ajustat (molts exàmens per poques franges i incompatibilitats),
+# acabava en horaris pitjors: amb la configuració de la demo, cost mitjà 226
+# (8000) davant de 98 (100), en el mateix temps. Els reinicis: veure
+# REINICIS i SEGONS_MAXIMS_REINICIS a generators/v3_sa.py.
 DEFAULT_SA_PARAMS = {
-    "temperatura_inicial": 8000.0,
+    "temperatura_inicial": 100.0,
     "temperatura_final": 0.01,
     "factor_refredament": 0.9,
     "iteracions_per_temperatura": 500,

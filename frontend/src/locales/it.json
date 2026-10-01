@@ -637,7 +637,17 @@
       "deleteFiltered": "Elimina filtrate",
       "deleteAll": "Elimina tutte",
       "deleteFilteredConfirmMessage": "Eliminare le {count} assegnazioni mostrate con il filtro attuale?",
-      "deleteAllConfirmMessage": "Eliminare TUTTE le {count} assegnazioni? Questa azione non può essere annullata."
+      "deleteAllConfirmMessage": "Eliminare TUTTE le {count} assegnazioni? Questa azione non può essere annullata.",
+      "obsolete": {
+        "text": "Ci sono {count} assegnazioni con un gruppo o un titolare che non sono più nell'orario vigente (probabilmente di un anno precedente):",
+        "reason": {
+          "grup": "il gruppo non c'è più",
+          "titular": "il titolare non c'è più"
+        },
+        "remove": "Rimuoverle",
+        "confirm": "Verranno rimosse {count} assegnazioni che non corrispondono più all'orario vigente. Le sorveglianze e sostituzioni già fatte non vengono toccate.",
+        "removed": "Rimosse {count} assegnazioni"
+      }
     },
     "import": {
       "tabIntro": "Importa la configurazione degli esami (livelli, gruppi, materie, aule e chi insegna cosa) dall'orario attivo, oppure da un CSV esportato in precedenza.",
@@ -1394,7 +1404,8 @@
         "selectHour": "Seleziona un'ora",
         "selectAtLeastTwoSubjects": "Seleziona almeno 2 materie",
         "writeGroupName": "Inserisci il nome del gruppo",
-        "selectAtLeastOneSubject": "Seleziona almeno 1 materia"
+        "selectAtLeastOneSubject": "Seleziona almeno 1 materia",
+        "groupSingleLevel": "Un raggruppamento deve contenere esami di un solo livello. Per livelli diversi, usa {cami}."
       },
       "weights": {
         "restriccioDura": {
@@ -1427,7 +1438,14 @@
         "localChangesApplied": "Le modifiche sono state applicate localmente",
         "notViable": "Non fattibile",
         "notViableDetail": "{message} ({items} elementi > {slots} fasce)"
-      }
+      },
+      "staleSubjects": {
+        "text": "Alcune restrizioni contengono materie che non sono più nella configurazione degli esami (di un anno precedente o di prima di rinominare un livello) e non si applicano a nessun esame:",
+        "remove": "Rimuoverle dalle restrizioni",
+        "removed": "{count} materie rimosse dalle restrizioni"
+      },
+      "previousCourse": "Le date scelte sono dell'anno {cursos}, precedente a quello attuale ({actual}). Il pianificatore usa la configurazione degli esami dell'anno attuale e non si potrà pubblicare. Le sorveglianze degli anni precedenti si consultano in Sorveglianze.",
+      "lastResult": "Questo è l'ultimo orario generato o modificato ({data}). Se hai cambiato la configurazione o le date, rigenera."
     },
     "steps": {
       "config": {
@@ -1460,6 +1478,7 @@
         "subtitle": "Definisci i pacchetti da posizionare come un'unica unità.",
         "filterPlaceholder": "Seleziona livello",
         "description": "Puoi aggiungere materie singole o gruppi. Filtra per livello per lavorare più velocemente.",
+        "levelsHint": "Un raggruppamento deve contenere esami di un solo livello. Per mettere esami di livelli diversi nello stesso momento, usa {cami}.",
         "ungroupedTitle": "Materie singole (non raggruppate)",
         "emptyMessage": "Nessun raggruppamento definito",
         "columns": {

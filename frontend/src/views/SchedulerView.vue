@@ -11,6 +11,7 @@ import Steps from 'primevue/steps'
 import Button from 'primevue/button'
 import Toast from 'primevue/toast'
 import Menu from 'primevue/menu'
+import Message from 'primevue/message'
 import ConfirmDialog from 'primevue/confirmdialog'
 import PublicarVigilanciesDialog from '../components/PublicarVigilanciesDialog.vue'
 import SchedulerDialogs from './scheduler/steps/SchedulerDialogs.vue'
@@ -280,6 +281,67 @@ const pinnedNoms = computed(() => {
   }
   return noms
 })
+
+// Assignatures de les restriccions que ja no són a la configuració d'exàmens
+// (p.ex. d'un curs anterior): no s'apliquen a cap examen
+const assignaturesInexistents = ref([])
+const carregarAssignaturesInexistents = async () => {
+  try {
+    const { data } = await axios.get('/api/scheduler/restriccions')
+    assignaturesInexistents.value = data.assignatures_inexistents || []
+  } catch (err) {
+    assignaturesInexistents.value = []
+  }
+}
+const treureAssignaturesInexistents = async () => {
+  try {
+    const { data } = await axios.post('/api/scheduler/restriccions/treure-inexistents')
+    aplicarRestriccions(data.restriccions)
+    assignaturesInexistents.value = []
+    toast.add({ severity: 'success', summary: t('scheduler.view.staleSubjects.removed', { count: data.trets.length }), life: 4000 })
+  } catch (err) {
+    toast.add({ severity: 'error', summary: t('common.error') })
+  }
+}
+
+// L'últim horari generat o editat: el backend el recorda, i en tornar a la
+// pantalla (o des d'un altre ordinador) es recupera si no n'hi ha cap a la vista
+const resultatRecuperat = ref(null)
+const ultimResultatDesat = ref(null)
+const recuperarUltimResultat = async () => {
+  if (result.value) return
+  try {
+    const { data } = await axios.get('/api/scheduler/ultim-resultat')
+    if (data?.resultat?.horari?.dies?.length && !result.value) {
+      result.value = data.resultat
+      resultatRecuperat.value = data.resultat
+      ultimResultatDesat.value = new Date(data.desat).toLocaleString(locale.value)
+    }
+  } catch (err) {
+    // Sense horari recuperat, la pantalla funciona igual
+  }
+}
+
+// Dates d'un curs anterior: la configuració d'exàmens és la del curs actual
+// (el backend tampoc deixa publicar-hi)
+const cursAnterior = ref(null)
+let temporitzadorCurs = null
+watch(selectedDates, (dates) => {
+  clearTimeout(temporitzadorCurs)
+  temporitzadorCurs = setTimeout(async () => {
+    const llista = (dates || []).map(formatLocalDate)
+    if (!llista.length) {
+      cursAnterior.value = null
+      return
+    }
+    try {
+      const { data } = await axios.get('/api/scheduler/curs-dates', { params: { dates: llista.join(',') } })
+      cursAnterior.value = data.curs_anterior
+    } catch (err) {
+      cursAnterior.value = null
+    }
+  }, 300)
+}, { deep: true })
 
 const onPinChanged = async () => {
   try {
@@ -863,7 +925,8 @@ const {
 })
 
 onMounted(() => {
-  carregarDades()
+  carregarDades().then(recuperarUltimResultat)
+  carregarAssignaturesInexistents()
   nextTick(() => requestAnimationFrame(() => centerActiveStep('auto')))
   window.addEventListener('resize', onStepperResize)
 })

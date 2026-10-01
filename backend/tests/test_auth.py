@@ -484,16 +484,34 @@ def test_sense_configuracio_no_hi_ha_delegacio(client, escenari):
     assert resp.status_code == 401
 
 
-@pytest.mark.parametrize("url", ["https://una-altra-web.exemple", "//una-altra-web.exemple", "demo/"])
-def test_la_url_de_delegacio_ha_de_ser_del_mateix_domini(url):
+def _importa_config_amb_delegacio(url):
     import os
     import subprocess
     import sys
     entorn = {**os.environ, "LOGIN_DELEGACIO_USUARIS": "user_demo", "LOGIN_DELEGACIO_URL": url}
-    res = subprocess.run([sys.executable, "-c", "import config.auth"], env=entorn,
-                         cwd=str(Path(__file__).resolve().parents[1]), capture_output=True, text=True)
+    return subprocess.run([sys.executable, "-c", "import config.auth"], env=entorn,
+                          cwd=str(Path(__file__).resolve().parents[1]), capture_output=True, text=True)
+
+
+@pytest.mark.parametrize("url", ["http://demo.exemple", "//una-altra-web.exemple", "demo/", "javascript:alert(1)"])
+def test_la_url_de_delegacio_ha_de_ser_una_ruta_o_una_adreca_https(url):
+    res = _importa_config_amb_delegacio(url)
     assert res.returncode != 0
     assert "LOGIN_DELEGACIO_URL" in res.stderr
+
+
+@pytest.mark.parametrize("url", ["/demo/", "https://demo.gestor.exemple/"])
+def test_la_delegacio_pot_ser_al_mateix_domini_o_a_un_subdomini(url):
+    assert _importa_config_amb_delegacio(url).returncode == 0
+
+
+def test_la_delegacio_a_una_altra_adreca_indica_l_adreca(client, escenari, monkeypatch):
+    # Una demo en un subdomini: el frontend hi porta l'usuari sense enviar-hi la contrasenya
+    monkeypatch.setattr(auth, "LOGIN_DELEGACIO_USUARIS", frozenset({"user_demo"}))
+    monkeypatch.setattr(auth, "LOGIN_DELEGACIO_URL", "https://demo.gestor.exemple/")
+    resp = client.post("/api/login", json={"username": "user_demo", "password": "qualsevol"})
+    assert resp.json() == {"ok": False, "redirect": "https://demo.gestor.exemple/"}
+    assert COOKIE_NAME not in client.cookies
 
 
 # ------------------------------------------------------ nom de la galeta

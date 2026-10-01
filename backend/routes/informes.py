@@ -414,7 +414,7 @@ def _get_hores_xml(institucio: str) -> list:
 
 
 @router.get("/direccio")
-async def informe_direccio(
+def informe_direccio(
     data_inici: str = Query(...),
     data_final: str = Query(...),
     current_user=Depends(require_admin),
@@ -447,7 +447,7 @@ async def informe_direccio(
 
 
 @router.get("/professor")
-async def informe_professor(
+def informe_professor(
     data_inici: str = Query(...),
     data_final: str = Query(...),
     professor: str = Query(default=None),

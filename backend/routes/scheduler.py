@@ -1,6 +1,7 @@
 from pathlib import Path
 from collections import defaultdict
 import json
+import re
 import os
 import tempfile
 from datetime import datetime
@@ -10,7 +11,7 @@ from fastapi.responses import FileResponse
 
 from auth_utils import require_admin
 from database import get_data_db_session
-from repositories import MasterConfigRepository, ConfiguracioExamenRepository, ConfiguracioRepository, VigilanciaRepository, GrupsAlliberatsRepository, parse_date
+from repositories import MasterConfigRepository, ConfiguracioExamenRepository, ConfiguracioRepository, VigilanciaRepository, GrupsAlliberatsRepository, CursRepository, parse_date
 from helpers import get_xml_path_for_date
 from models import ExamCostProfessor, ExamRestriccio, Vigilancia, Substitucio, GrupAlliberat, Nivell, Grup, AbreviaturaGrup
 from schemas import SchedulerGenerateRequest, SchedulerDatesRequest, SchedulerRestriccionsRequest, SchedulerPinRequest, SchedulerPublicarRequest, HorariRecalcularRequest
@@ -32,6 +33,7 @@ from routes.scheduler_helpers import (
     _nivells_master,
     _detectar_nivell,
     _extract_assignatures_from_restriccions,
+    _treu_assignatures_de_restriccions,
     _selected_dates_from_alliberaments,
     _normalitzar_hora,
     _hores_lectives_des_de_xml,
@@ -160,9 +162,14 @@ async def scheduler_config(current_user=Depends(require_admin)):
                 {"nom": "", "assignatures": [sessio], "durada": dur, "durada_examen": dur}
                 for sessio, dur in durades_per_sessio_antic.items()
             ]
+    nivells = list(master.get("nivells", {}).keys())
+    # La selecció desada pot ser d'un horari anterior: els nivells que ja no
+    # existeixen sortirien al selector com a `null` i amb pestanyes pròpies.
+    n = [nivell for nivell in n if nivell in nivells]
+    alliberaments = {nivell: v for nivell, v in alliberaments.items() if nivell in nivells}
     h, hpn = extreure_hores_examen_des_alliberaments(alliberaments)
     return {
-        "nivells": list(master.get("nivells", {}).keys()),
+        "nivells": nivells,
         "assignacions_total": len(assignacions),
         "hores_examen": h,
         "durada_titular": d,
@@ -183,12 +190,58 @@ async def scheduler_config_update(payload: dict, current_user=Depends(require_ad
         if "durades_grups" in payload: ConfiguracioRepository.set(db, SCHEDULER_DURADES_GRUPS_KEY, json.dumps(payload["durades_grups"]), tipus="json")
     return {"success": True}
 
+def _assignatures_inexistents(db, restr: dict) -> list[str]:
+    """Assignatures de les restriccions que no són a la configuració d'exàmens
+    actual (p.ex. d'un curs anterior o d'abans de canviar el nom d'un nivell).
+    Un nom sense nivell ("Anglès") val si hi ha aquesta assignatura a algun nivell."""
+    assignacions = ConfiguracioExamenRepository.get_all(db)
+    actuals = set(_build_assignatures_options(assignacions, _nivells_master(db)))
+    actuals |= {a.get("assignatura") if isinstance(a, dict) else a.assignatura for a in assignacions}
+    return sorted(n for n in _extract_assignatures_from_restriccions(restr) if n not in actuals)
+
+
 @router.get("/restriccions")
 async def scheduler_restriccions(current_user=Depends(require_admin)):
-    with get_data_db_session(current_user.institucio) as db: return {"restriccions": _build_restriccions_from_db(db)}
+    with get_data_db_session(current_user.institucio) as db:
+        restr = _build_restriccions_from_db(db)
+        return {"restriccions": restr, "assignatures_inexistents": _assignatures_inexistents(db, restr)}
+
+
+@router.post("/restriccions/treure-inexistents")
+async def scheduler_treure_assignatures_inexistents(current_user=Depends(require_admin)):
+    """Treu de les restriccions les assignatures que ja no existeixen."""
+    with get_data_db_session(current_user.institucio) as db:
+        restr = _build_restriccions_from_db(db)
+        trets = _assignatures_inexistents(db, restr)
+        if trets:
+            _save_restriccions_to_db(db, _treu_assignatures_de_restriccions(restr, set(trets)))
+        return {"trets": trets, "restriccions": _build_restriccions_from_db(db)}
+
+def _agrupacions_amb_diversos_nivells(restriccions: dict) -> list:
+    """Noms de les agrupacions (mateix_slot) amb exàmens de més d'un nivell.
+
+    Els motors col·loquen cada agrupació dins d'un nivell; per a exàmens de
+    nivells diferents al mateix moment hi ha la preferència "Mateix dia i hora".
+    El nivell és el sufix del nom de la sessió: "Anglès (1-BAT)" -> "1-BAT".
+    """
+    barrejades = []
+    for grup in (restriccions.get("restriccions_dures") or {}).get("mateix_slot") or []:
+        assignatures = grup.get("assignatures", []) if isinstance(grup, dict) else grup
+        nivells = {m.group(1) for a in assignatures or []
+                   if isinstance(a, str) and (m := re.search(r"\(([^()]+)\)\s*$", a))}
+        if len(nivells) > 1:
+            barrejades.append((grup.get("nom") if isinstance(grup, dict) else "") or ", ".join(assignatures))
+    return barrejades
+
 
 @router.put("/restriccions")
 async def scheduler_restriccions_update(payload: SchedulerRestriccionsRequest, current_user=Depends(require_admin)):
+    barrejades = _agrupacions_amb_diversos_nivells(payload.restriccions or {})
+    if barrejades:
+        raise HTTPException(status_code=400, detail=(
+            f"Una agrupació ha de ser d'exàmens d'un mateix nivell: {', '.join(barrejades)}. "
+            "Per posar exàmens de nivells diferents al mateix moment, feu servir la preferència "
+            "\"Mateix dia i hora\"."))
     with get_data_db_session(current_user.institucio) as db:
         try:
             _save_restriccions_to_db(db, payload.restriccions or {})
@@ -377,23 +430,78 @@ async def scheduler_dates_update(payload: SchedulerDatesRequest, current_user=De
 async def get_scheduler_sessions_info(nivells: str = None, current_user=Depends(require_admin)):
     with get_data_db_session(current_user.institucio) as db:
         assignacions = ConfiguracioExamenRepository.get_all(db)
-        restr = _build_restriccions_from_db(db)
         nivells_master = _nivells_master(db)
     filtre = nivells.split(',') if nivells else []
-    extra = _extract_assignatures_from_restriccions(restr)
-    return _build_assignatures_options(assignacions, nivells_master, only_nivells=filtre, extra=extra)
+    # Només les assignatures actuals: les de restriccions antigues es mostren a
+    # part (GET /restriccions → assignatures_inexistents)
+    return _build_assignatures_options(assignacions, nivells_master, only_nivells=filtre)
 
 @router.get("/assignatures-actives")
 async def get_assignatures_actives(current_user=Depends(require_admin)):
     with get_data_db_session(current_user.institucio) as db:
         assignacions = ConfiguracioExamenRepository.get_all(db)
-        restr = _build_restriccions_from_db(db)
         nivells_master = _nivells_master(db)
-    extra = _extract_assignatures_from_restriccions(restr)
-    return _build_assignatures_options(assignacions, nivells_master, extra=extra)
+    return _build_assignatures_options(assignacions, nivells_master)
 
+# L'últim horari generat (o editat a mà): el planificador el recorda en tornar
+# a la pantalla, des de qualsevol ordinador. Es desa en generar i en recalcular
+# el cost després d'una edició.
+SCHEDULER_ULTIM_RESULTAT_KEY = "scheduler_ultim_resultat"
+
+
+def _desa_ultim_resultat(institucio: str, horari: dict, dies_utilitzar: list | None = None) -> None:
+    if not isinstance(horari, dict) or not horari.get("dies"):
+        return  # un intent no viable no substitueix l'últim horari bo
+    with get_data_db_session(institucio) as db:
+        if dies_utilitzar is None:
+            anterior = _load_json(ConfiguracioRepository.get(db, SCHEDULER_ULTIM_RESULTAT_KEY), {}) or {}
+            dies_utilitzar = (anterior.get("resultat") or {}).get("dies_utilitzar")
+        from fastapi.encoders import jsonable_encoder
+        ConfiguracioRepository.set(db, SCHEDULER_ULTIM_RESULTAT_KEY, json.dumps(jsonable_encoder({
+            "desat": datetime.now().isoformat(timespec="seconds"),
+            "resultat": {"dies_utilitzar": dies_utilitzar, "horari": horari},
+        }), ensure_ascii=False), tipus="json")
+
+
+@router.get("/ultim-resultat")
+async def scheduler_ultim_resultat(current_user=Depends(require_admin)):
+    """L'últim horari generat o editat ({desat, resultat}), o null."""
+    with get_data_db_session(current_user.institucio) as db:
+        return _load_json(ConfiguracioRepository.get(db, SCHEDULER_ULTIM_RESULTAT_KEY), None)
+
+
+def _cursos_anteriors(db, dates: list[str]) -> dict | None:
+    """Si alguna data és d'un curs anterior a l'actual, {cursos, curs_actual}.
+
+    La configuració d'exàmens i les restriccions són les del curs actual: amb
+    dates d'un curs anterior es barrejarien amb l'horari d'aquell curs, i
+    publicar escriuria vigilàncies damunt de l'històric. Sense cursos definits
+    no es comprova res.
+    """
+    from datetime import date as _date
+    actual = CursRepository.get_for_date(db, _date.today().isoformat())
+    if not actual:
+        return None
+    anteriors = set()
+    for data in dates:
+        curs = CursRepository.get_for_date(db, data)
+        if curs is None or curs.data_inici < actual.data_inici:
+            anteriors.add(curs.nom if curs else "anterior al primer curs")
+    return {"cursos": sorted(anteriors), "curs_actual": actual.nom} if anteriors else None
+
+
+@router.get("/curs-dates")
+async def scheduler_curs_dates(dates: str = "", current_user=Depends(require_admin)):
+    """Avís si les dates (separades per comes) són d'un curs anterior."""
+    llista = [d for d in dates.split(",") if d]
+    with get_data_db_session(current_user.institucio) as db:
+        return {"curs_anterior": _cursos_anteriors(db, llista)}
+
+
+# Les rutes que executen el motor (segons) són síncrones: FastAPI les atén en
+# un fil a part i el backend continua responent la resta de peticions.
 @router.post("/generate")
-async def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
+def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
     with get_data_db_session(current_user.institucio) as db:
         assignacions = ConfiguracioExamenRepository.get_all(db)
         config = _build_config_from_db(assignacions)
@@ -484,10 +592,8 @@ async def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Dep
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as res_f: json.dump(restriccions, res_f, ensure_ascii=False); res_p = res_f.name
 
     try:
-        import io, sys
-        from contextlib import redirect_stdout
-        f = io.StringIO()
-        with redirect_stdout(f):
+        from captura_sortida import captura_stdout
+        with captura_stdout() as f:
             motor = (payload.motor or "v3").lower()
 
             # Crear motor via factory (elimina duplicació de constructor)
@@ -625,7 +731,7 @@ async def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Dep
                     meta_h["viable"] = False
                     meta_h["error"] = "No s'han pogut col·locar tots els exàmens"
 
-        # FORA del redirect_stdout - validació post-generació
+        # FORA de la captura - validació post-generació
         if horari and "metadata" in horari:
             meta = horari.get('metadata', {})
 
@@ -671,6 +777,7 @@ async def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Dep
             seen = set()
             horari["metadata"]["logs"] = [l for l in raw_logs if not (l in seen or seen.add(l))]
 
+        _desa_ultim_resultat(current_user.institucio, horari, dies_util)
         return {"dies_utilitzar": dies_util, "horari": horari}
     finally:
         for p in (cfg_p, res_p):
@@ -679,7 +786,7 @@ async def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Dep
 
 
 @router.post("/analisi")
-async def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
+def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
     with get_data_db_session(current_user.institucio) as db:
         assignacions = ConfiguracioExamenRepository.get_all(db)
         config = _build_config_from_db(assignacions)
@@ -785,7 +892,7 @@ async def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depe
 
 
 @router.post("/analisi/pdf")
-async def scheduler_analisi_pdf(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
+def scheduler_analisi_pdf(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
     with get_data_db_session(current_user.institucio) as db:
         assignacions = ConfiguracioExamenRepository.get_all(db)
         config = _build_config_from_db(assignacions)
@@ -925,6 +1032,16 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
     if not setmanes:
         raise HTTPException(status_code=400, detail="Cal indicar almenys una setmana amb dates")
 
+    dates_horari = [d.get('data') for d in horari['dies'] if isinstance(d, dict) and d.get('data')]
+    dates_horari += [v for setmana in setmanes for v in setmana.values() if isinstance(v, str)]
+    with get_data_db_session(current_user.institucio) as db:
+        anterior = _cursos_anteriors(db, dates_horari)
+    if anterior:
+        raise HTTPException(status_code=400, detail=(
+            f"Les dates són del curs {', '.join(anterior['cursos'])}, anterior a l'actual "
+            f"({anterior['curs_actual']}). El planificador fa servir la configuració d'exàmens del "
+            "curs actual; les vigilàncies de cursos anteriors es consulten a Vigilàncies."))
+
     # Carregar hores lectives del centre (per expandir durada)
     totes_hores = []
     # Trobar la primera data per carregar l'XML
@@ -960,6 +1077,9 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
     grups_alliberats_creats = 0
     titulars_assignats = 0
     errors = []
+    # (data, hora) on s'ha esborrat alguna vigilància: cal refrescar-ne les
+    # cobertures de classe dels vigilants (com fa esborrar-la a vigilàncies).
+    hores_amb_vigilancies_esborrades = set()
 
     with get_data_db_session(current_user.institucio) as db:
         alliberaments_raw = ConfiguracioRepository.get(db, SCHEDULER_ALLIBERAMENTS_KEY)
@@ -1011,6 +1131,8 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
             try:
                 # Mode forçat: esborra tot i recrea (opció d'emergència)
                 if opcions.netejar_existents:
+                    for (hora_esborrada,) in db.query(Vigilancia.hora).filter(Vigilancia.data == data_parsed).distinct():
+                        hores_amb_vigilancies_esborrades.add((data_iso, hora_esborrada))
                     deleted = db.query(Vigilancia).filter(
                         Vigilancia.data == data_parsed
                     ).delete(synchronize_session=False)
@@ -1090,6 +1212,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
                 # Eliminar NOMÉS les d'aquests nivells que ja no estan a l'horari
                 for clau, v in existing_vigs.items():
                     if clau not in noves_claus:
+                        hores_amb_vigilancies_esborrades.add((data_iso, v.hora))
                         db.delete(v)
                         vigilancies_eliminades += 1
 
@@ -1169,6 +1292,9 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
             db.rollback()
         else:
             db.commit()
+            from routes.vigilancies import _refresh_vigilancia_substitucions
+            for data_iso, hora in sorted(hores_amb_vigilancies_esborrades):
+                _refresh_vigilancia_substitucions(data_iso, hora, db)
 
     return {
         "success": len(errors) == 0,
@@ -1192,7 +1318,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
 # ===== RECALCULAR COST (EDITOR INTERACTIU) =====
 
 @router.post("/recalcular-cost")
-async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(require_admin)):
+def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(require_admin)):
     """
     Recalcula el cost d'un horari modificat sense regenerar.
     Usat per l'editor interactiu de drag-and-drop.
@@ -1335,6 +1461,7 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
 
     # Recalcular cost amb el mòdul d'estadístiques
     from scheduler_engine.estadistiques import recalcular_cost_i_breakdown
+    from scheduler_engine.core.scoring import pes_professor
     from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
     from scheduler_engine.core.durada import get_durada_per_nivell, get_durada_per_sessio_key, detectar_nivell_sessio
     from scheduler_engine.validacio import ValidadorHorari
@@ -1399,12 +1526,6 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
             if conflicte_nivell:
                 conflicte_global = True
 
-            # Obtenir pesos de la configuració
-            costos_globals = restriccions.get('costos_professors', {}).get('globals', {})
-            pes_substitucio = costos_globals.get('substitucio', DEFAULT_COST_PROFESSORS['substitucio'])
-            pes_abans = costos_globals.get('abans_jornada', DEFAULT_COST_PROFESSORS['abans_jornada'])
-            pes_despres = costos_globals.get('despres_jornada', DEFAULT_COST_PROFESSORS['despres_jornada'])
-            pes_no_treballa = costos_globals.get('no_treballa_dia', DEFAULT_COST_PROFESSORS['no_treballa_dia'])
 
             # Calcular cost del slot i avisos (recalculant anàlisi per evitar duplicats)
             cost_slot = 0
@@ -1476,7 +1597,7 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                         assig = act.get('assignatura', 'Assignatura')
                         grp = act.get('grup', 'un grup')
                         msg = f"🚨 {prof} → ha de ser SUBSTITUÏT a {assig} amb {grp} a les {hora_item} el {dia_nom}"
-                        avisos_item.append(_log_with_score(msg, pes_substitucio))
+                        avisos_item.append(_log_with_score(msg, pes_professor(restriccions, prof, 'substitucio')))
 
                     for item in analisi.get('abans_jornada', []):
                         prof = item.get('professor')
@@ -1489,7 +1610,7 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                         seen_item.add(key)
                         primera = item.get('primera_hora', '?')
                         msg = f"🕐 {prof} → arriba abans a {hora_item} el {dia_nom} (primera hora: {primera})"
-                        avisos_item.append(_log_with_score(msg, pes_abans))
+                        avisos_item.append(_log_with_score(msg, pes_professor(restriccions, prof, 'abans_jornada')))
 
                     for item in analisi.get('despres_jornada', []):
                         prof = item.get('professor')
@@ -1502,7 +1623,7 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                         seen_item.add(key)
                         ultima = item.get('ultima_hora', '?')
                         msg = f"🕐 {prof} → queda més estona a {hora_item} el {dia_nom} (última hora: {ultima})"
-                        avisos_item.append(_log_with_score(msg, pes_despres))
+                        avisos_item.append(_log_with_score(msg, pes_professor(restriccions, prof, 'despres_jornada')))
 
                     for item in analisi.get('no_treballa_dia', []):
                         prof = item.get('professor')
@@ -1514,7 +1635,7 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                             continue
                         seen_item.add(key)
                         msg = f"🚫 {prof} → no treballa aquest dia a les {hora_item} el {dia_nom}"
-                        avisos_item.append(_log_with_score(msg, pes_no_treballa))
+                        avisos_item.append(_log_with_score(msg, pes_professor(restriccions, prof, 'no_treballa_dia')))
 
                     if avisos_item:
                         for k in item_keys:
@@ -1530,12 +1651,12 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                     if key in seen_subs:
                         continue
                     seen_subs.add(key)
-                    cost_slot += pes_substitucio
+                    cost_slot += pes_professor(restriccions, prof, 'substitucio')
                     act = item.get('activitat', {})
                     assig = act.get('assignatura', 'Assignatura')
                     grp = act.get('grup', 'un grup')
                     msg = f"🚨 {prof} → ha de ser SUBSTITUÏT a {assig} amb {grp} a les {hora_item} el {dia_nom}"
-                    avisos.append(_log_with_score(msg, pes_substitucio))
+                    avisos.append(_log_with_score(msg, pes_professor(restriccions, prof, 'substitucio')))
 
                 for item in analisi.get('abans_jornada', []):
                     prof = item.get('professor')
@@ -1546,10 +1667,10 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                     if key in seen_abans:
                         continue
                     seen_abans.add(key)
-                    cost_slot += pes_abans
+                    cost_slot += pes_professor(restriccions, prof, 'abans_jornada')
                     primera = item.get('primera_hora', '?')
                     msg = f"🕐 {prof} → arriba abans a {hora_item} el {dia_nom} (primera hora: {primera})"
-                    avisos.append(_log_with_score(msg, pes_abans))
+                    avisos.append(_log_with_score(msg, pes_professor(restriccions, prof, 'abans_jornada')))
 
                 for item in analisi.get('despres_jornada', []):
                     prof = item.get('professor')
@@ -1560,10 +1681,10 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                     if key in seen_despres:
                         continue
                     seen_despres.add(key)
-                    cost_slot += pes_despres
+                    cost_slot += pes_professor(restriccions, prof, 'despres_jornada')
                     ultima = item.get('ultima_hora', '?')
                     msg = f"🕐 {prof} → queda més estona a {hora_item} el {dia_nom} (última hora: {ultima})"
-                    avisos.append(_log_with_score(msg, pes_despres))
+                    avisos.append(_log_with_score(msg, pes_professor(restriccions, prof, 'despres_jornada')))
 
                 for item in analisi.get('no_treballa_dia', []):
                     prof = item.get('professor')
@@ -1574,9 +1695,9 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                     if key in seen_no_treballa:
                         continue
                     seen_no_treballa.add(key)
-                    cost_slot += pes_no_treballa
+                    cost_slot += pes_professor(restriccions, prof, 'no_treballa_dia')
                     msg = f"🚫 {prof} → no treballa aquest dia a les {hora_item} el {dia_nom}"
-                    avisos.append(_log_with_score(msg, pes_no_treballa))
+                    avisos.append(_log_with_score(msg, pes_professor(restriccions, prof, 'no_treballa_dia')))
 
             if conflicte_nivell:
                 avisos.insert(0, "⚠️ CONFLICTE: Múltiples exàmens del mateix nivell!")
@@ -1626,6 +1747,18 @@ async def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends
                 detalls.append(f"{professor} +{excedent}")
         if detalls:
             breakdown_details["limit_dies_professor"] = detalls
+
+    # L'horari editat a mà passa a ser l'últim, amb el cost i les incidències nous
+    horari_desat = dict(horari, metadata={
+        **(horari.get('metadata') or {}),
+        "cost_total": cost_info.get('cost_total', 0),
+        "logs": validation_result.get("logs", []),
+        "total_substitucions": cost_info.get('total_substitucions', 0),
+        "professors_abans": cost_info.get('professors_abans', 0),
+        "professors_despres": cost_info.get('professors_despres', 0),
+        "professors_no_treballa": cost_info.get('professors_no_treballa', 0),
+    })
+    _desa_ultim_resultat(current_user.institucio, horari_desat)
 
     return {
         "cost_total": cost_info.get('cost_total', 0),

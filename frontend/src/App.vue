@@ -19,13 +19,14 @@
           </div>
           <div class="login-field">
             <label for="login-pass">{{ $t('app.login.password') }}</label>
+            <!-- PrimeVue posa id i autocomplete al contenidor: al camp hi van per inputId i inputProps -->
             <Password
-              id="login-pass"
+              inputId="login-pass"
               v-model="loginPass"
               :feedback="false"
               class="w-full password-with-eye"
               toggleMask
-              autocomplete="current-password"
+              :inputProps="{ autocomplete: 'current-password' }"
             />
           </div>
 
@@ -383,7 +384,9 @@ const mostrarEstadistiques = ref(false)
 const mostrarAjuda = ref(false)
 const mostrarPerfil = ref(false)
 const mostrarMenuMobil = ref(false)
-const loginUser = ref('')
+// Si s'arriba des del login d'una altra instal·lació (delegació a una demo en
+// un subdomini), el nom d'usuari ja ve escrit; la contrasenya no viatja mai
+const loginUser = ref(new URLSearchParams(window.location.search).get('usuari') || '')
 const loginPass = ref('')
 const loginError = ref('')
 const loginLoading = ref(false)
@@ -545,6 +548,14 @@ const ferLogin = async () => {
       // /demo/): s'hi entra amb les mateixes credencials i s'hi va.
       await axios.post(`${delegacio.replace(/\/$/, '')}/api/login`, credencials, { baseURL: '' })
       window.location.href = delegacio
+      return
+    }
+    if (delegacio && delegacio.startsWith('https://')) {
+      // Instal·lació en un altre (sub)domini: s'hi porta l'usuari amb el nom ja
+      // escrit, però la contrasenya no s'envia a un altre lloc.
+      const desti = new URL(delegacio)
+      desti.searchParams.set('usuari', credencials.username)
+      window.location.href = desti.toString()
       return
     }
     aplicarToken()

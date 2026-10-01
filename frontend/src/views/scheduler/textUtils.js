@@ -41,7 +41,8 @@ const INCIDENT_KIND = {
 
 const INCIDENT_RULES = [
   { kind: INCIDENT_KIND.link, includes: ['enllac'] },
-  { kind: INCIDENT_KIND.conflict, includes: ['conflicte', 'simultani'] },
+  // Un professor amb exàmens de nivells diferents alhora (l'"AVÍS" del backend)
+  { kind: INCIDENT_KIND.conflict, includes: ['conflicte', 'simultani', 'nivells diferents'] },
   { kind: INCIDENT_KIND.substitution, includes: ['substitu'] },
   { kind: INCIDENT_KIND.arriveEarly, includes: ['arriba abans'] },
   { kind: INCIDENT_KIND.stayLate, includes: ['queda mes estona'] },

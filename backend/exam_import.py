@@ -10,6 +10,7 @@ Regles:
 - Sense grup, no hi ha proposta: una activitat sense `Students` associats
   (guàrdies, pati, reunions...) no pot ser una sessió d'examen.
 - Nivell d'un grup -> el prefix abans del sufix final de lletres ("1-ESO-A" -> "1-ESO")
+- Grups junts sense abreviatura ("1-BAT-A,1-BAT-B") -> el nivell comú ("1-BAT")
 - Grup "nu" (igual al seu nivell, p.ex. "1-BATX" sense sufix): es proposa tal
   qual (grup=nivell="1-BATX"). No s'intenta endevinar cap grup combinat ja
   configurat (en general, en una importació nova, encara no n'hi ha cap) —
@@ -31,7 +32,15 @@ def normalitza_assignatura(subject: str) -> str:
 
 
 def deriva_nivell(grup: str) -> str:
-    """Nivell d'un codi de grup: '1-ESO-A' -> '1-ESO'; '1-BATX' -> '1-BATX'."""
+    """Nivell d'un codi de grup: '1-ESO-A' -> '1-ESO'; '1-BATX' -> '1-BATX'.
+
+    Una classe amb alumnes de diversos grups sense abreviatura definida
+    ('1-BAT-A,1-BAT-B') té el nivell comú dels grups ('1-BAT'); si no en
+    tenen cap de comú, es deixa tal qual.
+    """
+    if "," in grup:
+        nivells = {deriva_nivell(part.strip()) for part in grup.split(",") if part.strip()}
+        return nivells.pop() if len(nivells) == 1 else grup
     m = _GRUP_LLETRES_PATTERN.match(grup)
     if m:
         return m.group(1)

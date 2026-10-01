@@ -253,6 +253,16 @@ export const useSchedulerRestrictions = ({
     if (!form.assignatures || form.assignatures.length < 1) {
       return toast.add({ severity: 'warn', summary: t('scheduler.view.validations.selectAtLeastOneSubject') })
     }
+    // Els motors col·loquen cada agrupació dins d'un nivell ("Anglès (1-BAT)" -> 1-BAT)
+    const nivells = new Set(form.assignatures.map((a) => /\(([^()]+)\)\s*$/.exec(a)?.[1]).filter(Boolean))
+    if (nivells.size > 1) {
+      const cami = [
+        t('scheduler.view.steps.restrictions'),
+        t('scheduler.steps.restrictions.tabs.dayPreferences'),
+        `«${t('scheduler.steps.restrictions.dayPreferences.type.sameSlot')}»`
+      ].join(' → ')
+      return toast.add({ severity: 'warn', summary: t('scheduler.view.validations.groupSingleLevel', { cami }), life: 8000 })
+    }
 
     const payload = {
       id: agrupacioEditantId.value || buildId(),
@@ -414,7 +424,8 @@ export const useSchedulerRestrictions = ({
       await axios.put('/api/scheduler/costos-professors', costosProfessors.value)
       if (!silent) toast.add({ severity: 'success', summary: t('common.saved') })
     } catch (error) {
-      toast.add({ severity: 'error', summary: t('common.error') })
+      const detall = error.response?.status === 400 ? error.response.data?.detail : null
+      toast.add({ severity: 'error', summary: t('common.error'), detail: typeof detall === 'string' ? detall : undefined })
     } finally {
       savingRestr.value = false
     }

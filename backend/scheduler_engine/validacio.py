@@ -175,7 +175,8 @@ class ValidadorHorari:
                                 pct = percent_no_mateix_slot(self.restriccions, nom_grup)
                                 score_avis = max(score_avis, _percent_penalty(self.pes_restriccio_dura, pct))
                         self.logs.add(_log_with_score(msg, score_avis if score_avis else None))
-                        msg_enllac = f"🔗 ENLLAÇ: {prof} → gestiona {len(assignatures_uniques)} exàmens de nivells diferents a {slot.get('hora')} el {dia.get('dia')}: {', '.join(assignatures_uniques)}"
+                        # Un examen per assignatura i nivell (Filosofia de 1r i de 2n en són dos)
+                        msg_enllac = f"🔗 ENLLAÇ: {prof} → gestiona {len(parelles)} exàmens de nivells diferents a {slot.get('hora')} el {dia.get('dia')}: {detalls}"
                         self.logs.add(_log_with_score(msg_enllac, 0))
 
     def _detectar_conflictes_alumnes(self):
@@ -392,10 +393,55 @@ class ValidadorHorari:
                     self.logs.add(_log_with_score(msg, score))
 
     def _generar_logs_incidencies(self):
-        """Genera logs d'incidències de professors (abans/després jornada, substitucions)."""
-        vistos_subs = set()
-        vistos_abans = set()
-        vistos_despres = set()
+        """Genera logs d'incidències de professors (abans/després jornada, substitucions).
+
+        Una sola línia per professor, dia i hora, amb tots els exàmens que la
+        provoquen: un professor que vigila dos exàmens alhora deixa una sola
+        classe. La puntuació és el cost del professor (individual o global),
+        la mateixa que compten els motors.
+        """
+        from scheduler_engine.core.scoring import pes_professor
+        incidencies = {}  # (tipus, prof, dia, franja, hora) -> {'item', 'dia', 'contextos'}
+        for dia in self.horari.get('dies', []):
+            clau_dia = dia.get('data') or dia['dia']
+            for slot in dia.get('sessions', []):
+                for sessio in slot.get('sessions_simultanees', []):
+                    an = sessio.get('analisi', {})
+                    sessio_nom = sessio.get('nom', '')
+                    sessio_curs = sessio.get('curs', '')
+                    examen_ctx = (
+                        f"({sessio_nom})->{sessio_curs}" if sessio_nom and sessio_curs
+                        else f"({sessio_nom})" if sessio_nom
+                        else f"->{sessio_curs}" if sessio_curs
+                        else ""
+                    )
+                    for tipus, camp in (('abans_jornada', 'abans_jornada'), ('despres_jornada', 'despres_jornada'),
+                                        ('substitucio', 'substitucions')):
+                        for item in an.get(camp, []):
+                            prof = item.get('professor', 'Desconegut')
+                            hora_item = item.get('hora', slot['hora'])
+                            # Per franja, com el cost (costos_professors_analisi)
+                            entrada = incidencies.setdefault((tipus, prof, clau_dia, slot['hora'], hora_item),
+                                                             {'item': item, 'dia': dia['dia'], 'contextos': []})
+                            if examen_ctx and examen_ctx not in entrada['contextos']:
+                                entrada['contextos'].append(examen_ctx)
+
+        for (tipus, prof, _, _, hora_item), entrada in incidencies.items():
+            item, nom_dia = entrada['item'], entrada['dia']
+            ctx = f" {', '.join(sorted(entrada['contextos']))}" if entrada['contextos'] else ""
+            punts = pes_professor(self.restriccions, prof, tipus)
+            if tipus == 'abans_jornada':
+                msg = f"🕐 {prof}{ctx} → arriba abans a {hora_item} el {nom_dia} (primera hora: {item.get('primera_hora', '?')})"
+            elif tipus == 'despres_jornada':
+                msg = f"🕐 {prof}{ctx} → queda més estona a {hora_item} el {nom_dia} (última hora: {item.get('ultima_hora', '?')})"
+            else:
+                act = item.get('activitat', {})
+                assig = act.get('assignatura', 'Assignatura')
+                if assig in self.no_subst:
+                    continue
+                msg = f"🚨 {prof}{ctx} → ha de ser SUBSTITUÏT a {assig} amb {act.get('grup', 'un grup')} a les {hora_item} el {nom_dia}"
+            self.logs.add(_log_with_score(msg, punts))
+
         for dia in self.horari.get('dies', []):
             for slot in dia.get('sessions', []):
                 for sessio in slot.get('sessions_simultanees', []):
@@ -408,39 +454,6 @@ class ValidadorHorari:
                         else f" ->{sessio_curs}" if sessio_curs
                         else ""
                     )
-
-                    for item in an.get('abans_jornada', []):
-                        hora_item = item.get('hora', slot['hora'])
-                        key = (item.get('professor'), dia['dia'], hora_item, sessio_nom)
-                        if key in vistos_abans:
-                            continue
-                        vistos_abans.add(key)
-                        msg = f"🕐 {item['professor']}{examen_ctx} → arriba abans a {hora_item} el {dia['dia']} (primera hora: {item.get('primera_hora', '?')})"
-                        self.logs.add(_log_with_score(msg, self.pes_abans))
-
-                    for item in an.get('despres_jornada', []):
-                        hora_item = item.get('hora', slot['hora'])
-                        key = (item.get('professor'), dia['dia'], hora_item, sessio_nom)
-                        if key in vistos_despres:
-                            continue
-                        vistos_despres.add(key)
-                        msg = f"🕐 {item['professor']}{examen_ctx} → queda més estona a {hora_item} el {dia['dia']} (última hora: {item.get('ultima_hora', '?')})"
-                        self.logs.add(_log_with_score(msg, self.pes_despres))
-
-                    for item in an.get('substitucions', []):
-                        prof = item.get('professor', 'Desconegut')
-                        act = item.get('activitat', {})
-                        assig = act.get('assignatura', 'Assignatura')
-                        grp = act.get('grup', 'un grup')
-                        hora_item = item.get('hora', slot['hora'])
-                        key = (prof, dia['dia'], hora_item, sessio_nom)
-                        if key in vistos_subs:
-                            continue
-                        vistos_subs.add(key)
-                        if assig not in self.no_subst:
-                            msg = f"🚨 {prof}{examen_ctx} → ha de ser SUBSTITUÏT a {assig} amb {grp} a les {hora_item} el {dia['dia']}"
-                            self.logs.add(_log_with_score(msg, self.pes_sub))
-
                     vistos_zona = set()
                     for item in an.get('zona_examen', []):
                         prof = item.get('professor', 'Desconegut')

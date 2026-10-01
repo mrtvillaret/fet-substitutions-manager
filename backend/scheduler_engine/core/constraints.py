@@ -291,6 +291,23 @@ def percent_no_mateix_dia_violation(sessio: Dict, sessions_dia: List[Dict], rest
                     return _percent_value(pes)
     return 0
 
+def percent_pref_mateix_slot_violation(sessio: Dict, slot_key: str, ubicacions: List[tuple], restriccions: Dict) -> int:
+    """Percentatge de la preferència "Mateix dia i hora" que es violaria posant
+    la sessió a slot_key perquè alguna companya ja està col·locada en un altre
+    moment (0 si cap). ubicacions: [(sessió, slot_key)] de les ja col·locades.
+    Les companyes poden ser d'altres nivells: per això no n'hi ha prou de mirar
+    les sessions del mateix dia."""
+    pct = 0
+    for pref in (restriccions.get('preferencies') or {}).get('mateix_slot', []):
+        grup = pref.get('assignatures', []) if isinstance(pref, dict) else pref
+        if not sessio_in_group(sessio, grup):
+            continue
+        for altra, sk in ubicacions:
+            if sk != slot_key and sessio_in_group(altra, grup) and altra.get('nom') != sessio.get('nom'):
+                pct = max(pct, _percent_value(pref.get('pes', 0) if isinstance(pref, dict) else 0))
+                break
+    return pct
+
 def percent_no_mateix_slot_violation(sessio: Dict, sessions_slot: List[Dict], restriccions: Dict) -> int:
     """Retorna el percentatge de la violació no_mateix_slot (0 si no hi ha conflicte)."""
     if not sessions_slot:
