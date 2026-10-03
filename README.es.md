@@ -83,7 +83,7 @@ Para el mapa de dependencias completo, ver [ARQUITECTURA.md](ARQUITECTURA.md)
 
 Para probar la aplicación con los datos de ejemplo incluidos, sin Docker ni dominio.
 
-**Requisitos:** Python 3.10+ y Node.js 18+
+**Requisitos:** Python 3.10+ y Node.js 22+
 
 ### 1. Clonar
 

@@ -81,7 +81,7 @@ For the full dependency map see [ARQUITECTURA.md](ARQUITECTURA.md) (in Catalan).
 
 To try the app with the bundled sample data, without Docker or a domain.
 
-**Requirements:** Python 3.10+ and Node.js 18+
+**Requirements:** Python 3.10+ and Node.js 22+
 
 ### 1. Clone
 
