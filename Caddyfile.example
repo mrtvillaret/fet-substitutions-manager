@@ -1,3 +1,16 @@
+{
+    # Log intern de Caddy: hi van, entre altres, les peticions que no són de
+    # cap lloc (robots que proven l'adreça del servidor). Tampoc amb la IP sencera.
+    log default {
+        format filter {
+            request>remote_ip ip_mask 24 48
+            request>client_ip ip_mask 24 48
+            request>headers>X-Forwarded-For delete
+            wrap json
+        }
+    }
+}
+
 el-teu-domini.exemple.com {
     encode zstd gzip
 
@@ -6,19 +19,26 @@ el-teu-domini.exemple.com {
     # Sense aquest bloc, l'únic registre de peticions són els logs del
     # contenidor (`docker compose logs`), que es perden cada cop que es
     # reconstrueix la imatge — és a dir, a cada desplegament. Escriure'l a un
-    # volum del host permet revisar a posteriori qui ha accedit al sistema.
+    # volum del host permet revisar a posteriori l'activitat del servidor.
     # El `docker-compose.yml.example` ja hi munta `./logs/caddy`.
     #
-    # Nota: aquests registres contenen adreces IP, que són dades personals.
-    # Aquí es conserven 90 dies (2160 h): ajusteu el termini al que decidiu al
-    # vostre centre, o comenteu aquest bloc si no els voleu desar.
+    # Les adreces IP es desen escapçades (vegeu `format filter`), de manera que
+    # el registre no identifica ningú. Es conserva 90 dies (2160 h): ajusteu el
+    # termini al que decidiu al vostre centre, o comenteu aquest bloc.
     log {
         output file /var/log/caddy/access.log {
             roll_size 10MiB
             roll_keep 10
             roll_keep_for 2160h
         }
-        format json
+        # Sense l'adreça IP sencera: només la xarxa (83.45.127.19 → 83.45.127.0),
+        # que no identifica ningú i permet comptar visites aproximades.
+        format filter {
+            request>remote_ip ip_mask 24 48
+            request>client_ip ip_mask 24 48
+            request>headers>X-Forwarded-For delete
+            wrap json
+        }
     }
 
     header {
