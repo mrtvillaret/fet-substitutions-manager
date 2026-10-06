@@ -1,10 +1,11 @@
 """
-Routes per grups sense classe (grups alliberats):
-- GET: Obtenir grups sense classe per una data
-- PUT: Desar grups sense classe per una data
+Routes per grups sense classe (grups alliberats) i professors alliberats:
+- GET: Obtenir grups sense classe i professors alliberats per una data
+- PUT: Desar-los per una data
 """
 
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Dict
 from datetime import datetime
@@ -12,10 +13,16 @@ from datetime import datetime
 from dependencies import get_db
 from repositories import GrupsAlliberatsRepository
 from helpers import get_gestors
+from core.alliberats import clau_professor, nomes_grups, professors_de
 
 from config.settings import config
 
 router = APIRouter(prefix="/api/grups", tags=["Grups Sense Classe"])
+
+
+class AlliberatsDia(BaseModel):
+    grups: Dict[str, List[str]] = {}       # {hora: [grups sense classe]}
+    professors: Dict[str, List[str]] = {}  # {hora: [professors alliberats]}
 
 
 @router.get("/{data}")
@@ -40,14 +47,39 @@ async def obtenir_grups_sense_classe(data: str, db: Session = Depends(get_db)):
         # Obtenir hores del dia (sense Pati)
         hores = [h for h in horari.hores if h != "Pati"]
 
-        # Carregar grups alliberats des de SQLite
-        grups_per_hora = GrupsAlliberatsRepository.get_by_date(db, data)
+        # Carregar grups alliberats des de SQLite (inclou els professors alliberats)
+        alliberats_per_hora = GrupsAlliberatsRepository.get_by_date(db, data)
+
+        # Grups que a una hora tenen classe amb més d'un professor (p.ex. una
+        # optativa): només en aquests té sentit alliberar un professor sol. Si
+        # n'hi ha un de sol, alliberar-lo és deixar el grup sense classe.
+        dia = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+        professors_per_grup_hora = {}
+        grups_visibles = set(tots_grups)
+        for hora in hores:
+            per_grup = {}
+            for professor in sorted(horari.professors):
+                activitat = horari.get_activitat(dia, hora, professor) or {}
+                grup = activitat.get("grup", "")
+                if grup in grups_visibles and activitat.get("assignatura"):
+                    per_grup.setdefault(grup, []).append(professor)
+            compartits = {grup: profs for grup, profs in per_grup.items() if len(profs) > 1}
+            if compartits:
+                professors_per_grup_hora[hora] = compartits
 
         # Retornar en format esperat pel frontend
         return {
             "hores": hores,
             "grups_disponibles": tots_grups,
-            "grups_seleccionats_per_hora": grups_per_hora
+            "grups_seleccionats_per_hora": {
+                hora: nomes_grups(valors) for hora, valors in alliberats_per_hora.items()
+                if nomes_grups(valors)
+            },
+            "professors_per_grup_hora": professors_per_grup_hora,
+            "professors_alliberats_per_hora": {
+                hora: professors_de(valors) for hora, valors in alliberats_per_hora.items()
+                if professors_de(valors)
+            },
         }
 
     except Exception as e:
@@ -57,7 +89,7 @@ async def obtenir_grups_sense_classe(data: str, db: Session = Depends(get_db)):
 
 
 @router.put("/{data}")
-async def desar_grups_sense_classe(data: str, grups_per_hora: Dict[str, List[str]], db: Session = Depends(get_db)):
+async def desar_grups_sense_classe(data: str, payload: AlliberatsDia, db: Session = Depends(get_db)):
     """
     Desa grups sense classe per una data (SQLite)
 
@@ -65,14 +97,29 @@ async def desar_grups_sense_classe(data: str, grups_per_hora: Dict[str, List[str
     perquè canviar els grups sense classe afecta quines substitucions són necessàries.
 
     Args:
-        grups_per_hora: Dict[hora, List[grups]]
+        payload.grups: Dict[hora, List[grups]]
+        payload.professors: Dict[hora, List[professors]] (alliberats sense el seu grup)
     """
     try:
         datetime.strptime(data, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=400, detail="Format de data invàlid")
 
+    # Els professors alliberats es desen a la mateixa llista per hora que els
+    # grups, amb un prefix (veure core/alliberats.py).
+    grups_per_hora = {}
+    for hora, grups in payload.grups.items():
+        valors = [g.strip() for g in nomes_grups(grups) if g and g.strip()]
+        if valors:
+            grups_per_hora[hora] = valors
+    for hora, professors in payload.professors.items():
+        claus = [clau_professor(p.strip()) for p in professors if p and p.strip()]
+        if claus:
+            grups_per_hora.setdefault(hora, []).extend(dict.fromkeys(claus))
+
     try:
+        # Les hores que es desmarquen també s'han de reconciliar
+        hores_anteriors = set(GrupsAlliberatsRepository.get_by_date(db, data).keys())
         GrupsAlliberatsRepository.set_for_date(db, data, grups_per_hora)
 
         # 🔧 IMPORTANT: Regenerar substitucions pendents després de canviar grups sense classe
@@ -104,7 +151,7 @@ async def desar_grups_sense_classe(data: str, grups_per_hora: Dict[str, List[str
                 for vigs in vig_dict.values() for v in vigs
                 if (v.get("hora") or "").strip()
             }
-            hores_afectades = hores_amb_vig | {h.strip() for h in grups_per_hora.keys() if h.strip()}
+            hores_afectades = hores_amb_vig | {h.strip() for h in (set(grups_per_hora) | hores_anteriors) if h.strip()}
             for hora in hores_afectades:
                 _refresh_vigilancia_substitucions(data, hora, db)
         except Exception as e:
@@ -115,7 +162,8 @@ async def desar_grups_sense_classe(data: str, grups_per_hora: Dict[str, List[str
             "success": True,
             "message": f"Grups sense classe actualitzats per {data}",
             "total_hores": len(grups_per_hora),
-            "total_grups": sum(len(grups) for grups in grups_per_hora.values())
+            "total_grups": sum(len(nomes_grups(v)) for v in grups_per_hora.values()),
+            "total_professors": sum(len(professors_de(v)) for v in grups_per_hora.values())
         }
 
     except Exception as e:

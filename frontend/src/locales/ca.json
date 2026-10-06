@@ -38,7 +38,7 @@
     },
     "tabs": {
       "substitucions": "Substitucions",
-      "grups": "Grups sense classe",
+      "grups": "Grups i professors alliberats",
       "vigilancies": "Vigilàncies"
     }
   },
@@ -96,6 +96,8 @@
     "unsavedChangesTitle": "Canvis sense desar",
     "unsavedChangesPrompt": "Hi ha canvis sense desar. Vols tancar igualment?",
     "unsavedChangesSwitchDay": "Hi ha canvis sense desar. Vols descartar-los i canviar de dia?",
+    "unsavedChangesQuestion": "Hi ha canvis sense desar del {dia}. Vols desar-los?",
+    "dontSave": "No desis",
     "moreItems": "... i {count} més",
     "conflict": {
       "title": "Canvis detectats",
@@ -428,15 +430,19 @@
     }
   },
   "groups": {
-    "title": "🎓 Grups sense classe",
+    "title": "🎓 Grups i professors alliberats",
     "instructionsLine1": "Selecciona grups i hores específiques on NO tenen classe.",
     "instructionsLine2": "💡 Clica el nom del grup per marcar/desmarcar totes les hores.",
+    "instructionsTeachers": "👤 Si una franja té diversos professors (p.ex. una optativa), clica la icona per alliberar-ne només algun; el grup continua tenint classe.",
     "all": "Tots",
     "none": "Cap",
     "eso": "ESO",
     "batx": "Batx",
     "groupClass": "Grup/Classe",
     "summary": "Total: {groups} grups en {hours} hores",
+    "teachersTitle": "Professors alliberats",
+    "freeTeachersTitle": "Allibera només alguns professors",
+    "teachersHint": "Marca els professors que es queden sense alumnes. Compten com a alliberats per a substitucions i vigilàncies; la resta continua tenint classe.",
     "errors": {
       "load": "Error en carregar la configuració de grups",
       "save": "No s'ha pogut desar la configuració"

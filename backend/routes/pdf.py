@@ -23,6 +23,7 @@ from pathlib import Path
 from dependencies import get_db
 from auth_utils import get_current_user
 from helpers import get_gestors, get_horari
+from core.alliberats import clau_professor, sense_classe
 from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository, ConfiguracioRepository
 from export.pdf.engine import PDFCompletExporter
 from i18n_setup import translate
@@ -418,8 +419,8 @@ def validar_abans_pdf(
                         if not assignatura or not assignatura.strip():
                             continue
 
-                        # Comprovar si el grup està alliberat (fa examen)
-                        grup_alliberat = False
+                        # Comprovar si el grup està alliberat (fa examen) o ell ho està
+                        grup_alliberat = clau_professor(vigilant) in grups_alliberats_data.get(hora, [])
                         for grup_exam in grups_examen:
                             if grups_compatible(grup, grup_exam):
                                 grup_alliberat = True
@@ -479,7 +480,7 @@ def validar_abans_pdf(
             # Si NO té grup (Guàrdia-R, hores fora horari, etc.) → NO generar avís
             if (not substitut or substitut.strip() == "") and grup and grup.strip():
                 grups_hora = grups_alliberats_data.get(hora, [])
-                if grup not in grups_hora:
+                if not sense_classe(prof_absent, grup, grups_hora):
                     conflicts.append(translate("❌ {hora}: {prof_absent} ({assignatura}, {grup}) sense substitut").format(hora=hora, prof_absent=prof_absent, assignatura=assignatura, grup=grup))
 
         # 7. Detectar professors de baixa assignats com a vigilants o substituts
@@ -555,7 +556,7 @@ def validar_abans_pdf(
                                 for grup_alliberat in grups_alliberats_data[hora]:
                                     grups_examen_hora.add(grup_alliberat)
 
-                            grup_alliberat = False
+                            grup_alliberat = clau_professor(substitut) in grups_alliberats_data.get(hora, [])
                             for grup_exam in grups_examen_hora:
                                 if grups_compatible(grup_sub, grup_exam):
                                     grup_alliberat = True
@@ -676,7 +677,8 @@ def generar_pdf_complet(
                 elif grup and grup.strip():
                     # CAS 1: Té grup → comprovar si està alliberat
                     grups_hora = grups_sense_classe.get(hora, [])
-                    if grup not in grups_hora:
+                    professor = sub.get("professor_absent") or sub.get("professor", "")
+                    if not sense_classe(professor, grup, grups_hora):
                         mostrar = True
                 else:
                     # CAS 2: NO té grup → comprovar si l'assignatura necessita substitució

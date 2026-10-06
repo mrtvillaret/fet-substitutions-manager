@@ -17,6 +17,7 @@ from dependencies import get_db
 from auth_utils import get_current_user
 from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository, MasterConfigRepository, parse_date
 from routes.vigilancia_absent import crear_vigilancia_absent
+from core.alliberats import clau_professor, sense_classe
 from models import Substitucio
 from helpers import (
     get_horari,
@@ -426,7 +427,7 @@ def _build_disponibles_for_query(context: dict, hora: str, tipus: str | None, gr
                     info += f" - {grup}"
             ordre_tipus = 5
             color = "#FFFF00"
-        elif assignatura and grup and grup in grups_sense_classe_hora:
+        elif assignatura and sense_classe(professor, grup, grups_sense_classe_hora):
             emoji = "✅"
             estat = "ALLIBERAT"
             info = f"alliberat (tenia {assignatura} - {grup})"
@@ -1179,7 +1180,7 @@ async def reassignar_problematics(data: str, db: Session = Depends(get_db)):
                     assignatura = activitat.get("assignatura", "")
                     grup = activitat.get("grup", "")
                     if grup and assignatura:
-                        grup_alliberat = False
+                        grup_alliberat = clau_professor(vigilant) in grups_alliberats_data.get(hora, [])
                         for grup_exam in grups_examen:
                             if grups_compatible(grup, grup_exam):
                                 grup_alliberat = True

@@ -10,6 +10,7 @@ from typing import Optional, List
 from dependencies import get_db
 from models import Substitucio, Vigilancia
 from repositories import GrupsAlliberatsRepository, NoSubstituirRepository
+from core.alliberats import sense_classe
 
 router = APIRouter(prefix="/api/estadistiques", tags=["Estadístiques"])
 
@@ -138,7 +139,7 @@ async def get_resum_estadistiques(
                 grups_hora = grups_alliberats_cache[data].get(hora, [])
 
                 # Si el grup està alliberat, no comptar
-                if grup in grups_hora:
+                if sense_classe(sub.professor_absent, grup, grups_hora):
                     continue
 
             # Comptar substitucions reals
@@ -172,7 +173,7 @@ async def get_resum_estadistiques(
                 continue
             if _has_valid_grup(sub.grup):
                 grups_hora = grups_alliberats_cache.get(sub.data, {}).get(sub.hora, [])
-                if sub.grup in grups_hora:
+                if sense_classe(sub.professor_absent, sub.grup, grups_hora):
                     continue
             dies_amb_substitucions_set.add(sub.data)
         dies_amb_substitucions = len(dies_amb_substitucions_set)
@@ -254,7 +255,7 @@ async def get_estadistiques_professors(
                 grups_hora = grups_alliberats_cache[data].get(hora, [])
 
                 # Si el grup està alliberat, no comptar
-                if grup in grups_hora:
+                if sense_classe(sub.professor_absent, grup, grups_hora):
                     continue
 
             # Comptar absència si és real (no VIGILANCIA ni ENCADENADA)
@@ -362,7 +363,7 @@ async def get_estadistiques_temporals(
                     grups_alliberats_cache[data] = GrupsAlliberatsRepository.get_by_date(db, data)
 
                 grups_hora = grups_alliberats_cache[data].get(hora, [])
-                if grup in grups_hora:
+                if sense_classe(sub.professor_absent, grup, grups_hora):
                     continue
 
             if not substitut or not substitut.strip():
@@ -456,7 +457,7 @@ async def get_estadistiques_classes(
                 grups_alliberats_cache[data] = GrupsAlliberatsRepository.get_by_date(db, data)
 
             grups_hora = grups_alliberats_cache[data].get(hora, [])
-            if grup in grups_hora:
+            if sense_classe(sub.professor_absent, grup, grups_hora):
                 continue
 
             if grup not in stats_per_classe:
@@ -574,7 +575,7 @@ async def get_estadistiques_classes_detall(
                 grups_alliberats_cache[data] = GrupsAlliberatsRepository.get_by_date(db, data)
 
             grups_hora = grups_alliberats_cache[data].get(hora, [])
-            if grup in grups_hora:
+            if sense_classe(sub.professor_absent, grup, grups_hora):
                 continue
 
             assignatura = (sub.assignatura or "").strip()
@@ -671,7 +672,7 @@ async def get_estadistiques_taula_professors(
                     grups_alliberats_cache[data] = GrupsAlliberatsRepository.get_by_date(db, data)
 
                 grups_hora = grups_alliberats_cache[data].get(hora, [])
-                if grup in grups_hora:
+                if sense_classe(sub.professor_absent, grup, grups_hora):
                     continue
 
             professor_absent = (sub.professor_absent or "").strip()
@@ -791,7 +792,7 @@ async def get_estadistiques_professor_detall(
                     grups_alliberats_cache[data] = GrupsAlliberatsRepository.get_by_date(db, data)
 
                 grups_hora = grups_alliberats_cache[data].get(hora, [])
-                if grup in grups_hora:
+                if sense_classe(sub.professor_absent, grup, grups_hora):
                     continue
 
             if (sub.professor_absent or "").strip() == professor and _is_absencia_real(sub.tipus_absencia):
@@ -886,7 +887,7 @@ async def get_resum_franges(
                     grups_alliberats_cache[data] = GrupsAlliberatsRepository.get_by_date(db, data)
 
                 grups_hora = grups_alliberats_cache[data].get(hora_sub, [])
-                if grup in grups_hora:
+                if sense_classe(sub.professor_absent, grup, grups_hora):
                     continue
 
             substitut = (sub.substitut or "").strip()

@@ -183,21 +183,21 @@
           <button
             class="tab"
             :class="{ active: tabActiu === 'substitucions' }"
-            @click="tabActiu = 'substitucions'"
+            @click="canviaTab('substitucions')"
           >
             {{ $t('app.tabs.substitucions') }}
           </button>
           <button
             class="tab"
             :class="{ active: tabActiu === 'grups' }"
-            @click="tabActiu = 'grups'"
+            @click="canviaTab('grups')"
           >
             {{ $t('app.tabs.grups') }}
           </button>
           <button
             class="tab"
             :class="{ active: tabActiu === 'vigilancies' }"
-            @click="tabActiu = 'vigilancies'"
+            @click="canviaTab('vigilancies')"
           >
             {{ $t('app.tabs.vigilancies') }}
           </button>
@@ -221,17 +221,17 @@
           v-if="tabActiu === 'substitucions'"
           :key="institucioKey"
           :dataGlobal="dataSeleccionada"
-          @anar-vigilancies="tabActiu = 'vigilancies'"
+          @anar-vigilancies="canviaTab('vigilancies')"
         />
-        <GrupsView v-if="tabActiu === 'grups'" :key="institucioKey" :dataGlobal="dataSeleccionada" />
-        <VigilanciesView v-if="tabActiu === 'vigilancies'" :key="institucioKey" :dataGlobal="dataSeleccionada" @anar-substitucions="tabActiu = 'substitucions'" />
+        <GrupsView ref="grupsRef" v-if="tabActiu === 'grups'" :key="institucioKey" :dataGlobal="dataSeleccionada" />
+        <VigilanciesView v-if="tabActiu === 'vigilancies'" :key="institucioKey" :dataGlobal="dataSeleccionada" @anar-substitucions="canviaTab('substitucions')" />
       </main>
 
       <nav v-if="isMobile" class="mobile-nav">
         <button
           class="mobile-nav-item"
           :class="{ active: tabActiu === 'substitucions' }"
-          @click="tabActiu = 'substitucions'"
+          @click="canviaTab('substitucions')"
         >
           <i class="pi pi-list"></i>
           <span>{{ $t('app.tabs.substitucions') }}</span>
@@ -239,7 +239,7 @@
         <button
           class="mobile-nav-item"
           :class="{ active: tabActiu === 'vigilancies' }"
-          @click="tabActiu = 'vigilancies'"
+          @click="canviaTab('vigilancies')"
         >
           <i class="pi pi-eye"></i>
           <span>{{ $t('app.tabs.vigilancies') }}</span>
@@ -247,7 +247,7 @@
         <button
           class="mobile-nav-item"
           :class="{ active: tabActiu === 'grups' }"
-          @click="tabActiu = 'grups'"
+          @click="canviaTab('grups')"
         >
           <i class="pi pi-users"></i>
           <span>{{ $t('app.tabs.grups') }}</span>
@@ -376,6 +376,15 @@ const toast = useToast()
 const config = ref(null)
 const autenticat = ref(false)
 const tabActiu = ref('substitucions')
+const grupsRef = ref(null)
+
+// Canvi de pestanya: si a «Grups» hi ha canvis sense desar, primer es confirma
+const canviaTab = async (nova) => {
+  if (tabActiu.value === nova) return true
+  if (tabActiu.value === 'grups' && grupsRef.value && !(await grupsRef.value.potSortir())) return false
+  tabActiu.value = nova
+  return true
+}
 const substitucionsRef = ref(null)
 const dataSeleccionada = ref(new Date())
 const mostrarConfiguracio = ref(false)
@@ -622,7 +631,7 @@ const obrirAjuda = () => {
 }
 
 const obrirPdfDia = async () => {
-  tabActiu.value = 'substitucions'
+  if (!(await canviaTab('substitucions'))) return
   await nextTick()
   substitucionsRef.value?.mostrarDialegPDF?.()
 }

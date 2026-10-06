@@ -38,7 +38,7 @@
     },
     "tabs": {
       "substitucions": "Sostituzioni",
-      "grups": "Gruppi senza lezione",
+      "grups": "Gruppi e docenti liberi",
       "vigilancies": "Vigilanze"
     }
   },
@@ -96,6 +96,8 @@
     "unsavedChangesTitle": "Modifiche non salvate",
     "unsavedChangesPrompt": "Ci sono modifiche non salvate. Vuoi chiudere comunque?",
     "unsavedChangesSwitchDay": "Ci sono modifiche non salvate. Vuoi scartarle e cambiare giorno?",
+    "unsavedChangesQuestion": "Ci sono modifiche non salvate del {dia}. Vuoi salvarle?",
+    "dontSave": "Non salvare",
     "moreItems": "... e altri {count}",
     "conflict": {
       "title": "Modifiche rilevate",
@@ -428,15 +430,19 @@
     }
   },
   "groups": {
-    "title": "🎓 Gruppi senza lezione",
+    "title": "🎓 Gruppi e docenti liberi",
     "instructionsLine1": "Seleziona gruppi e ore in cui NON hanno lezione.",
     "instructionsLine2": "💡 Clicca sul nome del gruppo per attivare/disattivare tutte le ore.",
+    "instructionsTeachers": "👤 Se una fascia ha più docenti (es. un'opzionale), clicca l'icona per liberarne solo alcuni; il gruppo ha comunque lezione.",
     "all": "Tutti",
     "none": "Nessuno",
     "eso": "ESO",
     "batx": "Liceo",
     "groupClass": "Gruppo/Classe",
     "summary": "Totale: {groups} gruppi in {hours} ore",
+    "teachersTitle": "Docenti liberi",
+    "freeTeachersTitle": "Libera solo alcuni docenti",
+    "teachersHint": "Seleziona i docenti che restano senza studenti. Contano come liberi per supplenze e sorveglianze; gli altri hanno comunque lezione.",
     "errors": {
       "load": "Errore nel caricamento della configurazione dei gruppi",
       "save": "Impossibile salvare la configurazione"

@@ -11,7 +11,7 @@ import json
 
 from horari_web import GestorHorariWeb  # Versió web que llegeix de SQLite
 from core.substitucions import GestorSubstitucions
-from core.alliberats import GestorAlliberats
+from core.alliberats import GestorAlliberats, sense_classe
 from core.absencies import GestorAbsencies
 from core.vigilancia_core import VigilanciaCore
 from core.vigilancia_assignacio import escollir_aleatoriament_amb_pesos
@@ -437,7 +437,7 @@ def _get_tipus_activitat_professor(core: VigilanciaCore, professor: str, hora: s
 
         # Si estava amb grup alliberat, es considera "alliberat" (categoria pròpia).
         grups_hora = core.grups_sense_classe.get(hora, set()) if isinstance(core.grups_sense_classe, dict) else core.grups_sense_classe
-        if grup and grup in set(grups_hora or []):
+        if sense_classe(professor, grup, set(grups_hora or [])):
             return "alliberat"
         return assignatura
     except Exception:

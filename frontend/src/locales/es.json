@@ -38,7 +38,7 @@
     },
     "tabs": {
       "substitucions": "Sustituciones",
-      "grups": "Grupos sin clase",
+      "grups": "Grupos y profesores liberados",
       "vigilancies": "Vigilancias"
     }
   },
@@ -96,6 +96,8 @@
     "unsavedChangesTitle": "Cambios sin guardar",
     "unsavedChangesPrompt": "Hay cambios sin guardar. ¿Quieres cerrar igualmente?",
     "unsavedChangesSwitchDay": "Hay cambios sin guardar. ¿Quieres descartarlos y cambiar de día?",
+    "unsavedChangesQuestion": "Hay cambios sin guardar del {dia}. ¿Quieres guardarlos?",
+    "dontSave": "No guardar",
     "moreItems": "... y {count} más",
     "conflict": {
       "title": "Cambios detectados",
@@ -425,15 +427,19 @@
     }
   },
   "groups": {
-    "title": "🎓 Grupos sin clase",
+    "title": "🎓 Grupos y profesores liberados",
     "instructionsLine1": "Selecciona grupos y horas específicas donde NO tienen clase.",
     "instructionsLine2": "💡 Haz clic en el nombre del grupo para marcar/desmarcar todas las horas.",
+    "instructionsTeachers": "👤 Si una franja tiene varios profesores (p.ej. una optativa), haz clic en el icono para liberar solo a alguno; el grupo sigue teniendo clase.",
     "all": "Todos",
     "none": "Ninguno",
     "eso": "ESO",
     "batx": "Bach",
     "groupClass": "Grupo/Clase",
     "summary": "Total: {groups} grupos en {hours} horas",
+    "teachersTitle": "Profesores liberados",
+    "freeTeachersTitle": "Liberar solo a algunos profesores",
+    "teachersHint": "Marca los profesores que se quedan sin alumnos. Cuentan como liberados para sustituciones y vigilancias; el resto sigue teniendo clase.",
     "errors": {
       "load": "Error al cargar la configuración de grupos",
       "save": "No se ha podido guardar la configuración"

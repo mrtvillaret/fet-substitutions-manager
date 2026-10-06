@@ -6,6 +6,7 @@ from typing import List, Dict, Set, Tuple, Optional, Union
 from collections import defaultdict
 # Evitem imports estàtics per no quedar-nos amb valors stale
 from utils.exception_chain import safe_core_operation
+from core.alliberats import clau_professor, nomes_grups, sense_classe
 
 try:
     from i18n_setup import translate as _
@@ -125,9 +126,10 @@ class GestorSubstitucions:
             self.grups_sense_classe_dict = grups_sense_classe
 
         # Mantenir compatibilitat amb self.grups_sense_classe_actual (tots els grups)
+        # (els professors alliberats ho són només a la seva hora: no hi entren)
         tots_grups = set()
         for grups in self.grups_sense_classe_dict.values():
-            tots_grups.update(grups)
+            tots_grups.update(nomes_grups(grups))
         self.grups_sense_classe_actual = tots_grups
         
         # Inicialitza validador amb la info actual
@@ -152,11 +154,12 @@ class GestorSubstitucions:
             grup = sub.get("grup", "")
             assignatura = sub.get("assignatura", "")
             grups_hora = self.grups_sense_classe_dict.get(hora, set())
+            professor = sub.get("professor_absent") or sub.get("professor", "")
 
             # Afegir si:
-            # 1. Té grup vàlid i el grup no està sense classe, O
+            # 1. Té grup vàlid i no queda sense classe (grup o professor alliberat), O
             # 2. No té grup però l'assignatura necessita substitució (VP, GP, etc.)
-            if grup and grup not in grups_hora:
+            if grup and not sense_classe(professor, grup, grups_hora):
                 substitucions_filtrades.append(sub)
             elif not grup:
                 from config import constants
@@ -285,7 +288,8 @@ class GestorSubstitucions:
                         # CAS 1: Té classe real amb grup (no està sense classe)
                         if (assignatura and  # Assignatura no buida = té classe
                             grup and  # Vigilàncies d'exàmens no tenen grup (grup = "")
-                            grup not in grups_sense_classe):
+                            grup not in grups_sense_classe and
+                            clau_professor(vigilant) not in self.grups_sense_classe_dict.get(hora, ())):
 
                             # Sempre crea substitució de vigilància (és diferent de l'absència)
                             # La vigilància és una classe/activitat addicional, no la mateixa que l'absència
@@ -499,7 +503,9 @@ class GestorSubstitucions:
             # CANVI CLAU: Conserva SEMPRE la selecció anterior, fins i tot si és buida
             if substitut_actual:
                 # MILLORA: Valida contra TOTS els disponibles (automàtics + manuals)
-                tots_disponibles = self.alliberats.get_tots_disponibles(self.dia_actual, hora, self.grups_sense_classe_actual)
+                tots_disponibles = self.alliberats.get_tots_disponibles(
+                    self.dia_actual, hora,
+                    self.grups_sense_classe_actual | set(self.grups_sense_classe_dict.get(hora, ())))
 
                 if (self._valida_indisponibilitat(substitut_actual, hora, ocupats_hora, absents) and
                     self._substitut_esta_disponible(substitut_actual, tots_disponibles)):

@@ -16,6 +16,7 @@ from auth_utils import require_admin, get_current_user
 from database import get_data_dir_for_institucio
 from repositories import ConfiguracioRepository, MasterConfigRepository
 from utils.hores import normalitzar_hora as _normalitzar_hora
+from core.alliberats import sense_classe
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from export.pdf.informe_direccio import generar_informe_pdf
@@ -73,7 +74,7 @@ def _es_substitucio_real(s: dict, no_sub: set, grups_all: dict) -> bool:
     grup = (s.get("grup") or "").strip()
     if grup:
         grups_hora = grups_all.get(s.get("data", ""), {}).get(s.get("hora", ""), [])
-        if grup in grups_hora:
+        if sense_classe(s.get("professor_absent", ""), grup, grups_hora):
             return False
     return True
 

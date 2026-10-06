@@ -20,6 +20,7 @@ from repositories import (
     SubstitucioRepository, VigilanciaRepository, GrupsAlliberatsRepository, CursRepository
 )
 from helpers import get_horari, get_gestors, MissingXmlError
+from core.alliberats import clau_professor, nomes_grups, sense_classe
 from routes.vigilancia_absent import (
     es_vigilancia_absent,
     sincronitzar_vigilancies_absents,
@@ -188,7 +189,8 @@ async def get_substitucions(data: str, include_all: bool = False, db: Session = 
                 elif grup and grup.strip():
                     # CAS 1: Té grup → comprovar si està alliberat
                     grups_hora = grups_sense_classe.get(hora, [])
-                    if grup not in grups_hora:
+                    professor = sub.get("professor_absent") or sub.get("professor", "")
+                    if not sense_classe(professor, grup, grups_hora):
                         mostrar = True
                 else:
                     # CAS 2: NO té grup → comprovar si l'assignatura necessita substitució
@@ -980,8 +982,8 @@ async def update_substitucio(
                         grups_alliberats_hora = set(grups_alliberats_data.get(hora, []))
 
                         # Comprovar si el grup del substitut està alliberat
-                        grup_alliberat = False
-                        for grup_lliure in grups_alliberats_hora:
+                        grup_alliberat = clau_professor(substitut_normalitzat) in grups_alliberats_hora
+                        for grup_lliure in nomes_grups(grups_alliberats_hora):
                             # Funció simple de compatibilitat de grups
                             if grup_sub == grup_lliure or grup_lliure in grup_sub or grup_sub in grup_lliure:
                                 grup_alliberat = True
@@ -1360,8 +1362,8 @@ async def reassignar_problematics(data: str, db: Session = Depends(get_db)):
                     assignatura_sub = activitat_sub.get("assignatura", "")
                     grup_sub = activitat_sub.get("grup", "")
                     if grup_sub and assignatura_sub:
-                        grup_alliberat = False
-                        for grup_lliure in grups_alliberats_per_hora.get(hora, set()):
+                        grup_alliberat = clau_professor(substitut) in grups_alliberats_per_hora.get(hora, set())
+                        for grup_lliure in nomes_grups(grups_alliberats_per_hora.get(hora, set())):
                             if grups_compatible(grup_sub, grup_lliure):
                                 grup_alliberat = True
                                 break

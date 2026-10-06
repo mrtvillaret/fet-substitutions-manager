@@ -38,7 +38,7 @@
     },
     "tabs": {
       "substitucions": "Substitutions",
-      "grups": "No-class groups",
+      "grups": "Freed groups and teachers",
       "vigilancies": "Supervisions"
     }
   },
@@ -96,6 +96,8 @@
     "unsavedChangesTitle": "Unsaved changes",
     "unsavedChangesPrompt": "There are unsaved changes. Do you want to close anyway?",
     "unsavedChangesSwitchDay": "There are unsaved changes. Do you want to discard them and change the day?",
+    "unsavedChangesQuestion": "There are unsaved changes for {dia}. Do you want to save them?",
+    "dontSave": "Don't save",
     "moreItems": "... and {count} more",
     "conflict": {
       "title": "Changes detected",
@@ -425,15 +427,19 @@
     }
   },
   "groups": {
-    "title": "🎓 No-class groups",
+    "title": "🎓 Freed groups and teachers",
     "instructionsLine1": "Select groups and hours where they have NO class.",
     "instructionsLine2": "💡 Click the group name to toggle all hours.",
+    "instructionsTeachers": "👤 If a slot has several teachers (e.g. an elective), click the icon to free only some of them; the group still has class.",
     "all": "All",
     "none": "None",
     "eso": "ESO",
     "batx": "Bach",
     "groupClass": "Group/Class",
     "summary": "Total: {groups} groups in {hours} hours",
+    "teachersTitle": "Freed teachers",
+    "freeTeachersTitle": "Free only some teachers",
+    "teachersHint": "Tick the teachers left without students. They count as freed for substitutions and invigilations; the rest still have class.",
     "errors": {
       "load": "Error loading group configuration",
       "save": "Could not save configuration"

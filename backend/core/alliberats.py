@@ -12,6 +12,39 @@ except ImportError:
         return text
 
 
+# Professors alliberats: un professor que es queda sense alumnes encara que el
+# seu grup tingui classe (p.ex. en una optativa amb diversos professors, un
+# altre es queda els alumnes per fer un taller). Es desen a la mateixa llista
+# per hora que els grups sense classe, amb aquest prefix, perquè arribin a tots
+# els llocs on ja es consulten els grups alliberats.
+PREFIX_PROFESSOR = "professor:"
+
+
+def clau_professor(professor: str) -> str:
+    return PREFIX_PROFESSOR + professor
+
+
+def es_clau_professor(valor) -> bool:
+    return isinstance(valor, str) and valor.startswith(PREFIX_PROFESSOR)
+
+
+def nomes_grups(valors) -> list:
+    """Els grups sense classe d'una hora, sense els professors alliberats."""
+    return [v for v in (valors or []) if not es_clau_professor(v)]
+
+
+def professors_de(valors) -> list:
+    """Els professors alliberats d'una hora."""
+    return [v[len(PREFIX_PROFESSOR):] for v in (valors or []) if es_clau_professor(v)]
+
+
+def sense_classe(professor: str, grup: str, grups_hora) -> bool:
+    """Si un professor que tenia classe amb `grup` no en té: perquè el grup
+    està sense classe o perquè ell està alliberat."""
+    if not grup or not grups_hora:
+        return False
+    return grup in grups_hora or clau_professor(professor or "") in grups_hora
+
 
 class GestorAlliberats:
     """Gestiona professors alliberats amb estadístiques i suport per exàmens"""
@@ -167,7 +200,7 @@ class GestorAlliberats:
 
         for professor, activitat in hora_data.items():
             grup = activitat.get("grup", "")
-            if grup in grups_sense_classe:
+            if sense_classe(professor, grup, grups_sense_classe):
                 # Incloure l'assignatura original en el detall
                 assignatura = activitat.get("assignatura", "")
                 if assignatura:  # Assignatura no buida
