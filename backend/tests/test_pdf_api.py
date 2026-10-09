@@ -65,3 +65,78 @@ def test_el_text_dels_usuaris_no_trenca_ni_s_interpreta_al_pdf(client, ruta, val
     resp = client.get(ruta)
     assert resp.status_code == 200, resp.text[:300]
     assert resp.headers["content-type"] == "application/pdf"
+
+
+# ------------------------------------------------ espai per escriure a mà
+
+def _text_pdf(contingut: bytes) -> str:
+    """Text del PDF amb pdftotext (poppler-utils); sense l'eina, el test se salta."""
+    import shutil
+    import subprocess
+    if not shutil.which("pdftotext"):
+        pytest.skip("cal pdftotext (poppler-utils)")
+    return subprocess.run(["pdftotext", "-", "-"], input=contingut, capture_output=True, check=True).stdout.decode()
+
+
+def _hores_del_pdf(client, **params):
+    client.put(f"/api/substitucions/{DATA}/absencies/Prof 15",
+               json={"hores_absencia": ["11:30"], "updated_at_map": {}})
+    resp = client.get(f"/api/pdf/complete/{DATA}", params=params)
+    assert resp.status_code == 200, resp.text[:300]
+    return [linia for linia in _text_pdf(resp.content).splitlines() if linia.startswith("Hora ")]
+
+
+def test_per_defecte_nomes_surten_les_hores_amb_substitucions(client):
+    assert _hores_del_pdf(client) == ["Hora 11:30"]
+
+
+def test_amb_espai_a_ma_surten_les_hores_on_hi_pot_haver_substitucions(client):
+    # Dilluns a l'horari d'exemple: hi ha classe a totes les hores menys al pati,
+    # a les 13:30, a les 14:30 i a les 17:00, on ningú no té cap activitat.
+    hores = _hores_del_pdf(client, blank_rows=True)
+    assert sorted(hores) == sorted(f"Hora {h}" for h in
+                                   ["08:00", "09:00", "10:00", "11:30", "12:30", "15:00", "16:00"])
+
+
+def test_l_espai_a_ma_no_afecta_el_pdf_nomes_de_vigilancies(client):
+    assert _hores_del_pdf(client, blank_rows=True, include_substitutions=False) == []
+
+
+# ------------------------------------------------ format «taula del dia»
+
+def _text_dia(client, **params):
+    client.put(f"/api/substitucions/{DATA}/absencies/Prof 15",
+               json={"hores_absencia": ["11:30"], "updated_at_map": {}})
+    client.post(f"/api/vigilancies/{DATA}", json={
+        "hora": "10:00", "tipus": "Física", "grups": "2-BAT-A", "aula": "A01",
+        "vigilant": "Prof 21", "nivell": "2-BAT"})
+    resp = client.get(f"/api/pdf/complete/{DATA}", params={"format": "dia", **params})
+    assert resp.status_code == 200, resp.text[:300]
+    return _text_pdf(resp.content)
+
+
+def test_format_dia_una_taula_amb_substitucions_i_vigilancies(client):
+    text = _text_dia(client)
+    assert "Hora 11:30" not in text          # sense títols per hora
+    assert "Prof 15" in text and "Física" in text and "Prof 21" in text
+    assert "Files en gris" in text            # llegenda de les vigilàncies
+
+
+def test_format_dia_amb_espai_a_ma_mostra_les_hores_detectades(client):
+    linies = [l.strip() for l in _text_dia(client, blank_rows=True).splitlines()]
+    for hora in ("08:00", "15:00", "16:00"):
+        assert hora in linies
+    # (per línies: el peu «Generat ... a les 17:05» no ha de comptar)
+    assert "17:00" not in linies and "PATI" not in linies
+
+
+def test_format_desconegut_dona_400(client):
+    assert client.get(f"/api/pdf/complete/{DATA}", params={"format": "x"}).status_code == 400
+
+
+def test_format_dia_sense_espai_a_ma_tambe_mostra_les_hores_amb_classe(client):
+    # Les hores sense ningú surten igualment (amb una fila en blanc)
+    linies = [l.strip() for l in _text_dia(client).splitlines()]
+    for hora in ("08:00", "09:00", "12:30", "15:00", "16:00"):
+        assert hora in linies
+    assert "17:00" not in linies and "PATI" not in linies

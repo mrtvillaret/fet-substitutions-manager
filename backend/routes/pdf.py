@@ -124,6 +124,24 @@ def _build_absents_by_professor(substitucions_data: list) -> dict:
     return absents
 
 
+def _hores_amb_possible_substitucio(horari_mgr, dia_name: str, no_substituir) -> set:
+    """Hores en què algun professor configurat té classe amb un grup visible
+    (no amagat) o una activitat sense grup que no és a «no substituir»: on hi
+    pot haver alguna substitució."""
+    grups_visibles = set(horari_mgr.grups)
+    no_substituir = set(no_substituir)
+    hores = set()
+    for hora in horari_mgr.hores:
+        for professor in horari_mgr.professors:
+            activitat = horari_mgr.get_activitat(dia_name, hora, professor) or {}
+            grup = activitat.get("grup") or ""
+            assignatura = activitat.get("assignatura") or ""
+            if (grup in grups_visibles) if grup else (assignatura and assignatura not in no_substituir):
+                hores.add(hora)
+                break
+    return hores
+
+
 def _omplir_aula_substitucions(substitucions_data: list, horari_mgr, date_obj: datetime) -> None:
     """Omple l'aula de les substitucions si falta (només per al PDF)."""
     dia_name = horari_mgr.get_dia_name(date_obj.weekday())
@@ -629,6 +647,8 @@ def generar_pdf_complet(
     show_comments: bool = True,
     show_hours: bool = False,
     show_conflicts: bool = True,
+    blank_rows: bool = False,
+    format: str = "hores",  # "hores" (una secció per hora) o "dia" (una taula per al dia)
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
@@ -711,6 +731,8 @@ def generar_pdf_complet(
 
         if include_substitutions and substitucions_data:
             _omplir_aula_substitucions(substitucions_data, horari_mgr, date_obj)
+            # Dins de cada hora, el mateix ordre fix que la llista de substitucions
+            substitucions_data.sort(key=SubstitucioRepository.clau_ordre)
 
         # Directori temporal per petició: el PDF no es desa al servidor.
         export_dir = Path(tempfile.mkdtemp())
@@ -719,6 +741,14 @@ def generar_pdf_complet(
         # Configurar opcions via atributs
         exporter.show_comments_column = show_comments
         exporter.show_hours_column = show_hours
+        if format not in ("hores", "dia"):
+            raise HTTPException(status_code=400, detail="Format de PDF desconegut")
+        exporter.espai_a_ma = blank_rows and include_substitutions
+        exporter.format_dia = format == "dia"
+        if exporter.espai_a_ma or exporter.format_dia:
+            from repositories import NoSubstituirRepository
+            exporter.hores_amb_classe = _hores_amb_possible_substitucio(
+                horari_mgr, horari_mgr.get_dia_name(date_obj.weekday()), NoSubstituirRepository.get_all(db))
         if compress:
             exporter._auto_compression_active = True
 

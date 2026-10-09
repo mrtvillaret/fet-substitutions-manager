@@ -211,9 +211,11 @@ async def get_substitucions(data: str, include_all: bool = False, db: Session = 
                         updated_at=sub.get("updated_at")
                     ))
 
-        # Ordenar per ordre de l'horari (no alfabètic)
+        # Ordenar per ordre de l'horari (no alfabètic) i, dins de cada hora, en
+        # un ordre fix: regenerar no ha de canviar les files de lloc
         ordre_hores = {hora: idx for idx, hora in enumerate(horari.hores)}
-        result.sort(key=lambda x: ordre_hores.get(x.hora, 999))
+        result.sort(key=lambda x: (ordre_hores.get(x.hora, 999),
+                                   SubstitucioRepository.clau_ordre(x.model_dump())))
 
         return result
 
@@ -501,11 +503,14 @@ async def generar_substitucions(data: str, regenerar_tot: bool = False, db: Sess
                         clau_b = f"{sub.get('professor_absent','')}|{sub.get('hora','')}|{assignatura}|{grup}"
                         if clau_b in existing_vigil_b_keys:
                             continue
-                        if clau_b in vigil_b_pending_ids and substitut and substitut.strip():
-                            SubstitucioRepository.update(db, vigil_b_pending_ids[clau_b], {
-                                'substitut': substitut,
-                                'tipus_substitut': sub.get('tipus_substitut', ''),
-                            })
+                        if clau_b in vigil_b_pending_ids:
+                            # Ja existeix pendent: s'hi posa el substitut si n'hi ha;
+                            # si no, es deixa tal com està (abans se'n creava una altra)
+                            if substitut and substitut.strip():
+                                SubstitucioRepository.update(db, vigil_b_pending_ids[clau_b], {
+                                    'substitut': substitut,
+                                    'tipus_substitut': sub.get('tipus_substitut', ''),
+                                })
                             continue
 
                     # 🔧 IMPORTANT: Si té substitut assignat però l'assignatura està a no_substituir, NO desar amb substitut

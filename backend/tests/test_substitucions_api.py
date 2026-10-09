@@ -462,3 +462,34 @@ def test_assignar_a_ma_no_allibera_per_tenir_el_grup_d_examen(client, centre):
     resp = _assigna(client, "10:00", "Prof 1")
     assert resp.status_code == 400
     assert "CLASSE" in resp.json()["detail"]
+
+
+# ------------------------------------------------------------------ ordre
+
+def _ordre(client):
+    return [(s["hora"], s["professor_absent"], s["tipus_absencia"]) for s in _subs(client)]
+
+
+def test_regenerar_tot_no_canvia_l_ordre_de_les_files(client):
+    # Les encadenades depenen de quin substitut tria el motor (pot variar);
+    # la resta de files han de quedar sempre al mateix lloc.
+    def no_encadenades():
+        return [f for f in _ordre(client) if f[2] != "ENCADENADA"]
+    _marca_absencia(client)
+    _marca_absencia(client, professor="Prof 1", hores=["10:00", "11:30"])
+    client.post(f"{URL}/generar", params={"regenerar_tot": True})
+    primer = no_encadenades()
+    for _ in range(3):
+        client.post(f"{URL}/generar", params={"regenerar_tot": True})
+        assert no_encadenades() == primer
+
+
+def test_dins_de_cada_hora_per_professor_i_encadenades_al_final(client):
+    _marca_absencia(client, hores=["10:00"])
+    _marca_absencia(client, professor="Prof 1", hores=["10:00"])
+    client.post(f"{URL}/generar")
+    files = [(p, t) for h, p, t in _ordre(client) if h == "10:00"]
+    absencies = [p for p, t in files if t == "ABSENCIA"]
+    assert absencies == ["Prof 1", "Prof 15"]         # ordre natural, no per id
+    tipus = [t for _, t in files]
+    assert tipus == sorted(tipus, key=lambda t: t == "ENCADENADA")

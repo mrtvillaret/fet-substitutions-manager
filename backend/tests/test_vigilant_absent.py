@@ -177,3 +177,42 @@ def test_nova_substitucio_no_toca_la_cobertura_d_examen_d_altres_hores(client):
     client.post(f"{URL_SUBS}/nova", json={"professor": "Prof 15", "hores": ["10:00"], "tipus_absencia": "ABSENCIA"})
     hores = sorted(h for h, p, a, t, sub in _totes(client) if p == "Prof 15" and t == "VIGILANCIA_ABSENT")
     assert hores == ["10:00", "11:30"]
+
+
+def test_generar_no_duplica_la_cobertura_d_un_vigilant_sense_substitut(client):
+    # Amb una altra absència el mateix dia, «generar» tornava a crear la
+    # cobertura (VIGILANCIA) de la classe del vigilant si encara no tenia substitut.
+    client.put(f"{URL_SUBS}/absencies/Prof 33", json={"hores_absencia": ["12:30"], "updated_at_map": {}})
+    resp = client.post(URL, json={"hora": "12:30", "tipus": "Anglès", "grups": "1-BAT-A", "aula": "A04",
+                                  "vigilant": "Prof 41", "nivell": "1-BAT"})
+    assert resp.status_code == 200, resp.text
+    for _ in range(2):
+        assert client.post(f"{URL_SUBS}/generar").status_code == 200
+        cobertures = [s for h, p, a, t, s in _totes(client) if p == "Prof 41" and t == "VIGILANCIA"]
+        assert len(cobertures) == 1
+
+
+def test_canviar_l_hora_d_una_vigilancia_treu_la_cobertura_de_l_hora_antiga(client):
+    # Prof 15 té classe a les 10:00 (Anglès 3-ESO-A): vigilar-hi crea la cobertura
+    _crea(client, "Prof 15")
+    def cobertures():
+        return [(h, p) for h, p, a, t, s in _totes(client) if t == "VIGILANCIA"]
+    assert cobertures() == [("10:00", "Prof 15")]
+
+    vig = _vigilancies(client)[0]
+    resp = client.put(f"{URL}/{vig['id']}", json={"hora": "11:30", "updated_at": vig["updated_at"]})
+    assert resp.status_code == 200
+    # A les 11:30 Prof 15 també té classe (Anglès 1-ESO-A): la cobertura s'hi trasllada
+    assert cobertures() == [("11:30", "Prof 15")]
+
+
+def test_moure_la_vigilancia_d_un_vigilant_absent_treu_la_cobertura_de_l_hora_antiga(client):
+    client.put(f"{URL_SUBS}/absencies/Prof 15", json={"hores_absencia": ["08:00", "10:00"], "updated_at_map": {}})
+    _crea(client, "Prof 15", hora="08:00")
+    assert _vigilancia_absent_de(client, "Prof 15") == [""]
+
+    vig = _vigilancies(client)[0]
+    resp = client.put(f"{URL}/{vig['id']}", json={"hora": "10:00", "vigilant": "Prof 21",
+                                                   "updated_at": vig["updated_at"]})
+    assert resp.status_code == 200
+    assert _vigilancia_absent_de(client, "Prof 15") == []

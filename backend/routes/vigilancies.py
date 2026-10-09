@@ -765,6 +765,10 @@ async def actualitzar_vigilancia(data: str, vig_id: str, update: VigilanciaUpdat
             updates["nivell"] = update.nivell
 
         vig_abans = VigilanciaRepository.get_by_id(db, data, vig_id)
+        # L'hora d'abans s'ha de llegir ara: update_by_id modifica aquest mateix
+        # objecte, i després ja tindria l'hora nova (i la cobertura de l'hora
+        # antiga no es recalculava mai)
+        hora_abans = vig_abans.hora if vig_abans else None
 
         if not update.force:
             if not update.updated_at:
@@ -786,8 +790,8 @@ async def actualitzar_vigilancia(data: str, vig_id: str, update: VigilanciaUpdat
             raise HTTPException(status_code=404, detail="Vigilància no trobada")
 
         hores_refresc = set()
-        if vig_abans and vig_abans.hora:
-            hores_refresc.add(vig_abans.hora)
+        if hora_abans:
+            hores_refresc.add(hora_abans)
         if "hora" in updates and updates.get("hora"):
             hores_refresc.add(updates["hora"])
         for hora in hores_refresc:

@@ -8,6 +8,7 @@ from sqlalchemy import and_, or_, func
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime, timedelta
 from pathlib import Path
+import re
 import sys
 
 
@@ -268,6 +269,23 @@ class VigilanciaRepository:
 
 class SubstitucioRepository:
     """Operacions CRUD per substitucions"""
+
+    # Ordre per mostrar-les dins de cada hora: per professor absent (les files
+    # d'un mateix professor, juntes: absència, cobertura de vigilància...) i,
+    # al final, les encadenades (darrere de la substitució que les provoca).
+    # No s'aplica a get_by_date: el motor reparteix els substituts en l'ordre
+    # en què li arriben.
+    _ORDRE_TIPUS = {'VIGILANCIA_ABSENT': 1, 'VIGILANCIA': 2}
+
+    @staticmethod
+    def clau_ordre(sub: Dict):
+        # Ordre natural: «Prof 2» abans de «Prof 10»
+        def natural(text):
+            return [(0, int(t), '') if t.isdigit() else (1, 0, t.lower())
+                    for t in re.split(r'(\d+)', text or '') if t]
+        tipus = (sub.get('tipus_absencia') or '').upper()
+        return (tipus == 'ENCADENADA', natural(sub.get('professor_absent')),
+                SubstitucioRepository._ORDRE_TIPUS.get(tipus, 0), natural(sub.get('assignatura')))
 
     @staticmethod
     def get_by_date(db: Session, data: str) -> List[Dict]:

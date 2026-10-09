@@ -462,6 +462,20 @@
         </div>
 
         <div class="field mt-3">
+          <label>{{ $t('substitutions.dialogs.pdf.format') }}</label>
+          <div class="flex flex-column gap-2">
+            <div class="flex align-items-center">
+              <RadioButton v-model="pdfConfig.format" inputId="formatHores" value="hores" />
+              <label for="formatHores" class="ml-2">{{ $t('substitutions.dialogs.pdf.formatHours') }}</label>
+            </div>
+            <div class="flex align-items-center">
+              <RadioButton v-model="pdfConfig.format" inputId="formatDia" value="dia" />
+              <label for="formatDia" class="ml-2">{{ $t('substitutions.dialogs.pdf.formatDay') }}</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="field mt-3">
           <label>{{ $t('substitutions.dialogs.pdf.options') }}</label>
           <div class="flex flex-column gap-3">
             <div class="flex align-items-center">
@@ -469,7 +483,7 @@
               <label for="showCommentsSubs" class="ml-2">{{ $t('substitutions.dialogs.pdf.showComments') }}</label>
             </div>
             <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.showHours" inputId="showHoursSubs" :binary="true" />
+              <Checkbox v-model="pdfConfig.showHours" inputId="showHoursSubs" :binary="true" :disabled="pdfConfig.format === 'dia'" />
               <label for="showHoursSubs" class="ml-2">{{ $t('substitutions.dialogs.pdf.showHours') }}</label>
             </div>
             <div class="flex align-items-center">
@@ -477,8 +491,21 @@
               <label for="showConflictsSubs" class="ml-2">{{ $t('substitutions.dialogs.pdf.showConflicts') }}</label>
             </div>
             <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.compress" inputId="compressSubs" :binary="true" />
+              <Checkbox v-model="pdfConfig.compress" inputId="compressSubs" :binary="true" :disabled="pdfConfig.format === 'dia'" />
               <label for="compressSubs" class="ml-2">{{ $t('substitutions.dialogs.pdf.compress') }}</label>
+            </div>
+            <div class="flex align-items-center">
+              <Checkbox
+                v-model="pdfConfig.blankRows"
+                inputId="blankRowsSubs"
+                :binary="true"
+                :disabled="!pdfConfig.includeSubstitutions"
+              />
+              <label
+                for="blankRowsSubs"
+                class="ml-2"
+                v-tooltip.top="$t('substitutions.dialogs.pdf.blankRowsHint')"
+              >{{ $t('substitutions.dialogs.pdf.blankRows') }}</label>
             </div>
           </div>
         </div>
@@ -522,6 +549,7 @@ import Dropdown from 'primevue/dropdown'
 import MultiSelect from 'primevue/multiselect'
 import InputText from 'primevue/inputtext'
 import Checkbox from 'primevue/checkbox'
+import RadioButton from 'primevue/radiobutton'
 import Tag from 'primevue/tag'
 import Badge from 'primevue/badge'
 import Dialog from 'primevue/dialog'
@@ -606,7 +634,9 @@ const pdfConfig = ref({
   showComments: true,
   showHours: false,
   showConflicts: true,
-  compress: false
+  compress: false,
+  blankRows: false,
+  format: 'hores'
 })
 
 // Computed
@@ -1411,7 +1441,7 @@ const getRowClass = (data) => {
 // PDF Functions
 const aplicarPreferenciesPdf = (prefs) => {
   if (!prefs) return
-  const keys = ['includeSubstitutions', 'includeVigilancies', 'showComments', 'showHours', 'showConflicts', 'compress']
+  const keys = ['includeSubstitutions', 'includeVigilancies', 'showComments', 'showHours', 'showConflicts', 'compress', 'blankRows', 'format']
   keys.forEach((key) => {
     if (prefs[key] !== undefined) {
       pdfConfig.value[key] = prefs[key]
@@ -1437,7 +1467,9 @@ const desarPreferenciesPdf = async () => {
         showComments: pdfConfig.value.showComments,
         showHours: pdfConfig.value.showHours,
         showConflicts: pdfConfig.value.showConflicts,
-        compress: pdfConfig.value.compress
+        compress: pdfConfig.value.compress,
+        blankRows: pdfConfig.value.blankRows,
+        format: pdfConfig.value.format
       }
     }, { _silent: true })
   } catch (error) {
@@ -1507,7 +1539,9 @@ const generarPDFAmbOpcions = async () => {
       show_comments: pdfConfig.value.showComments,
       show_hours: pdfConfig.value.showHours,
       show_conflicts: pdfConfig.value.showConflicts,
-      compress: pdfConfig.value.compress
+      compress: pdfConfig.value.compress,
+      blank_rows: pdfConfig.value.blankRows,
+      format: pdfConfig.value.format
     })
 
     const url = `/api/pdf/complete/${dataISO.value}?${params.toString()}`

@@ -118,6 +118,16 @@ class PDFCompletExporter:
         self.show_comments_column = self.pdf_config.get('show_comments_column', True)
         self.show_hours_column = self.pdf_config.get('show_hours_column', False)
 
+        # Espai per escriure a mà substitucions d'última hora: totes les hores
+        # surten, amb files en blanc a la taula de substitucions.
+        self.espai_a_ma = False
+        # Hores on hi pot haver alguna substitució (les calcula qui crida, a
+        # partir de l'horari): són les que surten amb files en blanc. None = totes.
+        self.hores_amb_classe = None
+        # Format «taula del dia»: una sola taula, l'hora a la primera columna i
+        # les vigilàncies dins de cada hora (en comptes d'una secció per hora)
+        self.format_dia = False
+
     def _get_profile_colors(self):
         """Obté colors del perfil actual - sempre actualitzat"""
         return PDFStyleFactory.get_current_profile_colors()
@@ -319,11 +329,18 @@ class PDFCompletExporter:
             else:
                 # Organitza per hores (format normal)
                 dades_per_hora = self._organitzar_dades_per_hora(subs_reals, vigilancies_reals)
+                espai_a_ma = self.espai_a_ma and tipus_pdf != "vigilancies"
 
-                # Genera secció per cada hora que tingui dades
-                for hora in self.hores:
+                if self.format_dia:
+                    story.extend(self._crear_taula_dia(dades_per_hora, espai_a_ma))
+
+                # Genera secció per cada hora que tingui dades (o per les que en
+                # podrien tenir, si cal deixar espai per escriure a mà)
+                for hora in ([] if self.format_dia else self.hores):
                     if hora in dades_per_hora:
                         data_hora = dades_per_hora[hora]
+                    elif espai_a_ma and self._pot_tenir_substitucions(hora):
+                        data_hora = {'substitucions': [], 'vigilancies': []}
                     else:
                         # Saltar hores buides
                         continue
@@ -348,9 +365,10 @@ class PDFCompletExporter:
                         )
                     story.append(Paragraph(_("Hora {hora}").format(hora=hora), hora_style))
                     
-                    # SUBSTITUCIONS
-                    if data_hora['substitucions']:
-                        story.append(self._crear_taula_substitucions(data_hora['substitucions']))
+                    # SUBSTITUCIONS (amb files en blanc: 1 si n'hi ha, 2 si no)
+                    if data_hora['substitucions'] or espai_a_ma:
+                        files_en_blanc = (1 if data_hora['substitucions'] else 2) if espai_a_ma else 0
+                        story.append(self._crear_taula_substitucions(data_hora['substitucions'], files_en_blanc))
                         
                         if data_hora['vigilancies']:  # Espai entre taules adaptat al mode
                             if hasattr(self, '_auto_compression_active') and self._auto_compression_active:
@@ -606,6 +624,132 @@ class PDFCompletExporter:
         taula.setStyle(estil)
         return taula
     
+    def _pot_tenir_substitucions(self, hora: str) -> bool:
+        return self.hores_amb_classe is None or hora in self.hores_amb_classe
+
+    def _crear_taula_dia(self, dades_per_hora: Dict, espai_a_ma: bool) -> list:
+        """Format «taula del dia»: una taula per a tot el dia.
+
+        - La capçalera es repeteix a cada pàgina i porta les dues etiquetes
+          (substitucions / vigilàncies, en cursiva): Absent/Curs, Grup/Aula...
+        - Cada hora és un bloc amb l'hora a la primera columna; un bloc no es
+          parteix mai entre dues pàgines.
+        - Surten totes les hores on hi pot haver substitucions (i les que tenen
+          dades); les que no tenen res, amb una fila en blanc.
+        - Dins de cada hora: substitucions, files en blanc (si cal espai per
+          escriure a mà) i vigilàncies, aquestes amb fons gris i en cursiva,
+          perquè es distingeixin també imprès en blanc i negre.
+        """
+        from reportlab.platypus import Table, TableStyle, Paragraph
+
+        profile_colors = self._get_profile_colors()
+        gris_linia = colors.HexColor('#808080')
+        base = dict(parent=self.styles['Normal'], fontSize=10, leading=12, alignment=1, fontName='Helvetica')
+        cel = ParagraphStyle('DiaCel', **base)
+        cel_sub = ParagraphStyle('DiaSubstitut', **{**base, 'fontName': 'Helvetica-Bold',
+                                                    'textColor': colors.HexColor('#2c3e50')})
+        cel_vig = ParagraphStyle('DiaVig', **{**base, 'fontName': 'Helvetica-Oblique'})
+        cel_vigilant = ParagraphStyle('DiaVigilant', **{**base, 'fontName': 'Helvetica-BoldOblique'})
+        cel_hora = ParagraphStyle('DiaHora', **{**base, 'fontSize': 11, 'leading': 13, 'fontName': 'Helvetica-Bold',
+                                                'textColor': colors.HexColor('#c0392b')})
+        cap = ParagraphStyle('DiaCap', **{**base, 'fontSize': 9, 'leading': 11, 'fontName': 'Helvetica-Bold',
+                                          'textColor': colors.HexColor(profile_colors.get('substitutions_header_text', '#ffffff'))})
+
+        def doble(subs, vigs):
+            return Paragraph(f"{_(subs)}<br/><i>{_(vigs)}</i>", cap)
+
+        capcalera = [Paragraph(_("Hora"), cap), doble("Absent", "Curs"), doble("Grup", "Aula"),
+                     Paragraph(_("Assignatura"), cap), doble("Substitut", "Vigilant")]
+        if self.show_comments_column:
+            capcalera.append(Paragraph(_("Observacions"), cap))
+            amplades = [1.6*cm, 3.4*cm, 3.0*cm, 3.0*cm, 3.2*cm, 4.8*cm]
+        else:
+            amplades = [1.8*cm, 4.4*cm, 3.4*cm, 3.6*cm, 5.8*cm]
+        n_cols = len(capcalera)
+
+        files = [capcalera]
+        alcades = [None]
+        estil = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(profile_colors.get('substitutions_header_bg', '#2c3e50'))),
+            ('GRID', (0, 0), (-1, -1), 0.6, gris_linia),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ]
+        hi_ha_vigilancies = False
+
+        hores = [h for h in self.hores if h in dades_per_hora or self._pot_tenir_substitucions(h)]
+        for hora in hores:
+            dades = dades_per_hora.get(hora, {'substitucions': [], 'vigilancies': []})
+            inici = len(files)
+
+            for sub in dades['substitucions']:
+                substitut = sub.get("substitut", "") or ""
+                if substitut in ("---", "PENDENT"):
+                    substitut = ""
+                grup = sub.get("grup", "") or ""
+                aula = sub.get("aula", "") or ""
+                fila = [None,
+                        Paragraph(_text(sub.get("professor_absent", sub.get("professor", ""))), cel),
+                        Paragraph(_text(f"{grup} ({aula})" if aula and grup else grup), cel),
+                        Paragraph(_text(sub.get("assignatura")), cel),
+                        Paragraph(_text(substitut), cel_sub)]
+                if self.show_comments_column:
+                    fila.append(Paragraph(_text(sub.get("comentaris")), cel))
+                files.append(fila)
+                alcades.append(None)
+
+            if espai_a_ma:
+                blancs = 1 if dades['substitucions'] else 2
+            else:
+                blancs = 0 if dades['substitucions'] or dades['vigilancies'] else 1
+            if blancs:
+                for _blanc in range(blancs):
+                    files.append([None] + [''] * (n_cols - 1))
+                    alcades.append(0.9*cm)
+
+            for vig in dades['vigilancies']:
+                vigilant = vig.get("vigilant", "") or ""
+                if vigilant.startswith("-- selecciona"):
+                    vigilant = ""
+                fila = [None,
+                        Paragraph(_text(self._curs_vigilancia(vig)), cel_vig),
+                        Paragraph(_text(vig.get("aula")), cel_vig),
+                        Paragraph(_text(vig.get("tipus")), cel_vig),
+                        Paragraph(_text(vigilant), cel_vigilant)]
+                if self.show_comments_column:
+                    fila.append(Paragraph(_text(vig.get("comentaris")), cel_vig))
+                estil.append(('BACKGROUND', (1, len(files)), (-1, len(files)), colors.HexColor('#d9d9d9')))
+                files.append(fila)
+                alcades.append(None)
+                hi_ha_vigilancies = True
+
+            fi = len(files) - 1
+            if fi < inici:
+                continue
+            files[inici][0] = Paragraph(_text(hora), cel_hora)
+            for r in range(inici + 1, fi + 1):
+                files[r][0] = ''
+            estil += [
+                ('SPAN', (0, inici), (0, fi)),
+                ('NOSPLIT', (0, inici), (-1, fi)),
+                ('BACKGROUND', (0, inici), (0, fi), colors.HexColor('#e9ecef')),
+                ('LINEABOVE', (0, inici), (-1, inici), 1.5, colors.black),
+            ]
+
+        if len(files) == 1:
+            return []
+        taula = Table(files, colWidths=amplades, rowHeights=alcades, repeatRows=1)
+        taula.setStyle(TableStyle(estil))
+        contingut = [taula]
+        if hi_ha_vigilancies:
+            llegenda = ParagraphStyle('DiaLlegenda', parent=self.styles['Normal'], fontSize=8,
+                                      textColor=colors.HexColor('#555555'), spaceBefore=3)
+            contingut.append(Paragraph(_("Files en gris: vigilàncies d'exàmens (Curs, Aula, Vigilant, en cursiva a la capçalera)."), llegenda))
+        return contingut
+
     def _organitzar_dades_per_hora(self, substitucions: List[Dict], vigilancies: List[Dict]) -> Dict:
         """Organitza substitucions i vigilàncies per hora"""
         dades_per_hora = defaultdict(lambda: {'substitucions': [], 'vigilancies': []})
@@ -671,8 +815,10 @@ class PDFCompletExporter:
 
         return headers, widths
 
-    def _crear_taula_substitucions(self, substitucions: List[Dict]) -> Table:
-        """Crea taula de substitucions optimitzada amb text wrapping"""
+    def _crear_taula_substitucions(self, substitucions: List[Dict], files_en_blanc: int = 0) -> Table:
+        """Crea taula de substitucions optimitzada amb text wrapping.
+
+        `files_en_blanc`: files buides al final, per escriure-hi a mà."""
         from reportlab.platypus import Table, TableStyle, Paragraph
         from reportlab.lib.styles import ParagraphStyle
         
@@ -782,13 +928,17 @@ class PDFCompletExporter:
                     fila.append(Paragraph(comentaris_text, cell_style))
 
             dades.append(fila)
-        
+
+        # Files en blanc, prou altes per escriure-hi a mà
+        alcades = [None] * len(dades) + [0.9*cm] * files_en_blanc
+        dades.extend([[''] * len(header_texts) for _fila in range(files_en_blanc)])
+
         # Get font sizes for table styling
         header_size = fonts.get('table_header', 11)
         body_size = fonts.get('table_body', 12)
 
         # Amplades dinàmiques segons configuració
-        taula = Table(dades, colWidths=col_widths)
+        taula = Table(dades, colWidths=col_widths, rowHeights=alcades if files_en_blanc else None)
         # Build table style based on current profile - SUBSTITUTIONS
         profile_colors = self._get_profile_colors()
         table_style_commands = [
@@ -822,6 +972,26 @@ class PDFCompletExporter:
         
         return taula
     
+    @staticmethod
+    def _curs_vigilancia(vig: Dict) -> str:
+        """Curs que es mostra d'una vigilància: el nivell, o el que es dedueix del grup."""
+        nivell = vig.get("nivell", "")
+        # Don't show "GENERAL" as course - it's for special vigilances
+        if nivell == "GENERAL":
+            nivell = ""
+        # Only show level if there's an explicit group selection
+        if not nivell:
+            grup = vig.get("grups", "") or vig.get("grup", "")
+            # ONLY extract level from explicit group selection, NOT from aula
+            if grup and "-" in grup:
+                parts = grup.split("-")
+                if len(parts) >= 2:
+                    if parts[1] == "ESO":
+                        nivell = f"{parts[0]}{'r' if parts[0] in ['1', '3'] else 't'} ESO"
+                    elif parts[1] == "BATX":
+                        nivell = f"{parts[0]}{'r' if parts[0] == '1' else 'n'} BATX"
+        return nivell
+
     def _crear_taula_vigilancies(self, vigilancies: List[Dict]) -> Table:
         """Crea taula de vigilàncies optimitzada amb text wrapping"""
         from reportlab.platypus import Table, TableStyle, Paragraph
@@ -885,24 +1055,7 @@ class PDFCompletExporter:
         for vig in vigilancies:
             tipus = vig.get("tipus", "")
             
-            # Extract course/level from vigilance data
-            nivell = vig.get("nivell", "")
-
-            # Don't show "GENERAL" as course - it's for special vigilances
-            if nivell == "GENERAL":
-                nivell = ""
-            # Only show level if there's an explicit group selection
-            if not nivell:
-                grup = vig.get("grups", "") or vig.get("grup", "")
-                # ONLY extract level from explicit group selection, NOT from aula
-                if grup and "-" in grup:
-                    parts = grup.split("-")
-                    if len(parts) >= 2:
-                        if parts[1] == "ESO":
-                            nivell = f"{parts[0]}{'r' if parts[0] in ['1', '3'] else 't'} ESO"
-                        elif parts[1] == "BATX":
-                            nivell = f"{parts[0]}{'r' if parts[0] == '1' else 'n'} BATX"
-                # NOTE: No longer extract level from aula automatically to avoid unwanted course inference
+            nivell = self._curs_vigilancia(vig)
                 
             # Allow showing course derived from group/aula like v2.4.0 behavior
             
