@@ -138,6 +138,31 @@ class GrupAlliberat(Base):
     )
 
 
+class AlliberamentPeriode(Base):
+    """Canvi d'estat d'un alliberament que dura fins al canvi següent.
+
+    Cada fila diu que, a partir de `des_de`, cada `dia_setmana` a l'`hora`
+    indicada, el grup / professor / activitat (`tipus`, `clau`) queda alliberat
+    o deixa de ser-ho. L'estat d'un dia concret és el del darrer canvi fet
+    abans o el mateix dia.
+    """
+    __tablename__ = 'alliberaments_periode'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tipus = Column(String, nullable=False)        # grup | professor | activitat
+    clau = Column(String, nullable=False)         # nom del grup, professor o activitat
+    dia_setmana = Column(String, nullable=False)  # nom del dia segons l'XML (p.ex. "Dimarts")
+    hora = Column(String, nullable=False)
+    des_de = Column(Date, nullable=False)
+    alliberat = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=ara_utc)
+
+    __table_args__ = (
+        Index('idx_alliberaments_periode_clau', 'tipus', 'clau'),
+        Index('idx_alliberaments_periode_dia', 'dia_setmana', 'hora'),
+    )
+
+
 class Configuracio(Base):
     __tablename__ = 'configuracio'
 

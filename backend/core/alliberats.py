@@ -18,6 +18,12 @@ except ImportError:
 # per hora que els grups sense classe, amb aquest prefix, perquè arribin a tots
 # els llocs on ja es consulten els grups alliberats.
 PREFIX_PROFESSOR = "professor:"
+# Activitats sense grup (p.ex. Reforç, un equip docent) que es poden alliberar:
+# alliberen tots els professors que la fan a aquella hora.
+PREFIX_ACTIVITAT = "activitat:"
+# Un professor que, per defecte, està alliberat (p.ex. un reforç sense alumnes)
+# però que un dia concret no ho està (aquell dia el reforç sí té alumnes).
+PREFIX_OCUPAT = "ocupat:"
 
 
 def clau_professor(professor: str) -> str:
@@ -28,9 +34,36 @@ def es_clau_professor(valor) -> bool:
     return isinstance(valor, str) and valor.startswith(PREFIX_PROFESSOR)
 
 
+def clau_activitat(activitat: str) -> str:
+    return PREFIX_ACTIVITAT + activitat
+
+
+def es_clau_activitat(valor) -> bool:
+    return isinstance(valor, str) and valor.startswith(PREFIX_ACTIVITAT)
+
+
+def clau_ocupat(professor: str) -> str:
+    return PREFIX_OCUPAT + professor
+
+
+def es_clau_ocupat(valor) -> bool:
+    return isinstance(valor, str) and valor.startswith(PREFIX_OCUPAT)
+
+
+def ocupats_de(valors) -> list:
+    """Els professors que aquell dia no estan alliberats (encara que per defecte ho estiguin)."""
+    return [v[len(PREFIX_OCUPAT):] for v in (valors or []) if es_clau_ocupat(v)]
+
+
 def nomes_grups(valors) -> list:
-    """Els grups sense classe d'una hora, sense els professors alliberats."""
-    return [v for v in (valors or []) if not es_clau_professor(v)]
+    """Els grups sense classe d'una hora, sense els professors ni les activitats alliberats."""
+    return [v for v in (valors or [])
+            if not es_clau_professor(v) and not es_clau_activitat(v) and not es_clau_ocupat(v)]
+
+
+def activitats_de(valors) -> list:
+    """Les activitats alliberades d'una hora."""
+    return [v[len(PREFIX_ACTIVITAT):] for v in (valors or []) if es_clau_activitat(v)]
 
 
 def professors_de(valors) -> list:
@@ -39,11 +72,15 @@ def professors_de(valors) -> list:
 
 
 def sense_classe(professor: str, grup: str, grups_hora) -> bool:
-    """Si un professor que tenia classe amb `grup` no en té: perquè el grup
-    està sense classe o perquè ell està alliberat."""
-    if not grup or not grups_hora:
+    """Si un professor que tenia una activitat a aquella hora no la té: perquè
+    el seu grup està sense classe o perquè ell està alliberat (directament o
+    per una activitat alliberada: es resol a professors en llegir els
+    alliberats del dia, veure GrupsAlliberatsRepository.get_by_date)."""
+    if not grups_hora:
         return False
-    return grup in grups_hora or clau_professor(professor or "") in grups_hora
+    if grup and grup in grups_hora:
+        return True
+    return clau_professor(professor or "") in grups_hora
 
 
 class GestorAlliberats:
@@ -109,8 +146,12 @@ class GestorAlliberats:
 
         # Professors amb forat (amb tipus correcte)
         amb_forat = self.get_disponibles_forat(dia, hora)
+        ja_alliberats = {prof for prof, _tipus, _detall in alliberats}
 
         for prof, tipus, detall in amb_forat:
+            # Una guàrdia alliberada ja surt com a alliberat
+            if prof in ja_alliberats:
+                continue
             # Filtra professors de baixa
             if self._esta_de_baixa(prof):
                 continue
@@ -200,11 +241,14 @@ class GestorAlliberats:
 
         for professor, activitat in hora_data.items():
             grup = activitat.get("grup", "")
-            if sense_classe(professor, grup, grups_sense_classe):
+            assignatura = activitat.get("assignatura", "")
+            # Sense grup, només compta si té alguna activitat (alliberada)
+            if (grup or assignatura) and sense_classe(professor, grup, grups_sense_classe):
                 # Incloure l'assignatura original en el detall
-                assignatura = activitat.get("assignatura", "")
-                if assignatura:  # Assignatura no buida
+                if assignatura and grup:
                     detall = _("tenia {assignatura} - {grup}").format(assignatura=assignatura, grup=grup)
+                elif assignatura:  # activitat sense grup (p.ex. Reforç)
+                    detall = _("tenia {assignatura}").format(assignatura=assignatura)
                 else:
                     detall = _("Grup {grup}").format(grup=grup)
                 alliberats.append((professor, "alliberat", detall))

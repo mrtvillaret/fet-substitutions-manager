@@ -181,6 +181,46 @@
 
     <Divider />
 
+    <!-- SECCIÓ 3b: Activitats alliberables (surten a «Grups i professors alliberats») -->
+    <Panel
+      :header="$t('config.priorities.freeableTitle')"
+      :toggleable="true"
+      v-model:collapsed="panelsPrioritatsCollapsed.alliberables"
+      @toggle="guardarEstatPanels"
+    >
+      <p class="info-text" style="margin-bottom: 1rem;">
+        <i class="pi pi-info-circle"></i>
+        {{ $t('config.priorities.freeableHint') }}
+      </p>
+      <div class="freeable-toolbar">
+        <InputText v-model="filtreAlliberables" :placeholder="$t('config.priorities.freeableFilter')" class="freeable-filter" />
+        <Button
+          :label="$t('common.save')"
+          icon="pi pi-check"
+          size="small"
+          class="p-button-success"
+          :loading="desantAlliberables"
+          @click="desarActivitatsAlliberables"
+        />
+      </div>
+      <div class="freeable-list">
+        <div v-for="act in activitatsFiltrades" :key="act" class="freeable-row">
+          <div class="flex align-items-center gap-2 freeable-name">
+            <Checkbox v-model="activitatsAlliberables" :inputId="`allib-${act}`" :value="act" />
+            <label :for="`allib-${act}`">{{ act }}</label>
+          </div>
+          <div v-if="activitatsAlliberables.includes(act)" class="flex align-items-center gap-2">
+            <Checkbox v-model="activitatsPerDefecte" :inputId="`perdef-${act}`" :value="act" />
+            <label :for="`perdef-${act}`">{{ $t('config.priorities.freeableDefault') }}</label>
+          </div>
+        </div>
+        <p v-if="!activitatsFiltrades.length" class="info-text">{{ $t('config.priorities.freeableNone') }}</p>
+      </div>
+      <p class="info-text" style="margin-top: 0.75rem;">{{ $t('config.priorities.freeableDefaultHint') }}</p>
+    </Panel>
+
+    <Divider />
+
     <!-- SECCIÓ 4: Llista de Disponibles (PDF) -->
     <Panel
       :header="$t('config.priorities.availableListTitle')"
@@ -441,6 +481,49 @@ const opcionsNoSubst = computed(() => {
 })
 const assignaturesSeleccionades = ref([])
 
+// Activitats sense grup que es poden alliberar
+const activitatsAlliberables = ref([])
+const activitatsPerDefecte = ref([])
+const activitatsDisponibles = ref([])
+const desantAlliberables = ref(false)
+const filtreAlliberables = ref('')
+// Les marcades primer; la resta, per ordre alfabètic
+const activitatsFiltrades = computed(() => {
+  const filtre = filtreAlliberables.value.trim().toLowerCase()
+  return activitatsDisponibles.value
+    .filter(a => !filtre || a.toLowerCase().includes(filtre))
+    .sort((a, b) => (activitatsAlliberables.value.includes(b) - activitatsAlliberables.value.includes(a)) || a.localeCompare(b))
+})
+
+const carregarActivitatsAlliberables = async () => {
+  try {
+    const response = await axios.get('/api/prioritats/activitats-alliberables')
+    activitatsAlliberables.value = response.data.activitats || []
+    activitatsPerDefecte.value = response.data.per_defecte || []
+    // Les configurades que ja no són a l'horari també s'han de poder treure
+    activitatsDisponibles.value = [...new Set([...(response.data.disponibles || []), ...activitatsAlliberables.value])].sort()
+  } catch (error) {
+    console.error('Error carregant activitats alliberables:', error)
+  }
+}
+
+const desarActivitatsAlliberables = async () => {
+  desantAlliberables.value = true
+  try {
+    const response = await axios.put('/api/prioritats/activitats-alliberables', {
+      activitats: activitatsAlliberables.value,
+      per_defecte: activitatsPerDefecte.value.filter(a => activitatsAlliberables.value.includes(a))
+    })
+    activitatsAlliberables.value = response.data.activitats
+    activitatsPerDefecte.value = response.data.per_defecte
+    toast.add({ severity: 'success', summary: t('common.saved'), life: 2500 })
+  } catch (error) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || '', life: 5000 })
+  } finally {
+    desantAlliberables.value = false
+  }
+}
+
 // Llista de disponibles (PDF)
 const generantPDFDisponibles = ref(false)
 const dataInicialPDF = ref('')
@@ -450,6 +533,7 @@ const panelsPrioritatsCollapsed = ref({
   ordre: false,
   pesos: false,
   noSubst: false,
+  alliberables: false,
   disponibles: true
 })
 
@@ -902,6 +986,7 @@ const handlePanelHeaderClick = (event) => {
 onMounted(() => {
   carregarEstatPanels()
   carregarNoSubstituir()
+  carregarActivitatsAlliberables()
   carregarPrioritats()
 })
 </script>
@@ -910,6 +995,40 @@ onMounted(() => {
 .tab-content {
   padding: 0.5rem 0;
   min-height: 400px;
+}
+
+.freeable-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.freeable-filter {
+  flex: 1;
+}
+
+.freeable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.freeable-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1.5rem;
+}
+
+.freeable-name {
+  min-width: 12rem;
 }
 
 .info-text {

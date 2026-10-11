@@ -21,6 +21,11 @@
       <Message severity="error" :closable="false">{{ error }}</Message>
     </div>
 
+    <!-- Dia sense classes (p.ex. cap de setmana) -->
+    <div v-else-if="!hores.length" class="error-message">
+      <Message severity="info" :closable="false">{{ $t('groups.noClassesDay') }}</Message>
+    </div>
+
     <!-- Main Content -->
     <div v-else>
       <!-- Toolbar -->
@@ -66,6 +71,70 @@
               </tr>
             </thead>
             <tbody>
+              <!-- Activitats alliberables (configurades a Prioritats) -->
+              <template v-if="activitatsNoms.length || activitatsPerDefecte.length">
+                <tr class="section-row">
+                  <td :colspan="hores.length + 1">{{ $t('groups.activitiesHeader') }}</td>
+                </tr>
+                <!-- Alliberades fins que tenen alumnes (p.ex. Reforç): es gestionen per franges -->
+                <tr v-for="act in activitatsPerDefecte" :key="`perdef-${act}`">
+                  <td class="grup-name"><span>{{ act }}</span></td>
+                  <td :colspan="hores.length" class="perdef-cell">
+                    <span>{{ $t('groups.reforcRowHint') }}</span>
+                    <Button
+                      :label="$t('groups.reforcManage')"
+                      icon="pi pi-users"
+                      size="small"
+                      severity="info"
+                      outlined
+                      @click="obrirReforc(act)"
+                    />
+                  </td>
+                </tr>
+                <!-- Reforços d'aquell dia: qui és lliure i qui es pot alliberar només aquell dia -->
+                <tr v-for="act in activitatsPerDefecte.filter(a => reforcsDelDia[a])" :key="`perdef-avui-${act}`">
+                  <td class="grup-name reforc-avui-nom">{{ $t('groups.reforcTodayRow') }}</td>
+                  <td v-for="hora in hores" :key="`perdef-avui-${act}-${hora}`" class="checkbox-cell">
+                    <button
+                      v-if="professorsReforcAvui(act, hora).length"
+                      type="button"
+                      class="teachers-btn"
+                      :class="{ active: alliberatsReforcAvui(act, hora).length }"
+                      :title="$t('groups.reforcTodayTitle')"
+                      :aria-label="$t('groups.reforcTodayTitle')"
+                      @click="obrirProfessors($event, 'reforc', act, hora)"
+                    >
+                      <i class="pi pi-user"></i>
+                      <span>{{ lliuresReforcAvui(act, hora) }}/{{ professorsReforcAvui(act, hora).length }}</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr v-for="act in activitatsNoms" :key="`act-${act}`">
+                  <td class="grup-name"><span>{{ act }}</span></td>
+                  <td v-for="hora in hores" :key="`act-${act}-${hora}`" class="checkbox-cell">
+                    <div v-if="professorsActivitat(act, hora).length" class="cell-inner">
+                      <Checkbox v-model="activitatsMarcades[act][hora]" :binary="true" />
+                      <button
+                        v-if="!activitatsMarcades[act][hora]"
+                        type="button"
+                        class="teachers-btn"
+                        :class="{ active: alliberatsActivitat(act, hora).length }"
+                        :title="$t('groups.freeTeachersTitle')"
+                        :aria-label="$t('groups.freeTeachersTitle')"
+                        @click="obrirProfessors($event, 'activitat', act, hora)"
+                      >
+                        <i class="pi pi-user"></i>
+                        <span v-if="alliberatsActivitat(act, hora).length">{{ alliberatsActivitat(act, hora).length }}</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+              <!-- Separació amb els grups, amb la seva pròpia fila d'hores -->
+              <tr v-if="activitatsNoms.length || activitatsPerDefecte.length" class="section-row section-hours">
+                <td>{{ $t('groups.groupsHeader') }}</td>
+                <td v-for="hora in hores" :key="`sep-${hora}`">{{ hora }}</td>
+              </tr>
               <tr v-for="grup in grupsDisponibles" :key="grup">
                 <td class="grup-name" @click="toggleGrupComplet(grup)">
                   <span class="clickable">{{ grup }}</span>
@@ -84,7 +153,7 @@
                       :class="{ active: alliberatsDe(grup, hora).length }"
                       :title="$t('groups.freeTeachersTitle')"
                       :aria-label="$t('groups.freeTeachersTitle')"
-                      @click="obrirProfessors($event, grup, hora)"
+                      @click="obrirProfessors($event, 'grup', grup, hora)"
                     >
                       <i class="pi pi-user"></i>
                       <span v-if="alliberatsDe(grup, hora).length">{{ alliberatsDe(grup, hora).length }}</span>
@@ -92,6 +161,7 @@
                   </div>
                 </td>
               </tr>
+
             </tbody>
           </table>
         </div>
@@ -106,19 +176,148 @@
     <!-- Professors d'una franja: alliberar-ne només alguns -->
     <OverlayPanel ref="panellProfessors">
       <div v-if="franja" class="teachers-panel">
-        <strong>{{ franja.grup }} · {{ franja.hora }}</strong>
+        <strong>{{ franja.nom }} · {{ franja.hora }}</strong>
         <p class="teachers-panel-hint">{{ $t('groups.teachersHint') }}</p>
-        <div v-for="prof in professorsDe(franja.grup, franja.hora)" :key="prof" class="teachers-panel-row">
+        <div v-for="prof in professorsFranja(franja)" :key="prof" class="teachers-panel-row">
+          <!-- Reforç sense alumnes: lliure per defecte; desmarcar = aquell dia sí que en té -->
           <Checkbox
+            v-if="franja.tipus === 'reforc' && !reforcAmbAlumnes(franja.nom, franja.hora, prof)"
+            :inputId="`prof-${prof}`"
+            :modelValue="!estaOcupat(prof, franja.hora)"
+            :binary="true"
+            @update:modelValue="valor => marcaOcupat(prof, franja.hora, !valor)"
+          />
+          <Checkbox
+            v-else
             :inputId="`prof-${prof}`"
             :modelValue="estaAlliberat(prof, franja.hora)"
             :binary="true"
             @update:modelValue="valor => marcaProfessor(prof, franja.hora, valor)"
           />
           <label :for="`prof-${prof}`">{{ prof }}</label>
+          <small v-if="franja.tipus === 'reforc'" class="reforc-estat">
+            {{ reforcAmbAlumnes(franja.nom, franja.hora, prof) ? $t('groups.reforcBusy') : $t('groups.reforcFreeNoStudents') }}
+          </small>
         </div>
+        <p v-if="franja.tipus === 'reforc'" class="teachers-panel-hint" style="margin-top: 0.5rem;">
+          {{ $t('groups.reforcTodayHint') }}
+        </p>
       </div>
     </OverlayPanel>
+
+    <!-- Reforços (activitats alliberades fins que tenen alumnes): franges amb alumnes -->
+    <Dialog
+      v-model:visible="reforc.visible"
+      :header="$t('groups.reforcTitle', { activitat: reforc.activitat })"
+      modal
+      :style="{ width: reforc.vista === 'setmana' ? '60rem' : '44rem', maxWidth: '96vw' }"
+    >
+      <p class="reforc-hint">{{ $t('groups.reforcHint') }}</p>
+      <div class="reforc-toolbar">
+        <div class="reforc-vista">
+          <Button :label="$t('groups.reforcViewTeacher')" size="small"
+                  :outlined="reforc.vista !== 'professor'" @click="reforc.vista = 'professor'" />
+          <Button :label="$t('groups.reforcViewWeek')" size="small"
+                  :outlined="reforc.vista !== 'setmana'" @click="reforc.vista = 'setmana'" />
+        </div>
+        <Dropdown
+          v-if="reforc.vista === 'professor'"
+          v-model="reforc.professor"
+          :options="opcionsProfessorsReforc"
+          optionLabel="nom"
+          optionValue="nom"
+          :placeholder="$t('groups.reforcPickTeacher')"
+          :filter="true"
+          filterBy="nom"
+          class="reforc-teacher"
+        >
+          <template #option="{ option }">
+            <span class="reforc-option">
+              <span>{{ option.nom }}</span>
+              <span class="reforc-count">{{ option.icona }} {{ option.amb }}/{{ option.total }}</span>
+            </span>
+          </template>
+        </Dropdown>
+        <label for="reforcData">{{ $t('groups.reforcFrom') }}</label>
+        <InputText id="reforcData" v-model="reforc.data" type="date" />
+      </div>
+      <div class="reforc-toolbar reforc-toolbar-filtre">
+        <div class="flex align-items-center gap-2">
+          <Checkbox v-model="reforc.nomesPendents" inputId="reforcPendents" :binary="true" />
+          <label for="reforcPendents">{{ $t('groups.reforcOnlyPending') }}</label>
+        </div>
+        <span class="reforc-summary">{{ $t('groups.reforcSummary', resumReforc) }}</span>
+      </div>
+      <div class="reforc-legend">
+        <span><span class="reforc-swatch"></span>○ {{ $t('groups.reforcLegendFree') }}</span>
+        <span><span class="reforc-swatch amb"></span>● {{ $t('groups.reforcLegendBusy') }}</span>
+      </div>
+
+      <!-- Vista «Setmana»: hores × dies, amb els professors de cada franja -->
+      <div v-if="reforc.vista === 'setmana'" class="reforc-tots">
+        <table class="grups-table reforc-setmana">
+          <thead>
+            <tr>
+              <th></th>
+              <th v-for="dia in diesSetmana" :key="`s-${dia}`">{{ dia }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="hora in horesSetmana" :key="`s-${hora}`">
+              <td class="grup-name">{{ hora }}</td>
+              <td v-for="dia in diesSetmana" :key="`s-${dia}-${hora}`" class="reforc-setmana-cell">
+                <button
+                  v-for="f in frangesSetmana(dia, hora)"
+                  :key="`s-${f.professor}-${dia}-${hora}`"
+                  type="button"
+                  class="reforc-slot reforc-slot-petit"
+                  :class="{ amb: f.amb_alumnes }"
+                  :disabled="reforc.desant"
+                  :title="titolFranja(f)"
+                  @click="canviaFranjaReforc(dia, hora, f.professor)"
+                >
+                  {{ f.amb_alumnes ? '●' : '○' }} {{ f.professor }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <table v-if="reforc.vista === 'professor' && reforc.professor" class="grups-table reforc-grid">
+        <thead>
+          <tr>
+            <th></th>
+            <th v-for="dia in diesReforc" :key="dia">{{ dia }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="hora in horesReforc" :key="hora">
+            <td class="grup-name">{{ hora }}</td>
+            <td v-for="dia in diesReforc" :key="`${dia}-${hora}`" class="checkbox-cell">
+              <button
+                v-if="frangaReforc(dia, hora)"
+                type="button"
+                class="reforc-slot"
+                :class="{ amb: frangaReforc(dia, hora).amb_alumnes }"
+                :disabled="reforc.desant"
+                :title="titolFranja(frangaReforc(dia, hora))"
+                @click="canviaFranjaReforc(dia, hora)"
+              >
+                <template v-if="frangaReforc(dia, hora).amb_alumnes">
+                  ● {{ $t('groups.reforcBusy') }}<br /><small>{{ $t('groups.reforcSince', { data: dataCurta(frangaReforc(dia, hora).des_de) }) }}</small>
+                </template>
+                <template v-else>○ {{ $t('groups.reforcFree') }}</template>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <template #footer>
+        <Button :label="$t('common.close')" text severity="secondary" @click="reforc.visible = false" />
+      </template>
+    </Dialog>
 
     <!-- Canvis sense desar: Desa / No desis / Cancel·la -->
     <Dialog
@@ -153,6 +352,8 @@ import OverlayPanel from 'primevue/overlaypanel'
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
 import Dialog from 'primevue/dialog'
+import InputText from 'primevue/inputtext'
+import Dropdown from 'primevue/dropdown'
 
 const toast = useToast()
 const { t, locale } = useI18n()
@@ -172,8 +373,19 @@ const checkboxesOriginals = ref({})
 const professorsPerGrupHora = ref({})
 const professorsAlliberats = reactive({})
 const professorsAlliberatsOriginals = ref({})
+// Reforços sense alumnes que un dia concret sí que en tenen: {hora: [professors]}
+const professorsOcupats = reactive({})
+const professorsOcupatsOriginals = ref({})
 const panellProfessors = ref(null)
 const franja = ref(null)
+// Activitats alliberables: {activitat: {hora: [professors]}} i les marcades aquell dia
+const activitatsPerHora = ref({})
+const activitatsMarcades = reactive({})
+const activitatsMarcadesOriginals = ref({})
+// Activitats alliberades fins que tenen alumnes (p.ex. Reforç)
+const activitatsPerDefecte = ref([])
+// ...i qui les fa aquell dia, amb l'estat: {activitat: {hora: [{professor, amb_alumnes}]}}
+const reforcsDelDia = ref({})
 const loading = ref(false)
 const desant = ref(false)
 const error = ref(null)
@@ -208,16 +420,69 @@ const professorsAlliberatsNets = () => {
   return nets
 }
 
+const professorsOcupatsNets = () => {
+  const nets = {}
+  hores.value.forEach(hora => {
+    const profs = [...(professorsOcupats[hora] || [])].sort()
+    if (profs.length) nets[hora] = profs
+  })
+  return nets
+}
+
+const estaOcupat = (prof, hora) => (professorsOcupats[hora] || []).includes(prof)
+
+const marcaOcupat = (prof, hora, valor) => {
+  const actuals = (professorsOcupats[hora] || []).filter(p => p !== prof)
+  professorsOcupats[hora] = valor ? [...actuals, prof] : actuals
+}
+
 const teCanvis = computed(() => {
-  return JSON.stringify(checkboxes) !== JSON.stringify(checkboxesOriginals.value) ||
-    JSON.stringify(professorsAlliberatsNets()) !== JSON.stringify(professorsAlliberatsOriginals.value)
+  return JSON.stringify(professorsOcupatsNets()) !== JSON.stringify(professorsOcupatsOriginals.value) ||
+    JSON.stringify(checkboxes) !== JSON.stringify(checkboxesOriginals.value) ||
+    JSON.stringify(professorsAlliberatsNets()) !== JSON.stringify(professorsAlliberatsOriginals.value) ||
+    JSON.stringify(activitatsMarcades) !== JSON.stringify(activitatsMarcadesOriginals.value)
 })
 
 const professorsDe = (grup, hora) => professorsPerGrupHora.value[hora]?.[grup] || []
 
+const activitatsNoms = computed(() => Object.keys(activitatsPerHora.value))
+
+const professorsActivitat = (act, hora) => activitatsPerHora.value[act]?.[hora] || []
+
+const professorsReforcAvui = (act, hora) => (reforcsDelDia.value[act]?.[hora] || []).map(r => r.professor)
+
+const reforcAmbAlumnes = (act, hora, prof) =>
+  (reforcsDelDia.value[act]?.[hora] || []).some(r => r.professor === prof && r.amb_alumnes)
+
+const professorsFranja = (f) => {
+  if (f.tipus === 'activitat') return professorsActivitat(f.nom, f.hora)
+  if (f.tipus === 'reforc') return professorsReforcAvui(f.nom, f.hora)
+  return professorsDe(f.nom, f.hora)
+}
+
+const dataCurta = (iso) => {
+  const [y, m, d] = (iso || '').split('-')
+  return d ? `${d}/${m}/${y}` : ''
+}
+
 const estaAlliberat = (prof, hora) => (professorsAlliberats[hora] || []).includes(prof)
 
 const alliberatsDe = (grup, hora) => professorsDe(grup, hora).filter(prof => estaAlliberat(prof, hora))
+
+// Lliure aquell dia: amb alumnes i alliberat aquell dia, o sense alumnes i no ocupat aquell dia
+const lliureReforcAvui = (act, hora, prof) =>
+  reforcAmbAlumnes(act, hora, prof) ? estaAlliberat(prof, hora) : !estaOcupat(prof, hora)
+
+// Els que aquell dia canvien respecte del seu estat (per destacar la icona)
+const alliberatsReforcAvui = (act, hora) =>
+  professorsReforcAvui(act, hora).filter(prof =>
+    reforcAmbAlumnes(act, hora, prof) ? estaAlliberat(prof, hora) : estaOcupat(prof, hora))
+
+const lliuresReforcAvui = (act, hora) =>
+  professorsReforcAvui(act, hora).filter(prof => lliureReforcAvui(act, hora, prof)).length
+
+const alliberatsActivitat = (act, hora) =>
+  professorsActivitat(act, hora).filter(prof => estaAlliberat(prof, hora))
 
 const marcaProfessor = (prof, hora, valor) => {
   const actuals = (professorsAlliberats[hora] || []).filter(p => p !== prof)
@@ -230,8 +495,8 @@ const treureProfessor = (prof) => {
   }
 }
 
-const obrirProfessors = (event, grup, hora) => {
-  franja.value = { grup, hora }
+const obrirProfessors = (event, tipus, nom, hora) => {
+  franja.value = { tipus, nom, hora }
   panellProfessors.value.toggle(event)
 }
 
@@ -245,6 +510,130 @@ const resumProfessors = computed(() => {
   })
   return Object.keys(perProfessor).sort().map(professor => ({ professor, hores: perProfessor[professor] }))
 })
+
+// ===== Reforços: franges amb alumnes a partir d'un dia =====
+const reforc = reactive({
+  visible: false, activitat: '', professor: null, data: '',
+  dies: [], hores: [], professors: {}, desant: false, nomesPendents: false,
+  vista: 'professor'   // 'professor' (desplegable i graella) o 'setmana' (hores × dies)
+})
+
+
+
+const carregarReforc = async () => {
+  const response = await axios.get(`/api/grups/reforcos/${encodeURIComponent(reforc.activitat)}`,
+    { params: { data: reforc.data } })
+  reforc.dies = response.data.dies || []
+  reforc.hores = response.data.hores || []
+  reforc.professors = response.data.professors || {}
+}
+
+const obrirReforc = async (activitat) => {
+  // Marcar una franja recarrega el dia: primer cal desar (o descartar) el que s'hagi marcat
+  if (!(await potSortir())) return
+  Object.assign(reforc, { activitat, professor: null, data: isoDe(dataCarregada.value), visible: true })
+  try {
+    await carregarReforc()
+  } catch (err) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: err.response?.data?.detail || '', life: 5000 })
+  }
+}
+
+// Si canvia la data, l'estat de les franges és el d'aquella data
+watch(() => reforc.data, (nova, vella) => {
+  if (reforc.visible && nova && vella && nova !== vella) carregarReforc().catch(() => {})
+})
+
+const frangesProfessor = computed(() => reforc.professors[reforc.professor] || [])
+const frangaReforc = (dia, hora) => frangesProfessor.value.find(f => f.dia === dia && f.hora === hora) || null
+const diesReforc = computed(() => reforc.dies.filter(d => frangesProfessor.value.some(f => f.dia === d)))
+const horesReforc = computed(() => reforc.hores.filter(h => frangesProfessor.value.some(f => f.hora === h)))
+
+// Opcions del desplegable: cada professor amb quantes franges tenen alumnes
+const opcionsProfessorsReforc = computed(() =>
+  Object.entries(reforc.professors)
+    .map(([nom, franges]) => {
+      const amb = franges.filter(f => f.amb_alumnes).length
+      const total = franges.length
+      return { nom, amb, total, icona: amb === total ? '●' : (amb ? '◐' : '○') }
+    })
+    .filter(o => !reforc.nomesPendents || o.amb < o.total || o.nom === reforc.professor))
+
+// Vista «Setmana»: franges de tots els professors visibles (amb el filtre), per dia i hora
+const frangesVisiblesSetmana = computed(() => {
+  const visibles = new Set(opcionsProfessorsReforc.value.map(o => o.nom))
+  return Object.entries(reforc.professors)
+    .filter(([nom]) => visibles.has(nom))
+    .flatMap(([professor, franges]) => franges.map(f => ({ professor, ...f })))
+})
+const diesSetmana = computed(() => reforc.dies.filter(d => frangesVisiblesSetmana.value.some(f => f.dia === d)))
+const horesSetmana = computed(() => reforc.hores.filter(h => frangesVisiblesSetmana.value.some(f => f.hora === h)))
+const frangesSetmana = (dia, hora) =>
+  frangesVisiblesSetmana.value.filter(f => f.dia === dia && f.hora === hora)
+
+// Text en passar el ratolí per sobre: estat actual, historial i què fa el clic
+const titolFranja = (f) => {
+  if (!f) return ''
+  const estat = f.amb_alumnes
+    ? `${t('groups.reforcBusy')} ${t('groups.reforcSince', { data: dataCurta(f.des_de) })}`
+    : t('groups.reforcFree')
+  const linies = [estat]
+  if (f.historial?.length) {
+    linies.push(`${t('groups.reforcHistory')}:`)
+    f.historial.forEach(h => {
+      linies.push(`  ${dataCurta(h.des_de)} → ${h.amb_alumnes ? t('groups.reforcBusy') : t('groups.reforcFree')}`)
+    })
+  }
+  linies.push(f.amb_alumnes ? t('groups.reforcMakeFree') : t('groups.reforcMakeBusy'))
+  return linies.join('\n')
+}
+
+const resumReforc = computed(() => {
+  const totes = Object.values(reforc.professors).flat()
+  return { amb: totes.filter(f => f.amb_alumnes).length, total: totes.length }
+})
+
+const canviaFranjaReforc = async (dia, hora, professor = reforc.professor) => {
+  const franja = (reforc.professors[professor] || []).find(f => f.dia === dia && f.hora === hora)
+  if (!franja || !reforc.data) return
+  reforc.desant = true
+  try {
+    await axios.post('/api/grups/periode', {
+      tipus: 'professor', clau: professor, hores: [hora], data: reforc.data,
+      dia_setmana: dia, alliberat: franja.amb_alumnes   // amb alumnes → torna a estar alliberat
+    })
+    await carregarReforc()
+    await recarregarDiaCarregat()
+  } catch (err) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: err.response?.data?.detail || '', life: 5000 })
+  } finally {
+    reforc.desant = false
+  }
+}
+
+const inicialitzarActivitats = (perHora = {}, seleccionades = {}) => {
+  activitatsPerHora.value = perHora
+  for (const key in activitatsMarcades) {
+    delete activitatsMarcades[key]
+  }
+  Object.keys(perHora).forEach(act => {
+    activitatsMarcades[act] = {}
+    Object.keys(perHora[act]).forEach(hora => {
+      activitatsMarcades[act][hora] = (seleccionades[hora] || []).includes(act)
+    })
+  })
+  activitatsMarcadesOriginals.value = JSON.parse(JSON.stringify(activitatsMarcades))
+}
+
+const inicialitzarOcupats = (seleccionats = {}) => {
+  for (const key in professorsOcupats) {
+    delete professorsOcupats[key]
+  }
+  Object.entries(seleccionats).forEach(([hora, profs]) => {
+    professorsOcupats[hora] = [...profs]
+  })
+  professorsOcupatsOriginals.value = professorsOcupatsNets()
+}
 
 const inicialitzarProfessors = (seleccionats = {}) => {
   for (const key in professorsAlliberats) {
@@ -298,12 +687,11 @@ const inicialitzarCheckboxes = (grups, horasList, seleccionats = {}) => {
   checkboxesOriginals.value = JSON.parse(JSON.stringify(checkboxes))
 }
 
-const carregarConfiguracio = async () => {
+const carregarConfiguracio = async (data = props.dataGlobal) => {
   loading.value = true
   error.value = null
 
   try {
-    const data = props.dataGlobal
     const response = await axios.get(`/api/grups/${isoDe(data)}`)
     dataCarregada.value = data
 
@@ -317,6 +705,10 @@ const carregarConfiguracio = async () => {
     )
     professorsPerGrupHora.value = response.data.professors_per_grup_hora || {}
     inicialitzarProfessors(response.data.professors_alliberats_per_hora || {})
+    inicialitzarActivitats(response.data.activitats_per_hora || {}, response.data.activitats_seleccionades_per_hora || {})
+    activitatsPerDefecte.value = response.data.activitats_per_defecte || []
+    reforcsDelDia.value = response.data.reforcs_per_hora || {}
+    inicialitzarOcupats(response.data.ocupats_per_hora || {})
   } catch (err) {
     console.error('Error carregant configuració:', err)
     error.value = t('groups.errors.load')
@@ -324,6 +716,9 @@ const carregarConfiguracio = async () => {
     loading.value = false
   }
 }
+
+// Torna a carregar el dia que es mostra (després d'un canvi d'estat)
+const recarregarDiaCarregat = () => carregarConfiguracio(dataCarregada.value)
 
 const onCheckboxChange = () => {
   // Aquest mètode es crida quan canvia un checkbox individual
@@ -378,14 +773,24 @@ const desarGrups = async () => {
     })
 
     const professorsPerHora = professorsAlliberatsNets()
+    const activitatsPerHoraMarcades = {}
+    Object.entries(activitatsMarcades).forEach(([act, perHora]) => {
+      Object.entries(perHora).forEach(([hora, marcada]) => {
+        if (marcada) (activitatsPerHoraMarcades[hora] ||= []).push(act)
+      })
+    })
     const response = await axios.put(`/api/grups/${isoDe(dataCarregada.value)}`, {
       grups: grupsPerHora,
-      professors: professorsPerHora
+      professors: professorsPerHora,
+      activitats: activitatsPerHoraMarcades,
+      ocupats: professorsOcupatsNets()
     })
 
     // Actualitzar originals
     checkboxesOriginals.value = JSON.parse(JSON.stringify(checkboxes))
     inicialitzarProfessors(professorsPerHora)
+    activitatsMarcadesOriginals.value = JSON.parse(JSON.stringify(activitatsMarcades))
+    professorsOcupatsOriginals.value = professorsOcupatsNets()
 
     toast.add({
       severity: 'success',
@@ -538,7 +943,9 @@ defineExpose({ potSortir })
 
 /* Taula */
 .table-container {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: calc(100vh - 16rem);
+  min-height: 12rem;
   margin-bottom: 1rem;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -657,6 +1064,190 @@ defineExpose({ potSortir })
 
 .teachers-summary-label {
   font-weight: 600;
+  color: #374151;
+}
+
+.reforc-estat {
+  color: #6b7280;
+  margin-left: auto;
+  padding-left: 0.75rem;
+}
+
+.reforc-avui-nom {
+  font-weight: 400 !important;
+  color: #4b5563;
+  font-size: 0.85rem;
+  padding-left: 1.75rem !important;
+}
+
+.perdef-cell {
+  text-align: left !important;
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.perdef-cell .p-button {
+  margin-left: 0.75rem;
+}
+
+.reforc-hint {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+  line-height: 1.4;
+}
+
+.reforc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.reforc-toolbar-filtre {
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.reforc-vista {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.reforc-tots {
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.reforc-legend {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: #4b5563;
+  margin-bottom: 0.75rem;
+}
+
+.reforc-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.reforc-swatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 3px;
+  border: 1px solid #16a34a;
+  background: #dcfce7;
+}
+
+.reforc-swatch.amb {
+  border-color: #2563eb;
+  background: #dbeafe;
+}
+
+.reforc-setmana-cell {
+  vertical-align: top;
+  min-width: 7rem;
+}
+
+.reforc-setmana-cell .reforc-slot {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.2rem;
+  text-align: left;
+}
+
+.reforc-slot.reforc-slot-petit {
+  width: auto;
+  min-width: 0;
+  padding: 0.15rem 0.45rem;
+}
+
+.reforc-teacher {
+  min-width: 16rem;
+}
+
+.reforc-option {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.reforc-count {
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.reforc-summary {
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.reforc-grid td.grup-name {
+  font-weight: 600;
+}
+
+.reforc-slot {
+  width: 100%;
+  min-width: 6.5rem;
+  border: 1px solid #16a34a;
+  background: #dcfce7;
+  color: #14532d;
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.reforc-slot.amb {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.reforc-slot:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.section-row.section-hours td {
+  text-align: center;
+}
+
+.section-row.section-hours td:first-child {
+  text-align: left;
+}
+
+.section-row td {
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+  text-align: left;
+  padding: 0.4rem 1rem;
+}
+
+.period-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.period-field > label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.period-history {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
   color: #374151;
 }
 

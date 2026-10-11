@@ -702,7 +702,10 @@ def generar_pdf_complet(
                         mostrar = True
                 else:
                     # CAS 2: NO té grup → comprovar si l'assignatura necessita substitució
-                    if assignatura not in no_substituir:
+                    # (i que el professor no estigui alliberat, p.ex. un reforç alliberat)
+                    professor = sub.get("professor_absent") or sub.get("professor", "")
+                    if (assignatura not in no_substituir
+                            and not sense_classe(professor, "", grups_sense_classe.get(hora, []))):
                         mostrar = True
 
                 if mostrar:

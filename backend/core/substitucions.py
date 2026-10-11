@@ -163,7 +163,7 @@ class GestorSubstitucions:
                 substitucions_filtrades.append(sub)
             elif not grup:
                 from config import constants
-                if assignatura not in constants.NO_SUBST:
+                if assignatura not in constants.NO_SUBST and not sense_classe(professor, "", grups_hora):
                 # Activitats sense grup que necessiten substitució (VP, GP, etc.)
                     substitucions_filtrades.append(sub)
 
@@ -308,7 +308,8 @@ class GestorSubstitucions:
                             })
 
                         # CAS 2: Té activitat de PRIORITATS que NO està a NO_SUBST
-                        elif assignatura:
+                        # (si no està alliberat d'aquesta activitat)
+                        elif assignatura and clau_professor(vigilant) not in self.grups_sense_classe_dict.get(hora, ()):
                             from config import constants
                             if assignatura in constants.PRIORITATS and assignatura not in constants.NO_SUBST:
                                 print(f"  🔍 Vigilant {vigilant} té activitat '{assignatura}' (PRIORITATS, NO a NO_SUBST) → genera substitució")

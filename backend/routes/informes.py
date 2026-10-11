@@ -57,12 +57,23 @@ def _get_db_and_helpers(institucio: str):
     cur.execute("SELECT assignatura FROM no_substituir")
     no_sub = {r[0] for r in cur.fetchall()}
 
-    cur.execute("SELECT data, hora, grups FROM grups_alliberats")
-    grups_all = defaultdict(lambda: defaultdict(list))
-    for r in cur.fetchall():
-        grups_all[r[0]][r[1]].append(r[2])
+    # Alliberats efectius de cada data (els del dia més els per període),
+    # calculats només per a les dates que es consulten
+    return conn, no_sub, _AlliberatsPerData(institucio)
 
-    return conn, no_sub, dict(grups_all)
+
+class _AlliberatsPerData(dict):
+    def __init__(self, institucio: str):
+        super().__init__()
+        self.institucio = institucio
+
+    def __missing__(self, data):
+        from database import get_data_db_session
+        from repositories import GrupsAlliberatsRepository
+        with get_data_db_session(self.institucio) as db:
+            valor = GrupsAlliberatsRepository.get_by_date(db, data) if data else {}
+        self[data] = valor
+        return valor
 
 
 def _es_substitucio_real(s: dict, no_sub: set, grups_all: dict) -> bool:
@@ -72,10 +83,9 @@ def _es_substitucio_real(s: dict, no_sub: set, grups_all: dict) -> bool:
     if s["tipus_absencia"] in ("ENCADENADA", "VIGILANCIA"):
         return False
     grup = (s.get("grup") or "").strip()
-    if grup:
-        grups_hora = grups_all.get(s.get("data", ""), {}).get(s.get("hora", ""), [])
-        if sense_classe(s.get("professor_absent", ""), grup, grups_hora):
-            return False
+    grups_hora = grups_all[s.get("data", "")].get(s.get("hora", ""), [])
+    if sense_classe(s.get("professor_absent", ""), grup, grups_hora):
+        return False
     return True
 
 

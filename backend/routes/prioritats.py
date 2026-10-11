@@ -16,6 +16,7 @@ from repositories import (
     ProfessorBaixaRepository,
     CategoriaPrioritatRepository,
     AssignaturaPrioritatRepository,
+    ConfiguracioRepository,
     NoSubstituirRepository
 )
 
@@ -392,6 +393,47 @@ async def delete_no_substituir(assignatura: str, db: Session = Depends(get_db)):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error en eliminar no substituir: {str(e)}")
+
+
+# ===== ACTIVITATS ALLIBERABLES =====
+
+class ActivitatsAlliberables(BaseModel):
+    activitats: List[str]
+    per_defecte: List[str] = []   # alliberades fins que tenen alumnes (p.ex. Reforç)
+
+
+@router.get("/activitats-alliberables")
+async def get_activitats_alliberables(db: Session = Depends(get_db)):
+    """Activitats sense grup que es poden alliberar (surten com a files a la
+    taula de grups alliberats) i les que hi ha a l'horari per triar-les."""
+    from routes.grups import activitats_alliberables
+    from helpers import get_horari, MissingXmlError
+    disponibles = set()
+    try:
+        horari = get_horari()
+        for dia in horari.dies:
+            for hora in horari.hores:
+                for professor in horari.professors:
+                    act = horari.get_activitat(dia, hora, professor) or {}
+                    if act.get("assignatura") and not act.get("grup"):
+                        disponibles.add(act["assignatura"])
+    except MissingXmlError:
+        pass
+    from repositories import GrupsAlliberatsRepository
+    return {"activitats": activitats_alliberables(db),
+            "per_defecte": GrupsAlliberatsRepository.activitats_per_defecte(db),
+            "disponibles": sorted(disponibles)}
+
+
+@router.put("/activitats-alliberables")
+async def set_activitats_alliberables(dades: ActivitatsAlliberables, db: Session = Depends(get_db)):
+    import json
+    from routes.grups import CLAU_ACTIVITATS_ALLIBERABLES
+    activitats = sorted({a.strip() for a in dades.activitats if a and a.strip()})
+    per_defecte = sorted({a.strip() for a in dades.per_defecte if a and a.strip() in activitats})
+    ConfiguracioRepository.set(db, CLAU_ACTIVITATS_ALLIBERABLES, json.dumps(activitats, ensure_ascii=False), 'json')
+    ConfiguracioRepository.set(db, "activitats_alliberades_per_defecte", json.dumps(per_defecte, ensure_ascii=False), 'json')
+    return {"success": True, "activitats": activitats, "per_defecte": per_defecte}
 
 
 # ===== DESAR TOTES LES PRIORITATS =====
