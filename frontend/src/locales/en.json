@@ -40,7 +40,9 @@
       "substitucions": "Substitutions",
       "grups": "Freed groups and teachers",
       "vigilancies": "Supervisions"
-    }
+    },
+    "newVersion": "A new version of the application is available.",
+    "reload": "Reload"
   },
   "common": {
     "save": "Save",
@@ -538,7 +540,8 @@
         "selectNone": "None",
         "selectAll": "All",
         "todayAbsences": "Today's absences:",
-        "addAbsence": "+ Add absence"
+        "addAbsence": "+ Add absence",
+        "onLeave": "ON LEAVE"
       },
       "pdfValidation": {
         "criticalTitle": "⚠️ Critical issues detected - Export PDF?",

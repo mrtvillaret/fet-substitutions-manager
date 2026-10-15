@@ -40,7 +40,9 @@
       "substitucions": "Substitucions",
       "grups": "Grups i professors alliberats",
       "vigilancies": "Vigilàncies"
-    }
+    },
+    "newVersion": "Hi ha una versió nova de l'aplicació.",
+    "reload": "Actualitza"
   },
   "common": {
     "save": "Desa",
@@ -541,7 +543,8 @@
         "selectNone": "Cap",
         "selectAll": "Totes",
         "todayAbsences": "Absències d'avui:",
-        "addAbsence": "+ Afegir absència"
+        "addAbsence": "+ Afegir absència",
+        "onLeave": "DE BAIXA"
       },
       "pdfValidation": {
         "criticalTitle": "⚠️ Problemes crítics detectats - Exportar PDF?",

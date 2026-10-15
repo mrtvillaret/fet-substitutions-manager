@@ -5,7 +5,9 @@ Routes per accedir a dades de l'horari (XML de FET):
 - Assignatures (detectar del XML)
 """
 
-from fastapi import APIRouter
+from datetime import datetime
+
+from fastapi import APIRouter, HTTPException
 from typing import Optional
 from helpers import get_horari, MissingXmlError
 
@@ -53,18 +55,29 @@ async def get_all_professors():
 
 
 @router.get("/professors")
-async def get_professors_filtered():
+async def get_professors_filtered(data: str = None):
     """
     Retorna professors amb el límit ultim_professor_subs aplicat
-    (els que s'utilitzen actualment al sistema)
+    (els que s'utilitzen actualment al sistema). Amb `data` (AAAA-MM-DD),
+    també els que aquell dia estan de baixa (no se'ls posen absències).
     """
+    if data:
+        try:
+            datetime.strptime(data, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
     try:
         horari = get_horari()
 
-        return {
+        resposta = {
             "professors": horari.professors,
             "total": len(horari.professors)
         }
+        if data:
+            from config.constants import PROFESSORS_BAIXA
+            from core.baixes import professors_de_baixa
+            resposta["de_baixa"] = sorted(professors_de_baixa(PROFESSORS_BAIXA, data))
+        return resposta
     except MissingXmlError:
         return {
             "professors": [],

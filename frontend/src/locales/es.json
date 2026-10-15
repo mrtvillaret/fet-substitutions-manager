@@ -40,7 +40,9 @@
       "substitucions": "Sustituciones",
       "grups": "Grupos y profesores liberados",
       "vigilancies": "Vigilancias"
-    }
+    },
+    "newVersion": "Hay una versión nueva de la aplicación.",
+    "reload": "Actualizar"
   },
   "common": {
     "save": "Guardar",
@@ -538,7 +540,8 @@
         "selectNone": "Ninguna",
         "selectAll": "Todas",
         "todayAbsences": "Ausencias de hoy:",
-        "addAbsence": "+ Añadir ausencia"
+        "addAbsence": "+ Añadir ausencia",
+        "onLeave": "DE BAJA"
       },
       "pdfValidation": {
         "criticalTitle": "⚠️ Problemas críticos detectados - ¿Exportar PDF?",

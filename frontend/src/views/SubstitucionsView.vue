@@ -234,8 +234,8 @@
                 {{ value ? value.nom : placeholder }}
               </template>
               <template #option="{ option }">
-                <div class="bs-prof-option" :class="{ 'bs-prof-option--absencies': option.teAbsencies }">
-                  <span>{{ option.nom }}</span>
+                <div class="bs-prof-option" :class="{ 'bs-prof-option--absencies': option.teAbsencies, 'bs-prof-option--baixa': option.deBaixa }">
+                  <span>{{ option.nom }}<span v-if="option.deBaixa" class="bs-badge-baixa"> 🏥 {{ $t('substitutions.dialogs.absences.onLeave') }}</span></span>
                   <span v-if="option.teAbsencies" class="bs-badge-hores">{{ option.numHores }}h</span>
                 </div>
               </template>
@@ -590,6 +590,8 @@ const substitucionsFiltrades = ref([])
 const totesAbsencies = ref([]) // TOTES les absències (amb i sense grup) per detectar professors absents
 const vigilanciesCount = ref(0)
 const professors = ref([])
+// Professors de baixa el dia que es mira: no se'ls poden posar absències
+const professorsDeBaixa = ref(new Set())
 const horesDisponibles = ref([])
 const noSubstituir = ref([])
 const xmlMissingNotified = ref(false)
@@ -705,7 +707,8 @@ const professorsAmbInfo = computed(() => {
   return professors.value.map(prof => ({
     nom: prof,
     teAbsencies: professorsAmbAbsencies.has(prof),
-    numHores: absenciesReals.filter(sub => sub.professor_absent === prof).length
+    numHores: absenciesReals.filter(sub => sub.professor_absent === prof).length,
+    deBaixa: professorsDeBaixa.value.has(prof)
   }))
 })
 
@@ -871,7 +874,7 @@ const anarAVigilancies = () => {
 
 const carregarProfessors = async () => {
   try {
-    const response = await axios.get('/api/professors')
+    const response = await axios.get('/api/horari/professors', { params: { data: dataISO.value } })
     if (response.data?.xml_missing && !xmlMissingNotified.value) {
       toast.add({
         severity: 'warn',
@@ -883,6 +886,7 @@ const carregarProfessors = async () => {
     }
     const llista = response.data.professors || []
     professors.value = [...llista].sort((a, b) => collator.value.compare(a, b))
+    professorsDeBaixa.value = new Set(response.data.de_baixa || [])
   } catch (error) {
     console.error('Error carregant professors:', error)
   }
@@ -1475,7 +1479,7 @@ const afegirAbsenciaImmediata = async () => {
       })
       return
     }
-    toast.add({ severity: 'error', summary: t('common.error'), detail: t('substitutions.errors.saveAbsences'), life: 3000 })
+    toast.add({ severity: 'error', summary: t('common.error'), detail: (typeof error.response?.data?.detail === 'string' && error.response.data.detail) || t('substitutions.errors.saveAbsences'), life: 8000 })
   } finally {
     loading.value = false
   }
@@ -1734,6 +1738,7 @@ const ordenarCanvisPerHora = (canvis) => {
 // Watch per canvis de data
 watch(() => props.dataGlobal, async () => {
   await carregarSubstitucions()
+  await carregarProfessors()   // qui està de baixa depèn del dia
 })
 
 // Quan les dades canvien (desa/elimina), sincronitzar els dos grids si hi ha professor seleccionat
@@ -2379,6 +2384,16 @@ onMounted(async () => {
   padding-left: calc(0.75rem - 3px);
   margin-right: -0.75rem;
   padding-right: 0.75rem;
+}
+
+.bs-prof-option--baixa {
+  opacity: 0.6;
+}
+
+.bs-badge-baixa {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #9a3412;
 }
 
 .bs-badge-hores {

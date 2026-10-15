@@ -71,3 +71,23 @@ def aplica_baixa(db, professor: str, data_inici: str, data_final: str, avui: dat
         canvis["substituts_trets"] += [{**fila, "data": d} for fila in treu_substituts_no_valids(db, d)]
 
     return canvis
+
+
+def baixa_de(professor: str, data: str):
+    """La baixa que té `professor` el dia `data` ({professor, data_inici,
+    data_final...}), o None."""
+    from config.constants import PROFESSORS_BAIXA
+    from core.baixes import professors_de_baixa
+
+    professor = (professor or "").strip()
+    for baixa in PROFESSORS_BAIXA:
+        if (baixa.get("professor") or "").strip() == professor and professors_de_baixa([baixa], data):
+            return baixa
+    return None
+
+
+def missatge_de_baixa(professor: str, baixa: dict) -> str:
+    return (f"{professor} està de baixa ({baixa.get('data_inici')} – {baixa.get('data_final')}): "
+            "els professors de baixa no són substituïts. Si cal cobrir-li les classes, "
+            "escurça o treu la baixa.")
+

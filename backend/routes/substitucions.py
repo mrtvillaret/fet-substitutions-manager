@@ -22,6 +22,7 @@ from helpers import get_horari, get_gestors, MissingXmlError
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
 from serveis.absencies import canvia_tipus_cobertures, desa_absencies
+from serveis.baixes import baixa_de, missatge_de_baixa
 from serveis.dia_escolar import DiaEscolar, treu_substituts_no_valids
 from serveis.prioritat import MillorsSubstituts, text_tipus_substitut
 from serveis.generacio import genera_substitucions_dia
@@ -291,6 +292,10 @@ async def actualitzar_absencies_professor(data: str, professor: str, update: Act
                         "current_data": conflictes
                     }
                 )
+
+        # Un professor de baixa no és substituït: no se li posen absències (sí que se li poden treure)
+        if (update.hores_absencia or update.hores_servei) and (baixa := baixa_de(professor, data)):
+            raise HTTPException(status_code=400, detail=missatge_de_baixa(professor, baixa))
 
         resultat = desa_absencies(db, data, professor, update.hores_absencia, update.hores_servei,
                                   gestors=(horari, absencies), dia_name=dia_name)
@@ -576,6 +581,8 @@ async def afegir_nova_substitucio(data: str, nova: NovaSubstitucioRequest, db: S
         # Validar que hi hagi almenys una hora
         if not nova.hores or len(nova.hores) == 0:
             raise HTTPException(status_code=400, detail="Has de seleccionar almenys una hora")
+        if baixa := baixa_de(nova.professor, data):
+            raise HTTPException(status_code=400, detail=missatge_de_baixa(nova.professor, baixa))
 
         # Obtenir gestors
         substitucions_mgr, horari, alliberats, absencies = get_gestors(data_iso=data)

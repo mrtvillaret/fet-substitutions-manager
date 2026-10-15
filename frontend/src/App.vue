@@ -2,6 +2,12 @@
   <div id="app">
     <Toast />
 
+    <!-- Hi ha una versió nova al servidor (versioApp.js): cal recarregar -->
+    <div v-if="versioNova" class="avis-versio" role="status">
+      <span>{{ $t('app.newVersion') }}</span>
+      <Button :label="$t('app.reload')" icon="pi pi-refresh" size="small" @click="recarregaPagina" />
+    </div>
+
     <div v-if="!autenticat" class="login-screen">
       <div class="login-card">
         <h1 class="login-title">{{ $t('app.login.title') }}</h1>
@@ -352,6 +358,7 @@ import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { BASE, ruta, esRutaLocal } from './basePath'
+import { vigilaVersio } from './versioApp'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import Calendar from 'primevue/calendar'
@@ -494,7 +501,12 @@ const anarScheduler = () => {
   actualitzarRuta()
 }
 
+const versioNova = ref(false)
+const recarregaPagina = () => window.location.reload()
+let deixaDeVigilarVersio = null
+
 onMounted(async () => {
+  deixaDeVigilarVersio = vigilaVersio(() => { versioNova.value = true })
   axios.defaults.withCredentials = true
   // Les crides '/api/...' van a la instal·lació on s'ha obert la pàgina ('' o '/demo')
   axios.defaults.baseURL = BASE.replace(/\/$/, '')
@@ -536,6 +548,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  deixaDeVigilarVersio?.()
   if (mediaQuery) {
     mediaQuery.removeEventListener('change', actualitzarModeMobil)
   }
@@ -650,6 +663,24 @@ const diaSeguent = () => {
 </script>
 
 <style>
+.avis-versio {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  background: #1e3a5f;
+  color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 0.95rem;
+}
+
 :root {
   --primary-color: #667eea;
   --primary-color-dark: #5a6ed1; /* Slightly darker for gradient end or hover */
