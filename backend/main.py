@@ -2,7 +2,7 @@
 FastAPI Backend per Gestor de Substitucions
 Versió modularitzada amb routes, schemas i helpers separats
 """
-# IMPORTANT: Carregar variables d'entorn ABANS de qualsevol altre import
+# Carregar variables d'entorn ABANS de qualsevol altre import
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -49,8 +49,8 @@ def _inicialitzar_prioritats():
         with get_data_db_session(institucio) as db:
             _recarregar_prioritats_desde_bd(db)
     except Exception as e:
-        print(f"⚠️  No s'han pogut carregar prioritats des de BD: {e}")
-        print("   Es faran servir les constants del JSON per defecte")
+        log.warning(f"⚠️  No s'han pogut carregar prioritats des de BD: {e}")
+        log.warning("   Es faran servir les constants del JSON per defecte")
 
 _inicialitzar_prioritats()
 
@@ -137,6 +137,9 @@ app.add_middleware(
 
 # ===== Registre de routers modularitzats =====
 from routes import auth, config_examens, grups, grups_amagats, pdf, vigilancies, substitucions, settings, estadistiques, prioritats, horari, files, users, disponibles, scheduler, informes, cursos, dades
+
+import logging
+log = logging.getLogger(__name__)
 
 app.include_router(auth.router)
 app.include_router(config_examens.router, dependencies=[Depends(require_admin)])

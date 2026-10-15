@@ -7,7 +7,7 @@ Routes per gestió de fitxers:
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import FileResponse
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, date, timedelta
 import hashlib
 import io
@@ -22,6 +22,9 @@ from defusedxml import DefusedXmlException
 
 from auth_utils import require_admin
 from database import get_data_dir_for_institucio, get_data_db_session
+
+import logging
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/files", tags=["Fitxers"])
 
@@ -208,10 +211,10 @@ async def upload_xml(
                     'Path del fitxer XML de FET'
                 )
 
-        # IMPORTANT: Invalidar cache del horari per forçar recàrrega del nou XML
+        # Invalidar cache del horari per forçar recàrrega del nou XML
         from helpers import invalidar_horari
         invalidar_horari(current_user.institucio)
-        print(f"✅ Cache del horari invalidada - nou XML carregat: {stored_path}")
+        log.debug(f"✅ Cache del horari invalidada - nou XML carregat: {stored_path}")
 
         return {
             "success": True,
@@ -222,12 +225,6 @@ async def upload_xml(
             "message": f"Fitxer '{nom_original}' pujat correctament"
         }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error pujant fitxer: {str(e)}")
     finally:
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
@@ -238,65 +235,57 @@ async def upload_logo(file: UploadFile = File(...), current_user=Depends(require
     """
     Puja un logo de la institució i el guarda al directori de dades
     """
+    allowed_exts = {".png", ".jpg", ".jpeg"}
+    filename = file.filename or ""
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail="El logo ha de ser PNG o JPG")
+
+    # No n'hi ha prou amb l'extensió: s'obre la imatge i se'n desa una còpia
+    # nova en PNG. Així el que queda al servidor (i va als PDF) és sempre una
+    # imatge vàlida, sense metadades ni res afegit al fitxer original.
     try:
-        allowed_exts = {".png", ".jpg", ".jpeg"}
-        filename = file.filename or ""
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in allowed_exts:
-            raise HTTPException(status_code=400, detail="El logo ha de ser PNG o JPG")
-
-        # No n'hi ha prou amb l'extensió: s'obre la imatge i se'n desa una còpia
-        # nova en PNG. Així el que queda al servidor (i va als PDF) és sempre una
-        # imatge vàlida, sense metadades ni res afegit al fitxer original.
-        try:
-            imatge = Image.open(io.BytesIO(await file.read()))
-            if imatge.format not in ("PNG", "JPEG"):
-                raise ValueError(imatge.format)
-            # Abans de descomprimir-la: una imatge petita en bytes pot ocupar
-            # gigues en memòria si declara unes dimensions enormes.
-            if imatge.width * imatge.height > LOGO_MAX_PIXELS_ORIGINAL:
-                raise HTTPException(status_code=400, detail="La imatge del logo és massa gran")
-            imatge.load()
-        except HTTPException:
-            raise
-        except (UnidentifiedImageError, Image.DecompressionBombError, OSError, ValueError):
-            raise HTTPException(status_code=400, detail="El logo ha de ser una imatge PNG o JPG vàlida")
-
-        imatge.thumbnail((LOGO_COSTAT_MAX, LOGO_COSTAT_MAX))
-        if imatge.mode not in ("RGB", "RGBA", "L", "LA"):
-            imatge = imatge.convert("RGBA")
-
-        data_dir = str(get_data_dir_for_institucio(current_user.institucio))
-        os.makedirs(data_dir, exist_ok=True)
-
-        logo_filename = "logo.png"
-        file_path = os.path.join(data_dir, logo_filename)
-        imatge.save(file_path, format="PNG")
-        # Un logo anterior en JPG ja no es fa servir
-        for antic in ("logo.jpg", "logo.jpeg"):
-            if os.path.exists(os.path.join(data_dir, antic)):
-                os.remove(os.path.join(data_dir, antic))
-
-        from repositories import ConfiguracioRepository
-        with get_data_db_session(current_user.institucio) as db:
-            ConfiguracioRepository.set(
-                db, "logo_path", file_path,
-                "Path del logo de la institució"
-            )
-
-        return {
-            "success": True,
-            "filename": logo_filename,
-            "path": file_path,
-            "message": f"Logo '{logo_filename}' pujat correctament"
-        }
-
+        imatge = Image.open(io.BytesIO(await file.read()))
+        if imatge.format not in ("PNG", "JPEG"):
+            raise ValueError(imatge.format)
+        # Abans de descomprimir-la: una imatge petita en bytes pot ocupar
+        # gigues en memòria si declara unes dimensions enormes.
+        if imatge.width * imatge.height > LOGO_MAX_PIXELS_ORIGINAL:
+            raise HTTPException(status_code=400, detail="La imatge del logo és massa gran")
+        imatge.load()
     except HTTPException:
         raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error pujant logo: {str(e)}")
+    except (UnidentifiedImageError, Image.DecompressionBombError, OSError, ValueError):
+        raise HTTPException(status_code=400, detail="El logo ha de ser una imatge PNG o JPG vàlida")
+
+    imatge.thumbnail((LOGO_COSTAT_MAX, LOGO_COSTAT_MAX))
+    if imatge.mode not in ("RGB", "RGBA", "L", "LA"):
+        imatge = imatge.convert("RGBA")
+
+    data_dir = str(get_data_dir_for_institucio(current_user.institucio))
+    os.makedirs(data_dir, exist_ok=True)
+
+    logo_filename = "logo.png"
+    file_path = os.path.join(data_dir, logo_filename)
+    imatge.save(file_path, format="PNG")
+    # Un logo anterior en JPG ja no es fa servir
+    for antic in ("logo.jpg", "logo.jpeg"):
+        if os.path.exists(os.path.join(data_dir, antic)):
+            os.remove(os.path.join(data_dir, antic))
+
+    from repositories import ConfiguracioRepository
+    with get_data_db_session(current_user.institucio) as db:
+        ConfiguracioRepository.set(
+            db, "logo_path", file_path,
+            "Path del logo de la institució"
+        )
+
+    return {
+        "success": True,
+        "filename": logo_filename,
+        "path": file_path,
+        "message": f"Logo '{logo_filename}' pujat correctament"
+    }
 
 
 @router.get("/logo")
@@ -304,40 +293,33 @@ async def get_logo(current_user=Depends(require_admin)):
     """
     Retorna el logo configurat de la institució
     """
+    data_dir = get_data_dir_for_institucio(current_user.institucio)
+    logo_path = None
     try:
-        data_dir = get_data_dir_for_institucio(current_user.institucio)
+        from repositories import ConfiguracioRepository
+        with get_data_db_session(current_user.institucio) as db:
+            logo_path = ConfiguracioRepository.get(db, "logo_path")
+    except Exception:
         logo_path = None
-        try:
-            from repositories import ConfiguracioRepository
-            with get_data_db_session(current_user.institucio) as db:
-                logo_path = ConfiguracioRepository.get(db, "logo_path")
-        except Exception:
-            logo_path = None
 
-        if not logo_path:
-            for ext in (".png", ".jpg", ".jpeg"):
-                candidate = data_dir / f"logo{ext}"
-                if candidate.exists():
-                    logo_path = str(candidate)
-                    break
+    if not logo_path:
+        for ext in (".png", ".jpg", ".jpeg"):
+            candidate = data_dir / f"logo{ext}"
+            if candidate.exists():
+                logo_path = str(candidate)
+                break
 
-        if not logo_path or not os.path.exists(logo_path):
-            raise HTTPException(status_code=404, detail="Logo no trobat")
+    if not logo_path or not os.path.exists(logo_path):
+        raise HTTPException(status_code=404, detail="Logo no trobat")
 
-        media_type = "image/png"
-        ext = os.path.splitext(logo_path)[1].lower()
-        if ext in [".jpg", ".jpeg"]:
-            media_type = "image/jpeg"
+    media_type = "image/png"
+    ext = os.path.splitext(logo_path)[1].lower()
+    if ext in [".jpg", ".jpeg"]:
+        media_type = "image/jpeg"
 
-        return FileResponse(
-            path=logo_path,
-            media_type=media_type,
-            filename=os.path.basename(logo_path)
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error retornant logo: {str(e)}")
+    return FileResponse(
+        path=logo_path,
+        media_type=media_type,
+        filename=os.path.basename(logo_path)
+    )
 

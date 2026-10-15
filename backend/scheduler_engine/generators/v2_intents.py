@@ -7,18 +7,17 @@ import copy
 from typing import List, Dict, Tuple
 from collections import defaultdict
 
-from scheduler_engine.core.normalitzacio import normalitzar_text, normalitzar_dia, nom_base_assignatura, dia_nom_per_horari, format_dia_label
+from scheduler_engine.core.normalitzacio import normalitzar_dia, dia_nom_per_horari, format_dia_label
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso, DIES_CAT as _DIES_CAT
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.scoring import calcular_cost_slot
 from scheduler_engine.core.constraints import (
-    sessio_matches, sessio_in_group, get_restriccio_val, detectar_nivell_grup,
-    viola_restriccio_dura, viola_combinacions_permeses, viola_restriccio_dia_hora_fixos,
-    es_slot_valid_per_nivell, penalitzacio_conflicte_professor_nivell,
-    calcular_penalitzacio_professors_dies, calcular_penalitzacio_assignatures_dies_exclosos,
-    calcular_penalitzacio_total_professors, es_item_compatible_amb_slot,
-    viola_limit_dies_professor_obligatori, viola_preferencia_dia_obligatoria,
-    calcular_penalitzacio_professors_dies_item, percent_pref_mateix_slot_violation, _percent_penalty
+    es_slot_valid_per_nivell,
+    calcular_penalitzacio_professors_dies,
+    es_item_compatible_amb_slot,
+    calcular_penalitzacio_professors_dies_item,
+    percent_pref_mateix_slot_violation,
+    _percent_penalty,
 )
 from scheduler_engine.generators.base import GeneradorSessionsExamensBase
 from scheduler_engine.estadistiques import aplicar_estadistiques, recalcular_cost_i_breakdown
@@ -149,11 +148,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         dures = self.restriccions.get('restriccions_dures', {})
         return dures.get('assignatures_dia_fix', {}).get(nom_sessio), dures.get('assignatures_hora_fix', {}).get(nom_sessio)
 
-    def _viola_restriccio_dura(self, sessio: Dict, sessions_dia: List[Dict]) -> bool:
-        return viola_restriccio_dura(sessio, sessions_dia, self.restriccions)
-
-    def _viola_restriccio_dia_hora_fixos(self, sessio: Dict, dia: str, hora: str, data_iso: str = None) -> bool:
-        return viola_restriccio_dia_hora_fixos(sessio, dia, hora, self.restriccions, self.nivells_actius, data_iso or "")
 
     def _calcular_penalitzacio_professors_dies(self, sessio: Dict, dia: str, sessions_assignades: Dict) -> int:
         return calcular_penalitzacio_professors_dies(sessio, dia, sessions_assignades, self.restriccions)

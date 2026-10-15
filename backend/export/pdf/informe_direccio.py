@@ -4,7 +4,6 @@ Informe complet d'absències, substitucions i vigilàncies
 """
 from pathlib import Path
 from datetime import datetime
-from collections import defaultdict
 
 from i18n_setup import translate as _, setup_translation
 
@@ -14,8 +13,14 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, KeepTogether, PageBreak, Image
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+    HRFlowable,
+    PageBreak,
+    Image,
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
@@ -121,7 +126,7 @@ def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: 
     def fmt(d):
         try:
             return datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y")
-        except Exception:
+        except (ValueError, TypeError):
             return d
 
     text_cell = [
@@ -293,42 +298,6 @@ def _mini_bar(value: int, max_val: int, width: float, color) -> Table:
         return outer
     return bar
 
-
-def _taula_professors_absencies(professors: list, top: int = 20) -> list:
-    """Rànquing de professors per absències amb barra visual"""
-    elems = _section_title(_("Professors amb més absències"))
-
-    BAR_W = 4.5 * cm
-    max_total = professors[0]["total"] if professors else 1
-
-    headers = ["#", _("Professor/a"), _("Abs"), _("Serv"), _("Total"), "", "%"]
-    rows = [headers]
-    for i, p in enumerate(professors[:top], 1):
-        total_global = sum(x["total"] for x in professors) or 1
-        pct = p["total"] / total_global * 100
-        bar = _mini_bar(p["total"], max_total, BAR_W, C_ORANGE)
-        rows.append([
-            str(i),
-            p["nom"],
-            str(p["absencies"]),
-            str(p["serveis"]),
-            str(p["total"]),
-            bar,
-            f"{pct:.1f}%",
-        ])
-
-    col_w = [0.7*cm, 4.5*cm, 1.5*cm, 1.5*cm, 1.5*cm, BAR_W, 1.6*cm]
-    t = Table(rows, colWidths=col_w, hAlign="LEFT")
-    st = _table_style_base(C_ORANGE)
-    for col in [2, 3, 4, 6]:
-        st.add("ALIGN", (col, 1), (col, -1), "CENTER")
-    st.add("VALIGN", (5, 1), (5, -1), "MIDDLE")
-    t.setStyle(st)
-    elems.append(t)
-    if len(professors) > top:
-        elems.append(Paragraph(_("* Mostrant els {top} primers de {total} professors").format(top=top, total=len(professors)), STYLES["note"]))
-    elems.append(Spacer(1, 0.4 * cm))
-    return elems
 
 
 def _text_color_for_bg(bg: colors.Color) -> colors.Color:
@@ -576,34 +545,6 @@ def _taula_matriu_substitucions_mesos(per_substitut_mes: dict, mesos: list,
     elems.append(Spacer(1, 0.4 * cm))
     return elems
 
-
-def _taula_professors_substitucions(professors: list, top: int = 20) -> list:
-    """Rànquing de professors per substitucions fetes"""
-    elems = _section_title(_("Professors que han fet més substitucions"))
-
-    headers = ["#", _("Professor/a"), _("Substitucions fetes"), _("% sobre total")]
-    total_global = sum(p["total"] for p in professors) or 1
-    rows = [headers]
-    for i, p in enumerate(professors[:top], 1):
-        pct = p["total"] / total_global * 100
-        rows.append([
-            str(i),
-            p["nom"],
-            str(p["total"]),
-            f"{pct:.1f}%",
-        ])
-
-    col_w = [0.8*cm, 7*cm, 4*cm, 3*cm]
-    t = Table(rows, colWidths=col_w, hAlign="LEFT")
-    st = _table_style_base(C_TEAL)
-    for col in range(2, 4):
-        st.add("ALIGN", (col, 1), (col, -1), "CENTER")
-    t.setStyle(st)
-    elems.append(t)
-    if len(professors) > top:
-        elems.append(Paragraph(_("* Mostrant els {top} primers de {total} professors").format(top=top, total=len(professors)), STYLES["note"]))
-    elems.append(Spacer(1, 0.4 * cm))
-    return elems
 
 
 def _heatmap_color(value: int, max_val: int) -> colors.Color:
@@ -927,67 +868,6 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
     elems.append(Spacer(1, 0.4 * cm))
     return elems
 
-
-def _taula_distribucio(per_dia: dict, per_hora: dict) -> list:
-    """Taules de distribució per dia i hora"""
-    elems = _section_title(_("Distribució per dia de la setmana i hora"))
-
-    # Subtaula: per dia. Clau canònica = índex (0=dilluns); nom traduït només per mostrar.
-    dies_nom = [_("Dilluns"), _("Dimarts"), _("Dimecres"), _("Dijous"), _("Divendres")]
-    rows_dia = [[_("Dia"), _("Absències"), _("Substitucions")]]
-    for idx, nom in enumerate(dies_nom):
-        d = per_dia.get(idx, {})
-        rows_dia.append([nom, str(d.get("absencies", 0)), str(d.get("substitucions", 0))])
-
-    # Subtaula: per hora
-    hores_ordre = sorted(per_hora.keys(), key=lambda h: h if h != "Pati" else "ZZ")
-    rows_hora = [[_("Hora"), _("Absències"), _("Substitucions")]]
-    for hora in hores_ordre:
-        h = per_hora[hora]
-        rows_hora.append([hora, str(h.get("absencies", 0)), str(h.get("substitucions", 0))])
-
-    col_dia = [4*cm, 3*cm, 3.5*cm]
-    col_hora = [3*cm, 2.5*cm, 3*cm]
-
-    t_dia = Table(rows_dia, colWidths=col_dia)
-    t_dia.setStyle(_table_style_base(C_BLUE))
-
-    t_hora = Table(rows_hora, colWidths=col_hora)
-    t_hora.setStyle(_table_style_base(C_BLUE))
-
-    # Posem les dues taules juntes en una fila
-    wrapper = Table(
-        [[t_dia, Spacer(1, 1), t_hora]],
-        colWidths=[sum(col_dia) + 0.3*cm, 0.5*cm, sum(col_hora) + 0.3*cm],
-    )
-    wrapper.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-    ]))
-    elems.append(wrapper)
-    elems.append(Spacer(1, 0.4 * cm))
-    return elems
-
-
-def _taula_vigilancies(vig_stats: dict) -> list:
-    """Estadístiques de vigilàncies"""
-    elems = _section_title(_("Vigilàncies d'examen"))
-
-    rows = [[_("Concepte"), _("Total")]]
-    rows.append([_("Total vigilàncies programades"), str(vig_stats.get("total", 0))])
-    rows.append([_("Vigilants absents (cobertura necessària)"), str(vig_stats.get("absents", 0))])
-    rows.append([_("Vigilants absents coberts"), str(vig_stats.get("coberts", 0))])
-    rows.append([_("Vigilants absents pendents"), str(vig_stats.get("pendents", 0))])
-
-    col_w = [10*cm, 4*cm]
-    t = Table(rows, colWidths=col_w, hAlign="LEFT")
-    st = _table_style_base(C_TEAL)
-    st.add("ALIGN", (1, 1), (1, -1), "CENTER")
-    t.setStyle(st)
-    elems.append(t)
-    elems.append(Spacer(1, 0.4 * cm))
-    return elems
 
 
 def generar_informe_pdf(

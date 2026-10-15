@@ -41,62 +41,6 @@ class PDFImageManager:
             return Image(image_path, width=self.image_size, height=self.image_size)
         return None
     
-    def replace_emojis_with_images(self, text: str) -> list:
-        """
-        Converteix text amb emojis en una llista d'elements (text + imatges)
-        
-        Args:
-            text: Text que pot contenir emojis
-            
-        Returns:
-            list: Llista d'elements per afegir al PDF (strings i Images)
-        """
-        elements = []
-        current_text = ""
-        
-        i = 0
-        while i < len(text):
-            char = text[i]
-            
-            # Comprova si és un emoji que tenim mapejat
-            emoji_found = None
-            for emoji in self.emoji_map:
-                if text[i:].startswith(emoji):
-                    emoji_found = emoji
-                    break
-            
-            if emoji_found:
-                # Afegeix el text acumulat abans de l'emoji
-                if current_text:
-                    elements.append(current_text)
-                    current_text = ""
-                
-                # Afegeix la imatge
-                image = self.create_image_object(emoji_found)
-                if image:
-                    elements.append(image)
-                else:
-                    # Si no es pot carregar la imatge, usa text alternatiu
-                    alt_text = {
-                        '🕐': '[HORA]',
-                        '🏫': '[AULA]', 
-                        '⚠️': '[AVÍS]',
-                        '❌': '[ERROR]'
-                    }.get(emoji_found, emoji_found)
-                    elements.append(alt_text)
-                
-                # Avança l'índex segons la longitud de l'emoji
-                i += len(emoji_found)
-            else:
-                # Caràcter normal, afegeix al text actual
-                current_text += char
-                i += 1
-        
-        # Afegeix qualsevol text final
-        if current_text:
-            elements.append(current_text)
-        
-        return elements
     
     def format_conflict_text(self, conflict_text: str) -> str:
         """

@@ -145,16 +145,11 @@
               optionValue="value"
               :placeholder="$t('substitutions.columns.pickSubstitute')"
               :filter="true"
-              @change="actualitzarSubstitut(rowProps.data, $event)"
+              @change="actualitzarSubstitut(rowProps.data)"
               class="w-full"
             >
               <template #value="slotProps">
-                <span
-                  v-if="slotProps.value"
-                  :style="esSubstitutAbsentAquestHora(rowProps.data.hora, slotProps.value)
-                    ? { backgroundColor: '#fff3cd', padding: '2px 6px', borderRadius: '4px', fontWeight: '600' }
-                    : {}"
-                >{{ slotProps.value }}</span>
+                <span v-if="slotProps.value">{{ slotProps.value }}</span>
                 <span v-else class="p-placeholder">{{ $t('substitutions.columns.pickSubstitute') }}</span>
               </template>
               <template #option="slotProps">
@@ -476,6 +471,22 @@
         </div>
 
         <div class="field mt-3">
+          <label>{{ $t('substitutions.dialogs.pdf.fontSize') }}</label>
+          <div class="flex flex-wrap gap-3">
+            <div v-for="mida in midesLletra" :key="mida.valor" class="flex align-items-center">
+              <RadioButton
+                v-model="pdfConfig.midaLletra"
+                :inputId="`midaLletra${mida.valor}`"
+                :value="mida.valor"
+                :disabled="pdfConfig.format !== 'dia'"
+              />
+              <label :for="`midaLletra${mida.valor}`" class="ml-2">{{ $t(mida.etiqueta) }}</label>
+            </div>
+          </div>
+          <small v-if="pdfConfig.format !== 'dia'" class="text-color-secondary">{{ $t('substitutions.dialogs.pdf.fontSizeOnlyDay') }}</small>
+        </div>
+
+        <div class="field mt-3">
           <label>{{ $t('substitutions.dialogs.pdf.options') }}</label>
           <div class="flex flex-column gap-3">
             <div class="flex align-items-center">
@@ -556,6 +567,7 @@ import Dialog from 'primevue/dialog'
 import ConfirmDialog from 'primevue/confirmdialog'
 import Message from 'primevue/message'
 import { useToast } from 'primevue/usetoast'
+import { avisaSubstitutsTrets } from '../substitutsTrets'
 import { useConfirm } from 'primevue/useconfirm'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
 
@@ -628,6 +640,12 @@ const totalIssuesFiltrats = computed(() => {
   const conflicts = validacions.value.conflicts || []
   return conflicts.length + warningsFiltrats.value.length
 })
+// Mida de la lletra de la taula del dia (routes/pdf.py, MIDES_LLETRA)
+const midesLletra = [
+  { valor: 1, etiqueta: 'substitutions.dialogs.pdf.fontNormal' },
+  { valor: 1.2, etiqueta: 'substitutions.dialogs.pdf.fontLarge' },
+  { valor: 1.35, etiqueta: 'substitutions.dialogs.pdf.fontLarger' }
+]
 const pdfConfig = ref({
   includeSubstitutions: true,
   includeVigilancies: true,
@@ -636,7 +654,8 @@ const pdfConfig = ref({
   showConflicts: true,
   compress: false,
   blankRows: false,
-  format: 'hores'
+  format: 'hores',
+  midaLletra: 1
 })
 
 // Computed
@@ -693,11 +712,6 @@ const professorsAmbInfo = computed(() => {
 const professorsAbsentsAvui = computed(() =>
   new Set(totesAbsencies.value.map(s => s.professor_absent).filter(Boolean))
 )
-
-const esSubstitutAbsentAquestHora = (hora, nomSubstitut) => {
-  if (!nomSubstitut) return false
-  return totesAbsencies.value.some(a => a.hora === hora && a.professor_absent === nomSubstitut)
-}
 
 // Detecta si una sub és Tipus A VIGILANCIA_ABSENT (vigilant absent → slot descobert)
 const esVigilanciaAbsent = (sub) => (sub.tipus_absencia || '').toUpperCase() === 'VIGILANCIA_ABSENT'
@@ -988,12 +1002,34 @@ const regenerarTot = async () => {
   })
 }
 
-const actualitzarSubstitut = async (substitucio, event) => {
+// Si el professor triat ja substitueix algú altre a la mateixa hora (en vermell),
+// es pot moure aquí: l'altra substitució queda pendent.
+const actualitzarSubstitut = (substitucio) => {
+  const opcio = (substitucio.disponibles || []).find(d => d.professor === substitucio.substitut)
+  const nomesJaAssignat = opcio?.ja_assignat && !opcio.absent && !opcio.de_baixa && !opcio.ocupat_vigilancia
+  if (!nomesJaAssignat) return desarSubstitut(substitucio)
+
+  const altra = totesAbsencies.value.find(s => s.hora === substitucio.hora && s.substitut === substitucio.substitut &&
+    s.professor_absent !== substitucio.professor_absent)
+  confirm.require({
+    header: t('substitutions.confirm.moveTitle'),
+    message: t('substitutions.confirm.moveMessage', {
+      name: substitucio.substitut, absent: altra?.professor_absent || '—', hora: substitucio.hora
+    }),
+    icon: 'pi pi-arrow-right-arrow-left',
+    acceptLabel: t('substitutions.confirm.moveAccept'),
+    rejectLabel: t('common.cancel'),
+    accept: () => desarSubstitut(substitucio, true),
+    reject: () => carregarSubstitucions()   // torna el desplegable com era
+  })
+}
+
+const desarSubstitut = async (substitucio, moure = false) => {
   try {
     const data = dataISO.value
     const response = await axios.put(
       `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
-      { substitut: substitucio.substitut, updated_at: substitucio.updated_at },
+      { substitut: substitucio.substitut, updated_at: substitucio.updated_at, moure },
       { _silent: true }
     )
 
@@ -1003,6 +1039,21 @@ const actualitzarSubstitut = async (substitucio, event) => {
 
     // Actualitzar estat
     substitucio.estat = substitucio.substitut ? 'assignada' : 'pendent'
+
+    const alliberades = response.data?.alliberades || []
+    if (alliberades.length) {
+      // L'altra fila ha canviat: es torna a carregar tot
+      await carregarSubstitucions()
+      toast.add({
+        severity: 'info',
+        summary: t('common.updated'),
+        detail: t('substitutions.messages.substituteMoved', {
+          name: substitucio.substitut, absent: alliberades.map(a => a.professor_absent).join(', ')
+        }),
+        life: 5000
+      })
+      return
+    }
 
     // Recarregar disponibles per actualitzar colors (alguns professors poden passar de disponible a "JA ASSIGNAT")
     await carregarDisponiblesPerHores()
@@ -1024,7 +1075,8 @@ const actualitzarSubstitut = async (substitucio, event) => {
           {
             substitut: substitucio.substitut,
             updated_at: currentData.updated_at,
-            force: true
+            force: true,
+            moure
           }
         )
         await carregarSubstitucions()
@@ -1379,6 +1431,7 @@ const afegirAbsenciaImmediata = async () => {
         detail: t('substitutions.messages.absencesSaved', { teacher: profNom }),
         life: 2500
       })
+      avisaSubstitutsTrets(toast, t, resposta.data?.substituts_trets)
       if (resposta.data?.vigilancies_desassignades > 0) {
         toast.add({
           severity: 'info',
@@ -1389,7 +1442,7 @@ const afegirAbsenciaImmediata = async () => {
       }
       await carregarSubstitucions()
     } else {
-      await Promise.all(dates.map(d =>
+      const respostes = await Promise.all(dates.map(d =>
         axios.put(`/api/substitucions/${d}/absencies/${professorEncoded}`, {
           hores_absencia: horesAbsencia,
           hores_servei: horesServei,
@@ -1402,6 +1455,7 @@ const afegirAbsenciaImmediata = async () => {
         detail: `${dates.length} ${t('substitutions.range.daysRegistered', { teacher: profNom })}`,
         life: 4000
       })
+      avisaSubstitutsTrets(toast, t, respostes.flatMap(r => r.data?.substituts_trets || []))
       modeRang.value = false
       dataFinalRang.value = ''
       await carregarSubstitucions()
@@ -1441,7 +1495,7 @@ const getRowClass = (data) => {
 // PDF Functions
 const aplicarPreferenciesPdf = (prefs) => {
   if (!prefs) return
-  const keys = ['includeSubstitutions', 'includeVigilancies', 'showComments', 'showHours', 'showConflicts', 'compress', 'blankRows', 'format']
+  const keys = ['includeSubstitutions', 'includeVigilancies', 'showComments', 'showHours', 'showConflicts', 'compress', 'blankRows', 'format', 'midaLletra']
   keys.forEach((key) => {
     if (prefs[key] !== undefined) {
       pdfConfig.value[key] = prefs[key]
@@ -1469,7 +1523,8 @@ const desarPreferenciesPdf = async () => {
         showConflicts: pdfConfig.value.showConflicts,
         compress: pdfConfig.value.compress,
         blankRows: pdfConfig.value.blankRows,
-        format: pdfConfig.value.format
+        format: pdfConfig.value.format,
+        midaLletra: pdfConfig.value.midaLletra
       }
     }, { _silent: true })
   } catch (error) {
@@ -1541,7 +1596,8 @@ const generarPDFAmbOpcions = async () => {
       show_conflicts: pdfConfig.value.showConflicts,
       compress: pdfConfig.value.compress,
       blank_rows: pdfConfig.value.blankRows,
-      format: pdfConfig.value.format
+      format: pdfConfig.value.format,
+      mida_lletra: pdfConfig.value.midaLletra
     })
 
     const url = `/api/pdf/complete/${dataISO.value}?${params.toString()}`

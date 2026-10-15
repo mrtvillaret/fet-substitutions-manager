@@ -11,7 +11,14 @@ from fastapi.responses import FileResponse
 
 from auth_utils import require_admin
 from database import get_data_db_session
-from repositories import MasterConfigRepository, ConfiguracioExamenRepository, ConfiguracioRepository, VigilanciaRepository, GrupsAlliberatsRepository, CursRepository, parse_date
+from repositories import (
+    MasterConfigRepository,
+    ConfiguracioExamenRepository,
+    ConfiguracioRepository,
+    VigilanciaRepository,
+    CursRepository,
+    parse_date,
+)
 from helpers import get_xml_path_for_date
 from models import ExamCostProfessor, ExamRestriccio, Vigilancia, Substitucio, GrupAlliberat, Nivell, Grup, AbreviaturaGrup
 from schemas import SchedulerGenerateRequest, SchedulerDatesRequest, SchedulerRestriccionsRequest, SchedulerPinRequest, SchedulerPublicarRequest, HorariRecalcularRequest
@@ -31,7 +38,6 @@ from routes.scheduler_service import (
 )
 from routes.scheduler_helpers import (
     _nivells_master,
-    _detectar_nivell,
     _extract_assignatures_from_restriccions,
     _treu_assignatures_de_restriccions,
     _selected_dates_from_alliberaments,
@@ -70,6 +76,9 @@ router = APIRouter(prefix="/api/scheduler", tags=["Scheduler"])
 from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
 from scheduler_engine.core.normalitzacio import normalitzar_dia
+
+import logging
+log = logging.getLogger(__name__)
 
 @router.get("/status")
 async def scheduler_status(current_user=Depends(require_admin)):
@@ -134,7 +143,7 @@ async def scheduler_grups_nivells(current_user=Depends(require_admin)):
         horari_obj = get_horari(current_user.institucio, data_avui)
         hores_lectives = horari_obj.hores or []
     except Exception:
-        pass
+        log.warning("No s'han pogut llegir les hores de l'horari", exc_info=True)
 
     return {
         "grups_per_nivell": result,
@@ -243,10 +252,7 @@ async def scheduler_restriccions_update(payload: SchedulerRestriccionsRequest, c
             "Per posar exàmens de nivells diferents al mateix moment, feu servir la preferència "
             "\"Mateix dia i hora\"."))
     with get_data_db_session(current_user.institucio) as db:
-        try:
-            _save_restriccions_to_db(db, payload.restriccions or {})
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        _save_restriccions_to_db(db, payload.restriccions or {})
     return {"success": True}
 
 
@@ -307,9 +313,9 @@ async def scheduler_pin_sessions(payload: SchedulerPinRequest, current_user=Depe
                     "assignatures_hora_fix": pins_hora,
                 }
             }
-        except Exception as exc:
+        except Exception:
             db.rollback()
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            raise
 
 
 # ===== COSTOS DE PROFESSORS =====
@@ -339,7 +345,7 @@ async def get_costos_professors(current_user=Depends(require_admin)):
                         costos["individuals"][cp.professor] = {}
                     costos["individuals"][cp.professor][cp.tipus] = cp.pes
         except Exception:
-            pass
+            log.warning("No s'han pogut llegir els costos individuals", exc_info=True)
 
         # Assegurar que existeixen tots els globals
         for tipus, default_pes in defaults.items():
@@ -375,9 +381,9 @@ async def update_costos_professors(payload: dict, current_user=Depends(require_a
 
             db.commit()
             return {"success": True}
-        except Exception as e:
+        except Exception:
             db.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
+            raise
 
 
 @router.put("/costos-professors/{professor}")
@@ -399,9 +405,9 @@ async def update_cost_professor_individual(professor: str, payload: dict, curren
 
             db.commit()
             return {"success": True, "professor": professor}
-        except Exception as e:
+        except Exception:
             db.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
+            raise
 
 
 @router.delete("/costos-professors/{professor}")
@@ -412,9 +418,9 @@ async def delete_cost_professor_individual(professor: str, current_user=Depends(
             deleted = db.query(ExamCostProfessor).filter(ExamCostProfessor.professor == professor).delete()
             db.commit()
             return {"success": True, "deleted": deleted}
-        except Exception as e:
+        except Exception:
             db.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
+            raise
 
 
 @router.get("/dates")
@@ -506,11 +512,6 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
         assignacions = ConfiguracioExamenRepository.get_all(db)
         config = _build_config_from_db(assignacions)
         restriccions = _build_restriccions_from_db(db)
-        print(f"🔍 Restriccions carregades de BD:")
-        print(f"   mateix_slot: {len(restriccions.get('restriccions_dures', {}).get('mateix_slot', []))} grups")
-        print(f"   no_mateix_slot: {len(restriccions.get('restriccions_dures', {}).get('no_mateix_slot', {}))} grups")
-        for i, grup in enumerate(restriccions.get('restriccions_dures', {}).get('mateix_slot', [])[:5]):
-            print(f"      Grup {i+1}: {grup}")
         d_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
         n_raw = ConfiguracioRepository.get(db, SCHEDULER_NIVELLS_KEY)
         dates_raw = ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY)
@@ -538,12 +539,10 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
             # Backward compat: llegir format antic
             durades_per_sessio_cfg = _load_json(ConfiguracioRepository.get(db, SCHEDULER_DURADES_SESSIO_KEY), {})
             durades_examen_per_sessio_cfg = dict(durades_per_sessio_cfg)  # Igual que supervisió si no hi ha grups
-        print(f"   alliberaments_per_nivell: {len(alliberaments_cfg)} nivells configurats")
 
         # Carregar assignatures que NO necessiten substitució
         from repositories import NoSubstituirRepository
         no_subst = set(NoSubstituirRepository.get_all(db))
-        print(f"   no_substituir: {len(no_subst)} assignatures")
 
     # Derivar hores d'examen únicament dels alliberaments (marques i=true)
     h_cfg, hpn_cfg = extreure_hores_examen_des_alliberaments(alliberaments_cfg)
@@ -781,8 +780,10 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
         return {"dies_utilitzar": dies_util, "horari": horari}
     finally:
         for p in (cfg_p, res_p):
-            try: os.remove(p)
-            except: pass
+            try:
+                os.remove(p)
+            except OSError:
+                pass
 
 
 @router.post("/analisi")
@@ -887,7 +888,7 @@ def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(re
         for p in (cfg_p, res_p):
             try:
                 os.remove(p)
-            except:
+            except OSError:
                 pass
 
 
@@ -1007,7 +1008,7 @@ def scheduler_analisi_pdf(payload: SchedulerGenerateRequest, current_user=Depend
         for p in (cfg_p, res_p):
             try:
                 os.remove(p)
-            except:
+            except OSError:
                 pass
 
 
@@ -1097,6 +1098,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
                 nivell = detectar_nivell_grup(grup, nivells_alliberaments)
                 return None if nivell == 'altres' else nivell
             except Exception:
+                log.warning("No s'ha pogut detectar el nivell d'un grup", exc_info=True)
                 return None
 
         def _hores_alliberades(nivell: str, data_iso: str) -> list[str]:
@@ -1292,9 +1294,9 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
             db.rollback()
         else:
             db.commit()
-            from routes.vigilancies import _refresh_vigilancia_substitucions
+            from serveis.cobertures import refresca_cobertures
             for data_iso, hora in sorted(hores_amb_vigilancies_esborrades):
-                _refresh_vigilancia_substitucions(data_iso, hora, db)
+                refresca_cobertures(data_iso, hora, db)
 
     return {
         "success": len(errors) == 0,
@@ -1391,7 +1393,7 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
         try:
             parts = h.split(':')
             return int(parts[0]) * 60 + int(parts[1])
-        except Exception:
+        except (ValueError, TypeError, IndexError):
             return 0
 
     totes_hores = []
@@ -1772,148 +1774,5 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
             "professors_abans": cost_info.get('professors_abans', 0),
             "professors_despres": cost_info.get('professors_despres', 0),
             "professors_no_treballa": cost_info.get('professors_no_treballa', 0),
-        }
-    }
-
-
-@router.post("/debug-substitucions")
-async def debug_substitucions(payload: dict, current_user=Depends(require_admin)):
-    """
-    Endpoint de debug per verificar la detecció de substitucions.
-    Payload: { professor: str, dia: str, hora: str, data_referencia?: str }
-    """
-    from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-    from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
-    import xml.etree.ElementTree as ET
-
-    professor = payload.get("professor", "")
-    dia = payload.get("dia", "Dilluns")
-    hora = payload.get("hora", "09:00")
-    data_ref = payload.get("data_referencia")
-
-    with get_data_db_session(current_user.institucio) as db:
-        n_raw = ConfiguracioRepository.get(db, SCHEDULER_NIVELLS_KEY)
-        nivells_actius = _load_json(n_raw, []) or _nivells_master(db)
-
-        from repositories import NoSubstituirRepository
-        no_subst = set(NoSubstituirRepository.get_all(db))
-        no_subst_norm = {normalitzar_text(a) for a in no_subst if a}
-
-    if not data_ref:
-        from datetime import date
-        data_ref = date.today().isoformat()
-
-    xml_path = get_xml_path_for_date(current_user.institucio, data_ref)
-    if not xml_path or not os.path.exists(xml_path):
-        return {"error": "XML not found", "xml_path": xml_path}
-
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-
-    # Obtenir totes les hores del XML
-    totes_hores = []
-    for h in root.findall('.//Hour'):
-        nom = h.get('name')
-        if nom and nom not in totes_hores:
-            totes_hores.append(nom)
-
-    totes_hores_norm = [_normalitzar_hora(h) for h in totes_hores]
-
-    # Carregar horaris professors
-    horaris_professors = {}
-    for teacher in root.findall('Teacher'):
-        nom = teacher.get('name').strip()
-        horaris_professors[nom] = {}
-        for day in teacher.findall('Day'):
-            d = normalitzar_dia(day.get('name'))
-            horaris_professors[nom][d] = {}
-            for hour in day.findall('Hour'):
-                h_raw = hour.get('name')
-                h = _normalitzar_hora(h_raw)
-                sub = hour.find('Subject')
-                act = hour.find('Activity')
-                if (act is not None and act.get('id')) or sub is not None:
-                    s = sub.get('name') if sub is not None else ''
-                    g = hour.find('Students').get('name') if hour.find('Students') is not None else ''
-                    horaris_professors[nom][d][h] = {'assignatura': s, 'grup': g}
-
-    # Verificar si el professor existeix
-    if professor and professor not in horaris_professors:
-        professors_similars = [p for p in horaris_professors.keys() if professor.lower() in p.lower()]
-        return {
-            "error": f"Professor '{professor}' no trobat",
-            "professors_similars": professors_similars[:10],
-            "total_professors": len(horaris_professors)
-        }
-
-    # Si no es passa professor, mostrar info general
-    if not professor:
-        dia_norm = normalitzar_dia(dia)
-        hora_norm = _normalitzar_hora(hora)
-        profs_amb_classe = []
-        for prof, horari in horaris_professors.items():
-            if dia_norm in horari and hora_norm in horari[dia_norm]:
-                act = horari[dia_norm][hora_norm]
-                profs_amb_classe.append({
-                    "professor": prof,
-                    "assignatura": act.get('assignatura', ''),
-                    "grup": act.get('grup', '')
-                })
-        return {
-            "dia": dia,
-            "dia_normalitzat": dia_norm,
-            "hora": hora,
-            "hora_normalitzada": hora_norm,
-            "professors_amb_classe": profs_amb_classe,
-            "total": len(profs_amb_classe),
-            "nivells_actius": nivells_actius,
-            "no_substituir": list(no_subst)[:20],
-            "totes_hores": totes_hores_norm
-        }
-
-    # Analitzar un professor concret
-    dia_norm = normalitzar_dia(dia)
-    hora_norm = _normalitzar_hora(hora)
-
-    horari_prof = horaris_professors.get(professor, {})
-    horari_dia = horari_prof.get(dia_norm, {})
-
-    # Crear una sessió fictícia per testejar
-    sessio_test = {
-        "nom": "TEST",
-        "examens": [{"titular": professor}]
-    }
-
-    analisi = analitzar_disponibilitat_sessio(
-        sessio=sessio_test,
-        dia=dia,
-        hora=hora_norm,
-        horaris_professors=horaris_professors,
-        totes_hores=totes_hores_norm,
-        nivells_actius=nivells_actius,
-        durada_titular=1,
-        no_substituir_norm=no_subst_norm,
-        sessions_al_slot=None,
-        hores_override=[hora_norm]
-    )
-
-    return {
-        "professor": professor,
-        "dia": dia,
-        "dia_normalitzat": dia_norm,
-        "hora": hora,
-        "hora_normalitzada": hora_norm,
-        "dies_professor": list(horari_prof.keys()),
-        "horari_dia": horari_dia,
-        "nivells_actius": nivells_actius,
-        "no_substituir": list(no_subst)[:20],
-        "analisi": {
-            "substitucions": analisi.get('substitucions', []),
-            "alliberats": analisi.get('alliberats', []),
-            "lliures": analisi.get('lliures', []),
-            "abans_jornada": analisi.get('abans_jornada', []),
-            "despres_jornada": analisi.get('despres_jornada', []),
-            "no_treballa_dia": analisi.get('no_treballa_dia', []),
-            "altres": analisi.get('altres', [])
         }
     }

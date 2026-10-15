@@ -5,8 +5,10 @@ import random
 from typing import List, Dict, Set, Tuple, Optional, Union
 from collections import defaultdict
 # Evitem imports estàtics per no quedar-nos amb valors stale
-from utils.exception_chain import safe_core_operation
-from core.alliberats import clau_professor, nomes_grups, sense_classe
+from core.alliberats import sense_classe
+
+import logging
+log = logging.getLogger(__name__)
 
 try:
     from i18n_setup import translate as _
@@ -21,25 +23,6 @@ class CandidateValidator:
         self.professors_ocupats_examens = professors_ocupats_examens or {}
         self.substitucions_existents = substitucions_existents or {}
         
-    def es_valid(self, nom_substitut: str, hora: str, absents: Dict[str, List[str]]) -> bool:
-        """Comprova si un substitut és vàlid per preservar"""
-        # 1. No pot estar absent
-        if nom_substitut in absents and hora in absents[nom_substitut]:
-            return False
-            
-        # 2. No pot estar ocupat amb vigilàncies
-        professors_vigilancies = set(self.professors_ocupats_examens.get(hora, []))
-        if nom_substitut in professors_vigilancies:
-            return False
-                
-        return True
-        
-    def esta_disponible(self, nom_substitut: str, candidats: List) -> bool:
-        """Comprova si el substitut està dins la llista de candidats disponibles"""
-        for candidat in candidats:
-            if candidat[0] == nom_substitut:
-                return True
-        return False
         
     # ELIMINADA: escollir_millor_candidat() - no s'utilitzava (duplicat obsolet)
     # Utilitzar _escollir_millor_candidat_disponible() en lloc d'aquesta
@@ -72,8 +55,8 @@ class GestorSubstitucions:
         self.dia_actual = None
         self.professors_ocupats_examens = {}
         self.grups_sense_classe_dict = {}
-        self.grups_sense_classe_actual = set()
         self.substitucions_existents = {}
+        self.omplir = True   # False: no es tria cap substitut nou
  
  
  
@@ -83,17 +66,22 @@ class GestorSubstitucions:
                              professors_ocupats_examens: Dict[str, List[str]] = None,
                              substitucions_existents: Dict[str, Dict] = None,
                              absents_tipus: Dict[str, str] = None,
-                             activitats_fallback: Dict = None) -> List[Dict]:
+                             activitats_fallback: Dict = None,
+                             omplir: bool = True) -> List[Dict]:
         """Assigna substituts automàticament per hores
 
         Args:
             grups_sense_classe: Set[str] (antic) o Dict[str, Set[str]] (nou) amb grups per hora
+            omplir: si és False, només es conserven els substituts que ja hi havia i les
+                files noves queden pendents (es fa servir després d'un canvi del dia:
+                no s'assigna ningú sense que l'usuari ho demani)
         """
+        self.omplir = omplir
         import logging
         logger = logging.getLogger(__name__)
         logger.debug(f"🔵 assignar_substitucions() START: dia='{dia}', absents={len(absents)}, horari={bool(self.horari)}")
 
-        # 🔧 FIX: Converteix dia de format ISO a nom del dia XML si cal
+        # Converteix dia de format ISO a nom del dia XML si cal
         if isinstance(dia, str) and len(dia) == 10 and '-' in dia:
             from utils.date_context import DateContext
             try:
@@ -103,17 +91,11 @@ class GestorSubstitucions:
             except Exception as e:
                 logger.error(_("⚠️ Error en convertir dia ISO: {}").format(e))
 
-        # 🚀 GUARDA INFO DELS PROFESSORS OCUPATS I SUBSTITUCIONS EXISTENTS
+        # Guarda info dels professors ocupats i substitucions existents
         self.professors_ocupats_examens = professors_ocupats_examens or {}
         self.substitucions_existents = substitucions_existents or {}
         self.dia_actual = dia
 
-        print(f"\n🔍 DEBUG Vigilants carregats:")
-        if self.professors_ocupats_examens:
-            for hora, vigilants in self.professors_ocupats_examens.items():
-                print(f"  {hora}: {vigilants}")
-        else:
-            print(f"  ❌ Cap vigilant carregat (dict buit)")
 
         # Normalitza grups_sense_classe a Dict[str, Set[str]]
         if isinstance(grups_sense_classe, set):
@@ -125,17 +107,10 @@ class GestorSubstitucions:
             # Format nou: ja és un dict per hora
             self.grups_sense_classe_dict = grups_sense_classe
 
-        # Mantenir compatibilitat amb self.grups_sense_classe_actual (tots els grups)
-        # (els professors alliberats ho són només a la seva hora: no hi entren)
-        tots_grups = set()
-        for grups in self.grups_sense_classe_dict.values():
-            tots_grups.update(nomes_grups(grups))
-        self.grups_sense_classe_actual = tots_grups
         
         # Inicialitza validador amb la info actual
         self.validator = CandidateValidator(professors_ocupats_examens, substitucions_existents)
         
-        # Les substitucions existents ja es passen com a paràmetre
 
         substitucions = self.absencies.get_substitucions_necessaries(
             dia,
@@ -163,8 +138,8 @@ class GestorSubstitucions:
                 substitucions_filtrades.append(sub)
             elif not grup:
                 from config import constants
-                if assignatura not in constants.NO_SUBST and not sense_classe(professor, "", grups_hora):
                 # Activitats sense grup que necessiten substitució (VP, GP, etc.)
+                if assignatura not in constants.NO_SUBST and not sense_classe(professor, "", grups_hora):
                     substitucions_filtrades.append(sub)
 
         # Recomponem la llista: separadors + substitucions filtrades
@@ -174,14 +149,12 @@ class GestorSubstitucions:
         ]
         # =====================================
 
-        # 🚀 NOVA FUNCIÓ: AFEGEIX SUBSTITUCIONS PER VIGILANTS AMB CLASSE
-        # Passa tots els grups per compatibilitat (la funció filtrarà internament)
-        substitucions_vigilants = self._generar_substitucions_vigilants(dia, self.grups_sense_classe_actual, absents)
+        # Afegeix substitucions per vigilants amb classe
+        substitucions_vigilants = self._generar_substitucions_vigilants(dia, absents)
         
         # Afegeix les noves substitucions a la llista
         substitucions.extend(substitucions_vigilants)
         
-        # Total substitucions generades
         
         # Agrupa substitucions per hora
         substitucions_per_hora = defaultdict(list)
@@ -201,7 +174,7 @@ class GestorSubstitucions:
         # Afegeix totes les substitucions encadenades a la llista principal
         substitucions.extend(totes_substitucions_encadenades)
 
-        # 🔗 PRESERVA ENCADENADES DEL JSON que no s'han regenerat
+        # PRESERVA ENCADENADES DEL JSON que no s'han regenerat
         # Això passa quan el substitut original ja no està assignat
         if self.substitucions_existents:
             claus_existents = set()
@@ -230,7 +203,7 @@ class GestorSubstitucions:
                         professor_absent = parts[0]
                         hora = parts[1]
 
-                        # ✅ VALIDACIÓ: Només preserva si el professor_absent és un substitut actiu a aquesta hora
+                        # Només preserva si el professor_absent és un substitut actiu a aquesta hora
                         if hora in substituts_actius and professor_absent in substituts_actius[hora]:
                             encadenada_preservada = {
                                 "professor_absent": professor_absent,
@@ -249,15 +222,14 @@ class GestorSubstitucions:
                             encadenades_descartades += 1
 
             if encadenades_preservades > 0:
-                print(f"  🔗 {encadenades_preservades} encadenades preservades del JSON")
+                log.debug(f"  🔗 {encadenades_preservades} encadenades preservades del JSON")
             if encadenades_descartades > 0:
-                print(f"  🗑️ {encadenades_descartades} encadenades descartades (substitució mare no existeix)")
+                log.debug(f"  🗑️ {encadenades_descartades} encadenades descartades (substitució mare no existeix)")
 
         logger.debug(_("🔵 assignar_substitucions() END: retorna {} substitucions").format(len(substitucions)))
         return substitucions
 
-    def _generar_substitucions_vigilants(self, dia: str, grups_sense_classe: Set[str],
-                                         absents: Dict[str, List[str]] = None) -> List[Dict]:
+    def _generar_substitucions_vigilants(self, dia: str, absents: Dict[str, List[str]] = None) -> List[Dict]:
         """Genera substitucions per professors que fan vigilància però tenen classe assignada.
 
         `absents` ({professor: [hores]}): si el vigilant és absent a aquella hora,
@@ -271,7 +243,6 @@ class GestorSubstitucions:
             if not self.professors_ocupats_examens:
                 return substitucions_vigilants
 
-            # Removed excessive debug output
 
             for hora, vigilants in self.professors_ocupats_examens.items():
                 for vigilant in vigilants:
@@ -288,8 +259,7 @@ class GestorSubstitucions:
                         # CAS 1: Té classe real amb grup (no està sense classe)
                         if (assignatura and  # Assignatura no buida = té classe
                             grup and  # Vigilàncies d'exàmens no tenen grup (grup = "")
-                            grup not in grups_sense_classe and
-                            clau_professor(vigilant) not in self.grups_sense_classe_dict.get(hora, ())):
+                            not sense_classe(vigilant, grup, self.grups_sense_classe_dict.get(hora, ()))):
 
                             # Sempre crea substitució de vigilància (és diferent de l'absència)
                             # La vigilància és una classe/activitat addicional, no la mateixa que l'absència
@@ -309,10 +279,9 @@ class GestorSubstitucions:
 
                         # CAS 2: Té activitat de PRIORITATS que NO està a NO_SUBST
                         # (si no està alliberat d'aquesta activitat)
-                        elif assignatura and clau_professor(vigilant) not in self.grups_sense_classe_dict.get(hora, ()):
+                        elif assignatura and not sense_classe(vigilant, "", self.grups_sense_classe_dict.get(hora, ())):
                             from config import constants
                             if assignatura in constants.PRIORITATS and assignatura not in constants.NO_SUBST:
-                                print(f"  🔍 Vigilant {vigilant} té activitat '{assignatura}' (PRIORITATS, NO a NO_SUBST) → genera substitució")
                                 substitucions_vigilants.append({
                                     "professor": vigilant,
                                     "professor_absent": vigilant,
@@ -327,7 +296,6 @@ class GestorSubstitucions:
                                     "tipus_absencia": "VIGILANCIA"
                                 })
             
-            # Return generated vigilant substitutions
             
             return substitucions_vigilants
             
@@ -356,7 +324,7 @@ class GestorSubstitucions:
 
         logger.debug(_("      📊 {} candidats trobats per hora {}").format(len(candidats), hora))
 
-        # 🔧 PRIORITZA CONSERVACIONS: ordena substitucions amb conservació potencial primer
+        # PRIORITZA CONSERVACIONS: ordena substitucions amb conservació potencial primer
         substitucions_ordenades = self._ordenar_per_conservacio(substitucions, hora)
 
         for sub in substitucions_ordenades:
@@ -365,9 +333,8 @@ class GestorSubstitucions:
             # Afegeix disponibles per mostrar al desplegable
             sub["disponibles"] = candidats
 
-        # 🔄 SUBSTITUCIONS ENCADENADES: Genera substitucions per disponibles que ara fan substitució
+        # SUBSTITUCIONS ENCADENADES: Genera substitucions per disponibles que ara fan substitució
         substitucions_encadenades = []
-        print(f"🔍 Comprovant encadenades per {len(substitucions)} substitucions a {hora}...")
         for sub in substitucions:
             if sub.get("substitut") and sub.get("tipus_substitut"):
                 tipus_substitut = sub.get("tipus_substitut", "")
@@ -381,12 +348,10 @@ class GestorSubstitucions:
                     # Fallback per formats antics sense parèntesis
                     tipus = tipus_substitut.split(" (")[0] if " (" in tipus_substitut else tipus_substitut
 
-                print(f"  🔹 {sub['substitut']} → tipus_substitut='{tipus_substitut}', tipus='{tipus}'")
 
                 # Si el tipus està a PRIORITATS i NO està a NO_SUBST, genera substitució encadenada
                 from config import constants
                 if tipus in constants.PRIORITATS and tipus not in constants.NO_SUBST:
-                    print(f"    ✅ Genera encadenada!")
                     substitucions_encadenades.append({
                         "professor_absent": sub["substitut"],
                         "hora": hora,
@@ -401,7 +366,7 @@ class GestorSubstitucions:
             sub_encadenada["disponibles"] = candidats
 
         if substitucions_encadenades:
-            print(f"  🔗 Generades {len(substitucions_encadenades)} substitucions encadenades a {hora}")
+            log.debug(f"  🔗 Generades {len(substitucions_encadenades)} substitucions encadenades a {hora}")
 
         return substitucions_encadenades
 
@@ -438,15 +403,8 @@ class GestorSubstitucions:
         professors_baixa_noms = set()
         if hasattr(self, 'data_substitucions'):
             # Si tenim la data de les substitucions, filtrar per rang
-            try:
-                data_obj = datetime.strptime(self.data_substitucions, '%Y-%m-%d').date()
-                for baixa in PROFESSORS_BAIXA:
-                    data_inici = datetime.strptime(baixa['data_inici'], '%Y-%m-%d').date()
-                    data_final = datetime.strptime(baixa['data_final'], '%Y-%m-%d').date()
-                    if data_inici <= data_obj <= data_final:
-                        professors_baixa_noms.add(baixa['professor'])
-            except:
-                pass
+            from core.baixes import professors_de_baixa
+            professors_baixa_noms = professors_de_baixa(PROFESSORS_BAIXA, self.data_substitucions)
 
         candidats = [(prof, tipus, detall) for prof, tipus, detall in disponibles
                     if hora not in absents.get(prof, []) and prof not in professors_baixa_noms]
@@ -458,29 +416,7 @@ class GestorSubstitucions:
             if categoria < len(constants.ORDRE_PRIORITATS):
                 candidats_per_categoria[categoria].append((prof, tipus, detall))
 
-        # 🔧 DEBUG: Mostrar candidats per categoria
-        if candidats_per_categoria:
-            print(f"\n  📊 Hora {hora}: {len(candidats)} candidats disponibles")
-            for cat in sorted(candidats_per_categoria.keys()):
-                cands = candidats_per_categoria[cat]
-                print(f"    Categoria {cat}: {len(cands)} candidats")
-                for i, (p, t, d) in enumerate(cands[:3]):  # Només mostrar primers 3
-                    print(f"      {i+1}. {p} ({t})")
-                if len(cands) > 3:
-                    print(f"      ... i {len(cands)-3} més")
-
         return candidats_per_categoria, set()
-
-    def _valida_indisponibilitat(self, substitut: str, hora: str, ocupats_hora: Set[str], 
-                               absents: Dict[str, List[str]]) -> bool:
-        """Valida si un substitut està disponible (no absent, no ocupat, no vigilància)"""
-        if hora in absents.get(substitut, []):
-            return False
-        if substitut in ocupats_hora:
-            return False  
-        if self._professor_te_vigilancia(substitut, hora):
-            return False
-        return True
 
     def _aplica_assignacio(self, sub: Dict, hora: str, candidats_per_categoria: Dict[int, List],
                          ocupats_hora: Set[str], absents: Dict[str, List[str]]) -> bool:
@@ -490,51 +426,30 @@ class GestorSubstitucions:
         tipus_absencia = sub.get('tipus_absencia', 'ABSENCIA')
         clau_exacta = f"{professor_absent}|{hora}|{sub.get('assignatura', '')}|{sub.get('grup', '')}"
 
-        print(f"🔍 _aplica_assignacio: clau_exacta='{clau_exacta}'")
-        print(f"   Està a substitucions_existents? {clau_exacta in self.substitucions_existents}")
-        if clau_exacta in self.substitucions_existents:
-            print(f"   Substitut existent: {self.substitucions_existents[clau_exacta].get('substitut')}")
-
-        # ✅ CAS 1: Conserva QUALSEVOL selecció anterior (inclús buides o categoria baixa)
+        # CAS 1: una fila que ja existia es conserva tal com és, amb substitut o sense.
+        # «Genera pendents» no reescriu les files que ja tenen substitut: si aquí se'n
+        # triés un altre, no es desaria i en canvi ocuparia aquell professor per a les
+        # pendents de la mateixa hora. Si un substitut desat ja no és vàlid, ho detecten
+        # les validacions del PDF i «Reassignar problemàtics», que el treu.
         if clau_exacta in self.substitucions_existents:
             sub_anterior = self.substitucions_existents[clau_exacta]
             substitut_actual = sub_anterior.get("substitut", "")
-            tipus_absencia_original = sub_anterior.get("tipus_absencia", "ABSENCIA")
-
-            # CANVI CLAU: Conserva SEMPRE la selecció anterior, fins i tot si és buida
+            sub.update({
+                "substitut": substitut_actual,
+                "tipus_substitut": sub_anterior.get("tipus_substitut", "") if substitut_actual else "",
+                "comentaris": sub_anterior.get("comentaris", ""),
+                # Respecta el tipus de la fila nova (absència, servei, vigilància)
+                "tipus_absencia": sub.get("tipus_absencia", sub_anterior.get("tipus_absencia", "ABSENCIA")),
+                "_conservat": True
+            })
             if substitut_actual:
-                # MILLORA: Valida contra TOTS els disponibles (automàtics + manuals)
-                tots_disponibles = self.alliberats.get_tots_disponibles(
-                    self.dia_actual, hora,
-                    self.grups_sense_classe_actual | set(self.grups_sense_classe_dict.get(hora, ())))
+                ocupats_hora.add(substitut_actual)
+            return True
 
-                if (self._valida_indisponibilitat(substitut_actual, hora, ocupats_hora, absents) and
-                    self._substitut_esta_disponible(substitut_actual, tots_disponibles)):
-                    # Respecta el tipus de substitució que s'està creant (absència vs vigilància)
-                    tipus_absencia_nova = sub.get("tipus_absencia", tipus_absencia_original)
-                    sub.update({
-                        "substitut": substitut_actual,
-                        "tipus_substitut": sub_anterior.get("tipus_substitut", ""),
-                        "comentaris": sub_anterior.get("comentaris", ""),
-                        "tipus_absencia": tipus_absencia_nova,  # Usa el valor de la substitució nova
-                        "_conservat": True
-                    })
-                    ocupats_hora.add(substitut_actual)
-                    return True
-                # Si no està disponible a la llista completa, continua amb reassignació automàtica
-            else:
-                # MILLORA: Conserva seleccions buides ("-- selecciona substitut --")
-                tipus_absencia_nova = sub.get("tipus_absencia", tipus_absencia_original)
-                sub.update({
-                    "substitut": "",  # Conserva selecció buida
-                    "tipus_substitut": "",
-                    "comentaris": sub_anterior.get("comentaris", ""),
-                    "tipus_absencia": tipus_absencia_nova,
-                    "_conservat": True
-                })
-                return True
-        
-        # ✅ CAS 2 & 3: Reassigna òptim immediatament / reoptimitza
+        if not self.omplir:
+            return True
+
+        # CAS 2 & 3: Reassigna òptim immediatament / reoptimitza
         substitut = self._escollir_millor_candidat_disponible(candidats_per_categoria, ocupats_hora, hora)
         if substitut:
             prof, tipus, detall = substitut
@@ -582,90 +497,11 @@ class GestorSubstitucions:
             if candidats_disponibles:
                 # Tria aleatòriament amb pesos dins d'aquesta categoria
                 escollit = self.validator._escollir_aleatoriament_amb_pesos(candidats_disponibles)
-                # 🔧 DEBUG
-                if escollit:
-                    print(f"    ✅ Triat de categoria {categoria}: {escollit[0]} ({escollit[1]})")
                 return escollit
 
         return None  # Cap candidat disponible
 
-    def _filtrar_substitucions_per_hora(self, substitucions_dict: Dict[str, Dict], hora: str) -> Dict[str, Dict]:
-        """Helper: filtra substitucions per hora de la clau semàntica"""
-        resultat = {}
-        for clau, dades in substitucions_dict.items():
-            parts = clau.split("|")
-            if len(parts) >= 2 and parts[1] == hora:
-                resultat[clau] = dades
-        return resultat
 
-    def _carregar_substitucions_publicades(self, dia: str) -> Dict[str, Dict]:
-        """Carrega substitucions publicades des de substitucions.json (unificat)"""
-        try:
-            from data.storage import storage
-            from utils.date_context import DateContext
-
-            # Normalitza data
-            data_iso = dia if isinstance(dia, str) and len(dia) == 10 else DateContext(dia).iso_format
-            
-            # Carrega directament de substitucions.json
-            substitucions_llista = storage.carregar_substitucions(data_iso)
-            
-            if not substitucions_llista:
-                return {}
-            
-            # Converteix al format de preservació (clau: dades)
-            # Inclou TOTES les substitucions (inclús buides) per conservar seleccions
-            substitucions_dict = {}
-            encadenades_count = 0
-            for sub in substitucions_llista:
-                assignatura = sub.get("assignatura", "")
-                grup = sub.get("grup", "")
-                substitut = sub.get("substitut", "")
-                tipus_absencia = sub.get("tipus_absencia", "ABSENCIA")
-
-                # CANVI: Carrega TOTES les substitucions que tenen assignatura i grup,
-                # o que són encadenades (grup="" però tipus_absencia="ENCADENADA")
-                # (inclús si no tenen substitut per conservar seleccions buides)
-                if sub.get("assignatura") and (sub.get("grup") or tipus_absencia == "ENCADENADA"):
-                    # Clau sense tipus_absencia per preservar substituts quan només canvia SERVEI ↔ ABSENCIA
-                    clau = f"{sub.get('professor_absent', '')}|{sub.get('hora', '')}|{assignatura}|{grup}"
-                    substitucions_dict[clau] = {
-                        "substitut": substitut,  # Pot ser buit per conservar seleccions "-- selecciona substitut --"
-                        "tipus_substitut": sub.get("tipus_substitut", ""),
-                        "comentaris": sub.get("comentaris", ""),
-                        "tipus_absencia": tipus_absencia
-                    }
-                    if tipus_absencia == "ENCADENADA":
-                        encadenades_count += 1
-
-            if encadenades_count > 0:
-                print(f"  🔗 {encadenades_count} encadenades carregades del JSON")
-
-            return substitucions_dict
-
-        except Exception as e:
-            print(_("ℹ️ No hi ha substitucions publicades per {}: {}").format(dia, e))
-        
-        return {}
-
-    def _substitut_esta_disponible(self, nom_substitut: str, candidats: List) -> bool:
-        """Comprova si un substitut està dins dels candidats disponibles"""
-        return self.validator.esta_disponible(nom_substitut, candidats)
-    
-    def _professor_te_vigilancia(self, nom_professor: str, hora: str) -> bool:
-        """Comprova si un professor té vigilància assignada a una hora específica"""
-        if not hasattr(self, 'professors_ocupats_examens') or not self.professors_ocupats_examens:
-            return False
-
-        # Comprova si el professor està a la llista d'ocupats amb vigilàncies per aquesta hora
-        professors_ocupats_hora = self.professors_ocupats_examens.get(hora, [])
-        te_vigilancia = nom_professor in professors_ocupats_hora
-
-        if te_vigilancia:
-            print(f"  🔍 _professor_te_vigilancia({nom_professor}, {hora}) = True (està a {professors_ocupats_hora})")
-
-        return te_vigilancia
-        
     def _obtenir_categoria(self, tipus_activitat: str) -> int:
         """Retorna l'índex de categoria (0 = prioritat màxima)"""
         from config import constants
@@ -675,37 +511,3 @@ class GestorSubstitucions:
         return len(constants.ORDRE_PRIORITATS)  # Categoria mínima per tipus desconeguts
     
     
-    def reordenar_per_hora(self, substitucions: List[Dict]) -> List[Dict]:
-        """Reordena substitucions per hora amb separadors"""
-        hores = self.horari.hores if self.horari else []
-
-        result = []
-        hores_amb_subs = {}
-        
-        # Agrupa per hora (ignora separadors existents)
-        for sub in substitucions:
-            if sub.get("separador"):
-                continue
-            hora = sub["hora"]
-            if hora not in hores_amb_subs:
-                hores_amb_subs[hora] = []
-            hores_amb_subs[hora].append(sub)
-        
-        # Construeix resultat amb separadors ordenats per hores del XML
-        for hora in hores:
-            if hora in hores_amb_subs:
-                # Afegeix separador per aquesta hora
-                result.append({"separador": True, "hora": hora})
-                
-                # Ordena les substitucions dins de cada hora per tipus
-                # (primer absents normals, després vigilants)
-                subs_hora = hores_amb_subs[hora]
-                def ordre_tipus(s):
-                    tipus = s.get("tipus_absencia", "ABSENCIA")
-                    ordre = {"ABSENCIA": 0, "SERVEI": 1, "VIGILANCIA": 2}
-                    return (ordre.get(tipus, 0), s.get("professor_absent", ""))
-                subs_hora.sort(key=ordre_tipus)
-                
-                result.extend(subs_hora)
-        
-        return result

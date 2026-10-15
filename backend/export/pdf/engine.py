@@ -2,10 +2,7 @@
 Exportador de PDF combinat: Substitucions + Vigilàncies organitzat per hores
 VERSIÓ OPTIMITZADA I AMB FORMAT DE CONFLICTES MILLORAT
 """
-import os
 import html
-import subprocess
-import platform
 from typing import List, Dict
 from pathlib import Path
 from datetime import datetime
@@ -57,26 +54,8 @@ class PDFConstants:
 from reportlab.lib import colors
 from ..pdf_styles import PDFStyleFactory
 
-
-def open_pdf(filepath: str):
-    """Obre PDF de forma no bloquejant amb subprocess.Popen"""
-    if os.getenv("OPEN_PDF", "0") != "1":
-        return
-    try:
-        if platform.system() == "Windows":
-            subprocess.Popen([filepath], shell=True, start_new_session=True,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        elif platform.system() == "Darwin":  # macOS
-            subprocess.Popen(["open", filepath], start_new_session=True,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        else:  # Linux
-            subprocess.Popen(["xdg-open", filepath], start_new_session=True,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(_("📖 S'ha obert el PDF amb xdg-open: {filepath}").format(filepath=filepath))
-
-    except Exception as e:
-        print(_("⚠️ No s'ha pogut obrir automàticament: {error}").format(error=e))
-        print(_("📁 Fitxer disponible a: {filepath}").format(filepath=filepath))
+import logging
+log = logging.getLogger(__name__)
 
 
 class PDFCompletExporter:
@@ -111,7 +90,7 @@ class PDFCompletExporter:
         except ImportError:
             pass
         except Exception as e:
-            print(_("Avís: No s'ha pogut carregar la partició de paraules: {error}").format(error=e))
+            log.warning(_("Avís: No s'ha pogut carregar la partició de paraules: {error}").format(error=e))
             pass
 
         # Carregar preferències de columnes opcionals
@@ -127,6 +106,8 @@ class PDFCompletExporter:
         # Format «taula del dia»: una sola taula, l'hora a la primera columna i
         # les vigilàncies dins de cada hora (en comptes d'una secció per hora)
         self.format_dia = False
+        # Mida de la lletra de la taula del dia (factor sobre la normal: 1, 1.2, 1.35)
+        self.mida_lletra = 1.0
 
     def _get_profile_colors(self):
         """Obté colors del perfil actual - sempre actualitzat"""
@@ -143,10 +124,6 @@ class PDFCompletExporter:
         if not hasattr(self, '_auto_compression_active'):
             self._auto_compression_active = False
 
-        if self._auto_compression_active:
-            print(_("📄 Compressió activada manualment per l'usuari"))
-        else:
-            print(_("📄 PDF normal sense compressió"))
 
     def _generate_filename(self, data_iso: str, subs_reals: List[Dict], vigilancies_reals: List[Dict]) -> str:
         """Generate PDF filename"""
@@ -208,40 +185,6 @@ class PDFCompletExporter:
             Paragraph(data_text, title_date_style)
         ]
 
-    def _create_styled_paragraph(self, text: str, base_style_name: str, overrides: Dict = None) -> 'Paragraph':
-        """Create styled paragraph with consistent compression handling"""
-        from reportlab.platypus import Paragraph
-        from reportlab.lib.styles import ParagraphStyle
-
-        overrides = overrides or {}
-        base_style = getattr(self.custom_styles, base_style_name, self.styles['Normal'])
-
-        # Apply auto-compression if active
-        if hasattr(self, '_auto_compression_active') and self._auto_compression_active:
-            auto_config = self.pdf_config.get('auto_compression', {})
-            font_reduction = auto_config.get('font_reduction', {})
-            min_sizes = auto_config.get('min_font_sizes', {})
-
-            reduction_key = overrides.get('compression_key', base_style_name.lower())
-            font_reduction_factor = font_reduction.get(reduction_key, PDFConstants.FONT_REDUCTION_DEFAULT)
-            min_font_size = min_sizes.get(reduction_key, 8)
-
-            # Apply compression
-            if 'fontSize' not in overrides:
-                overrides['fontSize'] = max(min_font_size, int(base_style.fontSize * font_reduction_factor))
-            if 'spaceAfter' not in overrides and hasattr(base_style, 'spaceAfter'):
-                overrides['spaceAfter'] = max(2, int(base_style.spaceAfter * 0.6))
-            if 'spaceBefore' not in overrides and hasattr(base_style, 'spaceBefore'):
-                overrides['spaceBefore'] = max(1, int(base_style.spaceBefore * 0.6))
-
-        # Create custom style
-        custom_style = ParagraphStyle(
-            f'Custom{base_style_name}',
-            parent=base_style,
-            **overrides
-        )
-
-        return Paragraph(text, custom_style)
 
     class PDFTypeResolver:
         """Resolves PDF type, filename and title"""
@@ -252,7 +195,7 @@ class PDFCompletExporter:
             if data_iso:
                 from utils.date_context import DateContext
                 date_ctx = DateContext.from_iso(data_iso)
-                data_curta = date_ctx._date.strftime("%y%m%d")
+                data_curta = date_ctx.datetime.strftime("%y%m%d")
             else:
                 data_curta = datetime.now().strftime("%y%m%d")
 
@@ -432,13 +375,11 @@ class PDFCompletExporter:
 
             # Genera PDF amb logo només a la primera pàgina
             doc.build(story, onFirstPage=self._add_logo_to_page)
-            print(_("✅ S'ha generat el PDF combinat: {output_path}").format(output_path=output_path))
-            self._obrir_pdf(str(output_path))
             return filename
 
         except Exception as e:
             import traceback
-            print(_("❌ Error en generar PDF: {error}").format(error=e))
+            log.warning(_("❌ Error en generar PDF: {error}").format(error=e))
             traceback.print_exc()
             return ""
 
@@ -496,7 +437,7 @@ class PDFCompletExporter:
                 )
         except Exception as e:
             # Si hi ha error, simplement no mostra el logo
-            print(f"⚠️ No s'ha pogut carregar el logo: {e}")
+            log.warning(f"⚠️ No s'ha pogut carregar el logo: {e}")
 
     def _crear_taula_conflictes(self, conflictes: List[str]) -> Table:
         """Crea taula de conflictes amb millor format i text wrapping"""
@@ -644,15 +585,16 @@ class PDFCompletExporter:
 
         profile_colors = self._get_profile_colors()
         gris_linia = colors.HexColor('#808080')
-        base = dict(parent=self.styles['Normal'], fontSize=10, leading=12, alignment=1, fontName='Helvetica')
+        f = self.mida_lletra
+        base = dict(parent=self.styles['Normal'], fontSize=10 * f, leading=12 * f, alignment=1, fontName='Helvetica')
         cel = ParagraphStyle('DiaCel', **base)
         cel_sub = ParagraphStyle('DiaSubstitut', **{**base, 'fontName': 'Helvetica-Bold',
                                                     'textColor': colors.HexColor('#2c3e50')})
         cel_vig = ParagraphStyle('DiaVig', **{**base, 'fontName': 'Helvetica-Oblique'})
         cel_vigilant = ParagraphStyle('DiaVigilant', **{**base, 'fontName': 'Helvetica-BoldOblique'})
-        cel_hora = ParagraphStyle('DiaHora', **{**base, 'fontSize': 11, 'leading': 13, 'fontName': 'Helvetica-Bold',
+        cel_hora = ParagraphStyle('DiaHora', **{**base, 'fontSize': 11 * f, 'leading': 13 * f, 'fontName': 'Helvetica-Bold',
                                                 'textColor': colors.HexColor('#c0392b')})
-        cap = ParagraphStyle('DiaCap', **{**base, 'fontSize': 9, 'leading': 11, 'fontName': 'Helvetica-Bold',
+        cap = ParagraphStyle('DiaCap', **{**base, 'fontSize': 9 * f, 'leading': 11 * f, 'fontName': 'Helvetica-Bold',
                                           'textColor': colors.HexColor(profile_colors.get('substitutions_header_text', '#ffffff'))})
 
         def doble(subs, vigs):
@@ -673,8 +615,9 @@ class PDFCompletExporter:
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(profile_colors.get('substitutions_header_bg', '#2c3e50'))),
             ('GRID', (0, 0), (-1, -1), 0.6, gris_linia),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            # Amb la lletra més gran, una mica més d'aire a les files
+            ('TOPPADDING', (0, 0), (-1, -1), 6 if f >= 1.3 else 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6 if f >= 1.3 else 4),
             ('LEFTPADDING', (0, 0), (-1, -1), 3),
             ('RIGHTPADDING', (0, 0), (-1, -1), 3),
         ]
@@ -708,7 +651,7 @@ class PDFCompletExporter:
             if blancs:
                 for _blanc in range(blancs):
                     files.append([None] + [''] * (n_cols - 1))
-                    alcades.append(0.9*cm)
+                    alcades.append(0.9*cm * f)
 
             for vig in dades['vigilancies']:
                 vigilant = vig.get("vigilant", "") or ""
@@ -845,7 +788,6 @@ class PDFCompletExporter:
             
             header_size = max(min_header_size, int(header_size * header_reduction))
             body_size = max(min_body_size, int(body_size * body_reduction))
-            print(_("🔍 Compressió automàtica: fonts reduïdes a H:{header} B:{body}").format(header=header_size, body=body_size))
         
         # Style for cell content with wrapping
         cell_style = ParagraphStyle(
@@ -1020,7 +962,6 @@ class PDFCompletExporter:
             
             header_size = max(min_header_size, int(header_size * header_reduction))
             body_size = max(min_body_size, int(body_size * body_reduction))
-            print(_("🔍 Compressió automàtica: fonts reduïdes a H:{header} B:{body}").format(header=header_size, body=body_size))
         
         # Style for cell content with wrapping
         cell_style = ParagraphStyle(
@@ -1142,10 +1083,6 @@ class PDFCompletExporter:
         
         return taula
     
-    def _obrir_pdf(self, filepath: str):
-        """Obre PDF automàticament de forma no bloquejant"""
-        open_pdf(filepath)
-    
     def _validar_conflictes_interval(self, substitucions: List[Dict], vigilancies: List[Dict]) -> List[str]:
         """Valida conflictes per interval, agrupats per dia amb capçalera"""
         from collections import defaultdict
@@ -1202,7 +1139,7 @@ class PDFCompletExporter:
         try:
             date_obj = _dt.strptime(data_iso, "%Y-%m-%d")
             dia_name = self.horari_mgr.get_dia_name(date_obj.weekday())
-        except Exception:
+        except (ValueError, TypeError):
             return []
 
         hores_ordenades = self.horari_mgr.hores
@@ -1255,7 +1192,19 @@ class PDFCompletExporter:
             absents = {}
             
         conflictes = []
-        
+
+        # Si un professor absent és-hi per servei (SERVEI) o no (ABSENCIA), segons les
+        # seves pròpies files de substitució
+        tipus_absencia = {
+            (s.get("professor_absent", ""), s.get("hora", "")): s.get("tipus_absencia", "")
+            for s in substitucions if s.get("tipus_absencia") in ("ABSENCIA", "SERVEI")
+        }
+
+        def text_absencia(professor, hora):
+            if tipus_absencia.get((professor, hora)) == "SERVEI":
+                return _("absent (servei)")
+            return _("absent")
+
         # Group by hour
         per_hora = defaultdict(lambda: {'substitucions': [], 'vigilancies': []})
         
@@ -1281,10 +1230,8 @@ class PDFCompletExporter:
                 if substitut and substitut not in ["---", "PENDENT"]:
                     # Absent substitute
                     if substitut in absents and hora in absents[substitut]:
-                        from utils.absence_utils import get_professor_absence_text
-                        absence_text = get_professor_absence_text(substitut, hora)
                         conflictes.append(_("⚠️ {hora}: Substitut {substitut} {absence_text}").format(
-                            hora=hora, substitut=substitut, absence_text=absence_text.lower()))
+                            hora=hora, substitut=substitut, absence_text=text_absencia(substitut, hora)))
 
                     # Duplicate substitute
                     if substitut in vigilants_assignats:
@@ -1310,10 +1257,8 @@ class PDFCompletExporter:
                 if vigilant and not vigilant.startswith("-- selecciona"):
                     # Absent vigilant
                     if vigilant in absents and hora in absents[vigilant]:
-                        from utils.absence_utils import get_professor_absence_text
-                        absence_text = get_professor_absence_text(vigilant, hora)
                         conflictes.append(_("⚠️ {hora}: Vigilant {vigilant} {absence_text}").format(
-                            hora=hora, vigilant=vigilant, absence_text=absence_text.lower()))
+                            hora=hora, vigilant=vigilant, absence_text=text_absencia(vigilant, hora)))
 
                     # Duplicate vigilant
                     if vigilant in vigilants_assignats:
@@ -1352,7 +1297,7 @@ class PDFCompletExporter:
                         conflictes.append(_("🏫 {hora}: Assignatura {tipus} sense aula assignada").format(
                             hora=hora, tipus=tipus_traduit))
         
-        # NOVA VALIDACIÓ: Detectar substitucions duplicades per mateix professor (absent + vigilant)
+        # Detectar substitucions duplicades per mateix professor (absent + vigilant)
         professors_amb_substitucions = defaultdict(list)
         for sub in substitucions:
             if sub.get("separador"):
@@ -1508,6 +1453,3 @@ class PDFCompletExporter:
 
         return story
 
-
-# Instància global per usar
-pdf_complet_exporter = PDFCompletExporter()

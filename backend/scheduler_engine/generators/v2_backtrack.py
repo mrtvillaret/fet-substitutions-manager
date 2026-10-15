@@ -9,10 +9,10 @@ Optimitzacions implementades:
 """
 
 import random
-from typing import List, Dict, Tuple, Set, Optional
+from typing import List, Dict, Tuple, Set
 from collections import defaultdict, Counter
 
-from scheduler_engine.core.normalitzacio import normalitzar_text, normalitzar_dia, nom_base_assignatura
+from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso, DIES_CAT as _DIES_CAT
 from scheduler_engine.core.constraints import (
     viola_restriccio_dura,
@@ -20,7 +20,6 @@ from scheduler_engine.core.constraints import (
     percent_pref_mateix_slot_violation, _percent_penalty
 )
 from scheduler_engine.core.restriction_engine import RestrictionEngine
-from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.scoring import calcular_cost_slot
 from scheduler_engine.generators.v2_intents import GeneradorV2Intents
 from scheduler_engine.estadistiques import aplicar_estadistiques
@@ -529,12 +528,6 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
     def _construir_horari_desde_slots(self, slots_occ, data_inici, dies_utilitzar):
         from datetime import datetime as _dt2
 
-        def _parse_prefix_local(prefix: str):
-            try:
-                dt = _dt2.strptime(prefix, "%Y-%m-%d")
-                return _DIES_CAT[dt.weekday()], prefix
-            except ValueError:
-                return prefix, None
 
         selected = getattr(self, 'selected_dates', None) or []
         if selected:

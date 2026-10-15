@@ -14,7 +14,9 @@ from reportlab.platypus import (
     Spacer,
 )
 
-from scheduler_engine.defaults import DEFAULT_DURADA_TITULAR
+
+import logging
+log = logging.getLogger(__name__)
 
 
 def _diagnosticar_incompatibilitats(
@@ -48,7 +50,7 @@ def _diagnosticar_incompatibilitats(
             slots_est = max(1, len(dies_efectius) * max(1, len(hores_examen)))
             items_gen = gen.preparar_particio_nivells(slots_disponibles=slots_est) or []
         except Exception:
-            pass
+            log.warning("No s'ha pogut preparar la partició per nivells", exc_info=True)
 
         if not items_gen:
             return []
@@ -62,6 +64,7 @@ def _diagnosticar_incompatibilitats(
         return diag.run(items_gen)
 
     except Exception:
+        log.warning("No s'ha pogut fer el diagnòstic", exc_info=True)
         return []
 
 
@@ -188,6 +191,7 @@ def _precheck_incompatibilitats_deterministes(
         )
         from scheduler_engine.core.date_mapping import DIES_CAT
     except Exception:
+        log.warning("No s'han pogut carregar les restriccions per a l'anàlisi", exc_info=True)
         return []
 
     hores_examen = list(getattr(gen, "hores_examen", []) or [])
@@ -238,7 +242,7 @@ def _precheck_incompatibilitats_deterministes(
             try:
                 return getter(hora, nivell)
             except Exception:
-                pass
+                log.warning("No s'ha pogut consultar la disponibilitat", exc_info=True)
         totes_hores = list(getattr(gen, "totes_hores", []) or [])
         durada = int(gen.get_durada_per_nivell(nivell) or 1)
         if hora not in totes_hores:

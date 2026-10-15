@@ -3371,8 +3371,8 @@ msgid "Substitucions i Vigilàncies"
 msgstr "📚 Gestió de substitucions - Amb vigilàncies"
 
 #: main.py:137
-msgid "Creat per Martí Villaret Ausellé, amb assistència de Claude (Anthropic)"
-msgstr "Creat per Martí Villaret Ausellé, amb assistència de Claude (Anthropic)"
+msgid "Creat per Martí Villaret Ausellé"
+msgstr "Creat per Martí Villaret Ausellé"
 
 #: main.py:161
 #, fuzzy
@@ -4101,3 +4101,11 @@ msgstr "❌ Selecció cancel·lada per l'usuari"
 
 #~ msgid "desembre"
 #~ msgstr "desembre"
+
+#: export/pdf/engine.py
+msgid "absent"
+msgstr "absent"
+
+#: export/pdf/engine.py
+msgid "absent (servei)"
+msgstr "absent (servei)"

@@ -5177,3 +5177,11 @@ msgid ""
 "⚠️ {hora}: Substitut {substitut} té classe ({assignatura_sub}, {grup_sub})"
 msgstr ""
 "⚠️ {hora}: Sustituto {substitut} tiene clase ({assignatura_sub}, {grup_sub})"
+
+#: export/pdf/engine.py
+msgid "absent"
+msgstr "ausente"
+
+#: export/pdf/engine.py
+msgid "absent (servei)"
+msgstr "ausente (servicio)"

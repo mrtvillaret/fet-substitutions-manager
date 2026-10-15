@@ -16,10 +16,14 @@ from datetime import datetime
 from dependencies import get_db
 from repositories import GrupsAlliberatsRepository, AlliberamentsPeriodeRepository, ConfiguracioRepository
 from helpers import get_gestors
+from serveis.dia_escolar import treu_substituts_no_valids
+from serveis.generacio import genera_substitucions_dia
 from core.alliberats import (activitats_de, clau_activitat, clau_ocupat, clau_professor, nomes_grups,
                              ocupats_de, professors_de)
 
-from config.settings import config
+
+import logging
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/grups", tags=["Grups Sense Classe"])
 
@@ -52,21 +56,22 @@ class CanviPeriode(BaseModel):
     dia_setmana: str = ""   # el dia de la setmana (per defecte, el de `data`)
 
 
-async def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> None:
-    """Després de canviar què està alliberat un dia: regenera les substitucions
-    pendents i reconcilia les cobertures de vigilància de les hores afectades."""
-    # 🔧 IMPORTANT: Regenerar substitucions pendents després de canviar grups sense classe
-    # Cridar l'endpoint de generar substitucions amb regenerar_tot=False
-    from routes.substitucions import generar_substitucions
+def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
+    """Després de canviar què està alliberat un dia: treu els substituts que ja
+    no poden fer la substitució (p. ex. han perdut la condició d'alliberat),
+    actualitza les files del dia sense assignar cap substitut nou i reconcilia
+    les cobertures de vigilància de les hores afectades. Retorna els substituts
+    trets (substitucions.substituts_no_valids), amb la data."""
 
+    trets = []
     try:
-        result_subs = await generar_substitucions(data, regenerar_tot=False, db=db)
-        print(f"✅ Substitucions regenerades després de canviar grups sense classe: {result_subs.get('message')}")
-    except Exception as e:
-        print(f"⚠️ Error regenerant substitucions: {e}")
-        # No fallar si falla la regeneració
+        trets = [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data)]
+        # Les files que han quedat sense substitut queden pendents: no s'omplen soles.
+        genera_substitucions_dia(db, data, get_gestors(data_iso=data), regenerar_tot=False, omplir=False)
+    except Exception:
+        log.warning("No s'han pogut actualitzar les substitucions del dia", exc_info=True)
 
-    # 🔧 IMPORTANT: Reconciliar les cobertures de vigilància (Tipus B) de les hores afectades.
+    # Reconciliar les cobertures de vigilància (Tipus B) de les hores afectades.
     # En alliberar un grup, un professor que abans "calia substituir" pot quedar alliberat
     # (el seu grup fa examen) i la seva cobertura VIGILANCIA esdevé innecessària. Si no es
     # reconcilia, queda un registre ranci amb substitut buit que provoca falsos avisos
@@ -75,7 +80,7 @@ async def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> None:
     # perquè el resultat NO depengui de l'ordre d'entrada de dades (abans calia editar
     # l'hora manualment perquè es netegés).
     try:
-        from routes.vigilancies import _refresh_vigilancia_substitucions
+        from serveis.cobertures import refresca_cobertures
         from repositories import VigilanciaRepository
 
         vig_dict = VigilanciaRepository.get_by_date(db, data)
@@ -85,10 +90,11 @@ async def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> None:
             if (v.get("hora") or "").strip()
         }
         for hora in hores_amb_vig | {h.strip() for h in hores_afectades if h and h.strip()}:
-            _refresh_vigilancia_substitucions(data, hora, db)
+            refresca_cobertures(data, hora, db)
     except Exception as e:
-        print(f"⚠️ Error reconciliant cobertures de vigilància: {e}")
+        log.warning(f"⚠️ Error reconciliant cobertures de vigilància: {e}")
         # No fallar si falla la reconciliació
+    return trets
 
 
 # ===== Alliberaments per període (definides abans de /{data}) =====
@@ -125,8 +131,8 @@ async def afegeix_canvi_periode(canvi: CanviPeriode, db: Session = Depends(get_d
         num_dia = data_obj.weekday()
         dia = horari.get_dia_name(num_dia)
     AlliberamentsPeriodeRepository.afegeix(db, canvi.tipus, clau, dia, hores, canvi.data, canvi.alliberat)
-    await _reconcilia_dies_afectats(canvi.data, num_dia, set(hores), db)
-    return {"success": True, "dia_setmana": dia}
+    trets = _reconcilia_dies_afectats(canvi.data, num_dia, set(hores), db)
+    return {"success": True, "dia_setmana": dia, "substituts_trets": trets}
 
 
 @router.get("/reforcos/{activitat}")
@@ -170,11 +176,11 @@ async def esborra_canvi_periode(canvi_id: int, db: Session = Depends(get_db)):
     if not info:
         raise HTTPException(status_code=404, detail="Canvi no trobat")
     data_obj = datetime.strptime(info["des_de"], "%Y-%m-%d")
-    await _reconcilia_dies_afectats(info["des_de"], data_obj.weekday(), {info["hora"]}, db)
-    return {"success": True}
+    trets = _reconcilia_dies_afectats(info["des_de"], data_obj.weekday(), {info["hora"]}, db)
+    return {"success": True, "substituts_trets": trets}
 
 
-async def _reconcilia_dies_afectats(des_de: str, dia_setmana: int, hores: set, db: Session) -> None:
+def _reconcilia_dies_afectats(des_de: str, dia_setmana: int, hores: set, db: Session) -> list:
     """Un canvi per període afecta tots els dies següents del mateix dia de la
     setmana: es reconcilien els que ja tenen substitucions o vigilàncies."""
     from models import Substitucio, Vigilancia
@@ -184,8 +190,10 @@ async def _reconcilia_dies_afectats(des_de: str, dia_setmana: int, hores: set, d
         for (d,) in db.query(model.data).filter(model.data >= parse_date(des_de)).distinct():
             if d.weekday() == dia_setmana:
                 dates.add(d.isoformat())
+    trets = []
     for d in sorted(dates):
-        await _reconcilia_dia(d, hores, db)
+        trets += _reconcilia_dia(d, hores, db)
+    return trets
 
 
 @router.get("/{data}")
@@ -199,116 +207,110 @@ async def obtenir_grups_sense_classe(data: str, db: Session = Depends(get_db)):
     except ValueError:
         raise HTTPException(status_code=400, detail="Format de data invàlid")
 
-    try:
-        # Obtenir gestors per carregar horari
-        substitucions_mgr, horari, alliberats, absencies = get_gestors(data_iso=data)
+    # Obtenir gestors per carregar horari
+    substitucions_mgr, horari, alliberats, absencies = get_gestors(data_iso=data)
 
-        # horari.grups ja és el conjunt de grups de treball (selecció manual;
-        # si no n'hi ha, tots els detectats). El filtre viu al parser.
-        tots_grups = sorted(horari.grups)
+    # horari.grups ja és el conjunt de grups de treball (selecció manual;
+    # si no n'hi ha, tots els detectats). El filtre viu al parser.
+    tots_grups = sorted(horari.grups)
 
-        # El que s'ha marcat aquell dia (els períodes es retornen a part)
-        alliberats_per_hora = GrupsAlliberatsRepository.get_dia_by_date(db, data)
+    # El que s'ha marcat aquell dia (els períodes es retornen a part)
+    alliberats_per_hora = GrupsAlliberatsRepository.get_dia_by_date(db, data)
 
-        # Hores del dia: les que algun grup visible té classe o algú fa una
-        # activitat alliberable (la taula només en té files), i les que ja
-        # tenen alguna cosa marcada aquell dia (perquè es pugui desmarcar)
-        dia_hores = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
-        grups_de_la_taula = set(horari.grups)
-        activitats_de_la_taula = set(activitats_alliberables(db))
+    # Hores del dia: les que algun grup visible té classe o algú fa una
+    # activitat alliberable (la taula només en té files), i les que ja
+    # tenen alguna cosa marcada aquell dia (perquè es pugui desmarcar)
+    dia_hores = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+    grups_de_la_taula = set(horari.grups)
+    activitats_de_la_taula = set(activitats_alliberables(db))
 
-        def te_files(hora):
-            for professor in horari.professors:
-                act = horari.get_activitat(dia_hores, hora, professor) or {}
-                grup = act.get("grup") or ""
-                if grup in grups_de_la_taula if grup else (act.get("assignatura") or "") in activitats_de_la_taula:
-                    return True
-            return False
+    def te_files(hora):
+        for professor in horari.professors:
+            act = horari.get_activitat(dia_hores, hora, professor) or {}
+            grup = act.get("grup") or ""
+            if grup in grups_de_la_taula if grup else (act.get("assignatura") or "") in activitats_de_la_taula:
+                return True
+        return False
 
-        hores = [h for h in horari.hores if alliberats_per_hora.get(h) or te_files(h)]
+    hores = [h for h in horari.hores if alliberats_per_hora.get(h) or te_files(h)]
 
-        # Grups que a una hora tenen classe amb més d'un professor (p.ex. una
-        # optativa): només en aquests té sentit alliberar un professor sol. Si
-        # n'hi ha un de sol, alliberar-lo és deixar el grup sense classe.
-        dia = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
-        professors_per_grup_hora = {}
-        grups_visibles = set(tots_grups)
+    # Grups que a una hora tenen classe amb més d'un professor (p.ex. una
+    # optativa): només en aquests té sentit alliberar un professor sol. Si
+    # n'hi ha un de sol, alliberar-lo és deixar el grup sense classe.
+    dia = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+    professors_per_grup_hora = {}
+    grups_visibles = set(tots_grups)
+    for hora in hores:
+        per_grup = {}
+        for professor in sorted(horari.professors):
+            activitat = horari.get_activitat(dia, hora, professor) or {}
+            grup = activitat.get("grup", "")
+            if grup in grups_visibles and activitat.get("assignatura"):
+                per_grup.setdefault(grup, []).append(professor)
+        compartits = {grup: profs for grup, profs in per_grup.items() if len(profs) > 1}
+        if compartits:
+            professors_per_grup_hora[hora] = compartits
+
+    # Reforços (alliberats fins que tenen alumnes) d'aquell dia, amb l'estat de
+    # cada professor: {activitat: {hora: [{professor, amb_alumnes}]}}. Els que
+    # tenen alumnes es poden alliberar només aquell dia (👤).
+    per_defecte_noms = set(GrupsAlliberatsRepository.activitats_per_defecte(db))
+    reforcs_del_dia = {}
+    if per_defecte_noms:
+        darrers = AlliberamentsPeriodeRepository.darrers(db, data, dia)
         for hora in hores:
-            per_grup = {}
             for professor in sorted(horari.professors):
                 activitat = horari.get_activitat(dia, hora, professor) or {}
-                grup = activitat.get("grup", "")
-                if grup in grups_visibles and activitat.get("assignatura"):
-                    per_grup.setdefault(grup, []).append(professor)
-            compartits = {grup: profs for grup, profs in per_grup.items() if len(profs) > 1}
-            if compartits:
-                professors_per_grup_hora[hora] = compartits
+                nom = activitat.get("assignatura") or ""
+                if nom not in per_defecte_noms or activitat.get("grup"):
+                    continue
+                canvi = darrers.get(("professor", professor, dia, hora))
+                reforcs_del_dia.setdefault(nom, {}).setdefault(hora, []).append({
+                    "professor": professor,
+                    "amb_alumnes": canvi is not None and not canvi.alliberat,
+                })
 
-        # Reforços (alliberats fins que tenen alumnes) d'aquell dia, amb l'estat de
-        # cada professor: {activitat: {hora: [{professor, amb_alumnes}]}}. Els que
-        # tenen alumnes es poden alliberar només aquell dia (👤).
-        per_defecte_noms = set(GrupsAlliberatsRepository.activitats_per_defecte(db))
-        reforcs_del_dia = {}
-        if per_defecte_noms:
-            darrers = AlliberamentsPeriodeRepository.darrers(db, data, dia)
-            for hora in hores:
-                for professor in sorted(horari.professors):
-                    activitat = horari.get_activitat(dia, hora, professor) or {}
-                    nom = activitat.get("assignatura") or ""
-                    if nom not in per_defecte_noms or activitat.get("grup"):
-                        continue
-                    canvi = darrers.get(("professor", professor, dia, hora))
-                    reforcs_del_dia.setdefault(nom, {}).setdefault(hora, []).append({
-                        "professor": professor,
-                        "amb_alumnes": canvi is not None and not canvi.alliberat,
-                    })
+    # Activitats alliberables (Prioritats) que algú fa aquell dia: {activitat: {hora: [professors]}}
+    # Les «alliberades fins que tenen alumnes» no hi surten: es gestionen a part
+    per_defecte = GrupsAlliberatsRepository.activitats_per_defecte(db)
+    configurades = set(activitats_alliberables(db)) - set(per_defecte)
+    activitats_per_hora = {}
+    if configurades:
+        for hora in hores:
+            for professor in sorted(horari.professors):
+                activitat = horari.get_activitat(dia, hora, professor) or {}
+                nom = activitat.get("assignatura") or ""
+                if nom in configurades and not activitat.get("grup"):
+                    activitats_per_hora.setdefault(nom, {}).setdefault(hora, []).append(professor)
 
-        # Activitats alliberables (Prioritats) que algú fa aquell dia: {activitat: {hora: [professors]}}
-        # Les «alliberades fins que tenen alumnes» no hi surten: es gestionen a part
-        per_defecte = GrupsAlliberatsRepository.activitats_per_defecte(db)
-        configurades = set(activitats_alliberables(db)) - set(per_defecte)
-        activitats_per_hora = {}
-        if configurades:
-            for hora in hores:
-                for professor in sorted(horari.professors):
-                    activitat = horari.get_activitat(dia, hora, professor) or {}
-                    nom = activitat.get("assignatura") or ""
-                    if nom in configurades and not activitat.get("grup"):
-                        activitats_per_hora.setdefault(nom, {}).setdefault(hora, []).append(professor)
-
-        # Retornar en format esperat pel frontend
-        return {
-            "hores": hores,
-            "grups_disponibles": tots_grups,
-            "grups_seleccionats_per_hora": {
-                hora: nomes_grups(valors) for hora, valors in alliberats_per_hora.items()
-                if nomes_grups(valors)
-            },
-            "professors_per_grup_hora": professors_per_grup_hora,
-            "professors_alliberats_per_hora": {
-                hora: professors_de(valors) for hora, valors in alliberats_per_hora.items()
-                if professors_de(valors)
-            },
-            "activitats_per_hora": {act: activitats_per_hora[act] for act in sorted(activitats_per_hora)},
-            "activitats_seleccionades_per_hora": {
-                hora: activitats_de(valors) for hora, valors in alliberats_per_hora.items()
-                if activitats_de(valors)
-            },
-            # Alliberats per període aquell dia: {hora: [{tipus, clau, des_de}]}
-            "periode": AlliberamentsPeriodeRepository.estats(db, data, dia),
-            "dia_setmana": dia,
-            "activitats_per_defecte": per_defecte,
-            "reforcs_per_hora": reforcs_del_dia,
-            "ocupats_per_hora": {
-                hora: ocupats_de(valors) for hora, valors in alliberats_per_hora.items()
-                if ocupats_de(valors)
-            },
-        }
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en obtenir grups: {str(e)}")
+    # Retornar en format esperat pel frontend
+    return {
+        "hores": hores,
+        "grups_disponibles": tots_grups,
+        "grups_seleccionats_per_hora": {
+            hora: nomes_grups(valors) for hora, valors in alliberats_per_hora.items()
+            if nomes_grups(valors)
+        },
+        "professors_per_grup_hora": professors_per_grup_hora,
+        "professors_alliberats_per_hora": {
+            hora: professors_de(valors) for hora, valors in alliberats_per_hora.items()
+            if professors_de(valors)
+        },
+        "activitats_per_hora": {act: activitats_per_hora[act] for act in sorted(activitats_per_hora)},
+        "activitats_seleccionades_per_hora": {
+            hora: activitats_de(valors) for hora, valors in alliberats_per_hora.items()
+            if activitats_de(valors)
+        },
+        # Alliberats per període aquell dia: {hora: [{tipus, clau, des_de}]}
+        "periode": AlliberamentsPeriodeRepository.estats(db, data, dia),
+        "dia_setmana": dia,
+        "activitats_per_defecte": per_defecte,
+        "reforcs_per_hora": reforcs_del_dia,
+        "ocupats_per_hora": {
+            hora: ocupats_de(valors) for hora, valors in alliberats_per_hora.items()
+            if ocupats_de(valors)
+        },
+    }
 
 
 @router.put("/{data}")
@@ -348,21 +350,16 @@ async def desar_grups_sense_classe(data: str, payload: AlliberatsDia, db: Sessio
         if claus:
             grups_per_hora.setdefault(hora, []).extend(dict.fromkeys(claus))
 
-    try:
-        # Les hores que es desmarquen també s'han de reconciliar
-        hores_anteriors = set(GrupsAlliberatsRepository.get_dia_by_date(db, data).keys())
-        GrupsAlliberatsRepository.set_for_date(db, data, grups_per_hora)
-        await _reconcilia_dia(data, set(grups_per_hora) | hores_anteriors, db)
+    # Les hores que es desmarquen també s'han de reconciliar
+    hores_anteriors = set(GrupsAlliberatsRepository.get_dia_by_date(db, data).keys())
+    GrupsAlliberatsRepository.set_for_date(db, data, grups_per_hora)
+    trets = _reconcilia_dia(data, set(grups_per_hora) | hores_anteriors, db)
 
-        return {
-            "success": True,
-            "message": f"Grups sense classe actualitzats per {data}",
-            "total_hores": len(grups_per_hora),
-            "total_grups": sum(len(nomes_grups(v)) for v in grups_per_hora.values()),
-            "total_professors": sum(len(professors_de(v)) for v in grups_per_hora.values())
-        }
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en desar grups: {str(e)}")
+    return {
+        "success": True,
+        "substituts_trets": trets,
+        "message": f"Grups sense classe actualitzats per {data}",
+        "total_hores": len(grups_per_hora),
+        "total_grups": sum(len(nomes_grups(v)) for v in grups_per_hora.values()),
+        "total_professors": sum(len(professors_de(v)) for v in grups_per_hora.values())
+    }

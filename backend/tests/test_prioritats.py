@@ -86,7 +86,7 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
 
     _recarregar_prioritats_desde_bd(db_session)
 
-    for modul in (helpers, core.vigilancia_assignacio, routes.disponibles):
+    for modul in (helpers, core.vigilancia_assignacio):
         assert modul.PRIORITATS == {"Guàrdia": 4}, modul.__name__
     for modul in (core.vigilancia_assignacio, routes.disponibles):
         assert modul.ORDRE_PRIORITATS == [["Guàrdia"]], modul.__name__
@@ -288,19 +288,12 @@ def test_crud_no_substituir_string_buit_es_accepta(db_session):
     assert resultat["success"] is True
 
 
-def test_crud_no_substituir_sense_clau_assignatura_dona_500_per_bug(db_session):
-    """BUG DE PRODUCCIÓ CONFIRMAT: create_no_substituir() aixeca
-    deliberadament un HTTPException(400, "Assignatura requerida"), però a
-    diferència d'altres endpoints d'aquest mateix fitxer (update_categoria,
-    delete_categoria, etc.) li falta el `except HTTPException: raise`
-    previ al `except Exception` genèric. Com que HTTPException també és
-    Exception, el bloc genèric l'atrapa i el reempaqueta com a 500 — la
-    validació existeix però mai arriba al client com a 400.
-    Reportat a l'usuari — no s'ha corregit aquí, fora d'abast d'aquesta
-    tasca (només test dedicat)."""
+def test_crud_no_substituir_sense_clau_assignatura_dona_400(db_session):
+    """Sense assignatura, la validació arriba a l'usuari com a 400 (abans un
+    except Exception genèric l'atrapava i la convertia en 500)."""
     with pytest.raises(HTTPException) as exc_info:
         run(create_no_substituir({}, db_session))
-    assert exc_info.value.status_code == 500
+    assert exc_info.value.status_code == 400
     assert "Assignatura requerida" in exc_info.value.detail
 
 

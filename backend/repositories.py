@@ -11,6 +11,9 @@ from pathlib import Path
 import re
 import sys
 
+import logging
+log = logging.getLogger(__name__)
+
 
 def parse_date(date_str: str) -> date:
     """Converteix string YYYY-MM-DD a objecte date de Python"""
@@ -590,13 +593,13 @@ class GrupsAlliberatsRepository:
         es resolen als professors que les fan (perquè compti com qualsevol
         professor alliberat)."""
         result = GrupsAlliberatsRepository.get_dia_by_date(db, data)
+        from helpers import get_horari, MissingXmlError
+        from core.alliberats import (activitats_de, clau_activitat, clau_ocupat, clau_professor, ocupats_de)
         try:
-            from helpers import get_horari
-            from core.alliberats import (activitats_de, clau_activitat, clau_ocupat, clau_professor, ocupats_de)
             horari = get_horari(data_iso=data)
-            dia = horari.get_dia_name(parse_date(data).weekday())
-        except Exception:
-            return result
+        except MissingXmlError:
+            return result   # sense horari no hi ha activitats ni períodes a resoldre
+        dia = horari.get_dia_name(parse_date(data).weekday())
 
         for hora, items in AlliberamentsPeriodeRepository.estats(db, data, dia).items():
             for item in items:
@@ -1320,16 +1323,6 @@ class AbreviaturaGrupRepository:
             for a in abreviatures
         ]
 
-    @staticmethod
-    def get_by_abreviatura(db: Session, abreviatura: str) -> Optional[str]:
-        """Retorna els grups originals d'una abreviatura"""
-        from models import AbreviaturaGrup
-
-        abrev = db.query(AbreviaturaGrup).filter(
-            AbreviaturaGrup.abreviatura == abreviatura
-        ).first()
-
-        return abrev.grups_originals if abrev else None
 
     @staticmethod
     def create(db: Session, grups_originals: str, abreviatura: str) -> int:

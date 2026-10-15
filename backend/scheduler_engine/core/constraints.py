@@ -65,7 +65,7 @@ def es_item_compatible_amb_slot(item: Dict, sessions_al_slot: List[Dict], restri
                     return False, f"Conflicte no_mateix_slot: {nom_grup}"
 
     return True, ""
-from scheduler_engine.core.normalitzacio import normalitzar_dia, nom_base_assignatura, dia_nom_per_horari
+from scheduler_engine.core.normalitzacio import normalitzar_dia, dia_nom_per_horari
 
 # ==================================================================================================
 # HELPERS BÀSICS
@@ -158,10 +158,6 @@ def percent_no_mateix_slot(restriccions: Dict, group_name: str) -> int:
             raw = val.get('pes')
     return _percent_value(raw if raw is not None else 100)
 
-def percent_no_mateix_dia(restriccio_item: Union[List[str], Dict[str, Any]]) -> int:
-    if isinstance(restriccio_item, dict):
-        return _percent_value(restriccio_item.get("pes", 100))
-    return 100
 
 def viola_limit_dies_professor_obligatori(
     sessio: Dict, dia: str, sessions_assignades: Dict, restriccions: Dict

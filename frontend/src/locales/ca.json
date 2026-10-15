@@ -225,7 +225,7 @@
     "absences": {
       "count": "{count} professors de baixa",
       "none": "No hi ha professors de baixa",
-      "hint": "Els professors de baixa NO substitueixen ni són substituïts durant el període especificat",
+      "hint": "Els professors de baixa NO substitueixen ni són substituïts durant el període especificat. En desar-la, d'avui endavant se li treuen les absències, les vigilàncies i les substitucions que tingués.",
       "editTitle": "✏️ Edita Professor de Baixa",
       "addTitle": "➕ Afegeix Professor de Baixa",
       "teacher": "Professor",
@@ -236,7 +236,13 @@
       "reasonPlaceholder": "Ex: permís, formació…",
       "updated": "Professor de baixa actualitzat correctament",
       "added": "Professor de baixa afegit correctament",
-      "deleted": "Professor de baixa eliminat correctament"
+      "deleted": "Professor de baixa eliminat correctament",
+      "applied": {
+        "title": "Canvis per la baixa ({count})",
+        "absence": "absència esborrada",
+        "vigilance": "vigilància sense vigilant ({tipus})"
+      },
+      "startsInPast": "La baixa comença abans d'avui. Es treuran les absències, vigilàncies i substitucions d'avui endavant."
     },
     "priorities": {
       "introLine1": "Configureu l'ordre i pesos de les categories de prioritat per assignar substitucions.",
@@ -565,7 +571,12 @@
         "blankRowsHint": "Mostra les hores on hi pot haver substitucions (classe amb grups visibles o activitats que no són a «No substituir») amb files en blanc, per afegir-ne a mà després d'imprimir.",
         "selectAtLeastOne": "⚠️ Has de seleccionar almenys un tipus de contingut (substitucions o vigilàncies)",
         "selectAtLeastOneShort": "Has de seleccionar almenys un tipus de contingut",
-        "generate": "Genera PDF"
+        "generate": "Genera PDF",
+        "fontSize": "Mida de la lletra",
+        "fontNormal": "Normal",
+        "fontLarge": "Gran",
+        "fontLarger": "Molt gran",
+        "fontSizeOnlyDay": "Només per al format «Taula del dia»"
       }
     },
     "confirm": {
@@ -574,7 +585,10 @@
       "regenerateAllAccept": "Sí, regenerar",
       "deleteAbsenceMessage": "Vols eliminar l'absència de {teacher} a les {hour}?",
       "deleteAllAbsencesMessage": "Vols eliminar totes les absències de {teacher}?",
-      "deleteAbsenceTitle": "Confirmar eliminació"
+      "deleteAbsenceTitle": "Confirmar eliminació",
+      "moveTitle": "Moure el substitut",
+      "moveMessage": "{name} ja substitueix {absent} a les {hora}. El vols passar aquí? La substitució de {absent} quedarà pendent.",
+      "moveAccept": "Mou-lo"
     },
     "messages": {
       "substituteAssigned": "Substitut assignat: {name}",
@@ -586,12 +600,11 @@
       "vigilanciesUnassignedDetail": "S'han creat {count} substitució(ns) de tipus VIGILÀNCIA per cobrir les vigilàncies del professor absent.",
       "pdfGeneratedTitle": "PDF generat",
       "pdfGeneratedDetail": "S'ha descarregat el PDF complet per {date}",
-      "reassignVigilanciesTitle": "Vigilàncies reassignades",
-      "reassignVigilanciesDetail": "S'han revisat {count} vigilàncies problemàtiques",
       "reassignSubstitutionsTitle": "Substitucions reassignades",
       "reassignSubstitutionsDetail": "S'han revisat {count} substitucions problemàtiques",
       "reassignDoneTitle": "Reassignació feta",
-      "reassignDoneDetail": "Encara hi ha incidències. Revisa la llista."
+      "reassignDoneDetail": "Encara hi ha incidències. Revisa la llista.",
+      "substituteMoved": "{name} s'ha mogut aquí; la substitució de {absent} ha quedat pendent"
     },
     "senseCobertura": "Sense cobertura",
     "pendentsSenseCobertura": "{n} sense cobertura",
@@ -606,6 +619,13 @@
       "validatePdf": "Error validant el PDF",
       "generatePdf": "No s'ha pogut generar el PDF",
       "reassignProblematics": "No s'ha pogut reassignar"
+    },
+    "substitutsTrets": {
+      "titol": "Substituts trets ({count}): ara cal assignar-los de nou",
+      "classe": "té classe amb {grup}",
+      "absent": "és absent",
+      "baixa": "està de baixa",
+      "vigilancia": "vigila un examen"
     }
   },
   "examConfig": {

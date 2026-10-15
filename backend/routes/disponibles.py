@@ -9,7 +9,7 @@ from collections import defaultdict
 from dependencies import get_db
 from auth_utils import get_current_user
 from helpers import get_gestors
-from config.constants import PRIORITATS, ORDRE_PRIORITATS
+from config.constants import ORDRE_PRIORITATS
 
 router = APIRouter(prefix="/api/disponibles", tags=["Disponibles"])
 
@@ -48,7 +48,7 @@ async def get_disponibles_dia(
     try:
         dia_obj = datetime.strptime(data, "%Y-%m-%d")
         dia_name = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"][dia_obj.weekday()]
-    except:
+    except IndexError:  # cap de setmana
         raise HTTPException(status_code=400, detail="Data invàlida")
 
     # Carregar gestors (retornen: substitucions, horari, alliberats, absencies)
@@ -59,16 +59,8 @@ async def get_disponibles_dia(
 
     # Obtenir professors de baixa
     from config.constants import PROFESSORS_BAIXA
-    professors_baixa_avui = set()
-    try:
-        data_obj = datetime.strptime(data, "%Y-%m-%d").date()
-        for baixa in PROFESSORS_BAIXA:
-            data_inici = datetime.strptime(baixa['data_inici'], '%Y-%m-%d').date()
-            data_final = datetime.strptime(baixa['data_final'], '%Y-%m-%d').date()
-            if data_inici <= data_obj <= data_final:
-                professors_baixa_avui.add(baixa['professor'])
-    except:
-        pass
+    from core.baixes import professors_de_baixa
+    professors_baixa_avui = professors_de_baixa(PROFESSORS_BAIXA, data)
 
     # Obtenir substitucions del dia
     from repositories import SubstitucioRepository

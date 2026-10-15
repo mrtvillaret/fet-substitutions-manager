@@ -3124,10 +3124,17 @@ msgid "❌ Error: No s'han trobat institucions a data/"
 msgstr "❌ Errore: nessun istituto trovato in data/"
 
 #: main.py:162
-msgid "   Crea almenys una carpeta a data/ (ex: data/madrid/)"
-msgstr "   Crea almeno una cartella in data/ (es. data/madrid/)"
+msgid "   Crea almenys una carpeta a data/ (ex: data/demo/)"
+msgstr "   Crea almeno una cartella in data/ (es. data/demo/)"
 
 #: main.py:176
 msgid "❌ Selecció cancel·lada per l'usuari"
 msgstr "❌ Selezione annullata dall'utente"
 
+#: export/pdf/engine.py
+msgid "absent"
+msgstr "assente"
+
+#: export/pdf/engine.py
+msgid "absent (servei)"
+msgstr "assente (servizio)"

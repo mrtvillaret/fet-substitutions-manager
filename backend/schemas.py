@@ -23,6 +23,9 @@ class SubstitucioUpdate(BaseModel):
     comentaris: Optional[str] = None
     updated_at: Optional[str] = None
     force: Optional[bool] = False
+    # Si el substitut ja fa una altra substitució a la mateixa hora: treure'l
+    # d'aquella (queda pendent) i posar-lo en aquesta
+    moure: Optional[bool] = False
 
 
 class NovaSubstitucioRequest(BaseModel):

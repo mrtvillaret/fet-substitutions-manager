@@ -225,7 +225,7 @@
     "absences": {
       "count": "{count} docenti in congedo",
       "none": "Nessun docente in congedo",
-      "hint": "I docenti in congedo NON sostituiscono né vengono sostituiti durante il periodo specificato",
+      "hint": "I docenti in congedo NON sostituiscono e NON vengono sostituiti durante il periodo indicato. Al salvataggio, da oggi in poi vengono rimosse le assenze, le sorveglianze e le supplenze che avessero.",
       "editTitle": "✏️ Modifica docente in congedo",
       "addTitle": "➕ Aggiungi docente in congedo",
       "teacher": "Docente",
@@ -236,7 +236,13 @@
       "reasonPlaceholder": "es. congedo, formazione…",
       "updated": "Docente in congedo aggiornato correttamente",
       "added": "Docente in congedo aggiunto correttamente",
-      "deleted": "Docente in congedo eliminato correttamente"
+      "deleted": "Docente in congedo eliminato correttamente",
+      "applied": {
+        "title": "Modifiche per il congedo ({count})",
+        "absence": "assenza eliminata",
+        "vigilance": "sorveglianza senza sorvegliante ({tipus})"
+      },
+      "startsInPast": "Il congedo inizia prima di oggi. Verranno rimosse le assenze, le sorveglianze e le supplenze da oggi in poi."
     },
     "priorities": {
       "introLine1": "Configura l'ordine e i pesi delle categorie di priorità per assegnare le sostituzioni.",
@@ -565,7 +571,12 @@
         "blankRowsHint": "Mostra le ore in cui possono servire supplenze (lezioni con gruppi visibili o attività non in «Non sostituire») con righe vuote, per aggiungerne a mano dopo la stampa.",
         "selectAtLeastOne": "⚠️ Devi selezionare almeno un tipo di contenuto (sostituzioni o vigilanze)",
         "selectAtLeastOneShort": "Devi selezionare almeno un tipo di contenuto",
-        "generate": "Genera PDF"
+        "generate": "Genera PDF",
+        "fontSize": "Dimensione del testo",
+        "fontNormal": "Normale",
+        "fontLarge": "Grande",
+        "fontLarger": "Molto grande",
+        "fontSizeOnlyDay": "Solo per il formato «Tabella del giorno»"
       }
     },
     "confirm": {
@@ -574,7 +585,10 @@
       "regenerateAllAccept": "Sì, rigenera",
       "deleteAbsenceMessage": "Vuoi eliminare l'assenza di {teacher} alle {hour}?",
       "deleteAllAbsencesMessage": "Vuoi eliminare tutte le assenze di {teacher}?",
-      "deleteAbsenceTitle": "Conferma eliminazione"
+      "deleteAbsenceTitle": "Conferma eliminazione",
+      "moveTitle": "Spostare il supplente",
+      "moveMessage": "{name} sostituisce già {absent} alle {hora}. Vuoi spostarlo qui? La supplenza di {absent} resterà in sospeso.",
+      "moveAccept": "Sposta"
     },
     "messages": {
       "substituteAssigned": "Supplente assegnato: {name}",
@@ -586,12 +600,11 @@
       "vigilanciesUnassignedDetail": "Sono state create {count} sostituzione/i di VIGILANZA per coprire i turni d'esame del docente assente.",
       "pdfGeneratedTitle": "PDF generato",
       "pdfGeneratedDetail": "Scaricato il PDF completo per il {date}",
-      "reassignVigilanciesTitle": "Vigilanze riassegnate",
-      "reassignVigilanciesDetail": "Riviste {count} vigilanze problematiche",
       "reassignSubstitutionsTitle": "Sostituzioni riassegnate",
       "reassignSubstitutionsDetail": "Riviste {count} sostituzioni problematiche",
       "reassignDoneTitle": "Riassegnazione completata",
-      "reassignDoneDetail": "Ci sono ancora problemi. Rivedi l'elenco."
+      "reassignDoneDetail": "Ci sono ancora problemi. Rivedi l'elenco.",
+      "substituteMoved": "{name} è stato spostato qui; la supplenza di {absent} è in sospeso"
     },
     "senseCobertura": "Non coperta",
     "pendentsSenseCobertura": "{n} non coperte",
@@ -606,6 +619,13 @@
       "validatePdf": "Errore nella validazione del PDF",
       "generatePdf": "Impossibile generare il PDF",
       "reassignProblematics": "Impossibile riassegnare"
+    },
+    "substitutsTrets": {
+      "titol": "Supplenti rimossi ({count}): ora vanno assegnati di nuovo",
+      "classe": "ha lezione con {grup}",
+      "absent": "è assente",
+      "baixa": "è in congedo",
+      "vigilancia": "sorveglia un esame"
     }
   },
   "examConfig": {

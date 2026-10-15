@@ -10,5 +10,5 @@ def normalitzar_hora(hora: str) -> str:
         return hora
     try:
         return f"{int(parts[0]):02d}:{int(parts[1]):02d}"
-    except Exception:
+    except (ValueError, TypeError):
         return hora

@@ -25,7 +25,7 @@ class GestorAbsencies:
         logger = logging.getLogger(__name__)
         logger.debug(f"🟢 get_substitucions_necessaries() START: dia='{dia}', absents={len(absents)}")
 
-        # 🔧 FIX: Assegura que dia està en format nom dia XML, no ISO
+        # Assegura que dia està en format nom dia XML, no ISO
         if isinstance(dia, str) and len(dia) == 10 and '-' in dia:
             # Rebut format ISO (2025-08-11), converteix a nom dia XML
             from utils.date_context import DateContext

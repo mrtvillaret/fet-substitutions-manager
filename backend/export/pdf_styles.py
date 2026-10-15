@@ -7,6 +7,9 @@ from reportlab.lib import colors
 import json
 from pathlib import Path
 
+import logging
+log = logging.getLogger(__name__)
+
 # Try to import hyphenation support
 try:
     import pyphen
@@ -57,9 +60,9 @@ class PDFStyleFactory:
                     return config
                         
         except Exception as e:
-            print(f"Error loading PDF config: {e}")
+            log.warning(f"Error loading PDF config: {e}")
         
-        print("Using fallback PDF config")
+        log.warning("Using fallback PDF config")
         # Fallback per defecte
         return {
             "font_sizes": {
@@ -135,7 +138,7 @@ class PDFStyleFactory:
                 # Use pyphen - much simpler and works with Catalan
                 hyphen_lang = pyphen.Pyphen(lang=hyphenation_config.get('language', 'ca'))
             except Exception as e:
-                print(f"Warning: Could not load hyphenation for {hyphenation_config.get('language', 'ca')}: {e}")
+                log.warning(f"Warning: Could not load hyphenation for {hyphenation_config.get('language', 'ca')}: {e}")
                 hyphen_lang = None
         
         # Estils personalitzats comuns

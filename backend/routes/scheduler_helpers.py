@@ -214,7 +214,7 @@ def _hores_lectives_des_de_xml(xml_path: str, fallback: list[str] | None = None)
         try:
             hh, mm = h.split(":")
             return int(hh) * 60 + int(mm)
-        except Exception:
+        except (ValueError, TypeError, IndexError):
             return 10**9
 
     hores = []
@@ -248,7 +248,7 @@ def extreure_hores_examen_des_alliberaments(alliberaments: dict) -> tuple[list, 
         try:
             hh, mm = h.split(":")
             return int(hh) * 60 + int(mm)
-        except Exception:
+        except (ValueError, TypeError, IndexError):
             return 10**9
 
     hores_per_nivell: dict[str, list[str]] = {}

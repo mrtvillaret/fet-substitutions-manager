@@ -2,8 +2,10 @@
 Gestor d'horaris XML per al backend web - Llegeix configuració de SQLite
 """
 import xml.etree.ElementTree as ET
-import re
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, Optional, Set
+
+import logging
+log = logging.getLogger(__name__)
 
 try:
     from i18n_setup import translate as _
@@ -25,7 +27,6 @@ class GestorHorariWeb:
         self.horari = {}  # {dia: {hora: {professor: dades}}}
         self.professors = []
         self.grups = set()  # Grups visibles (tots menys els amagats; amb abreviatures)
-        self.grups_raw = set()  # Grups visibles RAW (abans d'aplicar abreviatures)
         self.tots_grups = set()  # TOTS els grups detectats a l'XML (per al selector)
         self.tots_grups_raw = set()  # TOTS els grups detectats, versió RAW
         self.hores = []  # Hores extretes del XML en ordre cronològic
@@ -47,7 +48,7 @@ class GestorHorariWeb:
                 self._grups_amagats = set(GrupsAmagatsRepository.get_all(db))
                 return self._grups_amagats
         except Exception as e:
-            print(f"⚠️  Error carregant grups amagats de BD: {e}")
+            log.warning(f"⚠️  Error carregant grups amagats de BD: {e}")
             self._grups_amagats = set()
             return self._grups_amagats
 
@@ -67,10 +68,10 @@ class GestorHorariWeb:
                     item['grups_originals']: item['abreviatura']
                     for item in abreviatures_list
                 }
-                print(f"✅ Carregades {len(self._abreviatures_cache)} abreviatures de grups des de BD")
+                log.debug(f"✅ Carregades {len(self._abreviatures_cache)} abreviatures de grups des de BD")
                 return self._abreviatures_cache
         except Exception as e:
-            print(f"⚠️  Error carregant abreviatures de BD: {e}")
+            log.warning(f"⚠️  Error carregant abreviatures de BD: {e}")
             return {}
 
     def _normalitzar_llista_grups(self, grups_string: str) -> str:
@@ -102,7 +103,6 @@ class GestorHorariWeb:
             self.horari = {}
             self.professors = []
             self.grups = set()
-            self.grups_raw = set()
             self.tots_grups = set()
             self.tots_grups_raw = set()
             self.hores = []
@@ -129,12 +129,12 @@ class GestorHorariWeb:
                 try:
                     index_limit = tots_professors.index(ultim_prof) + 1
                     self.professors = tots_professors[:index_limit]
-                    print(_("Aplicat límit de professor: fins '{professor}' ({count} professors)").format(professor=ultim_prof, count=index_limit))
+                    log.debug(_("Aplicat límit de professor: fins '{professor}' ({count} professors)").format(professor=ultim_prof, count=index_limit))
                 except ValueError:
-                    print(_("Professor límit '{professor}' no trobat, en carregar tots").format(professor=ultim_prof))
+                    log.debug(_("Professor límit '{professor}' no trobat, en carregar tots").format(professor=ultim_prof))
                     self.professors = tots_professors
             else:
-                print(_("Sense límit de professor o '{professor}' no trobat").format(professor=ultim_prof))
+                log.debug(_("Sense límit de professor o '{professor}' no trobat").format(professor=ultim_prof))
                 self.professors = tots_professors
 
             # Segona passada: processa dades només dels professors seleccionats
@@ -175,8 +175,6 @@ class GestorHorariWeb:
 
                             clau = students_raw or students_consolidat
                             if clau not in grups_amagats:
-                                if students_raw:
-                                    self.grups_raw.add(students_raw)
                                 self.grups.add(students_consolidat)
 
                         # Carrega l'aula (Room)
@@ -205,39 +203,11 @@ class GestorHorariWeb:
                         hores_ordenades.append(hora)
             self.hores = hores_ordenades
 
-            # Manté self.grups com a set per compatibilitat
-            # L'ordenació només es fa quan es necessita mostrar els grups
-            grups_ordenats = self._ordenar_grups_personalitzat(self.grups)
-
-            print(_("Horari carregat: {prof_count} professors, {grup_count} grups").format(prof_count=len(self.professors), grup_count=len(self.grups)))
-            print(_("Dies: {dies}").format(dies=self.dies))
-            print(_("Hores: {hores}").format(hores=self.hores))
-            print(_("Primers 10 grups: {grups}").format(grups=grups_ordenats[:10]))
+            log.debug(_("Horari carregat: {prof_count} professors, {grup_count} grups").format(prof_count=len(self.professors), grup_count=len(self.grups)))
 
         except Exception as e:
-            print(_("Error en carregar horari: {error}").format(error=e))
+            log.warning(_("Error en carregar horari: {error}").format(error=e))
             raise
-    def _ordenar_grups_personalitzat(self, grups):
-        """Ordena grups segons ORDRE_GRUPS definit a constants"""
-        from config.constants import ORDRE_GRUPS
-
-        grups_list = list(grups)
-        grups_ordenats = []
-        grups_restants = grups_list.copy()
-
-        # Primer: afegeix grups segons l'ordre predefinit
-        for grup_ordre in ORDRE_GRUPS:
-            if grup_ordre in grups_restants:
-                grups_ordenats.append(grup_ordre)
-                grups_restants.remove(grup_ordre)
-
-        # Després: afegeix grups restants ordenats alfabèticament
-        grups_restants_ordenats = sorted(grups_restants)
-        grups_ordenats.extend(grups_restants_ordenats)
-
-        return grups_ordenats
-
-
     def _consolidar_students_raw(self, hour_elem) -> str:
         """
         Retorna els grups RAW combinats per comes, SENSE aplicar abreviatures.
@@ -362,95 +332,6 @@ class GestorHorariWeb:
                 ultima = hora
         return (primera, ultima)
 
-    def get_professors_limits(self) -> List[str]:
-        """Retorna la llista de professors amb límit aplicat"""
-        return self.professors.copy()
-
-    def te_classe(self, dia: str, hora: str, professor: str) -> bool:
-        """Comprova si un professor té classe (no forat ni activitat especial)"""
-        activitat = self.get_activitat(dia, hora, professor)
-        if not activitat:
-            return False
-
-        # No té classe si és activitat especial
-        from config.constants import NO_SUBST
-        assignatura = activitat.get("assignatura", "")
-        if assignatura in NO_SUBST:
-            return False
-
-        return True
-
-    def get_grups_individuals(self) -> Set[str]:
-        """
-        Retorna tots els grups individuals que formen part dels grups consolidats.
-        """
-        grups_individuals = set()
-
-        for grup_consolidat in self.grups:
-            if "," in grup_consolidat:
-                # Grup múltiple: "1-BATX-AB,2-ESO-C" → ["1-BATX-AB", "2-ESO-C"]
-                for part in grup_consolidat.split(","):
-                    part_clean = part.strip()
-                    if part_clean:
-                        grups_individuals.update(self._expandir_grup_consolidat(part_clean))
-            elif grup_consolidat:
-                grups_individuals.update(self._expandir_grup_consolidat(grup_consolidat))
-
-        return grups_individuals
-
-    def _expandir_grup_consolidat(self, grup: str) -> List[str]:
-        """
-        Expandeix un grup consolidat en grups individuals
-        Exemples:
-        - "1-BATX-AB" → ["1-BATX-A", "1-BATX-B"]
-        - "4-ESO-ABC" → ["4-ESO-A", "4-ESO-B", "4-ESO-C"]
-        - "Grup-Especial" → ["Grup-Especial"]
-        """
-        base, lletres_str = self._extreure_base_lletres_multiple(grup)
-
-        if not lletres_str:
-            # No té lletres múltiples
-            return [grup]
-
-        # Té lletres múltiples: expandeix
-        grups_individuals = []
-        for lletra in lletres_str:
-            grups_individuals.append(f"{base}{lletra}")
-
-        return grups_individuals
-
-    def _extreure_base_lletres_multiple(self, grup: str) -> tuple:
-        """
-        Extreu base i lletres múltiples d'un grup consolidat
-        Exemples:
-        - "1-BATX-AB" → ("1-BATX-", "AB")
-        - "4-ESO-ABC" → ("4-ESO-", "ABC")
-        - "Grup-Especial" → ("Grup-Especial", "")
-        """
-        # Patró per detectar lletres múltiples al final
-        pattern = r"^(.+-)([A-Z]{2,})$"
-        match = re.match(pattern, grup)
-
-        if match:
-            base = match.group(1)
-            lletres = match.group(2)
-            return (base, lletres)
-        else:
-            return (grup, "")
-
-    def get_all_groups(self) -> Set[str]:
-        """
-        Retorna tots els grups RAW tal com surten al XML (camp students)
-        Inclou les combinacions originals amb comes ABANS d'aplicar abreviatures
-        Exemple: {"1-BATX-A,1-BATX-B", "1-ESO-A,1-ESO-B,1-ESO-C", "2-BATX-A", ...}
-        """
-        return self.grups_raw
-
-    def get_grups_ordenats(self) -> List[str]:
-        """
-        Retorna els grups (amb abreviatures) ordenats segons ORDRE_GRUPS
-        """
-        return self._ordenar_grups_personalitzat(self.grups)
 
     def get_all_subjects(self) -> Set[str]:
         """
@@ -484,19 +365,3 @@ class GestorHorariWeb:
                         aules.add(aula.strip())
         return aules
 
-    def debug_info(self):
-        """Informació de debug millorada"""
-        print(_("Fitxer XML: {path}").format(path=self.xml_path))
-        print(_("Professor límit configurat: {professor}").format(professor=self.ultim_professor_subs))
-        print(_("Professors carregats: {count}").format(count=len(self.professors)))
-        print(_("Primers 5: {professors}").format(professors=self.professors[:5]))
-        if len(self.professors) > 5:
-            print(_("Últims 5: {professors}").format(professors=self.professors[-5:]))
-        print(_("Grups consolidats (ESO/BATX): {count}").format(count=len(self.grups)))
-        print(_("Primers 10 grups: {grups}").format(grups=list(self.grups)[:10]))
-
-        # Debug de consolidació
-        grups_individuals = self.get_grups_individuals()
-        print(_("Grups individuals (ESO/BATX): {count}").format(count=len(grups_individuals)))
-        print(_("Primers 10 individuals: {grups}").format(grups=sorted(list(grups_individuals))[:10]))
-        print(_("===================="))

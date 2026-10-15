@@ -2,14 +2,12 @@ from abc import ABC, abstractmethod
 import json
 import os
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Set, Any
+from typing import List, Dict
 from collections import defaultdict
-import random
 import hashlib
 
-from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text, nom_base_assignatura
+from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
 from scheduler_engine.core.context import SchedulerContext
-from scheduler_engine.core.constraints import sessio_in_group, get_restriccio_val
 from scheduler_engine.core.durada import get_durada_per_nivell, get_durada_per_sessio_key
 from scheduler_engine.defaults import (
     DEFAULT_NIVELLS_ACTIUS,
@@ -57,15 +55,6 @@ class GeneradorSessionsExamensBase(ABC):
     def generar_horari_optimitzat(self, **kwargs) -> Dict:
         pass
 
-    def get_hores_per_nivell(self, nivell: str) -> List[str]:
-        """Retorna les hores d'examen per un nivell específic.
-        Si el nivell té hores pròpies, les retorna; sinó, les globals.
-        """
-        if self.hores_per_nivell and nivell in self.hores_per_nivell:
-            hores = self.hores_per_nivell[nivell]
-            if hores:  # Només si no és llista buida
-                return hores
-        return self.hores_examen
 
     def _carregar_config(self):
         with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -193,16 +182,6 @@ class GeneradorSessionsExamensBase(ABC):
     def get_total_sessions_count(self) -> int:
         return len(self.get_all_sessions())
 
-    def _get_mateix_slot_grups(self) -> List[List[str]]:
-        """Extrau els grups que han d'anar al mateix slot des de les restriccions."""
-        restriccions = self._carregar_restriccions_raw()
-        grups_raw = restriccions.get('restriccions_dures', {}).get('mateix_slot', [])
-        grups = []
-        for grup in grups_raw:
-            assignatures = grup.get('assignatures', []) if isinstance(grup, dict) else grup
-            if isinstance(assignatures, list) and assignatures:
-                grups.append(assignatures)
-        return grups
 
     def _get_mateix_slot_grups_amb_noms(self) -> List[dict]:
         """Extrau els grups amb els seus noms definits per l'usuari."""
@@ -219,16 +198,6 @@ class GeneradorSessionsExamensBase(ABC):
                 grups.append({'nom': '', 'assignatures': grup})
         return grups
 
-    def _get_combinacions_permeses(self) -> List[List[str]]:
-        """Extrau les combinacions permeses (agrupacions opcionals)."""
-        restriccions = self._carregar_restriccions_raw()
-        combs_raw = restriccions.get('restriccions_dures', {}).get('combinacions_permeses', [])
-        combs = []
-        for comb in combs_raw:
-            assignatures = comb.get('assignatures', []) if isinstance(comb, dict) else comb
-            if isinstance(assignatures, list) and assignatures:
-                combs.append(assignatures)
-        return combs
 
     def _construir_items_mateix_slot(self, sessions_pendents: List[Dict]) -> List[Dict]:
         """
@@ -366,7 +335,7 @@ class GeneradorSessionsExamensBase(ABC):
                     items_nivell.append(item)
                     visitats.add(sid)
 
-            # C. Fusionar per espai o per combinacions (Model demo)
+            # C. Fusionar per espai o per combinacions
             # Només fusionem si hi ha combinacions permeses
             if combs_opt:
                 changed = True

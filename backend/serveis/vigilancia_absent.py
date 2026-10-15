@@ -70,7 +70,6 @@ def sincronitzar_vigilancies_absents(db, data: str, professor: str,
                 )
                 tipus_a_existents.add(vig.get('hora'))
                 creats += 1
-                print(f"   Vigilancia absent creada: {professor} a les {vig.get('hora')}")
 
     # Eliminar els obsolets
     for sub in substitucions_list:
@@ -152,6 +151,5 @@ def assignar_substituts_pendents(db, data: str, dia_name: str, alliberats,
         })
         assignats_hora[hora].add(best)
         assignades += 1
-        print(f"   Vigilancia absent assignada: {prof_absent} a les {hora} → {best} [{tipus_sub}]")
 
     return assignades

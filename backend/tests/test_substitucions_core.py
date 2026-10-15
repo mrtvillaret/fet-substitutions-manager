@@ -55,24 +55,6 @@ class FakeAbsencies:
         return [dict(sub) for sub in self._substitucions]
 
 
-# ===== CandidateValidator: validació de candidats =====
-
-def test_candidat_absent_a_aquella_hora_es_invalid():
-    validator = CandidateValidator()
-    absents = {"Prof_Absent": ["09:00"]}
-    assert validator.es_valid("Prof_Absent", "09:00", absents) is False
-
-
-def test_candidat_ocupat_amb_vigilancia_es_invalid():
-    validator = CandidateValidator(professors_ocupats_examens={"09:00": ["Prof_Vigilant"]})
-    assert validator.es_valid("Prof_Vigilant", "09:00", {}) is False
-
-
-def test_candidat_lliure_es_valid():
-    validator = CandidateValidator()
-    assert validator.es_valid("Prof_Lliure", "09:00", {}) is True
-
-
 # ===== GestorSubstitucions: assignació bàsica =====
 
 def test_assignacio_basica_amb_candidat_disponible(monkeypatch):
@@ -309,7 +291,11 @@ def test_conserva_el_substitut_anterior_si_encara_esta_disponible(monkeypatch):
     assert resultat[0].get("_conservat") is True
 
 
-def test_reassigna_si_el_substitut_anterior_ja_no_esta_disponible(monkeypatch):
+def test_conserva_el_substitut_desat_encara_que_ja_no_surti_disponible(monkeypatch):
+    """«Genera pendents» no reescriu les files que ja tenen substitut: el motor
+    les conserva tal com són i no hi gasta cap altre candidat. Prof_Antic ja no
+    surt com a disponible, però la seva fila no es toca, i l'únic candidat lliure
+    (Prof_Nou) va a la fila pendent de la mateixa hora."""
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
@@ -317,10 +303,10 @@ def test_reassigna_si_el_substitut_anterior_ja_no_esta_disponible(monkeypatch):
     monkeypatch.setattr(random, "choice", lambda seq: seq[0])
 
     horari = FakeHorari(hores=["09:00"])
-    # Prof_Antic ja no surt a la llista de disponibles d'aquesta execució.
     alliberats = FakeAlliberats({"09:00": [("Prof_Nou", "alliberat", "alliberat")]})
     absencies = FakeAbsencies([
-        {"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"}
+        {"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"},
+        {"professor_absent": "Prof_B", "hora": "09:00", "assignatura": "Anglès", "grup": "2-ESO-A"},
     ])
     substitucions_existents = {
         "Prof_A|09:00|Matemàtiques|1-ESO-A": {
@@ -331,13 +317,15 @@ def test_reassigna_si_el_substitut_anterior_ja_no_esta_disponible(monkeypatch):
     gestor = GestorSubstitucions(horari, alliberats, absencies)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
-        absents={"Prof_A": ["09:00"]},
+        absents={"Prof_A": ["09:00"], "Prof_B": ["09:00"]},
         grups_sense_classe=set(),
         substitucions_existents=substitucions_existents,
     )
 
-    assert resultat[0]["substitut"] == "Prof_Nou"
-    assert "_conservat" not in resultat[0]
+    per_absent = {s["professor_absent"]: s for s in resultat if not s.get("separador")}
+    assert per_absent["Prof_A"]["substitut"] == "Prof_Antic"
+    assert per_absent["Prof_A"]["_conservat"] is True
+    assert per_absent["Prof_B"]["substitut"] == "Prof_Nou"
 
 
 def test_conserva_seleccio_buida_anterior_encara_que_hi_hagi_candidat(monkeypatch):
@@ -562,7 +550,7 @@ def test_vigilant_amb_classe_real_genera_substitucio_de_vigilancia():
     gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
-    resultat = gestor._generar_substitucions_vigilants("Dilluns", grups_sense_classe=set())
+    resultat = gestor._generar_substitucions_vigilants("Dilluns")
 
     assert len(resultat) == 1
     assert resultat[0]["tipus_absencia"] == "VIGILANCIA"
@@ -575,7 +563,7 @@ def test_vigilant_sense_activitat_no_genera_substitucio():
     gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
-    resultat = gestor._generar_substitucions_vigilants("Dilluns", grups_sense_classe=set())
+    resultat = gestor._generar_substitucions_vigilants("Dilluns")
 
     assert resultat == []
 
@@ -589,7 +577,7 @@ def test_vigilant_amb_activitat_de_prioritats_sense_grup_genera_substitucio(monk
     gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
-    resultat = gestor._generar_substitucions_vigilants("Dilluns", grups_sense_classe=set())
+    resultat = gestor._generar_substitucions_vigilants("Dilluns")
 
     assert len(resultat) == 1
     assert resultat[0]["grup"] == ""
@@ -605,7 +593,7 @@ def test_vigilant_amb_assignatura_a_no_subst_no_genera_substitucio(monkeypatch):
     gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
-    resultat = gestor._generar_substitucions_vigilants("Dilluns", grups_sense_classe=set())
+    resultat = gestor._generar_substitucions_vigilants("Dilluns")
 
     assert resultat == []
 
@@ -616,19 +604,31 @@ class _HorariQueTrenca(FakeHorari):
 
 
 def test_generar_substitucions_vigilants_silencia_excepcions_internes():
-    """Characterization test d'un comportament real però lleig del codi
-    actual: si `horari.get_activitat` peta, `_generar_substitucions_vigilants`
-    atrapa l'excepció amb un `except Exception: pass` sense cap log ni
-    rastre de l'error, i simplement retorna una llista buida (ja
-    identificat com a punt de millora en una auditoria de qualitat
-    d'aquesta mateixa sessió). Aquest test no en jutja la bondat, només
-    en documenta el comportament actual perquè un canvi futur que
-    l'"arregli" (per exemple afegint un log) no el trenqui sense
-    adonar-se'n."""
+    """Si `horari.get_activitat` peta, `_generar_substitucions_vigilants`
+    ho registra al log i retorna una llista buida: la generació de la resta
+    de substitucions no s'atura."""
     horari = _HorariQueTrenca(hores=["09:00"])
     gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
-    resultat = gestor._generar_substitucions_vigilants("Dilluns", grups_sense_classe=set())
+    resultat = gestor._generar_substitucions_vigilants("Dilluns")
 
     assert resultat == []
+
+
+def test_cobertura_de_vigilant_nomes_mira_els_grups_sense_classe_de_la_seva_hora():
+    """El grup del vigilant està sense classe a les 12:30, no a les 09:00:
+    a les 09:00 té classe i cal cobrir-la."""
+    horari = FakeHorari(hores=["09:00", "12:30"])
+    horari._activitats[("Dilluns", "09:00", "Prof_V")] = {
+        "grup": "1-ESO-A", "assignatura": "Matemàtiques", "aula": "A1"
+    }
+    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
+    gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
+    gestor.grups_sense_classe_dict = {"12:30": ["1-ESO-A"]}
+
+    assert len(gestor._generar_substitucions_vigilants("Dilluns")) == 1
+
+    gestor.grups_sense_classe_dict = {"09:00": ["1-ESO-A"]}
+    assert gestor._generar_substitucions_vigilants("Dilluns") == []
+

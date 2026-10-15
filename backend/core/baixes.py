@@ -4,11 +4,39 @@ Gestor de professors de baixa temporal
 from datetime import datetime, date
 from typing import List, Dict, Optional
 
+import logging
+log = logging.getLogger(__name__)
+
 try:
     from i18n_setup import translate as _
 except ImportError:
     def _(text):
         return text
+
+
+def professors_de_baixa(baixes, data) -> set:
+    """Professors de baixa en una data (inclosos el primer i el darrer dia).
+
+    `baixes`: [{professor, data_inici, data_final}] (p.ex. PROFESSORS_BAIXA);
+    `data`: date, datetime o text AAAA-MM-DD. Una baixa amb dates invàlides
+    s'ignora (i se n'avisa) sense afectar les altres.
+    """
+    if isinstance(data, str):
+        data = datetime.strptime(data, "%Y-%m-%d").date()
+    elif isinstance(data, datetime):
+        data = data.date()
+    resultat = set()
+    for baixa in baixes:
+        professor = (baixa.get("professor") or "").strip()
+        try:
+            inici = datetime.strptime(baixa["data_inici"], "%Y-%m-%d").date()
+            final = datetime.strptime(baixa["data_final"], "%Y-%m-%d").date()
+        except (KeyError, TypeError, ValueError):
+            log.warning("Baixa amb dates invàlides: s'ignora")
+            continue
+        if professor and inici <= data <= final:
+            resultat.add(professor)
+    return resultat
 
 
 class GestorBaixes:
@@ -42,7 +70,7 @@ class GestorBaixes:
                 baixes = ProfessorBaixaRepository.get_all(db)
             return baixes or []
         except Exception as e:
-            print(_("⚠️ Error en carregar baixes: {}").format(e))
+            log.warning(_("⚠️ Error en carregar baixes: {}").format(e))
             return []
 
     def esta_de_baixa(self, professor: str, data: date, institucio: str) -> bool:
@@ -74,7 +102,7 @@ class GestorBaixes:
                     return True
 
             except ValueError as e:
-                print(_("⚠️ Error en parsear dates baixa {}: {}").format(professor, e))
+                log.warning(_("⚠️ Error en parsear dates baixa {}: {}").format(professor, e))
                 continue
 
         return False
@@ -90,21 +118,7 @@ class GestorBaixes:
         Returns:
             Llista amb noms dels professors de baixa
         """
-        baixes = self._get_baixes_cached(institucio)
-        professors_baixa = []
-
-        for baixa in baixes:
-            try:
-                data_inici = datetime.strptime(baixa["data_inici"], "%Y-%m-%d").date()
-                data_final = datetime.strptime(baixa["data_final"], "%Y-%m-%d").date()
-
-                if data_inici <= data <= data_final:
-                    professors_baixa.append(baixa["professor"])
-
-            except ValueError:
-                continue
-
-        return professors_baixa
+        return sorted(professors_de_baixa(self._get_baixes_cached(institucio), data))
 
     def _get_baixes_cached(self, institucio: str) -> List[Dict]:
         """
@@ -144,7 +158,7 @@ class GestorBaixes:
         """
         GestorBaixes._cache = None
         GestorBaixes._cache_time = 0
-        print(_("🔄 Cache de baixes invalidat"))
+        log.debug(_("🔄 Cache de baixes invalidat"))
 
 
 # Instància singleton global

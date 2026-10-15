@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
-from auth_utils import require_admin, get_current_user
+from auth_utils import require_admin
 from database import get_data_dir_for_institucio
 from repositories import ConfiguracioRepository, MasterConfigRepository
 from utils.hores import normalitzar_hora as _normalitzar_hora
@@ -21,6 +21,9 @@ from core.alliberats import sense_classe
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from export.pdf.informe_direccio import generar_informe_pdf
 from export.pdf.informe_professors import generar_informe_professors_pdf
+
+import logging
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/informes", tags=["informes"])
 
@@ -107,6 +110,7 @@ def _carregar_nivells_grups(institucio: str) -> tuple:
         with get_data_db_session(institucio) as db:
             master = MasterConfigRepository.get_master_config(db)
     except Exception:
+        log.warning("No s'ha pogut llegir la configuració de nivells", exc_info=True)
         return [ALTRES], {}
 
     nivells = master.get("nivells", {})  # {codi: {"grups": [...], ...}}, ja ordenat
@@ -175,7 +179,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
         try:
             d = datetime.strptime(s["data"], "%Y-%m-%d")
             clau = (d.year, d.month)
-        except Exception:
+        except (ValueError, TypeError):
             continue
         if s["tipus_absencia"] == "ABSENCIA":
             per_mes_raw[clau]["absencies"] += 1
@@ -232,7 +236,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
             # Clau canònica neutra d'idioma: índex del dia de la setmana (0=dilluns).
             # La traducció a nom de dia es fa només al render del PDF.
             dia = datetime.strptime(s["data"], "%Y-%m-%d").weekday()
-        except Exception:
+        except (ValueError, TypeError):
             continue
         hora = _normalitzar_hora(s.get("hora", "") or "") or "Desconeguda"
         cobert = bool((s.get("substitut") or "").strip())
@@ -258,7 +262,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
         try:
             d = datetime.strptime(s["data"], "%Y-%m-%d")
             mes_str = f"{mesos_nom[d.month]} {d.year}"
-        except Exception:
+        except (ValueError, TypeError):
             continue
         if mes_str not in mesos_ordenats:
             continue
@@ -274,7 +278,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
         try:
             d = datetime.strptime(s["data"], "%Y-%m-%d")
             mes_str = f"{mesos_nom[d.month]} {d.year}"
-        except Exception:
+        except (ValueError, TypeError):
             continue
         if mes_str in mesos_ordenats:
             per_substitut_mes[sub][mes_str] += 1
@@ -296,7 +300,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
         try:
             d = datetime.strptime(s["data"], "%Y-%m-%d")
             mes_str = f"{mesos_nom[d.month]} {d.year}"
-        except Exception:
+        except (ValueError, TypeError):
             continue
         if grup not in per_grup_mes:
             per_grup_mes[grup] = {m: 0 for m in mesos_ordenats}
@@ -388,6 +392,7 @@ def _get_idioma(institucio: str) -> str:
         with get_data_db_session(institucio) as db:
             return ConfiguracioRepository.get(db, "idioma") or "ca"
     except Exception:
+        log.warning("No s'ha pogut llegir l'idioma del centre", exc_info=True)
         return "ca"
 
 
@@ -399,6 +404,7 @@ def _get_nom_centre(institucio: str) -> str:
             name = ConfiguracioRepository.get(db, "institucio_display_name")
             return name or institucio
     except Exception:
+        log.warning("No s'ha pogut llegir el nom del centre", exc_info=True)
         return institucio
 
 
@@ -420,7 +426,7 @@ def _get_hores_xml(institucio: str) -> list:
             if hores:
                 break  # Un professor n'hi ha prou per l'ordre
     except Exception:
-        pass
+        log.warning("No s'ha pogut calcular l'ordre de les hores", exc_info=True)
     return hores
 
 

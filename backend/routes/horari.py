@@ -5,8 +5,8 @@ Routes per accedir a dades de l'horari (XML de FET):
 - Assignatures (detectar del XML)
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import List, Optional
+from fastapi import APIRouter
+from typing import Optional
 from helpers import get_horari, MissingXmlError
 
 router = APIRouter(prefix="/api/horari", tags=["Horari"])
@@ -50,10 +50,6 @@ async def get_all_professors():
             "total": 0,
             "xml_missing": True
         }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en obtenir professors: {str(e)}")
 
 
 @router.get("/professors")
@@ -75,10 +71,6 @@ async def get_professors_filtered():
             "total": 0,
             "xml_missing": True
         }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en obtenir professors: {str(e)}")
 
 
 @router.get("/grups/detectar")
@@ -130,10 +122,6 @@ async def detectar_grups(data: Optional[str] = None):
             "total_abreviats": 0,
             "xml_missing": True
         }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en detectar grups: {str(e)}")
 
 
 @router.get("/assignatures/detectar")
@@ -188,10 +176,6 @@ async def detectar_assignatures(data: Optional[str] = None):
             "total": 0,
             "xml_missing": True
         }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en detectar assignatures: {str(e)}")
 
 
 @router.get("/aules/detectar")
@@ -225,7 +209,3 @@ async def detectar_aules():
             "total": 0,
             "xml_missing": True
         }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en detectar aules: {str(e)}")

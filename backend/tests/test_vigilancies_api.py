@@ -358,34 +358,7 @@ def test_assignar_sense_vigilancies(client, ruta):
     assert resp.json()["assigned_count"] == 0
 
 
-# ------------------------------------------------- reassignar i netejar
-
-def test_reassignar_canvia_vigilants_absents_repetits_o_amb_classe(client):
-    _crea(client, "Prof 21", grups="2-BAT-A")
-    _crea(client, "Prof 21", grups="2-BAT-B")            # repetit a la mateixa hora
-    _crea(client, "Prof 1", grups="1-ESO-A", tipus="Música", nivell="1-ESO")  # té classe amb 3-ESO-C
-    _absent(client, "Prof 28")
-    resp = client.post(f"{URL}/reassign-problematics")
-    assert resp.status_code == 200
-    assert resp.json()["cleared"] == 3
-
-    vigilants = _vigilants(client)
-    assert "Prof 1" not in vigilants.values()
-    assert "Prof 28" not in vigilants.values()
-    _comprova_assignacions_valides(client)
-
-
-def test_reassignar_mante_qui_vigila_el_grup_amb_que_tenia_classe(client):
-    _crea(client, "Prof 48", grups="1-BAT-A", tipus="Música", nivell="1-BAT")
-    assert client.post(f"{URL}/reassign-problematics").json()["cleared"] == 0
-    assert _vigilants(client) == {"1-BAT-A": "Prof 48"}
-
-
-def test_reassignar_sense_vigilancies(client):
-    resp = client.post(f"{URL}/reassign-problematics")
-    assert resp.status_code == 200
-    assert resp.json()["changes"] == []
-
+# ------------------------------------------------- netejar
 
 def test_netejar_buida_els_vigilants_i_les_substitucions_derivades(client):
     _crea(client, "Prof 15", grups="2-BAT-A")

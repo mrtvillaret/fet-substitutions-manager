@@ -28,6 +28,9 @@ from config.settings import config
 from database import get_auth_db_session, get_auth_db
 from repositories import UserRepository
 
+import logging
+log = logging.getLogger(__name__)
+
 # Argon2 per evitar problemes amb bcrypt a Python 3.13.
 # S'usa argon2-cffi directament: passlib només feia de capa intermèdia i porta
 # des del 2020 sense cap versió nova. Els paràmetres per defecte són els
@@ -156,14 +159,14 @@ def _prepara_institucio(institucio: str) -> str:
             idioma = ConfiguracioRepository.get(db, "idioma") or idioma
         i18n_setup.carrega_idioma(idioma)
     except Exception:
-        pass
+        log.warning("No s'ha pogut carregar l'idioma del centre", exc_info=True)
     if not constants.te_prioritats(institucio):
         try:
             from routes.prioritats import _recarregar_prioritats_desde_bd
             with get_data_db_session(institucio) as db:
                 _recarregar_prioritats_desde_bd(db)
         except Exception as exc:
-            print(f"⚠️ No s'han pogut carregar prioritats per {institucio}: {exc}")
+            log.warning(f"⚠️ No s'han pogut carregar prioritats per {institucio}: {exc}")
     return idioma
 
 

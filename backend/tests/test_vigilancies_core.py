@@ -181,41 +181,6 @@ def test_es_titular_per_assignatura_compara_amb_el_trobat():
     assert nucli.es_titular_per_assignatura("Un_Altre", "Matemàtiques", "1-ESO-A", "A01") is False
 
 
-# ===== validar_professor_disponible_vigilancia =====
-
-def test_validar_disponible_absent_retorna_absent():
-    nucli = _nucli(absents_actuals={"Prof_A": ["09:00"]})
-    resultat = nucli.validar_professor_disponible_vigilancia("Prof_A", "09:00", set())
-    assert resultat == "ABSENT"
-
-
-def test_validar_disponible_ocupat_examens_retorna_ocupat():
-    nucli = _nucli()
-    nucli.professors_ocupats_examens = {"09:00": {"Prof_A"}}
-    resultat = nucli.validar_professor_disponible_vigilancia("Prof_A", "09:00", set())
-    assert resultat == "OCUPAT VIGILÀNCIA"
-
-
-def test_validar_disponible_ja_assignat_retorna_ja_assignat():
-    nucli = _nucli()
-    resultat = nucli.validar_professor_disponible_vigilancia("Prof_A", "09:00", {"Prof_A"})
-    assert resultat == "JA ASSIGNAT"
-
-
-def test_validar_disponible_sense_conflicte_retorna_buit():
-    nucli = _nucli()
-    resultat = nucli.validar_professor_disponible_vigilancia("Prof_A", "09:00", set())
-    assert resultat == ""
-
-
-def test_validar_disponible_prioritza_absent_sobre_ja_assignat():
-    # Characterization: si és absent I ja està assignat, guanya "ABSENT"
-    # (es comprova primer), no "JA ASSIGNAT".
-    nucli = _nucli(absents_actuals={"Prof_A": ["09:00"]})
-    resultat = nucli.validar_professor_disponible_vigilancia("Prof_A", "09:00", {"Prof_A"})
-    assert resultat == "ABSENT"
-
-
 # ===== get_disponibles_for_vigilance =====
 
 def test_disponibles_for_vigilance_sense_alliberats_gestor_retorna_buit():
@@ -324,69 +289,6 @@ def test_titular_status_lliure_si_horari_peta(monkeypatch):
 def test_titular_status_sense_horari_gestor_retorna_lliure():
     nucli = _nucli(horari_gestor=None)
     assert nucli.get_titular_status("Prof_A", "09:00") == "lliure"
-
-
-# ===== extract_professor_name =====
-
-def test_extract_professor_name_neteja_emojis_i_parentesi():
-    assert VigilanciaCore().extract_professor_name("👨‍🏫 Prof_A (Guàrdia)") == "Prof_A"
-
-
-def test_extract_professor_name_neteja_avis():
-    assert VigilanciaCore().extract_professor_name("⚠️ Prof_B") == "Prof_B"
-
-
-def test_extract_professor_name_sense_res_a_netejar():
-    assert VigilanciaCore().extract_professor_name("Prof_C") == "Prof_C"
-
-
-# ===== get_professors_que_tenien_grup =====
-
-def test_professors_que_tenien_grup_match_exacte():
-    horari = FakeHorari({"Dilluns": {"09:00": {
-        "Prof_A": {"grup": "1-ESO-A", "assignatura": "Matemàtiques"},
-        "Prof_B": {"grup": "2-ESO-B", "assignatura": "Castellà"},
-    }}})
-    nucli = _nucli(horari_gestor=horari)
-    resultat = nucli.get_professors_que_tenien_grup("1-ESO-A", "09:00", randomize=False)
-    assert resultat == ["Prof_A"]
-
-
-def test_professors_que_tenien_grup_match_grup_composat():
-    horari = FakeHorari({"Dilluns": {"09:00": {
-        "Prof_A": {"grup": "4-ESO-ABC", "assignatura": "Matemàtiques"},
-    }}})
-    nucli = _nucli(horari_gestor=horari)
-    resultat = nucli.get_professors_que_tenien_grup("4-ESO-A", "09:00", randomize=False)
-    assert resultat == ["Prof_A"]
-
-
-def test_professors_que_tenien_grup_ignora_sense_assignatura():
-    horari = FakeHorari({"Dilluns": {"09:00": {
-        "Prof_A": {"grup": "1-ESO-A", "assignatura": ""},
-    }}})
-    nucli = _nucli(horari_gestor=horari)
-    assert nucli.get_professors_que_tenien_grup("1-ESO-A", "09:00", randomize=False) == []
-
-
-def test_professors_que_tenien_grup_multiples_grups_separats_per_coma():
-    horari = FakeHorari({"Dilluns": {"09:00": {
-        "Prof_A": {"grup": "1-ESO-A", "assignatura": "Matemàtiques"},
-        "Prof_B": {"grup": "2-ESO-B", "assignatura": "Castellà"},
-    }}})
-    nucli = _nucli(horari_gestor=horari)
-    resultat = sorted(nucli.get_professors_que_tenien_grup("1-ESO-A, 2-ESO-B", "09:00", randomize=False))
-    assert resultat == ["Prof_A", "Prof_B"]
-
-
-def test_professors_que_tenien_grup_sense_grup_retorna_buit():
-    nucli = _nucli(horari_gestor=FakeHorari())
-    assert nucli.get_professors_que_tenien_grup("", "09:00") == []
-
-
-def test_professors_que_tenien_grup_sense_horari_gestor_retorna_buit():
-    nucli = _nucli(horari_gestor=None)
-    assert nucli.get_professors_que_tenien_grup("1-ESO-A", "09:00") == []
 
 
 # ===== get_vigilants_assignats_hora =====

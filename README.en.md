@@ -47,7 +47,7 @@ covers the whole workflow in a single, self-hostable, free application.
 - **FET timetable import** (XML from _Free Timetabling Software_)
 - **Multi-institution**: one database per school, global authentication
 - **Roles**: `super_admin`, `admin`, `user`
-- **Multilingual UI**: Catalan, Spanish and English
+- **Multilingual UI**: Catalan, Spanish, English and Italian
 
 ## Architecture
 
@@ -73,7 +73,26 @@ groups and the exam scheduler. The scheduling engine (`scheduler_engine/`) ships
 three generators (attempts, backtracking and Simulated Annealing) with a
 configurable constraint model.
 
-For the full dependency map see [ARQUITECTURA.md](ARQUITECTURA.md) (in Catalan).
+The logic called by the routes lives in `serveis/` (the state of a day,
+`DiaEscolar`, and the single rule for when a substitute can no longer cover;
+generating substitutions, marking absences, validating before the PDF, applying
+a leave), and the assignment engine in `core/`.
+
+### Rules
+
+- A teacher is free if their group is marked as having no class at that hour
+  (exactly, including combined groups) or if they are released.
+- Only the "Generate pending", "Regenerate all" and "Reassign" (in the
+  pre-PDF validation) buttons assign substitutes. Changes to the day (released groups, absences,
+  leaves) remove substitutes who can no longer cover and leave the row pending,
+  with a notice.
+- A teacher on leave neither covers nor is covered.
+
+Over 500 tests (`cd backend && pytest tests/`) on temporary institutions with
+the sample timetable.
+
+For the full dependency map and the rules in detail see
+[ARQUITECTURA.md](ARQUITECTURA.md) (in Catalan).
 
 ---
 

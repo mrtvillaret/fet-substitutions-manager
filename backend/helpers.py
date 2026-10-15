@@ -11,7 +11,7 @@ import json
 
 from horari_web import GestorHorariWeb  # Versió web que llegeix de SQLite
 from core.substitucions import GestorSubstitucions
-from core.alliberats import GestorAlliberats, sense_classe
+from core.alliberats import GestorAlliberats
 from core.absencies import GestorAbsencies
 from core.vigilancia_core import VigilanciaCore
 from core.vigilancia_assignacio import escollir_aleatoriament_amb_pesos
@@ -25,7 +25,10 @@ from repositories import (
     XMLVersionRepository,
     ProfessorRepository
 )
-from database import get_db_session, get_data_db_session, get_data_dir_for_institucio
+from database import get_data_db_session, get_data_dir_for_institucio
+
+import logging
+log = logging.getLogger(__name__)
 
 
 # ===== Memòria cau per institució =====
@@ -71,26 +74,8 @@ def invalidar_horari(institucio: str = None):
     else:
         _horari = {}
         _vigilancia_core = {}
-    print("🔄 Singleton d'horari invalidat - es recarregarà en proper ús")
+    log.debug("🔄 Singleton d'horari invalidat - es recarregarà en proper ús")
 
-
-def invalidar_cache_horari(institucio: str = None):
-    """
-    Invalida només el cache d'abreviatures de l'horari, sense recarregar-lo tot.
-    Útil quan es modifiquen les abreviatures de grups.
-    """
-    global _horari
-    if institucio:
-        prefix = f"{institucio}:"
-        for key, horari in _horari.items():
-            if key.startswith(prefix):
-                horari._abreviatures_cache = None
-        print("✅ Cache d'abreviatures invalidat")
-        return
-    for horari in _horari.values():
-        horari._abreviatures_cache = None
-    if _horari:
-        print("✅ Cache d'abreviatures invalidat")
 
 
 def _resolve_xml_path(institucio: str, data_iso: str = None) -> Optional[str]:
@@ -153,11 +138,11 @@ def get_horari(institucio: str = None, data_iso: str = None) -> GestorHorariWeb:
         try:
             with get_data_db_session(institucio) as db:
                 sync_info = ProfessorRepository.sync_from_xml(db, horari.professors)
-                print(f"✅ Professors sincronitzats ({institucio}): {sync_info}")
+                log.debug(f"✅ Professors sincronitzats ({institucio}): {sync_info}")
         except Exception as e:
-            print(f"⚠️  Error sincronitzant professors ({institucio}): {e}")
+            log.warning(f"⚠️  Error sincronitzant professors ({institucio}): {e}")
 
-    print(f"✅ Horari carregat ({institucio}): {len(horari.professors)} professors (límit: {ultim_professor_subs or 'cap'})")
+    log.debug(f"✅ Horari carregat ({institucio}): {len(horari.professors)} professors (límit: {ultim_professor_subs or 'cap'})")
     return horari
 
 
@@ -178,7 +163,7 @@ def get_gestors(institucio: str = None, data_iso: str = None):
     if data_iso:
         try:
             alliberats.set_data_actual(datetime.strptime(data_iso, "%Y-%m-%d").date())
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     return substitucions_mgr, horari, alliberats, absencies
@@ -225,29 +210,16 @@ def get_vigilancia_core(data: str, db: Session = None) -> VigilanciaCore:
                 absents[professor].append(hora)
 
     # Professors de baixa: absents a totes les hores (regla única de no-assignació automàtica).
-    try:
-        from config.constants import PROFESSORS_BAIXA
+    from config.constants import PROFESSORS_BAIXA
+    from core.baixes import professors_de_baixa
 
-        hores_dia = list(getattr(horari, "hores", []) or [])
-        data_obj_date = date_obj.date()
-
-        for baixa in PROFESSORS_BAIXA:
-            professor = (baixa.get("professor") or "").strip()
-            if not professor:
-                continue
-
-            data_inici = datetime.strptime(baixa["data_inici"], "%Y-%m-%d").date()
-            data_final = datetime.strptime(baixa["data_final"], "%Y-%m-%d").date()
-            if not (data_inici <= data_obj_date <= data_final):
-                continue
-
-            absents.setdefault(professor, [])
-            for hora in hores_dia:
-                if hora not in absents[professor]:
-                    absents[professor].append(hora)
-            absents_tipus[professor] = "BAIXA"
-    except Exception:
-        pass
+    hores_dia = list(getattr(horari, "hores", []) or [])
+    for professor in professors_de_baixa(PROFESSORS_BAIXA, date_obj):
+        absents.setdefault(professor, [])
+        for hora in hores_dia:
+            if hora not in absents[professor]:
+                absents[professor].append(hora)
+        absents_tipus[professor] = "BAIXA"
 
     # Grups sense classe (Des de SQLite)
     grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
@@ -265,7 +237,7 @@ def get_vigilancia_core(data: str, db: Session = None) -> VigilanciaCore:
                 if grup_vig not in grups_sense_classe[hora_vig]:
                     grups_sense_classe[hora_vig].append(grup_vig)
     except Exception as e:
-        print(f"⚠️ No s'han pogut afegir grups d'examen als alliberats: {e}")
+        log.warning(f"⚠️ No s'han pogut afegir grups d'examen als alliberats: {e}")
 
     # Dia de la setmana
     weekday_idx = date_obj.weekday()
@@ -344,7 +316,7 @@ def get_vigilancies_afinitats(db: Session) -> List[Dict[str, List[str]]]:
         parsed = json.loads(raw)
         normalized = normalize_vigilancies_afinitats(parsed if isinstance(parsed, list) else [])
         return normalized
-    except Exception:
+    except (ValueError, TypeError):
         return []
 
 
@@ -376,72 +348,6 @@ def _resolve_affinity_prefix(grups: str, bases_sorted: List[str]) -> Optional[st
                 return base
     return None
 
-
-def get_nivell_proximitat_order(nivell_base: str) -> list:
-    """Retorna ordre de proximitat de nivells"""
-    nivells_hierarchy = {
-        "1-BATX": ["1-BATX", "2-BATX", "4-ESO", "3-ESO", "2-ESO", "1-ESO"],
-        "2-BATX": ["2-BATX", "1-BATX", "4-ESO", "3-ESO", "2-ESO", "1-ESO"],
-        "4-ESO": ["4-ESO", "3-ESO", "2-ESO", "1-ESO", "1-BATX", "2-BATX"],
-        "3-ESO": ["3-ESO", "4-ESO", "2-ESO", "1-ESO", "1-BATX", "2-BATX"],
-        "2-ESO": ["2-ESO", "1-ESO", "3-ESO", "4-ESO", "1-BATX", "2-BATX"],
-        "1-ESO": ["1-ESO", "2-ESO", "3-ESO", "4-ESO", "1-BATX", "2-BATX"],
-        "GENERAL": ["GENERAL"]
-    }
-    return nivells_hierarchy.get(nivell_base, [nivell_base])
-
-
-def get_professor_main_level(horari, dia_name: str, professor: str, hora: str) -> str:
-    """
-    Obté el nivell on ensenyava el professor A AQUELLA HORA CONCRETA
-    Si tenia 2n BATX a les 12:30, té prioritat per vigilar 2n BATX
-    """
-    try:
-        # Mirar què tenia el professor a AQUESTA HORA CONCRETA
-        activitat = horari.get_activitat(dia_name, hora, professor)
-        if activitat:
-            grup = activitat.get("grup", "")
-            if not grup:
-                return "Unknown"
-
-            # Extreure nivell del grup (ex: "1-BATX-A" -> "1-BATX")
-            if "BATX" in grup:
-                if "1" in grup and not "12" in grup:  # Evitar 1-2-BATX
-                    return "1-BATX"
-                elif "2" in grup:
-                    return "2-BATX"
-            elif "ESO" in grup:
-                if grup.startswith("3") or "-3-" in grup:
-                    return "3-ESO"
-                elif grup.startswith("4") or "-4-" in grup:
-                    return "4-ESO"
-                elif grup.startswith("2") or "-2-" in grup:
-                    return "2-ESO"
-                elif grup.startswith("1") or "-1-" in grup:
-                    return "1-ESO"
-    except:
-        pass
-    return "Unknown"
-
-
-def _get_tipus_activitat_professor(core: VigilanciaCore, professor: str, hora: str) -> str:
-    """
-    Determina el tipus d'activitat per aplicar la política d'autoassignació.
-    """
-    try:
-        activitat = core.horari_gestor.get_activitat(core.dia_actual, hora, professor) or {}
-        assignatura = (activitat.get("assignatura") or "").strip()
-        grup = (activitat.get("grup") or "").strip()
-        if not assignatura:
-            return ""
-
-        # Si estava amb grup alliberat, es considera "alliberat" (categoria pròpia).
-        grups_hora = core.grups_sense_classe.get(hora, set()) if isinstance(core.grups_sense_classe, dict) else core.grups_sense_classe
-        if sense_classe(professor, grup, set(grups_hora or [])):
-            return "alliberat"
-        return assignatura
-    except Exception:
-        return ""
 
 
 def assign_phase1_titulars(vigilancies_list: list, core: VigilanciaCore,
@@ -503,15 +409,12 @@ def assign_phase2_professors_grup(vigilancies_list: list, core: VigilanciaCore,
         if grups and isinstance(core.grups_sense_classe, dict):
             # Obtenir professors que tenien aquest grup
             professors_del_grup = []
-            try:
-                for prof in core.professors:
-                    activitat = core.horari_gestor.get_activitat(core.dia_actual, hora, prof)
-                    if activitat:
-                        grup_prof = activitat.get("grup", "")
-                        if grup_prof == grups:
-                            professors_del_grup.append(prof)
-            except:
-                pass
+            for prof in core.professors:
+                activitat = core.horari_gestor.get_activitat(core.dia_actual, hora, prof)
+                if activitat:
+                    grup_prof = activitat.get("grup", "")
+                    if grup_prof == grups:
+                        professors_del_grup.append(prof)
 
             vigilants_hora = vigilants_assignats_global.get(hora, set())
 
@@ -531,7 +434,7 @@ def assign_phase2_professors_grup(vigilancies_list: list, core: VigilanciaCore,
     return assigned_count
 
 
-def assign_phase3_passada(vigilancies_list: list, nivell: str, core: VigilanciaCore,
+def assign_phase3_passada(vigilancies_list: list, core: VigilanciaCore,
                           vigilants_assignats_global: Dict[str, set],
                           filter_mode: str,
                           only_alliberats: bool,
@@ -543,8 +446,6 @@ def assign_phase3_passada(vigilancies_list: list, nivell: str, core: VigilanciaC
         - "afinitat_exacta": mateix prefix configurat del grup (prioritat màxima)
         - "afinitat_propera": proximitat configurable per prefix (sense mateix prefix)
         - "sense_prefix": alliberats que no casen amb cap prefix (al final)
-        - "mateix_nivell": només professors del mateix nivell
-        - "nivells_propers": professors de nivells propers (no mateix)
         - "tots": tots els disponibles
     """
     assigned_count = 0
@@ -567,8 +468,6 @@ def assign_phase3_passada(vigilancies_list: list, nivell: str, core: VigilanciaC
         disponibles = core.get_disponibles_for_vigilance(hora, vigilance)
         vigilants_hora = vigilants_assignats_global.get(hora, set())
 
-        # Ordre de proximitat legacy per compatibilitat (si cal)
-        proximitat_order = get_nivell_proximitat_order(nivell)
         # Proximitat configurable per afinitats
         vig_prefix = _resolve_affinity_prefix(grups, bases_sorted)
         vig_order = afinitat_map.get(vig_prefix, [])
@@ -625,18 +524,6 @@ def assign_phase3_passada(vigilancies_list: list, nivell: str, core: VigilanciaC
                     # Si vigilància té prefix, només entren candidats sense prefix.
                     if vig_prefix and prof_prefix:
                         continue
-                elif filter_mode == "mateix_nivell":
-                    # Legacy
-                    prof_nivell = get_professor_main_level(core.horari_gestor, core.dia_actual, nom, hora)
-                    # NOMÉS professors del mateix nivell
-                    if prof_nivell not in proximitat_order or proximitat_order.index(prof_nivell) != 0:
-                        continue
-                elif filter_mode == "nivells_propers":
-                    # Legacy
-                    prof_nivell = get_professor_main_level(core.horari_gestor, core.dia_actual, nom, hora)
-                    # NOMÉS professors de nivells propers (NO mateix nivell)
-                    if prof_nivell not in proximitat_order or proximitat_order.index(prof_nivell) == 0:
-                        continue
                 # filter_mode == "tots": no filtrem
 
                 # Verificar si és titular
@@ -661,13 +548,6 @@ def assign_phase3_passada(vigilancies_list: list, nivell: str, core: VigilanciaC
                 # 4. Proximitat de nivell/afinitat
                 if filter_mode in ("afinitat_exacta", "afinitat_propera") and prox_idx is not None:
                     priority_score += 50 - (prox_idx * 10)
-                elif filter_mode in ("mateix_nivell", "nivells_propers"):
-                    prof_nivell = get_professor_main_level(core.horari_gestor, core.dia_actual, nom, hora)
-                    if prof_nivell in proximitat_order:
-                        idx = proximitat_order.index(prof_nivell)
-                        priority_score += 50 - (idx * 10)
-                    elif prof_nivell == "Unknown":
-                        priority_score += 25
 
                 candidats.append((nom, tipus_disp, detall, priority_score))
 

@@ -179,7 +179,7 @@
                 </div>
                 <div v-if="temporalStats.dies.length > 0" class="temporal-list">
                   <div v-for="dia in temporalStats.dies" :key="dia.dia" class="temporal-row">
-                    <div class="temporal-label">{{ dia.dia }}</div>
+                    <div class="temporal-label">{{ localizeBackendDayName(dia.dia, t) }}</div>
                     <div class="temporal-bar">
                       <div
                         class="temporal-bar-fill"
@@ -403,7 +403,9 @@
           <label>{{ $t('stats.slots.day') }}</label>
           <Dropdown
             v-model="frangesDia"
-            :options="diesDisponibles"
+            :options="diesOpcions"
+            optionLabel="label"
+            optionValue="value"
             :placeholder="$t('stats.slots.selectDay')"
             class="w-full"
           />
@@ -540,6 +542,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { localizeBackendDayName } from '../views/scheduler/textUtils'
 import { useToast } from 'primevue/usetoast'
 import Dialog from 'primevue/dialog'
 import Calendar from 'primevue/calendar'
@@ -613,6 +616,8 @@ const informeMostrarTaules = ref(false)
 const informeProfessorsOpcions = ref([])
 
 const diesDisponibles = computed(() => (temporalStats.value?.dies || []).map((d) => d.dia))
+// El backend anomena els dies en català; a la pantalla, en l'idioma triat
+const diesOpcions = computed(() => diesDisponibles.value.map((d) => ({ label: localizeBackendDayName(d, t), value: d })))
 const horesDisponibles = computed(() => (temporalStats.value?.hores || []).map((h) => h.hora))
 
 const topAbsents = computed(() => (professorsStats.value.professors_absents || []).slice(0, 5))

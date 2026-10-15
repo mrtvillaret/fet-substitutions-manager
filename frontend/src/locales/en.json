@@ -225,7 +225,7 @@
     "absences": {
       "count": "{count} teachers on leave",
       "none": "No teachers on leave",
-      "hint": "Teachers on leave do NOT substitute nor are substituted during the specified period",
+      "hint": "Teachers on leave do NOT substitute and are NOT substituted during the specified period. When saved, from today on their absences, supervisions and substitutions are removed.",
       "editTitle": "✏️ Edit teacher on leave",
       "addTitle": "➕ Add teacher on leave",
       "teacher": "Teacher",
@@ -236,7 +236,13 @@
       "reasonPlaceholder": "e.g. leave, training…",
       "updated": "Teacher on leave updated successfully",
       "added": "Teacher on leave added successfully",
-      "deleted": "Teacher on leave deleted successfully"
+      "deleted": "Teacher on leave deleted successfully",
+      "applied": {
+        "title": "Changes due to the leave ({count})",
+        "absence": "absence removed",
+        "vigilance": "supervision without supervisor ({tipus})"
+      },
+      "startsInPast": "The leave starts before today. Absences, supervisions and substitutions will be removed from today on."
     },
     "priorities": {
       "introLine1": "Configure the order and weights of priority categories to assign substitutions.",
@@ -562,7 +568,12 @@
         "blankRowsHint": "Shows the hours where substitutions may be needed (classes with visible groups or activities not in “Do not substitute”) with blank rows, to add some by hand after printing.",
         "selectAtLeastOne": "⚠️ You must select at least one content type (substitutions or supervisions)",
         "selectAtLeastOneShort": "You must select at least one content type",
-        "generate": "Generate PDF"
+        "generate": "Generate PDF",
+        "fontSize": "Font size",
+        "fontNormal": "Normal",
+        "fontLarge": "Large",
+        "fontLarger": "Extra large",
+        "fontSizeOnlyDay": "Only for the “Day table” format"
       }
     },
     "confirm": {
@@ -571,7 +582,10 @@
       "regenerateAllAccept": "Yes, regenerate",
       "deleteAbsenceMessage": "Do you want to delete the absence of {teacher} at {hour}?",
       "deleteAllAbsencesMessage": "Do you want to delete all absences of {teacher}?",
-      "deleteAbsenceTitle": "Confirm deletion"
+      "deleteAbsenceTitle": "Confirm deletion",
+      "moveTitle": "Move the substitute",
+      "moveMessage": "{name} is already covering {absent} at {hora}. Move them here? {absent}'s substitution will be left pending.",
+      "moveAccept": "Move"
     },
     "messages": {
       "substituteAssigned": "Substitute assigned: {name}",
@@ -583,12 +597,11 @@
       "vigilanciesUnassignedDetail": "{count} SUPERVISION substitution(s) have been created to cover the absent teacher's exam duties.",
       "pdfGeneratedTitle": "PDF generated",
       "pdfGeneratedDetail": "Downloaded full PDF for {date}",
-      "reassignVigilanciesTitle": "Supervisions reassigned",
-      "reassignVigilanciesDetail": "Reviewed {count} problematic supervisions",
       "reassignSubstitutionsTitle": "Substitutions reassigned",
       "reassignSubstitutionsDetail": "Reviewed {count} problematic substitutions",
       "reassignDoneTitle": "Reassignment done",
-      "reassignDoneDetail": "There are still issues. Review the list."
+      "reassignDoneDetail": "There are still issues. Review the list.",
+      "substituteMoved": "{name} has been moved here; {absent}'s substitution is now pending"
     },
     "senseCobertura": "Not covered",
     "pendentsSenseCobertura": "{n} not covered",
@@ -603,6 +616,13 @@
       "validatePdf": "Error validating the PDF",
       "generatePdf": "Could not generate the PDF",
       "reassignProblematics": "Could not reassign"
+    },
+    "substitutsTrets": {
+      "titol": "Substitutes removed ({count}): they need to be assigned again",
+      "classe": "has class with {grup}",
+      "absent": "is absent",
+      "baixa": "is on leave",
+      "vigilancia": "is supervising an exam"
     }
   },
   "examConfig": {

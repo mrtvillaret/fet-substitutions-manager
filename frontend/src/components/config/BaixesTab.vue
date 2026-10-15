@@ -95,6 +95,10 @@
             :placeholder="$t('config.absences.reasonPlaceholder')"
           />
         </div>
+
+        <Message v-if="comencaAbansDAvui" severity="warn" :closable="false">
+          {{ $t('config.absences.startsInPast') }}
+        </Message>
       </div>
 
       <template #footer>
@@ -115,16 +119,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
+import { avisaSubstitutsTrets, dataCurta } from '../../substitutsTrets'
 import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Calendar from 'primevue/calendar'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
+import Message from 'primevue/message'
 
 const toast = useToast()
 const { t } = useI18n()
@@ -141,6 +147,15 @@ const novaProfessorBaixa = ref({
 })
 
 // Convertir string YYYY-MM-DD a Date object
+// Els dies passats no es modifiquen en desar la baixa (routes/baixes_aplica.py)
+const comencaAbansDAvui = computed(() => {
+  const inici = novaProfessorBaixa.value.data_inici
+  if (!inici) return false
+  const avui = new Date()
+  avui.setHours(0, 0, 0, 0)
+  return new Date(inici).setHours(0, 0, 0, 0) < avui.getTime()
+})
+
 const stringToDate = (dateStr) => {
   if (!dateStr) return null
   const [year, month, day] = dateStr.split('-')
@@ -173,6 +188,24 @@ const carregarProfessorsBaixa = async () => {
   }
 }
 
+// El que s'ha tret en desar la baixa, d'avui endavant (routes/baixes_aplica.py)
+const avisaCanvis = (canvis) => {
+  if (!canvis) return
+  const linies = [
+    ...canvis.absencies_esborrades.map(a => `${dataCurta(a.data)} ${a.hora} — ${t('config.absences.applied.absence')}`),
+    ...canvis.vigilancies_buidades.map(v => `${dataCurta(v.data)} ${v.hora} — ${t('config.absences.applied.vigilance', { tipus: v.tipus })}`)
+  ]
+  if (linies.length) {
+    toast.add({
+      severity: 'info',
+      summary: t('config.absences.applied.title', { count: linies.length }),
+      detail: linies.join('\n'),
+      life: 15000
+    })
+  }
+  avisaSubstitutsTrets(toast, t, canvis.substituts_trets, { ambData: true })
+}
+
 const desarProfessorBaixa = async () => {
   if (!novaProfessorBaixa.value.professor || !novaProfessorBaixa.value.data_inici || !novaProfessorBaixa.value.data_final) {
     return
@@ -188,22 +221,24 @@ const desarProfessorBaixa = async () => {
 
     if (professorBaixaEditant.value) {
       // Actualitzar existent
-      await axios.put(`/api/prioritats/professors-baixa/${professorBaixaEditant.value}`, baixaData)
+      const resposta = await axios.put(`/api/prioritats/professors-baixa/${professorBaixaEditant.value}`, baixaData)
       toast.add({
         severity: 'success',
         summary: t('common.updated'),
         detail: t('config.absences.updated'),
         life: 3000
       })
+      avisaCanvis(resposta.data.canvis)
     } else {
       // Crear nou
-      await axios.post('/api/prioritats/professors-baixa', baixaData)
+      const resposta = await axios.post('/api/prioritats/professors-baixa', baixaData)
       toast.add({
         severity: 'success',
         summary: t('common.added'),
         detail: t('config.absences.added'),
         life: 3000
       })
+      avisaCanvis(resposta.data.canvis)
     }
 
     // Recarregar professors baixa

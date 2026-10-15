@@ -12,6 +12,7 @@ from typing import List, Dict
 from pydantic import BaseModel
 
 from dependencies import get_db
+from serveis.baixes import aplica_baixa
 from repositories import (
     ProfessorBaixaRepository,
     CategoriaPrioritatRepository,
@@ -83,15 +84,10 @@ def _recarregar_prioritats_desde_bd(db: Session):
         PROFESSORS_BAIXA=professors_baixa,
     )
 
-    print(f"✅ Prioritats recarregades des de BD: {len(ordre_prioritats)} categories, {len(prioritats)} assignatures")
-    print(f"   Categories actives: {categories_actives}")
-    print(f"   NO_SUBST: {len(no_subst)} assignatures")
-    print(f"   PROFESSORS_BAIXA: {len(professors_baixa)} professors")
 
     # Debug detallat per verificar
     for i, cat_assignatures in enumerate(ordre_prioritats):
         activa_str = "✅ ACTIVA" if i < len(categories_actives) and categories_actives[i] else "❌ INACTIVA"
-        print(f"   Cat {i}: {activa_str} - {cat_assignatures}")
 
 
 # ===== MODELS PYDANTIC =====
@@ -121,69 +117,59 @@ class AssignaturaPrioritatCreate(BaseModel):
 @router.get("/professors-baixa")
 async def get_professors_baixa(db: Session = Depends(get_db)):
     """Retorna tots els professors de baixa"""
-    try:
-        professors = ProfessorBaixaRepository.get_all(db)
-        return {"professors_baixa": professors}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en obtenir professors baixa: {str(e)}")
+    professors = ProfessorBaixaRepository.get_all(db)
+    return {"professors_baixa": professors}
+
+
+def _aplica_baixa_desada(db: Session, baixa_id: int):
+    """Aplica la baixa tal com ha quedat desada (serveis/baixes.py)."""
+    baixa = next((b for b in ProfessorBaixaRepository.get_all(db) if b.get("id") == baixa_id), None)
+    if not baixa:
+        return None
+    return aplica_baixa(db, baixa["professor"], baixa["data_inici"], baixa["data_final"])
 
 
 @router.post("/professors-baixa")
 async def create_professor_baixa(baixa: ProfessorBaixaCreate, db: Session = Depends(get_db)):
     """Crea un nou professor de baixa"""
-    try:
-        baixa_id = ProfessorBaixaRepository.create(
-            db, baixa.professor, baixa.data_inici, baixa.data_final, baixa.motiu
-        )
-        return {"success": True, "id": baixa_id, "message": f"Professor '{baixa.professor}' afegit a baixa"}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en crear professor baixa: {str(e)}")
+    baixa_id = ProfessorBaixaRepository.create(
+        db, baixa.professor, baixa.data_inici, baixa.data_final, baixa.motiu
+    )
+    _recarregar_prioritats_desde_bd(db)
+    canvis = _aplica_baixa_desada(db, baixa_id)
+    return {"success": True, "id": baixa_id, "message": f"Professor '{baixa.professor}' afegit a baixa",
+            "canvis": canvis}
 
 
 @router.put("/professors-baixa/{baixa_id}")
 async def update_professor_baixa(baixa_id: int, baixa: Dict, db: Session = Depends(get_db)):
     """Actualitza un professor de baixa"""
-    try:
-        success = ProfessorBaixaRepository.update(
-            db, baixa_id,
-            professor=baixa.get("professor"),
-            data_inici=baixa.get("data_inici"),
-            data_final=baixa.get("data_final"),
-            motiu=baixa.get("motiu")
-        )
+    success = ProfessorBaixaRepository.update(
+        db, baixa_id,
+        professor=baixa.get("professor"),
+        data_inici=baixa.get("data_inici"),
+        data_final=baixa.get("data_final"),
+        motiu=baixa.get("motiu")
+    )
 
-        if not success:
-            raise HTTPException(status_code=404, detail="Professor baixa no trobat")
+    if not success:
+        raise HTTPException(status_code=404, detail="Professor baixa no trobat")
+    _recarregar_prioritats_desde_bd(db)
+    canvis = _aplica_baixa_desada(db, baixa_id)
 
-        return {"success": True, "message": "Professor baixa actualitzat"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en actualitzar professor baixa: {str(e)}")
+    return {"success": True, "message": "Professor baixa actualitzat", "canvis": canvis}
 
 
 @router.delete("/professors-baixa/{baixa_id}")
 async def delete_professor_baixa(baixa_id: int, db: Session = Depends(get_db)):
     """Elimina un professor de baixa"""
-    try:
-        success = ProfessorBaixaRepository.delete(db, baixa_id)
+    success = ProfessorBaixaRepository.delete(db, baixa_id)
 
-        if not success:
-            raise HTTPException(status_code=404, detail="Professor baixa no trobat")
+    if not success:
+        raise HTTPException(status_code=404, detail="Professor baixa no trobat")
+    _recarregar_prioritats_desde_bd(db)
 
-        return {"success": True, "message": "Professor baixa eliminat"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en eliminar professor baixa: {str(e)}")
+    return {"success": True, "message": "Professor baixa eliminat"}
 
 
 # ===== CATEGORIES PRIORITAT =====
@@ -191,78 +177,53 @@ async def delete_professor_baixa(baixa_id: int, db: Session = Depends(get_db)):
 @router.get("/categories")
 async def get_categories(db: Session = Depends(get_db)):
     """Retorna totes les categories de prioritat"""
-    try:
-        categories = CategoriaPrioritatRepository.get_all(db)
-        return {"categories": categories}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en obtenir categories: {str(e)}")
+    categories = CategoriaPrioritatRepository.get_all(db)
+    return {"categories": categories}
 
 
 @router.post("/categories")
 async def create_categoria(cat: CategoriaPrioritatCreate, db: Session = Depends(get_db)):
     """Crea una nova categoria de prioritat"""
-    try:
-        cat_id = CategoriaPrioritatRepository.create(db, cat.nom, cat.ordre, cat.activa)
-        return {"success": True, "id": cat_id, "message": f"Categoria '{cat.nom}' creada"}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en crear categoria: {str(e)}")
+    cat_id = CategoriaPrioritatRepository.create(db, cat.nom, cat.ordre, cat.activa)
+    _recarregar_prioritats_desde_bd(db)
+    return {"success": True, "id": cat_id, "message": f"Categoria '{cat.nom}' creada"}
 
 
 @router.put("/categories/{categoria_id}")
 async def update_categoria(categoria_id: int, cat: Dict, db: Session = Depends(get_db)):
     """Actualitza una categoria"""
-    try:
-        success = CategoriaPrioritatRepository.update(
-            db, categoria_id,
-            nom=cat.get("nom"),
-            ordre=cat.get("ordre"),
-            activa=cat.get("activa")
-        )
+    success = CategoriaPrioritatRepository.update(
+        db, categoria_id,
+        nom=cat.get("nom"),
+        ordre=cat.get("ordre"),
+        activa=cat.get("activa")
+    )
 
-        if not success:
-            raise HTTPException(status_code=404, detail="Categoria no trobada")
+    if not success:
+        raise HTTPException(status_code=404, detail="Categoria no trobada")
 
-        return {"success": True, "message": "Categoria actualitzada"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en actualitzar categoria: {str(e)}")
+    _recarregar_prioritats_desde_bd(db)
+    return {"success": True, "message": "Categoria actualitzada"}
 
 
 @router.put("/categories/ordre")
 async def update_categories_ordre(categories: List[int], db: Session = Depends(get_db)):
     """Actualitza l'ordre de les categories"""
-    try:
-        CategoriaPrioritatRepository.update_ordre(db, categories)
-        return {"success": True, "message": "Ordre actualitzat"}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en actualitzar ordre: {str(e)}")
+    CategoriaPrioritatRepository.update_ordre(db, categories)
+    _recarregar_prioritats_desde_bd(db)
+    return {"success": True, "message": "Ordre actualitzat"}
 
 
 @router.delete("/categories/{categoria_id}")
 async def delete_categoria(categoria_id: int, db: Session = Depends(get_db)):
     """Elimina una categoria"""
-    try:
-        success = CategoriaPrioritatRepository.delete(db, categoria_id)
+    success = CategoriaPrioritatRepository.delete(db, categoria_id)
 
-        if not success:
-            raise HTTPException(status_code=404, detail="Categoria no trobada")
+    if not success:
+        raise HTTPException(status_code=404, detail="Categoria no trobada")
 
-        return {"success": True, "message": "Categoria eliminada"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en eliminar categoria: {str(e)}")
+    _recarregar_prioritats_desde_bd(db)
+    return {"success": True, "message": "Categoria eliminada"}
 
 
 # ===== ASSIGNATURES PRIORITAT =====
@@ -270,81 +231,55 @@ async def delete_categoria(categoria_id: int, db: Session = Depends(get_db)):
 @router.get("/assignatures")
 async def get_assignatures_prioritat(db: Session = Depends(get_db)):
     """Retorna totes les assignatures amb prioritat"""
-    try:
-        assignatures = AssignaturaPrioritatRepository.get_all(db)
-        return {"assignatures": assignatures}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en obtenir assignatures: {str(e)}")
+    assignatures = AssignaturaPrioritatRepository.get_all(db)
+    return {"assignatures": assignatures}
 
 
 @router.get("/assignatures/{categoria_id}")
 async def get_assignatures_by_categoria(categoria_id: int, db: Session = Depends(get_db)):
     """Retorna assignatures d'una categoria"""
-    try:
-        assignatures = AssignaturaPrioritatRepository.get_by_categoria(db, categoria_id)
-        return {"assignatures": assignatures}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en obtenir assignatures: {str(e)}")
+    assignatures = AssignaturaPrioritatRepository.get_by_categoria(db, categoria_id)
+    return {"assignatures": assignatures}
 
 
 @router.post("/assignatures")
 async def create_assignatura_prioritat(assig: AssignaturaPrioritatCreate, db: Session = Depends(get_db)):
     """Crea una nova assignatura dins una categoria"""
-    try:
-        assig_id = AssignaturaPrioritatRepository.create(
-            db, assig.assignatura, assig.categoria_id, assig.pes, assig.ordre
-        )
-        return {"success": True, "id": assig_id, "message": f"Assignatura '{assig.assignatura}' afegida"}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en crear assignatura: {str(e)}")
+    assig_id = AssignaturaPrioritatRepository.create(
+        db, assig.assignatura, assig.categoria_id, assig.pes, assig.ordre
+    )
+    _recarregar_prioritats_desde_bd(db)
+    return {"success": True, "id": assig_id, "message": f"Assignatura '{assig.assignatura}' afegida"}
 
 
 @router.put("/assignatures/{assignatura_id}")
 async def update_assignatura_prioritat(assignatura_id: int, assig: Dict, db: Session = Depends(get_db)):
     """Actualitza una assignatura de prioritat"""
-    try:
-        success = AssignaturaPrioritatRepository.update(
-            db, assignatura_id,
-            assignatura=assig.get("assignatura"),
-            categoria_id=assig.get("categoria_id"),
-            pes=assig.get("pes"),
-            ordre=assig.get("ordre")
-        )
+    success = AssignaturaPrioritatRepository.update(
+        db, assignatura_id,
+        assignatura=assig.get("assignatura"),
+        categoria_id=assig.get("categoria_id"),
+        pes=assig.get("pes"),
+        ordre=assig.get("ordre")
+    )
 
-        if not success:
-            raise HTTPException(status_code=404, detail="Assignatura no trobada")
+    if not success:
+        raise HTTPException(status_code=404, detail="Assignatura no trobada")
 
-        return {"success": True, "message": "Assignatura actualitzada"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en actualitzar assignatura: {str(e)}")
+    _recarregar_prioritats_desde_bd(db)
+    return {"success": True, "message": "Assignatura actualitzada"}
 
 
 @router.delete("/assignatures/{assignatura_id}")
 async def delete_assignatura_prioritat(assignatura_id: int, db: Session = Depends(get_db)):
     """Elimina una assignatura de prioritat"""
-    try:
-        success = AssignaturaPrioritatRepository.delete(db, assignatura_id)
+    success = AssignaturaPrioritatRepository.delete(db, assignatura_id)
 
-        if not success:
-            raise HTTPException(status_code=404, detail="Assignatura no trobada")
+    if not success:
+        raise HTTPException(status_code=404, detail="Assignatura no trobada")
 
-        return {"success": True, "message": "Assignatura eliminada"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en eliminar assignatura: {str(e)}")
+    _recarregar_prioritats_desde_bd(db)
+    return {"success": True, "message": "Assignatura eliminada"}
 
 
 # ===== NO SUBSTITUIR =====
@@ -352,47 +287,32 @@ async def delete_assignatura_prioritat(assignatura_id: int, db: Session = Depend
 @router.get("/no-substituir")
 async def get_no_substituir(db: Session = Depends(get_db)):
     """Retorna llista d'assignatures que no es substitueixen"""
-    try:
-        assignatures = NoSubstituirRepository.get_all(db)
-        return {"assignatures": assignatures}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en obtenir no substituir: {str(e)}")
+    assignatures = NoSubstituirRepository.get_all(db)
+    return {"assignatures": assignatures}
 
 
 @router.post("/no-substituir")
 async def create_no_substituir(data: Dict, db: Session = Depends(get_db)):
     """Afegeix una assignatura a no substituir"""
-    try:
-        assignatura = data.get("assignatura")
-        if not assignatura and assignatura != "":  # Acceptar string buit
-            raise HTTPException(status_code=400, detail="Assignatura requerida")
+    assignatura = data.get("assignatura")
+    if not assignatura and assignatura != "":  # Acceptar string buit
+        raise HTTPException(status_code=400, detail="Assignatura requerida")
 
-        no_subst_id = NoSubstituirRepository.create(db, assignatura)
-        return {"success": True, "id": no_subst_id, "message": f"Assignatura '{assignatura}' afegida a no substituir"}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en crear no substituir: {str(e)}")
+    no_subst_id = NoSubstituirRepository.create(db, assignatura)
+    _recarregar_prioritats_desde_bd(db)
+    return {"success": True, "id": no_subst_id, "message": f"Assignatura '{assignatura}' afegida a no substituir"}
 
 
 @router.delete("/no-substituir/{assignatura}")
 async def delete_no_substituir(assignatura: str, db: Session = Depends(get_db)):
     """Elimina una assignatura de no substituir"""
-    try:
-        success = NoSubstituirRepository.delete(db, assignatura)
+    success = NoSubstituirRepository.delete(db, assignatura)
 
-        if not success:
-            raise HTTPException(status_code=404, detail="Assignatura no trobada")
+    if not success:
+        raise HTTPException(status_code=404, detail="Assignatura no trobada")
+    _recarregar_prioritats_desde_bd(db)
 
-        return {"success": True, "message": "Assignatura eliminada de no substituir"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en eliminar no substituir: {str(e)}")
+    return {"success": True, "message": "Assignatura eliminada de no substituir"}
 
 
 # ===== ACTIVITATS ALLIBERABLES =====
@@ -503,8 +423,6 @@ async def desar_totes_prioritats(data: PrioritatsCompletesUpdate, db: Session = 
             "message": f"Prioritats desades: {len(data.ordre_categories)} categories, {len(data.pesos)} pesos"
         }
 
-    except Exception as e:
+    except Exception:
         db.rollback()
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error en desar prioritats: {str(e)}")
+        raise

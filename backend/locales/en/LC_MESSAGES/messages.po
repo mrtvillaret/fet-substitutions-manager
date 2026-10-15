@@ -4553,8 +4553,8 @@ msgstr ""
 #~ msgid "Sistema de Gestió de"
 #~ msgstr "📚 Substitution Management"
 
-#~ msgid "Creat per Martí Villaret Ausellé, amb assistència de Claude (Anthropic)"
-#~ msgstr "Creat per Martí Villaret Ausellé, amb assistència de Claude (Anthropic)"
+#~ msgid "Creat per Martí Villaret Ausellé"
+#~ msgstr "Creat per Martí Villaret Ausellé"
 
 #, fuzzy
 #~ msgid "❌ Error: No s'han trobat institucions a data/"
@@ -4888,3 +4888,11 @@ msgstr ""
 
 #~ msgid "desembre"
 #~ msgstr "December"
+
+#: export/pdf/engine.py
+msgid "absent"
+msgstr "absent"
+
+#: export/pdf/engine.py
+msgid "absent (servei)"
+msgstr "absent (on duty)"

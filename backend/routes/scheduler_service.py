@@ -6,6 +6,9 @@ import json
 from models import ExamRestriccio, ExamCostProfessor
 from scheduler_engine.defaults import DIES_SETMANA, DEFAULT_COST_PROFESSORS
 
+import logging
+log = logging.getLogger(__name__)
+
 SCHEDULER_DATES_KEY = "scheduler_selected_dates"
 SCHEDULER_NIVELLS_KEY = "scheduler_selected_nivells"
 SCHEDULER_ALLIBERAMENTS_KEY = "scheduler_alliberaments_per_nivell"
@@ -20,7 +23,7 @@ def _load_json(text: str, default):
         return default
     try:
         return json.loads(text)
-    except Exception:
+    except (ValueError, TypeError):
         return default
 
 
@@ -39,6 +42,7 @@ def _dies_entre_dates(data_inici: str, data_final: str) -> list[str]:
             actual += timedelta(days=1)
         return dies
     except Exception:
+        log.warning("No s'han pogut calcular els dies del període", exc_info=True)
         return []
 
 
@@ -271,7 +275,7 @@ def _save_restriccions_to_db(db, payload: dict):
                         pes=int(v),
                     )
                 )
-            except Exception:
+            except (ValueError, TypeError):
                 continue
 
         # Guardar costos de professors

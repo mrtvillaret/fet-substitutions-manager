@@ -48,7 +48,7 @@ aquest projecte cobreix tot el flux en una sola aplicació, autoallotjable i gra
 - **Importació d'horari des de FET** (XML de _Free Timetabling Software_)
 - **Multi-institució**: una base de dades per centre, autenticació global
 - **Rols**: `super_admin`, `admin`, `user`
-- **Multilingüe**: català, castellà i anglès
+- **Multilingüe**: català, castellà, anglès i italià
 
 ## Arquitectura
 
@@ -71,11 +71,16 @@ data/
 
 ### Backend (FastAPI)
 
-- `main.py` — punt d'entrada, registra 15 routers a `/api/*`
+- `main.py` — punt d'entrada, registra 18 routers a `/api/*`
 - `routes/` — endpoints per àrea funcional (substitucions, vigilàncies,
   scheduler, informes, PDFs, auth, files, settings...)
-- `core/` — lògica de negoci (parseig d'horari XML, assignació automàtica
-  de substituts i vigilàncies, gestió d'absències i baixes)
+- `core/` — lògica de negoci: motor d'assignació automàtica de substituts i
+  vigilàncies, alliberats (`sense_classe`: qui no té classe a una hora),
+  absències i baixes
+- `serveis/` — la lògica que criden les rutes: l'estat d'un dia
+  (`DiaEscolar`) i la regla de quan un substitut ja no pot ser-ho, generar
+  les substitucions d'un dia, marcar absències, cobertures dels vigilants,
+  validar abans del PDF i aplicar una baixa. Cap servei no depèn de `routes/`
 - `scheduler_engine/` — motor de planificació d'exàmens amb 3 generadors
   (v2-intents, v2-backtrack, v3-SA Simulated Annealing) i model de
   restriccions configurable
@@ -91,10 +96,21 @@ data/
   `SchedulerView` (planificador d'exàmens)
 - Composables a `views/scheduler/use*.js` per a la lògica de cada subàrea
   del planificador (API, resultats, restriccions, slots, incidències)
-- i18n amb `vue-i18n`: traduccions a `locales/{ca,es,en}.json`
+- i18n amb `vue-i18n`: traduccions a `locales/{ca,es,en,it}.json`
 - Pinia per a estat compartit (preparada però amb poc ús actual)
 
-Per al mapa de dependències complet veure [ARQUITECTURA.md](ARQUITECTURA.md).
+### Regles de funcionament
+
+- Un professor queda lliure si el seu grup està marcat sense classe aquella
+  hora (exactament, també les agrupacions) o si ell està alliberat.
+- Només assignen substituts els botons «Genera pendents», «Regenera tot» i
+  «Reassigna» (a la validació abans del PDF). Els canvis del dia (alliberats, absències, baixes)
+  treuen els substituts que ja no poden ser-ho i deixen la fila pendent, amb un
+  avís.
+- Un professor de baixa ni substitueix ni és substituït.
+
+Per al mapa de dependències complet, les regles en detall i el flux de la
+generació, veure [ARQUITECTURA.md](ARQUITECTURA.md).
 
 ---
 
@@ -160,11 +176,11 @@ pip install -r requirements-dev.txt
 pytest tests/
 ```
 
+Més de 500 tests sobre institucions temporals amb l'horari d'exemple; la
+majoria passen per l'API i comproven el que queda desat a la BD. Els de
+regressió del planificador fan servir també l'horari d'exemple.
 `tests/test_api.py` són comprovacions de fum contra un backend engegat: si no
-n'hi ha cap a `http://localhost:8000`, se salten. Els tests de regressió del
-planificador comparen la sortida del motor amb un resultat fix i necessiten el
-conjunt de dades que el va generar, que no es distribueix; apunta-hi
-`TEST_DATA_DIR` si en tens un de propi.
+n'hi ha cap a `http://localhost:8000`, se salten.
 
 ---
 
@@ -262,7 +278,8 @@ fet-substitutions-manager/
 ├── backend/
 │   ├── main.py                # FastAPI app + startup
 │   ├── routes/                # Endpoints: substitucions, vigilancies, scheduler...
-│   ├── core/                  # Lògica de negoci (horari, alliberats, substitucions)
+│   ├── core/                  # Lògica de negoci (motor, alliberats, absències, baixes)
+│   ├── serveis/               # Lògica que criden les rutes (DiaEscolar, generació, PDF...)
 │   ├── scheduler_engine/      # Motor de planificació d'exàmens
 │   ├── config/                # Configuració, constants, settings
 │   ├── repositories.py        # Accés a dades (SQLAlchemy)
@@ -274,7 +291,7 @@ fet-substitutions-manager/
 │   │   ├── App.vue
 │   │   ├── views/             # SubstitucionsView, VigilanciesView, SchedulerView...
 │   │   ├── components/        # Dialogs, navbar, etc.
-│   │   └── locales/           # Traduccions ca/es/en
+│   │   └── locales/           # Traduccions ca/es/en/it
 │   ├── Dockerfile
 │   └── package.json
 ├── data/

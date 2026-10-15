@@ -345,6 +345,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
+import { avisaSubstitutsTrets } from '../substitutsTrets'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Chip from 'primevue/chip'
@@ -598,10 +599,11 @@ const canviaFranjaReforc = async (dia, hora, professor = reforc.professor) => {
   if (!franja || !reforc.data) return
   reforc.desant = true
   try {
-    await axios.post('/api/grups/periode', {
+    const resposta = await axios.post('/api/grups/periode', {
       tipus: 'professor', clau: professor, hores: [hora], data: reforc.data,
       dia_setmana: dia, alliberat: franja.amb_alumnes   // amb alumnes → torna a estar alliberat
     })
+    avisaSubstitutsTrets(toast, t, resposta.data?.substituts_trets)
     await carregarReforc()
     await recarregarDiaCarregat()
   } catch (err) {
@@ -798,6 +800,7 @@ const desarGrups = async () => {
       detail: response.data.message,
       life: 3000
     })
+    avisaSubstitutsTrets(toast, t, response.data.substituts_trets)
     return true
   } catch (err) {
     console.error('Error desant configuració:', err)

@@ -202,6 +202,13 @@ def analitzar_disponibilitat_sessio(
                 h_norm = _normalitzar_hora(h_k)
                 if h_norm and h_norm not in horari_dia_norm:
                     horari_dia_norm[h_norm] = act
+        # Un dia sense cap activitat és un dia que no treballa, encara que surti a
+        # l'XML amb les franges buides (FET hi posa tots els dies de cada professor)
+        if not horari_dia_norm:
+            for h in hores_examen:
+                if h in hores_supervisio_set:
+                    analisi['no_treballa_dia'].append({'professor': prof, 'examen': ex, 'dia': dia_norm, 'hora': h})
+            continue
         # Determinar jornada del professor
         primera = None
         ultima = None

@@ -140,3 +140,13 @@ def test_format_dia_sense_espai_a_ma_tambe_mostra_les_hores_amb_classe(client):
     for hora in ("08:00", "09:00", "12:30", "15:00", "16:00"):
         assert hora in linies
     assert "17:00" not in linies and "PATI" not in linies
+
+
+def test_format_dia_amb_lletra_mes_gran(client):
+    text = _text_dia(client, mida_lletra=1.35)
+    assert "Prof 15" in text and "Prof 21" in text
+
+
+def test_mida_de_lletra_desconeguda_dona_400(client):
+    resp = client.get(f"/api/pdf/complete/{DATA}", params={"format": "dia", "mida_lletra": 3})
+    assert resp.status_code == 400

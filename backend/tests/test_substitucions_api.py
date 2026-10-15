@@ -364,7 +364,11 @@ def test_nova_substitucio_sense_hores_es_rebutja(client):
     assert client.post(f"{URL}/nova", json=body).status_code == 400
 
 
-def test_nova_substitucio_amb_error_inesperat_dona_500_sense_detalls_interns(client, monkeypatch, caplog):
+def test_nova_substitucio_amb_error_inesperat_dona_500_sense_detalls_interns(centre, monkeypatch, caplog):
+    # Un error no previst arriba al gestor global (errors_servidor.py), que
+    # respon 500; el client de proves no l'ha de tornar a llançar.
+    client = _admin_de(centre, TestClient(APP, base_url="https://testserver", raise_server_exceptions=False))
+
     def falla(*args, **kwargs):
         raise RuntimeError("error de prova")
 
@@ -462,6 +466,36 @@ def test_assignar_a_ma_no_allibera_per_tenir_el_grup_d_examen(client, centre):
     resp = _assigna(client, "10:00", "Prof 1")
     assert resp.status_code == 400
     assert "CLASSE" in resp.json()["detail"]
+
+
+# ------------------------------------------------- moure un substitut
+
+def test_moure_un_substitut_d_una_altra_substitucio_de_la_mateixa_hora(client):
+    _marca_absencia(client, hores=["10:00"])
+    _marca_absencia(client, professor="Prof 30", hores=["10:00"])
+    assert _assigna(client, "10:00", "Prof 3").status_code == 200
+
+    # Sense «moure», com sempre: ja és substitut a aquella hora
+    resp = _assigna(client, "10:00", "Prof 3", professor="Prof 30")
+    assert resp.status_code == 400 and "SUBSTITUT" in resp.json()["detail"]
+
+    resp = _assigna(client, "10:00", "Prof 3", professor="Prof 30", moure=True)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["alliberades"] == [{"hora": "10:00", "professor_absent": ABSENT,
+                                           "assignatura": "Anglès", "grup": "3-ESO-A"}]
+    assert _sub(client, "10:00", "Prof 30")["substitut"] == "Prof 3"
+    assert _sub(client, "10:00")["substitut"] == ""
+
+
+def test_moure_no_se_salta_les_altres_comprovacions(client):
+    _marca_absencia(client, hores=["10:00"])
+    _marca_absencia(client, professor="Prof 30", hores=["10:00"])
+    assert _assigna(client, "10:00", "Prof 3").status_code == 200
+
+    # Prof 1 té classe a les 10:00: ni movent-lo
+    resp = _assigna(client, "10:00", "Prof 1", professor="Prof 30", moure=True)
+    assert resp.status_code == 400 and "CLASSE" in resp.json()["detail"]
+    assert _sub(client, "10:00")["substitut"] == "Prof 3"
 
 
 # ------------------------------------------------------------------ ordre

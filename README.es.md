@@ -48,7 +48,7 @@ justa, este proyecto cubre todo el flujo en una sola aplicación, autoalojable y
 - **Importación de horario desde FET** (XML de _Free Timetabling Software_)
 - **Multi-institución**: una base de datos por centro, autenticación global
 - **Roles**: `super_admin`, `admin`, `user`
-- **Multilingüe**: catalán, castellano e inglés
+- **Multilingüe**: catalán, castellano, inglés e italiano
 
 ## Arquitectura
 
@@ -74,8 +74,26 @@ vigilancias, grupos y planificador de exámenes. El motor de planificación
 (`scheduler_engine/`) incluye 3 generadores (intentos, backtracking y Simulated
 Annealing) con un modelo de restricciones configurable.
 
-Para el mapa de dependencias completo, ver [ARQUITECTURA.md](ARQUITECTURA.md)
-(en catalán).
+La lógica que llaman las rutas está en `serveis/` (el estado de un día,
+`DiaEscolar`, y la regla de cuándo un sustituto ya no puede serlo; generar las
+sustituciones, marcar ausencias, validar antes del PDF, aplicar una baja), y el
+motor de asignación en `core/`.
+
+### Reglas de funcionamiento
+
+- Un profesor queda libre si su grupo está marcado sin clase a esa hora
+  (exactamente, también las agrupaciones) o si él está liberado.
+- Solo asignan sustitutos los botones «Generar pendientes», «Regenerar todo» y
+  «Reasignar» (en la validación antes del PDF). Los cambios del día (liberados, ausencias, bajas)
+  quitan los sustitutos que ya no pueden serlo y dejan la fila pendiente, con un
+  aviso.
+- Un profesor de baja ni sustituye ni es sustituido.
+
+Más de 500 tests (`cd backend && pytest tests/`) sobre instituciones temporales
+con el horario de ejemplo.
+
+Para el mapa de dependencias completo y las reglas en detalle, ver
+[ARQUITECTURA.md](ARQUITECTURA.md) (en catalán).
 
 ---
 

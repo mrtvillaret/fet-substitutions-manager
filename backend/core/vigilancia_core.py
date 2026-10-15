@@ -3,9 +3,10 @@ Core business logic for vigilance management.
 Contains all non-UI logic for exam vigilance assignment.
 """
 
-from typing import Optional, List, Dict, Set, Tuple
-from collections import defaultdict
-import re
+from typing import Optional, List, Dict, Set
+import logging
+
+log = logging.getLogger(__name__)
 
 try:
     from i18n_setup import translate as _
@@ -140,8 +141,8 @@ class VigilanciaCore:
                 if titular:
                     return titular
                     
-        except Exception as e:
-            pass
+        except Exception:
+            log.warning("No s'ha pogut buscar el titular", exc_info=True)
         
         return None
     
@@ -150,7 +151,8 @@ class VigilanciaCore:
         try:
             titular = self.buscar_professor_titular(tipus_examen, grups, aula)
             return titular == professor
-        except Exception as e:
+        except Exception:
+            log.warning("No s'ha pogut comprovar el titular", exc_info=True)
             return False
     
     def get_titular_status(self, titular: str, hora: str) -> str:
@@ -192,28 +194,12 @@ class VigilanciaCore:
                         return "lliure"  # Free period
                 else:
                     return "lliure"  # Free period
-            except:
-                return "lliure"  # Default to free if error
+            except Exception:
+                log.warning("No s'ha pogut consultar l'activitat del titular", exc_info=True)
+                return "lliure"
         
         return "lliure"  # Default
     
-    def validar_professor_disponible_vigilancia(self, nom_professor: str, hora: str, vigilants_assignats: Set[str]) -> str:
-        """Validate if a professor can be vigilant (same logic as substitutions)"""
-        # Check if absent at this hour
-        if nom_professor in self.absents_actuals and hora in self.absents_actuals[nom_professor]:
-            return _("ABSENT")
-            
-        # Check if occupied with exams/vigilance
-        if hasattr(self, 'professors_ocupats_examens') and self.professors_ocupats_examens:
-            professors_ocupats_hora = self.professors_ocupats_examens.get(hora, set())
-            if nom_professor in professors_ocupats_hora:
-                return _("OCUPAT VIGILÀNCIA")            
-        
-        # Check if already assigned as vigilant at this hour
-        if nom_professor in vigilants_assignats:
-            return _("JA ASSIGNAT")
-        
-        return ""  # No conflict
     
     def get_disponibles_for_vigilance(self, hora: str, data: Dict) -> List[tuple]:
         """Get available professors for vigilance using same system as substitutions"""
@@ -222,7 +208,7 @@ class VigilanciaCore:
         
         try:
             # Use same method as substitutions
-            # 🔧 FIX: Agafar només els grups d'aquesta hora específica
+            # Agafar només els grups d'aquesta hora específica
             grups_sense_classe_all = getattr(self, 'grups_sense_classe', set())
 
             # Si és un diccionari (Dict[str, Set[str]]), agafa només grups d'aquesta hora
@@ -240,99 +226,11 @@ class VigilanciaCore:
             # (Different from substitutions where we don't want absent professors)
             return disponibles
             
-        except Exception as e:
-            # print(f"Error getting disponibles for vigilance: {e}")
+        except Exception:
+            log.warning("No s'han pogut calcular els disponibles per a vigilància", exc_info=True)
             return []
     
     
-    def extract_professor_name(self, display_text: str) -> str:
-        """Extract professor name from formatted display text"""
-        # Remove the teacher emoji 👨‍🏫 which is a complex multi-character emoji
-        if "👨‍🏫" in display_text:
-            display_text = display_text.replace("👨‍🏫", "").strip()
-        
-        # Remove warning emoji ⚠️ specifically
-        if "⚠️" in display_text:
-            display_text = display_text.replace("⚠️", "").strip()
-        
-        # Remove any remaining emoji characters using comprehensive regex
-        # Pattern covers all Unicode emoji ranges more completely
-        emoji_pattern = r'[\U0001F000-\U0001FAFF\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\u2600-\u27BF\u2B00-\u2BFF\u2300-\u23FF\u2000-\u206F\uFE00-\uFE0F\u200D\u2190-\u21FF\u2700-\u27BF\U00002600-\U000026FF\U0001F900-\U0001F9FF]+' 
-        display_text = re.sub(emoji_pattern, '', display_text)
-        
-        # Remove multiple consecutive spaces
-        display_text = re.sub(r'\s+', ' ', display_text).strip()
-        
-        # Extract name (part before parentheses)
-        if " (" in display_text:
-            display_text = display_text.split(" (")[0].strip()
-        
-        return display_text.strip()
-    
-    def get_professors_que_tenien_grup(self, grups: str, hora: str, randomize: bool = True) -> List[str]:
-        """Get professors who had class with specific group(s) at given hour
-
-        Handles both exact matches and composite groups (e.g., 4-ESO-A matches 4-ESO-ABC)
-
-        Args:
-            grups: Group name(s) to search for (comma-separated)
-            hora: Hour to check
-            randomize: If True, randomize the order to ensure fair distribution
-        """
-        import random
-
-        professors_grup = []
-
-        if not grups or not self.horari_gestor:
-            return professors_grup
-
-        try:
-            # Split groups if multiple (e.g., "4-ESO-A, 4-ESO-B")
-            grups_list = [g.strip() for g in grups.split(",")]
-
-            hora_data = self.horari_gestor.horari.get(self.dia_actual, {}).get(hora, {})
-
-            for professor, activitat in hora_data.items():
-                grup_activitat = activitat.get("grup", "")
-                assignatura = activitat.get("assignatura", "")
-
-                # Skip if no real class (assignatura buida)
-                if not assignatura:
-                    continue
-
-                # Check for matches
-                for grup_vigilancia in grups_list:
-                    # Extract base and section (e.g., "4-ESO-A" -> base="4-ESO", section="A")
-                    if "-" in grup_vigilancia:
-                        parts = grup_vigilancia.rsplit("-", 1)
-                        if len(parts) == 2:
-                            base_vigilancia, section_vigilancia = parts
-
-                            # Check if grup_activitat contains this group
-                            # Examples:
-                            #   - "4-ESO-A" matches "4-ESO-A" (exact)
-                            #   - "4-ESO-A" matches "4-ESO-AB" or "4-ESO-ABC" (contains letter)
-                            if grup_activitat == grup_vigilancia:
-                                # Exact match
-                                professors_grup.append(professor)
-                                break
-                            elif grup_activitat.startswith(base_vigilancia + "-"):
-                                # Check if section letter is in composite group
-                                grup_activitat_parts = grup_activitat.rsplit("-", 1)
-                                if len(grup_activitat_parts) == 2:
-                                    composite_section = grup_activitat_parts[1]
-                                    if section_vigilancia in composite_section:
-                                        professors_grup.append(professor)
-                                        break
-
-            # Randomize to ensure fair distribution
-            if randomize and professors_grup:
-                random.shuffle(professors_grup)
-
-        except Exception as e:
-            pass
-
-        return professors_grup
 
     def get_vigilants_assignats_hora(self, hora: str) -> Set[str]:
         """Get set of professors already assigned as vigilants at specific hour - placeholder"""

@@ -49,10 +49,12 @@ ASSIGNACIONS = {
 }
 
 # Snapshot de regressió amb les dades d'aquest fitxer.
+# 310 = 250 + 60: l'examen de «2.4» cau en dimarts, el dia que el seu titular
+# (Prof 3) no té cap activitat, i compta el cost de «no treballa aquest dia».
 EXPECTED_SNAPSHOT = {
-    "v2": {"cost_total": 250.0, "total_sessions": 9},
-    "v2-backtrack": {"cost_total": 250, "total_sessions": 9},
-    "v3": {"cost_total": 250.0, "total_sessions": 9},
+    "v2": {"cost_total": 310.0, "total_sessions": 9},
+    "v2-backtrack": {"cost_total": 310, "total_sessions": 9},
+    "v3": {"cost_total": 310.0, "total_sessions": 9},
 }
 
 
@@ -136,7 +138,10 @@ def _dies_utilitzar(dates):
     return dies
 
 
-class SchedulerRegressioExempleTest(unittest.TestCase):
+class _MotorsExemple(unittest.TestCase):
+    """Executa els tres motors amb l'horari d'exemple (sense tests propis)."""
+    ESTRICTES = []
+
     @classmethod
     def setUpClass(cls):
         if not XML_PATH.exists():
@@ -158,7 +163,9 @@ class SchedulerRegressioExempleTest(unittest.TestCase):
         cls.cfg_path = tmp / "config.json"
         cls.restr_path = tmp / "restriccions.json"
         cls.cfg_path.write_text(json.dumps(_config_examens(), ensure_ascii=False), encoding="utf-8")
-        cls.restr_path.write_text(json.dumps(_restriccions(), ensure_ascii=False), encoding="utf-8")
+        restriccions = _restriccions()
+        restriccions["restriccions_dures"]["professors_horari_estricte"] = list(cls.ESTRICTES)
+        cls.restr_path.write_text(json.dumps(restriccions, ensure_ascii=False), encoding="utf-8")
 
         cls.results = {motor: cls._run_motor(motor) for motor in EXPECTED_SNAPSHOT}
 
@@ -225,6 +232,9 @@ class SchedulerRegressioExempleTest(unittest.TestCase):
 
         return result
 
+
+
+class SchedulerRegressioExempleTest(_MotorsExemple):
     def test_motors_return_expected_structure(self):
         for motor, result in self.results.items():
             with self.subTest(motor=motor):
@@ -285,6 +295,30 @@ class SchedulerRegressioExempleTest(unittest.TestCase):
                                 ),
                             )
 
+
+
+
+def _dia_de(result, nom_sessio):
+    for dia in result.get("dies", []):
+        for slot in dia.get("sessions", []):
+            for sessio in slot.get("sessions_simultanees", []):
+                if sessio.get("nom") == nom_sessio:
+                    return dia.get("dia")
+    return None
+
+
+class SchedulerHorariEstricteTest(_MotorsExemple):
+    """Prof 3, titular de «2.4», no té cap activitat el dimarts (a l'XML el
+    dia hi és, amb les franges buides). Amb horari estricte, cap motor no hi
+    ha de posar el seu examen."""
+    ESTRICTES = ["Prof 3"]
+
+    def test_l_examen_no_cau_el_dia_que_el_titular_no_hi_es(self):
+        for motor, result in self.results.items():
+            with self.subTest(motor=motor):
+                dia = _dia_de(result, "2.4 (2-BAT)")
+                self.assertIsNotNone(dia)
+                self.assertNotIn("dimarts", str(dia).lower())
 
 if __name__ == "__main__":
     unittest.main()

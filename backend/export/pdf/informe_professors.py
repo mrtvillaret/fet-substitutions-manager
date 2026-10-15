@@ -54,7 +54,7 @@ def _s(name, **kw):
 def _fmt_data(d: str) -> str:
     try:
         return datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y")
-    except Exception:
+    except (ValueError, TypeError):
         return d
 
 
@@ -62,7 +62,7 @@ def _dia_setmana(d: str) -> str:
     dies = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte", "Diumenge"]
     try:
         return dies[datetime.strptime(d, "%Y-%m-%d").weekday()]
-    except Exception:
+    except (ValueError, TypeError):
         return ""
 
 
@@ -477,7 +477,7 @@ def generar_informe_professors_pdf(
     def fmt(d):
         try:
             return datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y")
-        except Exception:
+        except (ValueError, TypeError):
             return d
 
     periode   = f"{fmt(data_inici)} – {fmt(data_final)}"

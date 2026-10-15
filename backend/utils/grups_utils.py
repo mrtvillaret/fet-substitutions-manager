@@ -9,6 +9,9 @@ from typing import Dict, Optional
 import os
 import i18n_setup
 
+import logging
+log = logging.getLogger(__name__)
+
 _ = i18n_setup._
 
 
@@ -62,10 +65,10 @@ def carregar_abreviatures_grups() -> Dict[str, str]:
         with get_data_db_session(instit) as db:
             abreviatures_list = AbreviaturaGrupRepository.get_all(db)
             abreviatures = {a["grups_originals"]: a["abreviatura"] for a in abreviatures_list}
-            print(_("✅ Carregades {} abreviatures de grups des de BD").format(len(abreviatures)))
+            log.debug(_("✅ Carregades {} abreviatures de grups des de BD").format(len(abreviatures)))
             return abreviatures
     except Exception as e:
-        print(_("⚠️ Error en carregar abreviatures de BD: {}").format(e))
+        log.warning(_("⚠️ Error en carregar abreviatures de BD: {}").format(e))
         return {}
 
 
