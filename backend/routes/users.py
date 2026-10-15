@@ -3,19 +3,28 @@ Gestió d'usuaris i perfil
 """
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from auth_utils import require_admin, require_super_admin, require_user, hash_password, verify_password, set_auth_cookie, testimoni_de_sessio
 from database import get_auth_db, get_engine_for_institucio
+from rate_limit import limiter
 from repositories import UserRepository, ConfiguracioRepository
 from config.settings import config
+from config.auth import USUARIS_PROTEGITS
 from sqlalchemy.orm import sessionmaker
 
 router = APIRouter(prefix="/api/users", tags=["Usuaris"])
 
 LONGITUD_MINIMA_CONTRASENYA = 8
+
+
+def _no_protegit(username: str, current_user) -> None:
+    """Els usuaris de USUARIS_PROTEGITS (els d'una demo pública) només els
+    modifica el superadmin."""
+    if username in USUARIS_PROTEGITS and current_user.role != "super_admin":
+        raise HTTPException(status_code=403, detail="Aquest usuari no es pot modificar")
 
 
 def _valida_contrasenya(contrasenya: str) -> None:
@@ -162,6 +171,7 @@ def update_user(
 
     if user.role == "super_admin":
         raise HTTPException(status_code=403, detail="No es pot editar el superadmin")
+    _no_protegit(user.username, current_user)
 
     if current_user.role != "super_admin":
         if user.institucio != current_user.institucio:
@@ -225,6 +235,7 @@ def deactivate_user(
 
     if user.role == "super_admin":
         raise HTTPException(status_code=403, detail="No es pot desactivar el superadmin")
+    _no_protegit(user.username, current_user)
 
     if current_user.role != "super_admin":
         if user.institucio != current_user.institucio:
@@ -272,7 +283,9 @@ def get_profile(current_user=Depends(require_user)):
 
 
 @router.put("/profile/password")
+@limiter.limit("5/minute")   # comprova la contrasenya actual: com el login
 def update_password(
+    request: Request,
     payload: PasswordUpdate,
     response: Response,
     current_user=Depends(require_user),
@@ -282,6 +295,7 @@ def update_password(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuari no trobat")
 
+    _no_protegit(user.username, current_user)
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contrasenya actual incorrecta")
 
@@ -304,6 +318,7 @@ def tancar_altres_sessions(
     user = UserRepository.get_by_username(db, current_user.username)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuari no trobat")
+    _no_protegit(user.username, current_user)
     user = UserRepository.update(db, user, versio_sessio=(user.versio_sessio or 0) + 1)
     set_auth_cookie(response, testimoni_de_sessio(user, current_user.institucio))
     return {"success": True}

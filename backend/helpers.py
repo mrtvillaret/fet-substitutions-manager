@@ -98,12 +98,19 @@ def _resolve_xml_path(institucio: str, data_iso: str = None) -> Optional[str]:
         except Exception:
             xml_path = None
 
+    if xml_path:
+        # La ruta desada a la BD ha de ser dins la carpeta del centre: abans
+        # s'hi podia escriure qualsevol ruta des de la configuració.
+        data_dir = os.path.realpath(get_data_dir_for_institucio(institucio))
+        xml_path = os.path.realpath(os.path.join(data_dir, xml_path))
+        if os.path.commonpath([data_dir, xml_path]) != data_dir:
+            log.warning("XML fora de la carpeta del centre %s: no es fa servir", institucio)
+            xml_path = None
+
     if not xml_path:
         xml_path = os.getenv("APP_XML_PATH")
-
-    if xml_path and not os.path.isabs(xml_path):
-        data_dir = get_data_dir_for_institucio(institucio)
-        xml_path = os.path.join(str(data_dir), xml_path)
+        if xml_path and not os.path.isabs(xml_path):
+            xml_path = os.path.join(str(get_data_dir_for_institucio(institucio)), xml_path)
 
     return xml_path
 

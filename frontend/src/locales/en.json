@@ -10,7 +10,9 @@
       "submit": "Sign in",
       "error": "Invalid username or password",
       "rateLimit": "🕐 Too many login attempts. Try again in one minute.",
-      "rateLimitWithWait": "🕐 Too many login attempts. Try again in {seconds} seconds."
+      "rateLimitWithWait": "🕐 Too many login attempts. Try again in {seconds} seconds.",
+      "sessionExpired": "Your session was closed due to inactivity. Please sign in again.",
+      "sessionClosed": "Your session was closed from another device. Please sign in again."
     },
     "errors": {
       "title": "Error",
@@ -505,7 +507,7 @@
     },
     "empty": {
       "title": "No substitutions for this date",
-      "hint": "Click \"Generate automatically\" to create them"
+      "hint": "Click \"➕ New\" to add one"
     },
     "columns": {
       "absentTeacher": "👤 Absent teacher",

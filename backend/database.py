@@ -73,28 +73,17 @@ def _ensure_users_versio_sessio_column(engine):
 def get_data_dir_for_institucio(institucio: str) -> Path:
     if not institucio:
         raise ValueError("Institucio buida")
-    if not re.fullmatch(r"[a-z0-9_.-]+", institucio):
+    # Comença per lletra o xifra: ni "." ni ".." (la carpeta de dades o la de sobre)
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_.-]*", institucio) or ".." in institucio:
         raise ValueError("Institucio invalida")
     return DATA_BASE_DIR / institucio
 
 
 def get_export_dir_for_institucio(institucio: str) -> Path:
-    data_dir = get_data_dir_for_institucio(institucio)
-    export_dir = None
-    try:
-        from repositories import ConfiguracioRepository
-        with get_data_db_session(institucio) as db:
-            export_dir = ConfiguracioRepository.get(db, "export_dir")
-    except Exception:
-        export_dir = None
-
-    if export_dir:
-        export_path = Path(export_dir)
-        if not export_path.is_absolute():
-            export_path = data_dir / export_path
-    else:
-        export_path = data_dir / "exports"
-
+    """Carpeta dels PDF exportats d'abans (ara els PDF ja no es desen). Sempre
+    dins la carpeta del centre: abans es podia triar des de la configuració, i
+    un admin hi podia posar la d'un altre centre."""
+    export_path = get_data_dir_for_institucio(institucio) / "exports"
     export_path.mkdir(parents=True, exist_ok=True)
     return export_path
 

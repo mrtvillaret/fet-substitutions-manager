@@ -10,7 +10,9 @@
       "submit": "Inicia sessió",
       "error": "Usuari o contrasenya incorrectes",
       "rateLimit": "🕐 Massa intents d'inici de sessió. Prova-ho de nou en un minut.",
-      "rateLimitWithWait": "🕐 Massa intents d'inici de sessió. Prova-ho de nou en {seconds} segons."
+      "rateLimitWithWait": "🕐 Massa intents d'inici de sessió. Prova-ho de nou en {seconds} segons.",
+      "sessionExpired": "La sessió s'ha tancat per inactivitat. Torna a entrar.",
+      "sessionClosed": "La sessió s'ha tancat des d'un altre lloc. Torna a entrar."
     },
     "errors": {
       "title": "Error",
@@ -508,7 +510,7 @@
     },
     "empty": {
       "title": "No hi ha substitucions per aquesta data",
-      "hint": "Fes clic a \"Generar automàticament\" per crear-les"
+      "hint": "Fes clic a \"➕ Nova\" per afegir-ne una"
     },
     "columns": {
       "absentTeacher": "👤 Professor Absent",

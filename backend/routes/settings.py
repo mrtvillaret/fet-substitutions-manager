@@ -29,8 +29,6 @@ class SettingsUpdate(BaseModel):
     """Model per actualitzar configuració"""
     institucio: Optional[str] = None
     idioma: Optional[str] = None
-    xml_horari_path: Optional[str] = None
-    export_dir: Optional[str] = None
     data_inici_estadistiques: Optional[str] = None
     data_final_estadistiques: Optional[str] = None
     ultim_professor_subs: Optional[str] = None
@@ -64,7 +62,6 @@ async def get_settings(db: Session = Depends(get_db)):
 
         # Configuració per institució (SQLite)
         "xml_horari_path": config_db.get("xml_horari_path"),
-        "export_dir": config_db.get("export_dir", "exports"),
         "data_inici_estadistiques": config_db.get("data_inici_estadistiques"),
         "data_final_estadistiques": config_db.get("data_final_estadistiques"),
         "logo_path": config_db.get("logo_path"),
@@ -118,27 +115,9 @@ async def update_settings(
         )
         changed.append(f"Idioma → {settings.idioma}")
 
-    # Actualitzar configuració per institució (SQLite)
-    if settings.xml_horari_path is not None:
-        ConfiguracioRepository.set(
-            db,
-            'xml_horari_path',
-            settings.xml_horari_path,
-            tipus='string',
-            descripcio='Path del fitxer XML de FET'
-        )
-        changed.append(f"XML → {settings.xml_horari_path}")
-        invalidar_cache = True  # Canvi d'XML requereix recarregar horari
-
-    if settings.export_dir is not None:
-        ConfiguracioRepository.set(
-            db,
-            'export_dir',
-            settings.export_dir,
-            tipus='string',
-            descripcio='Directori d\'exportació PDFs'
-        )
-        changed.append(f"Export dir → {settings.export_dir}")
+    # Les rutes de l'XML i dels PDF no es poden canviar d'aquí: l'XML es puja
+    # (/api/files/upload-xml) i les carpetes són sempre les del centre. Una ruta
+    # escrita a mà podia apuntar als fitxers d'un altre centre.
 
     if settings.institucio_display_name is not None:
         if current_user.role != "super_admin":
@@ -185,12 +164,11 @@ async def update_settings(
         invalidar_cache = True  # Canvi de límit de professors requereix recarregar horari
 
     # Recarregar configuració d'institució si s'ha modificat
-    if any(s is not None for s in [settings.idioma, settings.xml_horari_path, settings.export_dir,
-                                   settings.data_inici_estadistiques, settings.data_final_estadistiques,
+    if any(s is not None for s in [settings.idioma, settings.data_inici_estadistiques, settings.data_final_estadistiques,
                                    settings.ultim_professor_subs]):
         config.load_institucio()
 
-    # Invalidar cache del horari si s'ha canviat XML, institució o límit de professors
+    # Invalidar cache del horari si s'ha canviat la institució o el límit de professors
     if invalidar_cache:
         from helpers import invalidar_horari
         invalidar_horari()

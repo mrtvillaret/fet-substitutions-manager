@@ -47,7 +47,12 @@ if not SECRET_KEY:
 _comprova_valor_de_mostra("SECRET_KEY", SECRET_KEY)
 
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "8"))
+# Sessions: caduquen al cap de SESSIO_INACTIVITAT_MINUTS sense cap petició; mentre
+# s'hi treballa es renoven (com a molt cada SESSIO_RENOVACIO_MINUTS), fins a un
+# màxim de SESSIO_MAXIMA_HORES des de l'entrada.
+SESSIO_INACTIVITAT_MINUTS = int(os.getenv("SESSIO_INACTIVITAT_MINUTS", "60"))
+SESSIO_MAXIMA_HORES = int(os.getenv("SESSIO_MAXIMA_HORES", "24"))
+SESSIO_RENOVACIO_MINUTS = 5
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
 # Nom de la galeta de sessió. Dues instal·lacions al mateix domini (p.ex. la
 # principal a / i una demo a /demo/) necessiten noms diferents: si no, entrar a
@@ -103,3 +108,11 @@ DEFAULT_USERS = [
 
 for _usuari in DEFAULT_USERS:
     _comprova_valor_de_mostra(f"la contrasenya de {_usuari['username']}", _usuari["password"])
+
+# Usuaris que només el superadmin pot modificar: ni ells mateixos (contrasenya,
+# tancar les altres sessions) ni cap admin (editar, desactivar). Per a una demo
+# pública, on la contrasenya és coneguda i qualsevol visitant hi pot entrar.
+#   USUARIS_PROTEGITS=user_demo,admin_demo
+USUARIS_PROTEGITS = frozenset(
+    u.strip() for u in os.getenv("USUARIS_PROTEGITS", "").split(",") if u.strip()
+)

@@ -18,7 +18,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 # SQLAlchemy imports
 from database import create_auth_tables
-from auth_utils import ensure_default_users, get_current_user, require_admin
+from auth_utils import ensure_default_users, get_current_user, registra_renovacio_sessio, require_admin
 from config.auth import IS_DEVELOPMENT
 from rate_limit import limit_superat, limiter
 
@@ -81,6 +81,9 @@ async def missing_xml_exception_handler(request: Request, exc: MissingXmlError):
             "institucio": exc.institucio
         }
     )
+
+
+registra_renovacio_sessio(app)
 
 
 @app.middleware("http")

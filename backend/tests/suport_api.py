@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from slowapi.errors import RateLimitExceeded
 
 from auth_utils import hash_password
+from auth_utils import registra_renovacio_sessio
 from errors_servidor import registra_gestors_errors
 from database import (
     AuthSessionLocal,
@@ -33,6 +34,7 @@ def crea_app(*routers):
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, limit_superat)
     registra_gestors_errors(app)
+    registra_renovacio_sessio(app)   # com a main.py
     app.include_router(auth.router)
     for router in routers:
         app.include_router(router)

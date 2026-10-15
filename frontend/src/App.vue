@@ -520,6 +520,12 @@ onMounted(async () => {
     (error) => {
       const status = error?.response?.status
       if (status === 401) {
+        // Si hi havia una sessió oberta, diu per què s'ha de tornar a entrar
+        // (sense activitat el navegador ja ha esborrat la cookie: «No autenticat»).
+        if (autenticat.value) {
+          loginError.value = error.response?.data?.detail === 'Sessió tancada'
+            ? t('app.login.sessionClosed') : t('app.login.sessionExpired')
+        }
         netejarToken()
         return Promise.reject(error)
       }

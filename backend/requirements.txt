@@ -2,7 +2,7 @@
 # rangs (>=), dues imatges del mateix commit poden acabar portant programari
 # diferent, i una versió major nova entra sola el dia que es publica.
 # Actualitzar de manera deliberada i tornar a passar `pip-audit`.
-# Revisat: 2026-07-22
+# Revisat: 2026-10-15
 
 fastapi==0.139.2
 uvicorn[standard]==0.51.0
@@ -13,7 +13,7 @@ sqlalchemy==2.0.51
 # PyJWT en lloc de python-jose: és el que recomana la documentació de FastAPI
 # des que python-jose va quedar sense manteniment. A més, python-jose
 # arrossegava ecdsa, rsa i pyasn1.
-PyJWT[crypto]==2.13.0
+PyJWT[crypto]==2.15.1
 
 argon2-cffi==25.1.0
 slowapi==0.1.10

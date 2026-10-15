@@ -87,7 +87,9 @@ data/
 - `export/` — exportadors PDF (substitucions, vigilàncies, intervals,
   informes de direcció i professorat)
 - `repositories.py` + `models.py` — accés a dades SQLAlchemy
-- `auth_utils.py` — autenticació JWT amb cookie httpOnly
+- `auth_utils.py` — autenticació JWT amb cookie httpOnly; la sessió caduca
+  després d'1 h sense activitat (es renova mentre s'hi treballa) i com a màxim
+  24 h després d'entrar
 
 ### Frontend (Vue 3)
 

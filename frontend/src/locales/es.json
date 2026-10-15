@@ -10,7 +10,9 @@
       "submit": "Entrar",
       "error": "Usuario o contraseña incorrectos",
       "rateLimit": "🕐 Demasiados intentos de inicio de sesión. Vuelve a intentarlo en un minuto.",
-      "rateLimitWithWait": "🕐 Demasiados intentos de inicio de sesión. Vuelve a intentarlo en {seconds} segundos."
+      "rateLimitWithWait": "🕐 Demasiados intentos de inicio de sesión. Vuelve a intentarlo en {seconds} segundos.",
+      "sessionExpired": "La sesión se ha cerrado por inactividad. Vuelve a entrar.",
+      "sessionClosed": "La sesión se ha cerrado desde otro lugar. Vuelve a entrar."
     },
     "errors": {
       "title": "Error",
@@ -505,7 +507,7 @@
     },
     "empty": {
       "title": "No hay sustituciones para esta fecha",
-      "hint": "Haz clic en \"Generar automáticamente\" para crearlas"
+      "hint": "Haz clic en \"➕ Nueva\" para añadir una"
     },
     "columns": {
       "absentTeacher": "👤 Profesor ausente",

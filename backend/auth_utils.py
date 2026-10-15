@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 from fastapi import Depends, HTTPException, Request, Response, status
 import jwt
-from jwt import PyJWTError
+from jwt import ExpiredSignatureError, PyJWTError
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy.orm import Session
@@ -16,7 +16,9 @@ from config.auth import (
     COOKIE_NAME,
     SECRET_KEY,
     ALGORITHM,
-    ACCESS_TOKEN_EXPIRE_HOURS,
+    SESSIO_INACTIVITAT_MINUTS,
+    SESSIO_MAXIMA_HORES,
+    SESSIO_RENOVACIO_MINUTS,
     COOKIE_SECURE,
     ADMIN_USERNAME,
     ADMIN_PASSWORD,
@@ -46,7 +48,7 @@ def set_auth_cookie(response: Response, token: str) -> None:
         httponly=True,
         secure=COOKIE_SECURE,
         samesite="lax",
-        max_age=ACCESS_TOKEN_EXPIRE_HOURS * 3600,
+        max_age=SESSIO_INACTIVITAT_MINUTS * 60,
     )
 
 
@@ -69,21 +71,70 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(data: Dict[str, Any], expires_hours: int = ACCESS_TOKEN_EXPIRE_HOURS) -> str:
+def create_access_token(data: Dict[str, Any], expira: datetime = None) -> str:
+    """`expira`: per defecte, d'aquí a SESSIO_INACTIVITAT_MINUTS."""
+    ara = datetime.now(timezone.utc)
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(hours=expires_hours)
-    to_encode["exp"] = expire
+    to_encode["iat"] = ara
+    to_encode["exp"] = expira or ara + timedelta(minutes=SESSIO_INACTIVITAT_MINUTS)
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def _caducitat(inici: float, ara: datetime) -> datetime:
+    """La primera de: d'aquí a la inactivitat màxima o el màxim des de l'entrada."""
+    limit = datetime.fromtimestamp(inici, timezone.utc) + timedelta(hours=SESSIO_MAXIMA_HORES)
+    return min(ara + timedelta(minutes=SESSIO_INACTIVITAT_MINUTS), limit)
+
+
 def testimoni_de_sessio(user, institucio: str = None) -> str:
-    """Testimoni de sessió d'un usuari, amb la seva versió de sessió actual."""
+    """Testimoni de sessió d'un usuari, amb la seva versió de sessió actual i
+    l'hora d'entrada («ini»), que fixa el màxim de la sessió."""
+    ara = datetime.now(timezone.utc)
     return create_access_token({
         "sub": user.username,
         "institucio": institucio or user.institucio,
         "role": user.role,
         "sv": user.versio_sessio or 0,
-    })
+        "ini": ara.timestamp(),
+    }, expira=_caducitat(ara.timestamp(), ara))
+
+
+def registra_renovacio_sessio(app) -> None:
+    """Afegeix a `app` la renovació de la sessió: a cada petició a l'API que va
+    bé, si cal (renova_testimoni), la resposta porta la cookie renovada. No es
+    toca si la mateixa resposta ja en porta una (entrar, sortir, canviar de
+    centre o de contrasenya)."""
+    @app.middleware("http")
+    async def renova_sessio(request: Request, call_next):
+        response = await call_next(request)
+        token = request.cookies.get(COOKIE_NAME)
+        if (token and response.status_code < 400 and request.url.path.startswith("/api/")
+                and not any(COOKIE_NAME in v for v in response.headers.getlist("set-cookie"))):
+            nou = renova_testimoni(token)
+            if nou:
+                set_auth_cookie(response, nou)
+        return response
+
+
+def renova_testimoni(token: str):
+    """Si el testimoni és vàlid i fa més de SESSIO_RENOVACIO_MINUTS que es va
+    emetre, un de nou que caduca d'aquí a la inactivitat màxima (sense passar
+    del màxim des de l'entrada). Si no cal o no es pot renovar, None."""
+    try:
+        payload = decode_access_token(token)
+    except PyJWTError:
+        return None
+    ara = datetime.now(timezone.utc)
+    emes = payload.get("iat")
+    if emes and ara.timestamp() - emes < SESSIO_RENOVACIO_MINUTS * 60:
+        return None
+    inici = payload.get("ini") or ara.timestamp()   # testimonis d'abans d'aquest canvi
+    caduca = _caducitat(inici, ara)
+    if caduca <= ara:
+        return None
+    nou = {k: v for k, v in payload.items() if k not in ("iat", "exp")}
+    nou["ini"] = inici
+    return create_access_token(nou, expira=caduca)
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
@@ -180,6 +231,9 @@ def _valida_usuari(request: Request, db: Session):
         institucio = payload.get("institucio")
         if not username:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid")
+    except ExpiredSignatureError as exc:
+        # Sense activitat durant SESSIO_INACTIVITAT_MINUTS, o passat el màxim
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessió caducada") from exc
     except PyJWTError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid") from exc
 

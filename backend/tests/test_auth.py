@@ -553,6 +553,14 @@ def test_no_es_pot_canviar_la_propia_contrasenya_per_una_de_curta(client, escena
     assert _login(client, escenari["noms"]["user_a"]).status_code == 200
 
 
+def test_no_es_pot_endevinar_la_contrasenya_des_del_canvi_de_contrasenya(client, escenari):
+    """Amb una sessió robada no s'hi poden provar contrasenyes sense límit."""
+    _entra(client, escenari, "user_a")
+    body = {"current_password": "incorrecta", "new_password": "nova-contrasenya"}
+    codis = [client.put("/api/users/profile/password", json=body).status_code for _ in range(6)]
+    assert codis == [400] * 5 + [429]
+
+
 # ------------------------------------------- tancar sessions a distància
 
 def _dispositiu(escenari, qui):

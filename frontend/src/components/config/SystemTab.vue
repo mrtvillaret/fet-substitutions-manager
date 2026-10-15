@@ -286,7 +286,6 @@ const settings = ref({
   institucio: null,
   idioma: 'ca',
   xml_horari_path: '',
-  export_dir: 'exports',
   ultim_professor_subs: '',
   institucio_display_name: '',
   data_dir: '',
@@ -340,7 +339,6 @@ const getSettingsSnapshot = () => JSON.stringify({
   institucio_display_name: settings.value.institucio_display_name || '',
   idioma: settings.value.idioma || '',
   xml_horari_path: settings.value.xml_horari_path || '',
-  export_dir: settings.value.export_dir || '',
   ultim_professor_subs: settings.value.ultim_professor_subs || '',
   logo_path: settings.value.logo_path || ''
 })
@@ -584,8 +582,6 @@ const desar = async () => {
       institucio: settings.value.institucio,
       ...(isSuperAdmin.value ? { institucio_display_name: settings.value.institucio_display_name } : {}),
       idioma: settings.value.idioma,
-      xml_horari_path: settings.value.xml_horari_path,
-      export_dir: settings.value.export_dir,
       // '' = "Tots" (el backend l'accepta i esborra el límit); no enviem null,
       // que el backend interpreta com "no modificar".
       ultim_professor_subs: settings.value.ultim_professor_subs || ''

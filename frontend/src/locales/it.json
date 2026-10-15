@@ -10,7 +10,9 @@
       "submit": "Accedi",
       "error": "Nome utente o password non validi",
       "rateLimit": "🕐 Troppi tentativi di accesso. Riprova tra un minuto.",
-      "rateLimitWithWait": "🕐 Troppi tentativi di accesso. Riprova tra {seconds} secondi."
+      "rateLimitWithWait": "🕐 Troppi tentativi di accesso. Riprova tra {seconds} secondi.",
+      "sessionExpired": "La sessione è stata chiusa per inattività. Accedi di nuovo.",
+      "sessionClosed": "La sessione è stata chiusa da un altro dispositivo. Accedi di nuovo."
     },
     "errors": {
       "title": "Errore",
@@ -508,7 +510,7 @@
     },
     "empty": {
       "title": "Nessuna sostituzione per questa data",
-      "hint": "Clicca \"Genera automaticamente\" per crearle"
+      "hint": "Clicca \"➕ Nuovo\" per aggiungerne una"
     },
     "columns": {
       "absentTeacher": "👤 Docente assente",
