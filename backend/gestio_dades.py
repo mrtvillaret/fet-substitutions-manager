@@ -336,6 +336,9 @@ def executar_purga(db: Session, institucio: Optional[str],
                 "data_fi": v.data_fi.isoformat() if v.data_fi else None,
             })
             db.delete(v)
+        # Les que queden s'encadenen de nou: sense forats on hi havia les esborrades
+        from repositories import XMLVersionRepository
+        XMLVersionRepository.encadena(db)
 
     # --- PDF datats dins l'interval ---
     pdfs_esborrats: List[str] = []

@@ -465,46 +465,16 @@ const carregarLogo = async () => {
   }
 }
 
-const xmlVersionsDisplay = computed(() => {
-  const sorted = [...xmlVersions.value].sort((a, b) => (a.data_inici || '').localeCompare(b.data_inici || ''))
-  return sorted.map((version, index) => {
-    const next = sorted[index + 1]
-    let dataFi = version.data_fi
-    if (next?.data_inici) {
-      const nextDate = parseIsoDate(next.data_inici)
-      if (nextDate) {
-        const prevDay = new Date(nextDate)
-        prevDay.setDate(prevDay.getDate() - 1)
-        dataFi = formatIsoDate(prevDay)
-      }
-    }
-    version.data_fi = dataFi
-    version._previousId = index > 0 ? sorted[index - 1].id : null
-    return version
-  })
-})
+// Les dates de fi les calcula el backend (el dia abans que comenci la següent)
+const xmlVersionsDisplay = computed(() =>
+  [...xmlVersions.value].sort((a, b) => (a.data_inici || '').localeCompare(b.data_inici || '')))
 
 const desarXmlVersion = async (version) => {
   try {
+    // Només l'inici: el backend torna a encadenar totes les versions
     await axios.put(`/api/settings/xml-versions/${version.id}`, {
-      data_inici: version.data_inici || null,
-      data_fi: version.data_fi || null
+      data_inici: version.data_inici || null
     })
-
-    if (version._previousId) {
-      const prevEnd = version.data_inici ? (() => {
-        const d = parseIsoDate(version.data_inici)
-        if (!d) return null
-        d.setDate(d.getDate() - 1)
-        return formatIsoDate(d)
-      })() : null
-
-      if (prevEnd) {
-        await axios.put(`/api/settings/xml-versions/${version._previousId}`, {
-          data_fi: prevEnd
-        })
-      }
-    }
     toast.add({
       severity: 'success',
       summary: t('common.saved'),

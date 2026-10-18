@@ -5,7 +5,6 @@ Routes per configuració general del sistema
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session, sessionmaker
 from typing import Optional
-from datetime import date
 from pydantic import BaseModel
 
 from config.settings import config
@@ -16,7 +15,8 @@ from repositories import UserRepository
 import shutil
 from config.constants import NO_SUBST
 from dependencies import get_db
-from repositories import ConfiguracioRepository, XMLVersionRepository, parse_date
+from repositories import ConfiguracioRepository, XMLVersionRepository
+from routes.parametres import data_iso
 from models import XMLVersion
 
 import logging
@@ -37,8 +37,7 @@ class SettingsUpdate(BaseModel):
 
 
 class XMLVersionUpdate(BaseModel):
-    data_inici: Optional[str] = None
-    data_fi: Optional[str] = None
+    data_inici: Optional[str] = None   # la data de fi es calcula (no s'accepta)
 
 
 @router.get("")
@@ -408,82 +407,34 @@ async def update_xml_version(
     db: Session = Depends(get_db)
 ):
     """
-    Actualitza les dates d'una versió d'XML
+    Canvia quan comença una versió d'XML. Les dates de fi es recalculen totes
+    (el dia abans que comenci la següent): no es poden posar a mà.
     """
     version = db.query(XMLVersion).filter(XMLVersion.id == version_id).first()
     if not version:
         raise HTTPException(status_code=404, detail="Versió XML no trobada")
+    if not payload.data_inici:
+        return {"success": True}
 
-    data_inici = parse_date(payload.data_inici) if payload.data_inici else version.data_inici
-    data_fi = parse_date(payload.data_fi) if payload.data_fi else None
-
-    if data_fi and data_fi < data_inici:
-        raise HTTPException(status_code=400, detail="La data final no pot ser anterior a la inicial")
-
-    # Evitar solapaments
-    versions = XMLVersionRepository.list_all(db)
-    for other in versions:
-        if other.id == version_id:
-            continue
-        other_start = other.data_inici
-        other_end = other.data_fi
-        end = data_fi or date(2999, 12, 31)
-        other_end_cmp = other_end or date(2999, 12, 31)
-        if not (end < other_start or data_inici > other_end_cmp):
-            raise HTTPException(status_code=400, detail="Solapament amb una altra versió d'XML")
-
-    # Evitar dues versions obertes
-    if data_fi is None:
-        for other in versions:
-            if other.id != version_id and other.data_fi is None:
-                raise HTTPException(status_code=400, detail="Ja hi ha una versió actual oberta")
+    data_inici = data_iso(payload.data_inici)
+    if db.query(XMLVersion).filter(XMLVersion.id != version_id, XMLVersion.data_inici == data_inici).first():
+        raise HTTPException(status_code=400, detail="Ja hi ha una altra versió d'XML que comença aquest dia")
 
     version.data_inici = data_inici
-    version.data_fi = data_fi
+    XMLVersionRepository.encadena(db)
     db.commit()
-
-    if data_fi is None:
-        ConfiguracioRepository.set(
-            db, 'xml_horari_path', version.path,
-            tipus='string',
-            descripcio='Path del fitxer XML de FET'
-        )
-
     return {"success": True}
 
 
 @router.delete("/xml-versions/{version_id}")
 async def delete_xml_version(version_id: int, db: Session = Depends(get_db)):
     """
-    Elimina una versió d'XML (si és l'actual, obre la versió anterior si existeix)
+    Elimina una versió d'XML; les altres s'encadenen de nou (sense forats).
     """
-    versions = XMLVersionRepository.list_all(db)
-    version = next((v for v in versions if v.id == version_id), None)
+    version = db.query(XMLVersion).filter(XMLVersion.id == version_id).first()
     if not version:
         raise HTTPException(status_code=404, detail="Versió XML no trobada")
-
-    deleting_open = version.data_fi is None
     db.delete(version)
+    XMLVersionRepository.encadena(db)
     db.commit()
-
-    if deleting_open:
-        remaining = XMLVersionRepository.list_all(db)
-        remaining_sorted = sorted(remaining, key=lambda v: v.data_inici or date.min)
-        previous = next((v for v in reversed(remaining_sorted) if v.data_inici and v.data_inici < version.data_inici), None)
-
-        if previous:
-            previous.data_fi = None
-            db.commit()
-            ConfiguracioRepository.set(
-                db, 'xml_horari_path', previous.path,
-                tipus='string',
-                descripcio='Path del fitxer XML de FET'
-            )
-        else:
-            ConfiguracioRepository.set(
-                db, 'xml_horari_path', '',
-                tipus='string',
-                descripcio='Path del fitxer XML de FET'
-            )
-
     return {"success": True}

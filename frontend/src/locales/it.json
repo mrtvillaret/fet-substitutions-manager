@@ -1409,11 +1409,7 @@
       "freeGroupsDesc": "Seleziona i livelli che non hanno lezione durante gli esami. Tutti i gruppi del livello verranno contrassegnati come liberati.",
       "groupsLabel": "gruppi:",
       "totalFreeGroups": "Totale gruppi liberati:",
-      "durationTitle": "Durata dell'esame",
-      "durationDesc": "Numero di ore di lezione che dura ogni esame. Verranno creati gruppi liberati per tutte le ore in cui dura l'esame.",
-      "hourSingular": "ora di lezione",
-      "hourPlural": "ore di lezione",
-      "schoolHours": "Ore scolastiche:",
+      "durationTitle": "Cosa verrà pubblicato",
       "optionClear": "Cancella le vigilanze esistenti per queste date",
       "optionAutoAssign": "Assegna automaticamente i titolari",
       "successTitle": "Pubblicazione completata",
@@ -1434,7 +1430,10 @@
       "previewTitle": "Anteprima delle modifiche pianificate",
       "previewDesc": "Questo è ciò che accadrà quando confermerai la pubblicazione. Non è stato ancora scritto nulla nel database.",
       "confirmPublish": "Conferma pubblicazione",
-      "publishButton": "Pubblica"
+      "publishButton": "Pubblica",
+      "durationExam": "Ogni esame avrà sorveglianza per tutte le ore che dura per gli studenti (la durata del suo gruppo di durata o, se non ne ha, la durata generale dell'esame).",
+      "durationTitular": "Il titolare sarà assegnato alle ore in cui è liberato o disponibile (di guardia); le altre può sorvegliarle un altro docente.",
+      "freedGroupsInfo": "I gruppi dei livelli selezionati resteranno senza lezione nelle ore segnate nel calendario del pianificatore."
     },
     "view": {
       "title": "Pianificatore esami",

@@ -220,6 +220,9 @@ def analitzar_disponibilitat_sessio(
         had_overlap = False
         any_outside = False
         any_inside_no_overlap = False
+        # Hores que ha d'esperar (abans de la primera classe o després de
+        # l'última): cadascuna compta, pati inclòs, i una sola vegada
+        abans_vistes, despres_vistes = set(), set()
 
         for h in hores_examen:
             es_supervisio = h in hores_supervisio_set
@@ -274,10 +277,20 @@ def analitzar_disponibilitat_sessio(
                 if idx_h is None:
                     continue
                 if idx_h < idx_primera:
-                    analisi['abans_jornada'].append({'professor': prof, 'examen': ex, 'primera_hora': primera, 'hora': h})
+                    # De l'hora de l'examen fins a la primera classe
+                    for h_espera in totes_hores_norm[idx_h:idx_primera]:
+                        if h_espera not in abans_vistes:
+                            abans_vistes.add(h_espera)
+                            analisi['abans_jornada'].append(
+                                {'professor': prof, 'examen': ex, 'primera_hora': primera, 'hora': h_espera})
                     any_outside = True
                 elif idx_h > idx_ultima:
-                    analisi['despres_jornada'].append({'professor': prof, 'examen': ex, 'ultima_hora': ultima, 'hora': h})
+                    # De després de l'última classe fins a l'hora de l'examen
+                    for h_espera in totes_hores_norm[idx_ultima + 1:idx_h + 1]:
+                        if h_espera not in despres_vistes:
+                            despres_vistes.add(h_espera)
+                            analisi['despres_jornada'].append(
+                                {'professor': prof, 'examen': ex, 'ultima_hora': ultima, 'hora': h_espera})
                     any_outside = True
                 else:
                     any_inside_no_overlap = True

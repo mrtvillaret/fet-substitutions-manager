@@ -24,20 +24,15 @@
           </DataTable>
         </div>
 
-        <!-- Durada examen -->
+        <!-- Què es farà (les durades i les hores sense classe surten de la configuració del planificador) -->
         <Divider />
         <div class="mb-3">
           <div class="font-semibold mb-2">{{ $t('scheduler.publish.durationTitle') }}</div>
-          <p class="text-sm text-color-secondary mt-0 mb-2">
-            {{ $t('scheduler.publish.durationDesc') }}
-          </p>
-          <div class="flex align-items-center gap-2">
-            <InputNumber v-model="duradaExamen" :min="1" :max="maxDurada" showButtons :step="1" style="width: 6rem" />
-            <span class="text-sm">{{ duradaExamen === 1 ? $t('scheduler.publish.hourSingular') : $t('scheduler.publish.hourPlural') }}</span>
-          </div>
-          <div v-if="horesLectives.length > 0" class="text-sm text-color-secondary mt-2">
-            {{ $t('scheduler.publish.schoolHours') }} {{ horesLectives.join(', ') }}
-          </div>
+          <ul class="text-sm text-color-secondary mt-0 mb-0 pl-3">
+            <li>{{ $t('scheduler.publish.durationExam') }}</li>
+            <li>{{ $t('scheduler.publish.durationTitular') }}</li>
+            <li>{{ $t('scheduler.publish.freedGroupsInfo') }}</li>
+          </ul>
         </div>
 
         <!-- Opcions -->
@@ -186,7 +181,6 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Checkbox from 'primevue/checkbox'
 import Divider from 'primevue/divider'
-import InputNumber from 'primevue/inputnumber'
 import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
 
@@ -209,9 +203,6 @@ const resultat = ref(null)
 const carregant = ref(false)
 
 const grupsPerNivell = ref({})
-const horesLectives = ref([])
-const duradaExamen = ref(1)
-const maxDurada = computed(() => Math.max(1, horesLectives.value.length || 4))
 
 watch(() => props.visible, async (val) => {
   if (!val) return
@@ -221,8 +212,6 @@ watch(() => props.visible, async (val) => {
   try {
     const { data } = await axios.get('/api/scheduler/grups-nivells')
     grupsPerNivell.value = data.grups_per_nivell || {}
-    horesLectives.value = data.hores_lectives || []
-    duradaExamen.value = data.durada_examen || data.durada_titular || 1
   } catch (e) {
     console.error('Error carregant grups:', e)
   } finally {
@@ -280,7 +269,6 @@ const _payload = () => ({
   horari: props.horari,
   setmanes: props.setmanes,
   grups_sense_classe: [],
-  durada_examen: duradaExamen.value,
   opcions: opcions.value
 })
 

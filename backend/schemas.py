@@ -157,7 +157,6 @@ class SchedulerPublicarRequest(BaseModel):
     horari: dict  # Resultat del scheduler (result.horari)
     setmanes: List[dict]  # [{"Dilluns": "2026-02-02", "Dimarts": "2026-02-03"}, ...]
     grups_sense_classe: List[str] = []  # Grups que no tenen classe (per crear GrupAlliberat)
-    durada_examen: int = 1  # Nombre d'hores lectives que dura cada examen (per GrupAlliberat)
     opcions: SchedulerPublicarOpcions = SchedulerPublicarOpcions()
     dry_run: bool = False  # Si True, calcula estadístiques sense escriure a la BD
 

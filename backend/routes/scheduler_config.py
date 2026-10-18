@@ -21,6 +21,7 @@ from routes.scheduler_helpers import (
 from routes.scheduler_service import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DATES_KEY,
+    SCHEDULER_DURADA_EXAMEN_KEY,
     SCHEDULER_DURADA_KEY,
     SCHEDULER_DURADES_GRUPS_KEY,
     SCHEDULER_DURADES_SESSIO_KEY,
@@ -35,7 +36,8 @@ from routes.scheduler_service import (
 class ConfigPlanificador:
     config: dict                     # assignacions d'exàmens per nivell (per al motor)
     restriccions: dict
-    durada_titular: int
+    durada_titular: int              # hores que el titular vigila (general)
+    durada_examen: int               # hores que dura l'examen per a l'alumnat (general)
     nivells_configurats: list
     nivells_master: list
     dates_configurades: list
@@ -45,6 +47,17 @@ class ConfigPlanificador:
     no_substituir: set
     ultim_professor: str
 
+    def durada_titular_de(self, examen: str) -> int:
+        """Hores que el titular vigila un examen: les del seu grup de durada
+        o, si no en té, la durada general del titular."""
+        return _positiu(self.durades_per_sessio.get(examen)) or self.durada_titular
+
+    def durada_examen_de(self, examen: str) -> int:
+        """Hores que dura un examen per a l'alumnat: les del seu grup de durada
+        o, si no en té, la durada general de l'examen; mai menys que les del titular."""
+        durada = _positiu(self.durades_examen_per_sessio.get(examen)) or self.durada_examen
+        return max(durada, self.durada_titular_de(examen))
+
     def nivells_actius(self, demanats=None) -> list:
         return demanats or self.nivells_configurats or self.nivells_master
 
@@ -53,6 +66,13 @@ class ConfigPlanificador:
         demanades o les desades a la configuració."""
         return (_selected_dates_from_alliberaments(self.alliberaments, nivells)
                 or demanades or self.dates_configurades or [])
+
+
+def _positiu(valor) -> int | None:
+    try:
+        return int(valor) if valor is not None and int(valor) > 0 else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _durades(db) -> tuple[dict, dict]:
@@ -73,11 +93,14 @@ def _durades(db) -> tuple[dict, dict]:
 def carrega_config(institucio: str) -> ConfigPlanificador:
     with get_data_db_session(institucio) as db:
         durada = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
+        durada_titular = int(durada) if durada else DEFAULT_DURADA_TITULAR
+        durada_examen = _positiu(ConfiguracioRepository.get(db, SCHEDULER_DURADA_EXAMEN_KEY)) or durada_titular
         durades_per_sessio, durades_examen_per_sessio = _durades(db)
         return ConfigPlanificador(
             config=_build_config_from_db(ConfiguracioExamenRepository.get_all(db)),
             restriccions=_build_restriccions_from_db(db),
-            durada_titular=int(durada) if durada else DEFAULT_DURADA_TITULAR,
+            durada_titular=durada_titular,
+            durada_examen=durada_examen,
             nivells_configurats=_load_json(ConfiguracioRepository.get(db, SCHEDULER_NIVELLS_KEY), []),
             nivells_master=_nivells_master(db),
             dates_configurades=_load_json(ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY), []),

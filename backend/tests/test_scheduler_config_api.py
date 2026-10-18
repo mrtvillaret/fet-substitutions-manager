@@ -220,7 +220,6 @@ def test_els_grups_combinats_s_expandeixen(client):
     per_codi = {g["codi"]: g for g in grups["grups_per_nivell"]["1-BAT"]}
     assert per_codi["1-BAT-A"] == {"codi": "1-BAT-A", "es_abreviatura": False, "grups_expandits": []}
     assert per_codi["1-BAT-AB"]["grups_expandits"] == ["1-BAT-A", "1-BAT-B"]
-    assert "09:00" in grups["hores_lectives"]
 
 
 # -------------------------------- configuració d'exàmens d'un curs anterior

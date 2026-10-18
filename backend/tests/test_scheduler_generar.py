@@ -230,3 +230,12 @@ def test_un_intent_no_viable_no_esborra_l_ultim_horari(un_nivell):
     configura(un_nivell, alliberaments_per_nivell=alliberaments(dates=DATES[:1], hores_inici=("09:00",)))
     assert _genera(un_nivell)["metadata"]["viable"] is False
     assert _col_locats(un_nivell.get("/api/scheduler/ultim-resultat").json()["resultat"]["horari"]) == _col_locats(horari)
+
+
+def test_sense_dates_no_es_pot_generar():
+    _, client = centre_amb_examens()
+    configura(client, alliberaments_per_nivell={})          # cap data als alliberaments
+    peticio = {"data_inici": DATES[0], "data_final": DATES[-1], "dies_utilitzar": DIES}
+    resp = client.post(URL, json=dict(peticio, motor="v3"))
+    assert resp.status_code == 400
+    assert "dates" in resp.json()["detail"]

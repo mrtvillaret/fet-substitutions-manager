@@ -427,32 +427,37 @@ class XMLVersionRepository:
         ).order_by(XMLVersion.data_inici.desc()).first()
 
     @staticmethod
-    def create(
-        db: Session,
-        path: str,
-        data_inici: date,
-        hash_contingut: str = None,
-        data_fi: date = None
-    ) -> XMLVersion:
-        nova = XMLVersion(
-            path=path,
-            data_inici=data_inici,
-            data_fi=data_fi,
-            hash_contingut=hash_contingut
-        )
+    def create(db: Session, path: str, data_inici: date, hash_contingut: str = None) -> XMLVersion:
+        """Una versió nova (la data de fi la posa encadena(); el commit, qui crida)."""
+        nova = XMLVersion(path=path, data_inici=data_inici, hash_contingut=hash_contingut)
         db.add(nova)
-        db.commit()
+        db.flush()
         db.refresh(nova)
         return nova
 
     @staticmethod
-    def close_current(db: Session, data_fi: date):
-        actual = db.query(XMLVersion).filter(XMLVersion.data_fi.is_(None)).order_by(
-            XMLVersion.data_inici.desc()
-        ).first()
-        if actual:
-            actual.data_fi = data_fi
-            db.commit()
+    def encadena(db: Session) -> None:
+        """Recalcula la data de fi de totes les versions (el dia abans que
+        comenci la següent; l'última, oberta), com els cursos: només es tria
+        quan comença cada versió, i així no hi pot haver forats ni solapaments.
+        També posa el punter xml_horari_path a la versió vigent avui. No fa
+        commit: va amb el canvi que l'ha fet necessari."""
+        db.flush()   # els canvis pendents (p. ex. una versió esborrada) primer
+        versions = db.query(XMLVersion).order_by(XMLVersion.data_inici.asc()).all()
+        for i, versio in enumerate(versions):
+            seguent = versions[i + 1] if i + 1 < len(versions) else None
+            nova_fi = (seguent.data_inici - timedelta(days=1)) if seguent else None
+            if versio.data_fi != nova_fi:
+                versio.data_fi = nova_fi
+        db.flush()
+        vigent = XMLVersionRepository.vigent(db)
+        punter = db.query(Configuracio).filter(Configuracio.clau == 'xml_horari_path').first()
+        valor = vigent.path if vigent else ''
+        if punter:
+            punter.valor = valor
+        elif valor:
+            db.add(Configuracio(clau='xml_horari_path', valor=valor, tipus='string',
+                                descripcio='Path del fitxer XML de FET'))
 
 
 class CursRepository:

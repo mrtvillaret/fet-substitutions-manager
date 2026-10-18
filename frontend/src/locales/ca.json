@@ -1409,11 +1409,7 @@
       "freeGroupsDesc": "Selecciona els nivells que no tenen classe durant els exàmens. Tots els grups del nivell seran marcats com a alliberats.",
       "groupsLabel": "grups:",
       "totalFreeGroups": "Total grups alliberats:",
-      "durationTitle": "Durada de l'examen",
-      "durationDesc": "Nombre d'hores lectives que dura cada examen. Els grups alliberats es crearan per totes les hores que duri l'examen.",
-      "hourSingular": "hora lectiva",
-      "hourPlural": "hores lectives",
-      "schoolHours": "Hores del centre:",
+      "durationTitle": "Què es publicarà",
       "optionClear": "Netejar vigilàncies existents per aquestes dates",
       "optionAutoAssign": "Assignar titulars automàticament",
       "successTitle": "Publicació completada",
@@ -1434,7 +1430,10 @@
       "previewTitle": "Resum de canvis previstos",
       "previewDesc": "Això és el que passarà quan confirmis la publicació. No s'ha escrit res a la base de dades encara.",
       "confirmPublish": "Confirmar publicació",
-      "publishButton": "Publica"
+      "publishButton": "Publica",
+      "durationExam": "Cada examen tindrà vigilància a totes les hores que dura per a l'alumnat (la durada del seu grup de durada o, si no en té, la durada general de l'examen).",
+      "durationTitular": "El titular s'hi assignarà a les hores en què estigui alliberat o disponible (de guàrdia); la resta les pot vigilar un altre professor.",
+      "freedGroupsInfo": "Els grups dels nivells seleccionats quedaran sense classe a les hores marcades al calendari del planificador."
     },
     "view": {
       "title": "Planificador d'exàmens",

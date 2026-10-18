@@ -18,11 +18,9 @@ from repositories import (
     MasterConfigRepository,
     ConfiguracioExamenRepository,
     ConfiguracioRepository,
-    VigilanciaRepository,
     CursRepository,
-    parse_date,
 )
-from models import ExamCostProfessor, ExamRestriccio, Vigilancia, Substitucio, GrupAlliberat, Nivell, Grup, AbreviaturaGrup
+from models import ExamCostProfessor, ExamRestriccio, Nivell, Grup, AbreviaturaGrup
 from schemas import SchedulerGenerateRequest, SchedulerDatesRequest, SchedulerRestriccionsRequest, SchedulerPinRequest, SchedulerPublicarRequest, HorariRecalcularRequest
 from routes.scheduler_service import (
     SCHEDULER_DATES_KEY,
@@ -33,11 +31,11 @@ from routes.scheduler_service import (
     SCHEDULER_DURADES_SESSIO_KEY,
     SCHEDULER_DURADES_GRUPS_KEY,
     _load_json,
-    _dies_entre_dates,
     _build_restriccions_from_db,
     _save_restriccions_to_db,
 )
 from routes.parametres import data_iso
+from routes.scheduler_planificacio import prepara_planificacio
 from routes.scheduler_config import (
     aplica_restriccions_derivades, carrega_config, horari_de_la_planificacio,
 )
@@ -49,7 +47,6 @@ from routes.scheduler_helpers import (
     _extract_assignatures_from_restriccions,
     _treu_assignatures_de_restriccions,
     _normalitzar_hora,
-    _hores_lectives_des_de_xml,
     _build_assignatures_options,
     extreure_hores_examen_des_alliberaments,
 )
@@ -83,8 +80,8 @@ from scheduler_engine.core.horaris_xml import horaris_professors as llegeix_hora
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 
 import logging
-from dependencies import dia_de_la_planificacio
 from serveis.dia import Dia
+from serveis.publicacio_examens import PublicacioExamens, data_del_dia, primera_data
 log = logging.getLogger(__name__)
 
 @router.get("/status")
@@ -102,11 +99,10 @@ async def scheduler_motors(current_user=Depends(require_admin)):
     }
 
 @router.get("/grups-nivells")
-async def scheduler_grups_nivells(current_user=Depends(require_admin), dia: Dia = Depends(dia_de_la_planificacio)):
+async def scheduler_grups_nivells(current_user=Depends(require_admin)):
     """
     Retorna tots els grups agrupats per nivell, amb les abreviatures expandides.
     Cada grup té: codi, es_abreviatura, grups_expandits (si és abreviatura).
-    També retorna les hores lectives del centre i la durada titular configurada.
     """
     with get_data_db_session(current_user.institucio) as db:
         # Carregar abreviatures per poder expandir
@@ -135,26 +131,7 @@ async def scheduler_grups_nivells(current_user=Depends(require_admin), dia: Dia 
             if grups_list:
                 result[nivell.codi] = grups_list
 
-        # Carregar durades configurades
-        d_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
-        durada_titular = int(d_raw) if d_raw else DEFAULT_DURADA_TITULAR
-        de_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_EXAMEN_KEY)
-        durada_examen_cfg = int(de_raw) if de_raw else durada_titular
-
-    # Hores lectives de l'horari del planificador
-    hores_lectives = []
-    try:
-        horari_obj = dia.horari
-        hores_lectives = horari_obj.hores or []
-    except Exception:
-        log.warning("No s'han pogut llegir les hores de l'horari", exc_info=True)
-
-    return {
-        "grups_per_nivell": result,
-        "hores_lectives": hores_lectives,
-        "durada_titular": durada_titular,
-        "durada_examen": durada_examen_cfg,
-    }
+    return {"grups_per_nivell": result}
 
 
 @router.get("/config")
@@ -519,301 +496,154 @@ async def scheduler_curs_dates(dates: str = "", current_user=Depends(require_adm
 
 # Les rutes que executen el motor (segons) són síncrones: FastAPI les atén en
 # un fil a part i el backend continua responent la resta de peticions.
+PARAMETRES_V3 = ('temperatura_inicial', 'temperatura_final', 'factor_refredament',
+                 'iteracions_per_temperatura', 'max_iteracions')
+
+
+def _executa_motor(gen, metode: str, motor: str, payload: SchedulerGenerateRequest, pla) -> dict:
+    """Genera l'horari amb el motor (els paràmetres propis de cada motor) i
+    n'apunta el temps."""
+    kwargs = {
+        'data_inici': datetime.strptime(payload.data_inici, "%Y-%m-%d").strftime("%d/%m/%Y"),
+        'data_inici_iso': payload.data_inici,
+        'dies_utilitzar': pla.dies,
+        'dia_a_data_iso': pla.dia_a_data_iso,
+        'max_dies': payload.max_dies,
+        'selected_dates': pla.dates,
+    }
+    if motor == "v2":
+        kwargs.update(max_intents_validacio=payload.max_intents_validacio, estrategia=payload.estrategia,
+                      epsilon=payload.epsilon, track_intents=True)
+    elif motor == "v2-backtrack":
+        kwargs['max_solucions'] = 100
+        for clau in ('random_seed', 'seeds_count', 'max_nodes', 'shuffle_top_n'):
+            if getattr(payload, clau) is not None:
+                kwargs[clau] = getattr(payload, clau)
+
+    import time
+    t0 = time.monotonic()
+    resultat = getattr(gen, metode)(**kwargs)
+    temps_ms = int((time.monotonic() - t0) * 1000)
+
+    if motor == "v2-backtrack":
+        # Retorna la llista de solucions: la primera, i quantes n'hi ha
+        if resultat:
+            horari = resultat[0]
+            if horari.get('metadata', {}).get('viable', True):
+                horari['metadata']['alternatives'] = len(resultat)
+                horari['metadata']['motor'] = 'v2-backtrack'
+        else:
+            horari = {'metadata': {'viable': False, 'error': 'El backtracking no ha trobat cap solució vàlida',
+                                   'motor': 'v2-backtrack'}, 'dies': []}
+    else:
+        horari = resultat
+    if isinstance(horari, dict):
+        horari.setdefault('metadata', {})['temps_generacio_ms'] = temps_ms
+    return horari
+
+
+def _marca_sessions_pendents(horari: dict, gen) -> None:
+    """Recompte per nivell de les sessions col·locades; si en falta alguna,
+    l'horari no és viable."""
+    sessions_per_nivell = getattr(gen, "sessions_per_nivell", {}) or {}
+    if not isinstance(sessions_per_nivell, dict):
+        sessions_per_nivell = {}
+    sessions = getattr(gen, "sessions", None)
+    if sessions and not any(isinstance(v, (list, tuple, set, dict)) and v for v in sessions_per_nivell.values()):
+        # El motor no les té per nivell: s'agrupen a partir de la llista
+        per_nivell = defaultdict(list)
+        for sessio in sessions:
+            nivell = sessio.get("curs") if isinstance(sessio, dict) else getattr(sessio, "curs", None)
+            if nivell:
+                per_nivell[nivell].append(sessio)
+        sessions_per_nivell = per_nivell
+    _afegir_recompte_nivells(horari, sessions_per_nivell)
+    recompte = (horari.get("metadata") or {}).get("recompte_nivells") or {}
+    pendents = sum((info or {}).get("pendents", 0) for info in recompte.values())
+    if pendents > 0:
+        meta = horari.setdefault("metadata", {})
+        meta.setdefault("logs", []).append(f"⚠️ Sessions pendents de col·locar: {pendents}")
+        if meta.get("viable", True):
+            meta["viable"] = False
+            meta["error"] = "No s'han pogut col·locar tots els exàmens"
+
+
+def _explica_no_viable(horari: dict, gen, pla) -> None:
+    """Per què no s'han pogut col·locar tots els exàmens: el diagnòstic de
+    restriccions o, si no en dona cap, el que n'ha dit el motor."""
+    meta = horari['metadata']
+    error = meta.get('error', 'No és possible col·locar tots els exàmens')
+    incompat = (_diagnosticar_incompatibilitats(gen=gen, restriccions=pla.restriccions, dies_utilitzar=pla.dies,
+                                                dia_a_data_iso=pla.dia_a_data_iso,
+                                                alliberaments_cfg=pla.cfg.alliberaments,
+                                                nivells_actius=pla.nivells)
+                or meta.get('incompatibilitats')
+                or getattr(gen, '_incompatibilitats_bt', [])
+                or _identificar_sessions_no_collocades(horari, gen))
+    if incompat:
+        meta['incompatibilitats'] = incompat
+    meta['logs'] = list(dict.fromkeys(meta.get('logs', []) + [f"❌ {error}"]))
+
+
 @router.post("/generate")
 def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
-    cfg = carrega_config(current_user.institucio)
-    restriccions = cfg.restriccions
+    with prepara_planificacio(payload, current_user.institucio) as pla:
+        if not pla.dates:
+            # La pantalla no ho permet: els motors col·loquen exàmens en dates concretes
+            raise HTTPException(status_code=400, detail="Cal triar les dates dels exàmens")
+        motor = (payload.motor or "v3").lower()
+        parametres = {k: getattr(payload, k, None) for k in PARAMETRES_V3
+                      if motor == "v3" and getattr(payload, k, None) is not None}
 
-    # Derivar hores d'examen únicament dels alliberaments (marques i=true)
-    h_cfg, hpn_cfg = extreure_hores_examen_des_alliberaments(cfg.alliberaments)
-
-    xml_path = Dia.de_text(payload.data_inici, current_user.institucio).xml_path
-    if not xml_path or not os.path.exists(xml_path): raise HTTPException(status_code=400, detail="XML missing")
-
-    dies_util = payload.dies_utilitzar or _dies_entre_dates(payload.data_inici, payload.data_final or payload.data_inici)
-    nivells_actius = cfg.nivells_actius(payload.nivells_actius)
-    selected_dates = cfg.dates(payload.selected_dates, nivells_actius)
-    dia_a_data_iso = construir_mapa_dia_data_iso(
-        dies_utilitzar=dies_util,
-        selected_dates=selected_dates,
-        data_inici_iso=payload.data_inici,
-    )
-
-    # Derivar slots vàlids per nivell des de les marques (inici examen) del Tab 1.
-    hores_xml = _hores_lectives_des_de_xml(xml_path, fallback=h_cfg)
-    aplica_restriccions_derivades(restriccions, cfg.alliberaments, nivells_actius, dies_util, dia_a_data_iso, hores_xml)
-
-    data_inici_fmt = datetime.strptime(payload.data_inici, "%Y-%m-%d").strftime("%d/%m/%Y")
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as cfg_f: json.dump(cfg.config, cfg_f, ensure_ascii=False); cfg_p = cfg_f.name
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as res_f: json.dump(restriccions, res_f, ensure_ascii=False); res_p = res_f.name
-
-    try:
         from captura_sortida import captura_stdout
-        with captura_stdout() as f:
-            motor = (payload.motor or "v3").lower()
-
-            # Crear motor via factory (elimina duplicació de constructor)
-            from scheduler_engine.factory import crear_motor
-            override_params = {}
-            if motor == "v3":
-                for key in ('temperatura_inicial', 'temperatura_final', 'factor_refredament',
-                            'iteracions_per_temperatura', 'max_iteracions'):
-                    val = getattr(payload, key, None)
-                    if val is not None:
-                        override_params[key] = val
-
-            gen, method_name = crear_motor(
-                motor, cfg_p, xml_path,
-                restriccions_path=res_p,
-                ultim_professor=cfg.ultim_professor,
-                nivells_actius=nivells_actius,
-                hores_examen=h_cfg,
-                hores_per_nivell=hpn_cfg,
-                durada_titular=cfg.durada_titular,
-                no_substituir=cfg.no_substituir,
-                alliberaments_per_nivell=cfg.alliberaments,
-                durades_per_sessio=cfg.durades_per_sessio,
-                durades_examen_per_sessio=cfg.durades_examen_per_sessio,
-                **override_params
-            )
-            gen.carregar_dades()
-            gen.carregar_horaris_professors()
-
-            precheck_incompat = _precheck_incompatibilitats_deterministes(
-                gen=gen,
-                restriccions=restriccions,
-                dies_utilitzar=dies_util,
-                nivells_actius=nivells_actius,
-                selected_dates=selected_dates,
-            )
-
-            if precheck_incompat:
-                horari = {
-                    'dies': [],
-                    'metadata': {
-                        'viable': False,
-                        'error': "No s'han pogut col·locar tots els exàmens",
-                        'incompatibilitats': precheck_incompat,
-                        'motor': motor,
-                        'logs': ["❌ Precheck de viabilitat: incompatibilitats deterministes detectades"],
-                    }
-                }
+        with captura_stdout() as sortida:
+            gen, metode = pla.motor(motor, **parametres)
+            incompatibilitats = _precheck_incompatibilitats_deterministes(
+                gen=gen, restriccions=pla.restriccions, dies_utilitzar=pla.dies,
+                nivells_actius=pla.nivells, selected_dates=pla.dates)
+            if incompatibilitats:
+                horari = {'dies': [], 'metadata': {
+                    'viable': False, 'error': "No s'han pogut col·locar tots els exàmens",
+                    'incompatibilitats': incompatibilitats, 'motor': motor,
+                    'logs': ["❌ Precheck de viabilitat: incompatibilitats deterministes detectades"]}}
             else:
-                # Preparar arguments específics del mètode
-                method = getattr(gen, method_name)
-                method_kwargs = {
-                    'data_inici': data_inici_fmt,
-                    'data_inici_iso': payload.data_inici,  # Format YYYY-MM-DD per als alliberaments
-                    'dies_utilitzar': dies_util,
-                    'dia_a_data_iso': dia_a_data_iso,
-                    'max_dies': payload.max_dies,
-                    'selected_dates': selected_dates,
-                }
-                if motor == "v2":
-                    method_kwargs.update({
-                        'max_intents_validacio': payload.max_intents_validacio,
-                        'estrategia': payload.estrategia,
-                        'epsilon': payload.epsilon,
-                        'track_intents': True,
-                    })
-                elif motor == "v2-backtrack":
-                    method_kwargs['max_solucions'] = 100
-                    if payload.random_seed is not None:
-                        method_kwargs['random_seed'] = payload.random_seed
-                    if payload.seeds_count is not None:
-                        method_kwargs['seeds_count'] = payload.seeds_count
-                    if payload.max_nodes is not None:
-                        method_kwargs['max_nodes'] = payload.max_nodes
-                    if payload.shuffle_top_n is not None:
-                        method_kwargs['shuffle_top_n'] = payload.shuffle_top_n
-
-                import time as _time
-                _t0 = _time.monotonic()
-                result = method(**method_kwargs)
-                _temps_ms = int((_time.monotonic() - _t0) * 1000)
-
-                # Post-processament per v2-backtrack (retorna llista)
-                if motor == "v2-backtrack":
-                    if result:
-                        horari = result[0]
-                        if horari.get('metadata', {}).get('viable', True):
-                            horari['metadata']['alternatives'] = len(result)
-                            horari['metadata']['motor'] = 'v2-backtrack'
-                    else:
-                        horari = {
-                            'metadata': {
-                                'viable': False,
-                                'error': 'El backtracking no ha trobat cap solució vàlida',
-                                'motor': 'v2-backtrack'
-                            },
-                            'dies': []
-                        }
-                else:
-                    horari = result
-
-                if isinstance(horari, dict):
-                    horari.setdefault('metadata', {})['temps_generacio_ms'] = _temps_ms
+                horari = _executa_motor(gen, metode, motor, payload, pla)
 
         if isinstance(horari, dict):
-            sessions_per_nivell = getattr(gen, "sessions_per_nivell", {}) or {}
-            if not isinstance(sessions_per_nivell, dict):
-                sessions_per_nivell = {}
-            has_expected = False
-            for v in sessions_per_nivell.values():
-                if isinstance(v, (list, tuple, set)) and v:
-                    has_expected = True
-                    break
-                if isinstance(v, dict) and v:
-                    has_expected = True
-                    break
-            if not has_expected:
-                sessions_list = getattr(gen, "sessions", None)
-                if sessions_list:
-                    tmp = defaultdict(list)
-                    for s in sessions_list:
-                        nivell = getattr(s, "curs", None) if not isinstance(s, dict) else s.get("curs")
-                        if nivell:
-                            tmp[nivell].append(s)
-                    sessions_per_nivell = tmp
-            _afegir_recompte_nivells(horari, sessions_per_nivell)
-            recompte = ((horari.get("metadata") or {}).get("recompte_nivells") or {})
-            pendents_total = sum((info or {}).get("pendents", 0) for info in recompte.values())
-            if pendents_total > 0:
-                meta_h = horari.setdefault("metadata", {})
-                meta_h.setdefault("logs", []).append(
-                    f"⚠️ Sessions pendents de col·locar: {pendents_total}"
-                )
-                if meta_h.get("viable", True):
-                    meta_h["viable"] = False
-                    meta_h["error"] = "No s'han pogut col·locar tots els exàmens"
+            _marca_sessions_pendents(horari, gen)
 
-        # FORA de la captura - validació post-generació
         if horari and "metadata" in horari:
-            meta = horari.get('metadata', {})
-
-            # Comprovar viabilitat
+            meta = horari['metadata']
             if not meta.get('viable', True):
-                error_msg = meta.get('error', 'No és possible col·locar tots els exàmens')
-                incompat = _diagnosticar_incompatibilitats(
-                    gen=gen,
-                    restriccions=restriccions,
-                    dies_utilitzar=dies_util,
-                    dia_a_data_iso=dia_a_data_iso,
-                    alliberaments_cfg=cfg.alliberaments,
-                    nivells_actius=nivells_actius,
-                )
-                if not incompat:
-                    # Prioritat 2: missatges propis del motor (ex: ítem sense slot de v3-SA)
-                    incompat = meta.get('incompatibilitats') or []
-                if not incompat:
-                    # Prioritat 2.5: infactibilitats del motor (ex: items exclosos backtrack o dead-end)
-                    incompat = getattr(gen, '_incompatibilitats_bt', []) or []
-                if not incompat:
-                    # Prioritat 3: identificació per nom + fallback recompte_nivells
-                    incompat = _identificar_sessions_no_collocades(horari, gen)
-                if incompat:
-                    meta['incompatibilitats'] = incompat
-                logs_viable = meta.setdefault('logs', [])
-                logs_viable.append(f"❌ {error_msg}")
-                seen_logs = set()
-                horari['metadata']['logs'] = [l for l in logs_viable if not (l in seen_logs or seen_logs.add(l))]
+                _explica_no_viable(horari, gen, pla)
                 return {"status": "ok", "horari": horari}
 
-            # Validar horari contra restriccions
+            # Incidències: les del motor, la sortida capturada i la validació
             from scheduler_engine.validacio import ValidadorHorari
-            validador = ValidadorHorari(horari, restriccions, cfg.no_substituir)
-            validation_result = validador.validar()
+            validacio = ValidadorHorari(horari, pla.restriccions, pla.cfg.no_substituir).validar()
+            logs = [l.strip() for l in meta.get("logs", []) if l.strip()]
+            logs += [l.strip() for l in sortida.getvalue().splitlines() if l.strip()]
+            logs += validacio["logs"]
+            meta["logs"] = list(dict.fromkeys(logs))
 
-            # Capturar tots els logs: motor metadata + stdout capturada + validació
-            raw_logs = []
-            raw_logs.extend([line.strip() for line in meta.get("logs", []) if line.strip()])
-            raw_logs.extend([line.strip() for line in f.getvalue().splitlines() if line.strip()])
-            raw_logs.extend(validation_result["logs"])
-            # Dedup mantenint ordre
-            seen = set()
-            horari["metadata"]["logs"] = [l for l in raw_logs if not (l in seen or seen.add(l))]
-
-        _desa_ultim_resultat(current_user.institucio, horari, dies_util)
-        return {"dies_utilitzar": dies_util, "horari": horari}
-    finally:
-        for p in (cfg_p, res_p):
-            try:
-                os.remove(p)
-            except OSError:
-                pass
+        _desa_ultim_resultat(current_user.institucio, horari, pla.dies)
+        return {"dies_utilitzar": pla.dies, "horari": horari}
 
 
 def _informes_analisi(payload: SchedulerGenerateRequest, institucio: str) -> dict:
     """Els tres informes de l'anàlisi de disponibilitat (per franja, per
-    examen i professors per franja) amb el motor v2, com a /analisi i al PDF."""
-    cfg = carrega_config(institucio)
-    restriccions = cfg.restriccions
-
-    h_cfg, hpn_cfg = extreure_hores_examen_des_alliberaments(cfg.alliberaments)
-
-    xml_path = Dia.de_text(payload.data_inici, institucio).xml_path
-    if not xml_path or not os.path.exists(xml_path):
-        raise HTTPException(status_code=400, detail="XML missing")
-
-    dies_util = payload.dies_utilitzar or _dies_entre_dates(payload.data_inici, payload.data_final or payload.data_inici)
-    nivells_actius = cfg.nivells_actius(payload.nivells_actius)
-    selected_dates = cfg.dates(None, nivells_actius)  # (les de la petició no hi compten)
-    dia_a_data_iso = construir_mapa_dia_data_iso(
-        dies_utilitzar=dies_util,
-        selected_dates=selected_dates,
-        data_inici_iso=payload.data_inici,
-    )
-
-    # Derivar slots vàlids per nivell (inici examen)
-    hores_xml = _hores_lectives_des_de_xml(xml_path, fallback=h_cfg)
-    aplica_restriccions_derivades(restriccions, cfg.alliberaments, nivells_actius, dies_util, dia_a_data_iso, hores_xml)
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as cfg_f:
-        json.dump(cfg.config, cfg_f, ensure_ascii=False)
-        cfg_p = cfg_f.name
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as res_f:
-        json.dump(restriccions, res_f, ensure_ascii=False)
-        res_p = res_f.name
-
-    try:
-        from scheduler_engine.factory import crear_motor
-        gen, _ = crear_motor(
-            "v2",
-            cfg_p,
-            xml_path,
-            restriccions_path=res_p,
-            ultim_professor=cfg.ultim_professor,
-            nivells_actius=nivells_actius,
-            hores_examen=h_cfg,
-            hores_per_nivell=hpn_cfg,
-            durada_titular=cfg.durada_titular,
-            no_substituir=cfg.no_substituir,
-            alliberaments_per_nivell=cfg.alliberaments,
-            durades_per_sessio=cfg.durades_per_sessio,
-            durades_examen_per_sessio=cfg.durades_examen_per_sessio,
-        )
-        gen.carregar_dades()
-        gen.carregar_horaris_professors()
-        gen.dia_a_data_iso = {normalitzar_dia(k): v for k, v in (dia_a_data_iso or {}).items() if v}
-        dies_analisi = _expandir_dies_per_analisi(dies_util, gen.dia_a_data_iso)
-
+    examen i professors per franja) amb el motor v2, com a /analisi i al PDF.
+    Les dates són les desades a la configuració (no les de la petició)."""
+    with prepara_planificacio(payload, institucio, dates_de_la_peticio=False) as pla:
+        gen, _ = pla.motor("v2")
+        gen.dia_a_data_iso = {normalitzar_dia(k): v for k, v in (pla.dia_a_data_iso or {}).items() if v}
+        dies_analisi = _expandir_dies_per_analisi(pla.dies, gen.dia_a_data_iso)
         matriu_costos = gen._analitzar_tots_slots(dies_analisi)
-        informe_slots = gen.generar_informe_per_slots(matriu_costos, dies_analisi)
-        informe_sessio = gen.generar_informe_disponibilitat(matriu_costos, dies_analisi)
-        informe_prof = gen.generar_informe_professors_per_slot(dies_analisi)
-
         return {
-            "per_slots": informe_slots,
-            "per_sessio": informe_sessio,
-            "professors_slot": informe_prof
+            "per_slots": gen.generar_informe_per_slots(matriu_costos, dies_analisi),
+            "per_sessio": gen.generar_informe_disponibilitat(matriu_costos, dies_analisi),
+            "professors_slot": gen.generar_informe_professors_per_slot(dies_analisi),
         }
-    finally:
-        for p in (cfg_p, res_p):
-            try:
-                os.remove(p)
-            except OSError:
-                pass
 
 
 @router.post("/analisi")
@@ -850,7 +680,6 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
     horari = payload.horari
     setmanes = payload.setmanes
     grups_sense_classe = payload.grups_sense_classe or []
-    durada_examen = max(1, payload.durada_examen)
     opcions = payload.opcions
     dry_run = payload.dry_run
 
@@ -869,276 +698,51 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
             f"({anterior['curs_actual']}). El planificador fa servir la configuració d'exàmens del "
             "curs actual; les vigilàncies de cursos anteriors es consulten a Vigilàncies."))
 
-    # Carregar hores lectives del centre (per expandir durada)
+    # Hores lectives del centre (per allargar els exàmens de més d'una hora)
     totes_hores = []
-    # Trobar la primera data per carregar l'XML
-    primera_data = None
-    for die in horari.get('dies', []):
-        primera_data = die.get('data') if isinstance(die, dict) else None
-        if primera_data:
-            break
-    if not primera_data:
-        for setmana in setmanes:
-            for dia_nom in horari.get('dies', []):
-                d = setmana.get(dia_nom.get('dia', '')) if isinstance(dia_nom, dict) else setmana.get(dia_nom, '')
-                if d:
-                    primera_data = d
-                    break
-            if primera_data:
-                break
-
-    if primera_data:
+    data_hores = primera_data(horari, setmanes)
+    if data_hores:
         try:
-            horari_obj = Dia.de_text(primera_data, current_user.institucio).horari
-            totes_hores = horari_obj.hores or []
+            totes_hores = Dia.de_text(data_hores, current_user.institucio).horari.hores or []
         except Exception as e:
-            import logging
-            logging.warning(f"No s'han pogut carregar hores lectives: {e}")
-
-    dates_processades = []
-    vigilancies_creades = 0
-    vigilancies_actualitzades = 0
-    vigilancies_sense_canvis = 0
-    vigilancies_eliminades = 0
-    grups_alliberats_creats = 0
-    titulars_assignats = 0
-    errors = []
-    # (data, hora) on s'ha esborrat alguna vigilància: cal refrescar-ne les
-    # cobertures de classe dels vigilants (com fa esborrar-la a vigilàncies).
-    hores_amb_vigilancies_esborrades = set()
+            log.warning(f"No s'han pogut carregar hores lectives: {e}")
 
     with get_data_db_session(current_user.institucio) as db:
-        alliberaments_raw = ConfiguracioRepository.get(db, SCHEDULER_ALLIBERAMENTS_KEY)
-        alliberaments_cfg = _load_json(alliberaments_raw, {})
-        nivells_alliberaments = list(alliberaments_cfg.keys()) if isinstance(alliberaments_cfg, dict) else []
-
-        def _nivell_per_grup(grup: str) -> str | None:
-            if not grup:
-                return None
-            for nivell in nivells_alliberaments:
-                if nivell and nivell in grup:
-                    return nivell
-            try:
-                from scheduler_engine.core.constraints import detectar_nivell_grup
-                nivell = detectar_nivell_grup(grup, nivells_alliberaments)
-                return None if nivell == 'altres' else nivell
-            except Exception:
-                log.warning("No s'ha pogut detectar el nivell d'un grup", exc_info=True)
-                return None
-
-        def _hores_alliberades(nivell: str, data_iso: str) -> list[str]:
-            data_cfg = (alliberaments_cfg or {}).get(nivell, {})
-            dia_cfg = (data_cfg.get('config') or {}).get(data_iso, {})
-            hores = []
-            for h, flags in (dia_cfg or {}).items():
-                if isinstance(flags, dict) and flags.get('a'):
-                    hores.append(_normalitzar_hora(h))
-            if totes_hores:
-                ordre = {h: i for i, h in enumerate(totes_hores)}
-                hores = sorted(set(hores), key=lambda h: ordre.get(h, 10**9))
-            else:
-                hores = sorted(set(hores))
-            return hores
-
+        publicacio = PublicacioExamens(db, carrega_config(current_user.institucio), totes_hores,
+                                       grups_sense_classe, opcions.netejar_existents)
+        resum = publicacio.resum
         for dia_info in horari['dies']:
-            dia_nom = dia_info.get('dia', '')
-            data_iso = dia_info.get('data')
-            if not data_iso:
-                for setmana in setmanes:
-                    d = setmana.get(dia_nom)
-                    if d:
-                        data_iso = d
-                        break
+            data_iso = data_del_dia(dia_info, setmanes)
             if not data_iso:
                 continue
-
-            data_parsed = parse_date(data_iso)
-            dates_processades.append(data_iso)
-
+            resum.dates.append(data_iso)
             try:
-                # Mode forçat: esborra tot i recrea (opció d'emergència)
-                if opcions.netejar_existents:
-                    for (hora_esborrada,) in db.query(Vigilancia.hora).filter(Vigilancia.data == data_parsed).distinct():
-                        hores_amb_vigilancies_esborrades.add((data_iso, hora_esborrada))
-                    deleted = db.query(Vigilancia).filter(
-                        Vigilancia.data == data_parsed
-                    ).delete(synchronize_session=False)
-                    vigilancies_eliminades += deleted
-                    db.query(GrupAlliberat).filter(
-                        GrupAlliberat.data == data_parsed
-                    ).delete(synchronize_session=False)
-                    db.query(Substitucio).filter(
-                        Substitucio.data == data_parsed,
-                        Substitucio.tipus_absencia == "VIGILANCIA"
-                    ).delete(synchronize_session=False)
-                    db.flush()
-
-                # 1. Construir el conjunt de vigilàncies que ha de quedar
-                # Clau: (hora, nivell, grups) — preserva vigilant i comentaris
-                # Detectar els nivells presents en aquest dia de l'horari
-                nivells_dia = set()
-                for slot in dia_info.get('sessions', []):
-                    for sessio in slot.get('sessions_simultanees', []):
-                        if sessio.get('curs'):
-                            nivells_dia.add(sessio['curs'])
-
-                # Carregar NOMÉS les existents d'aquests nivells (no tocar els altres nivells)
-                # Clau: (hora, nivell, grups, aula) — aula necessari per distingir exàmens
-                # del mateix grup en sales diferents dins el mateix slot
-                existing_vigs = {
-                    (v.hora, v.nivell or '', v.grups or '', v.aula or ''): v
-                    for v in db.query(Vigilancia).filter(
-                        Vigilancia.data == data_parsed,
-                        Vigilancia.nivell.in_(list(nivells_dia)) if nivells_dia else False
-                    ).all()
-                }
-                noves_claus = set()
-
-                for slot in dia_info.get('sessions', []):
-                    hora_inici = slot.get('hora', '')
-                    if not hora_inici:
-                        continue
-
-                    hores_vigilancia = [hora_inici]
-                    if durada_examen > 1 and totes_hores and hora_inici in totes_hores:
-                        idx = totes_hores.index(hora_inici)
-                        hores_vigilancia = totes_hores[idx:idx + durada_examen]
-
-                    for sessio in slot.get('sessions_simultanees', []):
-                        curs = sessio.get('curs', '')
-                        for examen in sessio.get('examens', []):
-                            grup = examen.get('grup', '')
-                            aula = examen.get('aula', '') or ''
-                            tipus = examen.get('assignatura') or sessio.get('nom_base') or sessio.get('nom', '')
-
-                            for hora in hores_vigilancia:
-                                clau = (hora, curs, grup, aula)
-                                noves_claus.add(clau)
-
-                                if clau in existing_vigs:
-                                    v = existing_vigs[clau]
-                                    if (v.tipus or '') != tipus:
-                                        v.tipus = tipus
-                                        vigilancies_actualitzades += 1
-                                    else:
-                                        vigilancies_sense_canvis += 1
-                                else:
-                                    vig = Vigilancia(
-                                        data=data_parsed,
-                                        hora=hora,
-                                        tipus=tipus,
-                                        grups=grup,
-                                        aula=aula,
-                                        vigilant=None,
-                                        comentaris='',
-                                        nivell=curs
-                                    )
-                                    db.add(vig)
-                                    vigilancies_creades += 1
-
-                # Eliminar NOMÉS les d'aquests nivells que ja no estan a l'horari
-                for clau, v in existing_vigs.items():
-                    if clau not in noves_claus:
-                        hores_amb_vigilancies_esborrades.add((data_iso, v.hora))
-                        db.delete(v)
-                        vigilancies_eliminades += 1
-
-                # 2. Grups alliberats: obtenir els grups dels nivells del dia des de la BD
-                if not grups_sense_classe:
-                    grups_dia = []
-                    for niv in nivells_dia:
-                        nivell_obj = db.query(Nivell).filter(Nivell.codi == niv).first()
-                        if nivell_obj:
-                            grups_niv = db.query(Grup).filter(
-                                Grup.nivell_id == nivell_obj.id, Grup.actiu == True
-                            ).all()
-                            grups_dia.extend(g.codi for g in grups_niv)
-                else:
-                    grups_dia = grups_sense_classe
-
-                # Deduplicar GrupAlliberat per (hora, grups)
-                existing_ga = {
-                    (ga.hora, ga.grups or '')
-                    for ga in db.query(GrupAlliberat).filter(GrupAlliberat.data == data_parsed).all()
-                }
-                for grup in grups_dia:
-                    nivell = _nivell_per_grup(grup)
-                    if not nivell:
-                        continue
-                    for hora in _hores_alliberades(nivell, data_iso):
-                        if (hora, grup) not in existing_ga:
-                            db.add(GrupAlliberat(data=data_parsed, hora=hora, grups=grup))
-                            grups_alliberats_creats += 1
-
-                db.flush()
-
+                publicacio.publica_dia(dia_info, data_iso)
             except Exception as e:
-                errors.append(f"{data_iso}: {str(e)}")
-                continue
+                resum.errors.append(f"{data_iso}: {str(e)}")
 
-        # 4. Auto-assignar titulars si cal (no en dry_run)
-        if opcions.auto_assign_titulars and not errors and not dry_run:
-            try:
-                from helpers import assign_phase1_titulars
-                for data_iso in sorted(set(dates_processades)):
-                    db.flush()
-                    vigilancies_dict = VigilanciaRepository.get_by_date(db, data_iso)
-                    all_vigl = []
-                    for nivell_vigs in vigilancies_dict.values():
-                        all_vigl.extend(nivell_vigs)
+        if opcions.auto_assign_titulars and not resum.errors and not dry_run:
+            publicacio.assigna_titulars(current_user.institucio)
 
-                    if not all_vigl:
-                        continue
-
-                    try:
-                        core = Dia.de_text(data_iso, current_user.institucio).vigilancia_core(db)
-                        vigilants_global = {}
-                        for v in all_vigl:
-                            h = v.get('hora', '')
-                            vigilants_global.setdefault(h, set())
-                            if v.get('vigilant'):
-                                vigilants_global[h].add(v['vigilant'])
-
-                        assign_phase1_titulars(all_vigl, core, vigilants_global, db)
-                        for v in all_vigl:
-                            if v.get('vigilant'):
-                                db_id = v.get('db_id') or v.get('id')
-                                if db_id:
-                                    vig_obj = db.query(Vigilancia).filter(
-                                        Vigilancia.id == int(db_id)
-                                    ).first()
-                                    if vig_obj and not vig_obj.vigilant:
-                                        vig_obj.vigilant = v['vigilant']
-                                        titulars_assignats += 1
-                    except Exception as e:
-                        errors.append(f"Auto-assignació {data_iso}: {str(e)}")
-            except ImportError:
-                errors.append("No s'ha pogut importar el mòdul d'assignació de titulars")
-
-        if dry_run or errors:
+        if dry_run or resum.errors:
             db.rollback()
         else:
             db.commit()
             from serveis.cobertures import refresca_cobertures
-            for data_iso, hora in sorted(hores_amb_vigilancies_esborrades):
+            for data_iso, hora in sorted(resum.hores_esborrades):
                 refresca_cobertures(data_iso, hora, db)
 
     return {
-        "success": len(errors) == 0,
+        "success": len(resum.errors) == 0,
         "dry_run": dry_run,
-        "dates_processades": sorted(set(dates_processades)),
-        "vigilancies_creades": vigilancies_creades,
-        "vigilancies_actualitzades": vigilancies_actualitzades,
-        "vigilancies_sense_canvis": vigilancies_sense_canvis,
-        "vigilancies_eliminades": vigilancies_eliminades,
-        "grups_alliberats_creats": grups_alliberats_creats,
-        "titulars_assignats": titulars_assignats,
-        "errors": errors if errors else None,
-        "debug": {
-            "durada_examen_rebuda": durada_examen,
-            "hores_lectives_carregades": len(totes_hores),
-            "hores_lectives": totes_hores[:5] if totes_hores else []
-        }
+        "dates_processades": sorted(set(resum.dates)),
+        "vigilancies_creades": resum.creades,
+        "vigilancies_actualitzades": resum.actualitzades,
+        "vigilancies_sense_canvis": resum.sense_canvis,
+        "vigilancies_eliminades": resum.eliminades,
+        "grups_alliberats_creats": resum.grups_alliberats,
+        "titulars_assignats": resum.titulars,
+        "errors": resum.errors or None,
     }
 
 

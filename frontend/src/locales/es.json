@@ -1406,11 +1406,7 @@
       "freeGroupsDesc": "Selecciona los niveles que no tienen clase durante los exámenes. Todos los grupos del nivel serán marcados como liberados.",
       "groupsLabel": "grupos:",
       "totalFreeGroups": "Total grupos liberados:",
-      "durationTitle": "Duración del examen",
-      "durationDesc": "Número de horas lectivas que dura cada examen. Los grupos liberados se crearán para todas las horas que dure el examen.",
-      "hourSingular": "hora lectiva",
-      "hourPlural": "horas lectivas",
-      "schoolHours": "Horas del centro:",
+      "durationTitle": "Qué se publicará",
       "optionClear": "Limpiar vigilancias existentes para estas fechas",
       "optionAutoAssign": "Asignar titulares automáticamente",
       "successTitle": "Publicación completada",
@@ -1431,7 +1427,10 @@
       "previewTitle": "Resumen de cambios previstos",
       "previewDesc": "Esto es lo que pasará cuando confirmes la publicación. Todavía no se ha escrito nada en la base de datos.",
       "confirmPublish": "Confirmar publicación",
-      "publishButton": "Publicar"
+      "publishButton": "Publicar",
+      "durationExam": "Cada examen tendrá vigilancia en todas las horas que dura para el alumnado (la duración de su grupo de duración o, si no tiene, la duración general del examen).",
+      "durationTitular": "El titular se asignará a las horas en que esté liberado o disponible (de guardia); el resto las puede vigilar otro profesor.",
+      "freedGroupsInfo": "Los grupos de los niveles seleccionados quedarán sin clase en las horas marcadas en el calendario del planificador."
     },
     "view": {
       "title": "Planificador de exámenes",

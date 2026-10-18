@@ -1406,11 +1406,7 @@
       "freeGroupsDesc": "Select the levels that don't have class during exams. All groups of the level will be marked as released.",
       "groupsLabel": "groups:",
       "totalFreeGroups": "Total released groups:",
-      "durationTitle": "Exam duration",
-      "durationDesc": "Number of class hours each exam lasts. Released groups will be created for all hours the exam lasts.",
-      "hourSingular": "class hour",
-      "hourPlural": "class hours",
-      "schoolHours": "School hours:",
+      "durationTitle": "What will be published",
       "optionClear": "Clear existing vigilancies for these dates",
       "optionAutoAssign": "Auto-assign titulars",
       "successTitle": "Publication completed",
@@ -1431,7 +1427,10 @@
       "previewTitle": "Preview of planned changes",
       "previewDesc": "This is what will happen when you confirm publication. Nothing has been written to the database yet.",
       "confirmPublish": "Confirm publication",
-      "publishButton": "Publish"
+      "publishButton": "Publish",
+      "durationExam": "Each exam will be supervised for all the hours it lasts for students (its duration group's duration or, if it has none, the general exam duration).",
+      "durationTitular": "The subject teacher will be assigned to the hours when they are freed or available (on duty); another teacher can supervise the rest.",
+      "freedGroupsInfo": "Groups of the selected levels will have no class at the hours marked in the planner calendar."
     },
     "view": {
       "title": "Exam Scheduler",

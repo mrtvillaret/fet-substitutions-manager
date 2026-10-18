@@ -51,10 +51,13 @@ ASSIGNACIONS = {
 # Snapshot de regressió amb les dades d'aquest fitxer.
 # 310 = 250 + 60: l'examen de «2.4» cau en dimarts, el dia que el seu titular
 # (Prof 3) no té cap activitat, i compta el cost de «no treballa aquest dia».
+# 330 des que arribar abans o quedar-se després compta cada hora d'espera (pati
+# inclòs): abans, 310 amb 5 hores d'arribar abans i 2 substitucions; ara els
+# motors prefereixen 3 arribades abans i 3 substitucions.
 EXPECTED_SNAPSHOT = {
-    "v2": {"cost_total": 310.0, "total_sessions": 9},
-    "v2-backtrack": {"cost_total": 310, "total_sessions": 9},
-    "v3": {"cost_total": 310.0, "total_sessions": 9},
+    "v2": {"cost_total": 330.0, "total_sessions": 9},
+    "v2-backtrack": {"cost_total": 330, "total_sessions": 9},
+    "v3": {"cost_total": 330.0, "total_sessions": 9},
 }
 
 

@@ -8,7 +8,7 @@ Routes per gestió de fitxers:
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import FileResponse
 from typing import Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import hashlib
 import io
 import os
@@ -126,10 +126,8 @@ async def upload_xml(
 
             # Si és el mateix XML que l'actual, no crear nova versió
             if current_version and current_version.hash_contingut == hash_contingut:
-                ConfiguracioRepository.set(
-                    db, 'xml_horari_path', current_version.path,
-                    'Path del fitxer XML de FET'
-                )
+                XMLVersionRepository.encadena(db)
+                db.commit()
                 return {
                     "success": True,
                     "filename": nom_original,
@@ -157,11 +155,8 @@ async def upload_xml(
                         data_inici=date(2000, 1, 1),
                         hash_contingut=previous_hash
                     )
-
-                    ConfiguracioRepository.set(
-                        db, 'xml_horari_path', stored_prev_path,
-                        'Path del fitxer XML de FET'
-                    )
+                    XMLVersionRepository.encadena(db)
+                    db.commit()
 
                     return {
                         "success": True,
@@ -174,7 +169,6 @@ async def upload_xml(
                     db,
                     path=stored_prev_path,
                     data_inici=date(2000, 1, 1),
-                    data_fi=vigent_des_de - timedelta(days=1),
                     hash_contingut=previous_hash
                 )
 
@@ -189,25 +183,17 @@ async def upload_xml(
             except ValueError:
                 pass
 
-            # Tancar versió anterior el dia abans que entri en vigor la nova
-            if current_version:
-                XMLVersionRepository.close_current(db, vigent_des_de - timedelta(days=1))
-
             XMLVersionRepository.create(
                 db,
                 path=stored_path,
                 data_inici=vigent_des_de,
                 hash_contingut=hash_contingut
             )
-
-            # El punter "actual" només es mou si la nova versió ja és vigent avui.
-            # Si es prepara un horari futur, l'XML vigent continua sent l'anterior.
+            # L'anterior es tanca el dia abans que entri en vigor la nova; el
+            # punter "actual" només es mou si la nova ja és vigent avui
+            XMLVersionRepository.encadena(db)
+            db.commit()
             es_vigent_avui = vigent_des_de <= date.today()
-            if es_vigent_avui:
-                ConfiguracioRepository.set(
-                    db, 'xml_horari_path', stored_path,
-                    'Path del fitxer XML de FET'
-                )
 
         # Invalidar cache del horari per forçar recàrrega del nou XML
         from helpers import invalidar_horari
