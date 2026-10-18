@@ -93,9 +93,7 @@ export const useSchedulerApi = ({
   aplicarDefaultsMotor,
   sincronitzarDatesGlobals,
   aplicarRestriccions,
-  serializeAlliberaments,
   desarMotorConfig,
-  flushPendingConfigSave,
   desarTotAlBackend,
   formatLocalDate,
   horariPlanificacio,
@@ -186,7 +184,7 @@ export const useSchedulerApi = ({
       }
 
       configReady.value = true
-    } catch (error) {
+    } catch {
       toast.add({ severity: 'error', summary: t('common.error') })
     } finally {
       loading.value = false
@@ -220,7 +218,7 @@ export const useSchedulerApi = ({
       result.value.horari.metadata.professors_abans = data.stats?.professors_abans || 0
       result.value.horari.metadata.professors_despres = data.stats?.professors_despres || 0
       result.value.horari.metadata.professors_no_treballa = data.stats?.professors_no_treballa || 0
-    } catch (error) {
+    } catch {
       // Silenciem errors per no bloquejar la UI
     }
   }
@@ -271,7 +269,7 @@ export const useSchedulerApi = ({
       if (meta?.viable !== false) {
         await recalcularCostVisualitzacio()
       }
-    } catch (error) {
+    } catch {
       toast.add({ severity: 'error', summary: t('common.error') })
     } finally {
       generating.value = false
@@ -295,7 +293,7 @@ export const useSchedulerApi = ({
       }
       const response = await axios.post('/api/scheduler/analisi', payload, { timeout: 300000 })
       analisiResult.value = response.data
-    } catch (error) {
+    } catch {
       toast.add({ severity: 'error', summary: t('common.error') })
     } finally {
       analisiLoading.value = false

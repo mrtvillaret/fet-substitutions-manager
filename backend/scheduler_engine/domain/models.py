@@ -3,7 +3,8 @@ Models de domini compartits per als motors de generació d'horaris.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Set, Optional, Any
+from typing import Dict, List, Set
+
 
 @dataclass
 class Slot:

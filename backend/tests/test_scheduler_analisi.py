@@ -8,9 +8,15 @@ import os
 import tempfile
 
 import pytest
+from suport_planificador import (
+    DATES,
+    DIES,
+    alliberaments,
+    centre_amb_examens,
+    configura,
+)
 
 from rate_limit import limiter
-from suport_planificador import DATES, DIES, alliberaments, centre_amb_examens, configura
 
 PETICIO = {"data_inici": DATES[0], "data_final": DATES[-1], "selected_dates": DATES, "dies_utilitzar": DIES}
 

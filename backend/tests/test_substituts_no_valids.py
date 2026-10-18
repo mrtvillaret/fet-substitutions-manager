@@ -10,10 +10,10 @@ amb 3-ESO-C i Prof 3 fa guàrdia.
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
 from routes import grups, substitucions, vigilancies
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(substitucions.router, grups.router, vigilancies.router)
 DATA = "2026-10-19"

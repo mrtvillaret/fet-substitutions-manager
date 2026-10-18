@@ -3,12 +3,13 @@ Quin horari (XML) es fa servir quan n'hi ha un de pujat amb data futura.
 Sense data, el vigent avui: no l'últim pujat, que encara no ha començat.
 """
 import pytest
+from suport_xml import amb_horari_futur, amb_versions, dia, professor_que_plega
 
 from database import get_data_db_session
 from helpers import avui, get_horari, get_xml_path_for_date
 from models import Professor
 from repositories import XMLVersionRepository
-from suport_xml import amb_horari_futur, amb_versions, dia, professor_que_plega
+
 
 @pytest.fixture
 def amb_futur():

@@ -7,8 +7,8 @@ estricte, aquell dia queda bloquejat per als seus exàmens.
 import pytest
 
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-from scheduler_engine.core.restriction_engine import RestrictionEngine
 from scheduler_engine.core.normalitzacio import normalitzar_dia
+from scheduler_engine.core.restriction_engine import RestrictionEngine
 
 HORES = ["09:00", "10:00", "11:30"]
 # Com ho llegeix el planificador de l'XML: el dimarts hi és, però buit

@@ -6,25 +6,35 @@ Routes per grups sense classe (grups alliberats), professors i activitats allibe
 - /periode: canvis d'estat que duren fins al canvi següent (cada setmana)
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+import json
+import logging
+from datetime import datetime
+from typing import Dict, List
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List, Dict
-import json
-from datetime import datetime
 
-from dependencies import get_db
-from repositories import GrupsAlliberatsRepository, AlliberamentsPeriodeRepository, ConfiguracioRepository
+from core.alliberats import (
+    activitats_de,
+    clau_activitat,
+    clau_ocupat,
+    clau_professor,
+    nomes_grups,
+    ocupats_de,
+    professors_de,
+)
+from dependencies import dia_de_la_peticio, get_db
+from repositories import (
+    AlliberamentsPeriodeRepository,
+    ConfiguracioRepository,
+    GrupsAlliberatsRepository,
+)
+from routes.parametres import DataISO, data_iso
+from serveis.dia import Dia
 from serveis.dia_escolar import treu_substituts_no_valids
 from serveis.generacio import genera_substitucions_dia
-from core.alliberats import (activitats_de, clau_activitat, clau_ocupat, clau_professor, nomes_grups,
-                             ocupats_de, professors_de)
-from routes.parametres import DataISO, data_iso
 
-
-import logging
-from dependencies import dia_de_la_peticio
-from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/grups", tags=["Grups Sense Classe"])
@@ -82,8 +92,8 @@ def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
     # perquè el resultat NO depengui de l'ordre d'entrada de dades (abans calia editar
     # l'hora manualment perquè es netegés).
     try:
-        from serveis.cobertures import refresca_cobertures
         from repositories import VigilanciaRepository
+        from serveis.cobertures import refresca_cobertures
 
         vig_dict = VigilanciaRepository.get_by_date(db, data)
         hores_amb_vig = {

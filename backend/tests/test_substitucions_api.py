@@ -16,6 +16,14 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from suport_api import (
+    XML_EXEMPLE,
+    client_per,
+    crea_app,
+    crea_usuari,
+    entra,
+    nova_institucio,
+)
 
 from database import get_data_db_session
 from horari_web import GestorHorariWeb
@@ -28,7 +36,6 @@ from repositories import (
 )
 from routes import substitucions
 from serveis.dia import Dia
-from suport_api import XML_EXEMPLE, client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(substitucions.router)
 DATA = "2026-04-20"  # dilluns

@@ -10,6 +10,7 @@ import json
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
 from models import ConfiguracioExamen, Grup, GrupAlliberat, Nivell
@@ -17,10 +18,12 @@ from rate_limit import limiter
 from repositories import ConfiguracioRepository
 from routes import scheduler, substitucions, vigilancies
 from routes.scheduler_service import (
-    SCHEDULER_ALLIBERAMENTS_KEY, SCHEDULER_DURADA_EXAMEN_KEY, SCHEDULER_DURADA_KEY, SCHEDULER_DURADES_GRUPS_KEY,
+    SCHEDULER_ALLIBERAMENTS_KEY,
+    SCHEDULER_DURADA_EXAMEN_KEY,
+    SCHEDULER_DURADA_KEY,
+    SCHEDULER_DURADES_GRUPS_KEY,
     SCHEDULER_NIVELLS_KEY,
 )
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(scheduler.router, vigilancies.router, substitucions.router)
 URL = "/api/scheduler/publicar"
@@ -314,6 +317,7 @@ def test_sense_l_opcio_no_s_assignen_titulars(client, titular_alliberat):
 @pytest.fixture
 def amb_cursos(centre):
     from datetime import date, timedelta
+
     from repositories import CursRepository
     avui = date.today()
     with get_data_db_session(centre) as db:

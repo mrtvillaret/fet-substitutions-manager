@@ -1,16 +1,16 @@
 """
 Routes per llistat de professors disponibles
 """
+from collections import defaultdict
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
-from collections import defaultdict
 
-from dependencies import get_db
 from auth_utils import get_current_user
 from config.constants import ORDRE_PRIORITATS
+from dependencies import dia_de_la_peticio, get_db
 from routes.parametres import DataISO, data_iso
-from dependencies import dia_de_la_peticio
 from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/disponibles", tags=["Disponibles"])
@@ -49,13 +49,13 @@ async def get_disponibles_dia(
         dia_obj = datetime.strptime(data, "%Y-%m-%d")
         dia_name = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"][dia_obj.weekday()]
     except IndexError:  # cap de setmana
-        raise HTTPException(status_code=400, detail="Data invàlida")
+        raise HTTPException(status_code=400, detail="Data invàlida") from None
 
     # Carregar gestors (retornen: substitucions, horari, alliberats, absencies)
     try:
         substitucions_mgr, horari_mgr, alliberats_mgr, absencies_mgr = dia.gestors()
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Error carregant horari: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Error carregant horari: {str(e)}") from e
 
     # Obtenir professors de baixa
     from config.constants import PROFESSORS_BAIXA

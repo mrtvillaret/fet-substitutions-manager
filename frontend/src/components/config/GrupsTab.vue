@@ -166,7 +166,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { ambDataTreball, dataTreball } from '../../dataTreball'
-import { dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
 import Dialog from 'primevue/dialog'
 import MultiSelect from 'primevue/multiselect'
@@ -180,7 +179,6 @@ const toast = useToast()
 const { t, locale } = useI18n()
 
 // Data en format ISO (per l'endpoint) i text (per mostrar)
-const dataISO = computed(() => dataIso(dataTreball.value))
 const dataText = computed(() =>
   dataTreball.value.toLocaleDateString(locale.value || 'ca-ES',
     { day: '2-digit', month: '2-digit', year: 'numeric' })

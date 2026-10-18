@@ -17,38 +17,38 @@ import asyncio
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 import config.constants as constants
 from repositories import (
-    CategoriaPrioritatRepository,
     AssignaturaPrioritatRepository,
+    CategoriaPrioritatRepository,
     NoSubstituirRepository,
     ProfessorBaixaRepository,
 )
 from routes.prioritats import (
+    AssignaturaPrioritatCreate,
+    CategoriaPrioritatCreate,
+    PrioritatsCompletesUpdate,
+    ProfessorBaixaCreate,
     _recarregar_prioritats_desde_bd,
-    get_categories,
-    create_categoria,
-    update_categoria,
-    update_categories_ordre,
-    delete_categoria,
-    get_assignatures_prioritat,
-    get_assignatures_by_categoria,
     create_assignatura_prioritat,
-    update_assignatura_prioritat,
-    delete_assignatura_prioritat,
-    get_no_substituir,
+    create_categoria,
     create_no_substituir,
-    delete_no_substituir,
-    get_professors_baixa,
     create_professor_baixa,
-    update_professor_baixa,
+    delete_assignatura_prioritat,
+    delete_categoria,
+    delete_no_substituir,
     delete_professor_baixa,
     desar_totes_prioritats,
-    CategoriaPrioritatCreate,
-    AssignaturaPrioritatCreate,
-    ProfessorBaixaCreate,
-    PrioritatsCompletesUpdate,
+    get_assignatures_by_categoria,
+    get_categories,
+    get_no_substituir,
+    get_professors_baixa,
+    update_assignatura_prioritat,
+    update_categoria,
+    update_categories_ordre,
+    update_professor_baixa,
 )
 
 
@@ -266,7 +266,7 @@ def test_crud_assignatura_creacio_amb_categoria_inexistent_falla(db_session):
     caracteritza el comportament real: no dona un 400 net, deixa pujar
     l'excepció de SQLAlchemy/SQLite tal qual."""
     payload = AssignaturaPrioritatCreate(assignatura="Orfe", categoria_id=999999, pes=1)
-    with pytest.raises(Exception):
+    with pytest.raises(IntegrityError):
         run(create_assignatura_prioritat(payload, db_session))
 
 

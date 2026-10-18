@@ -3,17 +3,23 @@ Exportador de PDF combinat: Substitucions + Vigilàncies organitzat per hores
 VERSIÓ OPTIMITZADA I AMB FORMAT DE CONFLICTES MILLORAT
 """
 import html
-from typing import List, Dict
-from pathlib import Path
-from datetime import datetime
+import logging
 from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
+
 #import emoji
 from i18n_setup import translate as _
+
 from ..pdf_images import pdf_images
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
+from ..pdf_styles import PDFStyleFactory
 
 
 def _text(valor) -> str:
@@ -51,10 +57,8 @@ class PDFConstants:
     # Pagination thresholds
     THRESHOLD_MIN = 0.75
     THRESHOLD_MAX = 1.5
-from reportlab.lib import colors
-from ..pdf_styles import PDFStyleFactory
 
-import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -132,7 +136,6 @@ class PDFCompletExporter:
     def _create_document(self, filename: str, compact_mode: bool):
         """Create and configure PDF document"""
         from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate
 
         output_path = self.export_dir / filename
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -156,8 +159,8 @@ class PDFCompletExporter:
 
     def _generate_titles(self, tipus_pdf: str, data_text: str, subs_reals: List[Dict], vigilancies_reals: List[Dict]):
         """Generate PDF titles"""
-        from reportlab.platypus import Paragraph
         from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Paragraph
 
         # Títol principal
         titol_principal = self.PDFTypeResolver.get_title(tipus_pdf, subs_reals, vigilancies_reals)
@@ -386,8 +389,10 @@ class PDFCompletExporter:
     def _add_logo_to_page(self, canvas, doc):
         """Afegeix logo al marge superior esquerre de cada pàgina si existeix"""
         try:
-            from PIL import Image
             from pathlib import Path
+
+            from PIL import Image
+
             from database import get_data_db_session, get_data_dir_for_institucio
             from helpers import _get_institucio_actual
             from repositories import ConfiguracioRepository
@@ -443,8 +448,8 @@ class PDFCompletExporter:
         """Crea taula de conflictes amb millor format i text wrapping"""
         avisos_header = _("⚠️ AVÍS: Hi ha professors de major prioritat disponibles:")
         conflictes = [c for c in conflictes if c.strip() != avisos_header]
-        from reportlab.platypus import Table, TableStyle, Paragraph
         from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Paragraph, Table, TableStyle
 
         # Get current colors dynamically
         profile_colors = self._get_profile_colors()
@@ -581,7 +586,7 @@ class PDFCompletExporter:
           escriure a mà) i vigilàncies, aquestes amb fons gris i en cursiva,
           perquè es distingeixin també imprès en blanc i negre.
         """
-        from reportlab.platypus import Table, TableStyle, Paragraph
+        from reportlab.platypus import Paragraph, Table, TableStyle
 
         profile_colors = self._get_profile_colors()
         gris_linia = colors.HexColor('#808080')
@@ -762,8 +767,8 @@ class PDFCompletExporter:
         """Crea taula de substitucions optimitzada amb text wrapping.
 
         `files_en_blanc`: files buides al final, per escriure-hi a mà."""
-        from reportlab.platypus import Table, TableStyle, Paragraph
         from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Paragraph, Table, TableStyle
         
         # Get font sizes from current configuration (already reloaded)
         fonts = self.pdf_config.get('font_sizes', {})
@@ -936,8 +941,8 @@ class PDFCompletExporter:
 
     def _crear_taula_vigilancies(self, vigilancies: List[Dict]) -> Table:
         """Crea taula de vigilàncies optimitzada amb text wrapping"""
-        from reportlab.platypus import Table, TableStyle, Paragraph
         from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Paragraph, Table, TableStyle
         
         # Get font sizes from current configuration (already reloaded)
         fonts = self.pdf_config.get('font_sizes', {})

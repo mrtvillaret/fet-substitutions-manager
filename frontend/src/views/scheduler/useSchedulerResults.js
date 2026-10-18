@@ -9,7 +9,6 @@ export const useSchedulerResults = ({
   result,
   selectedDates,
   llistaHoresDisponibles,
-  alliberamentsPerNivell,
   duradesGrups,
   duradaExamen,
   config,
@@ -92,7 +91,7 @@ export const useSchedulerResults = ({
 
   const horesExamenConfig = computed(() => llistaHoresDisponibles.value.length ? llistaHoresDisponibles.value : ['09:00', '11:30'])
 
-  const getDuradaSessio = (nomSessio, nivell) => {
+  const getDuradaSessio = (nomSessio, _nivell) => {
     // 1. Buscar en duradesGrups per nom de sessió — usa durada_examen per la graella
     if (nomSessio && duradesGrups?.value?.length) {
       for (const grup of duradesGrups.value) {

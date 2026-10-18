@@ -7,31 +7,38 @@ Routes per gestió de vigilàncies d'exàmens:
 - Operacions (netejar, ordenar)
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 
-from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from auth_utils import get_current_user
-from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository, MasterConfigRepository, parse_date
-from serveis.cobertures import refresca_cobertures
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
+from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
 from helpers import (
     assign_phase1_titulars,
     assign_phase2_professors_grup,
     assign_phase3_passada,
     get_vigilancies_afinitats,
 )
-from schemas import (
-    VigilanciaCreate,
-    VigilanciaUpdate,
-    AssignmentResponse,
-    VigilanciaDisponiblesBatchRequest
+from repositories import (
+    GrupsAlliberatsRepository,
+    MasterConfigRepository,
+    SubstitucioRepository,
+    VigilanciaRepository,
+    parse_date,
 )
 from routes.parametres import DataISO
+from schemas import (
+    AssignmentResponse,
+    VigilanciaCreate,
+    VigilanciaDisponiblesBatchRequest,
+    VigilanciaUpdate,
+)
+from serveis.cobertures import refresca_cobertures
 from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/vigilancies", tags=["Vigilàncies"])
@@ -137,7 +144,7 @@ def _categoria_prioritat(tipus_activitat: str, ordre_prioritats: list) -> int:
 
 
 def _build_disponibles_context(dia: Dia, db: Session, hores_consulta: set[str], necessita_titulars: bool) -> dict:
-    from config.constants import PRIORITATS, PROFESSORS_BAIXA, ORDRE_PRIORITATS
+    from config.constants import ORDRE_PRIORITATS, PRIORITATS, PROFESSORS_BAIXA
 
     data = dia.iso
     horari = dia.horari
@@ -473,7 +480,7 @@ async def obtenir_vigilancies(data: DataISO, db: Session = Depends(get_db)):
 
     # Aplanar l'estructura {nivell: [vigilancies]} -> llista amb IDs
     result = []
-    for nivell, vigilancies_list in vigilancies_dict.items():
+    for vigilancies_list in vigilancies_dict.values():
         result.extend(vigilancies_list)
 
     # Ordenar per hora i nivell
@@ -667,7 +674,7 @@ async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: D
     # Tracking global de vigilants assignats per hora
     # Carregar vigilants JA assignats per evitar duplicats
     vigilants_assignats_global = {}
-    for nivell, vigilancies_list in vigilancies_dict.items():
+    for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
             hora = vig.get('hora', '')
             vigilant = vig.get('vigilant', '')
@@ -679,12 +686,12 @@ async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: D
     assigned_count = 0
 
     # Processar tots els nivells (modifica in-place)
-    for nivell, vigilancies_list in vigilancies_dict.items():
+    for vigilancies_list in vigilancies_dict.values():
         count = assign_phase1_titulars(vigilancies_list, core, vigilants_assignats_global, db)
         assigned_count += count
 
     # Desar canvis a SQLite (actualitzar cada vigilància modificada)
-    for nivell, vigilancies_list in vigilancies_dict.items():
+    for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
             # Actualitzar si té vigilant assignat (i té ID)
             if 'id' in vig and vig.get('vigilant'):
@@ -693,7 +700,7 @@ async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: D
 
     # Comptar pendents
     remaining_count = 0
-    for nivell, vigilancies_list in vigilancies_dict.items():
+    for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
             vigilant = vig.get('vigilant', '')
             if not vigilant or vigilant == "-- selecciona vigilant --":
@@ -888,5 +895,5 @@ async def ordenar_per_hora(data: DataISO, db: Session = Depends(get_db)):
     return {
         "success": True,
         "sorted_count": sorted_count,
-        "message": f"✅ Vigilàncies ordenades per hora"
+        "message": "✅ Vigilàncies ordenades per hora"
     }

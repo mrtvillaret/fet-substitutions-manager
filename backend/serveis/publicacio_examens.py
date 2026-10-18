@@ -13,7 +13,7 @@ import logging
 from dataclasses import dataclass, field
 
 from helpers import assign_phase1_titulars
-from models import GrupAlliberat, Grup, Nivell, Substitucio, Vigilancia
+from models import Grup, GrupAlliberat, Nivell, Substitucio, Vigilancia
 from repositories import VigilanciaRepository, parse_date
 from scheduler_engine.core.constraints import detectar_nivell_grup
 from serveis.dia import Dia

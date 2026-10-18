@@ -8,6 +8,7 @@ Dos modes:
 - pendents: les files que ja tenen substitut es conserven tal com són i les
   pendents es tornen a fer.
 """
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -19,10 +20,11 @@ from repositories import (
 )
 from serveis.vigilancia_absent import (
     assignar_substituts_pendents as assignar_vigilancies_absents_pendents,
+)
+from serveis.vigilancia_absent import (
     es_vigilancia_absent,
 )
 
-import logging
 log = logging.getLogger(__name__)
 
 # Files que no són absències d'un professor (es gestionen a part)

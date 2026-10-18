@@ -1,12 +1,12 @@
 """Serveis compartits per a les rutes del scheduler."""
 
-from datetime import datetime, timedelta
 import json
-
-from models import ExamRestriccio, ExamCostProfessor
-from scheduler_engine.defaults import DIES_SETMANA, DEFAULT_COST_PROFESSORS
-
 import logging
+from datetime import datetime, timedelta
+
+from models import ExamCostProfessor, ExamRestriccio
+from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS, DIES_SETMANA
+
 log = logging.getLogger(__name__)
 
 SCHEDULER_DATES_KEY = "scheduler_selected_dates"
@@ -87,7 +87,7 @@ def _build_restriccions_from_db(db):
     }
 
     # Llegir restriccions amb pes individual
-    rows = db.query(ExamRestriccio).filter(ExamRestriccio.activa == True).all()
+    rows = db.query(ExamRestriccio).filter(ExamRestriccio.activa.is_(True)).all()
     for r in rows:
         t, val = r.tipus, _load_json(r.configuracio, None)
         pes = r.pes if hasattr(r, "pes") and r.pes is not None else 100

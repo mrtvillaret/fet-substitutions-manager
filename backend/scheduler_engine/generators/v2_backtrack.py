@@ -9,22 +9,24 @@ Optimitzacions implementades:
 """
 
 import random
-from typing import List, Dict, Tuple, Set
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
+from typing import Dict, List, Set, Tuple
 
-from scheduler_engine.core.normalitzacio import normalitzar_dia
-from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso, DIES_CAT as _DIES_CAT
 from scheduler_engine.core.constraints import (
+    _percent_penalty,
+    es_item_compatible_amb_slot,
+    percent_no_mateix_slot_violation,
+    percent_pref_mateix_slot_violation,
     viola_restriccio_dura,
-    es_item_compatible_amb_slot, percent_no_mateix_slot_violation,
-    percent_pref_mateix_slot_violation, _percent_penalty
 )
+from scheduler_engine.core.date_mapping import DIES_CAT as _DIES_CAT
+from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.restriction_engine import RestrictionEngine
 from scheduler_engine.core.scoring import calcular_cost_slot
-from scheduler_engine.generators.v2_intents import GeneradorV2Intents
-from scheduler_engine.estadistiques import aplicar_estadistiques
 from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA
-
+from scheduler_engine.estadistiques import aplicar_estadistiques
+from scheduler_engine.generators.v2_intents import GeneradorV2Intents
 
 # Mapa de nivells a índexs per bitmask
 NIVELL_TO_BIT = {
@@ -133,7 +135,6 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             slots_disp = [f"{data}_{h}" for data in selected for h in self.hores_examen]
         else:
             slots_disp = [f"{d}_{h}" for d in dies_utilitzar for h in self.hores_examen]
-        slot_to_idx = {sk: i for i, sk in enumerate(slots_disp)}
         num_slots = len(slots_disp)
 
         # Obtenir partició atòmica centralitzada
@@ -313,8 +314,6 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             Retorna llista de (item_idx, slots_eliminats) per poder fer undo.
             """
             changes = []
-            assigned_item = items_info[assigned_idx]
-            assigned_mask = assigned_item['nivell_mask']
             assigned_prefix = assigned_slot[:assigned_slot.rfind('_')]
             assigned_dia, _ = _parse_prefix(assigned_prefix)  # nom del dia
 
@@ -484,7 +483,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 slot_items[sk].pop()
                 slot_claus[sk].subtract(claus_item.keys())
                 item_assigned_slot[idx] = None
-                for s in it_info['item']['sessions']:
+                for _ in it_info['item']['sessions']:
                     dia_sessions[dia_s].pop()
                     data_sessions[prefix_s].pop()
 

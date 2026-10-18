@@ -2,25 +2,25 @@
 Routes per configuració general del sistema
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session, sessionmaker
-from typing import Optional
-from pydantic import BaseModel
-
-from config.settings import config
-import os
-from auth_utils import require_admin, require_super_admin
-from database import get_auth_db, get_data_dir_for_institucio, get_engine_for_institucio
-from repositories import UserRepository
-import shutil
-from config.constants import NO_SUBST
-from dependencies import get_db
-from repositories import ConfiguracioRepository, XMLVersionRepository
-from routes.parametres import data_iso
-from models import XMLVersion
-
 import logging
+import os
+import shutil
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session, sessionmaker
+
+from auth_utils import require_admin, require_super_admin
+from config.constants import NO_SUBST
+from config.settings import config
+from database import get_auth_db, get_data_dir_for_institucio, get_engine_for_institucio
+from dependencies import get_db
+from models import XMLVersion
+from repositories import ConfiguracioRepository, UserRepository, XMLVersionRepository
+from routes.parametres import data_iso
 from serveis.dia import Dia
+
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/settings", tags=["Configuració General"])
@@ -172,7 +172,7 @@ async def update_settings(
     if invalidar_cache:
         from helpers import invalidar_horari
         invalidar_horari()
-        log.debug(f"✅ Cache del horari invalidada - configuració canviada")
+        log.debug("✅ Cache del horari invalidada - configuració canviada")
 
     return {
         "success": True,

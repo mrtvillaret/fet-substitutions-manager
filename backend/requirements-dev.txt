@@ -4,3 +4,4 @@ httpx2==2.13.1
 pytest==9.1.1
 pytest-cov==7.1.0
 requests==2.34.2
+ruff==0.17.1

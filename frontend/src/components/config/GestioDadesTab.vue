@@ -229,7 +229,7 @@ async function carregarCursos() {
   try {
     const { data } = await axios.get('/api/cursos')
     cursos.value = data || []
-  } catch (e) {
+  } catch {
     cursos.value = []
   }
 }

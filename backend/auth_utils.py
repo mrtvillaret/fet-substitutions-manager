@@ -1,36 +1,36 @@
 """
 Utilitats d'autenticació i dependències FastAPI
 """
+import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any
+from typing import Any, Dict
 
-from fastapi import Depends, HTTPException, Request, Response, status
 import jwt
-from jwt import ExpiredSignatureError, PyJWTError
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
+from fastapi import Depends, HTTPException, Request, Response, status
+from jwt import ExpiredSignatureError, PyJWTError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from config.auth import (
-    COOKIE_NAME,
-    SECRET_KEY,
+    ADMIN_INSTITUCIO,
+    ADMIN_PASSWORD,
+    ADMIN_USERNAME,
     ALGORITHM,
+    COOKIE_NAME,
+    COOKIE_SECURE,
+    DEFAULT_USERS,
+    SECRET_KEY,
     SESSIO_INACTIVITAT_MINUTS,
     SESSIO_MAXIMA_HORES,
     SESSIO_RENOVACIO_MINUTS,
-    COOKIE_SECURE,
-    ADMIN_USERNAME,
-    ADMIN_PASSWORD,
-    ADMIN_INSTITUCIO,
-    DEFAULT_USERS
 )
 from config.context import fixa_institucio_peticio
 from config.settings import config
-from database import get_auth_db_session, get_auth_db
+from database import get_auth_db, get_auth_db_session
 from repositories import UserRepository
 
-import logging
 log = logging.getLogger(__name__)
 
 # Argon2 per evitar problemes amb bcrypt a Python 3.13.
@@ -199,9 +199,9 @@ def _prepara_institucio(institucio: str) -> str:
     idioma i prioritats (es carreguen un cop per institució i es recorden).
     Retorna l'idioma, que fixa get_current_user: s'executa en un fil i una
     ContextVar fixada aquí no arribaria a la ruta."""
+    import config.constants as constants
     from database import get_data_db_session
     from repositories import ConfiguracioRepository
-    import config.constants as constants
 
     idioma = config.global_data.get("idioma", "ca")
     try:

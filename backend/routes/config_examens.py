@@ -5,23 +5,28 @@ Routes per configuració d'exàmens:
 - Aules (globals)
 """
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from typing import List, Dict
 import csv
 import io
+from typing import Dict, List
 
-from dependencies import get_db
-from repositories import MasterConfigRepository, ConfiguracioExamenRepository, AbreviaturaGrupRepository, PropostaDescartadaRepository
-from schemas import RenameRequest, RenameNivellRequest
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
+
 from auth_utils import require_admin
+from dependencies import dia_de_la_planificacio, get_db
 from helpers import (
+    MissingXmlError,
     get_vigilancies_afinitats,
     save_vigilancies_afinitats,
-    MissingXmlError
 )
-from dependencies import dia_de_la_planificacio
+from repositories import (
+    AbreviaturaGrupRepository,
+    ConfiguracioExamenRepository,
+    MasterConfigRepository,
+    PropostaDescartadaRepository,
+)
+from schemas import RenameNivellRequest, RenameRequest
 from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/config", tags=["Configuració Exàmens"])
@@ -388,7 +393,7 @@ def _esborra_tota_configuracio_examens(db: Session):
     barrejar dades noves amb configuració mestra vella d'un XML anterior,
     comença sempre net. També oblida les propostes que s'havien descartat
     expressament (amb tot net, té sentit tornar-les a revisar de zero)."""
-    from models import ConfiguracioExamen, Grup, Assignatura, Aula, Nivell
+    from models import Assignatura, Aula, ConfiguracioExamen, Grup, Nivell
     db.query(ConfiguracioExamen).delete()
     db.query(Grup).delete()
     db.query(Assignatura).delete()
@@ -504,7 +509,7 @@ async def importar_assignacions_preview(db: Session = Depends(get_db),
 
         return {"propostes": propostes, "nivells_valids": sorted(nivells_valids)}
     except MissingXmlError as e:
-        raise HTTPException(status_code=400, detail={"xml_missing": True, "message": str(e)})
+        raise HTTPException(status_code=400, detail={"xml_missing": True, "message": str(e)}) from e
 
 
 @router.post("/importar-assignacions/dry-run")
@@ -608,8 +613,8 @@ async def exportar_assignacions_csv(db: Session = Depends(get_db),
     """Exporta totes les assignacions actuals a un fitxer CSV descarregable,
     incloent-hi el nivell real de cada grup (des de la taula mestra) perquè
     el fitxer es pugui reimportar sense ambigüitat."""
-    from models import Grup, Nivell
     from exam_import import deriva_nivell
+    from models import Grup, Nivell
 
     nivell_per_grup = {
         codi: nivell_codi

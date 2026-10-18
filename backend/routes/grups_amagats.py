@@ -7,9 +7,10 @@ Llista d'EXCLUSIÓ: sense classe i la resta mostren tots els grups detectats
 excepte els amagats. Independent dels exàmens i dels nivells.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
 from typing import Dict
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from dependencies import get_db
 from repositories import GrupsAmagatsRepository

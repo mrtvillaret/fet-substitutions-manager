@@ -3,31 +3,32 @@ Funcions auxiliars compartides pel backend
 - Gestors singleton (horari, substitucions, etc.)
 - Funcions d'assignació automàtica de vigilàncies
 """
-from typing import Optional, Dict, List, Any
-from datetime import date, datetime
-from sqlalchemy.orm import Session
-import os
 import json
+import logging
+import os
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
 
-from horari_web import GestorHorariWeb  # Versió web que llegeix de SQLite
-from core.substitucions import GestorSubstitucions
-from core.alliberats import GestorAlliberats
-from core.absencies import GestorAbsencies
-from core.vigilancia_core import VigilanciaCore
-from core.vigilancia_assignacio import escollir_aleatoriament_amb_pesos
+from sqlalchemy.orm import Session
+
 from config.constants import PRIORITATS
+from core.absencies import GestorAbsencies
+from core.alliberats import GestorAlliberats
+from core.substitucions import GestorSubstitucions
+from core.vigilancia_assignacio import escollir_aleatoriament_amb_pesos
+from core.vigilancia_core import VigilanciaCore
+from database import get_data_db_session, get_data_dir_for_institucio
+from horari_web import GestorHorariWeb  # Versió web que llegeix de SQLite
 from repositories import (
-    SubstitucioRepository,
-    GrupsAlliberatsRepository,
-    VigilanciaRepository,
     ConfiguracioExamenRepository,
     ConfiguracioRepository,
+    GrupsAlliberatsRepository,
+    ProfessorRepository,
+    SubstitucioRepository,
+    VigilanciaRepository,
     XMLVersionRepository,
-    ProfessorRepository
 )
-from database import get_data_db_session, get_data_dir_for_institucio
 
-import logging
 log = logging.getLogger(__name__)
 
 
@@ -280,7 +281,7 @@ def get_vigilants_assignats_hora(vigilancies_dict: Dict, data: str, hora: str) -
     """Retorna set de professors ja assignats a una hora"""
     vigilants = set()
     if data in vigilancies_dict:
-        for nivell, vig_list in vigilancies_dict[data].items():
+        for vig_list in vigilancies_dict[data].values():
             for vig in vig_list:
                 if vig.get('hora') == hora and vig.get('vigilant'):
                     vigilants.add(vig['vigilant'])

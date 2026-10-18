@@ -3,17 +3,19 @@ Càlcul centralitzat d'estadístiques i costos per a horaris generats.
 Usat per tots els motors (V2 greedy, V2 backtrack, V3 SA).
 """
 
-from typing import Dict
 from collections import defaultdict
+from typing import Dict
 
-from utils.hores import normalitzar_hora as _normalitzar_hora
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-from scheduler_engine.core.durada import get_durada_per_sessio_key, detectar_nivell_sessio
-from scheduler_engine.core.scoring import calcular_cost_slot, costos_professors_analisi
 from scheduler_engine.core.constraints import calcular_penalitzacio_total_professors
-from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.context import SchedulerContext
-from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS
+from scheduler_engine.core.durada import (
+    detectar_nivell_sessio,
+    get_durada_per_sessio_key,
+)
+from scheduler_engine.core.normalitzacio import normalitzar_dia
+from scheduler_engine.core.scoring import calcular_cost_slot, costos_professors_analisi
+from utils.hores import normalitzar_hora as _normalitzar_hora
 
 
 def calcular_estadistiques_horari(horari: Dict) -> Dict:
@@ -198,7 +200,10 @@ def recalcular_cost_i_breakdown(horari: Dict, ctx: SchedulerContext) -> Dict:
 
             # Penalitzacions de restriccions i preferències (sense costos de professors)
             pesos_opt = restriccions.get('pesos_optimitzacio', {})
-            from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA, DEFAULT_PES_RESTRICCIO_VIOLADA
+            from scheduler_engine.defaults import (
+                DEFAULT_PES_RESTRICCIO_DURA,
+                DEFAULT_PES_RESTRICCIO_VIOLADA,
+            )
             _pes_dura = pesos_opt.get('restriccio_dura', DEFAULT_PES_RESTRICCIO_DURA)
             _pes_violada = pesos_opt.get('restriccio_dura_violada', DEFAULT_PES_RESTRICCIO_VIOLADA)
             for sessio in sessions_slot:

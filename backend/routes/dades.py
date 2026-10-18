@@ -6,13 +6,13 @@ Routes de governança de dades (RGPD), només admin.
 """
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from dependencies import get_db
-from auth_utils import get_current_user
 import gestio_dades
+from auth_utils import get_current_user
+from dependencies import get_db
 
 router = APIRouter(prefix="/api/dades", tags=["Governança de dades"])
 
@@ -43,7 +43,7 @@ def analitzar_purga(req: AnalisiPurgaRequest,
             db, current_user.institucio, req.data_inici, req.data_final
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/purga/executar")
@@ -61,7 +61,7 @@ def executar_purga(req: ExecutarPurgaRequest,
             db, current_user.institucio, req.data_inici, req.data_final
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/professors")
@@ -79,5 +79,5 @@ def reanomena_professor(req: ReanomenaRequest,
     try:
         counts = gestio_dades.reanomena_professor(db, req.nom_actual, req.nom_nou)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {"ok": True, "counts": counts, "total": sum(counts.values())}

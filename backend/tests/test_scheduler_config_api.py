@@ -4,9 +4,15 @@ restriccions, exàmens fixats, costos dels professors i llistes d'opcions.
 Descriuen el comportament actual (characterization tests).
 """
 import pytest
+from suport_planificador import (
+    DATES,
+    admin_de,
+    alliberaments,
+    centre_amb_examens,
+    configura,
+)
 
 from rate_limit import limiter
-from suport_planificador import DATES, admin_de, alliberaments, centre_amb_examens, configura
 
 
 @pytest.fixture(autouse=True)

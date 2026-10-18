@@ -4,10 +4,11 @@ Consolidació de patrons d'excepció i logging across modules
 """
 import logging
 import traceback
-from typing import Type, List, Callable, Optional, Any, Dict
-from functools import wraps
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from functools import wraps
+from typing import Callable, Dict, List, Optional, Type
+
 import i18n_setup
 
 _ = i18n_setup._

@@ -9,39 +9,42 @@ Routes per gestió de substitucions:
 - Obtenir professors disponibles per hora
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+import logging
 from datetime import datetime
 from typing import List, Optional
 
-from dependencies import get_db
-from repositories import (
-    SubstitucioRepository, VigilanciaRepository, GrupsAlliberatsRepository, CursRepository
-)
-from helpers import MissingXmlError
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
+from dependencies import dia_de_la_peticio, get_db
+from helpers import MissingXmlError
+from models import Substitucio
+from repositories import (
+    CursRepository,
+    GrupsAlliberatsRepository,
+    SubstitucioRepository,
+    VigilanciaRepository,
+)
+from routes.parametres import DataISO, data_iso
+from schemas import (
+    ActualitzarAbsenciesRequest,
+    NovaSubstitucioRequest,
+    SubstitucioResponse,
+    SubstitucioUpdate,
+)
 from serveis.absencies import canvia_tipus_cobertures, desa_absencies
 from serveis.baixes import baixa_de, missatge_de_baixa
+from serveis.dia import Dia
 from serveis.dia_escolar import DiaEscolar, treu_substituts_no_valids
-from serveis.prioritat import MillorsSubstituts, text_tipus_substitut
 from serveis.generacio import genera_substitucions_dia
+from serveis.prioritat import MillorsSubstituts, text_tipus_substitut
 from serveis.vigilancia_absent import (
     es_vigilancia_absent,
     sincronitzar_vigilancies_absents,
 )
-from schemas import (
-    SubstitucioResponse,
-    SubstitucioUpdate,
-    NovaSubstitucioRequest,
-    ActualitzarAbsenciesRequest
-)
-from models import Substitucio
-from routes.parametres import DataISO, data_iso
 
-import logging
-from dependencies import dia_de_la_peticio
-from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/substitucions", tags=["Substitucions"])

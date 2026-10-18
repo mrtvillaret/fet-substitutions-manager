@@ -64,7 +64,11 @@ def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> Dict[str,
     implicats); només substitueix la identitat.
     """
     from models import (
-        Professor, Substitucio, Vigilancia, ProfessorBaixa, ExamCostProfessor
+        ExamCostProfessor,
+        Professor,
+        ProfessorBaixa,
+        Substitucio,
+        Vigilancia,
     )
 
     nom_actual = (nom_actual or "").strip()
@@ -135,7 +139,9 @@ def _dates_iso(valors) -> List[date]:
 def _planificador(db: Session, data_inici: date, data_final: date) -> Dict:
     """El que el planificador recorda de l'interval: les dates triades que hi
     cauen i l'últim horari desat si en toca alguna data (s'esborra sencer)."""
-    dins = lambda d: data_inici <= d <= data_final
+    def dins(d):
+        return data_inici <= d <= data_final
+
     dates = _dates_iso(_json_config(db, CLAU_DATES_PLANIFICADOR))
 
     ultim = _json_config(db, CLAU_ULTIM_HORARI)
@@ -162,7 +168,13 @@ def analitzar_purga(db: Session, institucio: Optional[str],
     MANIFEST (només lectura) de tot el que eliminaria una purga de l'interval
     [data_inici, data_final] (inclòs). No esborra res.
     """
-    from models import Substitucio, Vigilancia, GrupAlliberat, ProfessorBaixa, XMLVersion
+    from models import (
+        GrupAlliberat,
+        ProfessorBaixa,
+        Substitucio,
+        Vigilancia,
+        XMLVersion,
+    )
 
     if data_inici > data_final:
         raise ValueError("La data d'inici no pot ser posterior a la data final.")
@@ -272,7 +284,13 @@ def executar_purga(db: Session, institucio: Optional[str],
 
     Retorna un informe del que s'ha esborrat realment.
     """
-    from models import Substitucio, Vigilancia, GrupAlliberat, ProfessorBaixa, XMLVersion
+    from models import (
+        GrupAlliberat,
+        ProfessorBaixa,
+        Substitucio,
+        Vigilancia,
+        XMLVersion,
+    )
 
     # El manifest és la font de veritat: es recalcula al servidor, no es fia del
     # client, i determina quins PDF i quines versions d'XML es toquen.

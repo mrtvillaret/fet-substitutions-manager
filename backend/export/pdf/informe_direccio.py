@@ -2,27 +2,28 @@
 Generador d'informe de direcció en PDF
 Informe complet d'absències, substitucions i vigilàncies
 """
-from pathlib import Path
-from datetime import datetime
-
-from i18n_setup import translate as _, setup_translation
-
 import html
-from reportlab.lib.pagesizes import A4
+from datetime import datetime
+from pathlib import Path
+
 from reportlab.lib import colors
-from reportlab.lib.units import cm
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import cm
 from reportlab.platypus import (
-    SimpleDocTemplate,
+    HRFlowable,
+    Image,
+    PageBreak,
     Paragraph,
+    SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
-    HRFlowable,
-    PageBreak,
-    Image,
 )
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+from i18n_setup import setup_translation
+from i18n_setup import translate as _
 
 # Paleta de colors moderna
 C_NAVY     = colors.HexColor("#1e3a5f")
@@ -458,8 +459,6 @@ def _taula_matriu_substitucions_mesos(per_substitut_mes: dict, mesos: list,
     mesos_curts = [m.split()[0][:3] for m in mesos]
     max_val = max((v for d in per_substitut_mes.values() for v in d.values()), default=1) or 1
 
-    C_TEAL_HM = colors.HexColor("#16a085")
-
     def _heatmap_teal(value, max_v):
         if max_v == 0 or value == 0:
             return C_WHITE
@@ -575,7 +574,6 @@ def _taula_grups_per_nivell(grups_data: dict) -> list:
 
     ordre = grups_data["ordre_nivells"]
     per_nivell = grups_data["per_nivell"]
-    grups_ordenats = grups_data["grups_ordenats"]
 
     # ── Part 1: Resum per nivell ───────────────────────────────────────
     elems.append(Paragraph(_("Resum per nivell"), _s("sub",

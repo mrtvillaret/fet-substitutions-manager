@@ -3,10 +3,10 @@ Configuració bàsica del sistema
 """
 import json
 import locale
-from pathlib import Path
-import os
-
 import logging
+import os
+from pathlib import Path
+
 log = logging.getLogger(__name__)
 
 try:
@@ -311,8 +311,8 @@ class Config:
     def _reload_prioritats(self):
         """Recalcula les prioritats, nivells i abreviatures globals després de canviar d'institució"""
         try:
-            from routes.prioritats import _recarregar_prioritats_desde_bd
             from database import get_data_db_session
+            from routes.prioritats import _recarregar_prioritats_desde_bd
             from utils.grups_utils import invalidar_cache_abreviatures
 
             instit = self.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or self.detectar_institucio()

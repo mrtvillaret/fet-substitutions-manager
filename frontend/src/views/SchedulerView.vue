@@ -129,11 +129,8 @@ const passos = computed(() => ([
 ]))
 // Motors i paràmetres carregats des de l'API (GET /api/scheduler/motors)
 const motorsMetadata = ref([])
-const i18nWithFallback = (key, fallback, params = undefined) => {
-  if (typeof te === 'function' && te(key)) return t(key, params)
-  const value = t(key, params)
-  return value && value !== key ? value : fallback
-}
+// Si la clau no existeix, el text que ve del backend (t() avisaria a la consola)
+const i18nWithFallback = (key, fallback, params = undefined) => (te(key) ? t(key, params) : fallback)
 
 const localizeMotorLabel = (motorId, fallback) => i18nWithFallback(`scheduler.motors.${motorId}`, fallback || motorId)
 

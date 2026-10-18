@@ -5,11 +5,12 @@ Aquest mòdul llegeix les abreviatures de grups configurades manualment
 des de SQLite per institució i proporciona funcions per aplicar-les.
 """
 
-from typing import Dict, Optional
+import logging
 import os
+from typing import Dict, Optional
+
 import i18n_setup
 
-import logging
 log = logging.getLogger(__name__)
 
 _ = i18n_setup._

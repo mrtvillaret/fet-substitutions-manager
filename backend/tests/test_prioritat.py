@@ -10,10 +10,10 @@ guàrdia queda per cobrir (fila encadenada) i en generar s'hi posa un alliberat.
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
 from routes import grups, pdf, substitucions
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(substitucions.router, grups.router, pdf.router)
 DATA = "2026-04-20"

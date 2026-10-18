@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+
 @lru_cache(maxsize=256)
 def normalitzar_hora(hora: str) -> str:
     """Normalitza una hora a format HH:MM amb zero padding."""

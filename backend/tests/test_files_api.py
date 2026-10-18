@@ -7,12 +7,19 @@ import uuid
 from datetime import date, timedelta
 
 import pytest
+from suport_api import (
+    XML_EXEMPLE,
+    client_per,
+    crea_app,
+    crea_usuari,
+    entra,
+    nova_institucio,
+)
 
 from database import DATA_BASE_DIR, get_data_db_session, get_data_dir_for_institucio
 from rate_limit import limiter
 from repositories import ConfiguracioRepository, XMLVersionRepository
 from routes import files
-from suport_api import XML_EXEMPLE, client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(files.router)
 URL = "/api/files/upload-xml"

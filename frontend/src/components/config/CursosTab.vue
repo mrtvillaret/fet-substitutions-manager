@@ -127,7 +127,7 @@ const cursForm = ref({ id: null, nom: '', data_inici: null })
 const carregarCursosAmbToast = async () => {
   try {
     await carregarCursos()
-  } catch (error) {
+  } catch {
     toast.add({ severity: 'error', summary: t('common.error'), detail: t('config.courses.loadError'), life: 3000 })
   }
 }
@@ -184,7 +184,7 @@ const eliminarCurs = (curs) => {
         await carregarAvisosXml()
         emit('cursos-canviats')
         toast.add({ severity: 'success', summary: t('common.deleted'), life: 2000 })
-      } catch (error) {
+      } catch {
         toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
       }
     }

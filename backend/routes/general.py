@@ -4,13 +4,11 @@ de l'horari vigent (avui o en una data) i activitats que no se substitueixen.
 """
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from fastapi import Depends
-
+from dependencies import dia_del_calendari
 from helpers import MissingXmlError
 from schemas import ConfigResponse
-from dependencies import dia_del_calendari
 from serveis.dia import Dia
 
 router = APIRouter(tags=["General"])

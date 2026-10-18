@@ -557,9 +557,7 @@ import { dataIso } from '../dates'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
-import Calendar from 'primevue/calendar'
 import Dropdown from 'primevue/dropdown'
-import MultiSelect from 'primevue/multiselect'
 import InputText from 'primevue/inputtext'
 import Checkbox from 'primevue/checkbox'
 import RadioButton from 'primevue/radiobutton'
@@ -700,10 +698,6 @@ const professorsAmbInfo = computed(() => {
     deBaixa: professorsDeBaixa.value.has(prof)
   }))
 })
-
-const professorsAbsentsAvui = computed(() =>
-  new Set(totesAbsencies.value.map(s => s.professor_absent).filter(Boolean))
-)
 
 // Detecta si una sub és Tipus A VIGILANCIA_ABSENT (vigilant absent → slot descobert)
 const esVigilanciaAbsent = (sub) => (sub.tipus_absencia || '').toUpperCase() === 'VIGILANCIA_ABSENT'
@@ -1277,8 +1271,6 @@ const editarAbsenciesProfessor = async (substitucio) => {
     if (tipus === 'VIGILANCIA') return esVigilanciaAbsent(a) // Inclou Tipus A, exclou Tipus B
     return true
   })
-  const tipusAbsencia = absProf[0]?.tipus_absencia || 'ABSENCIA'
-
   // Hores ABSENCIA + hores on el vigilant és absent (Tipus A VIGILANCIA)
   const horesAbsencia = absProf
     .filter(a => a.tipus_absencia === 'ABSENCIA' || esVigilanciaAbsent(a))

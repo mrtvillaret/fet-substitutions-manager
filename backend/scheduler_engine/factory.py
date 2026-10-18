@@ -3,9 +3,9 @@ Factory de motors del scheduler d'exàmens.
 Registre centralitzat de motors amb metadades per l'API.
 """
 
-from typing import List, Tuple, Any
-from scheduler_engine.defaults import DEFAULT_SA_PARAMS, DEFAULT_GREEDY_PARAMS
+from typing import Any, List, Tuple
 
+from scheduler_engine.defaults import DEFAULT_GREEDY_PARAMS, DEFAULT_SA_PARAMS
 
 # Registre de motors disponibles
 MOTORS = {

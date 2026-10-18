@@ -469,7 +469,7 @@ const carregarCursos = async () => {
   try {
     const { data } = await axios.get('/api/cursos')
     cursos.value = data
-  } catch (error) {
+  } catch {
     cursos.value = []
   }
 }
@@ -549,7 +549,7 @@ onMounted(async () => {
     await carregarPerfil()
     await carregarConfig()
     aplicarToken()
-  } catch (error) {
+  } catch {
     // Cookie absent o expirada — es queda a la pantalla de login
   }
 })

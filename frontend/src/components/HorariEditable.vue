@@ -196,7 +196,6 @@ const carregant = ref(false)
 const itemsAparcats = ref([])
 const grupsAparcats = ref([])
 // Pins derivats de la prop pinnedNoms (= restriccions dia/hora de la BD)
-const isItemFixat = (item) => props.pinnedNoms.has(item.nom)
 const fixatsCount = computed(() => props.pinnedNoms.size)
 
 const toggleFixarItem = async ({ item, slotKey }) => {
@@ -458,27 +457,6 @@ const aparcarItemIdDelSlot = (slot, itemId) => {
   } else {
     upsertItemAparcat(itemsGrup[0])
   }
-}
-
-const validarMovimentLocal = (item, slotDesti) => {
-  const [diaDesti, horaDesti] = parseSlotKey(slotDesti)
-  const itemsAlSlot = getItemsSlot(diaDesti, horaDesti)
-
-  const nivellItem = item.curs
-  const nivellsExistents = itemsAlSlot
-    .filter(i => i.item_id !== item.item_id)
-    .map(i => i.curs)
-
-  if (nivellsExistents.includes(nivellItem)) {
-    toast.add({
-      severity: 'error',
-      summary: t('scheduler.editable.toasts.levelConflictTitle'),
-      detail: t('scheduler.editable.toasts.levelConflictDetail', { level: nivellItem }),
-      life: 3000
-    })
-    return false
-  }
-  return true
 }
 
 const onItemsChanged = async (event) => {

@@ -1,10 +1,10 @@
 """
 Gestor d'horaris XML per al backend web - Llegeix configuració de SQLite
 """
+import logging
 import xml.etree.ElementTree as ET
 from typing import Dict, Optional, Set
 
-import logging
 log = logging.getLogger(__name__)
 
 try:

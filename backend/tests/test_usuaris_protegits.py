@@ -6,10 +6,17 @@ editar, desactivar o tancar-los les sessions. El superadmin sí.
 import uuid
 
 import pytest
+from suport_api import (
+    CONTRASENYA,
+    client_per,
+    crea_app,
+    crea_usuari,
+    entra,
+    nova_institucio,
+)
 
 from rate_limit import limiter
 from routes import users
-from suport_api import CONTRASENYA, client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(users.router)
 

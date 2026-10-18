@@ -3,6 +3,7 @@ L'estat d'un dia tal com és a la BD (substitucions, vigilàncies, alliberats,
 baixes i horari), llegit un sol cop, i les regles que en depenen: per què un
 substitut ja no pot fer la substitució.
 """
+import logging
 from collections import defaultdict
 from datetime import datetime
 from functools import cached_property
@@ -10,9 +11,12 @@ from functools import cached_property
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
 from helpers import get_horari
-from repositories import GrupsAlliberatsRepository, SubstitucioRepository, VigilanciaRepository
+from repositories import (
+    GrupsAlliberatsRepository,
+    SubstitucioRepository,
+    VigilanciaRepository,
+)
 
-import logging
 log = logging.getLogger(__name__)
 
 TIPUS_ABSENCIA_REAL = ("ABSENCIA", "SERVEI")

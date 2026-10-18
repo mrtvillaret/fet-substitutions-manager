@@ -5,10 +5,11 @@ l'horari d'exemple i "futur.xml" el mateix sense el primer professor.
 import xml.etree.ElementTree as ET
 from datetime import date, timedelta
 
+from suport_api import XML_EXEMPLE, nova_institucio
+
 from database import get_data_db_session, get_data_dir_for_institucio
 from models import XMLVersion
 from repositories import ConfiguracioRepository
-from suport_api import XML_EXEMPLE, nova_institucio
 
 AVUI = date.today()
 

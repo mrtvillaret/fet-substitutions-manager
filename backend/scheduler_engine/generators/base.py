@@ -1,15 +1,18 @@
-from abc import ABC, abstractmethod
+import hashlib
 import json
 import os
 import xml.etree.ElementTree as ET
-from typing import List, Dict
+from abc import ABC, abstractmethod
 from collections import defaultdict
-import hashlib
+from typing import Dict, List
 
+from scheduler_engine.core.context import SchedulerContext
+from scheduler_engine.core.durada import (
+    get_durada_per_nivell,
+    get_durada_per_sessio_key,
+)
 from scheduler_engine.core.horaris_xml import horaris_professors
 from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
-from scheduler_engine.core.context import SchedulerContext
-from scheduler_engine.core.durada import get_durada_per_nivell, get_durada_per_sessio_key
 from scheduler_engine.defaults import (
     DEFAULT_NIVELLS_ACTIUS,
     DEFAULT_RESTRICCIONS,

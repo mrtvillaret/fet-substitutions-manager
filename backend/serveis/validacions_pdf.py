@@ -3,13 +3,13 @@ Validacions d'un dia abans de generar el PDF: conflictes (cal resoldre'ls) i
 avisos. Cada comprovació és una funció que afegeix els seus missatges; l'ordre
 importa, perquè dins de cada hora surten en l'ordre en què s'afegeixen.
 """
+import logging
 from collections import defaultdict
 
 from core.alliberats import sense_classe
 from i18n_setup import translate
 from serveis.dia_escolar import DiaEscolar
 
-import logging
 log = logging.getLogger(__name__)
 
 

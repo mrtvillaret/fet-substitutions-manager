@@ -1,19 +1,26 @@
 """
 Gestió d'usuaris i perfil
 """
-from typing import Optional, List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from auth_utils import require_admin, require_super_admin, require_user, hash_password, verify_password, set_auth_cookie, testimoni_de_sessio
+from auth_utils import (
+    hash_password,
+    require_admin,
+    require_super_admin,
+    require_user,
+    set_auth_cookie,
+    testimoni_de_sessio,
+    verify_password,
+)
+from config.auth import USUARIS_PROTEGITS
+from config.settings import config
 from database import get_auth_db, get_engine_for_institucio
 from rate_limit import limiter
-from repositories import UserRepository, ConfiguracioRepository
-from config.settings import config
-from config.auth import USUARIS_PROTEGITS
-from sqlalchemy.orm import sessionmaker
+from repositories import ConfiguracioRepository, UserRepository
 
 router = APIRouter(prefix="/api/users", tags=["Usuaris"])
 

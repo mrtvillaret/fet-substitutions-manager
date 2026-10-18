@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 from fastapi import Depends
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth_utils import get_current_user, require_admin
 from rate_limit import limiter
 from routes import estadistiques, pdf, substitucions, vigilancies
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 ROUTES = Path(__file__).resolve().parent.parent / "routes"
 NOMS_DATA = {"data", "data_inici", "data_final", "data_fi"}

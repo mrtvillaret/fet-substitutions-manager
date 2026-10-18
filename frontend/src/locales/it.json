@@ -53,7 +53,6 @@
     "add": "Aggiungi",
     "delete": "Elimina",
     "edit": "Modifica",
-    "create": "Crea",
     "new": "Nuovo",
     "total": "Totale",
     "actions": "Azioni",
@@ -829,21 +828,9 @@
       "groups": "-- Gruppi --",
       "room": "-- Aula --",
       "supervisor": "-- Seleziona sorvegliante --",
-      "supervisorSelect": "-- Seleziona sorvegliante --",
-      "hour": "Seleziona ora",
-      "groupsSelect": "Seleziona gruppi",
-      "roomSelect": "Seleziona aula",
-      "notes": "Note..."
+      "supervisorSelect": "-- Seleziona sorvegliante --"
     },
     "dialogs": {
-      "newTitle": "➕ Nuova vigilanza",
-      "hourLabel": "Ora *",
-      "levelLabel": "Livello",
-      "typeLabel": "Tipo di esame",
-      "groupsLabel": "Gruppi",
-      "roomLabel": "Aula",
-      "supervisorLabel": "Sorvegliante",
-      "selectHourFirst": "Seleziona prima un'ora",
       "pdfTitle": "📄 Esporta PDF vigilanza",
       "levelsLabel": "Livelli da includere *",
       "levelsPlaceholder": "Seleziona livelli",
@@ -876,7 +863,6 @@
     },
     "messages": {
       "updated": "Vigilanza aggiornata correttamente",
-      "created": "Vigilanza creata correttamente",
       "added": "Vigilanza aggiunta correttamente",
       "deleted": "Vigilanza eliminata correttamente",
       "deletedSelected": "{count} vigilanze eliminate correttamente",
@@ -1341,6 +1327,14 @@
         "seeds_count": {
           "label": "Numero di semi",
           "help": "Prova più semi e mantieni la soluzione migliore"
+        },
+        "max_nodes": {
+          "label": "Limite di nodi",
+          "help": "Nodi massimi da esplorare (più alto = più esaustivo ma più lento)"
+        },
+        "shuffle_top_n": {
+          "label": "Casualità (top-N)",
+          "help": "Quante delle migliori ore vengono mescolate in base al seme (0 = deterministico e veloce, 3 = bilanciato, 5 = molto casuale)"
         }
       }
     },
@@ -1380,8 +1374,6 @@
         "profCount": "{count} docenti"
       },
       "toasts": {
-        "levelConflictTitle": "Conflitto di livello",
-        "levelConflictDetail": "C'è già un esame per {level} in questa fascia",
         "recalcErrorTitle": "Errore",
         "recalcErrorDetail": "Impossibile ricalcolare il costo",
         "pendingConflictsTitle": "Conflitti in sospeso",

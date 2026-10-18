@@ -5,7 +5,6 @@ permet trobar-lo al registre del servidor. Els errors 4xx no canvien.
 """
 from fastapi import APIRouter, HTTPException
 from fastapi.testclient import TestClient
-
 from suport_api import crea_app
 
 router = APIRouter()

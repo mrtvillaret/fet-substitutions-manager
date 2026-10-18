@@ -11,15 +11,14 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from slowapi.errors import RateLimitExceeded
 
-from auth_utils import hash_password
-from auth_utils import registra_renovacio_sessio
-from errors_servidor import registra_gestors_errors
+from auth_utils import hash_password, registra_renovacio_sessio
 from database import (
     AuthSessionLocal,
     create_auth_tables,
     get_data_db_session,
     get_data_dir_for_institucio,
 )
+from errors_servidor import registra_gestors_errors
 from models import AssignaturaPrioritat, CategoriaPrioritat
 from rate_limit import limit_superat, limiter
 from repositories import ConfiguracioRepository, UserRepository

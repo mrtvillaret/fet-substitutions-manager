@@ -15,10 +15,10 @@ Dilluns de prova: 13/04, 20/04, 27/04 i 04/05/2026.
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
 from routes import grups, prioritats, substitucions
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(grups.router, substitucions.router, prioritats.router)
 DILLUNS = ["2026-04-13", "2026-04-20", "2026-04-27", "2026-05-04"]

@@ -12,13 +12,24 @@ alumnes de 2-BAT-B.
 import uuid
 
 import pytest
+from suport_api import (
+    XML_EXEMPLE,
+    client_per,
+    crea_app,
+    crea_usuari,
+    entra,
+    nova_institucio,
+)
 
 from database import get_data_db_session
 from horari_web import GestorHorariWeb
 from rate_limit import limiter
-from repositories import GrupsAlliberatsRepository, SubstitucioRepository, VigilanciaRepository
+from repositories import (
+    GrupsAlliberatsRepository,
+    SubstitucioRepository,
+    VigilanciaRepository,
+)
 from routes import pdf, substitucions, vigilancies
-from suport_api import XML_EXEMPLE, client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(vigilancies.router, substitucions.router, pdf.router)
 DATA = "2026-04-20"  # dilluns

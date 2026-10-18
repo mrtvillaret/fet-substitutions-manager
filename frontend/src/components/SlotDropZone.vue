@@ -130,7 +130,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import draggable from 'vuedraggable'
 import { localizeIncidentText } from '../views/scheduler/textUtils'
@@ -352,7 +352,7 @@ const cloneGrup = (original) => {
   }
 }
 
-const onDragOver = (e) => {
+const onDragOver = () => {
   isDragOver.value = true
 }
 
@@ -360,11 +360,11 @@ const onDragLeave = () => {
   isDragOver.value = false
 }
 
-const onDrop = (e) => {
+const onDrop = () => {
   isDragOver.value = false
 }
 
-const onChangeGrup = (evt, grupId) => {
+const onChangeGrup = (evt, _grupId) => {
   if (evt.added) {
     const item = evt.added.element
     // Cancel·lar pending si és moviment intern
@@ -426,10 +426,6 @@ const onChangeAgrupacions = (evt) => {
       grup: grup
     })
   }
-}
-
-const onChange = (evt) => {
-  onChangeGrup(evt, null)
 }
 
 // Gestiona ítems que arriben directament al slot (no dins d'una agrupació)

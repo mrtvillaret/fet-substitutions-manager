@@ -18,15 +18,14 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import uvicorn
-
 from fastapi import APIRouter, Depends
+from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_institucio
 
 import i18n_setup
 from auth_utils import get_current_user
 from database import get_data_db_session, get_data_dir_for_institucio
 from repositories import ConfiguracioRepository, NoSubstituirRepository
 from routes import settings, vigilancies
-from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_institucio
 
 PETICIONS = 400
 FILS = 16

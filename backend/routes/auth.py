@@ -1,10 +1,15 @@
 """
 Endpoints d'autenticació
 """
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
-from auth_utils import testimoni_de_sessio, verify_password, set_auth_cookie, clear_auth_cookie
+from auth_utils import (
+    clear_auth_cookie,
+    set_auth_cookie,
+    testimoni_de_sessio,
+    verify_password,
+)
 from config.auth import LOGIN_DELEGACIO_URL, LOGIN_DELEGACIO_USUARIS
 from database import get_auth_db
 from rate_limit import limiter

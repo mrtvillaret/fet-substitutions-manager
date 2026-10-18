@@ -5,8 +5,9 @@ funció de l'aplicació (Importar assignacions).
 """
 import uuid
 
-from routes import config_examens, scheduler
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+
+from routes import config_examens, scheduler
 
 APP = crea_app(scheduler.router, config_examens.router)
 

@@ -33,7 +33,7 @@ const carregarAvisosXml = async () => {
   try {
     const { data } = await axios.get('/api/cursos/validacio-xml')
     avisosXml.value = data
-  } catch (error) {
+  } catch {
     avisosXml.value = []
   }
 }

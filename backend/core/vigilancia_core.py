@@ -3,8 +3,8 @@ Core business logic for vigilance management.
 Contains all non-UI logic for exam vigilance assignment.
 """
 
-from typing import Optional, List, Dict, Set
 import logging
+from typing import Dict, List, Optional, Set
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class VigilanciaCore:
         if not tipus_activitat:
             return False
 
-        from config.constants import ORDRE_PRIORITATS, CATEGORIES_ACTIVES, PRIORITATS
+        from config.constants import CATEGORIES_ACTIVES, ORDRE_PRIORITATS, PRIORITATS
 
         # Fallback defensiu si encara no s'han carregat categories des de BD.
         if not ORDRE_PRIORITATS:

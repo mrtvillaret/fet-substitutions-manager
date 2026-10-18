@@ -233,7 +233,7 @@ import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import Button from 'primevue/button'
 
-const props = defineProps({
+defineProps({
   visible: {
     type: Boolean,
     required: true

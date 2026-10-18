@@ -1,8 +1,10 @@
 """
 Gestió d'absències de professors
 """
-from typing import Dict, List, Set
+from typing import Dict, List
+
 from config.constants import NO_SUBST
+
 
 class GestorAbsencies:
     """Gestiona les absències dels professors"""

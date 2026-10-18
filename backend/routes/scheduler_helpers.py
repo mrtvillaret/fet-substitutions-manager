@@ -1,7 +1,7 @@
 """Helpers de domini per a les rutes del scheduler."""
 
-from datetime import datetime
 import xml.etree.ElementTree as ET
+from datetime import datetime
 
 from repositories import MasterConfigRepository
 from scheduler_engine.core.normalitzacio import normalitzar_dia
@@ -264,7 +264,7 @@ def extreure_hores_examen_des_alliberaments(alliberaments: dict) -> tuple[list, 
         if not isinstance(cfg, dict):
             continue
         hores_nivell: set[str] = set()
-        for dia_iso, slots in cfg.items():
+        for slots in cfg.values():
             if not isinstance(slots, dict):
                 continue
             for hora, flags in slots.items():

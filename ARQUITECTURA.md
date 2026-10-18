@@ -41,6 +41,8 @@
 │               Grups, Cursos, Usuaris, Gestió de dades...)        │
 │                                                                  │
 │  substitutsTrets.js ← avís dels substituts trets per un canvi    │
+│  dataTreball.js ← data de treball (data del calendari), store    │
+│  dates.js       ← dataIso / dataAmbAny (mai toISOString)         │
 │  locales/: ca.json, es.json, en.json, it.json                    │
 │  i18n.js ← configuració vue-i18n                                 │
 └────────────────────────┬─────────────────────────────────────────┘
@@ -70,12 +72,20 @@
 │  ├── users.py            → gestió usuaris                        │
 │  ├── settings.py         → configuració del centre               │
 │  ├── config_examens.py   → config assignatures/aules examens     │
+│  ├── parametres.py       → DataISO: validació de les dates       │
 │  └── scheduler.py        → planificador exàmens (orquestra)      │
+│        ├── scheduler_config.py     ← ConfigPlanificador, durades │
+│        ├── scheduler_planificacio.py ← prepara_planificacio      │
+│        │                             (generar i analitzar)       │
+│        ├── scheduler_cost.py       ← recàlcul del cost           │
 │        ├── scheduler_service.py    ← CRUD config scheduler       │
 │        ├── scheduler_helpers.py    ← helpers intermedis          │
 │        └── scheduler_analysis_helpers.py                         │
 │                                                                  │
 │  SERVEIS (serveis/): la lògica que criden les rutes              │
+│  ├── dia.py             ← Dia: una data d'un centre i el seu     │
+│  │                        horari XML (versió vigent aquell dia)  │
+│  ├── publicacio_examens.py ← publicar l'horari d'exàmens         │
 │  ├── dia_escolar.py     ← DiaEscolar: l'estat d'un dia llegit un │
 │  │                        cop; motius_substitut i                │
 │  │                        substituts_no_valids (regla única)     │
@@ -138,7 +148,9 @@
 │  │                           de les dades de cada centre         │
 │  ├── config/pdf.json      ← perfils visuals PDF                  │
 │  ├── auth_utils.py        ← decoradors autenticació              │
-│  ├── dependencies.py      ← Depends FastAPI                      │
+│  ├── dependencies.py      ← Depends FastAPI: get_db, usuari i    │
+│  │                           el Dia (calendari / planificació /  │
+│  │                           avui)                               │
 │  ├── helpers.py           ← utils generals                       │
 │  ├── i18n_setup.py        ← traduccions backend (PDF)            │
 │  ├── rate_limit.py        ← limitació de peticions               │
@@ -209,6 +221,14 @@ Les decisions de negoci viuen en un sol lloc i les fan servir totes les parts
   la baixa, d'avui endavant, se li esborren les absències i se'l treu de
   vigilant i de substitut. Els dies passats no es toquen.
 
+- **Quin horari (XML) es fa servir** — cada versió de l'XML té una data
+  d'inici i la de fi la calcula el backend (`XMLVersionRepository.encadena`).
+  Substitucions, Vigilàncies, PDF i Configuració fan servir la data del
+  calendari; el planificador, la primera data planificada (amb avís si l'horari
+  canvia dins de les dates); la sincronització de professors actius, avui. Les
+  rutes reben el `Dia` per dependència i no criden mai `get_horari` sense data
+  (ho comprova `tests/test_horari_sempre_amb_data.py`).
+
 ## Generar les substitucions d'un dia
 
 ```
@@ -224,7 +244,7 @@ routes/substitucions.py  POST /api/substitucions/{data}/generar
 
 ## Tests
 
-`backend/tests/`: més de 500 tests amb pytest, sobre institucions temporals amb
+`backend/tests/`: més de 600 tests amb pytest, sobre institucions temporals amb
 l'horari d'exemple (`data/exemple/teachers.xml`). La majoria passen per l'API
 (com la pantalla) i comproven el que queda desat a la BD; els del motor i del
 planificador fan servir dades simulades.

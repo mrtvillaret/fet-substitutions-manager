@@ -53,7 +53,6 @@
     "add": "Afegeix",
     "delete": "Elimina",
     "edit": "Edita",
-    "create": "Crea",
     "new": "Nova",
     "total": "Total",
     "actions": "Accions",
@@ -829,21 +828,9 @@
       "groups": "-- Grups --",
       "room": "-- Aula --",
       "supervisor": "-- Selecciona vigilant --",
-      "supervisorSelect": "-- Selecciona vigilant --",
-      "hour": "Selecciona hora",
-      "groupsSelect": "Selecciona grups",
-      "roomSelect": "Selecciona aula",
-      "notes": "Observacions..."
+      "supervisorSelect": "-- Selecciona vigilant --"
     },
     "dialogs": {
-      "newTitle": "➕ Nova vigilància",
-      "hourLabel": "Hora *",
-      "levelLabel": "Nivell",
-      "typeLabel": "Tipus d'examen",
-      "groupsLabel": "Grups",
-      "roomLabel": "Aula",
-      "supervisorLabel": "Vigilant",
-      "selectHourFirst": "Primer selecciona una hora",
       "pdfTitle": "📄 Exportar PDF vigilàncies",
       "levelsLabel": "Nivells a incloure *",
       "levelsPlaceholder": "Selecciona nivells",
@@ -876,7 +863,6 @@
     },
     "messages": {
       "updated": "Vigilància actualitzada correctament",
-      "created": "Vigilància creada correctament",
       "added": "Vigilància afegida correctament",
       "deleted": "Vigilància eliminada correctament",
       "deletedSelected": "{count} vigilàncies eliminades correctament",
@@ -1341,6 +1327,14 @@
         "seeds_count": {
           "label": "Nombre de seeds",
           "help": "Provar múltiples seeds i quedar-se amb la millor solució"
+        },
+        "max_nodes": {
+          "label": "Límit de nodes",
+          "help": "Nodes màxims a explorar (més alt = més exhaustiu però més lent)"
+        },
+        "shuffle_top_n": {
+          "label": "Aleatorietat (top-N)",
+          "help": "Quantes de les millors hores es barregen segons la seed (0 = determinista i ràpid, 3 = equilibrat, 5 = molt aleatori)"
         }
       }
     },
@@ -1380,8 +1374,6 @@
         "profCount": "{count} prof."
       },
       "toasts": {
-        "levelConflictTitle": "Conflicte de nivell",
-        "levelConflictDetail": "Ja hi ha un examen de {level} en aquest slot",
         "recalcErrorTitle": "Error",
         "recalcErrorDetail": "No s'ha pogut recalcular el cost",
         "pendingConflictsTitle": "Conflictes pendents",

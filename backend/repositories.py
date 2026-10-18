@@ -3,15 +3,16 @@ Repositoris (DAOs) per accedir a les dades SQLite
 Encapsula tota la lògica d'accés a dades
 """
 
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
-from typing import List, Optional, Dict, Any
-from datetime import date, datetime, timedelta
-from pathlib import Path
+import logging
 import re
 import sys
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-import logging
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import Session
+
 log = logging.getLogger(__name__)
 
 
@@ -24,17 +25,37 @@ def parse_date(date_str: str) -> date:
 # Handle both script and module import contexts
 try:
     from .models import (
-        Nivell, Assignatura, Grup, Aula, AbreviaturaGrup,
-        Vigilancia, Substitucio,
-        GrupAlliberat, AlliberamentPeriode, Configuracio, XMLVersion, Curs, User
+        AbreviaturaGrup,
+        AlliberamentPeriode,
+        Assignatura,
+        Aula,
+        Configuracio,
+        Curs,
+        Grup,
+        GrupAlliberat,
+        Nivell,
+        Substitucio,
+        User,
+        Vigilancia,
+        XMLVersion,
     )
 except ImportError:
     # When running as script, add current dir to path to find local models
     sys.path.insert(0, str(Path(__file__).parent))
     from models import (
-        Nivell, Assignatura, Grup, Aula, AbreviaturaGrup,
-        Vigilancia, Substitucio,
-        GrupAlliberat, AlliberamentPeriode, Configuracio, XMLVersion, Curs, User
+        AbreviaturaGrup,
+        AlliberamentPeriode,
+        Assignatura,
+        Aula,
+        Configuracio,
+        Curs,
+        Grup,
+        GrupAlliberat,
+        Nivell,
+        Substitucio,
+        User,
+        Vigilancia,
+        XMLVersion,
     )
 
 
@@ -612,8 +633,14 @@ class GrupsAlliberatsRepository:
         es resolen als professors que les fan (perquè compti com qualsevol
         professor alliberat)."""
         result = GrupsAlliberatsRepository.get_dia_by_date(db, data)
-        from helpers import get_horari, MissingXmlError
-        from core.alliberats import (activitats_de, clau_activitat, clau_ocupat, clau_professor, ocupats_de)
+        from core.alliberats import (
+            activitats_de,
+            clau_activitat,
+            clau_ocupat,
+            clau_professor,
+            ocupats_de,
+        )
+        from helpers import MissingXmlError, get_horari
         try:
             horari = get_horari(data_iso=data)
         except MissingXmlError:
@@ -663,7 +690,7 @@ class GrupsAlliberatsRepository:
 
         # Un professor marcat «ocupat» aquell dia no està alliberat, vingui d'on
         # vingui l'alliberament (per defecte o per un canvi d'estat)
-        for hora, valors in result.items():
+        for valors in result.values():
             for professor in ocupats_de(valors):
                 clau = clau_professor(professor)
                 while clau in valors:
@@ -752,7 +779,7 @@ class MasterConfigRepository:
     @staticmethod
     def get_nivells(db: Session) -> List[str]:
         """Retorna tots els codis de nivells ordenats"""
-        nivells = db.query(Nivell).filter(Nivell.actiu == True).order_by(Nivell.ordre).all()
+        nivells = db.query(Nivell).filter(Nivell.actiu.is_(True)).order_by(Nivell.ordre).all()
         return [n.codi for n in nivells]
 
     @staticmethod
@@ -1441,8 +1468,9 @@ class ProfessorRepository:
     @staticmethod
     def sync_from_xml(db: Session, professors_xml: List[str], data_sync=None) -> Dict[str, int]:
         """Sincronitza professors amb l'XML (actiu/inactiu)"""
-        from models import Professor
         from datetime import date
+
+        from models import Professor
 
         data_avui = data_sync or date.today()
         professors_noms = {nom.strip() for nom in professors_xml if nom and nom.strip()}
@@ -1513,8 +1541,9 @@ class ProfessorBaixaRepository:
     def create(db: Session, professor: str, data_inici: str, data_final: str,
                motiu: str = "") -> int:
         """Crea un nou professor de baixa"""
-        from models import ProfessorBaixa
         from datetime import datetime
+
+        from models import ProfessorBaixa
 
         nova_baixa = ProfessorBaixa(
             professor=professor,
@@ -1534,8 +1563,9 @@ class ProfessorBaixaRepository:
                data_inici: str = None, data_final: str = None,
                motiu: str = None) -> bool:
         """Actualitza un professor de baixa"""
-        from models import ProfessorBaixa
         from datetime import datetime
+
+        from models import ProfessorBaixa
 
         baixa = db.query(ProfessorBaixa).filter(
             ProfessorBaixa.id == baixa_id

@@ -2,12 +2,13 @@
 Factory d'estils PDF consolidats per eliminar duplicació
 Centralitza configuració d'estils ReportLab usats en tots els exportadors PDF
 """
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
 import json
+import logging
 from pathlib import Path
 
-import logging
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+
 log = logging.getLogger(__name__)
 
 # Try to import hyphenation support
@@ -191,7 +192,6 @@ class PDFStyleFactory:
         from reportlab.platypus import TableStyle
         pdf_config = PDFStyleFactory._load_pdf_config()
         fonts = pdf_config.get('font_sizes', {})
-        config = pdf_config
         
         # Estil estàndard per taules
         standard_table_style = TableStyle([

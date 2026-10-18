@@ -8,13 +8,17 @@ from datetime import date
 
 import pytest
 from fastapi import Depends
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth_utils import require_admin
-from database import get_data_db_session, get_data_dir_for_institucio, get_export_dir_for_institucio
+from database import (
+    get_data_db_session,
+    get_data_dir_for_institucio,
+    get_export_dir_for_institucio,
+)
 from models import GrupAlliberat, ProfessorBaixa, Substitucio, Vigilancia, XMLVersion
 from rate_limit import limiter
 from routes import dades
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app()
 APP.include_router(dades.router, dependencies=[Depends(require_admin)])   # com a main.py
@@ -182,6 +186,7 @@ def test_l_analisi_detalla_les_baixes_i_avisa_de_les_que_surten_de_l_interval(ad
 
 def _planificador(centre, dates, dies_horari, desat="2026-03-20T10:00:00"):
     import json
+
     from repositories import ConfiguracioRepository
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "scheduler_selected_dates", json.dumps(dates), tipus="json")
@@ -193,6 +198,7 @@ def _planificador(centre, dates, dies_horari, desat="2026-03-20T10:00:00"):
 
 def _config_planificador(centre):
     import json
+
     from repositories import ConfiguracioRepository
     with get_data_db_session(centre) as db:
         dates = ConfiguracioRepository.get(db, "scheduler_selected_dates")

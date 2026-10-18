@@ -27,7 +27,7 @@
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 
-const props = defineProps({
+defineProps({
   visible: { type: Boolean, default: false },
   title: { type: String, required: true },
   message: { type: String, required: true },

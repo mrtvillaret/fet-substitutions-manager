@@ -6,13 +6,17 @@ ruta d'un altre centre i llegir-ne l'horari o llistar-ne i esborrar-ne PDF.
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
-from database import get_data_db_session, get_data_dir_for_institucio, get_export_dir_for_institucio
+from database import (
+    get_data_db_session,
+    get_data_dir_for_institucio,
+    get_export_dir_for_institucio,
+)
 from helpers import avui, get_xml_path_for_date
 from rate_limit import limiter
 from repositories import ConfiguracioRepository
 from routes import settings
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(settings.router)
 

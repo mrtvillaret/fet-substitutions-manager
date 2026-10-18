@@ -8,11 +8,17 @@ import time
 
 import pytest
 import uvicorn
+from suport_api import CONTRASENYA, crea_app, crea_usuari
+from suport_planificador import (
+    DATES,
+    DIES,
+    alliberaments,
+    centre_amb_examens,
+    configura,
+)
+from test_concurrencia_institucions import _peticio, _port_lliure
 
 from routes import config_examens, scheduler
-from suport_api import CONTRASENYA, crea_app, crea_usuari
-from suport_planificador import DATES, DIES, alliberaments, centre_amb_examens, configura
-from test_concurrencia_institucions import _peticio, _port_lliure
 
 
 @pytest.fixture(scope="module")
@@ -62,6 +68,7 @@ def test_mentre_es_genera_un_horari_les_altres_peticions_responen(servidor):
 
 def test_la_captura_de_missatges_no_barreja_peticions_simultanies():
     from concurrent.futures import ThreadPoolExecutor
+
     from captura_sortida import captura_stdout
 
     barrera = threading.Barrier(4)

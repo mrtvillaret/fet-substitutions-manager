@@ -8,12 +8,17 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth_utils import COOKIE_NAME
-from config.auth import ALGORITHM, SECRET_KEY, SESSIO_INACTIVITAT_MINUTS, SESSIO_MAXIMA_HORES
+from config.auth import (
+    ALGORITHM,
+    SECRET_KEY,
+    SESSIO_INACTIVITAT_MINUTS,
+    SESSIO_MAXIMA_HORES,
+)
 from rate_limit import limiter
 from routes import users
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(users.router)
 ARA = None

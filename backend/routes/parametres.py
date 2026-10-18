@@ -11,7 +11,7 @@ def data_iso(valor: str) -> date:
     try:
         return datetime.strptime(valor, "%Y-%m-%d").date()
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD") from None
 
 
 def _comprova_data_iso(valor):

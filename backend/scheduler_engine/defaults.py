@@ -3,7 +3,6 @@ Constants centralitzades per al scheduler d'exàmens.
 Punt únic de veritat per a tots els defaults del sistema.
 """
 
-from scheduler_engine.core.normalitzacio import DIES_MAPEJAT, normalitzar_dia
 
 DIES_SETMANA = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres']
 

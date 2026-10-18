@@ -6,21 +6,21 @@ Routes per configuració de prioritats i professors de baixa:
 - Llista de no substituir (CRUD)
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
 from typing import Dict, List
-from pydantic import BaseModel
 
-from dependencies import get_db
-from serveis.baixes import aplica_baixa
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from dependencies import dia_del_calendari, get_db
 from repositories import (
-    ProfessorBaixaRepository,
-    CategoriaPrioritatRepository,
     AssignaturaPrioritatRepository,
+    CategoriaPrioritatRepository,
     ConfiguracioRepository,
-    NoSubstituirRepository
+    NoSubstituirRepository,
+    ProfessorBaixaRepository,
 )
-from dependencies import dia_del_calendari
+from serveis.baixes import aplica_baixa
 from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/prioritats", tags=["Prioritats i Professors"])
@@ -34,7 +34,7 @@ def _recarregar_prioritats_desde_bd(db: Session):
     llegint-les des de la base de dades en lloc del JSON.
     """
     import config.constants as constants
-    from models import CategoriaPrioritat, AssignaturaPrioritat
+    from models import AssignaturaPrioritat, CategoriaPrioritat
 
     # Obtenir totes les categories ordenades
     categories = db.query(CategoriaPrioritat).order_by(CategoriaPrioritat.ordre).all()
@@ -85,11 +85,6 @@ def _recarregar_prioritats_desde_bd(db: Session):
         GENERA_ENCADENADES=[tipus for tipus in prioritats if tipus not in no_subst],
         PROFESSORS_BAIXA=professors_baixa,
     )
-
-
-    # Debug detallat per verificar
-    for i, cat_assignatures in enumerate(ordre_prioritats):
-        activa_str = "✅ ACTIVA" if i < len(categories_actives) and categories_actives[i] else "❌ INACTIVA"
 
 
 # ===== MODELS PYDANTIC =====
@@ -329,8 +324,8 @@ async def get_activitats_alliberables(db: Session = Depends(get_db), dia_calenda
     """Activitats sense grup que es poden alliberar (surten com a files a la
     taula de grups alliberats) i les que hi ha a l'horari vigent a `data` (o,
     sense, avui) per triar-les."""
-    from routes.grups import activitats_alliberables
     from helpers import MissingXmlError
+    from routes.grups import activitats_alliberables
     disponibles = set()
     try:
         horari = dia_calendari.horari
@@ -351,6 +346,7 @@ async def get_activitats_alliberables(db: Session = Depends(get_db), dia_calenda
 @router.put("/activitats-alliberables")
 async def set_activitats_alliberables(dades: ActivitatsAlliberables, db: Session = Depends(get_db)):
     import json
+
     from routes.grups import CLAU_ACTIVITATS_ALLIBERABLES
     activitats = sorted({a.strip() for a in dades.activitats if a and a.strip()})
     per_defecte = sorted({a.strip() for a in dades.per_defecte if a and a.strip() in activitats})
@@ -376,7 +372,7 @@ async def desar_totes_prioritats(data: PrioritatsCompletesUpdate, db: Session = 
     - Actualitza assignatures i pesos
     """
     try:
-        from models import CategoriaPrioritat, AssignaturaPrioritat
+        from models import AssignaturaPrioritat, CategoriaPrioritat
 
         # 1. Eliminar totes les assignatures (CASCADE elimina també les categories)
         db.query(AssignaturaPrioritat).delete()

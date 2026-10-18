@@ -1,10 +1,10 @@
 """
 Gestió de professors alliberats millorada amb estadístiques
 """
-from typing import List, Set, Tuple
-from datetime import date
-
 import logging
+from datetime import date
+from typing import List, Set, Tuple
+
 log = logging.getLogger(__name__)
 
 try:

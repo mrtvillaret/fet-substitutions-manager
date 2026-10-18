@@ -4,10 +4,14 @@ Detecta conflictes, violations de restriccions i genera logs d'incidències.
 Extret de routes/scheduler.py per millorar mantenibilitat i testabilitat.
 """
 
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional, Set
 
+from scheduler_engine.core.constraints import (
+    _percent_penalty,
+    _percent_value,
+    percent_no_mateix_slot,
+)
 from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS
-from scheduler_engine.core.constraints import _percent_penalty, _percent_value, percent_no_mateix_slot
 
 
 def _nom_base_assignatura(nom: str) -> str:
@@ -314,7 +318,7 @@ class ValidadorHorari:
 
     def _comprovar_limits_dies(self):
         """Comprova límits d'exàmens per professor en dies específics."""
-        if any("LÍMIT DIES:" in l for l in self.horari.get("metadata", {}).get("logs", [])):
+        if any("LÍMIT DIES:" in linia for linia in self.horari.get("metadata", {}).get("logs", [])):
             return  # El motor ja ha generat aquests logs
 
         professors_limits = self.restriccions.get('restriccions_dures', {}).get(

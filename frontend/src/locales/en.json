@@ -53,7 +53,6 @@
     "add": "Add",
     "delete": "Delete",
     "edit": "Edit",
-    "create": "Create",
     "new": "New",
     "total": "Total",
     "actions": "Actions",
@@ -826,21 +825,9 @@
       "groups": "-- Groups --",
       "room": "-- Room --",
       "supervisor": "-- Select supervisor --",
-      "supervisorSelect": "-- Select supervisor --",
-      "hour": "Select hour",
-      "groupsSelect": "Select groups",
-      "roomSelect": "Select room",
-      "notes": "Notes..."
+      "supervisorSelect": "-- Select supervisor --"
     },
     "dialogs": {
-      "newTitle": "➕ New supervision",
-      "hourLabel": "Hour *",
-      "levelLabel": "Level",
-      "typeLabel": "Exam type",
-      "groupsLabel": "Groups",
-      "roomLabel": "Room",
-      "supervisorLabel": "Supervisor",
-      "selectHourFirst": "Select an hour first",
       "pdfTitle": "📄 Export supervision PDF",
       "levelsLabel": "Levels to include *",
       "levelsPlaceholder": "Select levels",
@@ -873,7 +860,6 @@
     },
     "messages": {
       "updated": "Supervision updated successfully",
-      "created": "Supervision created successfully",
       "added": "Supervision added successfully",
       "deleted": "Supervision deleted successfully",
       "deletedSelected": "{count} supervisions deleted successfully",
@@ -1338,6 +1324,14 @@
         "seeds_count": {
           "label": "Number of seeds",
           "help": "Try multiple seeds and keep the best solution"
+        },
+        "max_nodes": {
+          "label": "Node limit",
+          "help": "Maximum nodes to explore (higher = more exhaustive but slower)"
+        },
+        "shuffle_top_n": {
+          "label": "Randomness (top-N)",
+          "help": "How many of the best time slots are shuffled by the seed (0 = deterministic and fast, 3 = balanced, 5 = very random)"
         }
       }
     },
@@ -1377,8 +1371,6 @@
         "profCount": "{count} teachers"
       },
       "toasts": {
-        "levelConflictTitle": "Level conflict",
-        "levelConflictDetail": "There is already an exam for {level} in this slot",
         "recalcErrorTitle": "Error",
         "recalcErrorDetail": "Could not recalculate cost",
         "pendingConflictsTitle": "Pending conflicts",

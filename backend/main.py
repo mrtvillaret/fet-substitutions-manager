@@ -4,28 +4,56 @@ Versió modularitzada amb routes, schemas i helpers separats
 """
 # Carregar variables d'entorn ABANS de qualsevol altre import
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from fastapi import FastAPI, Depends, Request
-from fastapi.responses import JSONResponse
 import logging
 import os
 import time
-from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
+
+from fastapi import Depends, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-# SQLAlchemy imports
-from database import create_auth_tables
-from auth_utils import ensure_default_users, get_current_user, registra_renovacio_sessio, require_admin
+from auth_utils import (
+    COOKIE_NAME,
+    decode_access_token,
+    ensure_default_users,
+    get_current_user,
+    registra_renovacio_sessio,
+    require_admin,
+)
 from config.auth import IS_DEVELOPMENT
-from rate_limit import limit_superat, limiter
-
-# Imports de schemas i helpers
+from database import create_auth_tables
+from errors_servidor import registra_gestors_errors
 from helpers import MissingXmlError
-from auth_utils import COOKIE_NAME, decode_access_token
+from rate_limit import limit_superat, limiter
+from routes import (
+    auth,
+    config_examens,
+    cursos,
+    dades,
+    disponibles,
+    estadistiques,
+    files,
+    general,
+    grups,
+    grups_amagats,
+    horari,
+    informes,
+    pdf,
+    prioritats,
+    scheduler,
+    settings,
+    substitucions,
+    users,
+    vigilancies,
+)
 
+log = logging.getLogger(__name__)
 access_logger = logging.getLogger("uvicorn.error")
 access_logger.setLevel(logging.INFO)
 
@@ -39,8 +67,8 @@ ensure_default_users()
 # Carregar prioritats des de la BD (per web, no usem JSON)
 def _inicialitzar_prioritats():
     """Carrega prioritats des de la BD en iniciar el backend"""
-    from database import get_data_db_session
     from config.settings import config
+    from database import get_data_db_session
     from routes.prioritats import _recarregar_prioritats_desde_bd
 
     try:
@@ -66,7 +94,6 @@ app = FastAPI(
 
 
 # Errors 5xx: detall al registre, a l'usuari només una referència
-from errors_servidor import registra_gestors_errors
 registra_gestors_errors(app)
 
 
@@ -138,11 +165,6 @@ app.add_middleware(
 )
 
 # ===== Registre de routers modularitzats =====
-from routes import auth, config_examens, general, grups, grups_amagats, pdf, vigilancies, substitucions, settings, estadistiques, prioritats, horari, files, users, disponibles, scheduler, informes, cursos, dades
-
-import logging
-log = logging.getLogger(__name__)
-
 app.include_router(auth.router)
 app.include_router(config_examens.router, dependencies=[Depends(require_admin)])
 app.include_router(grups.router, dependencies=[Depends(get_current_user)])

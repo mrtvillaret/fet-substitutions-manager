@@ -7,7 +7,6 @@ from typing import Dict, Iterable, List, Optional
 
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 
-
 DIES_CAT = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte", "Diumenge"]
 _DIES_CAT = DIES_CAT  # àlies privat per compatibilitat interna
 

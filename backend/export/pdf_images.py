@@ -3,8 +3,9 @@ Gestió d'imatges per PDFs - Substitueix emojis per icones visuals
 """
 
 import os
-from reportlab.platypus import Image
+
 from reportlab.lib.units import inch
+from reportlab.platypus import Image
 
 try:
     from i18n_setup import translate as _

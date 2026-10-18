@@ -53,7 +53,6 @@
     "add": "Añadir",
     "delete": "Eliminar",
     "edit": "Editar",
-    "create": "Crear",
     "new": "Nueva",
     "total": "Total",
     "actions": "Acciones",
@@ -826,21 +825,9 @@
       "groups": "-- Grupos --",
       "room": "-- Aula --",
       "supervisor": "-- Selecciona vigilante --",
-      "supervisorSelect": "-- Selecciona vigilante --",
-      "hour": "Selecciona hora",
-      "groupsSelect": "Selecciona grupos",
-      "roomSelect": "Selecciona aula",
-      "notes": "Observaciones..."
+      "supervisorSelect": "-- Selecciona vigilante --"
     },
     "dialogs": {
-      "newTitle": "➕ Nueva vigilancia",
-      "hourLabel": "Hora *",
-      "levelLabel": "Nivel",
-      "typeLabel": "Tipo de examen",
-      "groupsLabel": "Grupos",
-      "roomLabel": "Aula",
-      "supervisorLabel": "Vigilante",
-      "selectHourFirst": "Primero selecciona una hora",
       "pdfTitle": "📄 Exportar PDF vigilancias",
       "levelsLabel": "Niveles a incluir *",
       "levelsPlaceholder": "Selecciona niveles",
@@ -873,7 +860,6 @@
     },
     "messages": {
       "updated": "Vigilancia actualizada correctamente",
-      "created": "Vigilancia creada correctamente",
       "added": "Vigilancia añadida correctamente",
       "deleted": "Vigilancia eliminada correctamente",
       "deletedSelected": "{count} vigilancias eliminadas correctamente",
@@ -1338,6 +1324,14 @@
         "seeds_count": {
           "label": "Número de semillas",
           "help": "Probar múltiples semillas y quedarse con la mejor solución"
+        },
+        "max_nodes": {
+          "label": "Límite de nodos",
+          "help": "Nodos máximos a explorar (más alto = más exhaustivo pero más lento)"
+        },
+        "shuffle_top_n": {
+          "label": "Aleatoriedad (top-N)",
+          "help": "Cuántas de las mejores horas se mezclan según la semilla (0 = determinista y rápido, 3 = equilibrado, 5 = muy aleatorio)"
         }
       }
     },
@@ -1377,8 +1371,6 @@
         "profCount": "{count} prof."
       },
       "toasts": {
-        "levelConflictTitle": "Conflicto de nivel",
-        "levelConflictDetail": "Ya hay un examen de {level} en este slot",
         "recalcErrorTitle": "Error",
         "recalcErrorDetail": "No se ha podido recalcular el coste",
         "pendingConflictsTitle": "Conflictos pendientes",

@@ -10,12 +10,12 @@ Cap dada de substitucions o vigilàncies es toca en crear, editar o eliminar un 
 """
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from auth_utils import get_current_user, require_admin
 from dependencies import get_db
-from auth_utils import require_admin, get_current_user
 from repositories import CursRepository
 from routes.parametres import DataISO, data_iso
 

@@ -2,15 +2,17 @@
 Routes per estadístiques de substitucions i vigilàncies
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from core.alliberats import sense_classe
 from dependencies import get_db
 from models import Substitucio, Vigilancia
 from repositories import GrupsAlliberatsRepository, NoSubstituirRepository
-from core.alliberats import sense_classe
 from routes.parametres import DataISO
 
 router = APIRouter(prefix="/api/estadistiques", tags=["Estadístiques"])
@@ -159,7 +161,7 @@ async def get_resum_estadistiques(
     vigilancies_assignades = db.query(Vigilancia).filter(
         Vigilancia.data >= data_inici,
         Vigilancia.data <= data_final,
-        Vigilancia.vigilant != None,
+        Vigilancia.vigilant.is_not(None),
         Vigilancia.vigilant != ""
     ).count()
 
@@ -281,7 +283,7 @@ async def get_estadistiques_professors(
     ).filter(
         Vigilancia.data >= data_inici,
         Vigilancia.data <= data_final,
-        Vigilancia.vigilant != None,
+        Vigilancia.vigilant.is_not(None),
         Vigilancia.vigilant != ""
     ).group_by(
         Vigilancia.vigilant
@@ -423,7 +425,7 @@ async def get_estadistiques_classes(
     substitucions_amb_grup = db.query(Substitucio).filter(
         Substitucio.data >= data_inici,
         Substitucio.data <= data_final,
-        Substitucio.grup != None,
+        Substitucio.grup.is_not(None),
         Substitucio.grup != ""
     ).all()
 
@@ -531,7 +533,7 @@ async def get_estadistiques_classes_detall(
     substitucions = db.query(Substitucio).filter(
         Substitucio.data >= data_inici,
         Substitucio.data <= data_final,
-        Substitucio.grup != None,
+        Substitucio.grup.is_not(None),
         Substitucio.grup != "",
         Substitucio.grup.in_(grups_set)
     ).order_by(Substitucio.data, Substitucio.hora).all()

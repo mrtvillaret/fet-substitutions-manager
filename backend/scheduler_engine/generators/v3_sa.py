@@ -4,33 +4,39 @@ Versió corregida amb totes les restriccions i agrupament modular.
 """
 
 import math
-import re
 import random
+import re
 import time
-from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Set, Optional, Any, Union
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
 
-from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text, nom_base_assignatura
-from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso, DIES_CAT as _DIES_CAT
-from scheduler_engine.core.constraints import (
-    sessio_matches, sessio_in_group, get_restriccio_val,
-    viola_restriccio_dia_hora_fixos,
-    es_item_compatible_amb_slot, es_slot_valid_per_nivell
-)
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-from scheduler_engine.core.scoring import calcular_cost_slot
-from scheduler_engine.core.constraints import _percent_penalty
-from scheduler_engine.defaults import (
-    DEFAULT_SA_PARAMS, DEFAULT_COST_PROFESSORS,
-    DEFAULT_PES_RESTRICCIO_DURA, DEFAULT_PES_RESTRICCIO_PROHIBITIU,
-    DEFAULT_PES_ZONA_EXAMEN,
+from scheduler_engine.core.constraints import (
+    _percent_penalty,
+    es_item_compatible_amb_slot,
+    es_slot_valid_per_nivell,
+    get_restriccio_val,
+    sessio_in_group,
+    sessio_matches,
+    viola_restriccio_dia_hora_fixos,
 )
-from scheduler_engine.generators.base import GeneradorSessionsExamensBase
-from scheduler_engine.estadistiques import aplicar_estadistiques
-from scheduler_engine.domain.models import Sessio, Item, Slot
+from scheduler_engine.core.date_mapping import DIES_CAT as _DIES_CAT
+from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
 from scheduler_engine.core.restriction_engine import RestrictionEngine
+from scheduler_engine.core.scoring import calcular_cost_slot
+from scheduler_engine.defaults import (
+    DEFAULT_COST_PROFESSORS,
+    DEFAULT_PES_RESTRICCIO_DURA,
+    DEFAULT_PES_RESTRICCIO_PROHIBITIU,
+    DEFAULT_PES_ZONA_EXAMEN,
+    DEFAULT_SA_PARAMS,
+)
+from scheduler_engine.domain.models import Item, Sessio, Slot
+from scheduler_engine.estadistiques import aplicar_estadistiques
+from scheduler_engine.generators.base import GeneradorSessionsExamensBase
 
 
 @dataclass
@@ -586,7 +592,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             cost = 0.0; viols = []
             per_dia = defaultdict(list)
             for iid, sl in sol.assignacions.items(): per_dia[normalitzar_dia(sl.dia)].append(self.items_per_id[iid])
-            for d, its in per_dia.items():
+            for its in per_dia.values():
                 sessions_d = [s for it in its for s in it.sessions]
                 for s in sessions_d:
                     if sessio_in_group(s, r.dades['assignatures']):
@@ -758,7 +764,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             sa = self._generar_solucio_inicial()
             if sa is None:
                 if verbose:
-                    print(f"   ⚠️ No s'ha pogut generar solució inicial")
+                    print("   ⚠️ No s'ha pogut generar solució inicial")
                 continue
 
             ms = deepcopy(sa)

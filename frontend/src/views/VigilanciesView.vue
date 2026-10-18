@@ -310,116 +310,6 @@
       </DataTable>
     </div>
 
-    <!-- Diàleg per afegir nova vigilància -->
-    <Dialog
-      v-model:visible="mostrarDialogNova"
-      :header="$t('vigilancies.dialogs.newTitle')"
-      :modal="true"
-      :style="{ width: '500px' }"
-      :closable="true"
-    >
-      <div class="p-fluid">
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.hourLabel') }}</label>
-          <Dropdown
-            v-model="novaVigilancia.hora"
-            :options="hores"
-            :placeholder="$t('vigilancies.placeholders.hour')"
-          />
-        </div>
-
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.levelLabel') }}</label>
-          <Dropdown
-            v-model="novaVigilancia.nivell"
-            :options="nivells"
-            :placeholder="$t('vigilancies.placeholders.level')"
-          />
-        </div>
-
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.typeLabel') }}</label>
-          <Dropdown
-            v-model="novaVigilancia.tipus"
-            :options="getTipusOptions(novaVigilancia.nivell, true)"
-            :placeholder="$t('vigilancies.placeholders.type')"
-            :editable="true"
-          />
-        </div>
-
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.groupsLabel') }}</label>
-          <Dropdown
-            v-model="novaVigilancia.grups"
-            :options="getGrupsPerNivell(novaVigilancia.nivell)"
-            :placeholder="$t('vigilancies.placeholders.groupsSelect')"
-            :editable="true"
-            :showClear="true"
-          />
-        </div>
-
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.roomLabel') }}</label>
-          <Dropdown
-            v-model="novaVigilancia.aula"
-            :options="aules"
-            :placeholder="$t('vigilancies.placeholders.roomSelect')"
-            :editable="true"
-          />
-        </div>
-
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.supervisorLabel') }}</label>
-          <Dropdown
-            v-model="novaVigilancia.vigilant"
-            :options="getDisponiblesPerHora(novaVigilancia.hora)"
-            optionLabel="label"
-            optionValue="value"
-            @show="novaVigilancia.hora && carregarDisponibles(novaVigilancia.hora)"
-            :placeholder="$t('vigilancies.placeholders.supervisorSelect')"
-            filter
-            :disabled="!novaVigilancia.hora"
-          >
-            <template #option="optionProps">
-              <div
-                class="professor-option"
-                :style="{
-                  backgroundColor: optionProps.option.color,
-                  padding: '0.5rem',
-                  borderRadius: '4px',
-                  fontWeight: optionProps.option.ja_assignat ? 'normal' : '500',
-                  opacity: optionProps.option.ja_assignat ? 0.7 : 1
-                }"
-              >
-                {{ optionProps.option.label }}
-              </div>
-            </template>
-          </Dropdown>
-          <small v-if="!novaVigilancia.hora" style="color: #6b7280;">
-            {{ $t('vigilancies.dialogs.selectHourFirst') }}
-          </small>
-        </div>
-
-        <div class="field">
-          <label>{{ $t('common.comments') }}</label>
-          <InputText
-            v-model="novaVigilancia.comentaris"
-            :placeholder="$t('vigilancies.placeholders.notes')"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <Button :label="$t('common.cancel')" @click="mostrarDialogNova = false" class="p-button-text" />
-          <Button
-          :label="$t('common.create')"
-          @click="crearVigilancia"
-          class="p-button-success"
-          :disabled="!novaVigilancia.hora"
-        />
-      </template>
-    </Dialog>
-
     <!-- Diàleg validacions PDF -->
     <Dialog
       v-model:visible="mostrarDialogValidacionsVig"
@@ -655,7 +545,6 @@ const seleccionades = ref([])
 const substitucionsCount = ref(0)
 const loading = ref(false)
 const error = ref(null)
-const mostrarDialogNova = ref(false)
 const assignantTitulars = ref(false)
 const assignantPendents = ref(false)
 const ordenant = ref(false)
@@ -739,17 +628,6 @@ watch(allLabel, (newVal, oldVal) => {
   if (filtreEstat.value === oldVal) {
     filtreEstat.value = newVal
   }
-})
-
-// Nova vigilància
-const novaVigilancia = ref({
-  hora: '',
-  nivell: null,
-  tipus: null,
-  grups: '',
-  aula: '',
-  vigilant: '',
-  comentaris: ''
 })
 
 // Computed
@@ -1152,51 +1030,6 @@ const actualitzarVigilancia = async (vigilancia) => {
     })
     // Recarregar per restaurar estat original
     await carregarVigilancies()
-  }
-}
-
-const obrirDialogNova = () => {
-  novaVigilancia.value = {
-    hora: '',
-    nivell: null,
-    tipus: null,
-    grups: '',
-    aula: '',
-    vigilant: '',
-    comentaris: ''
-  }
-  mostrarDialogNova.value = true
-}
-
-const crearVigilancia = async () => {
-  try {
-    const esPlaceholder = (value, fallback) =>
-      !value || value.startsWith('--') || value === fallback
-
-    const payload = {
-      ...novaVigilancia.value,
-      nivell: esPlaceholder(novaVigilancia.value.nivell, t('vigilancies.placeholders.level')) ? '' : (novaVigilancia.value.nivell || ''),
-      tipus: esPlaceholder(novaVigilancia.value.tipus, t('vigilancies.placeholders.type')) ? '' : (novaVigilancia.value.tipus || '')
-    }
-    await axios.post(`/api/vigilancies/${dataISO.value}`, payload)
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.created'),
-      detail: t('vigilancies.messages.created'),
-      life: 3000
-    })
-
-    mostrarDialogNova.value = false
-    await carregarVigilancies()
-  } catch (err) {
-    console.error('Error creant vigilància:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('vigilancies.errors.create'),
-      life: 3000
-    })
   }
 }
 

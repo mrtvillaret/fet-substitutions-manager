@@ -6,8 +6,9 @@ podrien trepitjar.
 """
 from datetime import date
 
-from helpers import get_gestors
 from suport_api import nova_institucio
+
+from helpers import get_gestors
 
 
 def test_cada_crida_te_gestors_propis_pero_el_mateix_horari():

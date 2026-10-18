@@ -1,30 +1,31 @@
 """
 Endpoints per generar informes PDF de direcció i per professor.
 """
-import sys
 import shutil
+import sys
 import tempfile
-from pathlib import Path
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from auth_utils import require_admin
+from core.alliberats import sense_classe
 from database import get_data_dir_for_institucio
 from repositories import ConfiguracioRepository, MasterConfigRepository
 from utils.hores import normalitzar_hora as _normalitzar_hora
-from core.alliberats import sense_classe
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+import logging
+
 from export.pdf.informe_direccio import generar_informe_pdf
 from export.pdf.informe_professors import generar_informe_professors_pdf
 from routes.parametres import DataISO, data_iso
-
-import logging
 from serveis.dia import Dia
+
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/informes", tags=["informes"])
@@ -161,7 +162,6 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
 
     absencies = [s for s in subs_reals if s["tipus_absencia"] == "ABSENCIA"]
     serveis   = [s for s in subs_reals if s["tipus_absencia"] == "SERVEI"]
-    profs_baixa = {b["professor"] for b in baixes}
 
     cobertura = len(subs_assignades) / len(subs_reals) * 100 if subs_reals else 0
 

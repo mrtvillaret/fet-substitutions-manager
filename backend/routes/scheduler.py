@@ -1,10 +1,11 @@
-from pathlib import Path
-from collections import defaultdict
 import json
-import re
+import logging
 import os
+import re
 import tempfile
+from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional
 
@@ -14,49 +15,71 @@ from starlette.background import BackgroundTask
 
 from auth_utils import require_admin
 from database import get_data_db_session
+from models import AbreviaturaGrup, ExamCostProfessor, ExamRestriccio, Grup, Nivell
 from repositories import (
-    MasterConfigRepository,
     ConfiguracioExamenRepository,
     ConfiguracioRepository,
     CursRepository,
-)
-from models import ExamCostProfessor, ExamRestriccio, Nivell, Grup, AbreviaturaGrup
-from schemas import SchedulerGenerateRequest, SchedulerDatesRequest, SchedulerRestriccionsRequest, SchedulerPinRequest, SchedulerPublicarRequest, HorariRecalcularRequest
-from routes.scheduler_service import (
-    SCHEDULER_DATES_KEY,
-    SCHEDULER_NIVELLS_KEY,
-    SCHEDULER_ALLIBERAMENTS_KEY,
-    SCHEDULER_DURADA_KEY,
-    SCHEDULER_DURADA_EXAMEN_KEY,
-    SCHEDULER_DURADES_SESSIO_KEY,
-    SCHEDULER_DURADES_GRUPS_KEY,
-    _load_json,
-    _build_restriccions_from_db,
-    _save_restriccions_to_db,
+    MasterConfigRepository,
 )
 from routes.parametres import data_iso
-from routes.scheduler_planificacio import prepara_planificacio
+from routes.scheduler_analysis_helpers import (
+    _afegir_recompte_nivells,
+    _diagnosticar_incompatibilitats,
+    _identificar_sessions_no_collocades,
+    _precheck_incompatibilitats_deterministes,
+    _write_analysis_pdf,
+)
 from routes.scheduler_config import (
-    aplica_restriccions_derivades, carrega_config, horari_de_la_planificacio,
+    aplica_restriccions_derivades,
+    carrega_config,
+    horari_de_la_planificacio,
 )
 from routes.scheduler_cost import (
-    IncidenciesFranja, conflicte_de_nivell, excessos_limit_dies, hores_lectives, incidencies,
+    IncidenciesFranja,
+    conflicte_de_nivell,
+    excessos_limit_dies,
+    hores_lectives,
+    incidencies,
 )
 from routes.scheduler_helpers import (
-    _nivells_master,
-    _extract_assignatures_from_restriccions,
-    _treu_assignatures_de_restriccions,
-    _normalitzar_hora,
     _build_assignatures_options,
+    _extract_assignatures_from_restriccions,
+    _nivells_master,
+    _normalitzar_hora,
+    _treu_assignatures_de_restriccions,
     extreure_hores_examen_des_alliberaments,
 )
-from routes.scheduler_analysis_helpers import (
-    _diagnosticar_incompatibilitats,
-    _precheck_incompatibilitats_deterministes,
-    _afegir_recompte_nivells,
-    _write_analysis_pdf,
-    _identificar_sessions_no_collocades,
+from routes.scheduler_planificacio import prepara_planificacio
+from routes.scheduler_service import (
+    SCHEDULER_ALLIBERAMENTS_KEY,
+    SCHEDULER_DATES_KEY,
+    SCHEDULER_DURADA_EXAMEN_KEY,
+    SCHEDULER_DURADA_KEY,
+    SCHEDULER_DURADES_GRUPS_KEY,
+    SCHEDULER_DURADES_SESSIO_KEY,
+    SCHEDULER_NIVELLS_KEY,
+    _build_restriccions_from_db,
+    _load_json,
+    _save_restriccions_to_db,
 )
+from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.horaris_xml import (
+    horaris_professors as llegeix_horaris_professors,
+)
+from scheduler_engine.core.normalitzacio import normalitzar_dia
+from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
+from schemas import (
+    HorariRecalcularRequest,
+    SchedulerDatesRequest,
+    SchedulerGenerateRequest,
+    SchedulerPinRequest,
+    SchedulerPublicarRequest,
+    SchedulerRestriccionsRequest,
+)
+from serveis.dia import Dia
+from serveis.publicacio_examens import PublicacioExamens, data_del_dia, primera_data
+
 
 def _expandir_dies_per_analisi(dies_util: list, dia_a_data_iso: dict) -> list:
     """Expandeix dies_util a dates ISO quan hi ha múltiples setmanes per dia."""
@@ -74,14 +97,6 @@ def _expandir_dies_per_analisi(dies_util: list, dia_a_data_iso: dict) -> list:
 
 router = APIRouter(prefix="/api/scheduler", tags=["Scheduler"])
 
-from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
-from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
-from scheduler_engine.core.horaris_xml import horaris_professors as llegeix_horaris_professors
-from scheduler_engine.core.normalitzacio import normalitzar_dia
-
-import logging
-from serveis.dia import Dia
-from serveis.publicacio_examens import PublicacioExamens, data_del_dia, primera_data
 log = logging.getLogger(__name__)
 
 @router.get("/status")
@@ -112,12 +127,12 @@ async def scheduler_grups_nivells(current_user=Depends(require_admin)):
 
         # Carregar grups per nivell
         result = {}
-        nivells = db.query(Nivell).filter(Nivell.actiu == True).order_by(Nivell.ordre).all()
+        nivells = db.query(Nivell).filter(Nivell.actiu.is_(True)).order_by(Nivell.ordre).all()
         for nivell in nivells:
             if nivell.codi in ('GENERAL', 'RECERCA'):
                 continue
             grups = db.query(Grup).filter(
-                Grup.nivell_id == nivell.id, Grup.actiu == True
+                Grup.nivell_id == nivell.id, Grup.actiu.is_(True)
             ).order_by(Grup.ordre, Grup.codi).all()
 
             grups_list = []
@@ -279,7 +294,7 @@ async def scheduler_pin_sessions(payload: SchedulerPinRequest, current_user=Depe
             pins_hora = {}
             for r in db.query(ExamRestriccio).filter(
                 ExamRestriccio.tipus.in_(["assignatures_dia_fix", "assignatures_hora_fix"]),
-                ExamRestriccio.activa == True,
+                ExamRestriccio.activa.is_(True),
             ).all():
                 val = json.loads(r.configuracio) if r.configuracio else None
                 if r.tipus == "assignatures_dia_fix":
@@ -568,18 +583,25 @@ def _marca_sessions_pendents(horari: dict, gen) -> None:
             meta["error"] = "No s'han pogut col·locar tots els exàmens"
 
 
-def _explica_no_viable(horari: dict, gen, pla) -> None:
-    """Per què no s'han pogut col·locar tots els exàmens: el diagnòstic de
-    restriccions o, si no en dona cap, el que n'ha dit el motor."""
+def _explica_no_viable(horari: dict, gen, pla, del_precheck: bool = False) -> None:
+    """Per què no s'han pogut col·locar tots els exàmens: primer el
+    diagnòstic de restriccions i després el que n'ha dit el motor, sense
+    repetir-los. Si el motor no s'ha executat perquè el precheck ja ho ha
+    vist, el precheck només es mostra quan el diagnòstic no diu res: tots dos
+    analitzen el mateix i es repetirien amb paraules diferents."""
     meta = horari['metadata']
     error = meta.get('error', 'No és possible col·locar tots els exàmens')
-    incompat = (_diagnosticar_incompatibilitats(gen=gen, restriccions=pla.restriccions, dies_utilitzar=pla.dies,
-                                                dia_a_data_iso=pla.dia_a_data_iso,
-                                                alliberaments_cfg=pla.cfg.alliberaments,
-                                                nivells_actius=pla.nivells)
-                or meta.get('incompatibilitats')
-                or getattr(gen, '_incompatibilitats_bt', [])
-                or _identificar_sessions_no_collocades(horari, gen))
+    diagnostic = _diagnosticar_incompatibilitats(gen=gen, restriccions=pla.restriccions, dies_utilitzar=pla.dies,
+                                                 dia_a_data_iso=pla.dia_a_data_iso,
+                                                 alliberaments_cfg=pla.cfg.alliberaments,
+                                                 nivells_actius=pla.nivells)
+    if diagnostic and del_precheck:
+        incompat = diagnostic
+    else:
+        del_motor = (meta.get('incompatibilitats')
+                     or getattr(gen, '_incompatibilitats_bt', [])
+                     or _identificar_sessions_no_collocades(horari, gen))
+        incompat = list(dict.fromkeys(diagnostic + list(del_motor)))
     if incompat:
         meta['incompatibilitats'] = incompat
     meta['logs'] = list(dict.fromkeys(meta.get('logs', []) + [f"❌ {error}"]))
@@ -615,14 +637,14 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
         if horari and "metadata" in horari:
             meta = horari['metadata']
             if not meta.get('viable', True):
-                _explica_no_viable(horari, gen, pla)
+                _explica_no_viable(horari, gen, pla, del_precheck=bool(incompatibilitats))
                 return {"status": "ok", "horari": horari}
 
             # Incidències: les del motor, la sortida capturada i la validació
             from scheduler_engine.validacio import ValidadorHorari
             validacio = ValidadorHorari(horari, pla.restriccions, pla.cfg.no_substituir).validar()
-            logs = [l.strip() for l in meta.get("logs", []) if l.strip()]
-            logs += [l.strip() for l in sortida.getvalue().splitlines() if l.strip()]
+            logs = [linia.strip() for linia in meta.get("logs", []) if linia.strip()]
+            logs += [linia.strip() for linia in sortida.getvalue().splitlines() if linia.strip()]
             logs += validacio["logs"]
             meta["logs"] = list(dict.fromkeys(logs))
 
@@ -801,9 +823,12 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
     horaris_professors = llegeix_horaris_professors(root, cfg.ultim_professor, normalitza_hores=True)
 
     # Recalcular cost amb el mòdul d'estadístiques
-    from scheduler_engine.estadistiques import recalcular_cost_i_breakdown
     from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-    from scheduler_engine.core.durada import get_durada_per_sessio_key, detectar_nivell_sessio
+    from scheduler_engine.core.durada import (
+        detectar_nivell_sessio,
+        get_durada_per_sessio_key,
+    )
+    from scheduler_engine.estadistiques import recalcular_cost_i_breakdown
     from scheduler_engine.validacio import ValidadorHorari
 
     ctx = SimpleNamespace(

@@ -15,13 +15,13 @@ prioritats mínimes de suport_api. Dilluns 20/04/2026 a les 10:00:
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
 from models import ConfiguracioExamen
 from rate_limit import limiter
 from repositories import GrupsAlliberatsRepository
 from routes import substitucions, vigilancies
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(vigilancies.router, substitucions.router)
 DATA = "2026-04-20"  # dilluns

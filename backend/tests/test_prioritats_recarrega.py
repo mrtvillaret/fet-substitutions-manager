@@ -7,12 +7,12 @@ import uuid
 from datetime import date, timedelta
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
 from rate_limit import limiter
 from repositories import SubstitucioRepository
 from routes import pdf, prioritats, settings, substitucions
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(substitucions.router, pdf.router, prioritats.router, settings.router)
 _avui = date.today()

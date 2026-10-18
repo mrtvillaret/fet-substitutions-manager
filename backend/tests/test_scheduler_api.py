@@ -10,6 +10,7 @@ import json
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
 from models import Nivell
@@ -17,7 +18,6 @@ from rate_limit import limiter
 from repositories import ConfiguracioRepository
 from routes import scheduler
 from routes.scheduler_service import SCHEDULER_ALLIBERAMENTS_KEY, SCHEDULER_NIVELLS_KEY
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(scheduler.router)
 URL = "/api/scheduler/config"

@@ -9,7 +9,12 @@ from sqlalchemy import and_
 
 from helpers import get_gestors
 from models import Substitucio
-from repositories import GrupsAlliberatsRepository, SubstitucioRepository, VigilanciaRepository, parse_date
+from repositories import (
+    GrupsAlliberatsRepository,
+    SubstitucioRepository,
+    VigilanciaRepository,
+    parse_date,
+)
 from serveis.vigilancia_absent import crear_vigilancia_absent
 
 

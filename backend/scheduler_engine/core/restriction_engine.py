@@ -14,11 +14,11 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Set
 
 from scheduler_engine.core.constraints import (
-    viola_restriccio_dia_hora_fixos,
-    viola_restriccio_dura,
     viola_combinacions_permeses,
     viola_limit_dies_professor_obligatori,
     viola_preferencia_dia_obligatoria,
+    viola_restriccio_dia_hora_fixos,
+    viola_restriccio_dura,
 )
 from scheduler_engine.defaults import ETIQUETES_RESTRICCIONS
 

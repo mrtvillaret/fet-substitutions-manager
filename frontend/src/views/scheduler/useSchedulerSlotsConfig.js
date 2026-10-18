@@ -34,7 +34,7 @@ export function useSchedulerSlotsConfig({
     horesPerNivell.value = updated
   }
 
-  const isSlotEnabled = (dia, hora) => true
+  const isSlotEnabled = () => true
 
   const isSameSet = (a, b) => {
     if (a.size !== b.size) return false

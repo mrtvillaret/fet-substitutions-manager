@@ -17,7 +17,7 @@ Regles:
   es deixa editar a mà a la taula de revisió.
 """
 import re
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from typing import Dict, List, Set
 
 # Sufix de subgrup real: només lletres A-D (convenció dels centres), amb o

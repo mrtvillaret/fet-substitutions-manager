@@ -2,26 +2,37 @@
 Motor de generació d'horaris V2 - Greedy amb Epsilon.
 """
 
-import random
 import copy
-from typing import List, Dict, Tuple
+import random
 from collections import defaultdict
+from typing import Dict, List, Tuple
 
-from scheduler_engine.core.normalitzacio import normalitzar_dia, dia_nom_per_horari, format_dia_label
-from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso, DIES_CAT as _DIES_CAT
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-from scheduler_engine.core.scoring import calcular_cost_slot
 from scheduler_engine.core.constraints import (
-    es_slot_valid_per_nivell,
-    calcular_penalitzacio_professors_dies,
-    es_item_compatible_amb_slot,
-    calcular_penalitzacio_professors_dies_item,
-    percent_pref_mateix_slot_violation,
     _percent_penalty,
+    calcular_penalitzacio_professors_dies,
+    calcular_penalitzacio_professors_dies_item,
+    es_item_compatible_amb_slot,
+    es_slot_valid_per_nivell,
+    percent_pref_mateix_slot_violation,
+)
+from scheduler_engine.core.date_mapping import DIES_CAT as _DIES_CAT
+from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.normalitzacio import (
+    dia_nom_per_horari,
+    format_dia_label,
+    normalitzar_dia,
+)
+from scheduler_engine.core.scoring import calcular_cost_slot
+from scheduler_engine.defaults import (
+    DEFAULT_PES_RESTRICCIO_DURA,
+    DEFAULT_PES_ZONA_EXAMEN,
+)
+from scheduler_engine.estadistiques import (
+    aplicar_estadistiques,
+    recalcular_cost_i_breakdown,
 )
 from scheduler_engine.generators.base import GeneradorSessionsExamensBase
-from scheduler_engine.estadistiques import aplicar_estadistiques, recalcular_cost_i_breakdown
-from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA, DEFAULT_PES_ZONA_EXAMEN
 
 
 class GeneradorV2Intents(GeneradorSessionsExamensBase):
@@ -552,7 +563,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                                   dia_a_data_iso: Dict[str, List[str]] = None,
                                   max_intents_validacio: int = 250, estrategia: str = "ponderada",
                                   epsilon: float = 0.2, track_intents: bool = False, **kwargs) -> Dict:
-        from datetime import datetime as _dt
         if dies_utilitzar is None:
             from scheduler_engine.defaults import DIES_SETMANA
             dies_utilitzar = list(DIES_SETMANA)[:max_dies]
@@ -665,7 +675,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             llista_slots = list(physical_slots)
             if estrategia != "greedy": random.shuffle(llista_slots)
 
-            nivell_it = it['curs']
             # On són les sessions ja col·locades (per a "Mateix dia i hora" entre nivells)
             ubicacions = [(x['sessio'], k) for k, llista in slots.items() for x in llista]
             for sk in llista_slots:

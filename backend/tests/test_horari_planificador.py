@@ -8,12 +8,12 @@ import uuid
 
 import pytest
 from fastapi import Depends
+from suport_api import client_per, crea_app, crea_usuari, entra
+from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from auth_utils import get_current_user, require_admin
 from rate_limit import limiter
 from routes import config_examens, general, scheduler
-from suport_api import client_per, crea_app, crea_usuari, entra
-from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 APP = crea_app()
 APP.include_router(scheduler.router, dependencies=[Depends(require_admin)])        # com a main.py

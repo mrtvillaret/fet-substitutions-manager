@@ -8,10 +8,10 @@ generador llegís fitxers del servidor.
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
 from routes import informes, pdf, substitucions, vigilancies
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(vigilancies.router, substitucions.router, pdf.router, informes.router)
 DATA = "2026-04-20"  # dilluns
@@ -51,8 +51,8 @@ def _prepara(client, valor):
     assert resp.status_code == 200, resp.text
     client.put(f"/api/substitucions/{DATA}/absencies/Prof 15",
                json={"hores_absencia": ["11:30"], "updated_at_map": {}})
-    fila = next(s for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
-                if s["hora"] == "11:30")
+    assert any(s["hora"] == "11:30"
+               for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json())
     resp = client.put(f"/api/substitucions/{DATA}/11:30/Prof 15",
                       json={"substitut": valor, "comentaris": valor, "force": True})
     assert resp.status_code == 200, resp.text
@@ -123,7 +123,7 @@ def test_format_dia_una_taula_amb_substitucions_i_vigilancies(client):
 
 
 def test_format_dia_amb_espai_a_ma_mostra_les_hores_detectades(client):
-    linies = [l.strip() for l in _text_dia(client, blank_rows=True).splitlines()]
+    linies = [linia.strip() for linia in _text_dia(client, blank_rows=True).splitlines()]
     for hora in ("08:00", "15:00", "16:00"):
         assert hora in linies
     # (per línies: el peu «Generat ... a les 17:05» no ha de comptar)
@@ -136,7 +136,7 @@ def test_format_desconegut_dona_400(client):
 
 def test_format_dia_sense_espai_a_ma_tambe_mostra_les_hores_amb_classe(client):
     # Les hores sense ningú surten igualment (amb una fila en blanc)
-    linies = [l.strip() for l in _text_dia(client).splitlines()]
+    linies = [linia.strip() for linia in _text_dia(client).splitlines()]
     for hora in ("08:00", "09:00", "12:30", "15:00", "16:00"):
         assert hora in linies
     assert "17:00" not in linies and "PATI" not in linies

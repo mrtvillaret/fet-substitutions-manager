@@ -11,7 +11,13 @@ from datetime import date
 from functools import cached_property
 
 from database import get_data_db_session
-from helpers import _get_institucio_actual, get_gestors, get_horari, get_vigilancia_core, get_xml_path_for_date
+from helpers import (
+    _get_institucio_actual,
+    get_gestors,
+    get_horari,
+    get_vigilancia_core,
+    get_xml_path_for_date,
+)
 from repositories import XMLVersionRepository
 
 

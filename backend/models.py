@@ -2,10 +2,20 @@
 Models SQLAlchemy per a la base de dades SQLite
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Date, Index
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.sql import func
 from datetime import datetime, timezone
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 

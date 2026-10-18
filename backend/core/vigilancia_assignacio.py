@@ -10,7 +10,8 @@ Extret del GUI per separació de responsabilitats.
 """
 import random
 from typing import List, Tuple
-from config.constants import PRIORITATS, ORDRE_PRIORITATS
+
+from config.constants import ORDRE_PRIORITATS, PRIORITATS
 
 try:
     from i18n_setup import translate as _

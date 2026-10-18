@@ -4,9 +4,9 @@ serveis.dia.Dia: un dia per a un centre i l'horari (XML) vigent aquell dia.
 from datetime import date
 
 import pytest
+from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from serveis.dia import Dia
-from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 
 @pytest.fixture

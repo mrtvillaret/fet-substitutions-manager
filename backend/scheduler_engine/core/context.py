@@ -3,7 +3,7 @@ Context unificat per als motors i l'anàlisi de l'scheduler.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional, Set
 
 
 @dataclass

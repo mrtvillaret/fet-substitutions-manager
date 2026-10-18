@@ -14,12 +14,18 @@ from dataclasses import dataclass, field
 
 from fastapi import HTTPException
 
+from routes.scheduler_config import (
+    ConfigPlanificador,
+    aplica_restriccions_derivades,
+    carrega_config,
+)
+from routes.scheduler_helpers import (
+    _hores_lectives_des_de_xml,
+    extreure_hores_examen_des_alliberaments,
+)
+from routes.scheduler_service import _dies_entre_dates
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
 from serveis.dia import Dia
-
-from routes.scheduler_config import ConfigPlanificador, aplica_restriccions_derivades, carrega_config
-from routes.scheduler_helpers import _hores_lectives_des_de_xml, extreure_hores_examen_des_alliberaments
-from routes.scheduler_service import _dies_entre_dates
 
 
 @dataclass

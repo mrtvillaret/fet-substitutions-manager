@@ -2,10 +2,12 @@
 Lògica unificada per analitzar la disponibilitat dels professors.
 """
 
-from typing import List, Dict, Set, Union, Any, Optional
-from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
+from typing import Any, Dict, List, Optional, Set, Union
+
 from scheduler_engine.core.constraints import detectar_nivell_grup
+from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
 from utils.hores import normalitzar_hora as _normalitzar_hora
+
 
 def analitzar_disponibilitat_sessio(
     sessio: Union[Dict, Any],

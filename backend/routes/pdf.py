@@ -6,34 +6,39 @@ Routes per generació i validació de PDFs:
 - PDF vigilàncies per interval de dates
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Body
-from typing import Optional, Dict, Any
-from fastapi.responses import FileResponse
-from starlette.background import BackgroundTask
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-from collections import defaultdict
-from pydantic import BaseModel
 import json
-import tempfile
-import shutil
+import logging
 import os
+import shutil
+import tempfile
+from collections import defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Dict, Optional
 
-from dependencies import get_db
+from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
+
 from auth_utils import get_current_user
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
-from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository, ConfiguracioRepository
+from dependencies import dia_de_la_peticio, get_db
 from export.pdf.engine import PDFCompletExporter
 from i18n_setup import translate
+from repositories import (
+    ConfiguracioRepository,
+    GrupsAlliberatsRepository,
+    SubstitucioRepository,
+    VigilanciaRepository,
+)
+from routes.parametres import DataISO, data_iso
+from serveis.dia import Dia
 from serveis.prioritat import MillorsSubstituts
 from serveis.validacions_pdf import valida_dia
-from routes.parametres import DataISO, data_iso
 
-import logging
-from dependencies import dia_de_la_peticio
-from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF"])
@@ -489,8 +494,7 @@ def generar_pdf_vigilancies(
     """
     Genera PDF de vigilàncies per un dia amb selecció de nivells (SQLite)
     """
-    # Validar data
-    date_obj = data_iso(data)
+    data_iso(data)  # valida la data (400 si no és vàlida)
 
     from utils.date_context import DateContext
     data_text = DateContext.from_iso(data).full_format
@@ -569,23 +573,28 @@ def generar_pdf_disponibles_tots_dies(
     Genera un PDF amb professors disponibles per N dies laborables consecutius,
     un full per dia. Comença des de data_inici (o avui si no s'especifica).
     """
-    from datetime import timedelta, date
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib import colors
-    from reportlab.lib.units import cm
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, PageBreak, Spacer, KeepTogether
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
     import tempfile
+    from datetime import date, timedelta
+
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        KeepTogether,
+        PageBreak,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+    )
 
     # Data d'inici: la proporcionada (la pantalla hi posa la del calendari) o avui
     primer_dia = data_iso(data_inici) if data_inici else date.today()
 
-    avui = primer_dia  # per al text "Generat el..."
-
     # Configurar idioma per traduccions
-    from repositories import ConfiguracioRepository
     from i18n_setup import setup_translation
+    from repositories import ConfiguracioRepository
     config_db = ConfiguracioRepository.get_all_as_dict(db)
     idioma = config_db.get("idioma", "ca")  # Default català
     setup_translation(idioma)
@@ -646,6 +655,7 @@ def generar_pdf_disponibles_tots_dies(
     )
 
     from babel.dates import format_date
+
     import i18n_setup
     idioma_actual = i18n_setup.CURRENT_LANGUAGE
 
@@ -681,7 +691,11 @@ def generar_pdf_disponibles_tots_dies(
             professors_baixa_avui = professors_de_baixa(PROFESSORS_BAIXA, dia_iso)
 
             # Obtenir substitucions del dia
-            from repositories import SubstitucioRepository, GrupsAlliberatsRepository, VigilanciaRepository
+            from repositories import (
+                GrupsAlliberatsRepository,
+                SubstitucioRepository,
+                VigilanciaRepository,
+            )
             substitucions_data = SubstitucioRepository.get_by_date(db, dia_iso)
 
             # Mapa de substituts per hora (ocupats fent substitució)
@@ -750,7 +764,7 @@ def generar_pdf_disponibles_tots_dies(
 
                 per_categoria_tipus = defaultdict(lambda: defaultdict(list))
 
-                for prof, tipus, detall in disponibles_tots:
+                for prof, tipus, _detall in disponibles_tots:
                     categoria_idx = len(ORDRE_PRIORITATS)
                     for i, categoria in enumerate(ORDRE_PRIORITATS):
                         if tipus in categoria:
@@ -795,7 +809,7 @@ def generar_pdf_disponibles_tots_dies(
 
         except Exception as e:
             log.warning(f"Error processant dia {dia_iso}: {e}")
-            story.append(Paragraph(f"<i>Error carregant dades per aquest dia</i>", styles['Normal']))
+            story.append(Paragraph("<i>Error carregant dades per aquest dia</i>", styles['Normal']))
 
         # Page break entre dies (excepte l'últim)
         if idx < len(dies_setmana) - 1:

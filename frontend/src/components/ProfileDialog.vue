@@ -255,7 +255,7 @@ const canviarInstitucio = async () => {
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    const response = await axios.post('/api/users/profile/institucio', {
+    await axios.post('/api/users/profile/institucio', {
       institucio: institucioSeleccionada.value
     })
     successMessage.value = t('profile.institutionSwitched')

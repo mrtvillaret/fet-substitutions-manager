@@ -1,6 +1,7 @@
 """Helpers d'analisi i report pel scheduler."""
 
 import html
+import logging
 from collections import defaultdict
 
 from reportlab.lib import colors
@@ -14,8 +15,6 @@ from reportlab.platypus import (
     Spacer,
 )
 
-
-import logging
 log = logging.getLogger(__name__)
 
 
@@ -34,7 +33,8 @@ def _diagnosticar_incompatibilitats(
     """
     try:
         from scheduler_engine.core.diagnostic import (
-            InfeasibilityDiagnostic, construir_dies_efectius,
+            InfeasibilityDiagnostic,
+            construir_dies_efectius,
         )
 
         hores_examen = list(getattr(gen, 'hores_examen', []) or [])
@@ -391,7 +391,7 @@ def _afegir_recompte_nivells(horari: dict, sessions_per_nivell: dict) -> None:
 
 def _format_report_lines(tab: str, text: str) -> list[tuple[str, bool, int]]:
     lines = []
-    raw_lines = [l.rstrip().replace("■", "") for l in (text or "").splitlines()]
+    raw_lines = [linia.rstrip().replace("■", "") for linia in (text or "").splitlines()]
 
     def add(line: str, bold: bool = False, indent: int = 0):
         if line is None:
@@ -516,7 +516,7 @@ def _write_analysis_pdf(path: str, sections: list[tuple[str, str, str]]):
     for title, tab, text in sections:
         flow.append(Paragraph(html.escape(title, quote=False), section_style))
         bullet_items = []
-        for line, bold, indent in _format_report_lines(tab, text):
+        for line, bold, _indent in _format_report_lines(tab, text):
             if not line:
                 if bullet_items:
                     flow.append(ListFlowable(bullet_items, bulletType="bullet", leftIndent=18))

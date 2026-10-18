@@ -2,7 +2,7 @@
 Helpers per gestionar la durada d'examen per nivell i per sessió.
 """
 
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 from scheduler_engine.core.constraints import detectar_nivell_grup
 

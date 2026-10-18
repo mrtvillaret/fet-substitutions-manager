@@ -7,12 +7,12 @@ import uuid
 
 import pytest
 from fastapi import Depends
+from suport_api import client_per, crea_app, crea_usuari, entra
+from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from auth_utils import get_current_user
 from rate_limit import limiter
 from routes import general, horari, prioritats, vigilancies
-from suport_api import client_per, crea_app, crea_usuari, entra
-from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 APP = crea_app()
 for _router in (general.router, horari.router, prioritats.router, vigilancies.router):   # com a main.py

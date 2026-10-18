@@ -7,6 +7,7 @@ substitucions o vigilàncies:
 - es treu com a substitut (la fila queda pendent).
 Els dies passats no es toquen: són historial (PDF ja repartits, informes).
 """
+import logging
 from datetime import date, datetime
 
 from models import Substitucio, Vigilancia
@@ -15,7 +16,6 @@ from serveis.absencies import desa_absencies
 from serveis.cobertures import refresca_cobertures
 from serveis.dia_escolar import treu_substituts_no_valids
 
-import logging
 log = logging.getLogger(__name__)
 
 

@@ -2,13 +2,17 @@
 Lògica unificada per al càlcul de costos i penalitzacions.
 """
 
-from typing import List, Dict, Tuple, Set, Union, Any, Optional
+from typing import Any, Dict, List, Optional, Set, Union
+
 from scheduler_engine.core.constraints import (
-    sessio_in_group, viola_restriccio_dura, viola_combinacions_permeses,
-    viola_restriccio_dia_hora_fixos, calcular_penalitzacio_professors_dies,
-    penalitzacio_conflicte_professor_nivell, calcular_penalitzacio_assignatures_dies_exclosos,
-    percent_no_mateix_dia_violation, percent_no_mateix_slot_violation,
-    percent_dia_hora_fix_violation, _percent_penalty
+    _percent_penalty,
+    calcular_penalitzacio_assignatures_dies_exclosos,
+    calcular_penalitzacio_professors_dies,
+    percent_dia_hora_fix_violation,
+    percent_no_mateix_dia_violation,
+    percent_no_mateix_slot_violation,
+    sessio_in_group,
+    viola_combinacions_permeses,
 )
 from scheduler_engine.defaults import (
     DEFAULT_COST_PROFESSORS,
@@ -191,9 +195,7 @@ def calcular_cost_slot(
             breakdown['combinacio_no_permesa'] = pes_restriccio_dura
 
     # Dia/Hora fixos
-    nivells_actius = list(analisi.keys()) # Aproximació o passar-ho
-    # Millor passar nivells_actius explícitament si cal, però normalment ja s'han validat abans.
-    # Per seguretat, usem les claus del dict analisi que comencen per 'classe_'
+    # Els nivells són les claus del dict analisi que comencen per 'classe_'
     nivells = [k.replace('classe_', '') for k in analisi.keys() if k.startswith('classe_')]
     
     pct_fix = percent_dia_hora_fix_violation(sessio, dia, hora, restriccions, nivells, data_iso)

@@ -7,7 +7,6 @@ export const useSchedulerRestrictions = ({
   config,
   genConfig,
   llistaSessions,
-  llistaProfessors,
   restriccionsProfessors,
   restriccionsDiesHores,
   restriccionsPreferencies,

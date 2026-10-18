@@ -1,10 +1,10 @@
 """
 Gestor de professors de baixa temporal
 """
-from datetime import datetime, date
-from typing import List, Dict, Optional
-
 import logging
+from datetime import date, datetime
+from typing import Dict, List
+
 log = logging.getLogger(__name__)
 
 try:

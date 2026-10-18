@@ -1,6 +1,10 @@
 """
 Constants globals del sistema
 """
+import logging
+from collections.abc import Mapping as _Mapping
+from collections.abc import Sequence as _Sequence
+from collections.abc import Set as _Set
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -22,9 +26,7 @@ except ImportError:
 #   - un mòdul que les importa en carregar-se ("from config.constants import
 #     PRIORITATS") sempre veu les actuals, perquè l'objecte no canvia mai.
 # Fora d'una petició (arrencada, tests unitaris) la institució és None.
-from collections.abc import Mapping as _Mapping, Sequence as _Sequence, Set as _Set
 
-import logging
 log = logging.getLogger(__name__)
 
 _PRIORITATS_PER_INSTITUCIO: dict = {}

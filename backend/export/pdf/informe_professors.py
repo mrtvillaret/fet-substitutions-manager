@@ -2,23 +2,30 @@
 Generador d'informe per professor en PDF.
 Per a cada professor: grid horari amb absències i substitucions fetes.
 """
-from pathlib import Path
-from datetime import datetime
-from collections import defaultdict
-
-from i18n_setup import translate as _, setup_translation
-from utils.hores import normalitzar_hora as _normalitzar_hora
-
 import html
-from reportlab.lib.pagesizes import A4
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+
 from reportlab.lib import colors
-from reportlab.lib.units import cm
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak, Flowable
-)
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import (
+    Flowable,
+    HRFlowable,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
+from i18n_setup import setup_translation
+from i18n_setup import translate as _
+from utils.hores import normalitzar_hora as _normalitzar_hora
 
 C_NAVY     = colors.HexColor("#1e3a5f")
 C_TEAL     = colors.HexColor("#16a085")
@@ -291,7 +298,7 @@ def _grid_horari(absencies: list, subs_fetes: list, hores_xml: list) -> list:
         ("ROWBACKGROUNDS",(1, 1), (-1, -1), [C_WHITE, colors.HexColor("#fafbfc")]),
     ]
 
-    for r_idx, hora in enumerate(hores_ordre, start=1):
+    for hora in hores_ordre:
         row = [
             Paragraph(_text(hora), _s("hr", fontName="Helvetica-Bold", fontSize=7.5,
                                textColor=C_NAVY, alignment=TA_CENTER, leading=10))

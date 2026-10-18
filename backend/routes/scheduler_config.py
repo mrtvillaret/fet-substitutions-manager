@@ -7,10 +7,11 @@ from datetime import date
 
 from database import get_data_db_session
 from repositories import (
-    ConfiguracioExamenRepository, ConfiguracioRepository, NoSubstituirRepository, XMLVersionRepository,
+    ConfiguracioExamenRepository,
+    ConfiguracioRepository,
+    NoSubstituirRepository,
+    XMLVersionRepository,
 )
-from scheduler_engine.defaults import DEFAULT_DURADA_TITULAR
-
 from routes.scheduler_helpers import (
     _build_slots_valids_from_alliberaments,
     _build_slots_valids_iso_from_alliberaments,
@@ -30,6 +31,7 @@ from routes.scheduler_service import (
     _build_restriccions_from_db,
     _load_json,
 )
+from scheduler_engine.defaults import DEFAULT_DURADA_TITULAR
 
 
 @dataclass

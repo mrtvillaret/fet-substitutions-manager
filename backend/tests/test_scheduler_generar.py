@@ -10,10 +10,17 @@ d'exemple a través de la mateixa importació de l'aplicació.
 import re
 
 import pytest
+from suport_api import nova_institucio
+from suport_planificador import (
+    DATES,
+    DIES,
+    admin_de,
+    alliberaments,
+    centre_amb_examens,
+    configura,
+)
 
 from rate_limit import limiter
-from suport_planificador import DATES, DIES, admin_de, alliberaments, centre_amb_examens, configura
-from suport_api import nova_institucio
 
 URL = "/api/scheduler/generate"
 PETICIO = {"data_inici": DATES[0], "data_final": DATES[-1], "selected_dates": DATES, "dies_utilitzar": DIES}
@@ -131,7 +138,42 @@ def test_si_no_hi_caben_diu_que_no_es_viable(un_nivell):
     configura(un_nivell, alliberaments_per_nivell=alliberaments(dates=DATES[:1], hores_inici=("09:00",)))
     horari = _genera(un_nivell)
     assert horari["metadata"]["viable"] is False
-    assert horari["metadata"]["incompatibilitats"]
+    # El precheck ho veu abans del motor i diu el mateix que el diagnòstic:
+    # només surt el diagnòstic
+    assert horari["metadata"]["incompatibilitats"] == ["1-BAT: 3 ítems > 1 slots disponibles en 1 dates"]
+
+
+@pytest.mark.parametrize("motor", ["v3", "v2", "v2-backtrack"])
+def test_si_no_es_viable_diu_quina_restriccio_ho_impedeix(dos_nivells, motor):
+    # Les dues Filosofies no poden coincidir (Prof 48 les fa totes dues) però
+    # estan fixades a la mateixa hora. El diagnòstic ha de dir quina regla
+    # xoca, no només quin examen no s'ha pogut col·locar.
+    restr = dos_nivells.get("/api/scheduler/restriccions").json()["restriccions"]
+    restr["restriccions_dures"]["no_mateix_slot"] = {
+        "Prof 48": ["Filosofia (1-BAT)", "Filosofia (2-BAT)"], "_pes_Prof 48": 100}
+    dos_nivells.put("/api/scheduler/restriccions", json={"restriccions": restr})
+    dos_nivells.post("/api/scheduler/restriccions/pin", json={"pins": [
+        {"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "09:00"},
+        {"nom": "Filosofia (2-BAT)", "dia": "Dilluns", "hora": "09:00"}]})
+    horari = _genera(dos_nivells, motor=motor)
+    assert horari["metadata"]["viable"] is False
+    # Primer el diagnòstic, després el que diu el motor
+    diagnostic, del_motor = horari["metadata"]["incompatibilitats"]
+    assert "Prof 48" in diagnostic
+    assert "'Filosofia (1-BAT)' i 'Filosofia (2-BAT)' no poden coincidir" in diagnostic
+    assert "Filosofia" in del_motor and "no poden coincidir" not in del_motor
+
+
+def test_si_el_diagnostic_no_hi_veu_res_surt_el_missatge_del_motor(un_nivell):
+    # El límit d'exàmens per professor no el comprova el diagnòstic
+    restr = un_nivell.get("/api/scheduler/restriccions").json()["restriccions"]
+    restr["restriccions_dures"]["professors_limit_dies_especifics"] = {"Prof 48": {
+        "assignatures": ["Filosofia (1-BAT)"], "dies_restringits": DIES, "max_examens": 0,
+        "pes_penalitzacio": 100}}
+    un_nivell.put("/api/scheduler/restriccions", json={"restriccions": restr})
+    horari = _genera(un_nivell)
+    assert horari["metadata"]["viable"] is False
+    assert horari["metadata"]["incompatibilitats"] == ["Cap slot per a 'Filosofia (1-BAT)' — Límit exàmens professor"]
 
 
 def test_sense_horari_xml_no_es_pot_generar():
@@ -144,10 +186,10 @@ def test_un_professor_amb_examens_de_dos_nivells_alhora_surt_a_les_incidencies(d
     dos_nivells.post("/api/scheduler/restriccions/pin", json={"pins": [
         {"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "09:00"},
         {"nom": "Filosofia (2-BAT)", "dia": "Dilluns", "hora": "09:00"}]})
-    logs = [l for l in _genera(dos_nivells)["metadata"]["logs"] if "Prof 48 →" in l]
-    assert any(l.startswith("⚠️ AVÍS: Prof 48 → té exàmens de nivells diferents a 09:00 el Dilluns") for l in logs)
-    assert any(l.startswith("🔗 ENLLAÇ: Prof 48 → gestiona 2 exàmens de nivells diferents a 09:00 el Dilluns: "
-                            "Filosofia (1-BAT), Filosofia (2-BAT)") for l in logs), logs
+    logs = [linia for linia in _genera(dos_nivells)["metadata"]["logs"] if "Prof 48 →" in linia]
+    assert any(linia.startswith("⚠️ AVÍS: Prof 48 → té exàmens de nivells diferents a 09:00 el Dilluns") for linia in logs)
+    assert any(linia.startswith("🔗 ENLLAÇ: Prof 48 → gestiona 2 exàmens de nivells diferents a 09:00 el Dilluns: "
+                            "Filosofia (1-BAT), Filosofia (2-BAT)") for linia in logs), logs
 
 
 # ------------------------------------------------------------------ costos
@@ -156,7 +198,7 @@ def test_un_professor_amb_examens_de_dos_nivells_alhora_surt_a_les_incidencies(d
 # coincidir amb el que recalcula la pantalla i amb la suma de les incidències.
 
 def _punts(logs):
-    return sum(int(m.group(1)) for l in logs if (m := re.search(r"\(punt: *(\d+)\)", l)))
+    return sum(int(m.group(1)) for linia in logs if (m := re.search(r"\(punt: *(\d+)\)", linia)))
 
 
 def _costos(client, horari):
@@ -181,7 +223,7 @@ def filosofia_i_angles_fixats(dos_nivells):
 def test_un_professor_amb_dos_examens_alhora_es_compta_un_sol_cop(filosofia_i_angles_fixats, motor):
     horari = _genera(filosofia_i_angles_fixats, motor=motor)
     assert _costos(filosofia_i_angles_fixats, horari) == (160, 160, 160)
-    [linia] = [l for l in horari["metadata"]["logs"] if l.startswith("🚨 Prof 48 ")]
+    [linia] = [log for log in horari["metadata"]["logs"] if log.startswith("🚨 Prof 48 ")]
     assert "(Filosofia (1-BAT))->1-BAT, (Filosofia (2-BAT))->2-BAT → ha de ser SUBSTITUÏT a Optativa42" in linia
 
 
@@ -198,7 +240,7 @@ def test_el_motor_v3_fa_tots_els_reinicis(dos_nivells):
     # local diferent i quedar-se amb el primer donava horaris pitjors.
     from scheduler_engine.generators.v3_sa import REINICIS
     logs = _genera(dos_nivells)["metadata"]["logs"]
-    assert any(f"Reinici {REINICIS}/{REINICIS}" in l for l in logs) or any("Temps esgotat" in l for l in logs)
+    assert any(f"Reinici {REINICIS}/{REINICIS}" in linia for linia in logs) or any("Temps esgotat" in linia for linia in logs)
 
 
 # ------------------------------------------------- l'últim horari generat

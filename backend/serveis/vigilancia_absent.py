@@ -13,8 +13,9 @@ teclat inclòs). Ara s'usa el camp tipus_absencia='VIGILANCIA_ABSENT' directamen
 """
 
 from collections import defaultdict
-from repositories import SubstitucioRepository, VigilanciaRepository
+
 from config import constants
+from repositories import SubstitucioRepository, VigilanciaRepository
 
 
 def es_vigilancia_absent(sub: dict) -> bool:

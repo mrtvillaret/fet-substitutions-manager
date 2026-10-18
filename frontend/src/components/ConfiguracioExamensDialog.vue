@@ -1364,7 +1364,7 @@ const carregarAssignacionsObsoletes = async () => {
   try {
     const response = await axios.get('/api/config/assignacions-obsoletes')
     assignacionsObsoletes.value = response.data.assignacions || []
-  } catch (error) {
+  } catch {
     assignacionsObsoletes.value = []
   }
 }
@@ -1381,7 +1381,7 @@ const treureAssignacionsObsoletes = () => {
         const { data } = await axios.delete('/api/config/assignacions', { data: { ids } })
         toast.add({ severity: 'success', summary: t('examConfig.assignments.obsolete.removed', { count: data.eliminades }), life: 3000 })
         await carregarAssignacions()
-      } catch (error) {
+      } catch {
         toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 })
       }
     }

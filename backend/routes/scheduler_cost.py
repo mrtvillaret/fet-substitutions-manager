@@ -5,11 +5,10 @@ s'edita a mà.
 """
 from collections import defaultdict
 
+from routes.scheduler_helpers import _normalitzar_hora
 from scheduler_engine.core.constraints import sessio_in_group
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.scoring import pes_professor
-
-from routes.scheduler_helpers import _normalitzar_hora
 
 
 def _substitucio(prof, hora, dia, item):

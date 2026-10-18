@@ -1,13 +1,14 @@
 """
 Lògica principal de substitucions
 """
+import logging
 import random
-from typing import List, Dict, Set, Tuple, Optional, Union
 from collections import defaultdict
+from typing import Dict, List, Optional, Set, Tuple, Union
+
 # Evitem imports estàtics per no quedar-nos amb valors stale
 from core.alliberats import sense_classe
 
-import logging
 log = logging.getLogger(__name__)
 
 try:
@@ -299,9 +300,8 @@ class GestorSubstitucions:
             
             return substitucions_vigilants
             
-        except Exception as e:
-            # Error generat substitucions per vigilants
-            pass
+        except Exception:
+            log.warning("No s'han pogut generar les substitucions dels vigilants", exc_info=True)
             return []
     
     def _assignar_substitucions_per_hora(self, dia: str, hora: str, substitucions: List[Dict],
@@ -376,7 +376,6 @@ class GestorSubstitucions:
             professor_absent = sub.get("professor_absent", "")
             assignatura = sub.get("assignatura", "")
             grup = sub.get("grup", "")
-            tipus_absencia = sub.get("tipus_absencia", "ABSENCIA")
 
             # Genera clau de conservació
             clau = f"{professor_absent}|{hora}|{assignatura}|{grup}"
@@ -397,7 +396,6 @@ class GestorSubstitucions:
 
         # Filtrar absents i professors de baixa
         from config.constants import PROFESSORS_BAIXA
-        from datetime import datetime, date
 
         # Obtenir llista de professors de baixa per aquesta data (si està configurada)
         professors_baixa_noms = set()
@@ -423,7 +421,6 @@ class GestorSubstitucions:
         """Aplica assignació conservadora per una substitució individual"""
         professor_absent = sub.get('professor_absent', sub.get('professor', ''))
         # Crea clau semàntica (sense tipus_absencia per preservar substituts en canvis SERVEI ↔ ABSENCIA)
-        tipus_absencia = sub.get('tipus_absencia', 'ABSENCIA')
         clau_exacta = f"{professor_absent}|{hora}|{sub.get('assignatura', '')}|{sub.get('grup', '')}"
 
         # CAS 1: una fila que ja existia es conserva tal com és, amb substitut o sense.

@@ -13,10 +13,10 @@ A les 11:30, Prof 26 fa «2.1» amb 2-BAT-A,2-BAT-B.
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
 from routes import grups, substitucions, vigilancies
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(grups.router, substitucions.router, vigilancies.router)
 DATA = "2026-04-20"  # dilluns

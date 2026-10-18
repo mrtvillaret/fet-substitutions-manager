@@ -10,12 +10,16 @@ fa Anglès amb 3-ESO-A (entre d'altres).
 import uuid
 
 import pytest
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
 from rate_limit import limiter
-from repositories import ConfiguracioExamenRepository, MasterConfigRepository, SubstitucioRepository
+from repositories import (
+    ConfiguracioExamenRepository,
+    MasterConfigRepository,
+    SubstitucioRepository,
+)
 from routes import config_examens
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(config_examens.router)
 URL = "/api/config/importar-assignacions"

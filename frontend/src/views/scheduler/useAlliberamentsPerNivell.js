@@ -5,7 +5,6 @@ export const useAlliberamentsPerNivell = ({
   t,
   locale,
   genConfig,
-  config,
   selectedDates,
   configReady,
   scheduleConfigSave,

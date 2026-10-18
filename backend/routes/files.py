@@ -5,26 +5,26 @@ Routes per gestió de fitxers:
 - Descàrrega de PDFs
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
-from fastapi.responses import FileResponse
-from typing import Optional
-from datetime import datetime, date
 import hashlib
 import io
+import logging
 import os
 import shutil
 import uuid
+from datetime import date, datetime
 from pathlib import Path
+from typing import Optional
 
 import defusedxml.ElementTree as SafeET
-from PIL import Image, UnidentifiedImageError
 from defusedxml import DefusedXmlException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from PIL import Image, UnidentifiedImageError
 
 from auth_utils import require_admin
-from database import get_data_dir_for_institucio, get_data_db_session
+from database import get_data_db_session, get_data_dir_for_institucio
 from routes.parametres import DataISO, data_iso
 
-import logging
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/files", tags=["Fitxers"])
@@ -80,7 +80,7 @@ async def upload_xml(
         try:
             SafeET.parse(file_path)
         except (SafeET.ParseError, DefusedXmlException):
-            raise HTTPException(status_code=400, detail="El fitxer no és un XML d'horari vàlid")
+            raise HTTPException(status_code=400, detail="El fitxer no és un XML d'horari vàlid") from None
 
         # Actualitzar configuració amb el nou path i versionar XML
         from repositories import ConfiguracioRepository, XMLVersionRepository
@@ -240,7 +240,7 @@ async def upload_logo(file: UploadFile = File(...), current_user=Depends(require
     except HTTPException:
         raise
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError, ValueError):
-        raise HTTPException(status_code=400, detail="El logo ha de ser una imatge PNG o JPG vàlida")
+        raise HTTPException(status_code=400, detail="El logo ha de ser una imatge PNG o JPG vàlida") from None
 
     imatge.thumbnail((LOGO_COSTAT_MAX, LOGO_COSTAT_MAX))
     if imatge.mode not in ("RGB", "RGBA", "L", "LA"):

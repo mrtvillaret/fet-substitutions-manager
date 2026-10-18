@@ -5,8 +5,13 @@ Extret del GeneradorSessionsExamensV2 per ser reutilitzable.
 
 import re
 from collections import defaultdict
-from typing import List, Dict, Tuple, Set, Union, Any
-from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA, DEFAULT_PES_RESTRICCIO_VIOLADA
+from typing import Any, Dict, List, Set, Tuple, Union
+
+from scheduler_engine.core.normalitzacio import dia_nom_per_horari, normalitzar_dia
+from scheduler_engine.defaults import (
+    DEFAULT_PES_RESTRICCIO_DURA,
+    DEFAULT_PES_RESTRICCIO_VIOLADA,
+)
 
 _RE_ISO_DATE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
@@ -65,7 +70,6 @@ def es_item_compatible_amb_slot(item: Dict, sessions_al_slot: List[Dict], restri
                     return False, f"Conflicte no_mateix_slot: {nom_grup}"
 
     return True, ""
-from scheduler_engine.core.normalitzacio import normalitzar_dia, dia_nom_per_horari
 
 # ==================================================================================================
 # HELPERS BÀSICS
