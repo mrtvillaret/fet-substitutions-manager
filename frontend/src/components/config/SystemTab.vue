@@ -143,6 +143,10 @@
 
     <!-- Versions XML -->
     <div class="field">
+      <!-- Un horari pujat amb data futura encara no es fa servir: s'avisa -->
+      <Message v-if="horariFutur" severity="info" :closable="false" class="mb-2">
+        {{ $t('config.system.futureSchedule', { data: dataAmbAny(horariFutur.data_inici) }) }}
+      </Message>
       <div class="toolbar" style="margin-bottom: 0.5rem;">
         <label>{{ $t('config.system.xmlVersions') }}</label>
         <Button
@@ -252,11 +256,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { ambDataTreball } from '../../dataTreball'
+import { dataAmbAny, dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Calendar from 'primevue/calendar'
+import Message from 'primevue/message'
 import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import Tag from 'primevue/tag'
@@ -280,6 +287,12 @@ const loading = ref(false)
 const xmlMissingNotified = ref(false)
 const xmlVersionsLoading = ref(false)
 const xmlVersions = ref([])
+// La primera versió de l'horari que encara no és vigent (pujada amb data futura)
+const horariFutur = computed(() => {
+  const avui = dataIso(new Date())
+  return [...xmlVersions.value].filter(v => v.data_inici > avui)
+    .sort((a, b) => a.data_inici.localeCompare(b.data_inici))[0] || null
+})
 const desant = ref(false)
 const settingsOriginal = ref(null)
 const settings = ref({
@@ -367,7 +380,7 @@ const carregarSettings = async () => {
     ] = await Promise.all([
       axios.get('/api/settings'),
       axios.get('/api/settings/idiomes'),
-      axios.get('/api/horari/professors/all'),
+      axios.get('/api/horari/professors/all', ambDataTreball()),
       axios.get('/api/settings/xml-versions')
     ])
 

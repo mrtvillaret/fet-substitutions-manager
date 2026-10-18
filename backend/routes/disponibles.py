@@ -8,17 +8,20 @@ from collections import defaultdict
 
 from dependencies import get_db
 from auth_utils import get_current_user
-from helpers import get_gestors
 from config.constants import ORDRE_PRIORITATS
+from routes.parametres import DataISO, data_iso
+from dependencies import dia_de_la_peticio
+from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/disponibles", tags=["Disponibles"])
 
 
 @router.get("/{data}")
 async def get_disponibles_dia(
-    data: str,
+    data: DataISO,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    dia: Dia = Depends(dia_de_la_peticio)
 ):
     """
     Retorna professors disponibles per cada hora d'un dia concret,
@@ -40,10 +43,7 @@ async def get_disponibles_dia(
       }
     }
     """
-    try:
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid")
+    data_iso(data)
 
     try:
         dia_obj = datetime.strptime(data, "%Y-%m-%d")
@@ -53,7 +53,7 @@ async def get_disponibles_dia(
 
     # Carregar gestors (retornen: substitucions, horari, alliberats, absencies)
     try:
-        substitucions_mgr, horari_mgr, alliberats_mgr, absencies_mgr = get_gestors(current_user.institucio, data)
+        substitucions_mgr, horari_mgr, alliberats_mgr, absencies_mgr = dia.gestors()
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Error carregant horari: {str(e)}")
 
@@ -144,7 +144,7 @@ async def get_disponibles_dia(
 
 @router.get("/{data}/resum")
 async def get_resum_disponibles(
-    data: str,
+    data: DataISO,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):

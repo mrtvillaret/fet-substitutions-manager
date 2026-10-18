@@ -18,7 +18,7 @@ from dependencies import get_db
 from repositories import (
     SubstitucioRepository, VigilanciaRepository, GrupsAlliberatsRepository, CursRepository
 )
-from helpers import get_horari, get_gestors, MissingXmlError
+from helpers import MissingXmlError
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
 from serveis.absencies import canvia_tipus_cobertures, desa_absencies
@@ -37,8 +37,11 @@ from schemas import (
     ActualitzarAbsenciesRequest
 )
 from models import Substitucio
+from routes.parametres import DataISO, data_iso
 
 import logging
+from dependencies import dia_de_la_peticio
+from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/substitucions", tags=["Substitucions"])
@@ -108,7 +111,7 @@ def _calcular_estadistiques_substitucions(db: Session, horari, data: str = None)
 
 
 @router.get("/{data}", response_model=List[SubstitucioResponse])
-async def get_substitucions(data: str, include_all: bool = False, db: Session = Depends(get_db)):
+async def get_substitucions(data: DataISO, include_all: bool = False, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """
     Retorna totes les substitucions per una data específica (SQLite)
 
@@ -121,15 +124,11 @@ async def get_substitucions(data: str, include_all: bool = False, db: Session = 
         include_all: Si True, retorna TOTES les absències (amb i sense grup, alliberat o no)
                      Útil per editar absències i veure totes les hores marcades
     """
-    try:
-        # Validar format data
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+    data_iso(data)
 
     try:
         # Obtenir horari per ordre correcte d'hores
-        horari = get_horari(data_iso=data)
+        horari = dia.horari
 
         # Carregar substitucions de SQLite
         substitucions_list = SubstitucioRepository.get_by_date(db, data)
@@ -220,41 +219,35 @@ async def get_substitucions(data: str, include_all: bool = False, db: Session = 
 
 
 @router.post("/{data}/generar")
-async def generar_substitucions(data: str, regenerar_tot: bool = False, db: Session = Depends(get_db),
-                                omplir: bool = True):
+async def generar_substitucions(data: DataISO, regenerar_tot: bool = False, db: Session = Depends(get_db),
+                                omplir: bool = True,
+                                dia: Dia = Depends(dia_de_la_peticio)):
     """
     Genera automàticament les substitucions d'un dia (veure
     serveis/generacio.py). `regenerar_tot`: des de zero;
     si no, es conserven les files que ja tenen substitut.
     """
-    try:
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid")
+    data_iso(data)
 
     try:
-        return genera_substitucions_dia(db, data, get_gestors(data_iso=data), regenerar_tot, omplir)
+        return genera_substitucions_dia(db, data, dia.gestors(), regenerar_tot, omplir)
     except MissingXmlError as e:
         _raise_missing_xml(e)
 
 
 @router.put("/{data}/absencies/{professor}")
-async def actualitzar_absencies_professor(data: str, professor: str, update: ActualitzarAbsenciesRequest, db: Session = Depends(get_db)):
+async def actualitzar_absencies_professor(data: DataISO, professor: str, update: ActualitzarAbsenciesRequest, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """
     Actualitza les absències d'un professor (SQLite):
     - Elimina substitucions de les hores que s'han tret
     - Manté les hores seleccionades
     - Actualitza el tipus d'absència per totes les hores
     """
-    try:
-        # Validar format data
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+    data_iso(data)
 
     try:
         # Obtenir gestors
-        substitucions_mgr, horari, alliberats, absencies = get_gestors(data_iso=data)
+        substitucions_mgr, horari, alliberats, absencies = dia.gestors()
 
         # Convertir data ISO a nom del dia de l'XML
         date_obj = datetime.strptime(data, "%Y-%m-%d")
@@ -310,11 +303,12 @@ async def actualitzar_absencies_professor(data: str, professor: str, update: Act
 
 @router.put("/{data}/{hora}/{professor}")
 async def update_substitucio(
-    data: str,
+    data: DataISO,
     hora: str,
     professor: str,
     update: SubstitucioUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    dia: Dia = Depends(dia_de_la_peticio)
 ):
     """
     Actualitza el substitut d'una substitució específica (SQLite)
@@ -417,8 +411,7 @@ async def update_substitucio(
 
         # 4. Validar que NO tingui classe (o que el seu grup estigui alliberat)
         try:
-            from helpers import get_horari
-            horari = get_horari(data_iso=data)
+            horari = dia.horari
 
             # Convertir data ISO a dia de la setmana
             date_obj = datetime.strptime(data, "%Y-%m-%d")
@@ -465,7 +458,7 @@ async def update_substitucio(
 
         if substitut_nou.strip():
             try:
-                substitucions_mgr, horari, alliberats, _ = get_gestors(data_iso=data)
+                substitucions_mgr, horari, alliberats, _ = dia.gestors()
                 date_obj = datetime.strptime(data, "%Y-%m-%d")
                 dia_name = horari.get_dia_name(date_obj.weekday())
 
@@ -503,7 +496,7 @@ async def update_substitucio(
 
 @router.delete("/{data}/{hora}/{professor}/{assignatura}/{grup}")
 async def eliminar_substitucio(
-    data: str,
+    data: DataISO,
     hora: str,
     professor: str,
     assignatura: str,
@@ -562,7 +555,7 @@ async def eliminar_substitucio(
 
 
 @router.post("/{data}/nova")
-async def afegir_nova_substitucio(data: str, nova: NovaSubstitucioRequest, db: Session = Depends(get_db)):
+async def afegir_nova_substitucio(data: DataISO, nova: NovaSubstitucioRequest, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """
     Afegeix una nova substitució per un professor absent (SQLite)
     L'assignatura i grup es carreguen automàticament de l'horari del professor
@@ -571,11 +564,7 @@ async def afegir_nova_substitucio(data: str, nova: NovaSubstitucioRequest, db: S
         data: Format ISO (YYYY-MM-DD)
         nova: Dades de la nova substitució (professor, hores, tipus_absencia)
     """
-    try:
-        # Validar format data
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+    data_iso(data)
 
     try:
         # Validar que hi hagi almenys una hora
@@ -585,7 +574,7 @@ async def afegir_nova_substitucio(data: str, nova: NovaSubstitucioRequest, db: S
             raise HTTPException(status_code=400, detail=missatge_de_baixa(nova.professor, baixa))
 
         # Obtenir gestors
-        substitucions_mgr, horari, alliberats, absencies = get_gestors(data_iso=data)
+        substitucions_mgr, horari, alliberats, absencies = dia.gestors()
 
         # Convertir data ISO a nom del dia de l'XML
         date_obj = datetime.strptime(data, "%Y-%m-%d")
@@ -698,7 +687,7 @@ async def afegir_nova_substitucio(data: str, nova: NovaSubstitucioRequest, db: S
 
 
 @router.post("/{data}/reassign-problematics")
-async def reassignar_problematics(data: str, db: Session = Depends(get_db)):
+async def reassignar_problematics(data: DataISO, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """
     Reassigna substitucions problemàtiques (vigilant, absent, de baixa o amb classe).
     """
@@ -716,13 +705,13 @@ async def reassignar_problematics(data: str, db: Session = Depends(get_db)):
         trets = treu_substituts_no_valids(db, data)
         cleared = len(trets)
 
-        genera_substitucions_dia(db, data, get_gestors(data_iso=data), regenerar_tot=False)
+        genera_substitucions_dia(db, data, dia.gestors(), regenerar_tot=False)
 
         substitucions_despres = SubstitucioRepository.get_by_date(db, data)
 
         # Substituts que es poden canviar per un disponible de més prioritat
         try:
-            millors = MillorsSubstituts(DiaEscolar(db, data), get_gestors(data_iso=data))
+            millors = MillorsSubstituts(DiaEscolar(db, data), dia.gestors())
             for sub in substitucions_despres:
                 millor = millors.millor(sub)
                 if millor and sub.get("id"):
@@ -763,11 +752,11 @@ async def reassignar_problematics(data: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{data}/hores-professor/{professor}")
-async def get_hores_professor(data: str, professor: str, db: Session = Depends(get_db)):
+async def get_hores_professor(data: DataISO, professor: str, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """Retorna les hores on el professor té classe, i les hores que és al centre sense classe."""
     try:
         from repositories import NoSubstituirRepository
-        horari = get_horari(data_iso=data)
+        horari = dia.horari
         weekday_idx = datetime.strptime(data, "%Y-%m-%d").weekday()
         dia_name = horari.get_dia_name(weekday_idx)
         no_substituir = NoSubstituirRepository.get_all(db)
@@ -792,16 +781,12 @@ async def get_hores_professor(data: str, professor: str, db: Session = Depends(g
 
 
 @router.get("/{data}/{hora}/disponibles")
-async def get_disponibles(data: str, hora: str, db: Session = Depends(get_db)):
+async def get_disponibles(data: DataISO, hora: str, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """
     Retorna professors disponibles per una hora específica,
     ordenats per prioritat amb informació del que estan fent.
     """
-    try:
-        # Validar format data
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid")
+    data_iso(data)
 
     try:
         from config.constants import ORDRE_PRIORITATS, get_professor_emoji
@@ -828,7 +813,7 @@ async def get_disponibles(data: str, hora: str, db: Session = Depends(get_db)):
         professors_baixa = professors_de_baixa(PROFESSORS_BAIXA, data)
 
         # Obtenir gestors
-        substitucions_mgr, horari, alliberats, absencies = get_gestors(data_iso=data)
+        substitucions_mgr, horari, alliberats, absencies = dia.gestors()
 
         # Convertir data ISO a nom del dia de l'XML
         date_obj = datetime.strptime(data, "%Y-%m-%d")

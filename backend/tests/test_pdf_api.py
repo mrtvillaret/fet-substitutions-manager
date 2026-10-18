@@ -150,3 +150,16 @@ def test_format_dia_amb_lletra_mes_gran(client):
 def test_mida_de_lletra_desconeguda_dona_400(client):
     resp = client.get(f"/api/pdf/complete/{DATA}", params={"format": "dia", "mida_lletra": 3})
     assert resp.status_code == 400
+
+
+# ------------------------------------------- disponibles de tots els dies
+
+def test_el_pdf_de_disponibles_de_tots_els_dies_comenca_a_la_data_donada(client):
+    resp = client.post("/api/pdf/disponibles-tots-dies", json={"data_inici": DATA})
+    assert resp.status_code == 200, resp.text[:300]
+    assert resp.headers["content-type"] == "application/pdf"
+
+
+def test_el_pdf_de_disponibles_amb_una_data_mal_escrita_dona_400(client):
+    # Abans començava avui sense dir res
+    assert client.post("/api/pdf/disponibles-tots-dies", json={"data_inici": "20/04/2026"}).status_code == 400

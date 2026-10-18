@@ -1,4 +1,5 @@
 import { computed } from 'vue'
+import { dataIso } from '../../dates'
 import { classifyIncidentKind, INCIDENT_KINDS, extractIncidentScore, isIncidentLogLine, isLinkIncident } from './textUtils'
 
 export const useSchedulerResults = ({
@@ -161,13 +162,7 @@ export const useSchedulerResults = ({
       diesAmbDades[key] = day
     })
 
-    const formatIso = (d) => {
-      if (!d) return null
-      const y = d.getFullYear()
-      const m = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${y}-${m}-${day}`
-    }
+        const formatIso = dataIso
 
     return setmanes.map((setmana, idx) => ({
       id: idx,

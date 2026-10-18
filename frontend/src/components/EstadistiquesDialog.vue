@@ -542,6 +542,8 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { dataTreball } from '../dataTreball'
+import { dataIso } from '../dates'
 import { localizeBackendDayName } from '../views/scheduler/textUtils'
 import { useToast } from 'primevue/usetoast'
 import Dialog from 'primevue/dialog'
@@ -573,11 +575,6 @@ const props = defineProps({
   cursos: {
     type: Array,
     default: () => []
-  },
-  // Data global de treball (per acotar el final d'un curs encara obert).
-  dataTreball: {
-    type: Date,
-    default: null
   }
 })
 
@@ -646,7 +643,8 @@ const aplicarRangCurs = (curs) => {
     fi = new Date(curs.data_fi)
   } else {
     const candidats = [Date.now(), inici.getTime()]
-    if (props.dataTreball) candidats.push(new Date(props.dataTreball).getTime())
+    // la data de treball, per acotar el final d'un curs encara obert
+    candidats.push(dataTreball.value.getTime())
     fi = new Date(Math.max(...candidats))
   }
   dataInici.value = inici
@@ -692,13 +690,7 @@ const inicialitzarDates = async () => {
   dataInici.value = fa30Dies
 }
 
-const formatDate = (date) => {
-  if (!date) return null
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+const formatDate = dataIso
 
 const carregarEstadistiques = async () => {
   loading.value = true

@@ -226,11 +226,10 @@
           ref="substitucionsRef"
           v-if="tabActiu === 'substitucions'"
           :key="institucioKey"
-          :dataGlobal="dataSeleccionada"
           @anar-vigilancies="canviaTab('vigilancies')"
         />
-        <GrupsView ref="grupsRef" v-if="tabActiu === 'grups'" :key="institucioKey" :dataGlobal="dataSeleccionada" />
-        <VigilanciesView v-if="tabActiu === 'vigilancies'" :key="institucioKey" :dataGlobal="dataSeleccionada" @anar-substitucions="canviaTab('substitucions')" />
+        <GrupsView ref="grupsRef" v-if="tabActiu === 'grups'" :key="institucioKey" />
+        <VigilanciesView v-if="tabActiu === 'vigilancies'" :key="institucioKey" @anar-substitucions="canviaTab('substitucions')" />
       </main>
 
       <nav v-if="isMobile" class="mobile-nav">
@@ -273,7 +272,6 @@
         v-model:visible="mostrarConfiguracio"
         :currentRole="userProfile?.role"
         :currentInstitucio="userProfile?.institucio"
-        :dataGlobal="dataSeleccionada"
         @cursos-canviats="carregarCursos"
         @xml-importat="handleInstitucioCanviada"
       />
@@ -282,7 +280,6 @@
         v-model:visible="mostrarEstadistiques"
         :curs="cursDeLaData"
         :cursos="cursos"
-        :dataTreball="dataSeleccionada"
       />
       <AjudaDialog v-model:visible="mostrarAjuda" />
       <ProfileDialog
@@ -354,7 +351,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
+import { ambDataTreball, dataTreball } from './dataTreball'
+import { dataIso } from './dates'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { BASE, ruta, esRutaLocal } from './basePath'
@@ -393,7 +392,8 @@ const canviaTab = async (nova) => {
   return true
 }
 const substitucionsRef = ref(null)
-const dataSeleccionada = ref(new Date())
+// La data del calendari és la data de treball de tota l'aplicació (dataTreball.js)
+const dataSeleccionada = dataTreball
 const mostrarConfiguracio = ref(false)
 const mostrarConfiguracioExamens = ref(false)
 const mostrarEstadistiques = ref(false)
@@ -436,27 +436,28 @@ const netejarToken = () => {
   axios.post('/api/logout').catch(() => {})
 }
 
-const carregarConfig = async () => {
-  const response = await axios.get('/api/config')
+// Professors i hores de l'horari vigent a la data del calendari (capçalera)
+const carregarEstatHorari = async () => {
+  const response = await axios.get('/api/config', ambDataTreball())
   config.value = response.data
+}
+
+const carregarConfig = async () => {
+  await carregarEstatHorari()
   await carregarCursos()
 }
+
+watch(dataSeleccionada, () => {
+  if (autenticat.value) carregarEstatHorari().catch(() => {})
+})
 
 // ===== CURSOS (per institució) =====
 // Els cursos són una seqüència contígua de rangs amb nom. NO es trien: el curs es
 // deriva de la data on treballes, igual que la versió d'XML. Aquí només es mostra.
 const cursos = ref([])
 
-const _isoDate = (d) => {
-  if (!d) return null
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
-}
-
 const cursDeLaData = computed(() => {
-  const iso = _isoDate(dataSeleccionada.value)
+  const iso = dataIso(dataSeleccionada.value)
   if (!iso) return null
   // Comparació lexicogràfica: les dates ISO ho permeten
   return cursos.value.find(

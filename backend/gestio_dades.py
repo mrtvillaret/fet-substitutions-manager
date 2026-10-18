@@ -6,14 +6,16 @@ naturalesa (esborrat i anonimització), s'agrupen aquí per facilitar-ne
 l'auditoria en un únic lloc.
 
 Purga per interval de dates: "purgar" vol dir eliminar TOT rastre de dades
-d'un interval — registres de BD, PDF exportats, versions d'XML i baixes.
+d'un interval — registres de BD, PDF exportats, versions d'XML, baixes i el
+que en recorda el planificador d'exàmens (dates triades i últim horari).
 Per seguretat es fa en dos passos:
 
 1. analitzar_purga()  → només lectura: retorna un MANIFEST de tot el que
    s'esborraria, marcant el que és delicat (XML actiu, XML que s'estén fora de
    l'interval, PDF que no es poden datar pel nom).
-2. executar_purga()   → (pendent) esborra segons el manifest confirmat.
+2. executar_purga()   → esborra segons el manifest, que es recalcula al servidor.
 """
+import json
 import os
 import re
 from datetime import date, datetime
@@ -108,6 +110,52 @@ def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> Dict[str,
     return counts
 
 
+CLAU_DATES_PLANIFICADOR = "scheduler_selected_dates"
+CLAU_ULTIM_HORARI = "scheduler_ultim_resultat"
+
+
+def _json_config(db: Session, clau: str):
+    from repositories import ConfiguracioRepository
+    try:
+        return json.loads(ConfiguracioRepository.get(db, clau) or "null")
+    except ValueError:
+        return None
+
+
+def _dates_iso(valors) -> List[date]:
+    dates = []
+    for v in valors or []:
+        try:
+            dates.append(date.fromisoformat(str(v)[:10]))
+        except ValueError:
+            pass
+    return dates
+
+
+def _planificador(db: Session, data_inici: date, data_final: date) -> Dict:
+    """El que el planificador recorda de l'interval: les dates triades que hi
+    cauen i l'últim horari desat si en toca alguna data (s'esborra sencer)."""
+    dins = lambda d: data_inici <= d <= data_final
+    dates = _dates_iso(_json_config(db, CLAU_DATES_PLANIFICADOR))
+
+    ultim = _json_config(db, CLAU_ULTIM_HORARI)
+    ultim_horari = None
+    if isinstance(ultim, dict):
+        horari = (ultim.get("resultat") or {}).get("horari") or {}
+        # Cada dia porta la seva data (el planificador només genera amb dates)
+        dates_horari = _dates_iso(dia.get("data") for dia in horari.get("dies") or [] if isinstance(dia, dict))
+        if any(dins(d) for d in dates_horari):
+            ultim_horari = {
+                "desat": ultim.get("desat"),
+                "dates": [d.isoformat() for d in sorted(dates_horari)],
+                "s_esten_fora": not all(dins(d) for d in dates_horari),
+            }
+    return {
+        "dates_seleccionades": sum(1 for d in dates if dins(d)),
+        "ultim_horari": ultim_horari,
+    }
+
+
 def analitzar_purga(db: Session, institucio: Optional[str],
                     data_inici: date, data_final: date) -> Dict:
     """
@@ -179,11 +227,27 @@ def analitzar_purga(db: Session, institucio: Optional[str],
             "bloquejat": s_esten_fora,
         })
 
+    # Les baixes que toquen l'interval s'esborren senceres: el detall permet
+    # avisar de les que s'estenen fora.
+    baixes = [
+        {
+            "professor": b.professor,
+            "data_inici": b.data_inici.isoformat(),
+            "data_final": b.data_final.isoformat(),
+            "s_esten_fora": b.data_inici < data_inici or b.data_final > data_final,
+        }
+        for b in db.query(ProfessorBaixa).filter(
+            ProfessorBaixa.data_inici <= data_final,
+            ProfessorBaixa.data_final >= data_inici).order_by(ProfessorBaixa.data_inici)
+    ]
+
     total_bd = sum(bd.values())
     return {
         "interval": {"inici": data_inici.isoformat(), "final": data_final.isoformat()},
         "bd": bd,
         "total_bd": total_bd,
+        "baixes": baixes,
+        "planificador": _planificador(db, data_inici, data_final),
         "pdfs_a_esborrar": pdfs_a_esborrar,
         "pdfs_revisio_manual": pdfs_revisio_manual,
         "xml_versions": xml_versions,
@@ -200,6 +264,8 @@ def executar_purga(db: Session, institucio: Optional[str],
       dins l'interval, i baixes que hi solapin.
     - PDF datats amb contingut dins l'interval.
     - Versions d'XML 100% contingudes dins l'interval (fila + fitxer al disc).
+    - Planificador: les dates triades de dins l'interval i l'últim horari desat
+      si en toca alguna (sencer).
 
     NO toca: PDF sense data al nom (revisió manual) ni versions d'XML bloquejades
     (l'activa o les que s'estenen fora de l'interval).
@@ -253,14 +319,17 @@ def executar_purga(db: Session, institucio: Optional[str],
         }
         for v in db.query(XMLVersion).filter(XMLVersion.id.in_(ids_esborrar)).all():
             if data_dir is not None and v.path and v.path not in paths_conservats:
-                fpath = Path(v.path)
-                if not fpath.is_absolute():
-                    fpath = data_dir / v.path
-                try:
-                    if fpath.exists():
-                        fpath.unlink()
-                except OSError as e:
-                    errors.append(f"XML {v.path}: {e}")
+                carpeta = data_dir.resolve()
+                fpath = (carpeta / v.path).resolve()
+                if not fpath.is_relative_to(carpeta):
+                    # Només els fitxers del centre (com a helpers._resolve_xml_path)
+                    errors.append(f"XML {v.path}: fora de la carpeta del centre, no s'esborra")
+                else:
+                    try:
+                        if fpath.exists():
+                            fpath.unlink()
+                    except OSError as e:
+                        errors.append(f"XML {v.path}: {e}")
             xml_esborrats.append({
                 "id": v.id,
                 "data_inici": v.data_inici.isoformat(),
@@ -280,10 +349,26 @@ def executar_purga(db: Session, institucio: Optional[str],
             except OSError as e:
                 errors.append(f"PDF {item['fitxer']}: {e}")
 
+    # --- Planificador d'exàmens ---
+    # (sense ConfiguracioRepository.set, que fa commit: tot va en el commit final)
+    from models import Configuracio
+    planificador = manifest["planificador"]
+    if planificador["dates_seleccionades"]:
+        queden = [d.isoformat() for d in _dates_iso(_json_config(db, CLAU_DATES_PLANIFICADOR))
+                  if not data_inici <= d <= data_final]
+        db.query(Configuracio).filter(Configuracio.clau == CLAU_DATES_PLANIFICADOR).update(
+            {Configuracio.valor: json.dumps(queden)}, synchronize_session=False)
+    if planificador["ultim_horari"]:
+        db.query(Configuracio).filter(Configuracio.clau == CLAU_ULTIM_HORARI).delete(synchronize_session=False)
+
     db.commit()
 
     return {
         "interval": manifest["interval"],
+        "planificador": {
+            "dates_tretes": planificador["dates_seleccionades"],
+            "ultim_horari_esborrat": planificador["ultim_horari"] is not None,
+        },
         "bd": bd_esborrat,
         "total_bd": sum(bd_esborrat.values()),
         "pdfs_esborrats": pdfs_esborrats,

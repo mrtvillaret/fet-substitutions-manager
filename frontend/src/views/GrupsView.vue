@@ -344,6 +344,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { dataTreball } from '../dataTreball'
+import { dataIso } from '../dates'
 import { useToast } from 'primevue/usetoast'
 import { avisaSubstitutsTrets } from '../substitutsTrets'
 import Button from 'primevue/button'
@@ -359,12 +361,6 @@ import Dropdown from 'primevue/dropdown'
 const toast = useToast()
 const { t, locale } = useI18n()
 
-const props = defineProps({
-  dataGlobal: {
-    type: Date,
-    required: true
-  }
-})
 
 const hores = ref([])
 const grupsDisponibles = ref([])
@@ -393,14 +389,9 @@ const error = ref(null)
 
 // Dia carregat a la pantalla: és on es desa, encara que el calendari ja
 // marqui un altre dia (p.ex. si en canviar de dia s'ha triat «Cancel·la»).
-const dataCarregada = ref(props.dataGlobal)
+const dataCarregada = ref(dataTreball.value)
 
-const isoDe = (data) => {
-  const year = data.getFullYear()
-  const month = String(data.getMonth() + 1).padStart(2, '0')
-  const day = String(data.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+const isoDe = dataIso
 
 const dataFormatada = computed(() => {
   return dataCarregada.value.toLocaleDateString(locale.value || 'ca-ES', {
@@ -689,7 +680,7 @@ const inicialitzarCheckboxes = (grups, horasList, seleccionats = {}) => {
   checkboxesOriginals.value = JSON.parse(JSON.stringify(checkboxes))
 }
 
-const carregarConfiguracio = async (data = props.dataGlobal) => {
+const carregarConfiguracio = async (data = dataTreball.value) => {
   loading.value = true
   error.value = null
 
@@ -838,7 +829,7 @@ const potSortir = async () => {
 }
 
 // Carregar quan canvia la data
-watch(() => props.dataGlobal, async () => {
+watch(dataTreball, async () => {
   if (await potSortir()) {
     carregarConfiguracio()
   }

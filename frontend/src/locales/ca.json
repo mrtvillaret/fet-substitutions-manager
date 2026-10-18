@@ -194,7 +194,8 @@
       "xmlUseCourseStart": "Usar l'inici del curs {nom}",
       "xmlScheduled": "Horari programat: entrarà en vigor el {data}. L'horari actual no ha canviat.",
       "xmlCourseDesync": "El curs {curs} comença el {inici}, però l'horari vigent en aquella data va entrar en vigor el {xmlInici} (curs anterior). Puja el nou horari amb data de vigència {inici}.",
-      "xmlFixDesync": "Preparar-lo"
+      "xmlFixDesync": "Preparar-lo",
+      "futureSchedule": "Hi ha un horari nou que serà vigent a partir del {data}. Fins aleshores es fa servir l'actual (i, per a dates posteriors, el nou)."
     },
     "groups": {
       "detectedLabel": "Grups detectats de l'XML",
@@ -300,7 +301,7 @@
       "generateAllDaysPDF": "📄 Genera PDF de Tots els Dies",
       "pdfGenerated": "PDF generat correctament",
       "startDate": "Des del dia",
-      "startDateHint": "(buit = avui)",
+      "startDateHint": "(buit = data del calendari)",
       "freeableFilter": "Filtra activitats…",
       "freeableNone": "Cap activitat sense grup a l'horari"
     },
@@ -402,7 +403,7 @@
     },
     "dataManagement": {
       "title": "Purga de dades per interval",
-      "description": "Elimina de manera irreversible tot rastre de dades d'un interval de dates: substitucions, vigilàncies i grups alliberats, PDF exportats i versions d'XML 100% contingudes dins l'interval. Primer analitza què s'esborraria; després confirma per executar-ho.",
+      "description": "Elimina de manera irreversible tot rastre de dades d'un interval de dates (normalment, un curs sencer): substitucions, vigilàncies, grups alliberats i baixes, PDF exportats, versions d'XML 100% contingudes dins l'interval i les dates i l'últim horari del planificador d'exàmens. Primer analitza què s'esborraria; després confirma per executar-ho.",
       "startDate": "Data d'inici",
       "endDate": "Data final",
       "analyze": "Analitzar",
@@ -442,7 +443,15 @@
       "anonConfirmMessage": "Es reanomenarà «{old}» a «{new}» a tots els registres. Vols continuar?",
       "anonSuccessSummary": "Professor reanomenat",
       "anonSuccessDetail": "{n} registres actualitzats",
-      "anonAccept": "Sí, reanomena"
+      "anonAccept": "Sí, reanomena",
+      "course": "Curs",
+      "coursePlaceholder": "Tria un curs per omplir les dates",
+      "plannerDates": "Dates triades al planificador",
+      "plannerLast": "Últim horari del planificador ({start} → {end})",
+      "warnAbsenceExtends": "La baixa de {prof} ({start} → {end}) s'estén fora de l'interval i s'esborrarà sencera.",
+      "warnPlannerExtends": "L'últim horari del planificador ({start} → {end}) s'estén fora de l'interval i s'esborrarà sencer.",
+      "resultPlanner": "Planificador: {n} dates tretes.",
+      "resultPlannerLast": "També s'ha esborrat l'últim horari desat."
     }
   },
   "groups": {
@@ -1512,7 +1521,9 @@
         "removed": "S'han tret {count} assignatures de les restriccions"
       },
       "previousCourse": "Les dates triades són del curs {cursos}, anterior a l'actual ({actual}). El planificador fa servir la configuració d'exàmens del curs actual, i no es podrà publicar. Les vigilàncies de cursos anteriors es consulten a Vigilàncies.",
-      "lastResult": "Aquest és l'últim horari generat o modificat ({data}). Si has canviat la configuració o les dates, torna a generar."
+      "lastResult": "Aquest és l'últim horari generat o modificat ({data}). Si has canviat la configuració o les dates, torna a generar.",
+      "scheduleUsed": "S'utilitza l'horari vigent el {data} (horari pujat amb data {desDe}).",
+      "scheduleChanges": "Les dates triades fan servir dos horaris diferents (canvi el {canvi}). Es farà servir el vigent el {data}; si cal, planifica cada tram per separat."
     },
     "steps": {
       "config": {

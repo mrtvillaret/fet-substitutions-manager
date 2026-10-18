@@ -6,6 +6,7 @@ from typing import List, Dict
 from collections import defaultdict
 import hashlib
 
+from scheduler_engine.core.horaris_xml import horaris_professors
 from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
 from scheduler_engine.core.context import SchedulerContext
 from scheduler_engine.core.durada import get_durada_per_nivell, get_durada_per_sessio_key
@@ -111,30 +112,13 @@ class GeneradorSessionsExamensBase(ABC):
     def carregar_horaris_professors(self):
         tree = ET.parse(self.horari_xml_path)
         root = tree.getroot()
-        ultim_prof = (self.ultim_professor or "").strip()
         hores = []
         for day in root.findall('.//Day'):
             for hour in day.findall('Hour'):
                 h = hour.get('name')
                 if h and h not in hores: hores.append(h)
         self.totes_hores = hores
-        for teacher in root.findall('Teacher'):
-            nom = teacher.get('name').strip()
-            self.horaris_professors[nom] = {}
-            for day in teacher.findall('Day'):
-                d = normalitzar_dia(day.get('name'))
-                self.horaris_professors[nom][d] = {}
-                for hour in day.findall('Hour'):
-                    h = hour.get('name')
-                    sub = hour.find('Subject')
-                    act = hour.find('Activity')
-                    if (act is not None and act.get('id')) or sub is not None:
-                        s = sub.get('name') if sub is not None else ''
-                        g = hour.find('Students').get('name') if hour.find('Students') is not None else ''
-                        self.horaris_professors[nom][d][h] = {'assignatura': s, 'grup': g}
-            # El professor límit també s'ha d'incloure; parem després de processar-lo.
-            if ultim_prof and nom == ultim_prof:
-                break
+        self.horaris_professors.update(horaris_professors(root, self.ultim_professor))
 
     def get_durada_per_nivell(self, nivell: str | None) -> int:
         return get_durada_per_nivell(nivell, self.alliberaments_per_nivell, self.durada_titular)

@@ -165,6 +165,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { ambDataTreball, dataTreball } from '../../dataTreball'
+import { dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
 import Dialog from 'primevue/dialog'
 import MultiSelect from 'primevue/multiselect'
@@ -173,25 +175,14 @@ import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Divider from 'primevue/divider'
 
-const props = defineProps({
-  // Data del calendari general: la configuració detecta els grups sobre l'XML
-  // vigent per aquesta data (el mateix que veurà la vista de sense classe).
-  dataGlobal: { type: Date, default: () => new Date() }
-})
 
 const toast = useToast()
 const { t, locale } = useI18n()
 
 // Data en format ISO (per l'endpoint) i text (per mostrar)
-const dataISO = computed(() => {
-  const d = props.dataGlobal || new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
-})
+const dataISO = computed(() => dataIso(dataTreball.value))
 const dataText = computed(() =>
-  (props.dataGlobal || new Date()).toLocaleDateString(locale.value || 'ca-ES',
+  dataTreball.value.toLocaleDateString(locale.value || 'ca-ES',
     { day: '2-digit', month: '2-digit', year: 'numeric' })
 )
 const xmlDataInici = ref(null)
@@ -229,9 +220,7 @@ const carregarAbreviatures = async () => {
 const detectarGrupsXML = async (silent = false) => {
   try {
     // Detecta sobre l'XML vigent per la data del calendari general
-    const response = await axios.get('/api/horari/grups/detectar', {
-      params: { data: dataISO.value }
-    })
+    const response = await axios.get('/api/horari/grups/detectar', ambDataTreball())
 
     // Guardar grups detectats (usem grups_raw, els grups originals sense abreviar)
     grupsDetectats.value = response.data.grups_raw

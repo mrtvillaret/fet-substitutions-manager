@@ -13,15 +13,13 @@ from sqlalchemy import and_
 from datetime import datetime
 from collections import defaultdict
 
-from dependencies import get_db
+from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
 from auth_utils import get_current_user
 from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository, MasterConfigRepository, parse_date
 from serveis.cobertures import refresca_cobertures
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
 from helpers import (
-    get_horari,
-    get_vigilancia_core,
     assign_phase1_titulars,
     assign_phase2_professors_grup,
     assign_phase3_passada,
@@ -33,6 +31,8 @@ from schemas import (
     AssignmentResponse,
     VigilanciaDisponiblesBatchRequest
 )
+from routes.parametres import DataISO
+from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/vigilancies", tags=["Vigilàncies"])
 
@@ -64,7 +64,7 @@ def _vig_to_payload(vig) -> dict:
 
 @router.get("/{data}/pdf")
 def generar_pdf_vigilancies_alias(
-    data: str,
+    data: DataISO,
     nivells: str = "",
     compress: bool = False,
     show_comments: bool = True,
@@ -88,8 +88,8 @@ def generar_pdf_vigilancies_alias(
 
 @router.get("/pdf/interval")
 def generar_pdf_interval_alias(
-    data_inici: str,
-    data_final: str,
+    data_inici: DataISO,
+    data_final: DataISO,
     nivells: str = "",
     include_weekends: bool = False,
     include_empty_days: bool = False,
@@ -136,10 +136,11 @@ def _categoria_prioritat(tipus_activitat: str, ordre_prioritats: list) -> int:
     return len(ordre_prioritats)
 
 
-def _build_disponibles_context(data: str, db: Session, hores_consulta: set[str], necessita_titulars: bool) -> dict:
+def _build_disponibles_context(dia: Dia, db: Session, hores_consulta: set[str], necessita_titulars: bool) -> dict:
     from config.constants import PRIORITATS, PROFESSORS_BAIXA, ORDRE_PRIORITATS
 
-    horari = get_horari(data_iso=data)
+    data = dia.iso
+    horari = dia.horari
     date_obj = datetime.strptime(data, "%Y-%m-%d")
     dia_name = horari.get_dia_name(date_obj.weekday())
 
@@ -185,7 +186,7 @@ def _build_disponibles_context(data: str, db: Session, hores_consulta: set[str],
                 activitat.get("grup", "")
             )
 
-    vigilancia_core = get_vigilancia_core(data, db) if necessita_titulars else None
+    vigilancia_core = dia.vigilancia_core(db) if necessita_titulars else None
 
     return {
         "ordre_prioritats": ORDRE_PRIORITATS,
@@ -319,16 +320,15 @@ def _build_disponibles_for_query(context: dict, hora: str, tipus: str | None, gr
 
 
 @router.get("/config")
-async def obtenir_config_vigilancies(db: Session = Depends(get_db)):
+async def obtenir_config_vigilancies(db: Session = Depends(get_db), dia: Dia = Depends(dia_del_calendari)):
     """
     Retorna configuració necessària per gestionar vigilàncies (SQLite):
     - Nivells disponibles
-    - Professors disponibles
-    - Hores del dia
+    - Professors i hores de l'horari vigent a `data` (o, sense, avui)
     - Grups i aules (de SQLite)
     - Tipus d'exàmens únics (de SQLite)
     """
-    horari = get_horari()
+    horari = dia.horari
 
     # Carregar master config des de SQLite
     master_config = MasterConfigRepository.get_master_config(db)
@@ -369,12 +369,13 @@ async def obtenir_config_vigilancies(db: Session = Depends(get_db)):
 
 @router.get("/{data}/{hora}/disponibles")
 async def obtenir_disponibles_vigilancia(
-    data: str,
+    data: DataISO,
     hora: str,
     tipus: str = None,
     grups: str = None,
     aula: str = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    dia: Dia = Depends(dia_de_la_peticio)
 ):
     """
     Retorna professors disponibles per vigilància amb informació detallada (SQLite)
@@ -392,7 +393,7 @@ async def obtenir_disponibles_vigilancia(
     aula_norm = _normalize_disponibles_param(aula)
 
     context = _build_disponibles_context(
-        data=data,
+        dia=dia,
         db=db,
         hores_consulta={hora_norm},
         necessita_titulars=bool(tipus_norm and tipus_norm != "VIGILÀNCIA")
@@ -408,9 +409,10 @@ async def obtenir_disponibles_vigilancia(
 
 @router.post("/{data}/disponibles-batch")
 async def obtenir_disponibles_vigilancia_batch(
-    data: str,
+    data: DataISO,
     payload: VigilanciaDisponiblesBatchRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    dia: Dia = Depends(dia_de_la_peticio)
 ):
     """
     Retorna disponibles per múltiples consultes en una sola crida.
@@ -442,7 +444,7 @@ async def obtenir_disponibles_vigilancia_batch(
     hores_consulta = {q["hora"] for q in queries}
     necessita_titulars = any(q["tipus"] and q["tipus"] != "VIGILÀNCIA" for q in queries)
     context = _build_disponibles_context(
-        data=data,
+        dia=dia,
         db=db,
         hores_consulta=hores_consulta,
         necessita_titulars=necessita_titulars
@@ -461,7 +463,7 @@ async def obtenir_disponibles_vigilancia_batch(
 
 
 @router.get("/{data}")
-async def obtenir_vigilancies(data: str, db: Session = Depends(get_db)):
+async def obtenir_vigilancies(data: DataISO, db: Session = Depends(get_db)):
     """
     Retorna totes les vigilàncies d'una data específica (SQLite)
     Format: llista plana amb ID únic per cada vigilància
@@ -481,7 +483,7 @@ async def obtenir_vigilancies(data: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{data}")
-async def crear_vigilancia(data: str, vigilancia: VigilanciaCreate, db: Session = Depends(get_db)):
+async def crear_vigilancia(data: DataISO, vigilancia: VigilanciaCreate, db: Session = Depends(get_db)):
     """
     Afegeix una nova vigilància a una data específica (SQLite)
     """
@@ -530,7 +532,7 @@ async def crear_vigilancia(data: str, vigilancia: VigilanciaCreate, db: Session 
 
 
 @router.put("/{data}/{vig_id}")
-async def actualitzar_vigilancia(data: str, vig_id: str, update: VigilanciaUpdate, db: Session = Depends(get_db)):
+async def actualitzar_vigilancia(data: DataISO, vig_id: str, update: VigilanciaUpdate, db: Session = Depends(get_db)):
     """
     Actualitza una vigilància existent (SQLite)
     ID format: hora|nivell|index
@@ -600,7 +602,7 @@ async def actualitzar_vigilancia(data: str, vig_id: str, update: VigilanciaUpdat
 
 @router.delete("/{data}/{vig_id}")
 async def eliminar_vigilancia(
-    data: str,
+    data: DataISO,
     vig_id: str,
     updated_at: str = None,
     force: bool = False,
@@ -643,7 +645,7 @@ async def eliminar_vigilancia(
 # ===== Endpoints d'Assignació Automàtica =====
 
 @router.post("/{data}/assign/titulars", response_model=AssignmentResponse)
-async def assignar_titulars(data: str, db: Session = Depends(get_db)):
+async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """
     Assigna automàticament NOMÉS titulars alliberats/disponibles (SQLite)
     """
@@ -660,7 +662,7 @@ async def assignar_titulars(data: str, db: Session = Depends(get_db)):
     vigilants_abans = _collect_vigilants_by_hour(vigilancies_dict)
 
     # Configurar core
-    core = get_vigilancia_core(data, db)
+    core = dia.vigilancia_core(db)
 
     # Tracking global de vigilants assignats per hora
     # Carregar vigilants JA assignats per evitar duplicats
@@ -711,7 +713,7 @@ async def assignar_titulars(data: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{data}/assign/pendents", response_model=AssignmentResponse)
-async def assignar_pendents(data: str, disponibles: bool = False, db: Session = Depends(get_db)):
+async def assignar_pendents(data: DataISO, disponibles: bool = False, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """
     Assigna vigilàncies pendents amb scoring intel·ligent (SQLite)
 
@@ -732,7 +734,7 @@ async def assignar_pendents(data: str, disponibles: bool = False, db: Session = 
     vigilants_abans = _collect_vigilants_by_hour(vigilancies_dict)
 
     # Configurar core
-    core = get_vigilancia_core(data, db)
+    core = dia.vigilancia_core(db)
     afinitats_cfg = get_vigilancies_afinitats(db)
 
     # Tracking global de vigilants assignats per hora
@@ -831,7 +833,7 @@ async def assignar_pendents(data: str, disponibles: bool = False, db: Session = 
 
 
 @router.post("/{data}/clear")
-async def netejar_assignacions(data: str, db: Session = Depends(get_db)):
+async def netejar_assignacions(data: DataISO, db: Session = Depends(get_db)):
     """
     Neteja totes les assignacions de vigilants (manté tipus, grups, aules) (SQLite)
     """
@@ -867,7 +869,7 @@ async def netejar_assignacions(data: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{data}/sort")
-async def ordenar_per_hora(data: str, db: Session = Depends(get_db)):
+async def ordenar_per_hora(data: DataISO, db: Session = Depends(get_db)):
     """
     Ordena vigilàncies per hora seguint l'ordre de l'horari (SQLite)
 

@@ -21,8 +21,10 @@ from core.alliberats import sense_classe
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from export.pdf.informe_direccio import generar_informe_pdf
 from export.pdf.informe_professors import generar_informe_professors_pdf
+from routes.parametres import DataISO, data_iso
 
 import logging
+from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/informes", tags=["informes"])
@@ -408,11 +410,10 @@ def _get_nom_centre(institucio: str) -> str:
         return institucio
 
 
-def _get_hores_xml(institucio: str) -> list:
-    """Retorna les hores en l'ordre original del XML actiu per a la institució."""
+def _get_hores_xml(institucio: str, data: str) -> list:
+    """Les hores, en l'ordre de l'XML, de l'horari vigent a `data`."""
     import xml.etree.ElementTree as ET
-    from helpers import get_xml_path_for_date
-    xml_path = get_xml_path_for_date(institucio)
+    xml_path = Dia.de_text(data, institucio).xml_path
     if not xml_path or not Path(xml_path).exists():
         return []
     hores = []
@@ -432,14 +433,15 @@ def _get_hores_xml(institucio: str) -> list:
 
 @router.get("/direccio")
 def informe_direccio(
-    data_inici: str = Query(...),
-    data_final: str = Query(...),
+    data_inici: DataISO = Query(...),
+    data_final: DataISO = Query(...),
     current_user=Depends(require_admin),
 ):
+    data_iso(data_inici), data_iso(data_final)
     institucio = current_user.institucio
     nom_centre = _get_nom_centre(institucio)
     lang = _get_idioma(institucio)
-    hores_xml = _get_hores_xml(institucio)
+    hores_xml = _get_hores_xml(institucio, data_inici)   # l'horari de l'inici del període
     dades = _calcular_dades_direccio(data_inici, data_final, hores_xml, institucio, lang)
     # Directori temporal per petició: el PDF no es desa al servidor, es genera i
     # es retorna; s'esborra un cop enviada la resposta.
@@ -465,16 +467,17 @@ def informe_direccio(
 
 @router.get("/professor")
 def informe_professor(
-    data_inici: str = Query(...),
-    data_final: str = Query(...),
+    data_inici: DataISO = Query(...),
+    data_final: DataISO = Query(...),
     professor: str = Query(default=None),
     mostrar_taules: bool = Query(default=False),
     current_user=Depends(require_admin),
 ):
+    data_iso(data_inici), data_iso(data_final)
     institucio = current_user.institucio
     nom_centre = _get_nom_centre(institucio)
     lang = _get_idioma(institucio)
-    hores_xml = _get_hores_xml(institucio)
+    hores_xml = _get_hores_xml(institucio, data_inici)   # l'horari de l'inici del període
     professors_data = _calcular_dades_professors(data_inici, data_final, institucio, professor)
     if not professors_data:
         from fastapi import HTTPException
@@ -507,8 +510,8 @@ def informe_professor(
 
 @router.get("/professors-llista")
 async def llista_professors(
-    data_inici: str = Query(...),
-    data_final: str = Query(...),
+    data_inici: DataISO = Query(...),
+    data_final: DataISO = Query(...),
     current_user=Depends(require_admin),
 ):
     """Retorna la llista de professors amb activitat al període"""

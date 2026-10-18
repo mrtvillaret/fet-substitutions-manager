@@ -625,6 +625,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { ambDataTreball, dataTreball } from '../dataTreball'
+import { dataIso } from '../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import DataTable from 'primevue/datatable'
@@ -646,14 +648,6 @@ const emit = defineEmits(['anar-substitucions'])
 const toast = useToast()
 const confirm = useConfirm()
 const { t, locale } = useI18n()
-
-// Props
-const props = defineProps({
-  dataGlobal: {
-    type: Date,
-    required: true
-  }
-})
 
 // State
 const vigilancies = ref([])
@@ -759,15 +753,10 @@ const novaVigilancia = ref({
 })
 
 // Computed
-const dataISO = computed(() => {
-  const year = props.dataGlobal.getFullYear()
-  const month = String(props.dataGlobal.getMonth() + 1).padStart(2, '0')
-  const day = String(props.dataGlobal.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-})
+const dataISO = computed(() => dataIso(dataTreball.value))
 
 const dataFormatada = computed(() => {
-  return props.dataGlobal.toLocaleDateString(locale.value || 'ca-ES', {
+  return dataTreball.value.toLocaleDateString(locale.value || 'ca-ES', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -1031,7 +1020,7 @@ const getVigilantLabel = (hora, vigilantValue, tipus = null, grups = null, aula 
 
 const carregarConfig = async () => {
   try {
-    const response = await axios.get('/api/vigilancies/config')
+    const response = await axios.get('/api/vigilancies/config', ambDataTreball())
     const llista = response.data.professors || []
     professors.value = [...llista].sort((a, b) => collator.value.compare(a, b))
     hores.value = response.data.hores
@@ -1639,8 +1628,8 @@ const mostrarDialegPDF = async () => {
 const mostrarDialegInterval = async () => {
   // Pre-seleccionar tots els nivells i dates predeterminades
   intervalConfig.value.nivells = [...nivells.value]
-  intervalConfig.value.dataInici = props.dataGlobal
-  intervalConfig.value.dataFinal = props.dataGlobal
+  intervalConfig.value.dataInici = dataTreball.value
+  intervalConfig.value.dataFinal = dataTreball.value
   await carregarPreferenciesPdf()
   mostrarDialogInterval.value = true
 }
@@ -1755,13 +1744,7 @@ const generarPDFInterval = async () => {
 
   try {
     // Convertir dates a format YYYY-MM-DD
-    const formatDate = (date) => {
-      if (!date) return null
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
+        const formatDate = dataIso
 
     const dataInici = formatDate(intervalConfig.value.dataInici)
     const dataFinal = formatDate(intervalConfig.value.dataFinal)
@@ -1832,7 +1815,8 @@ const generarPDFInterval = async () => {
 }
 
 // Watch per canvis de data
-watch(() => props.dataGlobal, async () => {
+watch(dataTreball, async () => {
+  await carregarConfig()   // professors i hores de l'horari vigent aquell dia
   await carregarVigilancies()
 })
 

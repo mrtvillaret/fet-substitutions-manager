@@ -4,7 +4,7 @@ Funcions auxiliars compartides pel backend
 - Funcions d'assignació automàtica de vigilàncies
 """
 from typing import Optional, Dict, List, Any
-from datetime import datetime
+from datetime import date, datetime
 from sqlalchemy.orm import Session
 import os
 import json
@@ -78,14 +78,22 @@ def invalidar_horari(institucio: str = None):
 
 
 
-def _resolve_xml_path(institucio: str, data_iso: str = None) -> Optional[str]:
+def avui() -> str:
+    """La data d'avui (AAAA-MM-DD). L'horari sempre es demana per a una data:
+    qui vol el d'avui ho ha de dir."""
+    return date.today().isoformat()
+
+
+def _resolve_xml_path(institucio: str, data_iso: str) -> Optional[str]:
+    if not data_iso:
+        # Sense data no se sap quin horari: abans s'agafava un per defecte en
+        # silenci i l'error passava desapercebut
+        raise ValueError("Cal la data per saber quin horari (XML) fer servir")
     xml_path = None
     try:
         with get_data_db_session(institucio) as db:
-            if data_iso:
-                version = XMLVersionRepository.get_for_date(db, data_iso)
-            else:
-                version = XMLVersionRepository.get_current(db)
+            # La versió vigent aquell dia (si no n'hi ha cap, la més propera)
+            version = XMLVersionRepository.vigent(db, data_iso)
             if version:
                 xml_path = version.path
     except Exception:
@@ -115,13 +123,14 @@ def _resolve_xml_path(institucio: str, data_iso: str = None) -> Optional[str]:
     return xml_path
 
 
-def get_xml_path_for_date(institucio: str = None, data_iso: str = None) -> Optional[str]:
+def get_xml_path_for_date(institucio: Optional[str], data_iso: str) -> Optional[str]:
     instit = institucio or _get_institucio_actual()
     return _resolve_xml_path(instit, data_iso)
 
 
-def get_horari(institucio: str = None, data_iso: str = None) -> GestorHorariWeb:
-    """Singleton del gestor d'horari - Versió Web amb configuració de SQLite"""
+def get_horari(institucio: str = None, *, data_iso: str) -> GestorHorariWeb:
+    """L'horari vigent a `data_iso` (de memòria cau). Sense institució, la de
+    la petició en curs."""
     global _horari
     institucio = institucio or _get_institucio_actual()
     xml_path = _resolve_xml_path(institucio, data_iso)
@@ -141,7 +150,8 @@ def get_horari(institucio: str = None, data_iso: str = None) -> GestorHorariWeb:
     horari = GestorHorariWeb(xml_path, ultim_professor_subs)
     _horari[key] = horari
 
-    if data_iso is None:
+    # Qui és actiu o inactiu ho decideix l'horari d'avui
+    if data_iso == avui():
         try:
             with get_data_db_session(institucio) as db:
                 sync_info = ProfessorRepository.sync_from_xml(db, horari.professors)
@@ -153,7 +163,7 @@ def get_horari(institucio: str = None, data_iso: str = None) -> GestorHorariWeb:
     return horari
 
 
-def get_gestors(institucio: str = None, data_iso: str = None):
+def get_gestors(institucio: str = None, *, data_iso: str):
     """Retorna (substitucions, horari, alliberats, absencies) per a una petició.
 
     L'horari surt de la memòria cau (get_horari). Els altres tres gestors es
@@ -161,7 +171,7 @@ def get_gestors(institucio: str = None, data_iso: str = None):
     l'horari) i cada petició hi fixa el seu estat (data, vigilants, grups sense
     classe), que no s'ha de compartir amb cap altra."""
     institucio = institucio or _get_institucio_actual()
-    horari = get_horari(institucio, data_iso)
+    horari = get_horari(institucio, data_iso=data_iso)
     alliberats = GestorAlliberats(horari)
     absencies = GestorAbsencies(horari)
     substitucions_mgr = GestorSubstitucions(horari, alliberats, absencies)
@@ -176,10 +186,10 @@ def get_gestors(institucio: str = None, data_iso: str = None):
     return substitucions_mgr, horari, alliberats, absencies
 
 
-def get_vigilancia_core(data: str, db: Session = None) -> VigilanciaCore:
+def get_vigilancia_core(data: str, db: Session = None, institucio: str = None) -> VigilanciaCore:
     """Crea i configura VigilanciaCore per una data específica"""
     global _vigilancia_core
-    instit = _get_institucio_actual()
+    instit = institucio or _get_institucio_actual()
 
     # Sempre crear nou (per actualitzar amb dades del dia)
     xml_path = _resolve_xml_path(instit, data)
@@ -187,7 +197,7 @@ def get_vigilancia_core(data: str, db: Session = None) -> VigilanciaCore:
     _vigilancia_core[key] = VigilanciaCore()
 
     # Obtenir gestors
-    _, horari, alliberats, _ = get_gestors(instit, data)
+    _, horari, alliberats, _ = get_gestors(instit, data_iso=data)
 
     # Validar que tenim sessió de base de dades (obligatori)
     if not db:

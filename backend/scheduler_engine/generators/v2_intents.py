@@ -215,6 +215,12 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                         'no_treballa_professors': []
                     }
                     hores_slot = self._get_hores_ocupades(hora, curs)
+                    # Un examen que dura més que la durada general s'analitza sencer
+                    durada_item = max((self.get_durada_examen_per_sessio_key(s.get('nom'), curs)
+                                       for s in item.get('sessions', [])), default=0)
+                    if durada_item > len(hores_slot) and hora in self.totes_hores:
+                        idx = self.totes_hores.index(hora)
+                        hores_slot = self.totes_hores[idx:min(idx + durada_item, len(self.totes_hores))]
                     per_hour = {
                         hora_real: {
                             'cost_substitucions': 0,

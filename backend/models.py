@@ -486,19 +486,3 @@ class ExamCostProfessor(Base):
         Index('idx_exam_cost_tipus', 'tipus'),
     )
 
-
-class ExamSchedule(Base):
-    __tablename__ = 'exam_schedules'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    nom = Column(String)
-    data_generacio = Column(DateTime, default=ara_utc)
-    dies_seleccionats = Column(Text, nullable=False)
-    horari_resultat = Column(Text, nullable=False)
-    cost_total = Column(Integer)
-    substitucions_eso = Column(Integer)
-    conflictes_detectats = Column(Text)
-    usuari_generador = Column(String)
-    estat = Column(String, default='generat')
-    created_at = Column(DateTime, default=ara_utc)
-    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)

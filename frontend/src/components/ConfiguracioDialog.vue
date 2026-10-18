@@ -29,7 +29,7 @@
               <span>{{ $t('config.tabs.groupsLine2') }}</span>
             </span>
           </template>
-          <GrupsTab :dataGlobal="dataGlobal" />
+          <GrupsTab />
         </TabPanel>
 
       <!-- TAB 3: PROFESSORS DE BAIXA -->
@@ -51,7 +51,7 @@
               <span>&nbsp;</span>
             </span>
           </template>
-          <PrioritatsTab :dataGlobal="dataGlobal" />
+          <PrioritatsTab />
         </TabPanel>
 
         <!-- TAB 5: CURSOS -->
@@ -143,10 +143,6 @@ const props = defineProps({
   currentInstitucio: {
     type: String,
     default: null
-  },
-  dataGlobal: {
-    type: Date,
-    default: () => new Date()
   }
 })
 

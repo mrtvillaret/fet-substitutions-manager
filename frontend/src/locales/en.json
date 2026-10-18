@@ -194,7 +194,8 @@
       "xmlUseCourseStart": "Use start of year {nom}",
       "xmlScheduled": "Timetable scheduled: it takes effect on {data}. The current timetable is unchanged.",
       "xmlCourseDesync": "Year {curs} starts on {inici}, but the timetable in effect on that date took effect on {xmlInici} (previous year). Upload the new timetable effective {inici}.",
-      "xmlFixDesync": "Prepare it"
+      "xmlFixDesync": "Prepare it",
+      "futureSchedule": "There is a new timetable that will be in force from {data}. Until then the current one is used (and, for later dates, the new one)."
     },
     "groups": {
       "detectedLabel": "Groups detected from XML",
@@ -276,7 +277,7 @@
       "generateAllDaysPDF": "📄 Generate PDF for All Days",
       "pdfGenerated": "PDF generated successfully",
       "startDate": "From day",
-      "startDateHint": "(empty = today)",
+      "startDateHint": "(empty = calendar date)",
       "saveAll": "💾 Save all priorities",
       "addNoSubstTitle": "Subjects for no substitute",
       "selectSubjectXml": "Select subject from XML",
@@ -399,7 +400,7 @@
     },
     "dataManagement": {
       "title": "Purge data by interval",
-      "description": "Irreversibly deletes every trace of data in a date interval: substitutions, invigilations and freed groups, exported PDFs and XML versions fully contained within the interval. First analyse what would be deleted; then confirm to execute.",
+      "description": "Irreversibly removes every trace of data from a date range (usually a whole school year): substitutions, supervisions, freed groups and leaves, exported PDFs, XML versions fully contained in the range, and the exam planner's dates and last timetable. First analyse what would be deleted; then confirm to run it.",
       "startDate": "Start date",
       "endDate": "End date",
       "analyze": "Analyse",
@@ -439,7 +440,15 @@
       "anonConfirmMessage": "«{old}» will be renamed to «{new}» in all records. Continue?",
       "anonSuccessSummary": "Teacher renamed",
       "anonSuccessDetail": "{n} records updated",
-      "anonAccept": "Yes, rename"
+      "anonAccept": "Yes, rename",
+      "course": "School year",
+      "coursePlaceholder": "Choose a school year to fill in the dates",
+      "plannerDates": "Dates chosen in the planner",
+      "plannerLast": "Planner's last timetable ({start} → {end})",
+      "warnAbsenceExtends": "The leave of {prof} ({start} → {end}) extends beyond the range and will be deleted entirely.",
+      "warnPlannerExtends": "The planner's last timetable ({start} → {end}) extends beyond the range and will be deleted entirely.",
+      "resultPlanner": "Planner: {n} dates removed.",
+      "resultPlannerLast": "The last saved timetable was also deleted."
     }
   },
   "groups": {
@@ -1509,7 +1518,9 @@
         "removed": "{count} subjects removed from the restrictions"
       },
       "previousCourse": "The selected dates belong to {cursos}, before the current year ({actual}). The planner uses the current year's exam configuration and cannot publish them. Invigilations from previous years can be viewed in Invigilations.",
-      "lastResult": "This is the last schedule generated or edited ({data}). If you have changed the configuration or the dates, generate again."
+      "lastResult": "This is the last schedule generated or edited ({data}). If you have changed the configuration or the dates, generate again.",
+      "scheduleUsed": "Using the timetable in force on {data} (timetable uploaded with date {desDe}).",
+      "scheduleChanges": "The chosen dates span two different timetables (change on {canvi}). The one in force on {data} will be used; if needed, plan each period separately."
     },
     "steps": {
       "config": {

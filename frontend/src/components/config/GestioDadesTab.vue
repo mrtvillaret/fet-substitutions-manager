@@ -39,6 +39,16 @@
     <p class="descripcio">{{ $t('config.dataManagement.description') }}</p>
 
     <div class="interval-selector">
+      <div v-if="cursos.length" class="field">
+        <label>{{ $t('config.dataManagement.course') }}</label>
+        <Dropdown
+          v-model="cursSeleccionat"
+          :options="cursos"
+          optionLabel="nom"
+          :placeholder="$t('config.dataManagement.coursePlaceholder')"
+          @change="omplirDatesCurs"
+        />
+      </div>
       <div class="field">
         <label>{{ $t('config.dataManagement.startDate') }}</label>
         <Calendar v-model="dataInici" dateFormat="dd/mm/yy" :showIcon="true" :manualInput="false" />
@@ -65,6 +75,15 @@
         <li>{{ $t('config.dataManagement.vigilances') }}: <strong>{{ manifest.bd.vigilancies }}</strong></li>
         <li>{{ $t('config.dataManagement.freedGroups') }}: <strong>{{ manifest.bd.grups_alliberats }}</strong></li>
         <li>{{ $t('config.dataManagement.absences') }}: <strong>{{ manifest.bd.baixes }}</strong></li>
+        <li v-if="manifest.planificador.dates_seleccionades">
+          {{ $t('config.dataManagement.plannerDates') }}: <strong>{{ manifest.planificador.dates_seleccionades }}</strong>
+        </li>
+        <li v-if="manifest.planificador.ultim_horari">
+          {{ $t('config.dataManagement.plannerLast', {
+            start: manifest.planificador.ultim_horari.dates[0],
+            end: manifest.planificador.ultim_horari.dates[manifest.planificador.ultim_horari.dates.length - 1],
+          }) }}
+        </li>
       </ul>
 
       <p>
@@ -114,6 +133,13 @@
           xml: resultat.xml_esborrats.length,
         }) }}
       </Message>
+      <Message v-if="resultat.planificador.dates_tretes || resultat.planificador.ultim_horari_esborrat"
+               severity="success" :closable="false">
+        {{ $t('config.dataManagement.resultPlanner', { n: resultat.planificador.dates_tretes }) }}
+        <template v-if="resultat.planificador.ultim_horari_esborrat">
+          {{ $t('config.dataManagement.resultPlannerLast') }}
+        </template>
+      </Message>
       <Message v-if="resultat.errors.length" severity="error" :closable="false">
         {{ $t('config.dataManagement.resultErrors', { errors: resultat.errors.join('; ') }) }}
       </Message>
@@ -125,6 +151,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { dataIso } from '../../dates'
 import Calendar from 'primevue/calendar'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
@@ -193,17 +220,42 @@ async function anonimitzar() {
 
 onMounted(carregarProfessors)
 
+// --- Purga ---
+// Un curs omple l'interval amb les seves dates (el darrer curs no té data final).
+const cursos = ref([])
+const cursSeleccionat = ref(null)
+
+async function carregarCursos() {
+  try {
+    const { data } = await axios.get('/api/cursos')
+    cursos.value = data || []
+  } catch (e) {
+    cursos.value = []
+  }
+}
+
+function fromIso(iso) {
+  if (!iso) return null
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function omplirDatesCurs() {
+  const c = cursSeleccionat.value
+  if (!c) return
+  dataInici.value = fromIso(c.data_inici)
+  dataFinal.value = fromIso(c.data_fi)
+}
+
+onMounted(carregarCursos)
+
 const dataInici = ref(null)
 const dataFinal = ref(null)
 const manifest = ref(null)
 const resultat = ref(null)
 const carregant = ref(false)
 
-function toIso(d) {
-  if (!d) return null
-  const p = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
+const toIso = dataIso
 
 const hiHaResPerEsborrar = computed(() => {
   const m = manifest.value
@@ -211,6 +263,8 @@ const hiHaResPerEsborrar = computed(() => {
   return m.total_bd > 0
     || m.pdfs_a_esborrar.length > 0
     || m.xml_versions.some(v => !v.bloquejat)
+    || m.planificador.dates_seleccionades > 0
+    || m.planificador.ultim_horari !== null
 })
 
 // Avisos generats al frontend a partir de les dades del manifest (i18n).
@@ -224,6 +278,15 @@ const avisos = computed(() => {
     } else if (v.s_esten_fora) {
       out.push(t('config.dataManagement.warnXmlExtends', { start: v.data_inici, end: v.data_fi }))
     }
+  }
+  for (const b of m.baixes) {
+    if (b.s_esten_fora) {
+      out.push(t('config.dataManagement.warnAbsenceExtends', { prof: b.professor, start: b.data_inici, end: b.data_final }))
+    }
+  }
+  const ultim = m.planificador.ultim_horari
+  if (ultim?.s_esten_fora) {
+    out.push(t('config.dataManagement.warnPlannerExtends', { start: ultim.dates[0], end: ultim.dates[ultim.dates.length - 1] }))
   }
   if (m.pdfs_revisio_manual.length) {
     out.push(t('config.dataManagement.warnPdfsManual', { n: m.pdfs_revisio_manual.length }))

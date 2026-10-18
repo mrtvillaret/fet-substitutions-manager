@@ -11,6 +11,7 @@ from dependencies import get_db
 from models import Substitucio, Vigilancia
 from repositories import GrupsAlliberatsRepository, NoSubstituirRepository
 from core.alliberats import sense_classe
+from routes.parametres import DataISO
 
 router = APIRouter(prefix="/api/estadistiques", tags=["Estadístiques"])
 
@@ -90,8 +91,8 @@ def _es_substitucio_real(sub, no_subst: set) -> bool:
 
 @router.get("/resum")
 async def get_resum_estadistiques(
-    data_inici: Optional[str] = None,
-    data_final: Optional[str] = None,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -208,8 +209,8 @@ async def get_resum_estadistiques(
 
 @router.get("/professors")
 async def get_estadistiques_professors(
-    data_inici: Optional[str] = None,
-    data_final: Optional[str] = None,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -310,8 +311,8 @@ async def get_estadistiques_professors(
 
 @router.get("/temporal")
 async def get_estadistiques_temporals(
-    data_inici: Optional[str] = None,
-    data_final: Optional[str] = None,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -410,8 +411,8 @@ async def get_estadistiques_temporals(
 
 @router.get("/classes")
 async def get_estadistiques_classes(
-    data_inici: Optional[str] = None,
-    data_final: Optional[str] = None,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -506,8 +507,8 @@ async def get_estadistiques_classes(
 
 @router.get("/classes/detall")
 async def get_estadistiques_classes_detall(
-    data_inici: Optional[str] = None,
-    data_final: Optional[str] = None,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
     grups: Optional[List[str]] = Query(None),
     grups_bracket: Optional[List[str]] = Query(None, alias="grups[]"),
     db: Session = Depends(get_db)
@@ -607,8 +608,8 @@ async def get_estadistiques_classes_detall(
 
 @router.get("/taula")
 async def get_estadistiques_taula_professors(
-    data_inici: Optional[str] = None,
-    data_final: Optional[str] = None,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -722,8 +723,8 @@ async def get_estadistiques_taula_professors(
 @router.get("/professor/{professor}")
 async def get_estadistiques_professor_detall(
     professor: str,
-    data_inici: Optional[str] = None,
-    data_final: Optional[str] = None,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -803,8 +804,8 @@ async def get_estadistiques_professor_detall(
 async def get_resum_franges(
     dia: str,
     hora: str,
-    data_inici: Optional[str] = None,
-    data_final: Optional[str] = None,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
     db: Session = Depends(get_db)
 ):
     """

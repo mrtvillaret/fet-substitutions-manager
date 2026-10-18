@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from dependencies import get_db
 from auth_utils import require_admin, get_current_user
 from repositories import CursRepository
+from routes.parametres import DataISO, data_iso
 
 router = APIRouter(prefix="/api/cursos", tags=["cursos"])
 
@@ -83,13 +84,10 @@ async def validacio_xml(db: Session = Depends(get_db), current_user=Depends(get_
 
 
 @router.get("/per-data/{data}")
-async def curs_per_data(data: str, db: Session = Depends(get_db),
+async def curs_per_data(data: DataISO, db: Session = Depends(get_db),
                         current_user=Depends(get_current_user)):
     """Curs al qual pertany una data (None si és anterior al primer curs definit)."""
-    try:
-        date.fromisoformat(data)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+    data_iso(data)
     c = CursRepository.get_for_date(db, data)
     return _serialize(c) if c else None
 

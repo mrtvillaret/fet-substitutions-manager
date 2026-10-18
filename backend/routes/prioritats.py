@@ -8,7 +8,7 @@ Routes per configuració de prioritats i professors de baixa:
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from typing import List, Dict
+from typing import Dict, List
 from pydantic import BaseModel
 
 from dependencies import get_db
@@ -20,6 +20,8 @@ from repositories import (
     ConfiguracioRepository,
     NoSubstituirRepository
 )
+from dependencies import dia_del_calendari
+from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/prioritats", tags=["Prioritats i Professors"])
 
@@ -323,14 +325,15 @@ class ActivitatsAlliberables(BaseModel):
 
 
 @router.get("/activitats-alliberables")
-async def get_activitats_alliberables(db: Session = Depends(get_db)):
+async def get_activitats_alliberables(db: Session = Depends(get_db), dia_calendari: Dia = Depends(dia_del_calendari)):
     """Activitats sense grup que es poden alliberar (surten com a files a la
-    taula de grups alliberats) i les que hi ha a l'horari per triar-les."""
+    taula de grups alliberats) i les que hi ha a l'horari vigent a `data` (o,
+    sense, avui) per triar-les."""
     from routes.grups import activitats_alliberables
-    from helpers import get_horari, MissingXmlError
+    from helpers import MissingXmlError
     disponibles = set()
     try:
-        horari = get_horari()
+        horari = dia_calendari.horari
         for dia in horari.dies:
             for hora in horari.hores:
                 for professor in horari.professors:

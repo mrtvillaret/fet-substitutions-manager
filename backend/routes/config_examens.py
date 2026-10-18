@@ -19,9 +19,10 @@ from auth_utils import require_admin
 from helpers import (
     get_vigilancies_afinitats,
     save_vigilancies_afinitats,
-    get_horari,
     MissingXmlError
 )
+from dependencies import dia_de_la_planificacio
+from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/config", tags=["Configuració Exàmens"])
 
@@ -258,15 +259,17 @@ async def get_assignacions(db: Session = Depends(get_db)):
 
 
 @router.get("/assignacions-obsoletes")
-async def get_assignacions_obsoletes(db: Session = Depends(get_db)):
-    """Assignacions amb un grup o un titular que no són a l'horari vigent avui
-    (p.ex. d'un curs anterior). El nom de l'assignatura no es té en compte: es
+async def get_assignacions_obsoletes(db: Session = Depends(get_db),
+                                    current_user=Depends(require_admin),
+                                    dia: Dia = Depends(dia_de_la_planificacio)):
+    """Assignacions amb un grup o un titular que no són a l'horari del
+    planificador (el vigent a la primera data planificada; sense dates, avui):
+    p.ex. d'un curs anterior. El nom de l'assignatura no es té en compte: es
     pot haver canviat a mà (p.ex. "1.1 Prof 7" per a una franja d'optatives).
     Per treure-les: DELETE /assignacions amb els ids."""
-    from datetime import date as _date
     from models import AbreviaturaGrup
     try:
-        horari = get_horari(None, _date.today().isoformat())
+        horari = dia.horari
     except MissingXmlError:
         return {"assignacions": []}
 
@@ -471,13 +474,15 @@ def _calcula_impacte_assignacions(db: Session, propostes: List[Dict], overwrite:
 
 @router.get("/importar-assignacions/preview")
 async def importar_assignacions_preview(db: Session = Depends(get_db),
-                                        current_user=Depends(require_admin)):
+                                        current_user=Depends(require_admin),
+                                        dia: Dia = Depends(dia_de_la_planificacio)):
     """Genera propostes d'assignacions (assignatura/grup/titular/aula) a partir
-    de l'horari XML actiu, sense escriure res a la BD."""
+    de l'horari del planificador (el vigent a la primera data planificada;
+    sense dates, avui), sense escriure res a la BD."""
     try:
         from exam_import import generar_propostes, nivells_amb_substitucions
 
-        horari = get_horari(current_user.institucio)
+        horari = dia.horari
         propostes = generar_propostes(horari)
 
         # Descarta nivells que no s'usen mai a substitucions/vigilàncies

@@ -383,6 +383,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { ambDataTreball, dataTreball } from '../../dataTreball'
+import { dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Dialog from 'primevue/dialog'
@@ -403,22 +405,11 @@ const toast = useToast()
 const { t, locale } = useI18n()
 const confirm = useConfirm()
 
-const props = defineProps({
-  // Data del calendari general: la configuració detecta les assignatures sobre
-  // l'XML vigent per aquesta data (evita barrejar XML de cursos diferents).
-  dataGlobal: { type: Date, default: () => new Date() }
-})
 
 // Data en format ISO (per l'endpoint) i text (per mostrar), + versió d'XML vigent
-const dataISO = computed(() => {
-  const d = props.dataGlobal || new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
-})
+const dataISO = computed(() => dataIso(dataTreball.value))
 const dataText = computed(() =>
-  (props.dataGlobal || new Date()).toLocaleDateString(locale.value || 'ca-ES',
+  dataTreball.value.toLocaleDateString(locale.value || 'ca-ES',
     { day: '2-digit', month: '2-digit', year: 'numeric' })
 )
 const xmlDataInici = ref(null)
@@ -497,7 +488,7 @@ const activitatsFiltrades = computed(() => {
 
 const carregarActivitatsAlliberables = async () => {
   try {
-    const response = await axios.get('/api/prioritats/activitats-alliberables')
+    const response = await axios.get('/api/prioritats/activitats-alliberables', ambDataTreball())
     activitatsAlliberables.value = response.data.activitats || []
     activitatsPerDefecte.value = response.data.per_defecte || []
     // Les configurades que ja no són a l'horari també s'han de poder treure
@@ -725,9 +716,7 @@ const eliminarAssignaturaCategoria = (assignatura, categoriaIdx) => {
 
 const carregarAssignaturesXML = async () => {
   try {
-    const response = await axios.get('/api/horari/assignatures/detectar', {
-      params: { data: dataISO.value }
-    })
+    const response = await axios.get('/api/horari/assignatures/detectar', ambDataTreball())
     assignaturesDisponibles.value = response.data.assignatures || []
     xmlDataInici.value = response.data.xml_data_inici || null
     teBuits.value = !!response.data.te_buits
@@ -856,7 +845,7 @@ const generarPDFDisponiblesTotsDies = async () => {
 
   try {
     const response = await axios.post('/api/pdf/disponibles-tots-dies',
-      { data_inici: dataInicialPDF.value || null },
+      { data_inici: dataInicialPDF.value || dataISO.value },   // buit: la data del calendari
       { responseType: 'blob' }
     )
 
@@ -867,7 +856,7 @@ const generarPDFDisponiblesTotsDies = async () => {
     link.href = url
 
     const filename = response.headers['content-disposition']?.split('filename=')[1]?.replace(/"/g, '') ||
-                     `disponibles_tots_dies_${new Date().toISOString().split('T')[0]}.pdf`
+                     `disponibles_tots_dies_${dataIso(new Date())}.pdf`
 
     link.download = filename
     link.click()

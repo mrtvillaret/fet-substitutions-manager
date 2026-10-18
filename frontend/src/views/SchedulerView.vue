@@ -4,6 +4,7 @@
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import axios from 'axios'
 import { ruta } from '../basePath'
+import { dataAmbAny, dataIso } from '../dates'
 import { useToast } from 'primevue/usetoast'
 import { useI18n } from 'vue-i18n'
 
@@ -325,11 +326,22 @@ const recuperarUltimResultat = async () => {
 // Dates d'un curs anterior: la configuració d'exàmens és la del curs actual
 // (el backend tampoc deixa publicar-hi)
 const cursAnterior = ref(null)
+// Quin horari (XML) fa servir el planificador: el de la primera data planificada
+const horariPlanificacio = ref(null)
 let temporitzadorCurs = null
 watch(selectedDates, (dates) => {
   clearTimeout(temporitzadorCurs)
   temporitzadorCurs = setTimeout(async () => {
     const llista = (dates || []).map(formatLocalDate)
+    try {
+      const anterior = horariPlanificacio.value?.data_referencia
+      const { data: horari } = await axios.get('/api/scheduler/horari', { params: { dates: llista.join(',') || undefined } })
+      horariPlanificacio.value = horari
+      // Amb un altre horari, els professors, grups i hores són uns altres
+      if (anterior && horari.data_referencia !== anterior) await carregarDadesHorari(horari.data_referencia)
+    } catch (err) {
+      // Sense aquesta informació no es mostra l'avís; la resta funciona igual
+    }
     if (!llista.length) {
       cursAnterior.value = null
       return
@@ -674,6 +686,7 @@ const _desarTotAlBackendRef = ref(null)
 
 const {
   carregarDades,
+  carregarDadesHorari,
   carregarSessions,
   onNivellsChange,
   generarHorari,
@@ -720,6 +733,7 @@ const {
   flushPendingConfigSave,
   desarTotAlBackend: (...args) => _desarTotAlBackendRef.value?.(...args),
   formatLocalDate,
+  horariPlanificacio,
 })
 
 const {
@@ -873,10 +887,8 @@ const dataReferenciaScheduler = computed(() => {
   if (!selectedDates.value?.length) return null
   const datesSorted = [...selectedDates.value].sort((a, b) => a - b)
   const d = datesSorted[0]
-  if (d instanceof Date) {
-    return d.toISOString().split('T')[0]
-  }
-  return null
+  // En hora local: toISOString() (UTC) donava el dia anterior
+  return d instanceof Date ? dataIso(d) : null
 })
 
 const {

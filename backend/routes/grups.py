@@ -15,14 +15,16 @@ from datetime import datetime
 
 from dependencies import get_db
 from repositories import GrupsAlliberatsRepository, AlliberamentsPeriodeRepository, ConfiguracioRepository
-from helpers import get_gestors
 from serveis.dia_escolar import treu_substituts_no_valids
 from serveis.generacio import genera_substitucions_dia
 from core.alliberats import (activitats_de, clau_activitat, clau_ocupat, clau_professor, nomes_grups,
                              ocupats_de, professors_de)
+from routes.parametres import DataISO, data_iso
 
 
 import logging
+from dependencies import dia_de_la_peticio
+from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/grups", tags=["Grups Sense Classe"])
@@ -67,7 +69,7 @@ def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
     try:
         trets = [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data)]
         # Les files que han quedat sense substitut queden pendents: no s'omplen soles.
-        genera_substitucions_dia(db, data, get_gestors(data_iso=data), regenerar_tot=False, omplir=False)
+        genera_substitucions_dia(db, data, Dia.de_text(data).gestors(), regenerar_tot=False, omplir=False)
     except Exception:
         log.warning("No s'han pogut actualitzar les substitucions del dia", exc_info=True)
 
@@ -109,10 +111,7 @@ async def llista_canvis_periode(tipus: str = None, clau: str = None, db: Session
 async def afegeix_canvi_periode(canvi: CanviPeriode, db: Session = Depends(get_db)):
     """A partir de `data`, cada setmana el mateix dia, a les `hores` indicades,
     el grup / professor / activitat queda alliberat (o deixa de ser-ho)."""
-    try:
-        data_obj = datetime.strptime(canvi.data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid")
+    data_obj = data_iso(canvi.data)
     if canvi.tipus not in AlliberamentsPeriodeRepository.TIPUS:
         raise HTTPException(status_code=400, detail="Tipus desconegut")
     clau = canvi.clau.strip()
@@ -120,7 +119,7 @@ async def afegeix_canvi_periode(canvi: CanviPeriode, db: Session = Depends(get_d
     if not clau or not hores:
         raise HTTPException(status_code=400, detail="Cal indicar qui i a quines hores")
 
-    _, horari, _, _ = get_gestors(data_iso=canvi.data)
+    horari = Dia.de_text(canvi.data).horari
     if canvi.dia_setmana:
         dia = canvi.dia_setmana.strip()
         dies = {horari.get_dia_name(i): i for i in range(7) if horari.get_dia_name(i) in horari.dies}
@@ -136,17 +135,14 @@ async def afegeix_canvi_periode(canvi: CanviPeriode, db: Session = Depends(get_d
 
 
 @router.get("/reforcos/{activitat}")
-async def franges_activitat_per_defecte(activitat: str, data: str, db: Session = Depends(get_db)):
+async def franges_activitat_per_defecte(activitat: str, data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)):
     """Per a una activitat «alliberada fins que tingui alumnes» (p.ex. Reforç):
     les franges de la setmana de cada professor que la fa, i si en aquella data
     ja tenen alumnes."""
-    try:
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid")
+    data_iso(data)
     if activitat not in GrupsAlliberatsRepository.activitats_per_defecte(db):
         raise HTTPException(status_code=404, detail="Activitat no configurada")
-    _, horari, _, _ = get_gestors(data_iso=data)
+    horari = dia_peticio.horari
     darrers = AlliberamentsPeriodeRepository.darrers(db, data)
     # Historial de cada franja (tots els canvis, també posteriors a `data`)
     historial = {}
@@ -197,18 +193,15 @@ def _reconcilia_dies_afectats(des_de: str, dia_setmana: int, hores: set, db: Ses
 
 
 @router.get("/{data}")
-async def obtenir_grups_sense_classe(data: str, db: Session = Depends(get_db)):
+async def obtenir_grups_sense_classe(data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)):
     """
     Retorna grups sense classe per una data (SQLite)
     Format compatible amb GrupsView.vue
     """
-    try:
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid")
+    data_iso(data)
 
     # Obtenir gestors per carregar horari
-    substitucions_mgr, horari, alliberats, absencies = get_gestors(data_iso=data)
+    substitucions_mgr, horari, alliberats, absencies = dia_peticio.gestors()
 
     # horari.grups ja és el conjunt de grups de treball (selecció manual;
     # si no n'hi ha, tots els detectats). El filtre viu al parser.
@@ -314,7 +307,7 @@ async def obtenir_grups_sense_classe(data: str, db: Session = Depends(get_db)):
 
 
 @router.put("/{data}")
-async def desar_grups_sense_classe(data: str, payload: AlliberatsDia, db: Session = Depends(get_db)):
+async def desar_grups_sense_classe(data: DataISO, payload: AlliberatsDia, db: Session = Depends(get_db)):
     """
     Desa grups sense classe per una data (SQLite)
 
@@ -325,10 +318,7 @@ async def desar_grups_sense_classe(data: str, payload: AlliberatsDia, db: Sessio
         payload.grups: Dict[hora, List[grups]]
         payload.professors: Dict[hora, List[professors]] (alliberats sense el seu grup)
     """
-    try:
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid")
+    data_iso(data)
 
     # Els professors alliberats es desen a la mateixa llista per hora que els
     # grups, amb un prefix (veure core/alliberats.py).

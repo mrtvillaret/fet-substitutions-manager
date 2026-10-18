@@ -27,6 +27,7 @@ from repositories import (
     VigilanciaRepository,
 )
 from routes import substitucions
+from serveis.dia import Dia
 from suport_api import XML_EXEMPLE, client_per, crea_app, crea_usuari, entra, nova_institucio
 
 APP = crea_app(substitucions.router)
@@ -372,7 +373,7 @@ def test_nova_substitucio_amb_error_inesperat_dona_500_sense_detalls_interns(cen
     def falla(*args, **kwargs):
         raise RuntimeError("error de prova")
 
-    monkeypatch.setattr(substitucions, "get_gestors", falla)
+    monkeypatch.setattr(Dia, "gestors", falla)
     body = {"professor": ABSENT, "hores": ["10:00"], "tipus_absencia": "ABSENCIA"}
     resp = client.post(f"{URL}/nova", json=body)
     assert resp.status_code == 500

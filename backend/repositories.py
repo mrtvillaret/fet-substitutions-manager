@@ -403,6 +403,20 @@ class XMLVersionRepository:
         ).first()
 
     @staticmethod
+    def vigent(db: Session, data: str = None) -> Optional[XMLVersion]:
+        """La versió vigent a `data` (per defecte avui). Si aquell dia no en
+        cobreix cap: la primera que comenci després (p. ex. només s'ha pujat
+        l'horari d'un curs que encara no ha començat) o, si no, la darrera."""
+        data = data or date.today().isoformat()
+        versio = XMLVersionRepository.get_for_date(db, data)
+        if versio:
+            return versio
+        data_obj = parse_date(data)
+        return (db.query(XMLVersion).filter(XMLVersion.data_inici > data_obj)
+                .order_by(XMLVersion.data_inici).first()
+                or db.query(XMLVersion).order_by(XMLVersion.data_inici.desc()).first())
+
+    @staticmethod
     def get_for_date(db: Session, data: str) -> Optional[XMLVersion]:
         data_obj = parse_date(data)
         return db.query(XMLVersion).filter(

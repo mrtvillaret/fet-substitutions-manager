@@ -194,7 +194,8 @@
       "xmlUseCourseStart": "Usar el inicio del curso {nom}",
       "xmlScheduled": "Horario programado: entrará en vigor el {data}. El horario actual no ha cambiado.",
       "xmlCourseDesync": "El curso {curs} empieza el {inici}, pero el horario vigente en esa fecha entró en vigor el {xmlInici} (curso anterior). Sube el nuevo horario con fecha de vigencia {inici}.",
-      "xmlFixDesync": "Prepararlo"
+      "xmlFixDesync": "Prepararlo",
+      "futureSchedule": "Hay un horario nuevo que estará vigente a partir del {data}. Hasta entonces se usa el actual (y, para fechas posteriores, el nuevo)."
     },
     "groups": {
       "detectedLabel": "Grupos detectados del XML",
@@ -276,7 +277,7 @@
       "generateAllDaysPDF": "📄 Generar PDF de Todos los Días",
       "pdfGenerated": "PDF generado correctamente",
       "startDate": "Desde el día",
-      "startDateHint": "(vacío = hoy)",
+      "startDateHint": "(vacío = fecha del calendario)",
       "saveAll": "💾 Guardar todas las prioridades",
       "addNoSubstTitle": "Asignaturas a no sustituir",
       "selectSubjectXml": "Selecciona asignatura del XML",
@@ -399,7 +400,7 @@
     },
     "dataManagement": {
       "title": "Purga de datos por intervalo",
-      "description": "Elimina de forma irreversible todo rastro de datos de un intervalo de fechas: sustituciones, vigilancias y grupos liberados, PDF exportados y versiones de XML 100% contenidas en el intervalo. Primero analiza qué se borraría; luego confirma para ejecutarlo.",
+      "description": "Elimina de forma irreversible todo rastro de datos de un intervalo de fechas (normalmente, un curso entero): sustituciones, vigilancias, grupos liberados y bajas, PDF exportados, versiones de XML 100% contenidas en el intervalo y las fechas y el último horario del planificador de exámenes. Primero analiza qué se borraría; después confirma para ejecutarlo.",
       "startDate": "Fecha de inicio",
       "endDate": "Fecha final",
       "analyze": "Analizar",
@@ -439,7 +440,15 @@
       "anonConfirmMessage": "Se renombrará «{old}» a «{new}» en todos los registros. ¿Continuar?",
       "anonSuccessSummary": "Profesor renombrado",
       "anonSuccessDetail": "{n} registros actualizados",
-      "anonAccept": "Sí, renombrar"
+      "anonAccept": "Sí, renombrar",
+      "course": "Curso",
+      "coursePlaceholder": "Elige un curso para rellenar las fechas",
+      "plannerDates": "Fechas elegidas en el planificador",
+      "plannerLast": "Último horario del planificador ({start} → {end})",
+      "warnAbsenceExtends": "La baja de {prof} ({start} → {end}) se extiende fuera del intervalo y se borrará entera.",
+      "warnPlannerExtends": "El último horario del planificador ({start} → {end}) se extiende fuera del intervalo y se borrará entero.",
+      "resultPlanner": "Planificador: {n} fechas quitadas.",
+      "resultPlannerLast": "También se ha borrado el último horario guardado."
     }
   },
   "groups": {
@@ -1509,7 +1518,9 @@
         "removed": "Se han quitado {count} asignaturas de las restricciones"
       },
       "previousCourse": "Las fechas elegidas son del curso {cursos}, anterior al actual ({actual}). El planificador usa la configuración de exámenes del curso actual y no se podrá publicar. Las vigilancias de cursos anteriores se consultan en Vigilancias.",
-      "lastResult": "Este es el último horario generado o modificado ({data}). Si has cambiado la configuración o las fechas, vuelve a generar."
+      "lastResult": "Este es el último horario generado o modificado ({data}). Si has cambiado la configuración o las fechas, vuelve a generar.",
+      "scheduleUsed": "Se utiliza el horario vigente el {data} (horario subido con fecha {desDe}).",
+      "scheduleChanges": "Las fechas elegidas usan dos horarios distintos (cambio el {canvi}). Se usará el vigente el {data}; si es necesario, planifica cada tramo por separado."
     },
     "steps": {
       "config": {

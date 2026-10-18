@@ -22,7 +22,6 @@ from pathlib import Path
 
 from dependencies import get_db
 from auth_utils import get_current_user
-from helpers import get_gestors, get_horari
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
 from repositories import VigilanciaRepository, SubstitucioRepository, GrupsAlliberatsRepository, ConfiguracioRepository
@@ -30,8 +29,11 @@ from export.pdf.engine import PDFCompletExporter
 from i18n_setup import translate
 from serveis.prioritat import MillorsSubstituts
 from serveis.validacions_pdf import valida_dia
+from routes.parametres import DataISO, data_iso
 
 import logging
+from dependencies import dia_de_la_peticio
+from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF"])
@@ -136,19 +138,17 @@ def _omplir_aula_substitucions(substitucions_data: list, horari_mgr, date_obj: d
 
 @router.get("/{data}/validacions")
 def validar_abans_pdf(
-    data: str,
+    data: DataISO,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    dia_peticio: Dia = Depends(dia_de_la_peticio)
 ):
     """Conflictes i avisos d'un dia abans de generar el PDF (serveis/validacions_pdf.py)."""
-    try:
-        datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid")
+    data_iso(data)
 
     def avisos_prioritat(dia, vigilancies_per_hora):
         try:
-            millors = MillorsSubstituts(dia, get_gestors(institucio=current_user.institucio, data_iso=data))
+            millors = MillorsSubstituts(dia, dia_peticio.gestors())
             avisos = []
             for sub in dia.files:
                 if sub.get("separador"):
@@ -173,7 +173,7 @@ MIDES_LLETRA = (1.0, 1.2, 1.35)
 
 @router.get("/complete/{data}")
 def generar_pdf_complet(
-    data: str,
+    data: DataISO,
     include_substitutions: bool = True,
     include_vigilancies: bool = True,
     compress: bool = False,
@@ -184,16 +184,14 @@ def generar_pdf_complet(
     format: str = "hores",  # "hores" (una secció per hora) o "dia" (una taula per al dia)
     mida_lletra: float = 1.0,  # taula del dia: lletra normal (1), gran (1.2) o molt gran (1.35)
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    dia: Dia = Depends(dia_de_la_peticio)
 ):
     """
     Genera PDF complet del dia amb substitucions i/o vigilàncies (TOTS els nivells) (SQLite)
     """
     # Validar data
-    try:
-        date_obj = datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+    date_obj = data_iso(data)
 
     from utils.date_context import DateContext
     data_text = DateContext.from_iso(data).full_format
@@ -262,7 +260,7 @@ def generar_pdf_complet(
         tipus_pdf = "complet"
 
     # Inicialitzar exporter amb hores
-    horari_mgr = get_horari(current_user.institucio, data)
+    horari_mgr = dia.horari
     hores = horari_mgr.hores
 
     if include_substitutions and substitucions_data:
@@ -328,8 +326,8 @@ def generar_pdf_complet(
 
 @router.get("/vigilancies/interval")
 def generar_pdf_interval(
-    data_inici: str,
-    data_final: str,
+    data_inici: DataISO,
+    data_final: DataISO,
     nivells: str = "",
     include_weekends: bool = False,
     include_empty_days: bool = False,
@@ -369,7 +367,7 @@ def generar_pdf_interval(
         current_date += timedelta(days=1)
 
     # Inicialitzar exporter amb hores (només una vegada)
-    horari_mgr = get_horari(current_user.institucio, data_inici)
+    horari_mgr = Dia.de_text(data_inici, current_user.institucio).horari
     hores = horari_mgr.hores
 
     # Recopilar totes les vigilàncies de tots els dies
@@ -478,23 +476,21 @@ def generar_pdf_interval(
     )
 @router.get("/vigilancies/{data}")
 def generar_pdf_vigilancies(
-    data: str,
+    data: DataISO,
     nivells: str = "",  # Comma-separated: "1-BATX,2-BATX"
     compress: bool = False,
     show_comments: bool = True,
     show_hours: bool = False,
     include_substitucions: bool = False,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    dia: Dia = Depends(dia_de_la_peticio)
 ):
     """
     Genera PDF de vigilàncies per un dia amb selecció de nivells (SQLite)
     """
     # Validar data
-    try:
-        date_obj = datetime.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+    date_obj = data_iso(data)
 
     from utils.date_context import DateContext
     data_text = DateContext.from_iso(data).full_format
@@ -518,7 +514,7 @@ def generar_pdf_vigilancies(
             vigilancies_list.extend(vigs)
 
     # Inicialitzar exporter amb hores
-    horari_mgr = get_horari(current_user.institucio, data)
+    horari_mgr = dia.horari
     hores = horari_mgr.hores
 
     # Directori temporal per petició: el PDF no es desa al servidor.
@@ -565,7 +561,7 @@ def generar_pdf_vigilancies(
 
 @router.post("/disponibles-tots-dies")
 def generar_pdf_disponibles_tots_dies(
-    data_inici: Optional[str] = Body(None, embed=True),
+    data_inici: Optional[DataISO] = Body(None, embed=True),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
@@ -581,16 +577,9 @@ def generar_pdf_disponibles_tots_dies(
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
     import tempfile
-    import os
 
-    # Data d'inici: la proporcionada o avui
-    if data_inici:
-        try:
-            primer_dia = datetime.strptime(data_inici, "%Y-%m-%d").date()
-        except ValueError:
-            primer_dia = date.today()
-    else:
-        primer_dia = date.today()
+    # Data d'inici: la proporcionada (la pantalla hi posa la del calendari) o avui
+    primer_dia = data_iso(data_inici) if data_inici else date.today()
 
     avui = primer_dia  # per al text "Generat el..."
 
@@ -602,9 +591,8 @@ def generar_pdf_disponibles_tots_dies(
     setup_translation(idioma)
 
     # Carregar horari per obtenir els dies configurats
-    from helpers import get_gestors
     try:
-        _, horari_temp, _, _ = get_gestors(current_user.institucio, primer_dia.strftime("%Y-%m-%d"))
+        horari_temp = Dia(primer_dia, current_user.institucio).horari
         dies_xml = horari_temp.dies if hasattr(horari_temp, 'dies') else []
     except Exception:
         log.warning("No s'ha pogut carregar l'horari per als dies del PDF", exc_info=True)
@@ -665,7 +653,7 @@ def generar_pdf_disponibles_tots_dies(
 
     # Iterar per cada dia de la setmana
     for idx, current_date in enumerate(dies_setmana):
-        data_iso = current_date.strftime("%Y-%m-%d")
+        dia_iso = current_date.strftime("%Y-%m-%d")
         dia_idx = current_date.weekday()
 
         # Obtenir nom del dia de l'XML per usar amb get_tots_disponibles()
@@ -686,18 +674,15 @@ def generar_pdf_disponibles_tots_dies(
 
         try:
             # Obtenir disponibles del dia
-            from helpers import get_gestors
-            substitucions_mgr, horari_mgr, alliberats_mgr, absencies_mgr = get_gestors(current_user.institucio, data_iso)
+            substitucions_mgr, horari_mgr, alliberats_mgr, absencies_mgr = Dia.de_text(dia_iso, current_user.institucio).gestors()
 
             # Obtenir professors de baixa
             from config.constants import PROFESSORS_BAIXA
-            professors_baixa_avui = professors_de_baixa(PROFESSORS_BAIXA, data_iso)
+            professors_baixa_avui = professors_de_baixa(PROFESSORS_BAIXA, dia_iso)
 
             # Obtenir substitucions del dia
             from repositories import SubstitucioRepository, GrupsAlliberatsRepository, VigilanciaRepository
-            substitucions_data = SubstitucioRepository.get_by_date(db, data_iso)
-
-            from collections import defaultdict
+            substitucions_data = SubstitucioRepository.get_by_date(db, dia_iso)
 
             # Mapa de substituts per hora (ocupats fent substitució)
             substituts_per_hora = defaultdict(set)
@@ -715,7 +700,7 @@ def generar_pdf_disponibles_tots_dies(
             # Mapa de vigilants per hora (ocupats fent vigilància)
             vigilants_per_hora = defaultdict(set)
             try:
-                vigilancies_data = VigilanciaRepository.get_by_date(db, data_iso)
+                vigilancies_data = VigilanciaRepository.get_by_date(db, dia_iso)
                 for nivell_vigs in vigilancies_data.values():
                     for vig in nivell_vigs:
                         h = vig.get("hora", "")
@@ -726,7 +711,7 @@ def generar_pdf_disponibles_tots_dies(
                 log.warning("No s'han pogut llegir les vigilàncies del dia", exc_info=True)
 
             # Obtenir grups alliberats
-            grups_alliberats_data = GrupsAlliberatsRepository.get_by_date(db, data_iso)
+            grups_alliberats_data = GrupsAlliberatsRepository.get_by_date(db, dia_iso)
 
             # Import necessari per categories
             from config.constants import ORDRE_PRIORITATS, PRIORITATS
@@ -809,7 +794,7 @@ def generar_pdf_disponibles_tots_dies(
                 story.append(Paragraph("<i>No hi ha professors disponibles</i>", styles['Normal']))
 
         except Exception as e:
-            log.warning(f"Error processant dia {data_iso}: {e}")
+            log.warning(f"Error processant dia {dia_iso}: {e}")
             story.append(Paragraph(f"<i>Error carregant dades per aquest dia</i>", styles['Normal']))
 
         # Page break entre dies (excepte l'últim)

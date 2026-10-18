@@ -4,24 +4,29 @@ Routes per accedir a dades de l'horari (XML de FET):
 - Grups (detectar del XML)
 - Assignatures (detectar del XML)
 """
+import logging
 
-from datetime import datetime
+from fastapi import APIRouter, Depends
 
-from fastapi import APIRouter, HTTPException
-from typing import Optional
-from helpers import get_horari, MissingXmlError
+from dependencies import dia_del_calendari
+from helpers import MissingXmlError
+from routes.parametres import DataISO
+from serveis.dia import Dia
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/horari", tags=["Horari"])
 
 
+
 @router.get("/professors/all")
-async def get_all_professors():
+async def get_all_professors(dia: Dia = Depends(dia_del_calendari)):
     """
-    Retorna TOTS els professors de l'XML, sense aplicar límit ultim_professor_subs
-    Útil per mostrar-los al dropdown de configuració
+    Retorna TOTS els professors de l'XML vigent a `data` (o, sense, avui),
+    sense aplicar límit ultim_professor_subs. Per als desplegables de configuració.
     """
     try:
-        horari = get_horari()
+        horari = dia.horari
 
         # Llegir professors directament del XML sense límit
         import xml.etree.ElementTree as ET
@@ -55,19 +60,14 @@ async def get_all_professors():
 
 
 @router.get("/professors")
-async def get_professors_filtered(data: str = None):
+async def get_professors_filtered(data: DataISO = None, dia: Dia = Depends(dia_del_calendari)):
     """
-    Retorna professors amb el límit ultim_professor_subs aplicat
-    (els que s'utilitzen actualment al sistema). Amb `data` (AAAA-MM-DD),
-    també els que aquell dia estan de baixa (no se'ls posen absències).
+    Retorna professors amb el límit ultim_professor_subs aplicat. Amb `data`
+    (AAAA-MM-DD), els de l'horari vigent aquell dia i els que hi estan de
+    baixa (no se'ls posen absències); sense, els de l'horari vigent avui.
     """
-    if data:
-        try:
-            datetime.strptime(data, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
     try:
-        horari = get_horari()
+        horari = dia.horari
 
         resposta = {
             "professors": horari.professors,
@@ -87,7 +87,7 @@ async def get_professors_filtered(data: str = None):
 
 
 @router.get("/grups/detectar")
-async def detectar_grups(data: Optional[str] = None):
+async def detectar_grups(dia: Dia = Depends(dia_del_calendari)):
     """
     Detecta tots els grups del XML vigent per una data (o l'actual si no se'n dóna).
     Usar la data fa que la configuració treballi sobre el MATEIX XML que veurà la
@@ -99,7 +99,7 @@ async def detectar_grups(data: Optional[str] = None):
     - xml_data_inici: data d'inici de la versió d'XML carregada (per indicar-la)
     """
     try:
-        horari = get_horari(data_iso=data)
+        horari = dia.horari
 
         # Detecció: TOTS els grups de l'XML (no només els visibles), perquè el
         # selector de configuració els pugui oferir tots.
@@ -107,18 +107,7 @@ async def detectar_grups(data: Optional[str] = None):
         grups_abreviats = sorted(list(horari.tots_grups))
 
         # Versió d'XML carregada, per poder-la indicar a la configuració
-        xml_data_inici = None
-        try:
-            from database import get_data_db_session
-            from repositories import XMLVersionRepository
-            from helpers import _get_institucio_actual
-            with get_data_db_session(_get_institucio_actual()) as db:
-                versio = (XMLVersionRepository.get_for_date(db, data) if data
-                          else XMLVersionRepository.get_current(db))
-                if versio and versio.data_inici:
-                    xml_data_inici = versio.data_inici.isoformat()
-        except Exception:
-            pass
+        xml_data_inici = dia.versio_des_de
 
         return {
             "grups_raw": grups_raw,
@@ -138,7 +127,7 @@ async def detectar_grups(data: Optional[str] = None):
 
 
 @router.get("/assignatures/detectar")
-async def detectar_assignatures(data: Optional[str] = None):
+async def detectar_assignatures(dia: Dia = Depends(dia_del_calendari)):
     """
     Detecta totes les assignatures de l'XML vigent per una data (o l'actual si
     no se'n dóna). Igual que la detecció de grups, usar la data fa que la
@@ -149,7 +138,7 @@ async def detectar_assignatures(data: Optional[str] = None):
     - xml_data_inici: data d'inici de la versió d'XML carregada (per indicar-la)
     """
     try:
-        horari = get_horari(data_iso=data)
+        horari = dia.horari
 
         # Obtenir totes les assignatures úniques
         assignatures = horari.get_all_subjects()
@@ -164,18 +153,7 @@ async def detectar_assignatures(data: Optional[str] = None):
         )
 
         # Versió d'XML carregada, per poder-la indicar a la configuració
-        xml_data_inici = None
-        try:
-            from database import get_data_db_session
-            from repositories import XMLVersionRepository
-            from helpers import _get_institucio_actual
-            with get_data_db_session(_get_institucio_actual()) as db:
-                versio = (XMLVersionRepository.get_for_date(db, data) if data
-                          else XMLVersionRepository.get_current(db))
-                if versio and versio.data_inici:
-                    xml_data_inici = versio.data_inici.isoformat()
-        except Exception:
-            pass
+        xml_data_inici = dia.versio_des_de
 
         return {
             "assignatures": sorted(list(assignatures)),
@@ -190,35 +168,3 @@ async def detectar_assignatures(data: Optional[str] = None):
             "xml_missing": True
         }
 
-
-@router.get("/aules/detectar")
-async def detectar_aules():
-    """
-    Detecta totes les aules del XML
-    """
-    try:
-        horari = get_horari()
-
-        # Obtenir totes les aules úniques
-        if hasattr(horari, 'get_all_rooms'):
-            aules = horari.get_all_rooms()
-        else:
-            # Fallback si el mètode no existeix
-            aules = set()
-            for dia_hores in horari.horari.values():
-                for hora_profs in dia_hores.values():
-                    for dades in hora_profs.values():
-                        aula = dades.get("aula", "")
-                        if aula and aula.strip():
-                            aules.add(aula.strip())
-
-        return {
-            "aules": sorted(list(aules)),
-            "total": len(aules)
-        }
-    except MissingXmlError:
-        return {
-            "aules": [],
-            "total": 0,
-            "xml_missing": True
-        }

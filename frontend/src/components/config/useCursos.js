@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import { dataIso } from '../../dates'
 
 // Estat compartit a nivell de mòdul: el tab Cursos (llista + CRUD) i el tab
 // Sistema (avisos XML + suggeriment de curs futur) llegeixen la mateixa llista,
@@ -16,13 +17,7 @@ const parseIsoDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-const formatIsoDate = (dateObj) => {
-  if (!dateObj) return null
-  const year = dateObj.getFullYear()
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0')
-  const day = String(dateObj.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+const formatIsoDate = dataIso
 
 const carregarCursos = async () => {
   carregantCursos.value = true

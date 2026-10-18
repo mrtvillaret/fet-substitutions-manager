@@ -550,6 +550,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { ambDataTreball, dataTreball } from '../dataTreball'
+import { dataIso } from '../dates'
 
 // Components PrimeVue
 import DataTable from 'primevue/datatable'
@@ -575,14 +577,6 @@ const toast = useToast()
 const confirm = useConfirm()
 const { t, locale } = useI18n()
 const emit = defineEmits(['anar-vigilancies'])
-
-// Props
-const props = defineProps({
-  dataGlobal: {
-    type: Date,
-    required: true
-  }
-})
 
 // State
 const substitucions = ref([])
@@ -661,15 +655,10 @@ const pdfConfig = ref({
 })
 
 // Computed
-const dataISO = computed(() => {
-  const year = props.dataGlobal.getFullYear()
-  const month = String(props.dataGlobal.getMonth() + 1).padStart(2, '0')
-  const day = String(props.dataGlobal.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-})
+const dataISO = computed(() => dataIso(dataTreball.value))
 
 const dataFormatada = computed(() => {
-  return props.dataGlobal.toLocaleDateString(locale.value || 'ca-ES', {
+  return dataTreball.value.toLocaleDateString(locale.value || 'ca-ES', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -678,7 +667,7 @@ const dataFormatada = computed(() => {
 })
 
 const dataISOCurta = computed(() =>
-  props.dataGlobal.toLocaleDateString(locale.value || 'ca-ES', {
+  dataTreball.value.toLocaleDateString(locale.value || 'ca-ES', {
     day: '2-digit', month: '2-digit', year: 'numeric'
   })
 )
@@ -755,12 +744,7 @@ const seleccionarProfessorDropdown = (event) => {
 
 const datesDelRang = computed(() => {
   if (!modeRang.value || !dataFinalRang.value) return [dataISO.value]
-  const isoLocal = (d) => {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-  }
+    const isoLocal = dataIso
   const dates = []
   const fi = new Date(dataFinalRang.value + 'T00:00:00')
   let actual = new Date(dataISO.value + 'T00:00:00')
@@ -874,7 +858,7 @@ const anarAVigilancies = () => {
 
 const carregarProfessors = async () => {
   try {
-    const response = await axios.get('/api/horari/professors', { params: { data: dataISO.value } })
+    const response = await axios.get('/api/horari/professors', ambDataTreball())
     if (response.data?.xml_missing && !xmlMissingNotified.value) {
       toast.add({
         severity: 'warn',
@@ -919,7 +903,7 @@ const executarOverwrite = async () => {
 
 const carregarHores = async () => {
   try {
-    const response = await axios.get('/api/hores')
+    const response = await axios.get('/api/hores', ambDataTreball())
     if (response.data?.xml_missing && !xmlMissingNotified.value) {
       toast.add({
         severity: 'warn',
@@ -1736,9 +1720,11 @@ const ordenarCanvisPerHora = (canvis) => {
 }
 
 // Watch per canvis de data
-watch(() => props.dataGlobal, async () => {
+watch(dataTreball, async () => {
   await carregarSubstitucions()
-  await carregarProfessors()   // qui està de baixa depèn del dia
+  // L'horari (professors i hores) i qui està de baixa depenen del dia
+  await carregarHores()
+  await carregarProfessors()
 })
 
 // Quan les dades canvien (desa/elimina), sincronitzar els dos grids si hi ha professor seleccionat

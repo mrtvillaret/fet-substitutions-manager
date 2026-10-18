@@ -23,8 +23,7 @@ from config.auth import IS_DEVELOPMENT
 from rate_limit import limit_superat, limiter
 
 # Imports de schemas i helpers
-from schemas import ConfigResponse
-from helpers import get_horari, MissingXmlError
+from helpers import MissingXmlError
 from auth_utils import COOKIE_NAME, decode_access_token
 
 access_logger = logging.getLogger("uvicorn.error")
@@ -139,7 +138,7 @@ app.add_middleware(
 )
 
 # ===== Registre de routers modularitzats =====
-from routes import auth, config_examens, grups, grups_amagats, pdf, vigilancies, substitucions, settings, estadistiques, prioritats, horari, files, users, disponibles, scheduler, informes, cursos, dades
+from routes import auth, config_examens, general, grups, grups_amagats, pdf, vigilancies, substitucions, settings, estadistiques, prioritats, horari, files, users, disponibles, scheduler, informes, cursos, dades
 
 import logging
 log = logging.getLogger(__name__)
@@ -162,6 +161,7 @@ app.include_router(scheduler.router, dependencies=[Depends(require_admin)])
 app.include_router(informes.router, dependencies=[Depends(require_admin)])
 app.include_router(cursos.router, dependencies=[Depends(get_current_user)])
 app.include_router(dades.router, dependencies=[Depends(require_admin)])
+app.include_router(general.router, dependencies=[Depends(get_current_user)])
 
 
 # ===== Endpoints generals (no modularitzats) =====
@@ -180,68 +180,6 @@ async def root():
 async def health():
     """Health check per l'API"""
     return {"status": "ok"}
-
-
-@app.get("/api/config", response_model=ConfigResponse, dependencies=[Depends(get_current_user)])
-async def get_config():
-    """Retorna configuració actual del sistema"""
-    try:
-        horari = get_horari()
-    except MissingXmlError:
-        return ConfigResponse(
-            data_actual=datetime.now().strftime("%Y-%m-%d"),
-            horari_carregat=False,
-            num_professors=0,
-            num_hores=0,
-            xml_missing=True
-        )
-
-    return ConfigResponse(
-        data_actual=datetime.now().strftime("%Y-%m-%d"),
-        horari_carregat=True,
-        num_professors=len(horari.professors),
-        num_hores=len(horari.hores)
-    )
-
-
-@app.get("/api/professors", dependencies=[Depends(get_current_user)])
-async def get_professors():
-    """Retorna llista de professors fins l'últim configurat"""
-    try:
-        horari = get_horari()
-    except MissingXmlError:
-        return {
-            "professors": [],
-            "xml_missing": True
-        }
-    # horari.professors ja té el límit aplicat (veure core/horari.py línia 50-62)
-    return {
-        "professors": sorted(horari.professors)
-    }
-
-
-@app.get("/api/hores", dependencies=[Depends(get_current_user)])
-async def get_hores():
-    """Retorna llista d'hores del dia en l'ordre de l'XML (no alfabètic)"""
-    try:
-        horari = get_horari()
-    except MissingXmlError:
-        return {
-            "hores": [],
-            "xml_missing": True
-        }
-    return {
-        "hores": horari.hores  # Ja estan en l'ordre correcte de l'XML
-    }
-
-
-@app.get("/api/config/no-substituir", dependencies=[Depends(get_current_user)])
-async def get_no_substituir():
-    """Retorna llista d'activitats que no necessiten substitució"""
-    from config.constants import NO_SUBST
-    return {
-        "no_substituir": list(NO_SUBST)
-    }
 
 
 # ===== Punt d'entrada per executar amb uvicorn =====

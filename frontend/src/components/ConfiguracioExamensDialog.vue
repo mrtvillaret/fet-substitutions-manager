@@ -14,6 +14,10 @@
     </div>
 
     <div v-else class="config-container">
+      <!-- Horari d'on surten professors i propostes: el de la primera data planificada -->
+      <Message v-if="horariPlanificacio?.versio_des_de && !horariPlanificacio.sense_dates" severity="info" :closable="false" class="mb-2">
+        {{ $t('scheduler.view.scheduleUsed', { data: dataAmbAny(horariPlanificacio.data_referencia), desDe: dataAmbAny(horariPlanificacio.versio_des_de) }) }}
+      </Message>
       <TabView class="app-tabview app-tabview--dialog">
         <!-- TAB 0: IMPORTACIÓ / EXPORTACIÓ -->
         <TabPanel :header="$t('examConfig.tabs.import')">
@@ -860,6 +864,7 @@ import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { ruta } from '../basePath'
+import { dataAmbAny } from '../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Dialog from 'primevue/dialog'
@@ -1328,9 +1333,15 @@ const carregarTotsGrups = async () => {
   totsGrups.value = Array.from(grupsSet).sort()
 }
 
+// L'horari del planificador (el vigent a la primera data planificada; sense
+// dates, avui): els professors i les propostes d'importació en surten
+const horariPlanificacio = ref(null)
+
 const carregarProfessors = async () => {
   try {
-    const response = await axios.get('/api/professors')
+    const { data: horari } = await axios.get('/api/scheduler/horari')
+    horariPlanificacio.value = horari
+    const response = await axios.get('/api/professors', { params: { data: horari.data_referencia } })
     if (response.data?.xml_missing && !xmlMissingNotified.value) {
       toast.add({
         severity: 'warn',

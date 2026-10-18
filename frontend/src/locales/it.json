@@ -194,7 +194,8 @@
       "xmlUseCourseStart": "Usa l'inizio dell'anno {nom}",
       "xmlScheduled": "Orario programmato: entra in vigore il {data}. L'orario attuale rimane invariato.",
       "xmlCourseDesync": "L'anno {curs} inizia il {inici}, ma l'orario in vigore in quella data è entrato in vigore il {xmlInici} (anno precedente). Carica il nuovo orario efficace dal {inici}.",
-      "xmlFixDesync": "Preparalo"
+      "xmlFixDesync": "Preparalo",
+      "futureSchedule": "C'è un nuovo orario che sarà in vigore dal {data}. Fino ad allora si usa quello attuale (e, per date successive, il nuovo)."
     },
     "groups": {
       "detectedLabel": "Gruppi rilevati dall'XML",
@@ -276,7 +277,7 @@
       "generateAllDaysPDF": "📄 Genera PDF per tutti i giorni",
       "pdfGenerated": "PDF generato correttamente",
       "startDate": "Dal giorno",
-      "startDateHint": "(vuoto = oggi)",
+      "startDateHint": "(vuoto = data del calendario)",
       "saveAll": "💾 Salva tutte le priorità",
       "addNoSubstTitle": "Materie senza sostituzione",
       "selectSubjectXml": "Seleziona materia dall'XML",
@@ -402,7 +403,7 @@
     },
     "dataManagement": {
       "title": "Elimina dati per intervallo",
-      "description": "Elimina in modo irreversibile ogni traccia di dati in un intervallo di date: sostituzioni, vigilanze e gruppi liberati, PDF esportati e versioni XML interamente contenute nell'intervallo. Prima analizza cosa verrebbe eliminato; poi conferma per eseguire.",
+      "description": "Elimina in modo irreversibile ogni traccia di dati di un intervallo di date (di solito, un anno scolastico intero): supplenze, sorveglianze, gruppi liberati e assenze per malattia, PDF esportati, versioni XML interamente comprese nell'intervallo e le date e l'ultimo orario del pianificatore degli esami. Prima analizza cosa verrebbe cancellato; poi conferma per eseguirlo.",
       "startDate": "Data di inizio",
       "endDate": "Data di fine",
       "analyze": "Analizza",
@@ -442,7 +443,15 @@
       "anonConfirmMessage": "«{old}» verrà rinominato in «{new}» in tutti i record. Continuare?",
       "anonSuccessSummary": "Docente rinominato",
       "anonSuccessDetail": "{n} record aggiornati",
-      "anonAccept": "Sì, rinomina"
+      "anonAccept": "Sì, rinomina",
+      "course": "Anno scolastico",
+      "coursePlaceholder": "Scegli un anno scolastico per compilare le date",
+      "plannerDates": "Date scelte nel pianificatore",
+      "plannerLast": "Ultimo orario del pianificatore ({start} → {end})",
+      "warnAbsenceExtends": "L'assenza di {prof} ({start} → {end}) si estende oltre l'intervallo e verrà cancellata per intero.",
+      "warnPlannerExtends": "L'ultimo orario del pianificatore ({start} → {end}) si estende oltre l'intervallo e verrà cancellato per intero.",
+      "resultPlanner": "Pianificatore: {n} date rimosse.",
+      "resultPlannerLast": "È stato cancellato anche l'ultimo orario salvato."
     }
   },
   "groups": {
@@ -1512,7 +1521,9 @@
         "removed": "{count} materie rimosse dalle restrizioni"
       },
       "previousCourse": "Le date scelte sono dell'anno {cursos}, precedente a quello attuale ({actual}). Il pianificatore usa la configurazione degli esami dell'anno attuale e non si potrà pubblicare. Le sorveglianze degli anni precedenti si consultano in Sorveglianze.",
-      "lastResult": "Questo è l'ultimo orario generato o modificato ({data}). Se hai cambiato la configurazione o le date, rigenera."
+      "lastResult": "Questo è l'ultimo orario generato o modificato ({data}). Se hai cambiato la configurazione o le date, rigenera.",
+      "scheduleUsed": "Si usa l'orario in vigore il {data} (orario caricato con data {desDe}).",
+      "scheduleChanges": "Le date scelte usano due orari diversi (cambio il {canvi}). Si userà quello in vigore il {data}; se serve, pianifica ogni periodo separatamente."
     },
     "steps": {
       "config": {

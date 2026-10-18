@@ -5,9 +5,12 @@ import re
 import os
 import tempfile
 from datetime import datetime
+from types import SimpleNamespace
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from auth_utils import require_admin
 from database import get_data_db_session
@@ -19,7 +22,6 @@ from repositories import (
     CursRepository,
     parse_date,
 )
-from helpers import get_xml_path_for_date
 from models import ExamCostProfessor, ExamRestriccio, Vigilancia, Substitucio, GrupAlliberat, Nivell, Grup, AbreviaturaGrup
 from schemas import SchedulerGenerateRequest, SchedulerDatesRequest, SchedulerRestriccionsRequest, SchedulerPinRequest, SchedulerPublicarRequest, HorariRecalcularRequest
 from routes.scheduler_service import (
@@ -32,20 +34,22 @@ from routes.scheduler_service import (
     SCHEDULER_DURADES_GRUPS_KEY,
     _load_json,
     _dies_entre_dates,
-    _build_config_from_db,
     _build_restriccions_from_db,
     _save_restriccions_to_db,
+)
+from routes.parametres import data_iso
+from routes.scheduler_config import (
+    aplica_restriccions_derivades, carrega_config, horari_de_la_planificacio,
+)
+from routes.scheduler_cost import (
+    IncidenciesFranja, conflicte_de_nivell, excessos_limit_dies, hores_lectives, incidencies,
 )
 from routes.scheduler_helpers import (
     _nivells_master,
     _extract_assignatures_from_restriccions,
     _treu_assignatures_de_restriccions,
-    _selected_dates_from_alliberaments,
     _normalitzar_hora,
     _hores_lectives_des_de_xml,
-    _build_slots_valids_from_alliberaments,
-    _build_slots_valids_iso_from_alliberaments,
-    _merge_slots_valids,
     _build_assignatures_options,
     extreure_hores_examen_des_alliberaments,
 )
@@ -75,9 +79,12 @@ router = APIRouter(prefix="/api/scheduler", tags=["Scheduler"])
 
 from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.horaris_xml import horaris_professors as llegeix_horaris_professors
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 
 import logging
+from dependencies import dia_de_la_planificacio
+from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 @router.get("/status")
@@ -95,7 +102,7 @@ async def scheduler_motors(current_user=Depends(require_admin)):
     }
 
 @router.get("/grups-nivells")
-async def scheduler_grups_nivells(current_user=Depends(require_admin)):
+async def scheduler_grups_nivells(current_user=Depends(require_admin), dia: Dia = Depends(dia_de_la_planificacio)):
     """
     Retorna tots els grups agrupats per nivell, amb les abreviatures expandides.
     Cada grup té: codi, es_abreviatura, grups_expandits (si és abreviatura).
@@ -134,13 +141,10 @@ async def scheduler_grups_nivells(current_user=Depends(require_admin)):
         de_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_EXAMEN_KEY)
         durada_examen_cfg = int(de_raw) if de_raw else durada_titular
 
-    # Carregar hores lectives del centre (des de l'XML, usant data actual)
+    # Hores lectives de l'horari del planificador
     hores_lectives = []
     try:
-        from helpers import get_horari
-        from datetime import date
-        data_avui = date.today().isoformat()
-        horari_obj = get_horari(current_user.institucio, data_avui)
+        horari_obj = dia.horari
         hores_lectives = horari_obj.hores or []
     except Exception:
         log.warning("No s'han pogut llegir les hores de l'horari", exc_info=True)
@@ -469,6 +473,15 @@ def _desa_ultim_resultat(institucio: str, horari: dict, dies_utilitzar: list | N
         }), ensure_ascii=False), tipus="json")
 
 
+@router.get("/horari")
+async def scheduler_horari(dates: Optional[str] = None, current_user=Depends(require_admin)):
+    """Quin horari (XML) fa servir el planificador per a les dates (AAAA-MM-DD
+    separades per comes; sense, les desades): la data de referència, des de
+    quan és vigent i si dins les dates en comença un altre."""
+    llista = [data_iso(d.strip()).isoformat() for d in (dates or "").split(",") if d.strip()]
+    return horari_de_la_planificacio(current_user.institucio, llista)
+
+
 @router.get("/ultim-resultat")
 async def scheduler_ultim_resultat(current_user=Depends(require_admin)):
     """L'últim horari generat o editat ({desat, resultat}), o null."""
@@ -508,54 +521,18 @@ async def scheduler_curs_dates(dates: str = "", current_user=Depends(require_adm
 # un fil a part i el backend continua responent la resta de peticions.
 @router.post("/generate")
 def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
-    with get_data_db_session(current_user.institucio) as db:
-        assignacions = ConfiguracioExamenRepository.get_all(db)
-        config = _build_config_from_db(assignacions)
-        restriccions = _build_restriccions_from_db(db)
-        d_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
-        n_raw = ConfiguracioRepository.get(db, SCHEDULER_NIVELLS_KEY)
-        dates_raw = ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY)
-        ultim_professor = ConfiguracioRepository.get(db, "ultim_professor_subs") or ""
-        d_cfg = int(d_raw) if d_raw else DEFAULT_DURADA_TITULAR
-        n_cfg = _load_json(n_raw, [])
-        selected_dates_cfg = _load_json(dates_raw, [])
-        nivells_master = _nivells_master(db)
-
-        # Carregar alliberaments per nivell (estructura amb dates ISO i config per hora)
-        alliberaments_raw = ConfiguracioRepository.get(db, SCHEDULER_ALLIBERAMENTS_KEY)
-        alliberaments_cfg = _load_json(alliberaments_raw, {})
-
-        # Carregar durades específiques per sessió (format grups → dict pla)
-        durades_grups_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADES_GRUPS_KEY)
-        durades_grups_cfg = _load_json(durades_grups_raw, None)
-        if durades_grups_cfg:
-            durades_per_sessio_cfg = {}
-            durades_examen_per_sessio_cfg = {}
-            for grup in durades_grups_cfg:
-                for ass in grup.get("assignatures", []):
-                    durades_per_sessio_cfg[ass] = grup.get("durada", 1)
-                    durades_examen_per_sessio_cfg[ass] = grup.get("durada_examen", grup.get("durada", 1))
-        else:
-            # Backward compat: llegir format antic
-            durades_per_sessio_cfg = _load_json(ConfiguracioRepository.get(db, SCHEDULER_DURADES_SESSIO_KEY), {})
-            durades_examen_per_sessio_cfg = dict(durades_per_sessio_cfg)  # Igual que supervisió si no hi ha grups
-
-        # Carregar assignatures que NO necessiten substitució
-        from repositories import NoSubstituirRepository
-        no_subst = set(NoSubstituirRepository.get_all(db))
+    cfg = carrega_config(current_user.institucio)
+    restriccions = cfg.restriccions
 
     # Derivar hores d'examen únicament dels alliberaments (marques i=true)
-    h_cfg, hpn_cfg = extreure_hores_examen_des_alliberaments(alliberaments_cfg)
+    h_cfg, hpn_cfg = extreure_hores_examen_des_alliberaments(cfg.alliberaments)
 
-    xml_path = get_xml_path_for_date(current_user.institucio, payload.data_inici)
+    xml_path = Dia.de_text(payload.data_inici, current_user.institucio).xml_path
     if not xml_path or not os.path.exists(xml_path): raise HTTPException(status_code=400, detail="XML missing")
 
     dies_util = payload.dies_utilitzar or _dies_entre_dates(payload.data_inici, payload.data_final or payload.data_inici)
-    nivells_actius = payload.nivells_actius or n_cfg or nivells_master
-    selected_dates = payload.selected_dates or selected_dates_cfg or []
-    dates_allib = _selected_dates_from_alliberaments(alliberaments_cfg, nivells_actius)
-    if dates_allib:
-        selected_dates = dates_allib
+    nivells_actius = cfg.nivells_actius(payload.nivells_actius)
+    selected_dates = cfg.dates(payload.selected_dates, nivells_actius)
     dia_a_data_iso = construir_mapa_dia_data_iso(
         dies_utilitzar=dies_util,
         selected_dates=selected_dates,
@@ -564,30 +541,11 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
 
     # Derivar slots vàlids per nivell des de les marques (inici examen) del Tab 1.
     hores_xml = _hores_lectives_des_de_xml(xml_path, fallback=h_cfg)
-    slots_derivats = _build_slots_valids_from_alliberaments(
-        alliberaments_cfg=alliberaments_cfg,
-        nivells_actius=nivells_actius,
-        dies_utilitzar=dies_util,
-        dia_a_data_iso=dia_a_data_iso,
-        hores_disponibles=hores_xml,
-    )
-    dures = restriccions.setdefault("restriccions_dures", {})
-    slots_actuals = dures.get("slots_valids_per_nivell") or {}
-    dures["slots_valids_per_nivell"] = _merge_slots_valids(slots_actuals, slots_derivats)
-    dates_per_nivell = {
-        niv: [d for d in (alliberaments_cfg.get(niv) or {}).get("dates", []) if isinstance(d, str)]
-        for niv in (nivells_actius or [])
-        if isinstance((alliberaments_cfg or {}).get(niv), dict) and (alliberaments_cfg[niv].get("dates") or [])
-    }
-    if dates_per_nivell:
-        dures["dates_per_nivell"] = dates_per_nivell
-    slots_iso = _build_slots_valids_iso_from_alliberaments(alliberaments_cfg, nivells_actius, hores_xml)
-    if slots_iso:
-        dures["slots_valids_iso_per_nivell"] = slots_iso
+    aplica_restriccions_derivades(restriccions, cfg.alliberaments, nivells_actius, dies_util, dia_a_data_iso, hores_xml)
 
     data_inici_fmt = datetime.strptime(payload.data_inici, "%Y-%m-%d").strftime("%d/%m/%Y")
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as cfg_f: json.dump(config, cfg_f, ensure_ascii=False); cfg_p = cfg_f.name
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as cfg_f: json.dump(cfg.config, cfg_f, ensure_ascii=False); cfg_p = cfg_f.name
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as res_f: json.dump(restriccions, res_f, ensure_ascii=False); res_p = res_f.name
 
     try:
@@ -608,15 +566,15 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
             gen, method_name = crear_motor(
                 motor, cfg_p, xml_path,
                 restriccions_path=res_p,
-                ultim_professor=ultim_professor,
+                ultim_professor=cfg.ultim_professor,
                 nivells_actius=nivells_actius,
                 hores_examen=h_cfg,
                 hores_per_nivell=hpn_cfg,
-                durada_titular=d_cfg,
-                no_substituir=no_subst,
-                alliberaments_per_nivell=alliberaments_cfg,
-                durades_per_sessio=durades_per_sessio_cfg,
-                durades_examen_per_sessio=durades_examen_per_sessio_cfg,
+                durada_titular=cfg.durada_titular,
+                no_substituir=cfg.no_substituir,
+                alliberaments_per_nivell=cfg.alliberaments,
+                durades_per_sessio=cfg.durades_per_sessio,
+                durades_examen_per_sessio=cfg.durades_examen_per_sessio,
                 **override_params
             )
             gen.carregar_dades()
@@ -742,7 +700,7 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
                     restriccions=restriccions,
                     dies_utilitzar=dies_util,
                     dia_a_data_iso=dia_a_data_iso,
-                    alliberaments_cfg=alliberaments_cfg,
+                    alliberaments_cfg=cfg.alliberaments,
                     nivells_actius=nivells_actius,
                 )
                 if not incompat:
@@ -764,7 +722,7 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
 
             # Validar horari contra restriccions
             from scheduler_engine.validacio import ValidadorHorari
-            validador = ValidadorHorari(horari, restriccions, no_subst)
+            validador = ValidadorHorari(horari, restriccions, cfg.no_substituir)
             validation_result = validador.validar()
 
             # Capturar tots els logs: motor metadata + stdout capturada + validació
@@ -786,38 +744,21 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
                 pass
 
 
-@router.post("/analisi")
-def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
-    with get_data_db_session(current_user.institucio) as db:
-        assignacions = ConfiguracioExamenRepository.get_all(db)
-        config = _build_config_from_db(assignacions)
-        restriccions = _build_restriccions_from_db(db)
-        d_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
-        n_raw = ConfiguracioRepository.get(db, SCHEDULER_NIVELLS_KEY)
-        dates_raw = ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY)
-        alliberaments_raw = ConfiguracioRepository.get(db, SCHEDULER_ALLIBERAMENTS_KEY)
-        ultim_professor = ConfiguracioRepository.get(db, "ultim_professor_subs") or ""
-        d_cfg = int(d_raw) if d_raw else DEFAULT_DURADA_TITULAR
-        n_cfg = _load_json(n_raw, [])
-        selected_dates_cfg = _load_json(dates_raw, [])
-        alliberaments_cfg = _load_json(alliberaments_raw, {})
-        nivells_master = _nivells_master(db)
+def _informes_analisi(payload: SchedulerGenerateRequest, institucio: str) -> dict:
+    """Els tres informes de l'anàlisi de disponibilitat (per franja, per
+    examen i professors per franja) amb el motor v2, com a /analisi i al PDF."""
+    cfg = carrega_config(institucio)
+    restriccions = cfg.restriccions
 
-        from repositories import NoSubstituirRepository
-        no_subst = set(NoSubstituirRepository.get_all(db))
+    h_cfg, hpn_cfg = extreure_hores_examen_des_alliberaments(cfg.alliberaments)
 
-    h_cfg, hpn_cfg = extreure_hores_examen_des_alliberaments(alliberaments_cfg)
-
-    xml_path = get_xml_path_for_date(current_user.institucio, payload.data_inici)
+    xml_path = Dia.de_text(payload.data_inici, institucio).xml_path
     if not xml_path or not os.path.exists(xml_path):
         raise HTTPException(status_code=400, detail="XML missing")
 
     dies_util = payload.dies_utilitzar or _dies_entre_dates(payload.data_inici, payload.data_final or payload.data_inici)
-    nivells_actius = (payload.nivells_actius or n_cfg or nivells_master)
-    selected_dates = selected_dates_cfg or []
-    dates_allib = _selected_dates_from_alliberaments(alliberaments_cfg, nivells_actius)
-    if dates_allib:
-        selected_dates = dates_allib
+    nivells_actius = cfg.nivells_actius(payload.nivells_actius)
+    selected_dates = cfg.dates(None, nivells_actius)  # (les de la petició no hi compten)
     dia_a_data_iso = construir_mapa_dia_data_iso(
         dies_utilitzar=dies_util,
         selected_dates=selected_dates,
@@ -826,29 +767,10 @@ def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(re
 
     # Derivar slots vàlids per nivell (inici examen)
     hores_xml = _hores_lectives_des_de_xml(xml_path, fallback=h_cfg)
-    slots_derivats = _build_slots_valids_from_alliberaments(
-        alliberaments_cfg=alliberaments_cfg,
-        nivells_actius=nivells_actius,
-        dies_utilitzar=dies_util,
-        dia_a_data_iso=dia_a_data_iso,
-        hores_disponibles=hores_xml,
-    )
-    dures = restriccions.setdefault("restriccions_dures", {})
-    slots_actuals = dures.get("slots_valids_per_nivell") or {}
-    dures["slots_valids_per_nivell"] = _merge_slots_valids(slots_actuals, slots_derivats)
-    dates_per_nivell = {
-        niv: [d for d in (alliberaments_cfg.get(niv) or {}).get("dates", []) if isinstance(d, str)]
-        for niv in (nivells_actius or [])
-        if isinstance((alliberaments_cfg or {}).get(niv), dict) and (alliberaments_cfg[niv].get("dates") or [])
-    }
-    if dates_per_nivell:
-        dures["dates_per_nivell"] = dates_per_nivell
-    slots_iso = _build_slots_valids_iso_from_alliberaments(alliberaments_cfg, nivells_actius, hores_xml)
-    if slots_iso:
-        dures["slots_valids_iso_per_nivell"] = slots_iso
+    aplica_restriccions_derivades(restriccions, cfg.alliberaments, nivells_actius, dies_util, dia_a_data_iso, hores_xml)
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as cfg_f:
-        json.dump(config, cfg_f, ensure_ascii=False)
+        json.dump(cfg.config, cfg_f, ensure_ascii=False)
         cfg_p = cfg_f.name
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as res_f:
         json.dump(restriccions, res_f, ensure_ascii=False)
@@ -861,13 +783,15 @@ def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(re
             cfg_p,
             xml_path,
             restriccions_path=res_p,
-            ultim_professor=ultim_professor,
+            ultim_professor=cfg.ultim_professor,
             nivells_actius=nivells_actius,
             hores_examen=h_cfg,
             hores_per_nivell=hpn_cfg,
-            durada_titular=d_cfg,
-            no_substituir=no_subst,
-            alliberaments_per_nivell=alliberaments_cfg,
+            durada_titular=cfg.durada_titular,
+            no_substituir=cfg.no_substituir,
+            alliberaments_per_nivell=cfg.alliberaments,
+            durades_per_sessio=cfg.durades_per_sessio,
+            durades_examen_per_sessio=cfg.durades_examen_per_sessio,
         )
         gen.carregar_dades()
         gen.carregar_horaris_professors()
@@ -892,124 +816,26 @@ def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(re
                 pass
 
 
+@router.post("/analisi")
+def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
+    return _informes_analisi(payload, current_user.institucio)
+
+
 @router.post("/analisi/pdf")
 def scheduler_analisi_pdf(payload: SchedulerGenerateRequest, current_user=Depends(require_admin)):
-    with get_data_db_session(current_user.institucio) as db:
-        assignacions = ConfiguracioExamenRepository.get_all(db)
-        config = _build_config_from_db(assignacions)
-        restriccions = _build_restriccions_from_db(db)
-        d_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
-        n_raw = ConfiguracioRepository.get(db, SCHEDULER_NIVELLS_KEY)
-        dates_raw = ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY)
-        alliberaments_raw = ConfiguracioRepository.get(db, SCHEDULER_ALLIBERAMENTS_KEY)
-        ultim_professor = ConfiguracioRepository.get(db, "ultim_professor_subs") or ""
-        d_cfg = int(d_raw) if d_raw else DEFAULT_DURADA_TITULAR
-        n_cfg = _load_json(n_raw, [])
-        selected_dates_cfg = _load_json(dates_raw, [])
-        alliberaments_cfg = _load_json(alliberaments_raw, {})
-        nivells_master = _nivells_master(db)
-
-        from repositories import NoSubstituirRepository
-        no_subst = set(NoSubstituirRepository.get_all(db))
-
-    h_cfg, hpn_cfg = extreure_hores_examen_des_alliberaments(alliberaments_cfg)
-
-    xml_path = get_xml_path_for_date(current_user.institucio, payload.data_inici)
-    if not xml_path or not os.path.exists(xml_path):
-        raise HTTPException(status_code=400, detail="XML missing")
-
-    dies_util = payload.dies_utilitzar or _dies_entre_dates(payload.data_inici, payload.data_final or payload.data_inici)
-    nivells_actius = (payload.nivells_actius or n_cfg or nivells_master)
-    selected_dates = selected_dates_cfg or []
-    dates_allib = _selected_dates_from_alliberaments(alliberaments_cfg, nivells_actius)
-    if dates_allib:
-        selected_dates = dates_allib
-    dia_a_data_iso = construir_mapa_dia_data_iso(
-        dies_utilitzar=dies_util,
-        selected_dates=selected_dates,
-        data_inici_iso=payload.data_inici,
-    )
-
-    hores_xml = _hores_lectives_des_de_xml(xml_path, fallback=h_cfg)
-    slots_derivats = _build_slots_valids_from_alliberaments(
-        alliberaments_cfg=alliberaments_cfg,
-        nivells_actius=nivells_actius,
-        dies_utilitzar=dies_util,
-        dia_a_data_iso=dia_a_data_iso,
-        hores_disponibles=hores_xml,
-    )
-    dures = restriccions.setdefault("restriccions_dures", {})
-    slots_actuals = dures.get("slots_valids_per_nivell") or {}
-    dures["slots_valids_per_nivell"] = _merge_slots_valids(slots_actuals, slots_derivats)
-    dates_per_nivell = {
-        niv: [d for d in (alliberaments_cfg.get(niv) or {}).get("dates", []) if isinstance(d, str)]
-        for niv in (nivells_actius or [])
-        if isinstance((alliberaments_cfg or {}).get(niv), dict) and (alliberaments_cfg[niv].get("dates") or [])
+    informes = _informes_analisi(payload, current_user.institucio)
+    seccions = {
+        "per_slots": ("Per Hora/Dia", "per_slots", informes["per_slots"]),
+        "per_sessio": ("Per Agrupacio", "per_sessio", informes["per_sessio"]),
+        "professors_slot": ("Professors per Slot", "professors_slot", informes["professors_slot"]),
     }
-    if dates_per_nivell:
-        dures["dates_per_nivell"] = dates_per_nivell
-    slots_iso = _build_slots_valids_iso_from_alliberaments(alliberaments_cfg, nivells_actius, hores_xml)
-    if slots_iso:
-        dures["slots_valids_iso_per_nivell"] = slots_iso
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as cfg_f:
-        json.dump(config, cfg_f, ensure_ascii=False)
-        cfg_p = cfg_f.name
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as res_f:
-        json.dump(restriccions, res_f, ensure_ascii=False)
-        res_p = res_f.name
-
-    pdf_path = None
-    try:
-        from scheduler_engine.factory import crear_motor
-        gen, _ = crear_motor(
-            "v2",
-            cfg_p,
-            xml_path,
-            restriccions_path=res_p,
-            ultim_professor=ultim_professor,
-            nivells_actius=nivells_actius,
-            hores_examen=h_cfg,
-            hores_per_nivell=hpn_cfg,
-            durada_titular=d_cfg,
-            no_substituir=no_subst,
-            alliberaments_per_nivell=alliberaments_cfg,
-        )
-        gen.carregar_dades()
-        gen.carregar_horaris_professors()
-        gen.dia_a_data_iso = {normalitzar_dia(k): v for k, v in (dia_a_data_iso or {}).items() if v}
-        dies_analisi = _expandir_dies_per_analisi(dies_util, gen.dia_a_data_iso)
-
-        matriu_costos = gen._analitzar_tots_slots(dies_analisi)
-        informe_slots = gen.generar_informe_per_slots(matriu_costos, dies_analisi)
-        informe_sessio = gen.generar_informe_disponibilitat(matriu_costos, dies_analisi)
-        informe_prof = gen.generar_informe_professors_per_slot(dies_analisi)
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_f:
-            pdf_path = pdf_f.name
-        requested_tab = (payload.analisi_tab or "").strip()
-        sections_map = {
-            "per_slots": ("Per Hora/Dia", "per_slots", informe_slots),
-            "per_sessio": ("Per Agrupacio", "per_sessio", informe_sessio),
-            "professors_slot": ("Professors per Slot", "professors_slot", informe_prof)
-        }
-        if requested_tab in sections_map:
-            sections = [sections_map[requested_tab]]
-        else:
-            sections = [
-                ("Per Hora/Dia", "per_slots", informe_slots),
-                ("Per Agrupacio", "per_sessio", informe_sessio),
-                ("Professors per Slot", "professors_slot", informe_prof)
-            ]
-        _write_analysis_pdf(pdf_path, sections)
-        filename = f"analisi_{payload.data_inici}.pdf"
-        return FileResponse(pdf_path, media_type="application/pdf", filename=filename)
-    finally:
-        for p in (cfg_p, res_p):
-            try:
-                os.remove(p)
-            except OSError:
-                pass
+    pestanya = (payload.analisi_tab or "").strip()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_f:
+        pdf_path = pdf_f.name
+    _write_analysis_pdf(pdf_path, [seccions[pestanya]] if pestanya in seccions else list(seccions.values()))
+    # El fitxer temporal s'esborra un cop enviat
+    return FileResponse(pdf_path, media_type="application/pdf", filename=f"analisi_{payload.data_inici}.pdf",
+                        background=BackgroundTask(os.remove, pdf_path))
 
 
 # ===== PUBLICAR VIGILÀNCIES =====
@@ -1063,8 +889,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
 
     if primera_data:
         try:
-            from helpers import get_horari as get_horari_fn
-            horari_obj = get_horari_fn(current_user.institucio, primera_data)
+            horari_obj = Dia.de_text(primera_data, current_user.institucio).horari
             totes_hores = horari_obj.hores or []
         except Exception as e:
             import logging
@@ -1254,7 +1079,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
         # 4. Auto-assignar titulars si cal (no en dry_run)
         if opcions.auto_assign_titulars and not errors and not dry_run:
             try:
-                from helpers import get_vigilancia_core, assign_phase1_titulars
+                from helpers import assign_phase1_titulars
                 for data_iso in sorted(set(dates_processades)):
                     db.flush()
                     vigilancies_dict = VigilanciaRepository.get_by_date(db, data_iso)
@@ -1266,7 +1091,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
                         continue
 
                     try:
-                        core = get_vigilancia_core(data_iso, db)
+                        core = Dia.de_text(data_iso, current_user.institucio).vigilancia_core(db)
                         vigilants_global = {}
                         for v in all_vigl:
                             h = v.get('hora', '')
@@ -1274,7 +1099,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
                             if v.get('vigilant'):
                                 vigilants_global[h].add(v['vigilant'])
 
-                        assigned = assign_phase1_titulars(all_vigl, core, vigilants_global, db)
+                        assign_phase1_titulars(all_vigl, core, vigilants_global, db)
                         for v in all_vigl:
                             if v.get('vigilant'):
                                 db_id = v.get('db_id') or v.get('id')
@@ -1331,38 +1156,13 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
 
     from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
 
-    with get_data_db_session(current_user.institucio) as db:
-        restriccions = _build_restriccions_from_db(db)
-        d_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
-        n_raw = ConfiguracioRepository.get(db, SCHEDULER_NIVELLS_KEY)
-        dates_raw = ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY)
-        alliberaments_raw = ConfiguracioRepository.get(db, SCHEDULER_ALLIBERAMENTS_KEY)
-        durades_grups_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADES_GRUPS_KEY)
-        ultim_professor = ConfiguracioRepository.get(db, "ultim_professor_subs") or ""
-        durada_titular = int(d_raw) if d_raw else DEFAULT_DURADA_TITULAR
-        nivells_actius = _load_json(n_raw, []) or _nivells_master(db)
-        selected_dates = payload.selected_dates or _load_json(dates_raw, [])
-        alliberaments_cfg = _load_json(alliberaments_raw, {})
-        durades_grups_cfg = _load_json(durades_grups_raw, None)
-        if durades_grups_cfg:
-            durades_per_sessio_recalc = {}
-            durades_examen_per_sessio_recalc = {}
-            for grup in durades_grups_cfg:
-                for ass in grup.get("assignatures", []):
-                    durades_per_sessio_recalc[ass] = grup.get("durada", 1)
-                    durades_examen_per_sessio_recalc[ass] = grup.get("durada_examen", grup.get("durada", 1))
-        else:
-            durades_per_sessio_recalc = _load_json(ConfiguracioRepository.get(db, SCHEDULER_DURADES_SESSIO_KEY), {})
-            durades_examen_per_sessio_recalc = dict(durades_per_sessio_recalc)
-        dates_allib = _selected_dates_from_alliberaments(alliberaments_cfg, nivells_actius)
-        if dates_allib:
-            selected_dates = dates_allib
+    cfg = carrega_config(current_user.institucio)
+    restriccions = cfg.restriccions
+    nivells_actius = cfg.nivells_actius()
+    selected_dates = cfg.dates(payload.selected_dates, nivells_actius)
+    no_subst_norm = {normalitzar_text(a) for a in cfg.no_substituir if a}
 
-        from repositories import NoSubstituirRepository
-        no_subst = set(NoSubstituirRepository.get_all(db))
-        no_subst_norm = {normalitzar_text(a) for a in no_subst if a}
-
-    hores_examen, _ = extreure_hores_examen_des_alliberaments(alliberaments_cfg)
+    hores_examen, _ = extreure_hores_examen_des_alliberaments(cfg.alliberaments)
 
     # Determinar data per XML
     data_ref = payload.data_referencia
@@ -1380,7 +1180,7 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
         data_inici_iso=data_ref,
     )
 
-    xml_path = get_xml_path_for_date(current_user.institucio, data_ref)
+    xml_path = Dia.de_text(data_ref, current_user.institucio).xml_path
     if not xml_path or not os.path.exists(xml_path):
         raise HTTPException(status_code=400, detail="XML d'horaris no disponible")
 
@@ -1389,121 +1189,36 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
-    def _hour_to_minutes(h):
-        try:
-            parts = h.split(':')
-            return int(parts[0]) * 60 + int(parts[1])
-        except (ValueError, TypeError, IndexError):
-            return 0
-
-    totes_hores = []
-    for day in root.findall('.//Day'):
-        for hour in day.findall('Hour'):
-            h = hour.get('name')
-            if h and h not in totes_hores:
-                totes_hores.append(h)
-
-    totes_hores = [_normalitzar_hora(h) for h in totes_hores if h]
-
-    if not totes_hores:
-        totes_hores = [_normalitzar_hora(h) for h in (hores_examen or [])]
-    else:
-        missing = []
-        for h in (hores_examen or []):
-            h_norm = _normalitzar_hora(h)
-            if h_norm and h_norm not in totes_hores:
-                missing.append(h_norm)
-        if missing:
-            combined = list({*totes_hores, *missing})
-            combined.sort(key=_hour_to_minutes)
-            totes_hores = combined
+    totes_hores = hores_lectives(root, hores_examen)
 
     # Aplicar també en recàlcul la restricció derivada de slots vàlids per nivell (marques 🟦).
-    slots_derivats = _build_slots_valids_from_alliberaments(
-        alliberaments_cfg=alliberaments_cfg,
-        nivells_actius=nivells_actius,
-        dies_utilitzar=dies_horari,
-        dia_a_data_iso=dia_a_data_iso,
-        hores_disponibles=totes_hores,
-    )
-    dures_recalc = restriccions.setdefault("restriccions_dures", {})
-    slots_actuals = dures_recalc.get("slots_valids_per_nivell") or {}
-    dures_recalc["slots_valids_per_nivell"] = _merge_slots_valids(slots_actuals, slots_derivats)
-    dates_per_nivell = {
-        niv: [d for d in (alliberaments_cfg.get(niv) or {}).get("dates", []) if isinstance(d, str)]
-        for niv in (nivells_actius or [])
-        if isinstance((alliberaments_cfg or {}).get(niv), dict) and (alliberaments_cfg[niv].get("dates") or [])
-    }
-    if dates_per_nivell:
-        dures_recalc["dates_per_nivell"] = dates_per_nivell
-    slots_iso = _build_slots_valids_iso_from_alliberaments(alliberaments_cfg, nivells_actius, totes_hores)
-    if slots_iso:
-        dures_recalc["slots_valids_iso_per_nivell"] = slots_iso
+    aplica_restriccions_derivades(restriccions, cfg.alliberaments, nivells_actius, dies_horari, dia_a_data_iso, totes_hores)
 
-    horaris_professors = {}
-    ultim_prof = (ultim_professor or "").strip()
-    for teacher in root.findall('Teacher'):
-        nom = teacher.get('name').strip()
-        horaris_professors[nom] = {}
-        for day in teacher.findall('Day'):
-            d = normalitzar_dia(day.get('name'))
-            horaris_professors[nom][d] = {}
-            for hour in day.findall('Hour'):
-                h_raw = hour.get('name')
-                h = _normalitzar_hora(h_raw)
-                sub = hour.find('Subject')
-                act = hour.find('Activity')
-                if (act is not None and act.get('id')) or sub is not None:
-                    s = sub.get('name') if sub is not None else ''
-                    g = hour.find('Students').get('name') if hour.find('Students') is not None else ''
-                    horaris_professors[nom][d][h] = {'assignatura': s, 'grup': g}
-        # El professor límit també s'ha d'incloure en el recàlcul.
-        if ultim_prof and nom == ultim_prof:
-            break
+    horaris_professors = llegeix_horaris_professors(root, cfg.ultim_professor, normalitza_hores=True)
 
     # Recalcular cost amb el mòdul d'estadístiques
     from scheduler_engine.estadistiques import recalcular_cost_i_breakdown
-    from scheduler_engine.core.scoring import pes_professor
     from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-    from scheduler_engine.core.durada import get_durada_per_nivell, get_durada_per_sessio_key, detectar_nivell_sessio
+    from scheduler_engine.core.durada import get_durada_per_sessio_key, detectar_nivell_sessio
     from scheduler_engine.validacio import ValidadorHorari
-    from scheduler_engine.core.constraints import sessio_in_group, _percent_penalty, _pes_obligatori
 
-    class SimpleContext:
-        pass
-    ctx = SimpleContext()
-    ctx.restriccions = restriccions
-    ctx.horaris_professors = horaris_professors
-    ctx.hores_examen = hores_examen
-    ctx.durada_titular = durada_titular
-    ctx.no_substituir_norm = no_subst_norm
-    ctx.totes_hores = totes_hores
-    ctx.nivells_actius = nivells_actius
-    ctx.dia_a_data_iso = dia_a_data_iso
-    ctx.alliberaments_per_nivell = alliberaments_cfg
-    ctx.durades_per_sessio = durades_per_sessio_recalc
-
+    ctx = SimpleNamespace(
+        restriccions=restriccions,
+        horaris_professors=horaris_professors,
+        hores_examen=hores_examen,
+        durada_titular=cfg.durada_titular,
+        no_substituir_norm=no_subst_norm,
+        totes_hores=totes_hores,
+        nivells_actius=nivells_actius,
+        dia_a_data_iso=dia_a_data_iso,
+        alliberaments_per_nivell=cfg.alliberaments,
+        durades_per_sessio=cfg.durades_per_sessio,
+    )
     cost_info = recalcular_cost_i_breakdown(horari, ctx)
 
-    # Calcular informació per slot i detectar conflictes de nivell
+    # Cost, avisos i conflictes de cada franja
     slots_info = []
     conflicte_global = False
-
-    def _log_with_score(msg: str, score: int) -> str:
-        return f"{msg} (punt: {score})" if score is not None else msg
-
-    def _build_sessions_per_dia(horari_data):
-        sessions_per_dia = defaultdict(list)
-        for dia_data in horari_data.get('dies', []):
-            dia_nom = dia_data.get('dia', '')
-            dia_norm = normalitzar_dia(dia_nom)
-            for slot_data in dia_data.get('sessions', []):
-                for sessio_data in slot_data.get('sessions_simultanees', []):
-                    sessions_per_dia[dia_nom].append(sessio_data)
-                    if dia_norm and dia_norm != dia_nom:
-                        sessions_per_dia[dia_norm].append(sessio_data)
-        return sessions_per_dia
-
     for dia in horari.get('dies', []):
         dia_nom = dia.get('dia', '')
         _dates = dia_a_data_iso.get(normalitzar_dia(dia_nom))
@@ -1511,43 +1226,21 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
         for slot in dia.get('sessions', []):
             hora = slot.get('hora', '')
             hora_norm = _normalitzar_hora(hora)
-            slot_key = f"{data_iso_slot or dia_nom}_{hora}"
-
             sessions_sim = slot.get('sessions_simultanees', [])
+            conflicte_nivell = conflicte_de_nivell(sessions_sim)
+            conflicte_global = conflicte_global or conflicte_nivell
 
-            # Detectar conflicte de nivell
-            items_per_nivell = {}
-            for sessio in sessions_sim:
-                item_id = sessio.get('item_id') or sessio.get('id') or f"{sessio.get('nom')}_{sessio.get('curs')}"
-                curs = sessio.get('curs', '')
-                if curs and item_id not in items_per_nivell:
-                    items_per_nivell[item_id] = curs
-
-            nivells_items = list(items_per_nivell.values())
-            conflicte_nivell = len(nivells_items) != len(set(nivells_items))
-            if conflicte_nivell:
-                conflicte_global = True
-
-
-            # Calcular cost del slot i avisos (recalculant anàlisi per evitar duplicats)
-            cost_slot = 0
-            avisos = []
-            seen_subs = set()
-            seen_abans = set()
-            seen_despres = set()
-            seen_no_treballa = set()
-
+            franja = IncidenciesFranja()
             item_avisos = {}
-
             for idx, sessio in enumerate(sessions_sim):
                 altres = [s for i, s in enumerate(sessions_sim) if i != idx]
                 nivell_sessio = detectar_nivell_sessio(sessio, nivells_actius or [])
                 sessio_nom_d = sessio.get('nom') if isinstance(sessio, dict) else None
                 durada_sessio = get_durada_per_sessio_key(
-                    sessio_nom_d, nivell_sessio, durades_per_sessio_recalc, alliberaments_cfg, durada_titular
+                    sessio_nom_d, nivell_sessio, cfg.durades_per_sessio, cfg.alliberaments, cfg.durada_titular
                 )
                 durada_exam = get_durada_per_sessio_key(
-                    sessio_nom_d, nivell_sessio, durades_examen_per_sessio_recalc, alliberaments_cfg, durada_titular
+                    sessio_nom_d, nivell_sessio, cfg.durades_examen_per_sessio, cfg.alliberaments, cfg.durada_titular
                 )
                 durada_exam = max(durada_exam, durada_sessio)
                 if hora_norm in totes_hores:
@@ -1569,144 +1262,30 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
                     sessions_al_slot=altres,
                     hores_override=hores_exam,
                     hores_supervisio=hores_ocupades,
-                    alliberaments_per_nivell=alliberaments_cfg,
+                    alliberaments_per_nivell=cfg.alliberaments,
                     data_iso=data_iso_slot,
                 )
-                # Actualitzar analisi per a validació posterior
+                # El validador posterior fa servir l'anàlisi nova
                 if isinstance(sessio, dict):
                     sessio['analisi'] = analisi
 
-                item_keys = []
-                if isinstance(sessio, dict):
-                    if sessio.get('_uid'):
-                        item_keys.append(sessio['_uid'])
-                    if sessio.get('item_id'):
-                        item_keys.append(sessio['item_id'])
-                if item_keys:
-                    avisos_item = []
-                    seen_item = set()
+                incidencies_sessio = list(incidencies(analisi, hora, dia_nom, restriccions))
+                for incidencia in incidencies_sessio:
+                    franja.afegeix(*incidencia)
+                # Els avisos de cada examen, per a l'editor (per _uid i per item_id)
+                if isinstance(sessio, dict) and incidencies_sessio:
+                    avisos_sessio = [avis for _, _, _, avis, _ in incidencies_sessio]
+                    for clau in (sessio.get('_uid'), sessio.get('item_id')):
+                        if clau:
+                            item_avisos[clau] = avisos_sessio
 
-                    for item in analisi.get('substitucions', []):
-                        prof = item.get('professor')
-                        if not prof:
-                            continue
-                        hora_item = item.get('hora', hora)
-                        key = ('sub', prof, hora_item)
-                        if key in seen_item:
-                            continue
-                        seen_item.add(key)
-                        act = item.get('activitat', {})
-                        assig = act.get('assignatura', 'Assignatura')
-                        grp = act.get('grup', 'un grup')
-                        msg = f"🚨 {prof} → ha de ser SUBSTITUÏT a {assig} amb {grp} a les {hora_item} el {dia_nom}"
-                        avisos_item.append(_log_with_score(msg, pes_professor(restriccions, prof, 'substitucio')))
-
-                    for item in analisi.get('abans_jornada', []):
-                        prof = item.get('professor')
-                        if not prof:
-                            continue
-                        hora_item = item.get('hora', hora)
-                        key = ('abans', prof, hora_item)
-                        if key in seen_item:
-                            continue
-                        seen_item.add(key)
-                        primera = item.get('primera_hora', '?')
-                        msg = f"🕐 {prof} → arriba abans a {hora_item} el {dia_nom} (primera hora: {primera})"
-                        avisos_item.append(_log_with_score(msg, pes_professor(restriccions, prof, 'abans_jornada')))
-
-                    for item in analisi.get('despres_jornada', []):
-                        prof = item.get('professor')
-                        if not prof:
-                            continue
-                        hora_item = item.get('hora', hora)
-                        key = ('despres', prof, hora_item)
-                        if key in seen_item:
-                            continue
-                        seen_item.add(key)
-                        ultima = item.get('ultima_hora', '?')
-                        msg = f"🕐 {prof} → queda més estona a {hora_item} el {dia_nom} (última hora: {ultima})"
-                        avisos_item.append(_log_with_score(msg, pes_professor(restriccions, prof, 'despres_jornada')))
-
-                    for item in analisi.get('no_treballa_dia', []):
-                        prof = item.get('professor')
-                        if not prof:
-                            continue
-                        hora_item = item.get('hora', hora)
-                        key = ('no', prof, hora_item)
-                        if key in seen_item:
-                            continue
-                        seen_item.add(key)
-                        msg = f"🚫 {prof} → no treballa aquest dia a les {hora_item} el {dia_nom}"
-                        avisos_item.append(_log_with_score(msg, pes_professor(restriccions, prof, 'no_treballa_dia')))
-
-                    if avisos_item:
-                        for k in item_keys:
-                            if k:
-                                item_avisos[k] = avisos_item
-
-                for item in analisi.get('substitucions', []):
-                    prof = item.get('professor')
-                    if not prof:
-                        continue
-                    hora_item = item.get('hora', hora)
-                    key = (prof, hora_item)
-                    if key in seen_subs:
-                        continue
-                    seen_subs.add(key)
-                    cost_slot += pes_professor(restriccions, prof, 'substitucio')
-                    act = item.get('activitat', {})
-                    assig = act.get('assignatura', 'Assignatura')
-                    grp = act.get('grup', 'un grup')
-                    msg = f"🚨 {prof} → ha de ser SUBSTITUÏT a {assig} amb {grp} a les {hora_item} el {dia_nom}"
-                    avisos.append(_log_with_score(msg, pes_professor(restriccions, prof, 'substitucio')))
-
-                for item in analisi.get('abans_jornada', []):
-                    prof = item.get('professor')
-                    if not prof:
-                        continue
-                    hora_item = item.get('hora', hora)
-                    key = (prof, hora_item)
-                    if key in seen_abans:
-                        continue
-                    seen_abans.add(key)
-                    cost_slot += pes_professor(restriccions, prof, 'abans_jornada')
-                    primera = item.get('primera_hora', '?')
-                    msg = f"🕐 {prof} → arriba abans a {hora_item} el {dia_nom} (primera hora: {primera})"
-                    avisos.append(_log_with_score(msg, pes_professor(restriccions, prof, 'abans_jornada')))
-
-                for item in analisi.get('despres_jornada', []):
-                    prof = item.get('professor')
-                    if not prof:
-                        continue
-                    hora_item = item.get('hora', hora)
-                    key = (prof, hora_item)
-                    if key in seen_despres:
-                        continue
-                    seen_despres.add(key)
-                    cost_slot += pes_professor(restriccions, prof, 'despres_jornada')
-                    ultima = item.get('ultima_hora', '?')
-                    msg = f"🕐 {prof} → queda més estona a {hora_item} el {dia_nom} (última hora: {ultima})"
-                    avisos.append(_log_with_score(msg, pes_professor(restriccions, prof, 'despres_jornada')))
-
-                for item in analisi.get('no_treballa_dia', []):
-                    prof = item.get('professor')
-                    if not prof:
-                        continue
-                    hora_item = item.get('hora', hora)
-                    key = (prof, hora_item)
-                    if key in seen_no_treballa:
-                        continue
-                    seen_no_treballa.add(key)
-                    cost_slot += pes_professor(restriccions, prof, 'no_treballa_dia')
-                    msg = f"🚫 {prof} → no treballa aquest dia a les {hora_item} el {dia_nom}"
-                    avisos.append(_log_with_score(msg, pes_professor(restriccions, prof, 'no_treballa_dia')))
-
+            avisos = franja.avisos
             if conflicte_nivell:
                 avisos.insert(0, "⚠️ CONFLICTE: Múltiples exàmens del mateix nivell!")
 
             slots_info.append({
-                "slot_key": slot_key,
-                "cost": cost_slot,
+                "slot_key": f"{data_iso_slot or dia_nom}_{hora}",
+                "cost": franja.cost,
                 "breakdown": {"sessions": len(sessions_sim)},
                 "conflicte_nivell": conflicte_nivell,
                 "avisos": avisos,
@@ -1716,39 +1295,12 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
     # Netejar logs antics per evitar que el validador ometi avisos (p. ex. LÍMIT DIES)
     if horari.get('metadata', {}).get('logs'):
         horari['metadata']['logs'] = []
-    validation_result = ValidadorHorari(horari, restriccions, no_subst).validar()
+    validation_result = ValidadorHorari(horari, restriccions, cfg.no_substituir).validar()
 
     breakdown_details = {}
-    restr_limit = restriccions.get('restriccions_dures', {}).get('professors_limit_dies_especifics', {})
-    restr_limit = {k: v for k, v in restr_limit.items() if not k.startswith('_')}
-    if restr_limit:
-        sessions_per_dia = _build_sessions_per_dia(horari)
-        base_cost = restriccions.get('pesos_optimitzacio', {}).get('restriccio_dura', 10000)
-        hard_cost = restriccions.get('pesos_optimitzacio', {}).get('restriccio_dura_violada', 20000)
-        detalls = []
-        for professor, config_prof in restr_limit.items():
-            assignatures_restringides = config_prof.get('assignatures', [])
-            dies_restringits = config_prof.get('dies_restringits', [])
-            max_examens = int(config_prof.get('max_examens', 999))
-            _v = config_prof.get('pes_penalitzacio')
-            pes = int(_v) if _v is not None else 50
-
-            count_examens = 0
-            for dia_check in dies_restringits:
-                for s in sessions_per_dia.get(dia_check, []):
-                    profs_s = {e.get('titular') for e in s.get('examens', []) if e.get('titular')}
-                    if professor in profs_s and sessio_in_group(s, assignatures_restringides):
-                        count_examens += 1
-
-            if count_examens > max_examens:
-                excedent = count_examens - max_examens
-                if _pes_obligatori(pes):
-                    _ = hard_cost * excedent
-                else:
-                    _ = _percent_penalty(base_cost, pes) * excedent
-                detalls.append(f"{professor} +{excedent}")
-        if detalls:
-            breakdown_details["limit_dies_professor"] = detalls
+    excessos = excessos_limit_dies(horari, restriccions)
+    if excessos:
+        breakdown_details["limit_dies_professor"] = excessos
 
     # L'horari editat a mà passa a ser l'últim, amb el cost i les incidències nous
     horari_desat = dict(horari, metadata={

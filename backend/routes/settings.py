@@ -20,6 +20,7 @@ from repositories import ConfiguracioRepository, XMLVersionRepository, parse_dat
 from models import XMLVersion
 
 import logging
+from serveis.dia import Dia
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/settings", tags=["Configuració General"])
@@ -48,11 +49,11 @@ async def get_settings(db: Session = Depends(get_db)):
     config_db = ConfiguracioRepository.get_all_as_dict(db)
     # Buit ('') = sense límit ("Tots"). None (mai desat) → també buit.
     ultim_professor_subs = config_db.get('ultim_professor_subs') or ""
-    from helpers import get_xml_path_for_date, _get_institucio_actual
+    from helpers import _get_institucio_actual
     institucio = _get_institucio_actual()
     idioma_institucio = config_db.get("idioma") or config.global_data.get("idioma", "ca")
     display_name = config_db.get("institucio_display_name") or institucio
-    xml_path = get_xml_path_for_date(institucio)
+    xml_path = Dia.avui(institucio).xml_path   # la versió vigent avui
     xml_missing = not xml_path or not os.path.exists(xml_path)
 
     return {

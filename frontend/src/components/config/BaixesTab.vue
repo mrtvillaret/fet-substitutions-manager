@@ -122,6 +122,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
+import { ambDataTreball } from '../../dataTreball'
+import { dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
 import { avisaSubstitutsTrets, dataCurta } from '../../substitutsTrets'
 import Dialog from 'primevue/dialog'
@@ -129,6 +131,7 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Calendar from 'primevue/calendar'
 import Button from 'primevue/button'
+
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
 
@@ -162,17 +165,11 @@ const stringToDate = (dateStr) => {
   return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
 }
 
-const dateToString = (dateObj) => {
-  if (!dateObj) return null
-  const year = dateObj.getFullYear()
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0')
-  const day = String(dateObj.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+const dateToString = dataIso
 
 const carregarProfessorsAll = async () => {
   try {
-    const response = await axios.get('/api/horari/professors/all')
+    const response = await axios.get('/api/horari/professors/all', ambDataTreball())
     professorsAll.value = response.data.professors
   } catch (error) {
     console.error('Error carregant professors:', error)

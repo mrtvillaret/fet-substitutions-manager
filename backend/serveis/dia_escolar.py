@@ -54,7 +54,7 @@ class DiaEscolar:
         if not self._horari_carregat:
             self._horari_carregat = True
             try:
-                self._horari = get_horari(self.institucio, self.data)
+                self._horari = get_horari(self.institucio, data_iso=self.data)
             except Exception:
                 log.warning("No s'ha pogut carregar l'horari del dia", exc_info=True)
         return self._horari

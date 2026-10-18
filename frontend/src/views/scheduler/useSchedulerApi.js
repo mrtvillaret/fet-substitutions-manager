@@ -98,7 +98,22 @@ export const useSchedulerApi = ({
   flushPendingConfigSave,
   desarTotAlBackend,
   formatLocalDate,
+  horariPlanificacio,
 }) => {
+  // Professors, grups i hores de l'horari del planificador: el vigent a la
+  // primera data planificada (sense dates, avui)
+  const carregarDadesHorari = async (dataReferencia) => {
+    const params = { params: { data: dataReferencia } }
+    const [pr, gr, hr] = await Promise.all([
+      axios.get('/api/professors', params),
+      axios.get('/api/horari/grups/detectar', params),
+      axios.get('/api/hores', params),
+    ])
+    llistaProfessors.value = pr.data.professors || []
+    llistaGrups.value = (gr.data.grups_raw || []).map((g) => ({ nom: g, codi: g }))
+    llistaHoresDisponibles.value = [...new Set(hr.data?.hores || [])]
+  }
+
   const carregarSessions = async () => {
     if (!genConfig.value.nivells_actius.length) return
     try {
@@ -113,15 +128,14 @@ export const useSchedulerApi = ({
   const carregarDades = async () => {
     loading.value = true
     try {
-      const [st, cfg, dt, re, act, pr, gr, hr, mt, cp] = await Promise.all([
+      const { data: horari } = await axios.get('/api/scheduler/horari')
+      horariPlanificacio.value = horari
+      const [st, cfg, dt, re, act, mt, cp] = await Promise.all([
         axios.get('/api/scheduler/status'),
         axios.get('/api/scheduler/config'),
         axios.get('/api/scheduler/dates'),
         axios.get('/api/scheduler/restriccions'),
         axios.get('/api/scheduler/assignatures-actives'),
-        axios.get('/api/professors'),
-        axios.get('/api/horari/grups/detectar'),
-        axios.get('/api/hores'),
         axios.get('/api/scheduler/motors').catch(() => ({ data: { motors: [] } })),
         axios.get('/api/scheduler/costos-professors').catch(() => ({ data: { globals: {}, individuals: {} } })),
       ])
@@ -134,7 +148,7 @@ export const useSchedulerApi = ({
         aplicarDefaultsMotor(genConfig.value.motor)
       }
 
-      llistaHoresDisponibles.value = [...new Set(hr.data?.hores || [])]
+      await carregarDadesHorari(horari.data_referencia)
       genConfigHoresArray.value = config.value?.hores_examen || []
       selectedDates.value = (dt.data?.selected_dates || []).map((date) => new Date(`${date}T00:00:00`))
 
@@ -150,8 +164,6 @@ export const useSchedulerApi = ({
       sincronitzarDatesGlobals()
 
       llistaAssignatures.value = act.data || []
-      llistaProfessors.value = pr.data.professors || []
-      llistaGrups.value = (gr.data.grups_raw || []).map((g) => ({ nom: g, codi: g }))
       await carregarSessions()
 
       const restriccions = re.data?.restriccions || {}
@@ -292,6 +304,7 @@ export const useSchedulerApi = ({
 
   return {
     carregarDades,
+    carregarDadesHorari,
     carregarSessions,
     onNivellsChange,
     generarHorari,

@@ -1,10 +1,7 @@
-export const formatDateLocal = (date) => {
-  if (!(date instanceof Date) || isNaN(date.getTime())) return null
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+import { dataIso } from '../../dates'
+
+export const formatDateLocal = (date) =>
+  (date instanceof Date && !isNaN(date.getTime()) ? dataIso(date) : null)
 
 export const toDomId = (value) => String(value || '')
   .normalize('NFD')
@@ -28,13 +25,7 @@ export const parseIsoLocal = (iso) => {
   return isNaN(date.getTime()) ? null : date
 }
 
-export const formatLocalDate = (date) => {
-  if (!(date instanceof Date)) return date
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+export const formatLocalDate = (date) => (date instanceof Date ? dataIso(date) : date)
 
 export const getWeekNumber = (date) => {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))

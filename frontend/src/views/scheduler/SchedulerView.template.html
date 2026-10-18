@@ -25,6 +25,15 @@
         {{ t('scheduler.view.previousCourse', { cursos: cursAnterior.cursos.join(', '), actual: cursAnterior.curs_actual }) }}
       </Message>
 
+      <!-- Quin horari (XML) es fa servir: el de la primera data planificada -->
+      <Message v-if="(pasActiu === 0 || pasActiu === 4) && horariPlanificacio?.versio_des_de && !horariPlanificacio.sense_dates"
+               severity="info" :closable="false" class="mb-3">
+        {{ t('scheduler.view.scheduleUsed', { data: dataAmbAny(horariPlanificacio.data_referencia), desDe: dataAmbAny(horariPlanificacio.versio_des_de) }) }}
+      </Message>
+      <Message v-if="(pasActiu === 0 || pasActiu === 4) && horariPlanificacio?.canvi_horari" severity="warn" :closable="false" class="mb-3">
+        {{ t('scheduler.view.scheduleChanges', { canvi: dataAmbAny(horariPlanificacio.canvi_horari), data: dataAmbAny(horariPlanificacio.data_referencia) }) }}
+      </Message>
+
       <!-- Horari recuperat (l'últim generat o editat) -->
       <Message v-if="pasActiu === 4 && result && result === resultatRecuperat" severity="info" :closable="false" class="mb-3">
         {{ t('scheduler.view.lastResult', { data: ultimResultatDesat }) }}

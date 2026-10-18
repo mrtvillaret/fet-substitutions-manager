@@ -22,6 +22,7 @@ from defusedxml import DefusedXmlException
 
 from auth_utils import require_admin
 from database import get_data_dir_for_institucio, get_data_db_session
+from routes.parametres import DataISO, data_iso
 
 import logging
 log = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ LOGO_MAX_PIXELS_ORIGINAL = 25_000_000
 @router.post("/upload-xml")
 async def upload_xml(
     file: UploadFile = File(...),
-    data_inici: Optional[str] = Form(None),
+    data_inici: Optional[DataISO] = Form(None),
     current_user=Depends(require_admin)
 ):
     """
@@ -60,10 +61,7 @@ async def upload_xml(
 
         # Data de vigència de la nova versió
         if data_inici:
-            try:
-                vigent_des_de = date.fromisoformat(data_inici)
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
+            vigent_des_de = data_iso(data_inici)
         else:
             vigent_des_de = date.today()
 

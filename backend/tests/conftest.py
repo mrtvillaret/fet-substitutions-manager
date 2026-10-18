@@ -4,7 +4,9 @@ sys.path i prepara variables d'entorn mínimes (SECRET_KEY, DATA_DIR cap a
 un directori temporal) perquè els mòduls de l'app es puguin importar sense
 dependre de la configuració real de desenvolupament ni tocar cap dada real.
 """
+import atexit
 import os
+import shutil
 import sys
 import tempfile
 import uuid
@@ -17,6 +19,9 @@ if str(BACKEND_DIR) not in sys.path:
 os.environ.setdefault("SECRET_KEY", "test-secret-key-nomes-per-als-tests")
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="gestor_tests_data_")
+# S'esborra en acabar: cada execució hi deixa centenars de centres de prova i,
+# a /tmp (sovint en memòria), s'acabava omplint
+atexit.register(shutil.rmtree, os.environ["DATA_DIR"], ignore_errors=True)
 # Fixat explícitament: main.py fa load_dotenv(), que no sobreescriu variables
 # ja definides. Així el .env de desenvolupament no pot redirigir els tests a
 # l'auth.db de veritat.

@@ -156,13 +156,6 @@ def analitzar_disponibilitat_sessio(
                     p = ex.get('titular') if isinstance(ex, dict) else getattr(ex, 'titular', None)
                     if p: profs_altres.add(p)
 
-    # DEBUG: mostrar paràmetres d'entrada
-    sessio_nom = sessio.get('nom') if isinstance(sessio, dict) else getattr(sessio, 'nom', '?')
-    _debug = False  # Canviar a True per activar logs
-    if _debug:
-        print(f"[DEBUG avail] sessio={sessio_nom}, dia={dia_norm}, hora={hora}, hores_examen={hores_examen}")
-        print(f"[DEBUG avail] data_iso={data_iso}, alliberaments_per_nivell={'present' if alliberaments_per_nivell else 'NONE'}")
-
     # Analitzar cada professor de la sessió actual
     examens_actuals = sessio.get('examens', []) if isinstance(sessio, dict) else getattr(sessio, 'examens', [])
 
@@ -171,16 +164,11 @@ def analitzar_disponibilitat_sessio(
         if not prof:
             continue
 
-        if _debug:
-            print(f"[DEBUG avail]   prof={prof}, en_horaris={prof in horaris_professors}")
 
         if prof not in horaris_professors:
             analisi['lliures'].append({'professor': prof, 'examen': ex})
             continue
 
-        if _debug:
-            dies_prof = list(horaris_professors[prof].keys())
-            print(f"[DEBUG avail]   dies_prof={dies_prof}, dia_norm={dia_norm}, te_dia={dia_norm in horaris_professors[prof]}")
 
         if horaris_professors_norm:
             prof_dies_norm = horaris_professors_norm.get(prof, {})
@@ -236,8 +224,6 @@ def analitzar_disponibilitat_sessio(
         for h in hores_examen:
             es_supervisio = h in hores_supervisio_set
             act = horari_dia_norm.get(h)
-            if _debug:
-                print(f"[DEBUG avail]     hora={h}, act={act}, es_supervisio={es_supervisio}")
             if act:
                 grup = act.get('grup', '') or ''
                 assig = act.get('assignatura', '') or ''
@@ -259,23 +245,15 @@ def analitzar_disponibilitat_sessio(
                 nivell_del_grup = _detectar_nivell_del_grup(grup)
                 if nivell_del_grup:
                     if _nivell_alliberat_a_slot(nivell_del_grup, data_iso, h):
-                        if _debug:
-                            print(f"[DEBUG avail]     -> ALLIBERAT (grup={grup}, nivell={nivell_del_grup} alliberat a {data_iso} {h})")
                         te_alliberat = True
                         continue
-                    if _debug:
-                        print(f"[DEBUG avail]     -> NO ALLIBERAT (grup={grup}, nivell={nivell_del_grup} NO alliberat a {data_iso} {h})")
 
                 # Cas 2: Altres activitats (guàrdies, CD, etc.) o assignatures No Substituir
                 if not grup.strip() or normalitzar_text(assig) in no_substituir_norm:
-                    if _debug:
-                        print(f"[DEBUG avail]     -> ALTRES (grup buit o no_substituir)")
                     analisi['altres'].append({'professor': prof, 'examen': ex, 'activitat': act, 'hora': h})
                     continue
 
                 # Cas 3: Substitució real
-                if _debug:
-                    print(f"[DEBUG avail]     -> SUBSTITUCIO (grup={grup}, assig={assig})")
                 te_substitucio = True
                 detall = {'professor': prof, 'examen': ex, 'activitat': act, 'hora': h}
 
