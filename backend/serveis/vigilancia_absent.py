@@ -20,29 +20,31 @@ from repositories import SubstitucioRepository, VigilanciaRepository
 
 def es_vigilancia_absent(sub: dict) -> bool:
     """Retorna True si el registre és una vigilancia absent (Tipus A)."""
-    return (sub.get('tipus_absencia') or '').upper() == 'VIGILANCIA_ABSENT'
+    return (sub.get("tipus_absencia") or "").upper() == "VIGILANCIA_ABSENT"
 
 
-def crear_vigilancia_absent(db, data: str, professor: str,
-                             hora: str, grup: str, aula: str) -> None:
+def crear_vigilancia_absent(db, data: str, professor: str, hora: str, grup: str, aula: str) -> None:
     """Crea un registre de vigilancia absent (Tipus A) a la BD."""
-    SubstitucioRepository.create(db, {
-        'data': data,
-        'hora': hora,
-        'professor_absent': professor,
-        'assignatura': 'VIGILÀNCIA',
-        'grup': grup,
-        'aula': aula,
-        'substitut': '',
-        'tipus_substitut': '',
-        'tipus_absencia': 'VIGILANCIA_ABSENT',
-        'comentaris': '',
-    })
+    SubstitucioRepository.create(
+        db,
+        {
+            "data": data,
+            "hora": hora,
+            "professor_absent": professor,
+            "assignatura": "VIGILÀNCIA",
+            "grup": grup,
+            "aula": aula,
+            "substitut": "",
+            "tipus_substitut": "",
+            "tipus_absencia": "VIGILANCIA_ABSENT",
+            "comentaris": "",
+        },
+    )
 
 
-def sincronitzar_vigilancies_absents(db, data: str, professor: str,
-                                      substitucions_list: list,
-                                      hores_actives: set) -> int:
+def sincronitzar_vigilancies_absents(
+    db, data: str, professor: str, substitucions_list: list, hores_actives: set
+) -> int:
     """
     Sincronitza els registres Tipus A per a un professor i data:
     - Crea els que falten (professor és vigilant a hora activa i no existia Tipus A)
@@ -52,9 +54,7 @@ def sincronitzar_vigilancies_absents(db, data: str, professor: str,
     """
     # Detectar Tipus A existents per aquest professor
     tipus_a_existents = {
-        s.get('hora')
-        for s in substitucions_list
-        if s.get('professor_absent') == professor and es_vigilancia_absent(s)
+        s.get("hora") for s in substitucions_list if s.get("professor_absent") == professor and es_vigilancia_absent(s)
     }
 
     # Crear els que falten
@@ -62,29 +62,30 @@ def sincronitzar_vigilancies_absents(db, data: str, professor: str,
     creats = 0
     for nivell_vigs in vigilancies_dia.values():
         for vig in nivell_vigs:
-            if (vig.get('vigilant') == professor
-                    and vig.get('hora') in hores_actives
-                    and vig.get('hora') not in tipus_a_existents):
-                crear_vigilancia_absent(
-                    db, data, professor,
-                    vig.get('hora'), vig.get('grups', ''), vig.get('aula', '')
-                )
-                tipus_a_existents.add(vig.get('hora'))
+            if (
+                vig.get("vigilant") == professor
+                and vig.get("hora") in hores_actives
+                and vig.get("hora") not in tipus_a_existents
+            ):
+                crear_vigilancia_absent(db, data, professor, vig.get("hora"), vig.get("grups", ""), vig.get("aula", ""))
+                tipus_a_existents.add(vig.get("hora"))
                 creats += 1
 
     # Eliminar els obsolets
     for sub in substitucions_list:
-        if (sub.get('professor_absent') == professor
-                and es_vigilancia_absent(sub)
-                and sub.get('hora') not in hores_actives):
-            SubstitucioRepository.delete(db, int(sub['id']))
+        if (
+            sub.get("professor_absent") == professor
+            and es_vigilancia_absent(sub)
+            and sub.get("hora") not in hores_actives
+        ):
+            SubstitucioRepository.delete(db, int(sub["id"]))
 
     return creats
 
 
-def assignar_substituts_pendents(db, data: str, dia_name: str, alliberats,
-                                  absents: dict, professors_ocupats: dict,
-                                  grups_sense_classe: dict = None) -> int:
+def assignar_substituts_pendents(
+    db, data: str, dia_name: str, alliberats, absents: dict, professors_ocupats: dict, grups_sense_classe: dict = None
+) -> int:
     """
     Assigna substituts als registres Tipus A pendents (vigilant absent → cobrir slot).
     Usa la mateixa lògica de prioritats (ORDRE_PRIORITATS) que les substitucions normals.
@@ -94,23 +95,21 @@ def assignar_substituts_pendents(db, data: str, dia_name: str, alliberats,
     all_subs = SubstitucioRepository.get_by_date(db, data)
     absents_set = set(absents.keys())
 
-    pendents = [s for s in all_subs
-                if es_vigilancia_absent(s)
-                and not s.get('substitut', '').strip()]
+    pendents = [s for s in all_subs if es_vigilancia_absent(s) and not s.get("substitut", "").strip()]
     if not pendents:
         return 0
 
     # Mapejar substituts ja assignats per hora
     assignats_hora = defaultdict(set)
     for s in all_subs:
-        sub_nom = s.get('substitut', '')
+        sub_nom = s.get("substitut", "")
         if sub_nom:
-            assignats_hora[s.get('hora', '')].add(sub_nom)
+            assignats_hora[s.get("hora", "")].add(sub_nom)
 
     assignades = 0
     for pendent in pendents:
-        hora = pendent.get('hora', '')
-        prof_absent = pendent.get('professor_absent', '')
+        hora = pendent.get("hora", "")
+        prof_absent = pendent.get("professor_absent", "")
         vigilants_hora = professors_ocupats.get(hora, set())
 
         grups_hora = set(grups_sense_classe.get(hora, [])) if grups_sense_classe else set()
@@ -124,12 +123,10 @@ def assignar_substituts_pendents(db, data: str, dia_name: str, alliberats,
 
         # Agrupar candidats per categoria (igual que _escollir_millor_candidat_disponible)
         from collections import defaultdict as _dd
+
         candidats_per_cat = _dd(list)
         for p, tipus, detall in disponibles:
-            if (p != prof_absent
-                    and p not in absents_set
-                    and p not in assignats_hora[hora]
-                    and p not in vigilants_hora):
+            if p != prof_absent and p not in absents_set and p not in assignats_hora[hora] and p not in vigilants_hora:
                 candidats_per_cat[categoria_idx(tipus)].append((p, tipus, detall))
 
         # Escollir primer candidat de la categoria activa amb prioritat més alta
@@ -144,12 +141,19 @@ def assignar_substituts_pendents(db, data: str, dia_name: str, alliberats,
 
         if not best:
             continue
-        tipus_sub = (f"disponible ({best_tipus})" if best_tipus == best_detall and best_tipus != "alliberat"
-                     else f"{best_tipus} ({best_detall})")
-        SubstitucioRepository.update(db, int(pendent['id']), {
-            'substitut': best,
-            'tipus_substitut': tipus_sub,
-        })
+        tipus_sub = (
+            f"disponible ({best_tipus})"
+            if best_tipus == best_detall and best_tipus != "alliberat"
+            else f"{best_tipus} ({best_detall})"
+        )
+        SubstitucioRepository.update(
+            db,
+            int(pendent["id"]),
+            {
+                "substitut": best,
+                "tipus_substitut": tipus_sub,
+            },
+        )
         assignats_hora[hora].add(best)
         assignades += 1
 

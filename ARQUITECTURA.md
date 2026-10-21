@@ -53,8 +53,12 @@
 │                                                                  │
 │  main.py  ← punt d'entrada, registra tots els routers            │
 │                                                                  │
-│  CAPA DE ROUTES (/api/*)                                         │
-│  ├── auth.py             → login, cookie JWT                     │
+│  MÒDULS (estructura nova; vegeu «Estructura d'un mòdul»)         │
+│  ├── auth/               → entrar, sortir, perfil propi, cookie  │
+│  │                         JWT i Depends de l'usuari i del rol   │
+│  └── usuaris/            → gestió d'usuaris (admin i superadmin) │
+│                                                                  │
+│  CAPA DE ROUTES (/api/*) — estructura antiga, es va migrant      │
 │  ├── substitucions.py    → absències, substitucions, reassignar  │
 │  ├── vigilancies.py      → CRUD vigilàncies                      │
 │  ├── disponibles.py      → professors disponibles/forat          │
@@ -69,7 +73,6 @@
 │  ├── files.py            → upload XML horari                     │
 │  ├── cursos.py           → cursos acadèmics                      │
 │  ├── dades.py            → purga de dades antigues (RGPD)        │
-│  ├── users.py            → gestió usuaris                        │
 │  ├── settings.py         → configuració del centre               │
 │  ├── config_examens.py   → config assignatures/aules examens     │
 │  ├── parametres.py       → DataISO: validació de les dates       │
@@ -147,16 +150,17 @@
 │  ├── config/constants.py  ← PRIORITATS, NO_SUBST, baixes: vistes │
 │  │                           de les dades de cada centre         │
 │  ├── config/pdf.json      ← perfils visuals PDF                  │
-│  ├── auth_utils.py        ← decoradors autenticació              │
-│  ├── dependencies.py      ← Depends FastAPI: get_db, usuari i    │
-│  │                           el Dia (calendari / planificació /  │
-│  │                           avui)                               │
+│  ├── dependencies.py      ← Depends FastAPI: get_db (la BD de la │
+│  │                           institució de l'usuari) i el Dia    │
+│  │                           (calendari / planificació / avui)   │
 │  ├── helpers.py           ← utils generals                       │
 │  ├── i18n_setup.py        ← traduccions backend (PDF)            │
 │  ├── rate_limit.py        ← limitació de peticions               │
 │  ├── errors_servidor.py   ← errors no previstos: es registren    │
 │  │                           amb una referència; l'usuari només  │
 │  │                           rep la referència                   │
+│  ├── errors_domini.py     ← errors de les regles (NoTrobat,      │
+│  │                           NoPermes, NoValid, Conflicte)       │
 │  └── utils/                                                      │
 │        ├── hores.py / date_context.py                            │
 │        ├── grups_utils.py                                        │
@@ -185,6 +189,57 @@ Navegador → Caddy → Nginx (frontend) → Vue component
                   → FastAPI (backend) → route → core/lògica → SQLite
                                               → export/pdf → FileResponse
 ```
+
+## Estructura d'un mòdul del backend
+
+El backend es va reorganitzant per mòduls de domini. Cada mòdul és una carpeta
+a `backend/` amb aquests fitxers (només els que necessita):
+
+| Fitxer | Què hi va |
+|---|---|
+| `router.py` | Només HTTP: rutes, paràmetres, status, galetes i la crida al servei. Cap consulta ni regla. |
+| `schemas.py` | Models Pydantic d'entrada i de sortida; cada ruta declara el seu `response_model`. |
+| `services.py` | Les regles de negoci, sense res d'HTTP: reben la sessió i les dades, retornen objectes o llancen errors del domini. |
+| `repositories.py` | Totes les consultes a la BD del mòdul (cap `db.query` fora d'aquí). |
+| `domain.py` | Objectes del domini del mòdul, si en té (a `auth/`: `Rol` i `UsuariActual`, l'usuari immutable que reben les rutes). |
+| `dependencies.py` | Els `Depends` propis del mòdul, si en té. |
+| `security.py` | Només a `auth/`: contrasenyes, testimonis JWT i galeta. |
+
+Noms: els fitxers que fan un paper estàndard, en anglès; el domini (funcions,
+classes i regles), en català: `autentica`, `canvia_contrasenya`,
+`comprova_no_protegit`.
+
+**Errors.** Un servei que troba una regla incomplerta llança un error de
+`errors_domini.py`, segons la mena: `NoTrobat` (404), `NoPermes` (403),
+`NoValid` (400) o `Conflicte` (409). Tots són `ErrorDeDomini`, que no es
+llança directament i porta el missatge per a l'usuari, un `codi` obligatori i
+uns `params` opcionals per quan el frontend tradueixi els missatges.
+`errors_domini.py` no sap res d'HTTP: la taula categoria → status
+(`STATUS_PER_CATEGORIA`) i l'únic gestor són a `errors_servidor.py`
+(`registra_gestors_errors`), que respon com sempre, `{"detail": "<missatge>"}`;
+el codi i els paràmetres encara no hi surten. Els errors que són pròpiament d'HTTP (els 401 de sessió i de
+credencials) continuen sent `HTTPException` a `dependencies.py` i al router.
+
+```python
+# services.py
+def canvia_contrasenya(db, current_user, actual, nova) -> User:
+    user = _usuari_propi(db, current_user)          # NoTrobat / NoPermes
+    if not verify_password(actual, user.password_hash):
+        raise NoValid("Contrasenya actual incorrecta", codi="contrasenya_actual_incorrecta")
+    ...
+
+# router.py
+user = services.canvia_contrasenya(db, current_user, payload.current_password, payload.new_password)
+set_auth_cookie(response, testimoni_de_sessio(user, current_user.institucio))
+```
+
+**Estructura antiga.** `routes/` (rutes amb consultes i lògica barrejades),
+`serveis/` i `core/` són l'organització anterior. Es buiden mòdul a mòdul cap a
+l'estructura nova, amb un arnès de caracterització que comprova que les
+respostes no canvien.
+
+Mòduls migrats: `auth/` (entrar, sessió, perfil propi) i `usuaris/` (gestió
+d'usuaris de l'admin i el superadmin).
 
 ## Desplegament
 
@@ -217,6 +272,12 @@ Les decisions de negoci viuen en un sol lloc i les fan servir totes les parts
   tot» i «Reassigna» (validació del PDF). Els canvis del dia (grups i professors
   alliberats, estats per període, absències, baixes) no n'assignen cap: treuen
   els que ja no poden ser-ho i la fila queda pendent, amb un avís.
+- **Usuaris** — `usuaris/services.py`: cap operació (desactivar, esborrar,
+  treure el rol, canviar de centre) pot deixar un centre sense cap admin
+  actiu, i ningú no es pot desactivar ni esborrar a si mateix. Els usuaris
+  inicials només es creen en una instal·lació nova (`auth/services.py:
+  crea_usuaris_inicials`); el superadmin es recupera amb
+  `ADMIN_PASSWORD_RECUPERACIO`.
 - **Baixes** — un professor de baixa ni substitueix ni és substituït. En desar
   la baixa, d'avui endavant, se li esborren les absències i se'l treu de
   vigilant i de substitut. Els dies passats no es toquen.

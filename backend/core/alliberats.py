@@ -1,6 +1,7 @@
 """
 Gestió de professors alliberats millorada amb estadístiques
 """
+
 import logging
 from datetime import date
 from typing import List, Set, Tuple
@@ -10,6 +11,7 @@ log = logging.getLogger(__name__)
 try:
     from i18n_setup import translate as _
 except ImportError:
+
     def _(text):
         return text
 
@@ -54,23 +56,24 @@ def es_clau_ocupat(valor) -> bool:
 
 def ocupats_de(valors) -> list:
     """Els professors que aquell dia no estan alliberats (encara que per defecte ho estiguin)."""
-    return [v[len(PREFIX_OCUPAT):] for v in (valors or []) if es_clau_ocupat(v)]
+    return [v[len(PREFIX_OCUPAT) :] for v in (valors or []) if es_clau_ocupat(v)]
 
 
 def nomes_grups(valors) -> list:
     """Els grups sense classe d'una hora, sense els professors ni les activitats alliberats."""
-    return [v for v in (valors or [])
-            if not es_clau_professor(v) and not es_clau_activitat(v) and not es_clau_ocupat(v)]
+    return [
+        v for v in (valors or []) if not es_clau_professor(v) and not es_clau_activitat(v) and not es_clau_ocupat(v)
+    ]
 
 
 def activitats_de(valors) -> list:
     """Les activitats alliberades d'una hora."""
-    return [v[len(PREFIX_ACTIVITAT):] for v in (valors or []) if es_clau_activitat(v)]
+    return [v[len(PREFIX_ACTIVITAT) :] for v in (valors or []) if es_clau_activitat(v)]
 
 
 def professors_de(valors) -> list:
     """Els professors alliberats d'una hora."""
-    return [v[len(PREFIX_PROFESSOR):] for v in (valors or []) if es_clau_professor(v)]
+    return [v[len(PREFIX_PROFESSOR) :] for v in (valors or []) if es_clau_professor(v)]
 
 
 def sense_classe(professor: str, grup: str, grups_hora) -> bool:
@@ -92,11 +95,10 @@ class GestorAlliberats:
         self.horari = gestor_horari
         self.professors_ocupats_examens = {}  # {hora: set(professors)}
         self.data_actual = None  # Data per filtrar baixes
-    
+
     def set_data_actual(self, data: date):
         """Estableix la data actual per filtrar baixes"""
         self.data_actual = data
-
 
     def _esta_de_baixa(self, professor: str) -> bool:
         """
@@ -109,13 +111,14 @@ class GestorAlliberats:
         try:
             from core.baixes import gestor_baixes
             from helpers import _get_institucio_actual
+
             instit = _get_institucio_actual()
 
             return gestor_baixes.esta_de_baixa(professor, self.data_actual, instit)
         except Exception as e:
             log.warning(_("⚠️ Error en comprovar baixa de {professor}: {e}").format(professor=professor, e=e))
             return False
-    
+
     def get_tots_disponibles(self, dia: str, hora: str, grups_sense_classe: Set[str]) -> List[Tuple[str, str, str]]:
         """
         Retorna tots els professors disponibles per substitucions
@@ -159,12 +162,11 @@ class GestorAlliberats:
                 disponibles.append((prof, tipus, detall))
 
         return disponibles
-    
-    
+
     def _detectar_tipus_activitat(self, assignatura: str) -> str:
         """Retorna l'assignatura tal com és, sense mapeig"""
         return assignatura.strip()
-    
+
     def get_alliberats(self, dia: str, hora: str, grups_sense_classe: Set[str]) -> List[Tuple[str, str, str]]:
         """
         Retorna professors alliberats per grups sense classe
@@ -192,7 +194,7 @@ class GestorAlliberats:
                 alliberats.append((professor, "alliberat", detall))
 
         return alliberats
-    
+
     def get_disponibles_forat(self, dia: str, hora: str) -> List[Tuple[str, str, str]]:
         """
         Retorna professors amb forat/guàrdia amb el tipus correcte
@@ -212,11 +214,9 @@ class GestorAlliberats:
             es_prioritat_sense_grup = assignatura in PRIORITATS and not grup
 
             if es_prioritat_sense_grup:
-
                 # Detecta el tipus real segons l'assignatura
                 tipus_real = self._detectar_tipus_activitat(assignatura)
 
                 disponibles.append((professor, tipus_real, assignatura))
 
         return disponibles
-    

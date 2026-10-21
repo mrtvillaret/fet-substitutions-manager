@@ -7,6 +7,7 @@ restriccions que surten dels alliberaments i el motor ja carregat.
         gen, metode = pla.motor("v3")
         ...
 """
+
 import json
 import os
 import tempfile
@@ -31,13 +32,13 @@ from serveis.dia import Dia
 @dataclass
 class Planificacio:
     cfg: ConfigPlanificador
-    restriccions: dict               # les de la configuració + les derivades dels alliberaments
+    restriccions: dict  # les de la configuració + les derivades dels alliberaments
     xml_path: str
-    dies: list                       # dies de la setmana a planificar («Dilluns», ...)
+    dies: list  # dies de la setmana a planificar («Dilluns», ...)
     nivells: list
-    dates: list                      # dates triades (AAAA-MM-DD)
+    dates: list  # dates triades (AAAA-MM-DD)
     dia_a_data_iso: dict
-    hores_examen: list               # hores on pot començar un examen (marques «i»)
+    hores_examen: list  # hores on pot començar un examen (marques «i»)
     hores_per_nivell: dict
     _fitxers: list = field(default_factory=list)
 
@@ -45,8 +46,11 @@ class Planificacio:
         """El motor `nom` amb les dades i l'horari dels professors carregats:
         (generador, nom del mètode que genera)."""
         from scheduler_engine.factory import crear_motor
+
         gen, metode = crear_motor(
-            nom, self._fitxer(self.cfg.config), self.xml_path,
+            nom,
+            self._fitxer(self.cfg.config),
+            self.xml_path,
             restriccions_path=self._fitxer(self.restriccions),
             ultim_professor=self.cfg.ultim_professor,
             nivells_actius=self.nivells,
@@ -94,14 +98,23 @@ def prepara_planificacio(payload, institucio: str, dates_de_la_peticio: bool = T
     dies = payload.dies_utilitzar or _dies_entre_dates(payload.data_inici, payload.data_final or payload.data_inici)
     nivells = cfg.nivells_actius(payload.nivells_actius)
     dates = cfg.dates(payload.selected_dates if dates_de_la_peticio else None, nivells)
-    dia_a_data_iso = construir_mapa_dia_data_iso(dies_utilitzar=dies, selected_dates=dates,
-                                                 data_inici_iso=payload.data_inici)
+    dia_a_data_iso = construir_mapa_dia_data_iso(
+        dies_utilitzar=dies, selected_dates=dates, data_inici_iso=payload.data_inici
+    )
 
     # Restriccions derivades de les marques del calendari (on pot començar cada examen)
     restriccions = cfg.restriccions
     hores_xml = _hores_lectives_des_de_xml(xml_path, fallback=hores_examen)
     aplica_restriccions_derivades(restriccions, cfg.alliberaments, nivells, dies, dia_a_data_iso, hores_xml)
 
-    return Planificacio(cfg=cfg, restriccions=restriccions, xml_path=xml_path, dies=dies, nivells=nivells,
-                        dates=dates, dia_a_data_iso=dia_a_data_iso, hores_examen=hores_examen,
-                        hores_per_nivell=hores_per_nivell)
+    return Planificacio(
+        cfg=cfg,
+        restriccions=restriccions,
+        xml_path=xml_path,
+        dies=dies,
+        nivells=nivells,
+        dates=dates,
+        dia_a_data_iso=dia_a_data_iso,
+        hores_examen=hores_examen,
+        hores_per_nivell=hores_per_nivell,
+    )

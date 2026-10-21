@@ -22,14 +22,21 @@ from scheduler_engine.defaults import (
 class GeneradorSessionsExamensBase(ABC):
     """Classe base abstracta amb funcionalitat compartida pels motors."""
 
-    def __init__(self, config_examens_path: str, horari_xml_path: str,
-                 restriccions_path: str = None, ultim_professor: str = "",
-                 nivells_actius: List[str] = None, hores_examen: List[str] = None,
-                 hores_per_nivell: Dict[str, List[str]] = None,
-                 durada_titular: int = 1, no_substituir: set = None,
-                 alliberaments_per_nivell: Dict = None,
-                 durades_per_sessio: Dict[str, int] = None,
-                 durades_examen_per_sessio: Dict[str, int] = None):
+    def __init__(
+        self,
+        config_examens_path: str,
+        horari_xml_path: str,
+        restriccions_path: str = None,
+        ultim_professor: str = "",
+        nivells_actius: List[str] = None,
+        hores_examen: List[str] = None,
+        hores_per_nivell: Dict[str, List[str]] = None,
+        durada_titular: int = 1,
+        no_substituir: set = None,
+        alliberaments_per_nivell: Dict = None,
+        durades_per_sessio: Dict[str, int] = None,
+        durades_examen_per_sessio: Dict[str, int] = None,
+    ):
         self.config_path = config_examens_path
         self.horari_xml_path = horari_xml_path
         self.restriccions_path = restriccions_path
@@ -53,20 +60,19 @@ class GeneradorSessionsExamensBase(ABC):
 
         # Estructures compartides
         self.sessions_per_nivell = {nivell: [] for nivell in self.nivells_actius}
-        self.sessions_per_id = {} 
+        self.sessions_per_id = {}
 
     @abstractmethod
     def generar_horari_optimitzat(self, **kwargs) -> Dict:
         pass
 
-
     def _carregar_config(self):
-        with open(self.config_path, 'r', encoding='utf-8') as f:
+        with open(self.config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
 
     def _carregar_restriccions_raw(self) -> dict:
         if self.restriccions_path and os.path.exists(self.restriccions_path):
-            with open(self.restriccions_path, 'r', encoding='utf-8') as f:
+            with open(self.restriccions_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         return dict(DEFAULT_RESTRICCIONS)
 
@@ -79,7 +85,7 @@ class GeneradorSessionsExamensBase(ABC):
                 dia_n = normalitzar_dia(dia_k)
                 norm_hores = {}
                 for h_k, act in hores.items():
-                    parts = str(h_k).split(':')
+                    parts = str(h_k).split(":")
                     try:
                         h_n = f"{int(parts[0]):02d}:{int(parts[1]):02d}"
                         norm_hores[h_n] = act
@@ -116,10 +122,11 @@ class GeneradorSessionsExamensBase(ABC):
         tree = ET.parse(self.horari_xml_path)
         root = tree.getroot()
         hores = []
-        for day in root.findall('.//Day'):
-            for hour in day.findall('Hour'):
-                h = hour.get('name')
-                if h and h not in hores: hores.append(h)
+        for day in root.findall(".//Day"):
+            for hour in day.findall("Hour"):
+                h = hour.get("name")
+                if h and h not in hores:
+                    hores.append(h)
         self.totes_hores = hores
         self.horaris_professors.update(horaris_professors(root, self.ultim_professor))
 
@@ -128,7 +135,8 @@ class GeneradorSessionsExamensBase(ABC):
 
     def get_durada_per_sessio_key(self, sessio_nom: str | None, nivell: str | None) -> int:
         return get_durada_per_sessio_key(
-            sessio_nom, nivell,
+            sessio_nom,
+            nivell,
             self.durades_per_sessio,
             self.alliberaments_per_nivell,
             self.durada_titular,
@@ -149,7 +157,9 @@ class GeneradorSessionsExamensBase(ABC):
         # Fallback: almenys tan gran com la durada de supervisió
         return self.get_durada_per_sessio_key(sessio_nom, nivell)
 
-    def _get_hores_ocupades(self, hora_inici: str, nivell: str | None = None, sessio_nom: str | None = None) -> List[str]:
+    def _get_hores_ocupades(
+        self, hora_inici: str, nivell: str | None = None, sessio_nom: str | None = None
+    ) -> List[str]:
         if hora_inici not in self.totes_hores:
             return [hora_inici]
         if sessio_nom:
@@ -163,28 +173,27 @@ class GeneradorSessionsExamensBase(ABC):
 
     def get_all_sessions(self) -> List[Dict]:
         res = []
-        for n in self.nivells_actius: res.extend(self.sessions_per_nivell.get(n, []))
+        for n in self.nivells_actius:
+            res.extend(self.sessions_per_nivell.get(n, []))
         return res
 
     def get_total_sessions_count(self) -> int:
         return len(self.get_all_sessions())
 
-
     def _get_mateix_slot_grups_amb_noms(self) -> List[dict]:
         """Extrau els grups amb els seus noms definits per l'usuari."""
         restriccions = self._carregar_restriccions_raw()
-        grups_raw = restriccions.get('restriccions_dures', {}).get('mateix_slot', [])
+        grups_raw = restriccions.get("restriccions_dures", {}).get("mateix_slot", [])
         grups = []
         for grup in grups_raw:
             if isinstance(grup, dict):
-                assignatures = grup.get('assignatures', [])
-                nom = grup.get('nom', '')
+                assignatures = grup.get("assignatures", [])
+                nom = grup.get("nom", "")
                 if isinstance(assignatures, list) and assignatures:
-                    grups.append({'nom': nom, 'assignatures': assignatures})
+                    grups.append({"nom": nom, "assignatures": assignatures})
             elif isinstance(grup, list) and grup:
-                grups.append({'nom': '', 'assignatures': grup})
+                grups.append({"nom": "", "assignatures": grup})
         return grups
-
 
     def _construir_items_mateix_slot(self, sessions_pendents: List[Dict]) -> List[Dict]:
         """
@@ -192,85 +201,87 @@ class GeneradorSessionsExamensBase(ABC):
         """
         grups_raw = self._get_mateix_slot_grups_amb_noms()
         if not grups_raw:
-            return [{'sessions': [s], 'nom': s.get('nom'), 'examens_count': len(s.get('examens', []))} for s in sessions_pendents]
+            return [
+                {"sessions": [s], "nom": s.get("nom"), "examens_count": len(s.get("examens", []))}
+                for s in sessions_pendents
+            ]
 
         # Normalitzar grups per comparació robusta i conservar el nom
         grups_norm = []
         for grup in grups_raw:
-            assignatures = grup.get('assignatures', []) if isinstance(grup, dict) else grup
+            assignatures = grup.get("assignatures", []) if isinstance(grup, dict) else grup
             if isinstance(assignatures, list) and assignatures:
-                grups_norm.append({
-                    'nom': (grup.get('nom', '') if isinstance(grup, dict) else ''),
-                    'assignatures': [normalitzar_text(n) for n in assignatures]
-                })
-        
+                grups_norm.append(
+                    {
+                        "nom": (grup.get("nom", "") if isinstance(grup, dict) else ""),
+                        "assignatures": [normalitzar_text(n) for n in assignatures],
+                    }
+                )
+
         # Mapa de nom_normalitzat -> índex del grup
         nom_a_grup = {}
         for idx, grup in enumerate(grups_norm):
-            for nom_norm in grup['assignatures']:
+            for nom_norm in grup["assignatures"]:
                 nom_a_grup[nom_norm] = idx
 
         # Mapa de sessions per nom normalitzat per a cerca ràpida
         sessions_per_nom_norm = defaultdict(list)
         for s in sessions_pendents:
-            sessions_per_nom_norm[normalitzar_text(s.get('nom',''))].append(s)
-            sessions_per_nom_norm[normalitzar_text(s.get('nom_base',''))].append(s)
+            sessions_per_nom_norm[normalitzar_text(s.get("nom", ""))].append(s)
+            sessions_per_nom_norm[normalitzar_text(s.get("nom_base", ""))].append(s)
 
         visitats, items = set(), []
-        def key(s): return f"{s.get('nom')}|{s.get('curs')}"
-        
+
+        def key(s):
+            return f"{s.get('nom')}|{s.get('curs')}"
+
         for sessio in sessions_pendents:
-            if key(sessio) in visitats: continue
-            
-            s_nom_norm = normalitzar_text(sessio.get('nom', ''))
-            s_base_norm = normalitzar_text(sessio.get('nom_base', ''))
-            
+            if key(sessio) in visitats:
+                continue
+
+            s_nom_norm = normalitzar_text(sessio.get("nom", ""))
+            s_base_norm = normalitzar_text(sessio.get("nom_base", ""))
+
             g_idx = nom_a_grup.get(s_nom_norm)
             if g_idx is None:
                 g_idx = nom_a_grup.get(s_base_norm)
-            
+
             if g_idx is not None:
                 membres = []
                 # Recollir TOTES les sessions que coincideixin amb qualsevol nom del grup
-                for n_norm in grups_norm[g_idx]['assignatures']:
+                for n_norm in grups_norm[g_idx]["assignatures"]:
                     for s_match in sessions_per_nom_norm.get(n_norm, []):
                         if key(s_match) not in visitats:
                             membres.append(s_match)
                             visitats.add(key(s_match))
-                
+
                 if membres:
-                    grup_nom = (grups_norm[g_idx].get('nom') or '').strip()
+                    grup_nom = (grups_norm[g_idx].get("nom") or "").strip()
                     item = {
-                        'sessions': membres,
-                        'nom': grup_nom if grup_nom else f"grup_{g_idx} ({len(membres)} assig)",
-                        'examens_count': sum(len(s.get('examens', [])) for s in membres)
+                        "sessions": membres,
+                        "nom": grup_nom if grup_nom else f"grup_{g_idx} ({len(membres)} assig)",
+                        "examens_count": sum(len(s.get("examens", [])) for s in membres),
                     }
                     self._assign_item_id(item)
                     items.append(item)
             else:
                 visitats.add(key(sessio))
-                item = {
-                    'sessions': [sessio],
-                    'nom': sessio.get('nom'),
-                    'examens_count': len(sessio.get('examens', []))
-                }
+                item = {"sessions": [sessio], "nom": sessio.get("nom"), "examens_count": len(sessio.get("examens", []))}
                 self._assign_item_id(item)
                 items.append(item)
         return items
 
     def _assign_item_id(self, item: Dict) -> None:
         """Assigna un item_id estable i el propaga a les sessions de l'ítem."""
-        sessions = item.get('sessions', [])
-        base = "|".join(
-            sorted(f"{s.get('id') or s.get('nom')}::{s.get('curs') or ''}" for s in sessions)
-        )
-        digest = hashlib.sha1(base.encode('utf-8')).hexdigest()[:12]
+        sessions = item.get("sessions", [])
+        base = "|".join(sorted(f"{s.get('id') or s.get('nom')}::{s.get('curs') or ''}" for s in sessions))
+        digest = hashlib.sha1(base.encode("utf-8")).hexdigest()[:12]
         item_id = f"item_{digest}"
-        item['item_id'] = item_id
-        item['item_label'] = item.get('nom') or item_id
+        item["item_id"] = item_id
+        item["item_label"] = item.get("nom") or item_id
         for s in sessions:
-            s['item_id'] = item_id
-            s['item_label'] = item.get('nom') or item_id
+            s["item_id"] = item_id
+            s["item_label"] = item.get("nom") or item_id
 
     def preparar_particio_nivells(self, slots_disponibles: int) -> List[Dict]:
         """Garanteix que cada nivell té els seus exàmens agrupats en 'paquets' únics (sense fusionar forçat)."""
@@ -281,22 +292,24 @@ class GeneradorSessionsExamensBase(ABC):
         grups_amb_noms = self._get_mateix_slot_grups_amb_noms()
         # Crear estructura: [(nom, [assignatures_normalitzades]), ...]
         grups_ms_amb_noms = [
-            (g.get('nom', ''), [normalitzar_text(n) for n in g.get('assignatures', [])])
-            for g in grups_amb_noms if g.get('assignatures')
+            (g.get("nom", ""), [normalitzar_text(n) for n in g.get("assignatures", [])])
+            for g in grups_amb_noms
+            if g.get("assignatures")
         ]
-        combs_raw = restriccions.get('restriccions_dures', {}).get('combinacions_permeses', [])
+        combs_raw = restriccions.get("restriccions_dures", {}).get("combinacions_permeses", [])
         combs_opt = []
         for c in combs_raw:
-            assignatures = c.get('assignatures', []) if isinstance(c, dict) else c
+            assignatures = c.get("assignatures", []) if isinstance(c, dict) else c
             if isinstance(assignatures, list) and assignatures:
                 combs_opt.append({normalitzar_text(n) for n in assignatures})
 
         for nivell in self.nivells_actius:
             sessions_pendents = self.sessions_per_nivell.get(nivell, [])
-            if not sessions_pendents: continue
-            
+            if not sessions_pendents:
+                continue
+
             # Crear mapa de ID -> Sessio per evitar duplicats
-            sessio_by_id = {s['id']: s for s in sessions_pendents}
+            sessio_by_id = {s["id"]: s for s in sessions_pendents}
             visitats = set()
             items_nivell = []
 
@@ -304,20 +317,22 @@ class GeneradorSessionsExamensBase(ABC):
             for grup_nom, grup_n in grups_ms_amb_noms:
                 membres = []
                 for sid, s in sessio_by_id.items():
-                    if sid in visitats: continue
-                    if normalitzar_text(s['nom']) in grup_n or normalitzar_text(s['nom_base']) in grup_n:
-                        membres.append(s); visitats.add(sid)
+                    if sid in visitats:
+                        continue
+                    if normalitzar_text(s["nom"]) in grup_n or normalitzar_text(s["nom_base"]) in grup_n:
+                        membres.append(s)
+                        visitats.add(sid)
                 if membres:
                     # Usar el nom definit per l'usuari, o generar un per defecte
-                    nom_agrupacio = grup_nom if grup_nom else membres[0]['nom_base'] + ' (G)'
-                    item = {'sessions': membres, 'nom': nom_agrupacio, 'curs': nivell}
+                    nom_agrupacio = grup_nom if grup_nom else membres[0]["nom_base"] + " (G)"
+                    item = {"sessions": membres, "nom": nom_agrupacio, "curs": nivell}
                     self._assign_item_id(item)
                     items_nivell.append(item)
 
             # B. Afegir sessions restants com items individuals
             for sid, s in sessio_by_id.items():
                 if sid not in visitats:
-                    item = {'sessions': [s], 'nom': s['nom'], 'curs': nivell}
+                    item = {"sessions": [s], "nom": s["nom"], "curs": nivell}
                     self._assign_item_id(item)
                     items_nivell.append(item)
                     visitats.add(sid)
@@ -331,15 +346,16 @@ class GeneradorSessionsExamensBase(ABC):
                     for c_set in sorted(combs_opt, key=len, reverse=True):
                         compat = []
                         for idx, it in enumerate(items_nivell):
-                            it_noms = {normalitzar_text(s['nom_base']) for s in it['sessions']}
-                            if it_noms.issubset(c_set): compat.append(idx)
-                        
+                            it_noms = {normalitzar_text(s["nom_base"]) for s in it["sessions"]}
+                            if it_noms.issubset(c_set):
+                                compat.append(idx)
+
                         if len(compat) >= 2:
                             # Unir tot en el primer ítem i eliminar la resta
                             main_idx = compat[0]
                             for idx in sorted(compat[1:], reverse=True):
-                                items_nivell[main_idx]['sessions'].extend(items_nivell.pop(idx)['sessions'])
-                            items_nivell[main_idx]['nom'] = items_nivell[main_idx]['sessions'][0]['nom_base'] + " (+)"
+                                items_nivell[main_idx]["sessions"].extend(items_nivell.pop(idx)["sessions"])
+                            items_nivell[main_idx]["nom"] = items_nivell[main_idx]["sessions"][0]["nom_base"] + " (+)"
                             self._assign_item_id(items_nivell[main_idx])
                             changed = True
                             break
@@ -348,8 +364,8 @@ class GeneradorSessionsExamensBase(ABC):
             uniques = []
             vistos = set()
             for it in items_nivell:
-                sess_ids = sorted([s.get('id') or s.get('nom') for s in it.get('sessions', [])])
-                key = (it.get('curs'), tuple(sess_ids))
+                sess_ids = sorted([s.get("id") or s.get("nom") for s in it.get("sessions", [])])
+                key = (it.get("curs"), tuple(sess_ids))
                 if key in vistos:
                     continue
                 vistos.add(key)
@@ -357,5 +373,5 @@ class GeneradorSessionsExamensBase(ABC):
             items_nivell = uniques
 
             tots_els_items.extend(items_nivell)
-            
+
         return tots_els_items

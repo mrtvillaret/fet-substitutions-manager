@@ -1,7 +1,9 @@
 import ipaddress
 import math
 import time
+from types import SimpleNamespace
 
+from limits import parse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
@@ -36,6 +38,26 @@ def get_client_ip(request: Request) -> str:
 
 
 limiter = Limiter(key_func=get_client_ip)
+
+# Login: a cada centre hi entren pocs usuaris (direcció, gestors), sovint des
+# d'una sola IP pública. El límit fort és per usuari; el de la IP, més alt,
+# frena qui prova molts usuaris diferents.
+LIMIT_LOGIN_PER_IP = "30/minute"
+LIMIT_LOGIN_PER_USUARI = "5/minute"
+_LIMIT_PER_USUARI = parse(LIMIT_LOGIN_PER_USUARI)
+
+
+def comprova_limit_login_usuari(request: Request, username: str) -> None:
+    """Compta un intent d'entrar com a `username` (vagi bé o no) i, si en
+    porta més de LIMIT_LOGIN_PER_USUARI, respon 429 com el decorador de slowapi
+    (mateix cos i Retry-After). L'usuari ve del cos de la petició, que la
+    key_func de slowapi no pot llegir: per això es comprova dins de la ruta."""
+    if not limiter.enabled:
+        return
+    claus = ("login_usuari", username)
+    if not limiter.limiter.hit(_LIMIT_PER_USUARI, *claus):
+        request.state.view_rate_limit = (_LIMIT_PER_USUARI, list(claus))  # per al Retry-After
+        raise RateLimitExceeded(SimpleNamespace(error_message=None, limit=_LIMIT_PER_USUARI))
 
 
 def limit_superat(request: Request, exc: RateLimitExceeded) -> Response:

@@ -7,6 +7,7 @@ test_import_dry_run.py; aquí es prova el recorregut per l'API.
 Treballen sobre una institució temporal amb l'horari d'exemple, on Prof 15
 fa Anglès amb 3-ESO-A (entre d'altres).
 """
+
 import uuid
 
 import pytest
@@ -55,8 +56,7 @@ def _preview(client):
 
 
 def _proposta(preview, **camps):
-    return next(p for p in preview["propostes"]
-                if all(p[k] == v for k, v in camps.items()))
+    return next(p for p in preview["propostes"] if all(p[k] == v for k, v in camps.items()))
 
 
 def _importa(client, propostes, **extra):
@@ -72,11 +72,15 @@ def _assignacions(centre):
 
 # ------------------------------------------------------------------ accés
 
-@pytest.mark.parametrize("metode, ruta", [
-    ("get", f"{URL}/preview"),
-    ("post", f"{URL}/dry-run"),
-    ("post", URL),
-])
+
+@pytest.mark.parametrize(
+    "metode, ruta",
+    [
+        ("get", f"{URL}/preview"),
+        ("post", f"{URL}/dry-run"),
+        ("post", URL),
+    ],
+)
 def test_nomes_els_admins_poden_importar(centre, metode, ruta):
     usuari = _usuari_de(centre, role="user")
     kwargs = {} if metode == "get" else {"json": {"propostes": []}}
@@ -84,6 +88,7 @@ def test_nomes_els_admins_poden_importar(centre, metode, ruta):
 
 
 # ---------------------------------------------------------------- preview
+
 
 def test_preview_proposa_cada_assignatura_i_grup_de_l_horari_amb_el_seu_titular(client):
     preview = _preview(client)
@@ -103,11 +108,21 @@ def test_preview_sense_historic_proposa_tots_els_nivells(client):
 
 def test_preview_nomes_proposa_nivells_amb_historic_de_substitucions(client, centre):
     with get_data_db_session(centre) as db:
-        SubstitucioRepository.create(db, {
-            "data": "2026-04-20", "hora": "10:00", "professor_absent": "Prof 15",
-            "assignatura": "Anglès", "grup": "3-ESO-A", "aula": "", "substitut": "",
-            "tipus_substitut": "", "tipus_absencia": "ABSENCIA", "comentaris": "",
-        })
+        SubstitucioRepository.create(
+            db,
+            {
+                "data": "2026-04-20",
+                "hora": "10:00",
+                "professor_absent": "Prof 15",
+                "assignatura": "Anglès",
+                "grup": "3-ESO-A",
+                "aula": "",
+                "substitut": "",
+                "tipus_substitut": "",
+                "tipus_absencia": "ABSENCIA",
+                "comentaris": "",
+            },
+        )
     preview = _preview(client)
     assert preview["nivells_valids"] == ["3-ESO"]
     assert {p["nivell"] for p in preview["propostes"]} == {"3-ESO"}
@@ -137,14 +152,14 @@ def test_preview_sense_xml_ho_indica(centre):
 
 # ---------------------------------------------------------------- dry-run
 
+
 def test_dry_run_diu_el_mateix_que_despres_fa_la_importacio(client, centre):
     propostes = [ANGLES_3A, {**ANGLES_3A, "grup": "3-ESO-B"}, {"assignatura": "Anglès", "grup": ""}]
     resum = client.post(f"{URL}/dry-run", json={"propostes": propostes}).json()
     assert _assignacions(centre) == set()  # el resum previ no escriu res
 
     resultat = _importa(client, propostes)
-    for camp in ("nivells_creats", "grups_creats", "assignatures_creades",
-                 "assignacions_creades", "ja_existien"):
+    for camp in ("nivells_creats", "grups_creats", "assignatures_creades", "assignacions_creades", "ja_existien"):
         assert resum[camp] == resultat[camp], camp
     # Mateixos avisos, però el resum parla en futur ("no s'importarà") i el
     # resultat en passat ("no s'ha importat").
@@ -152,6 +167,7 @@ def test_dry_run_diu_el_mateix_que_despres_fa_la_importacio(client, centre):
 
 
 # -------------------------------------------------------------- importar
+
 
 def test_importar_crea_la_configuracio_mestra_i_les_assignacions(client, centre):
     resultat = _importa(client, [{**ANGLES_3A, "aula": "A1"}])

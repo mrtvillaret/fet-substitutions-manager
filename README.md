@@ -87,9 +87,10 @@ data/
 - `export/` — exportadors PDF (substitucions, vigilàncies, intervals,
   informes de direcció i professorat)
 - `repositories.py` + `models.py` — accés a dades SQLAlchemy
-- `auth_utils.py` — autenticació JWT amb cookie httpOnly; la sessió caduca
-  després d'1 h sense activitat (es renova mentre s'hi treballa) i com a màxim
-  24 h després d'entrar
+- `auth/` — autenticació JWT amb cookie httpOnly; la sessió caduca després
+  d'1 h sense activitat (es renova mentre s'hi treballa) i com a màxim 24 h
+  després d'entrar
+- `usuaris/` — gestió d'usuaris (admin del centre i superadmin)
 
 ### Frontend (Vue 3)
 
@@ -146,7 +147,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 El backend crea automàticament les BDs (`auth.db` i `data/{APP_INSTITUCIO}/gestor.db`)
-al primer arrencat, i un super_admin segons `ADMIN_USERNAME`/`ADMIN_PASSWORD` del `.env`.
+al primer arrencat i, si encara no hi ha cap usuari, un super_admin segons
+`ADMIN_USERNAME`/`ADMIN_PASSWORD` del `.env`.
 
 API disponible a `http://localhost:8000` · Documentació a `http://localhost:8000/docs`
 (només amb `ENVIRONMENT=development`; en qualsevol altre entorn no es publica).
@@ -178,11 +180,9 @@ pip install -r requirements-dev.txt
 pytest tests/
 ```
 
-Més de 500 tests sobre institucions temporals amb l'horari d'exemple; la
+Més de 650 tests sobre institucions temporals amb l'horari d'exemple; la
 majoria passen per l'API i comproven el que queda desat a la BD. Els de
 regressió del planificador fan servir també l'horari d'exemple.
-`tests/test_api.py` són comprovacions de fum contra un backend engegat: si no
-n'hi ha cap a `http://localhost:8000`, se salten.
 
 ---
 
@@ -247,9 +247,11 @@ docker compose up --build -d
 Caddy obté el certificat TLS automàticament. L'aplicació estarà a
 `https://{el-teu-domini}`.
 
-L'aplicació **no arrenca** si falta `SECRET_KEY` o, quan encara no existeix
-l'administrador, `ADMIN_PASSWORD`. No tenen valor per defecte a propòsit: així
+L'aplicació **no arrenca** si falta `SECRET_KEY` o, en una instal·lació nova
+(sense cap usuari), `ADMIN_PASSWORD`. No tenen valor per defecte a propòsit: així
 cap instal·lació queda oberta amb credencials que consten en aquest repositori.
+Si es perd l'accés del superadmin, es recupera amb `ADMIN_PASSWORD_RECUPERACIO`
+(vegeu `.env.example`), que cal treure de l'entorn després de fer-la servir.
 
 ### 3. Primer accés
 

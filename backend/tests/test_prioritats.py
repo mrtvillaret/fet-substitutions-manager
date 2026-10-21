@@ -13,6 +13,7 @@ Tests per a routes/prioritats.py:
   projecte no fa servir pytest-asyncio i cap d'aquestes funcions té `await`
   real dins seu, només crides síncrones a SQLAlchemy).
 """
+
 import asyncio
 
 import pytest
@@ -59,6 +60,7 @@ def run(coro):
 # ===================================================================
 # _recarregar_prioritats_desde_bd
 # ===================================================================
+
 
 def test_recarrega_bd_buida_dona_tot_buit(db_session):
     _recarregar_prioritats_desde_bd(db_session)
@@ -142,9 +144,7 @@ def test_recarrega_no_subst_i_genera_encadenades(db_session):
 
 
 def test_recarrega_professors_baixa(db_session):
-    ProfessorBaixaRepository.create(
-        db_session, "Prof Test", "2026-01-10", "2026-01-20", motiu="Permís"
-    )
+    ProfessorBaixaRepository.create(db_session, "Prof Test", "2026-01-10", "2026-01-20", motiu="Permís")
 
     _recarregar_prioritats_desde_bd(db_session)
 
@@ -181,6 +181,7 @@ def test_recarrega_categoria_sense_assignatures_dona_llista_buida_en_ordre(db_se
 # ===================================================================
 # CRUD: categories
 # ===================================================================
+
 
 def test_crud_categoria_creada_apareix_a_get(db_session):
     payload = CategoriaPrioritatCreate(nom="Nova categoria", ordre=0, activa=True)
@@ -238,6 +239,7 @@ def test_crud_categories_ordre_swap_funciona(db_session):
 # CRUD: assignatures de prioritat
 # ===================================================================
 
+
 def test_crud_assignatura_creada_apareix_a_la_seva_categoria(db_session):
     cat = run(create_categoria(CategoriaPrioritatCreate(nom="Cat"), db_session))
     payload = AssignaturaPrioritatCreate(assignatura="Guàrdia", categoria_id=cat["id"], pes=2)
@@ -274,6 +276,7 @@ def test_crud_assignatura_creacio_amb_categoria_inexistent_falla(db_session):
 # CRUD: no-substituir
 # ===================================================================
 
+
 def test_crud_no_substituir_creat_apareix_a_get(db_session):
     run(create_no_substituir({"assignatura": "Pati"}, db_session))
     resposta = run(get_no_substituir(db_session))
@@ -307,6 +310,7 @@ def test_crud_no_substituir_delete_inexistent_dona_404(db_session):
 # CRUD: professors de baixa
 # ===================================================================
 
+
 def test_crud_professor_baixa_creat_apareix_a_get(db_session):
     payload = ProfessorBaixaCreate(
         professor="Prof X", data_inici="2026-03-01", data_final="2026-03-10", motiu="Formació"
@@ -333,6 +337,7 @@ def test_crud_professor_baixa_delete_inexistent_dona_404(db_session):
 # ===================================================================
 # desar_totes_prioritats: reemplaça tot i recarrega les constants
 # ===================================================================
+
 
 def test_desar_tot_reemplaca_categories_existents(db_session):
     # Estat inicial: una categoria que hauria de desaparèixer.

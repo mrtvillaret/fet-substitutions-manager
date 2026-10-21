@@ -7,6 +7,7 @@ una app mínima amb els routers d'auth i d'usuaris i les dependències reals
 de permisos. Tot passa sobre l'auth.db i les institucions temporals que
 prepara el conftest.
 """
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -17,21 +18,18 @@ from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from slowapi.errors import RateLimitExceeded
 
-from auth_utils import (
-    COOKIE_NAME,
-    create_access_token,
-    hash_password,
-    require_admin,
-    require_super_admin,
-    require_user,
-    verify_password,
-)
-from config.auth import ALGORITHM, SECRET_KEY
+import auth.router as rutes_auth
+import auth.services as serveis_auth
+from auth import security
+from auth.dependencies import require_admin, require_super_admin, require_user
+from auth.repositories import UserRepository
+from auth.security import create_access_token, hash_password, verify_password
+from config.auth import ALGORITHM, COOKIE_NAME, SECRET_KEY
 from config.settings import config
 from database import AuthSessionLocal, create_auth_tables, get_data_db_session
+from errors_servidor import registra_gestors_errors
 from rate_limit import limit_superat, limiter
-from repositories import UserRepository
-from routes import auth, users
+from usuaris.router import router as usuaris_router
 
 CONTRASENYA = "contrasenya-de-prova"
 
@@ -40,8 +38,9 @@ def _app():
     app = FastAPI()
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, limit_superat)
-    app.include_router(auth.router)
-    app.include_router(users.router)
+    registra_gestors_errors(app)  # com a main.py: tradueix els errors del domini
+    app.include_router(rutes_auth.router)
+    app.include_router(usuaris_router)
 
     @app.get("/prova/user")
     def nomes_user(u=Depends(require_user)):
@@ -70,14 +69,16 @@ def _nova_institucio():
 
 def _crea_usuari(username, institucio, role="user", active=True):
     with AuthSessionLocal() as db:
-        return UserRepository.create(
+        user = UserRepository.create(
             db=db,
             username=username,
             password_hash=hash_password(CONTRASENYA),
             institucio=institucio,
             role=role,
             active=active,
-        ).id
+        )
+        db.commit()
+        return user.id
 
 
 def _usuari_db(username):
@@ -138,6 +139,7 @@ def _posa_token(client, payload, clau=SECRET_KEY):
 
 # ---------------------------------------------------------------- contrasenyes
 
+
 def test_hash_i_verificacio_de_contrasenya():
     h = hash_password("secret")
     assert h.startswith("$argon2")
@@ -150,6 +152,7 @@ def test_hash_malmes_no_llanca_sino_que_retorna_false():
 
 
 # ----------------------------------------------------------------------- login
+
 
 def test_login_correcte_posa_cookie_httponly_amb_les_dades_del_usuari(client, escenari):
     resp = _login(client, escenari["noms"]["admin_a"])
@@ -175,15 +178,32 @@ def test_login_amb_contrasenya_incorrecta_o_usuari_inexistent_dona_el_mateix_err
     assert COOKIE_NAME not in client.cookies
 
 
+@pytest.mark.parametrize("cas", ["inexistent", "desactivat", "contrasenya dolenta"])
+def test_el_login_sempre_comprova_una_contrasenya(client, escenari, monkeypatch, cas):
+    # Sense rellotge: si el login d'un usuari inexistent o desactivat no
+    # calculés cap Argon2, respondria abans i el temps diria qui existeix.
+    comprovacions = []
+    real = serveis_auth.verify_password
+    monkeypatch.setattr(serveis_auth, "verify_password", lambda *a: comprovacions.append(a) or real(*a))
+    nom = {"inexistent": "no_existeix", "contrasenya dolenta": escenari["noms"]["user_a"]}.get(cas)
+    if cas == "desactivat":
+        nom = "desactivat_" + escenari["a"]
+        _crea_usuari(nom, escenari["a"], active=False)
+    assert _login(client, nom, "incorrecta").status_code == 401
+    assert len(comprovacions) == 1
+
+
 def test_login_d_usuari_desactivat_es_rebutja(client, escenari):
     _crea_usuari("desactivat_" + escenari["a"], escenari["a"], active=False)
     assert _login(client, "desactivat_" + escenari["a"]).status_code == 401
 
 
-def test_login_limitat_a_5_intents_per_minut_i_ip(client, escenari):
+def test_login_limitat_a_5_intents_per_minut_i_usuari(client, escenari):
     for _ in range(5):
         assert _login(client, escenari["noms"]["user_a"], "incorrecta").status_code == 401
     assert _login(client, escenari["noms"]["user_a"]).status_code == 429
+    # Des de la mateixa IP, un altre usuari encara pot entrar
+    assert _login(client, escenari["noms"]["admin_a"]).status_code == 200
 
 
 def test_el_429_diu_quants_segons_cal_esperar(client, escenari):
@@ -192,12 +212,24 @@ def test_el_429_diu_quants_segons_cal_esperar(client, escenari):
     resp = _login(client, escenari["noms"]["user_a"])
     assert resp.status_code == 429
     assert 1 <= int(resp.headers["Retry-After"]) <= 60
+    assert resp.json() == {"error": "Rate limit exceeded: 5 per 1 minute"}  # com el del decorador
+
+
+def _prova_30_usuaris(client):
+    for i in range(30):
+        assert _login(client, f"no_existeix_{i}", "incorrecta").status_code == 401
+
+
+def test_login_limitat_a_30_intents_per_minut_i_ip(client, escenari):
+    # Qui prova molts usuaris des d'una IP topa amb el límit de la IP
+    _prova_30_usuaris(client)
+    resp = _login(client, escenari["noms"]["user_a"])
+    assert resp.status_code == 429 and 1 <= int(resp.headers["Retry-After"]) <= 60
 
 
 def test_canviar_x_forwarded_for_no_salta_el_limit_de_login(client, escenari):
     # Una connexió que no ve d'un proxy intern: la capçalera s'ignora.
-    for _ in range(5):
-        _login(client, escenari["noms"]["user_a"], "incorrecta")
+    _prova_30_usuaris(client)
     resp = client.post(
         "/api/login",
         json={"username": escenari["noms"]["user_a"], "password": CONTRASENYA},
@@ -208,20 +240,25 @@ def test_canviar_x_forwarded_for_no_salta_el_limit_de_login(client, escenari):
 
 def _peticio(client_host, x_forwarded_for=None):
     from starlette.requests import Request
+
     capcaleres = [(b"x-forwarded-for", x_forwarded_for.encode())] if x_forwarded_for else []
     return Request({"type": "http", "headers": capcaleres, "client": (client_host, 1234)})
 
 
-@pytest.mark.parametrize("client_host, xff, esperat", [
-    ("93.184.216.34", None, "93.184.216.34"),                  # directe, sense proxy
-    ("93.184.216.34", "1.2.3.4", "93.184.216.34"),             # directe: la capçalera no es creu
-    ("172.18.0.5", "198.51.100.20", "198.51.100.20"),          # Caddy: un sol valor
-    ("172.18.0.5", "1.2.3.4, 198.51.100.20", "198.51.100.20"), # nginx: el client n'ha posat un de fals
-    ("127.0.0.1", "198.51.100.20", "198.51.100.20"),           # proxy a la mateixa màquina
-    ("172.18.0.5", None, "172.18.0.5"),                        # proxy sense capçalera
-])
+@pytest.mark.parametrize(
+    "client_host, xff, esperat",
+    [
+        ("93.184.216.34", None, "93.184.216.34"),  # directe, sense proxy
+        ("93.184.216.34", "1.2.3.4", "93.184.216.34"),  # directe: la capçalera no es creu
+        ("172.18.0.5", "198.51.100.20", "198.51.100.20"),  # Caddy: un sol valor
+        ("172.18.0.5", "1.2.3.4, 198.51.100.20", "198.51.100.20"),  # nginx: el client n'ha posat un de fals
+        ("127.0.0.1", "198.51.100.20", "198.51.100.20"),  # proxy a la mateixa màquina
+        ("172.18.0.5", None, "172.18.0.5"),  # proxy sense capçalera
+    ],
+)
 def test_ip_del_client_per_al_limit(client_host, xff, esperat):
     from rate_limit import get_client_ip
+
     assert get_client_ip(_peticio(client_host, xff)) == esperat
 
 
@@ -234,6 +271,7 @@ def test_logout_esborra_la_cookie(client, escenari):
 
 
 # --------------------------------------------------------- validació del token
+
 
 def test_sense_cookie_dona_401(client, escenari):
     assert client.get("/prova/user").status_code == 401
@@ -254,12 +292,15 @@ def test_token_signat_amb_una_altra_clau_dona_401(client, escenari):
 
 
 def test_token_caducat_dona_401(client, escenari):
-    _posa_token(client, {
-        "sub": escenari["noms"]["user_a"],
-        "institucio": escenari["a"],
-        "role": "user",
-        "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
-    })
+    _posa_token(
+        client,
+        {
+            "sub": escenari["noms"]["user_a"],
+            "institucio": escenari["a"],
+            "role": "user",
+            "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+        },
+    )
     assert client.get("/prova/user").status_code == 401
 
 
@@ -273,24 +314,80 @@ def test_usuari_desactivat_despres_del_login_perd_l_acces(client, escenari):
     with AuthSessionLocal() as db:
         u = UserRepository.get_by_username(db, escenari["noms"]["user_a"])
         UserRepository.update(db, u, active=False)
+        db.commit()
     assert client.get("/prova/user").status_code == 401
 
 
 def test_el_rol_surt_de_la_bd_i_no_del_token(client, escenari):
     # Un token vàlid d'un usuari normal que diu "admin" no dona permisos d'admin.
-    client.cookies.set(COOKIE_NAME, create_access_token({
-        "sub": escenari["noms"]["user_a"], "institucio": escenari["a"], "role": "super_admin",
-    }))
+    client.cookies.set(
+        COOKIE_NAME,
+        create_access_token(
+            {
+                "sub": escenari["noms"]["user_a"],
+                "institucio": escenari["a"],
+                "role": "super_admin",
+            }
+        ),
+    )
     assert client.get("/prova/user").status_code == 200
     assert client.get("/prova/admin").status_code == 403
     assert client.get("/prova/super").status_code == 403
 
 
 def test_usuari_normal_no_pot_canviar_d_institucio_amb_el_token(client, escenari):
-    client.cookies.set(COOKIE_NAME, create_access_token({
-        "sub": escenari["noms"]["user_a"], "institucio": escenari["b"], "role": "user",
-    }))
+    client.cookies.set(
+        COOKIE_NAME,
+        create_access_token(
+            {
+                "sub": escenari["noms"]["user_a"],
+                "institucio": escenari["b"],
+                "role": "user",
+            }
+        ),
+    )
     assert client.get("/prova/user").status_code == 401
+
+
+# ------------------------------------------- la sessió identifica l'usuari per l'id
+
+
+def test_la_sessio_d_un_usuari_esborrat_no_val_per_a_un_de_nou_amb_el_mateix_nom(client, escenari):
+    _entra(client, escenari, "user_a")
+    with AuthSessionLocal() as db:
+        UserRepository.delete(db, UserRepository.get_by_id(db, escenari["ids"]["user_a"]))
+        db.commit()
+    _crea_usuari(escenari["noms"]["user_a"], escenari["a"])  # el mateix nom, un altre usuari
+    assert client.get("/prova/user").status_code == 401
+
+
+def test_la_sessio_no_passa_a_qui_pren_el_nom_d_un_usuari_reanomenat(client, escenari):
+    _entra(client, escenari, "user_a")
+    nom = escenari["noms"]["user_a"]
+    with AuthSessionLocal() as db:
+        UserRepository.update(db, UserRepository.get_by_id(db, escenari["ids"]["user_a"]), username=nom + "_vell")
+        db.commit()
+    _crea_usuari(nom, escenari["a"], "admin")
+    resp = client.get("/prova/user")
+    # La sessió continua sent del primer usuari (ara amb el nom nou), no de l'admin nou
+    assert resp.status_code == 200 and resp.json()["username"] == nom + "_vell"
+    assert client.get("/prova/admin").status_code == 403
+
+
+def test_un_admin_que_es_reanomena_conserva_la_sessio(client, escenari):
+    _entra(client, escenari, "admin_a")
+    nou = escenari["noms"]["admin_a"] + "_nou"
+    assert client.put(f"/api/users/{escenari['ids']['admin_a']}", json={"username": nou}).status_code == 200
+    resp = client.get("/prova/admin")
+    assert resp.status_code == 200 and resp.json()["username"] == nou
+
+
+def test_un_testimoni_d_abans_sense_uid_encara_val(client, escenari):
+    client.cookies.set(
+        COOKIE_NAME,
+        create_access_token({"sub": escenari["noms"]["user_a"], "institucio": escenari["a"], "role": "user"}),
+    )
+    assert client.get("/prova/user").status_code == 200
 
 
 def test_institucio_inactiva_bloqueja_els_seus_usuaris(client, escenari):
@@ -305,11 +402,15 @@ def test_institucio_inactiva_bloqueja_els_seus_usuaris(client, escenari):
 
 # ------------------------------------------------------------------------ rols
 
-@pytest.mark.parametrize("qui, user, admin, super_", [
-    ("user_a", 200, 403, 403),
-    ("admin_a", 200, 200, 403),
-    ("super", 200, 200, 200),
-])
+
+@pytest.mark.parametrize(
+    "qui, user, admin, super_",
+    [
+        ("user_a", 200, 403, 403),
+        ("admin_a", 200, 200, 403),
+        ("super", 200, 200, 200),
+    ],
+)
 def test_permisos_per_rol(client, escenari, qui, user, admin, super_):
     _entra(client, escenari, qui)
     assert client.get("/prova/user").status_code == user
@@ -318,6 +419,7 @@ def test_permisos_per_rol(client, escenari, qui, user, admin, super_):
 
 
 # ------------------------------------------------------------ gestió d'usuaris
+
 
 def test_usuari_normal_no_pot_llistar_usuaris(client, escenari):
     _entra(client, escenari, "user_a")
@@ -347,12 +449,15 @@ def test_admin_crea_usuari_a_la_seva_institucio(client, escenari):
     assert resp.json()["role"] == "user"
 
 
-@pytest.mark.parametrize("canvis, esperat", [
-    ({"institucio": "b"}, 403),
-    ({"role": "super_admin"}, 403),
-    ({"role": "rol_inventat"}, 400),
-    ({"institucio": "no_existeix"}, 400),
-])
+@pytest.mark.parametrize(
+    "canvis, esperat",
+    [
+        ({"institucio": "b"}, 403),
+        ({"role": "super_admin"}, 403),
+        ({"role": "rol_inventat"}, 400),
+        ({"institucio": "no_existeix"}, 400),
+    ],
+)
 def test_admin_no_pot_crear_usuaris_fora_del_seu_abast(client, escenari, canvis, esperat):
     _entra(client, escenari, "admin_a")
     if canvis.get("institucio") == "b":
@@ -409,6 +514,7 @@ def test_nomes_el_superadmin_pot_esborrar_usuaris_definitivament(client, escenar
 
 # ---------------------------------------------------------------------- perfil
 
+
 def test_canvi_de_contrasenya_demana_la_contrasenya_actual(client, escenari):
     nom = escenari["noms"]["user_a"]
     _entra(client, escenari, "user_a")
@@ -448,10 +554,11 @@ def test_superadmin_no_pot_canviar_a_una_institucio_inexistent(client, escenari)
 
 # ------------------------------------------------- delegació del login
 
+
 @pytest.fixture
 def delegacio(monkeypatch):
-    monkeypatch.setattr(auth, "LOGIN_DELEGACIO_USUARIS", frozenset({"user_demo", "admin_demo"}))
-    monkeypatch.setattr(auth, "LOGIN_DELEGACIO_URL", "/demo/")
+    monkeypatch.setattr(serveis_auth, "LOGIN_DELEGACIO_USUARIS", frozenset({"user_demo", "admin_demo"}))
+    monkeypatch.setattr(serveis_auth, "LOGIN_DELEGACIO_URL", "/demo/")
 
 
 def test_login_d_un_usuari_delegat_indica_on_ha_d_anar_sense_obrir_sessio(client, escenari, delegacio):
@@ -464,8 +571,15 @@ def test_login_d_un_usuari_delegat_indica_on_ha_d_anar_sense_obrir_sessio(client
 def test_un_nom_delegat_queda_reservat_encara_que_existeixi_aqui(client, escenari, delegacio):
     crea = AuthSessionLocal()
     try:
-        UserRepository.create(db=crea, username="admin_demo", password_hash=hash_password(CONTRASENYA),
-                              institucio=escenari["a"], role="admin", active=True)
+        UserRepository.create(
+            db=crea,
+            username="admin_demo",
+            password_hash=hash_password(CONTRASENYA),
+            institucio=escenari["a"],
+            role="admin",
+            active=True,
+        )
+        crea.commit()
     finally:
         crea.close()
     resp = _login(client, "admin_demo")
@@ -488,9 +602,15 @@ def _importa_config_amb_delegacio(url):
     import os
     import subprocess
     import sys
+
     entorn = {**os.environ, "LOGIN_DELEGACIO_USUARIS": "user_demo", "LOGIN_DELEGACIO_URL": url}
-    return subprocess.run([sys.executable, "-c", "import config.auth"], env=entorn,
-                          cwd=str(Path(__file__).resolve().parents[1]), capture_output=True, text=True)
+    return subprocess.run(
+        [sys.executable, "-c", "import config.auth"],
+        env=entorn,
+        cwd=str(Path(__file__).resolve().parents[1]),
+        capture_output=True,
+        text=True,
+    )
 
 
 @pytest.mark.parametrize("url", ["http://demo.exemple", "//una-altra-web.exemple", "demo/", "javascript:alert(1)"])
@@ -507,8 +627,8 @@ def test_la_delegacio_pot_ser_al_mateix_domini_o_a_un_subdomini(url):
 
 def test_la_delegacio_a_una_altra_adreca_indica_l_adreca(client, escenari, monkeypatch):
     # Una demo en un subdomini: el frontend hi porta l'usuari sense enviar-hi la contrasenya
-    monkeypatch.setattr(auth, "LOGIN_DELEGACIO_USUARIS", frozenset({"user_demo"}))
-    monkeypatch.setattr(auth, "LOGIN_DELEGACIO_URL", "https://demo.gestor.exemple/")
+    monkeypatch.setattr(serveis_auth, "LOGIN_DELEGACIO_USUARIS", frozenset({"user_demo"}))
+    monkeypatch.setattr(serveis_auth, "LOGIN_DELEGACIO_URL", "https://demo.gestor.exemple/")
     resp = client.post("/api/login", json={"username": "user_demo", "password": "qualsevol"})
     assert resp.json() == {"ok": False, "redirect": "https://demo.gestor.exemple/"}
     assert COOKIE_NAME not in client.cookies
@@ -516,9 +636,9 @@ def test_la_delegacio_a_una_altra_adreca_indica_l_adreca(client, escenari, monke
 
 # ------------------------------------------------------ nom de la galeta
 
+
 def test_el_nom_de_la_galeta_es_configurable(client, escenari, monkeypatch):
-    import auth_utils
-    monkeypatch.setattr(auth_utils, "COOKIE_NAME", "gestor_token_demo")
+    monkeypatch.setattr(security, "COOKIE_NAME", "gestor_token_demo")
     _entra(client, escenari, "user_a")
     assert "gestor_token_demo" in client.cookies
     assert "gestor_token" not in client.cookies
@@ -530,6 +650,7 @@ def test_el_nom_de_la_galeta_es_configurable(client, escenari, monkeypatch):
 
 
 # ------------------------------------------------- contrasenya mínima
+
 
 def test_no_es_pot_crear_un_usuari_amb_una_contrasenya_curta(client, escenari):
     _entra(client, escenari, "admin_a")
@@ -563,6 +684,7 @@ def test_no_es_pot_endevinar_la_contrasenya_des_del_canvi_de_contrasenya(client,
 
 # ------------------------------------------- tancar sessions a distància
 
+
 def _dispositiu(escenari, qui):
     """Un altre navegador (un altre dispositiu) amb sessió del mateix usuari."""
     return _entra(TestClient(APP, base_url="https://testserver"), escenari, qui)
@@ -570,12 +692,12 @@ def _dispositiu(escenari, qui):
 
 def test_canviar_la_contrasenya_tanca_les_altres_sessions_pero_no_la_propia(client, escenari):
     escola = _dispositiu(escenari, "user_a")
-    _entra(client, escenari, "user_a")                       # "casa"
+    _entra(client, escenari, "user_a")  # "casa"
     body = {"current_password": CONTRASENYA, "new_password": "nova-contrasenya"}
     assert client.put("/api/users/profile/password", json=body).status_code == 200
 
-    assert escola.get("/prova/user").status_code == 401       # la de l'escola queda tancada
-    assert client.get("/prova/user").status_code == 200      # qui l'ha canviada continua dins
+    assert escola.get("/prova/user").status_code == 401  # la de l'escola queda tancada
+    assert client.get("/prova/user").status_code == 200  # qui l'ha canviada continua dins
 
 
 def test_si_un_admin_canvia_la_contrasenya_d_un_usuari_se_li_tanquen_les_sessions(client, escenari):
@@ -584,7 +706,7 @@ def test_si_un_admin_canvia_la_contrasenya_d_un_usuari_se_li_tanquen_les_session
     resp = client.put(f"/api/users/{escenari['ids']['user_a']}", json={"password": "nova-contrasenya"})
     assert resp.status_code == 200
     assert usuari.get("/prova/user").status_code == 401
-    assert client.get("/prova/admin").status_code == 200     # l'admin no es veu afectat
+    assert client.get("/prova/admin").status_code == 200  # l'admin no es veu afectat
 
 
 def test_un_admin_que_es_canvia_la_seva_contrasenya_des_d_usuaris_continua_dins(client, escenari):
@@ -625,9 +747,16 @@ def test_els_testimonis_d_abans_d_aquest_canvi_continuen_valent(client, escenari
     # Testimoni sense "sv" (emès abans que existís la versió de sessió):
     # val mentre l'usuari no hagi tancat cap sessió, així que desplegar el
     # canvi no fa sortir ningú.
-    client.cookies.set(COOKIE_NAME, create_access_token({
-        "sub": escenari["noms"]["user_a"], "institucio": escenari["a"], "role": "user",
-    }))
+    client.cookies.set(
+        COOKIE_NAME,
+        create_access_token(
+            {
+                "sub": escenari["noms"]["user_a"],
+                "institucio": escenari["a"],
+                "role": "user",
+            }
+        ),
+    )
     assert client.get("/prova/user").status_code == 200
 
 
@@ -640,9 +769,13 @@ def test_una_auth_db_antiga_rep_la_columna_nova_sense_perdre_usuaris(tmp_path):
 
     ruta = tmp_path / "auth_antiga.db"
     con = sqlite3.connect(ruta)
-    con.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, username VARCHAR, password_hash VARCHAR, "
-                "institucio VARCHAR, role VARCHAR, active BOOLEAN, created_at DATETIME, updated_at DATETIME)")
-    con.execute("INSERT INTO users (username, password_hash, institucio, role, active) VALUES ('antic', 'h', 'c', 'user', 1)")
+    con.execute(
+        "CREATE TABLE users (id INTEGER PRIMARY KEY, username VARCHAR, password_hash VARCHAR, "
+        "institucio VARCHAR, role VARCHAR, active BOOLEAN, created_at DATETIME, updated_at DATETIME)"
+    )
+    con.execute(
+        "INSERT INTO users (username, password_hash, institucio, role, active) VALUES ('antic', 'h', 'c', 'user', 1)"
+    )
     con.commit()
     con.close()
 

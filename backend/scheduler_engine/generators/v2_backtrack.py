@@ -30,12 +30,21 @@ from scheduler_engine.generators.v2_intents import GeneradorV2Intents
 
 # Mapa de nivells a índexs per bitmask
 NIVELL_TO_BIT = {
-    '1-ESO': 0, '2-ESO': 1, '3-ESO': 2, '4-ESO': 3,
-    '1-BATX': 4, '2-BATX': 5,
-    'CFGM': 6, 'CFGS': 7,
+    "1-ESO": 0,
+    "2-ESO": 1,
+    "3-ESO": 2,
+    "4-ESO": 3,
+    "1-BATX": 4,
+    "2-BATX": 5,
+    "CFGM": 6,
+    "CFGS": 7,
     # Aliases
-    'ESO1': 0, 'ESO2': 1, 'ESO3': 2, 'ESO4': 3,
-    'BAC1': 4, 'BAC2': 5,
+    "ESO1": 0,
+    "ESO2": 1,
+    "ESO3": 2,
+    "ESO4": 3,
+    "BAC1": 4,
+    "BAC2": 5,
 }
 
 
@@ -43,29 +52,50 @@ def _get_nivell_mask(sessions: List[Dict]) -> int:
     """Retorna un bitmask amb els nivells de les sessions."""
     mask = 0
     for s in sessions:
-        curs = s.get('curs', '')
+        curs = s.get("curs", "")
         bit = NIVELL_TO_BIT.get(curs)
         if bit is not None:
-            mask |= (1 << bit)
+            mask |= 1 << bit
     return mask
 
 
 class GeneradorV2Backtrack(GeneradorV2Intents):
-    def generar_horari_optimitzat(self, data_inici: str = None, data_inici_iso: str = None, max_dies: int = 5,
-                                  dies_utilitzar: List[str] = None,
-                                  dia_a_data_iso: Dict[str, str] = None,
-                                  max_solucions: int = 100, **kwargs) -> Dict:
+    def generar_horari_optimitzat(
+        self,
+        data_inici: str = None,
+        data_inici_iso: str = None,
+        max_dies: int = 5,
+        dies_utilitzar: List[str] = None,
+        dia_a_data_iso: Dict[str, str] = None,
+        max_solucions: int = 100,
+        **kwargs,
+    ) -> Dict:
         solucions = self.generar_totes_solucions_optimes(
-            data_inici, data_inici_iso, max_dies, dies_utilitzar, max_solucions,
-            dia_a_data_iso=dia_a_data_iso, **kwargs
+            data_inici, data_inici_iso, max_dies, dies_utilitzar, max_solucions, dia_a_data_iso=dia_a_data_iso, **kwargs
         )
-        if not solucions or not solucions[0].get('dies'):
-            return solucions[0] if solucions else {'dies': [], 'metadata': {'cost_total': 999999, 'error': "No solucions"}}
+        if not solucions or not solucions[0].get("dies"):
+            return (
+                solucions[0] if solucions else {"dies": [], "metadata": {"cost_total": 999999, "error": "No solucions"}}
+            )
         return solucions[0]
 
-    def generar_totes_solucions_optimes(self, data_inici=None, data_inici_iso=None, max_dies=5, dies_utilitzar=None, max_solucions=100, random_seed=None, seeds_count=None, dia_a_data_iso=None, max_nodes=100000, shuffle_top_n=0, **kwargs):
+    def generar_totes_solucions_optimes(
+        self,
+        data_inici=None,
+        data_inici_iso=None,
+        max_dies=5,
+        dies_utilitzar=None,
+        max_solucions=100,
+        random_seed=None,
+        seeds_count=None,
+        dia_a_data_iso=None,
+        max_nodes=100000,
+        shuffle_top_n=0,
+        **kwargs,
+    ):
         if dies_utilitzar is None:
             from scheduler_engine.defaults import DIES_SETMANA
+
             dies_utilitzar = list(DIES_SETMANA)[:max_dies]
 
         self.selected_dates = sorted(kwargs.get("selected_dates") or [])
@@ -92,7 +122,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             seeds = [seed_rng.randrange(0, 1_000_000_000) for _ in range(seeds_count)]
 
         self._incompatibilitats_bt = []
-        best_cost = float('inf')
+        best_cost = float("inf")
         best_solutions = []
 
         for seed in seeds:
@@ -110,12 +140,12 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         totes_solucions = best_solutions
 
         resultats = []
-        for cost, s_occ in (totes_solucions or []):
+        for cost, s_occ in totes_solucions or []:
             h = self._construir_horari_desde_slots(s_occ, None, dies_utilitzar)
-            h['metadata'].update({'cost_total': cost, 'motor': 'v2-backtrack'})
+            h["metadata"].update({"cost_total": cost, "motor": "v2-backtrack"})
             resultats.append(h)
 
-        return resultats if resultats else [{'metadata': {'error': "No viable", 'viable': False}, 'dies': []}]
+        return resultats if resultats else [{"metadata": {"error": "No viable", "viable": False}, "dies": []}]
 
     def _backtrack_with_seed(self, seed, dies_utilitzar, max_solucions, max_nodes=100000, shuffle_top_n=0):
         from datetime import datetime as _dt
@@ -130,7 +160,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         rng = random.Random(seed)
         engine = RestrictionEngine(self.restriccions, self.nivells_actius)
 
-        selected = getattr(self, 'selected_dates', None) or []
+        selected = getattr(self, "selected_dates", None) or []
         if selected:
             slots_disp = [f"{data}_{h}" for data in selected for h in self.hores_examen]
         else:
@@ -156,73 +186,79 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             # altre bloc de la mateixa franja els fa deixar la mateixa classe)
             slots_claus = {}
             for sk in slots_disp:
-                _idx = sk.rfind('_')
-                prefix, h = sk[:_idx], sk[_idx + 1:]
+                _idx = sk.rfind("_")
+                prefix, h = sk[:_idx], sk[_idx + 1 :]
                 d, data_iso_bt = _parse_prefix(prefix)  # d = dia_nom per restriccions
                 cost, possible = 0, True
                 claus = {}
-                for s in item['sessions']:
+                for s in item["sessions"]:
                     if engine.check_hard(s, d, h, prefix, [], [], {}):
                         possible = False
                         break
-                    nom_s = s.get('nom')
-                    curs_s = s.get('curs')
+                    nom_s = s.get("nom")
+                    curs_s = s.get("curs")
                     durada_supervisio = self.get_durada_per_sessio_key(nom_s, curs_s)
                     hores_sup_bt = self._get_hores_ocupades(h, curs_s, nom_s)
                     if len(hores_sup_bt) < durada_supervisio:
                         possible = False
                         break
-                    analisi = self.analitzar_disponibilitat_sessio(
-                        s, d, h, sessions_al_slot=None, data_iso=data_iso_bt
-                    )
+                    analisi = self.analitzar_disponibilitat_sessio(s, d, h, sessions_al_slot=None, data_iso=data_iso_bt)
                     res_c = calcular_cost_slot(
-                        sessio=s, dia=d, hora=h, analisi=analisi,
-                        restriccions=self.restriccions, sessions_dia=[], sessions_slot=None,
-                        data_iso=data_iso_bt or "", ja_comptats=set(claus)
+                        sessio=s,
+                        dia=d,
+                        hora=h,
+                        analisi=analisi,
+                        restriccions=self.restriccions,
+                        sessions_dia=[],
+                        sessions_slot=None,
+                        data_iso=data_iso_bt or "",
+                        ja_comptats=set(claus),
                     )
-                    if res_c['cost_total'] >= DEFAULT_PES_RESTRICCIO_DURA:
+                    if res_c["cost_total"] >= DEFAULT_PES_RESTRICCIO_DURA:
                         possible = False
                         break
-                    cost += res_c['cost_total']
-                    claus.update(res_c.get('costos_professors') or {})
+                    cost += res_c["cost_total"]
+                    claus.update(res_c.get("costos_professors") or {})
                 if possible:
                     slots_costs[sk] = cost
                     slots_claus[sk] = claus
 
             if slots_costs:
-                nivell_mask = _get_nivell_mask(item['sessions'])
+                nivell_mask = _get_nivell_mask(item["sessions"])
                 millor = min(slots_costs.values())
                 # Identificador dens (0..N-1) només pels items realment viables.
                 # Evita índexs fora de rang quan alguns items no tenen cap slot possible.
                 dense_id = len(items_info)
-                items_info.append({
-                    'id': dense_id,
-                    'label': item['nom'],
-                    'item': item,
-                    'millor_cost': millor,
-                    'tots_slots': slots_costs,
-                    'claus_slot': slots_claus,
-                    'slots_possibles': set(slots_costs.keys()),  # Per Forward Checking
-                    'nivell_mask': nivell_mask,
-                    '_rand': rng.random()
-                })
+                items_info.append(
+                    {
+                        "id": dense_id,
+                        "label": item["nom"],
+                        "item": item,
+                        "millor_cost": millor,
+                        "tots_slots": slots_costs,
+                        "claus_slot": slots_claus,
+                        "slots_possibles": set(slots_costs.keys()),  # Per Forward Checking
+                        "nivell_mask": nivell_mask,
+                        "_rand": rng.random(),
+                    }
+                )
 
         n_exclosos = len(items) - len(items_info)
         if n_exclosos > 0:
-            items_info_labels = {ii['label'] for ii in items_info}
-            exclosos_items = [item for item in items if item.get('nom', '?') not in items_info_labels]
-            exclosos_noms = [it.get('nom', '?') for it in exclosos_items]
+            items_info_labels = {ii["label"] for ii in items_info}
+            exclosos_items = [item for item in items if item.get("nom", "?") not in items_info_labels]
+            exclosos_noms = [it.get("nom", "?") for it in exclosos_items]
             print(f"   ⚠️ {n_exclosos} items sense cap slot viable (exclosos del backtrack): {exclosos_noms}")
             # Detectar raó principal per cada ítem exclòs (primera vegada, les seeds posteriors ometen)
             if not self._incompatibilitats_bt:
                 for item in exclosos_items:
-                    nom = item.get('nom', '?')
+                    nom = item.get("nom", "?")
                     raons: Counter = Counter()
                     for sk in slots_disp:
-                        _idx_sk = sk.rfind('_')
-                        prefix_sk, h_sk = sk[:_idx_sk], sk[_idx_sk + 1:]
+                        _idx_sk = sk.rfind("_")
+                        prefix_sk, h_sk = sk[:_idx_sk], sk[_idx_sk + 1 :]
                         d_sk, _ = _parse_prefix(prefix_sk)
-                        for s in item['sessions']:
+                        for s in item["sessions"]:
                             violation = engine.check_hard(s, d_sk, h_sk, prefix_sk, [], [], {})
                             if violation:
                                 raons[violation.label] += 1
@@ -248,10 +284,10 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
 
         for i in range(num_items_valid):
             item_i = items_info[i]
-            mask_i = item_i['nivell_mask']
+            mask_i = item_i["nivell_mask"]
             for j in range(i + 1, num_items_valid):
                 item_j = items_info[j]
-                mask_j = item_j['nivell_mask']
+                mask_j = item_j["nivell_mask"]
 
                 # Conflicte de nivell: si comparteixen algun bit
                 if mask_i & mask_j:
@@ -259,17 +295,18 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                     compat_matrix[j][i] = False
                 else:
                     # Comprovar altres restriccions (no_mateix_slot, etc.)
-                    sessions_j = [{'sessio': s} for s in item_j['item']['sessions']]
-                    compatible, _ = es_item_compatible_amb_slot(item_i['item'], sessions_j, self.restriccions)
+                    sessions_j = [{"sessio": s} for s in item_j["item"]["sessions"]]
+                    compatible, _ = es_item_compatible_amb_slot(item_i["item"], sessions_j, self.restriccions)
                     compat_matrix[i][j] = compatible
                     compat_matrix[j][i] = compatible
 
         # Ordenació: items més restringits primer; si shuffle_top_n > 1, barreja dins grups
-        items_info.sort(key=lambda x: (len(x['slots_possibles']), x['millor_cost']))
+        items_info.sort(key=lambda x: (len(x["slots_possibles"]), x["millor_cost"]))
         if shuffle_top_n > 0:
             from itertools import groupby
+
             shuffled_items = []
-            for _, grp in groupby(items_info, key=lambda x: (len(x['slots_possibles']), x['millor_cost'])):
+            for _, grp in groupby(items_info, key=lambda x: (len(x["slots_possibles"]), x["millor_cost"])):
                 g = list(grp)
                 rng.shuffle(g)
                 shuffled_items.extend(g)
@@ -277,13 +314,13 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
 
         # Reasignar IDs després de l'ordenació
         for new_idx, it in enumerate(items_info):
-            it['sorted_id'] = new_idx
+            it["sorted_id"] = new_idx
 
         # Reconstruir matriu amb nous índexs
         new_compat = [[True] * num_items_valid for _ in range(num_items_valid)]
         for i, it_i in enumerate(items_info):
             for j, it_j in enumerate(items_info):
-                old_i, old_j = it_i['id'], it_j['id']
+                old_i, old_j = it_i["id"], it_j["id"]
                 new_compat[i][j] = compat_matrix[old_i][old_j]
         compat_matrix = new_compat
 
@@ -293,20 +330,20 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         # FASE 3: Backtracking amb optimitzacions
         # =============================================================
         totes_solucions = []
-        millor_c = [float('inf')]
+        millor_c = [float("inf")]
         nodes = [0]
         deepest_deadend = [-1, None]  # [idx, label]
 
         # Estat mutable (undo/redo)
         slot_nivell_mask = {sk: 0 for sk in slots_disp}  # Bitmask de nivells ocupats per slot
-        slot_items = {sk: [] for sk in slots_disp}       # Items assignats per slot (índexs)
+        slot_items = {sk: [] for sk in slots_disp}  # Items assignats per slot (índexs)
         slot_claus = {sk: Counter() for sk in slots_disp}  # Professors comptats per slot
-        dia_sessions = defaultdict(list)    # keyed per dia-nom: usat per professor limit functions
-        data_sessions = defaultdict(list)   # keyed per data ISO (o dia-nom si no hi ha ISO): usat per no_mateix_dia
-        item_assigned_slot = [None] * num_items_valid     # Slot assignat a cada item
+        dia_sessions = defaultdict(list)  # keyed per dia-nom: usat per professor limit functions
+        data_sessions = defaultdict(list)  # keyed per data ISO (o dia-nom si no hi ha ISO): usat per no_mateix_dia
+        item_assigned_slot = [None] * num_items_valid  # Slot assignat a cada item
 
         # Forward Checking: slots encara possibles per cada item no assignat
-        remaining_slots = [set(it['slots_possibles']) for it in items_info]
+        remaining_slots = [set(it["slots_possibles"]) for it in items_info]
 
         def forward_check(assigned_idx: int, assigned_slot: str) -> List[Tuple[int, Set[str]]]:
             """
@@ -314,7 +351,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             Retorna llista de (item_idx, slots_eliminats) per poder fer undo.
             """
             changes = []
-            assigned_prefix = assigned_slot[:assigned_slot.rfind('_')]
+            assigned_prefix = assigned_slot[: assigned_slot.rfind("_")]
             assigned_dia, _ = _parse_prefix(assigned_prefix)  # nom del dia
 
             for other_idx in range(assigned_idx + 1, num_items_valid):
@@ -331,10 +368,10 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
 
                 # no_mateix_dia: propagar restricció dura al FC
                 sessions_al_dia_assigned = data_sessions.get(assigned_prefix, [])
-                for s in other_item['item']['sessions']:
+                for s in other_item["item"]["sessions"]:
                     if viola_restriccio_dura(s, sessions_al_dia_assigned, self.restriccions):
                         for sk in list(remaining_slots[other_idx]):
-                            if sk[:sk.rfind('_')] == assigned_prefix:
+                            if sk[: sk.rfind("_")] == assigned_prefix:
                                 removed.add(sk)
                         break
 
@@ -369,19 +406,21 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 return
 
             it_info = items_info[idx]
-            nivell_mask = it_info['nivell_mask']
+            nivell_mask = it_info["nivell_mask"]
 
             # Forward Checking: si no queden slots possibles, dead-end
             if not remaining_slots[idx]:
                 if idx > deepest_deadend[0]:
                     deepest_deadend[0] = idx
-                    deepest_deadend[1] = it_info['label']
+                    deepest_deadend[1] = it_info["label"]
                 return
 
             # Ordenar slots per cost; els top-N es barregen per diversitat entre seeds
-            slots_to_try = [(sk, it_info['tots_slots'].get(sk, float('inf')))
-                           for sk in remaining_slots[idx]
-                           if sk in it_info['tots_slots']]
+            slots_to_try = [
+                (sk, it_info["tots_slots"].get(sk, float("inf")))
+                for sk in remaining_slots[idx]
+                if sk in it_info["tots_slots"]
+            ]
             slots_to_try.sort(key=lambda x: x[1])
             if shuffle_top_n > 0:
                 top_n = min(shuffle_top_n, len(slots_to_try))
@@ -390,8 +429,9 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 slots_to_try = top + slots_to_try[top_n:]
 
             # On són les sessions ja col·locades (per a "Mateix dia i hora" entre nivells)
-            ubicacions = [(s, k) for k, idxs in slot_items.items()
-                          for i in idxs for s in items_info[i]['item']['sessions']]
+            ubicacions = [
+                (s, k) for k, idxs in slot_items.items() for i in idxs for s in items_info[i]["item"]["sessions"]
+            ]
 
             for sk, base_cost in slots_to_try:
                 # Verificar compatibilitat amb bitmask (O(1))
@@ -408,19 +448,22 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                     continue
 
                 # Verificar restriccions de dia
-                prefix_s = sk[:sk.rfind('_')]
+                prefix_s = sk[: sk.rfind("_")]
                 dia_s, data_iso_s = _parse_prefix(prefix_s)  # nom del dia per restriccions
                 # Sessions ja assignades al slot sk (per calcular no_mateix_slot)
                 sessions_slot_ara = []
                 for existing_idx in slot_items[sk]:
-                    sessions_slot_ara.extend(items_info[existing_idx]['item']['sessions'])
+                    sessions_slot_ara.extend(items_info[existing_idx]["item"]["sessions"])
 
-                hora_s = sk[sk.rfind('_') + 1:]
+                hora_s = sk[sk.rfind("_") + 1 :]
                 cost_extra = 0
                 possible = True
-                for s in it_info['item']['sessions']:
+                for s in it_info["item"]["sessions"]:
                     if engine.check_hard(
-                        s, dia_s, hora_s, prefix_s,
+                        s,
+                        dia_s,
+                        hora_s,
+                        prefix_s,
                         data_sessions.get(prefix_s, []),
                         sessions_slot_ara,
                         dia_sessions,
@@ -430,8 +473,8 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                     cost_extra += self._calcular_penalitzacio_professors_dies(s, dia_s, dia_sessions)
                     pct_slot = percent_no_mateix_slot_violation(s, sessions_slot_ara, self.restriccions)
                     if pct_slot:
-                        pesos_opt = self.restriccions.get('pesos_optimitzacio', {})
-                        pes_d = pesos_opt.get('restriccio_dura', DEFAULT_PES_RESTRICCIO_DURA)
+                        pesos_opt = self.restriccions.get("pesos_optimitzacio", {})
+                        pes_d = pesos_opt.get("restriccio_dura", DEFAULT_PES_RESTRICCIO_DURA)
                         cost_extra += _percent_penalty(pes_d, pct_slot)
                     pct_pref = percent_pref_mateix_slot_violation(s, sk, ubicacions, self.restriccions)
                     if pct_pref >= 100:
@@ -444,7 +487,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
 
                 # Un professor ja comptat a la franja per un altre bloc deixa la
                 # mateixa classe: no es torna a comptar
-                claus_item = it_info['claus_slot'].get(sk, {})
+                claus_item = it_info["claus_slot"].get(sk, {})
                 cost_extra -= sum(c for k, c in claus_item.items() if slot_claus[sk][k] > 0)
 
                 new_cost = cost_ac + base_cost + cost_extra
@@ -456,7 +499,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 slot_items[sk].append(idx)
                 slot_claus[sk].update(claus_item.keys())
                 item_assigned_slot[idx] = sk
-                for s in it_info['item']['sessions']:
+                for s in it_info["item"]["sessions"]:
                     dia_sessions[dia_s].append(s)
                     data_sessions[prefix_s].append(s)
 
@@ -471,7 +514,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                         # Rastreja l'ítem que quedaria sense slots per FC
                         if future_idx > deepest_deadend[0]:
                             deepest_deadend[0] = future_idx
-                            deepest_deadend[1] = items_info[future_idx]['label']
+                            deepest_deadend[1] = items_info[future_idx]["label"]
                         break
 
                 if not dead_end:
@@ -483,14 +526,14 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 slot_items[sk].pop()
                 slot_claus[sk].subtract(claus_item.keys())
                 item_assigned_slot[idx] = None
-                for _ in it_info['item']['sessions']:
+                for _ in it_info["item"]["sessions"]:
                     dia_sessions[dia_s].pop()
                     data_sessions[prefix_s].pop()
 
             # Esgotament del bucle: cap slot vàlid per a idx en aquest context
             if idx > deepest_deadend[0]:
                 deepest_deadend[0] = idx
-                deepest_deadend[1] = it_info['label']
+                deepest_deadend[1] = it_info["label"]
 
         backtrack(0, 0)
 
@@ -501,15 +544,15 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         if not totes_solucions and deepest_deadend[1] and not self._incompatibilitats_bt:
             label = deepest_deadend[1]
             # Detectar motiu estructural (sense context), igual que v3-SA
-            deadend_item = next((ii for ii in items_info if ii['label'] == label), None)
+            deadend_item = next((ii for ii in items_info if ii["label"] == label), None)
             motiu = None
             if deadend_item:
                 raons_dd: Counter = Counter()
                 for sk in slots_disp:
-                    _idx_sk = sk.rfind('_')
-                    prefix_sk, h_sk = sk[:_idx_sk], sk[_idx_sk + 1:]
+                    _idx_sk = sk.rfind("_")
+                    prefix_sk, h_sk = sk[:_idx_sk], sk[_idx_sk + 1 :]
                     d_sk, _ = _parse_prefix(prefix_sk)
-                    for s in deadend_item['item']['sessions']:
+                    for s in deadend_item["item"]["sessions"]:
                         violation = engine.check_hard(s, d_sk, h_sk, prefix_sk, [], [], {})
                         if violation:
                             raons_dd[violation.label] += 1
@@ -527,8 +570,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
     def _construir_horari_desde_slots(self, slots_occ, data_inici, dies_utilitzar):
         from datetime import datetime as _dt2
 
-
-        selected = getattr(self, 'selected_dates', None) or []
+        selected = getattr(self, "selected_dates", None) or []
         if selected:
             dies_iter = []
             for data_iso in selected:
@@ -542,9 +584,9 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
 
         res_dies = []
         for dia_nom, data_iso, sk_prefix in dies_iter:
-            di = {'dia': dia_nom, 'sessions': []}
+            di = {"dia": dia_nom, "sessions": []}
             if data_iso:
-                di['data'] = data_iso
+                di["data"] = data_iso
             for h in self.hores_examen:
                 sk = f"{sk_prefix}_{h}"
                 its = slots_occ.get(sk, [])
@@ -552,16 +594,18 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                     sim = []
                     all_s = []
                     for it in its:
-                        all_s.extend(it['item']['sessions'])
+                        all_s.extend(it["item"]["sessions"])
                     for s in all_s:
                         sc = s.copy()
-                        sc['analisi'] = self.analitzar_disponibilitat_sessio(
+                        sc["analisi"] = self.analitzar_disponibilitat_sessio(
                             s, dia_nom, h, [x for x in all_s if x != s], data_iso=data_iso
                         )
                         sim.append(sc)
-                    di['sessions'].append({'hora': h, 'sessions_simultanees': sim})
+                    di["sessions"].append({"hora": h, "sessions_simultanees": sim})
             res_dies.append(di)
-        final = {'dies': res_dies, 'metadata': {'total_sessions': self.get_total_sessions_count(), 'data_inici': data_inici}}
+        final = {
+            "dies": res_dies,
+            "metadata": {"total_sessions": self.get_total_sessions_count(), "data_inici": data_inici},
+        }
         aplicar_estadistiques(final)
         return final
-

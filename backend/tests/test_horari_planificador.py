@@ -4,19 +4,20 @@ primera); sense dates, el d'avui. Amb un horari futur ja pujat, planificar
 uns exàmens d'aquí a deu dies ha d'importar assignacions i comprovar-les amb
 l'horari nou, no amb el d'avui.
 """
+
 import uuid
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra
-from suport_xml import amb_horari_futur, dia, professor_que_plega
+from suport_xml import amb_horari_futur, dia, fixa_avui, professor_que_plega
 
-from auth_utils import get_current_user, require_admin
+from auth.dependencies import get_current_user, require_admin
 from rate_limit import limiter
-from routes import config_examens, general, scheduler
+from routes import config_examens, general, scheduler, scheduler_config
 
 APP = crea_app()
-APP.include_router(scheduler.router, dependencies=[Depends(require_admin)])        # com a main.py
+APP.include_router(scheduler.router, dependencies=[Depends(require_admin)])  # com a main.py
 APP.include_router(config_examens.router, dependencies=[Depends(require_admin)])
 APP.include_router(general.router, dependencies=[Depends(get_current_user)])
 FUTUR = [dia(10).isoformat(), dia(11).isoformat()]
@@ -26,6 +27,12 @@ FUTUR = [dia(10).isoformat(), dia(11).isoformat()]
 def _limiter_net():
     limiter.reset()
     yield
+
+
+@pytest.fixture(autouse=True)
+def _avui_fix(monkeypatch):
+    # Sense dates, el planificador fa servir l'horari d'avui
+    fixa_avui(monkeypatch, scheduler_config)
 
 
 @pytest.fixture
@@ -76,16 +83,18 @@ def _titulars_proposats(client):
 
 
 def test_importar_assignacions_fa_servir_l_horari_de_les_dates_planificades(client):
-    assert professor_que_plega() in _titulars_proposats(client)       # avui hi és
+    assert professor_que_plega() in _titulars_proposats(client)  # avui hi és
     _planifica(client, FUTUR)
-    assert professor_que_plega() not in _titulars_proposats(client)   # a l'horari nou, no
+    assert professor_que_plega() not in _titulars_proposats(client)  # a l'horari nou, no
 
 
 def test_les_assignacions_obsoletes_es_comproven_amb_l_horari_planificat(client):
     # Importades de l'horari d'avui; després es planifiquen dates de l'horari nou
     propostes = client.get("/api/config/importar-assignacions/preview").json()["propostes"]
-    assert client.post("/api/config/importar-assignacions",
-                       json={"propostes": propostes, "overwrite": True}).status_code == 200
+    assert (
+        client.post("/api/config/importar-assignacions", json={"propostes": propostes, "overwrite": True}).status_code
+        == 200
+    )
     assert client.get("/api/config/assignacions-obsoletes").json()["assignacions"] == []
     _planifica(client, FUTUR)
     obsoletes = client.get("/api/config/assignacions-obsoletes").json()["assignacions"]

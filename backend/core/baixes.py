@@ -1,6 +1,7 @@
 """
 Gestor de professors de baixa temporal
 """
+
 import logging
 from datetime import date, datetime
 from typing import Dict, List
@@ -10,6 +11,7 @@ log = logging.getLogger(__name__)
 try:
     from i18n_setup import translate as _
 except ImportError:
+
     def _(text):
         return text
 
@@ -55,7 +57,7 @@ class GestorBaixes:
     def __init__(self):
         """Inicialitza el gestor"""
         # No reinicialitzem si ja existeix (singleton)
-        if not hasattr(self, '_initialized'):
+        if not hasattr(self, "_initialized"):
             self._initialized = True
 
     def carregar_baixes(self, institucio: str) -> List[Dict]:
@@ -138,14 +140,12 @@ class GestorBaixes:
         current_time = time.time()
 
         # Si no hi ha cache o ha expirat, recarrega
-        if (GestorBaixes._cache is None or
-            current_time - GestorBaixes._cache_time > CACHE_DURATION or
-            GestorBaixes._cache.get("institucio") != institucio):
-
-            GestorBaixes._cache = {
-                "institucio": institucio,
-                "baixes": self.carregar_baixes(institucio)
-            }
+        if (
+            GestorBaixes._cache is None
+            or current_time - GestorBaixes._cache_time > CACHE_DURATION
+            or GestorBaixes._cache.get("institucio") != institucio
+        ):
+            GestorBaixes._cache = {"institucio": institucio, "baixes": self.carregar_baixes(institucio)}
             GestorBaixes._cache_time = current_time
 
         return GestorBaixes._cache.get("baixes", [])

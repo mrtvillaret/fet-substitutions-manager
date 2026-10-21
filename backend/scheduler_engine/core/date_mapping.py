@@ -72,4 +72,3 @@ def construir_mapa_dia_data_iso(
     for idx, dia_norm in enumerate(dies_norm):
         mapa.setdefault(dia_norm, []).append((base + timedelta(days=idx)).strftime("%Y-%m-%d"))
     return mapa
-

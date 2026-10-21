@@ -3,6 +3,7 @@ Validacions d'un dia abans de generar el PDF: conflictes (cal resoldre'ls) i
 avisos. Cada comprovació és una funció que afegeix els seus missatges; l'ordre
 importa, perquè dins de cada hora surten en l'ordre en què s'afegeixen.
 """
+
 import logging
 from collections import defaultdict
 
@@ -38,8 +39,11 @@ def _vigilancies_duplicades(vigilancies_per_hora: dict, warnings: list) -> None:
         for vigilant in set(vigilants):
             count = vigilants.count(vigilant)
             if count > 1:
-                warnings.append(translate("🔄 {hora}: {vigilant} assignat {count} vegades com a vigilant").format(
-                    hora=hora, vigilant=vigilant, count=count))
+                warnings.append(
+                    translate("🔄 {hora}: {vigilant} assignat {count} vegades com a vigilant").format(
+                        hora=hora, vigilant=vigilant, count=count
+                    )
+                )
 
     for hora, vigs in vigilancies_per_hora.items():
         aules = [v.get("aula") for v in vigs if v.get("aula") and v.get("aula") != "ENLLAÇ"]
@@ -77,8 +81,11 @@ class _Cobertures:
                     if substitut:
                         self.vigilants_absents_coberts[(professor, hora)] = substitut
                     else:
-                        warnings.append(translate("❌ {hora}: {prof} - VIGILÀNCIA sense substitut assignat").format(
-                            hora=hora, prof=professor))
+                        warnings.append(
+                            translate("❌ {hora}: {prof} - VIGILÀNCIA sense substitut assignat").format(
+                                hora=hora, prof=professor
+                            )
+                        )
                 continue
             if tipus in ("VIGILÀNCIA", "ENCADENADA"):
                 continue
@@ -94,9 +101,16 @@ def _vigilants(dia: DiaEscolar, vigilancies_per_hora: dict, cob: _Cobertures, wa
         for hora, vigs in vigilancies_per_hora.items():
             for vig in vigs:
                 vigilant = vig.get("vigilant", "")
-                if vigilant and vigilant in cob.absents_del_dia and (vigilant, hora) not in cob.vigilants_absents_coberts:
-                    warnings.append(translate("⚠️ {hora}: Vigilant {vigilant} absent sense cobertura").format(
-                        hora=hora, vigilant=vigilant))
+                if (
+                    vigilant
+                    and vigilant in cob.absents_del_dia
+                    and (vigilant, hora) not in cob.vigilants_absents_coberts
+                ):
+                    warnings.append(
+                        translate("⚠️ {hora}: Vigilant {vigilant} absent sense cobertura").format(
+                            hora=hora, vigilant=vigilant
+                        )
+                    )
         return
 
     for hora, vigs in vigilancies_per_hora.items():
@@ -108,21 +122,30 @@ def _vigilants(dia: DiaEscolar, vigilancies_per_hora: dict, cob: _Cobertures, wa
             if vigilant in cob.absents_per_hora.get(hora, set()):
                 substitut = cob.vigilants_absents_coberts.get((vigilant, hora))
                 if substitut:
-                    warnings.append(translate("ℹ️ {hora}: Vigilant {vigilant} absent (cobert per {substitut})").format(
-                        hora=hora, vigilant=vigilant, substitut=substitut))
+                    warnings.append(
+                        translate("ℹ️ {hora}: Vigilant {vigilant} absent (cobert per {substitut})").format(
+                            hora=hora, vigilant=vigilant, substitut=substitut
+                        )
+                    )
                 else:
-                    warnings.append(translate("⚠️ {hora}: Vigilant {vigilant} absent sense cobertura").format(
-                        hora=hora, vigilant=vigilant))
+                    warnings.append(
+                        translate("⚠️ {hora}: Vigilant {vigilant} absent sense cobertura").format(
+                            hora=hora, vigilant=vigilant
+                        )
+                    )
                 continue
 
             activitat = dia.activitat(vigilant, hora)
             assignatura, grup = activitat.get("assignatura", ""), activitat.get("grup", "")
             if not grup.strip() or not assignatura.strip():
-                continue   # guàrdia, reforç... o cap activitat: lliure
+                continue  # guàrdia, reforç... o cap activitat: lliure
             # Només si no està lliure i la seva classe no té ja una cobertura
             if not sense_classe(vigilant, grup, lliures) and vigilant not in cob.classes_de_vigilants.get(hora, {}):
-                warnings.append(translate("⚠️ {hora}: Vigilant {vigilant} té classe ({assignatura}, {grup})").format(
-                    hora=hora, vigilant=vigilant, assignatura=assignatura, grup=grup))
+                warnings.append(
+                    translate("⚠️ {hora}: Vigilant {vigilant} té classe ({assignatura}, {grup})").format(
+                        hora=hora, vigilant=vigilant, assignatura=assignatura, grup=grup
+                    )
+                )
 
 
 def _substituts_repetits(dia: DiaEscolar, vigilancies_per_hora: dict, warnings: list) -> None:
@@ -134,16 +157,23 @@ def _substituts_repetits(dia: DiaEscolar, vigilancies_per_hora: dict, warnings: 
         for substitut in set(substituts):
             count = substituts.count(substitut)
             if count > 1:
-                warnings.append(translate("🔄 {hora}: {substitut} assignat {count} vegades com a substitut").format(
-                    hora=hora, substitut=substitut, count=count))
+                warnings.append(
+                    translate("🔄 {hora}: {substitut} assignat {count} vegades com a substitut").format(
+                        hora=hora, substitut=substitut, count=count
+                    )
+                )
 
     for hora, vigs in vigilancies_per_hora.items():
         vigilants = {v.get("vigilant", "").strip() for v in vigs if (v.get("vigilant") or "").strip()}
-        substituts = {s.get("substitut", "").strip() for s in dia.files
-                      if s.get("hora") == hora and (s.get("substitut") or "").strip()}
+        substituts = {
+            s.get("substitut", "").strip()
+            for s in dia.files
+            if s.get("hora") == hora and (s.get("substitut") or "").strip()
+        }
         for professor in sorted(vigilants & substituts):
-            warnings.append(translate("⚠️ {hora}: {professor} és vigilant i substitut alhora").format(
-                hora=hora, professor=professor))
+            warnings.append(
+                translate("⚠️ {hora}: {professor} és vigilant i substitut alhora").format(hora=hora, professor=professor)
+            )
 
 
 def _absencies_sense_substitut(dia: DiaEscolar, conflicts: list) -> None:
@@ -154,36 +184,57 @@ def _absencies_sense_substitut(dia: DiaEscolar, conflicts: list) -> None:
         if (sub.get("substitut") or "").strip() or not grup.strip():
             continue
         if not sense_classe(prof_absent, grup, dia.alliberats.get(hora, [])):
-            conflicts.append(translate("❌ {hora}: {prof_absent} ({assignatura}, {grup}) sense substitut").format(
-                hora=hora, prof_absent=prof_absent, assignatura=sub.get("assignatura", ""), grup=grup))
+            conflicts.append(
+                translate("❌ {hora}: {prof_absent} ({assignatura}, {grup}) sense substitut").format(
+                    hora=hora, prof_absent=prof_absent, assignatura=sub.get("assignatura", ""), grup=grup
+                )
+            )
 
 
-def _baixes_i_substituts_no_valids(dia: DiaEscolar, vigilancies_per_hora: dict,
-                                   conflicts: list, warnings: list) -> None:
+def _baixes_i_substituts_no_valids(
+    dia: DiaEscolar, vigilancies_per_hora: dict, conflicts: list, warnings: list
+) -> None:
     for hora, vigs in vigilancies_per_hora.items():
         for vig in vigs:
             vigilant = vig.get("vigilant", "")
             if vigilant and vigilant in dia.baixes:
-                warnings.append(translate("🏥 {hora}: {vigilant} està de baixa però assignat com a vigilant").format(
-                    hora=hora, vigilant=vigilant))
+                warnings.append(
+                    translate("🏥 {hora}: {vigilant} està de baixa però assignat com a vigilant").format(
+                        hora=hora, vigilant=vigilant
+                    )
+                )
 
     # Substituts que ja no poden fer la substitució (la mateixa regla que
     # «Reassignar problemàtics»). Ser vigilant ja s'ha avisat a _substituts_repetits.
-    motius = [(sub, dia.motius_substitut(sub["substitut"].strip(), sub.get("hora", "")))
-              for sub in dia.files if (sub.get("substitut") or "").strip()]
+    motius = [
+        (sub, dia.motius_substitut(sub["substitut"].strip(), sub.get("hora", "")))
+        for sub in dia.files
+        if (sub.get("substitut") or "").strip()
+    ]
     for sub, mots in motius:
         if any(m["motiu"] == "baixa" for m in mots):
-            warnings.append(translate("🏥 {hora}: {substitut} està de baixa però assignat com a substitut").format(
-                hora=sub.get("hora", ""), substitut=sub["substitut"]))
+            warnings.append(
+                translate("🏥 {hora}: {substitut} està de baixa però assignat com a substitut").format(
+                    hora=sub.get("hora", ""), substitut=sub["substitut"]
+                )
+            )
     for sub, mots in motius:
         for m in mots:
             if m["motiu"] == "absent":
-                conflicts.append(translate("❌ {hora}: Substitut {substitut} està absent!").format(
-                    hora=sub.get("hora", ""), substitut=sub["substitut"]))
+                conflicts.append(
+                    translate("❌ {hora}: Substitut {substitut} està absent!").format(
+                        hora=sub.get("hora", ""), substitut=sub["substitut"]
+                    )
+                )
             elif m["motiu"] == "classe":
-                warnings.append(translate("⚠️ {hora}: Substitut {substitut} té classe ({assignatura_sub}, {grup_sub})").format(
-                    hora=sub.get("hora", ""), substitut=sub["substitut"],
-                    assignatura_sub=m["classe_assignatura"], grup_sub=m["classe_grup"]))
+                warnings.append(
+                    translate("⚠️ {hora}: Substitut {substitut} té classe ({assignatura_sub}, {grup_sub})").format(
+                        hora=sub.get("hora", ""),
+                        substitut=sub["substitut"],
+                        assignatura_sub=m["classe_assignatura"],
+                        grup_sub=m["classe_grup"],
+                    )
+                )
 
 
 def _resum_cobertures(cob: _Cobertures, warnings: list) -> None:

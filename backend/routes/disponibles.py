@@ -1,13 +1,14 @@
 """
 Routes per llistat de professors disponibles
 """
+
 from collections import defaultdict
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from auth_utils import get_current_user
+from auth.dependencies import get_current_user
 from config.constants import ORDRE_PRIORITATS
 from dependencies import dia_de_la_peticio, get_db
 from routes.parametres import DataISO, data_iso
@@ -21,7 +22,7 @@ async def get_disponibles_dia(
     data: DataISO,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
-    dia: Dia = Depends(dia_de_la_peticio)
+    dia: Dia = Depends(dia_de_la_peticio),
 ):
     """
     Retorna professors disponibles per cada hora d'un dia concret,
@@ -60,10 +61,12 @@ async def get_disponibles_dia(
     # Obtenir professors de baixa
     from config.constants import PROFESSORS_BAIXA
     from core.baixes import professors_de_baixa
+
     professors_baixa_avui = professors_de_baixa(PROFESSORS_BAIXA, data)
 
     # Obtenir substitucions del dia
     from repositories import SubstitucioRepository
+
     substitucions_data = SubstitucioRepository.get_by_date(db, data)
 
     # Crear mapa de substituts per hora
@@ -76,6 +79,7 @@ async def get_disponibles_dia(
 
     # Obtenir grups alliberats
     from repositories import GrupsAlliberatsRepository
+
     grups_alliberats_data = GrupsAlliberatsRepository.get_by_date(db, data)
 
     resultat = {}
@@ -91,8 +95,7 @@ async def get_disponibles_dia(
         disponibles_filtrats = [
             (prof, tipus, detall)
             for prof, tipus, detall in disponibles
-            if prof not in professors_baixa_avui
-            and prof not in substituts_per_hora.get(hora, set())
+            if prof not in professors_baixa_avui and prof not in substituts_per_hora.get(hora, set())
         ]
 
         # Agrupar per categoria i tipus
@@ -101,6 +104,7 @@ async def get_disponibles_dia(
         for prof, tipus, detall in disponibles_filtrats:
             # Obtenir categoria segons el tipus de disponibilitat
             from core.vigilancia_assignacio import get_categoria_prioritat
+
             categoria_idx = get_categoria_prioritat(tipus)
 
             # Obtenir nom de categoria de ORDRE_PRIORITATS
@@ -116,11 +120,7 @@ async def get_disponibles_dia(
             else:
                 tipus_display = f"{tipus} ({detall})"
 
-            agrupats[categoria][tipus_display].append({
-                "nom": prof,
-                "tipus": tipus,
-                "detall": detall
-            })
+            agrupats[categoria][tipus_display].append({"nom": prof, "tipus": tipus, "detall": detall})
 
         # Ordenar categories per prioritat
         # Trobar índex de categoria buscant quin set de ORDRE_PRIORITATS conté el nom
@@ -130,24 +130,13 @@ async def get_disponibles_dia(
                     return idx
             return 999  # Si no es troba, al final
 
-        resultat[hora] = dict(sorted(
-            agrupats.items(),
-            key=lambda x: get_categoria_index(x[0])
-        ))
+        resultat[hora] = dict(sorted(agrupats.items(), key=lambda x: get_categoria_index(x[0])))
 
-    return {
-        "data": data,
-        "dia": dia_name,
-        "disponibles": resultat
-    }
+    return {"data": data, "dia": dia_name, "disponibles": resultat}
 
 
 @router.get("/{data}/resum")
-async def get_resum_disponibles(
-    data: DataISO,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
+async def get_resum_disponibles(data: DataISO, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """
     Retorna un resum del nombre de disponibles per hora i categoria.
     """
@@ -156,16 +145,12 @@ async def get_resum_disponibles(
     resum = {}
     for hora, categories in disponibles["disponibles"].items():
         resum[hora] = {
-            categoria: sum(len(profs) for profs in tipus.values())
-            for categoria, tipus in categories.items()
+            categoria: sum(len(profs) for profs in tipus.values()) for categoria, tipus in categories.items()
         }
 
     return {
         "data": data,
         "dia": disponibles["dia"],
         "resum": resum,
-        "total_per_hora": {
-            hora: sum(resum[hora].values())
-            for hora in resum
-        }
+        "total_per_hora": {hora: sum(resum[hora].values()) for hora in resum},
     }

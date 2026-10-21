@@ -3,6 +3,7 @@ En crear, canviar o esborrar una baixa o una activitat a «No substituir», les
 llistes que fan servir el motor i les validacions (config.constants) es
 recarreguen de seguida, sense haver de reiniciar ni desar les prioritats.
 """
+
 import uuid
 from datetime import date, timedelta
 
@@ -44,27 +45,34 @@ def _avis_baixa(client):
 
 
 def test_una_baixa_nova_es_te_en_compte_de_seguida(client, centre):
-    resp = client.put(f"/api/substitucions/{DATA}/absencies/Prof 15",
-                      json={"hores_absencia": ["10:00"], "updated_at_map": {}})
+    resp = client.put(
+        f"/api/substitucions/{DATA}/absencies/Prof 15", json={"hores_absencia": ["10:00"], "updated_at_map": {}}
+    )
     assert resp.status_code == 200, resp.text
     with get_data_db_session(centre) as db:
         fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f["hora"] == "10:00")
         SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "Prof 3"})
     assert not _avis_baixa(client)
 
-    resp = client.post("/api/prioritats/professors-baixa", json={
-        "professor": "Prof 3", "data_inici": DATA, "data_final": DATA, "motiu": ""})
+    resp = client.post(
+        "/api/prioritats/professors-baixa",
+        json={"professor": "Prof 3", "data_inici": DATA, "data_final": DATA, "motiu": ""},
+    )
     assert resp.status_code == 200, resp.text
     assert _avis_baixa(client)
 
     baixa_id = resp.json()["id"]
-    resp = client.put(f"/api/prioritats/professors-baixa/{baixa_id}", json={
-        "professor": "Prof 3", "data_inici": "2020-09-01", "data_final": "2020-09-30", "motiu": ""})
+    resp = client.put(
+        f"/api/prioritats/professors-baixa/{baixa_id}",
+        json={"professor": "Prof 3", "data_inici": "2020-09-01", "data_final": "2020-09-30", "motiu": ""},
+    )
     assert resp.status_code == 200, resp.text
     assert not _avis_baixa(client)
 
-    client.put(f"/api/prioritats/professors-baixa/{baixa_id}", json={
-        "professor": "Prof 3", "data_inici": DATA, "data_final": DATA, "motiu": ""})
+    client.put(
+        f"/api/prioritats/professors-baixa/{baixa_id}",
+        json={"professor": "Prof 3", "data_inici": DATA, "data_final": DATA, "motiu": ""},
+    )
     assert _avis_baixa(client)
     assert client.delete(f"/api/prioritats/professors-baixa/{baixa_id}").status_code == 200
     assert not _avis_baixa(client)

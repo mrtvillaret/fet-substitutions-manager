@@ -2,6 +2,7 @@
 Pujada del logo (routes/files.py, upload-logo): només s'accepten imatges PNG
 o JPG de debò, i el que es desa és sempre una còpia nova en PNG, reduïda.
 """
+
 import io
 import uuid
 

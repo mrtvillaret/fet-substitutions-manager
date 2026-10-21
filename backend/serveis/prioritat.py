@@ -3,6 +3,7 @@ Si per a un substitut ja assignat hi ha un professor disponible d'una
 categoria de més prioritat (p. ex. un alliberat en lloc d'una guàrdia). Ho
 fan servir els avisos del PDF i «Reassignar problemàtics».
 """
+
 from collections import defaultdict
 
 from serveis.dia_escolar import DiaEscolar
@@ -52,8 +53,11 @@ class MillorsSubstituts:
         tipus_actual = tipus_per_professor.get(actual, tipus_real((sub.get("tipus_substitut") or "").strip()))
         categoria_actual = self.motor._obtenir_categoria(tipus_actual)
 
-        no_poden = (self.dia.absents_per_hora.get(hora, set()) | self.dia.vigilants_per_hora.get(hora, set())
-                    | self.ocupats_per_hora.get(hora, set()))
+        no_poden = (
+            self.dia.absents_per_hora.get(hora, set())
+            | self.dia.vigilants_per_hora.get(hora, set())
+            | self.ocupats_per_hora.get(hora, set())
+        )
         for prof, tipus, detall in disponibles:
             if prof not in no_poden and self.motor._obtenir_categoria(tipus) < categoria_actual:
                 return prof, tipus, detall, tipus_actual

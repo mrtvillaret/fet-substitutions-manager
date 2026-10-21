@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
-from auth_utils import require_admin
+from auth.dependencies import require_admin
 from database import get_data_db_session
 from models import AbreviaturaGrup, ExamCostProfessor, ExamRestriccio, Grup, Nivell
 from repositories import (
@@ -84,6 +84,7 @@ from serveis.publicacio_examens import PublicacioExamens, data_del_dia, primera_
 def _expandir_dies_per_analisi(dies_util: list, dia_a_data_iso: dict) -> list:
     """Expandeix dies_util a dates ISO quan hi ha múltiples setmanes per dia."""
     from scheduler_engine.core.normalitzacio import normalitzar_dia as _nd
+
     result = []
     for dia in dies_util:
         dates = dia_a_data_iso.get(_nd(dia), [])
@@ -95,23 +96,33 @@ def _expandir_dies_per_analisi(dies_util: list, dia_a_data_iso: dict) -> list:
             result.append(dia)
     return result
 
+
 router = APIRouter(prefix="/api/scheduler", tags=["Scheduler"])
 
 log = logging.getLogger(__name__)
 
+
 @router.get("/status")
 async def scheduler_status(current_user=Depends(require_admin)):
     p = Path(__file__).resolve().parents[1] / "scheduler_engine" / "generators" / "v3_sa.py"
-    return {"available": p.exists(), "engine_path": str(p.parent), "message": "OK" if p.exists() else "Pending", "institucio": current_user.institucio}
+    return {
+        "available": p.exists(),
+        "engine_path": str(p.parent),
+        "message": "OK" if p.exists() else "Pending",
+        "institucio": current_user.institucio,
+    }
+
 
 @router.get("/motors")
 async def scheduler_motors(current_user=Depends(require_admin)):
     """Retorna els motors disponibles amb paràmetres i defaults per al frontend."""
     from scheduler_engine.factory import get_motors_info
+
     return {
         "motors": get_motors_info(),
         "cost_defaults": dict(DEFAULT_COST_PROFESSORS),
     }
+
 
 @router.get("/grups-nivells")
 async def scheduler_grups_nivells(current_user=Depends(require_admin)):
@@ -123,26 +134,31 @@ async def scheduler_grups_nivells(current_user=Depends(require_admin)):
         # Carregar abreviatures per poder expandir
         abreviatures = {}
         for abr in db.query(AbreviaturaGrup).all():
-            abreviatures[abr.abreviatura] = [g.strip() for g in abr.grups_originals.split(',')]
+            abreviatures[abr.abreviatura] = [g.strip() for g in abr.grups_originals.split(",")]
 
         # Carregar grups per nivell
         result = {}
         nivells = db.query(Nivell).filter(Nivell.actiu.is_(True)).order_by(Nivell.ordre).all()
         for nivell in nivells:
-            if nivell.codi in ('GENERAL', 'RECERCA'):
+            if nivell.codi in ("GENERAL", "RECERCA"):
                 continue
-            grups = db.query(Grup).filter(
-                Grup.nivell_id == nivell.id, Grup.actiu.is_(True)
-            ).order_by(Grup.ordre, Grup.codi).all()
+            grups = (
+                db.query(Grup)
+                .filter(Grup.nivell_id == nivell.id, Grup.actiu.is_(True))
+                .order_by(Grup.ordre, Grup.codi)
+                .all()
+            )
 
             grups_list = []
             for g in grups:
                 expandits = abreviatures.get(g.codi)
-                grups_list.append({
-                    'codi': g.codi,
-                    'es_abreviatura': expandits is not None,
-                    'grups_expandits': expandits or [],
-                })
+                grups_list.append(
+                    {
+                        "codi": g.codi,
+                        "es_abreviatura": expandits is not None,
+                        "grups_expandits": expandits or [],
+                    }
+                )
             if grups_list:
                 result[nivell.codi] = grups_list
 
@@ -185,15 +201,26 @@ async def scheduler_config(current_user=Depends(require_admin)):
         "durades_grups": durades_grups,
     }
 
+
 @router.put("/config")
 async def scheduler_config_update(payload: dict, current_user=Depends(require_admin)):
     with get_data_db_session(current_user.institucio) as db:
-        if "durada_titular" in payload: ConfiguracioRepository.set(db, SCHEDULER_DURADA_KEY, str(payload["durada_titular"]), tipus="integer")
-        if "durada_examen" in payload: ConfiguracioRepository.set(db, SCHEDULER_DURADA_EXAMEN_KEY, str(payload["durada_examen"]), tipus="integer")
-        if "nivells_actius" in payload: ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(payload["nivells_actius"]), tipus="json")
-        if "alliberaments_per_nivell" in payload: ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(payload["alliberaments_per_nivell"]), tipus="json")
-        if "durades_grups" in payload: ConfiguracioRepository.set(db, SCHEDULER_DURADES_GRUPS_KEY, json.dumps(payload["durades_grups"]), tipus="json")
+        if "durada_titular" in payload:
+            ConfiguracioRepository.set(db, SCHEDULER_DURADA_KEY, str(payload["durada_titular"]), tipus="integer")
+        if "durada_examen" in payload:
+            ConfiguracioRepository.set(db, SCHEDULER_DURADA_EXAMEN_KEY, str(payload["durada_examen"]), tipus="integer")
+        if "nivells_actius" in payload:
+            ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(payload["nivells_actius"]), tipus="json")
+        if "alliberaments_per_nivell" in payload:
+            ConfiguracioRepository.set(
+                db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(payload["alliberaments_per_nivell"]), tipus="json"
+            )
+        if "durades_grups" in payload:
+            ConfiguracioRepository.set(
+                db, SCHEDULER_DURADES_GRUPS_KEY, json.dumps(payload["durades_grups"]), tipus="json"
+            )
     return {"success": True}
+
 
 def _assignatures_inexistents(db, restr: dict) -> list[str]:
     """Assignatures de les restriccions que no són a la configuració d'exàmens
@@ -222,6 +249,7 @@ async def scheduler_treure_assignatures_inexistents(current_user=Depends(require
             _save_restriccions_to_db(db, _treu_assignatures_de_restriccions(restr, set(trets)))
         return {"trets": trets, "restriccions": _build_restriccions_from_db(db)}
 
+
 def _agrupacions_amb_diversos_nivells(restriccions: dict) -> list:
     """Noms de les agrupacions (mateix_slot) amb exàmens de més d'un nivell.
 
@@ -232,8 +260,9 @@ def _agrupacions_amb_diversos_nivells(restriccions: dict) -> list:
     barrejades = []
     for grup in (restriccions.get("restriccions_dures") or {}).get("mateix_slot") or []:
         assignatures = grup.get("assignatures", []) if isinstance(grup, dict) else grup
-        nivells = {m.group(1) for a in assignatures or []
-                   if isinstance(a, str) and (m := re.search(r"\(([^()]+)\)\s*$", a))}
+        nivells = {
+            m.group(1) for a in assignatures or [] if isinstance(a, str) and (m := re.search(r"\(([^()]+)\)\s*$", a))
+        }
         if len(nivells) > 1:
             barrejades.append((grup.get("nom") if isinstance(grup, dict) else "") or ", ".join(assignatures))
     return barrejades
@@ -243,10 +272,14 @@ def _agrupacions_amb_diversos_nivells(restriccions: dict) -> list:
 async def scheduler_restriccions_update(payload: SchedulerRestriccionsRequest, current_user=Depends(require_admin)):
     barrejades = _agrupacions_amb_diversos_nivells(payload.restriccions or {})
     if barrejades:
-        raise HTTPException(status_code=400, detail=(
-            f"Una agrupació ha de ser d'exàmens d'un mateix nivell: {', '.join(barrejades)}. "
-            "Per posar exàmens de nivells diferents al mateix moment, feu servir la preferència "
-            "\"Mateix dia i hora\"."))
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Una agrupació ha de ser d'exàmens d'un mateix nivell: {', '.join(barrejades)}. "
+                "Per posar exàmens de nivells diferents al mateix moment, feu servir la preferència "
+                '"Mateix dia i hora".'
+            ),
+        )
     with get_data_db_session(current_user.institucio) as db:
         _save_restriccions_to_db(db, payload.restriccions or {})
     return {"success": True}
@@ -270,32 +303,42 @@ async def scheduler_pin_sessions(payload: SchedulerPinRequest, current_user=Depe
             # Fixar: afegir/actualitzar restriccions dia_fix i hora_fix per cada pin
             for pin in payload.pins:
                 for tipus, valor in [("assignatures_dia_fix", pin.dia), ("assignatures_hora_fix", pin.hora)]:
-                    existing = db.query(ExamRestriccio).filter(
-                        ExamRestriccio.tipus == tipus,
-                        ExamRestriccio.clau == pin.nom,
-                    ).first()
+                    existing = (
+                        db.query(ExamRestriccio)
+                        .filter(
+                            ExamRestriccio.tipus == tipus,
+                            ExamRestriccio.clau == pin.nom,
+                        )
+                        .first()
+                    )
                     if existing:
                         existing.configuracio = json.dumps(valor, ensure_ascii=False)
                         existing.pes = 100
                         existing.activa = True
                     else:
-                        db.add(ExamRestriccio(
-                            tipus=tipus,
-                            clau=pin.nom,
-                            configuracio=json.dumps(valor, ensure_ascii=False),
-                            pes=100,
-                            activa=True,
-                        ))
+                        db.add(
+                            ExamRestriccio(
+                                tipus=tipus,
+                                clau=pin.nom,
+                                configuracio=json.dumps(valor, ensure_ascii=False),
+                                pes=100,
+                                activa=True,
+                            )
+                        )
 
             db.commit()
 
             # Retornar l'estat actual dels pins
             pins_dia = {}
             pins_hora = {}
-            for r in db.query(ExamRestriccio).filter(
-                ExamRestriccio.tipus.in_(["assignatures_dia_fix", "assignatures_hora_fix"]),
-                ExamRestriccio.activa.is_(True),
-            ).all():
+            for r in (
+                db.query(ExamRestriccio)
+                .filter(
+                    ExamRestriccio.tipus.in_(["assignatures_dia_fix", "assignatures_hora_fix"]),
+                    ExamRestriccio.activa.is_(True),
+                )
+                .all()
+            ):
                 val = json.loads(r.configuracio) if r.configuracio else None
                 if r.tipus == "assignatures_dia_fix":
                     pins_dia[r.clau] = val
@@ -307,7 +350,7 @@ async def scheduler_pin_sessions(payload: SchedulerPinRequest, current_user=Depe
                 "pins": {
                     "assignatures_dia_fix": pins_dia,
                     "assignatures_hora_fix": pins_hora,
-                }
+                },
             }
         except Exception:
             db.rollback()
@@ -315,6 +358,7 @@ async def scheduler_pin_sessions(payload: SchedulerPinRequest, current_user=Depe
 
 
 # ===== COSTOS DE PROFESSORS =====
+
 
 @router.get("/costos-professors")
 async def get_costos_professors(current_user=Depends(require_admin)):
@@ -421,22 +465,27 @@ async def delete_cost_professor_individual(professor: str, current_user=Depends(
 
 @router.get("/dates")
 async def scheduler_dates(current_user=Depends(require_admin)):
-    with get_data_db_session(current_user.institucio) as db: return {"selected_dates": _load_json(ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY), [])}
+    with get_data_db_session(current_user.institucio) as db:
+        return {"selected_dates": _load_json(ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY), [])}
+
 
 @router.put("/dates")
 async def scheduler_dates_update(payload: SchedulerDatesRequest, current_user=Depends(require_admin)):
-    with get_data_db_session(current_user.institucio) as db: ConfiguracioRepository.set(db, SCHEDULER_DATES_KEY, json.dumps(payload.selected_dates or []), tipus="json")
+    with get_data_db_session(current_user.institucio) as db:
+        ConfiguracioRepository.set(db, SCHEDULER_DATES_KEY, json.dumps(payload.selected_dates or []), tipus="json")
     return {"success": True}
+
 
 @router.get("/sessions-info")
 async def get_scheduler_sessions_info(nivells: str = None, current_user=Depends(require_admin)):
     with get_data_db_session(current_user.institucio) as db:
         assignacions = ConfiguracioExamenRepository.get_all(db)
         nivells_master = _nivells_master(db)
-    filtre = nivells.split(',') if nivells else []
+    filtre = nivells.split(",") if nivells else []
     # Només les assignatures actuals: les de restriccions antigues es mostren a
     # part (GET /restriccions → assignatures_inexistents)
     return _build_assignatures_options(assignacions, nivells_master, only_nivells=filtre)
+
 
 @router.get("/assignatures-actives")
 async def get_assignatures_actives(current_user=Depends(require_admin)):
@@ -444,6 +493,7 @@ async def get_assignatures_actives(current_user=Depends(require_admin)):
         assignacions = ConfiguracioExamenRepository.get_all(db)
         nivells_master = _nivells_master(db)
     return _build_assignatures_options(assignacions, nivells_master)
+
 
 # L'últim horari generat (o editat a mà): el planificador el recorda en tornar
 # a la pantalla, des de qualsevol ordinador. Es desa en generar i en recalcular
@@ -459,10 +509,21 @@ def _desa_ultim_resultat(institucio: str, horari: dict, dies_utilitzar: list | N
             anterior = _load_json(ConfiguracioRepository.get(db, SCHEDULER_ULTIM_RESULTAT_KEY), {}) or {}
             dies_utilitzar = (anterior.get("resultat") or {}).get("dies_utilitzar")
         from fastapi.encoders import jsonable_encoder
-        ConfiguracioRepository.set(db, SCHEDULER_ULTIM_RESULTAT_KEY, json.dumps(jsonable_encoder({
-            "desat": datetime.now().isoformat(timespec="seconds"),
-            "resultat": {"dies_utilitzar": dies_utilitzar, "horari": horari},
-        }), ensure_ascii=False), tipus="json")
+
+        ConfiguracioRepository.set(
+            db,
+            SCHEDULER_ULTIM_RESULTAT_KEY,
+            json.dumps(
+                jsonable_encoder(
+                    {
+                        "desat": datetime.now().isoformat(timespec="seconds"),
+                        "resultat": {"dies_utilitzar": dies_utilitzar, "horari": horari},
+                    }
+                ),
+                ensure_ascii=False,
+            ),
+            tipus="json",
+        )
 
 
 @router.get("/horari")
@@ -490,6 +551,7 @@ def _cursos_anteriors(db, dates: list[str]) -> dict | None:
     no es comprova res.
     """
     from datetime import date as _date
+
     actual = CursRepository.get_for_date(db, _date.today().isoformat())
     if not actual:
         return None
@@ -511,31 +573,41 @@ async def scheduler_curs_dates(dates: str = "", current_user=Depends(require_adm
 
 # Les rutes que executen el motor (segons) són síncrones: FastAPI les atén en
 # un fil a part i el backend continua responent la resta de peticions.
-PARAMETRES_V3 = ('temperatura_inicial', 'temperatura_final', 'factor_refredament',
-                 'iteracions_per_temperatura', 'max_iteracions')
+PARAMETRES_V3 = (
+    "temperatura_inicial",
+    "temperatura_final",
+    "factor_refredament",
+    "iteracions_per_temperatura",
+    "max_iteracions",
+)
 
 
 def _executa_motor(gen, metode: str, motor: str, payload: SchedulerGenerateRequest, pla) -> dict:
     """Genera l'horari amb el motor (els paràmetres propis de cada motor) i
     n'apunta el temps."""
     kwargs = {
-        'data_inici': datetime.strptime(payload.data_inici, "%Y-%m-%d").strftime("%d/%m/%Y"),
-        'data_inici_iso': payload.data_inici,
-        'dies_utilitzar': pla.dies,
-        'dia_a_data_iso': pla.dia_a_data_iso,
-        'max_dies': payload.max_dies,
-        'selected_dates': pla.dates,
+        "data_inici": datetime.strptime(payload.data_inici, "%Y-%m-%d").strftime("%d/%m/%Y"),
+        "data_inici_iso": payload.data_inici,
+        "dies_utilitzar": pla.dies,
+        "dia_a_data_iso": pla.dia_a_data_iso,
+        "max_dies": payload.max_dies,
+        "selected_dates": pla.dates,
     }
     if motor == "v2":
-        kwargs.update(max_intents_validacio=payload.max_intents_validacio, estrategia=payload.estrategia,
-                      epsilon=payload.epsilon, track_intents=True)
+        kwargs.update(
+            max_intents_validacio=payload.max_intents_validacio,
+            estrategia=payload.estrategia,
+            epsilon=payload.epsilon,
+            track_intents=True,
+        )
     elif motor == "v2-backtrack":
-        kwargs['max_solucions'] = 100
-        for clau in ('random_seed', 'seeds_count', 'max_nodes', 'shuffle_top_n'):
+        kwargs["max_solucions"] = 100
+        for clau in ("random_seed", "seeds_count", "max_nodes", "shuffle_top_n"):
             if getattr(payload, clau) is not None:
                 kwargs[clau] = getattr(payload, clau)
 
     import time
+
     t0 = time.monotonic()
     resultat = getattr(gen, metode)(**kwargs)
     temps_ms = int((time.monotonic() - t0) * 1000)
@@ -544,16 +616,22 @@ def _executa_motor(gen, metode: str, motor: str, payload: SchedulerGenerateReque
         # Retorna la llista de solucions: la primera, i quantes n'hi ha
         if resultat:
             horari = resultat[0]
-            if horari.get('metadata', {}).get('viable', True):
-                horari['metadata']['alternatives'] = len(resultat)
-                horari['metadata']['motor'] = 'v2-backtrack'
+            if horari.get("metadata", {}).get("viable", True):
+                horari["metadata"]["alternatives"] = len(resultat)
+                horari["metadata"]["motor"] = "v2-backtrack"
         else:
-            horari = {'metadata': {'viable': False, 'error': 'El backtracking no ha trobat cap solució vàlida',
-                                   'motor': 'v2-backtrack'}, 'dies': []}
+            horari = {
+                "metadata": {
+                    "viable": False,
+                    "error": "El backtracking no ha trobat cap solució vàlida",
+                    "motor": "v2-backtrack",
+                },
+                "dies": [],
+            }
     else:
         horari = resultat
     if isinstance(horari, dict):
-        horari.setdefault('metadata', {})['temps_generacio_ms'] = temps_ms
+        horari.setdefault("metadata", {})["temps_generacio_ms"] = temps_ms
     return horari
 
 
@@ -589,22 +667,28 @@ def _explica_no_viable(horari: dict, gen, pla, del_precheck: bool = False) -> No
     repetir-los. Si el motor no s'ha executat perquè el precheck ja ho ha
     vist, el precheck només es mostra quan el diagnòstic no diu res: tots dos
     analitzen el mateix i es repetirien amb paraules diferents."""
-    meta = horari['metadata']
-    error = meta.get('error', 'No és possible col·locar tots els exàmens')
-    diagnostic = _diagnosticar_incompatibilitats(gen=gen, restriccions=pla.restriccions, dies_utilitzar=pla.dies,
-                                                 dia_a_data_iso=pla.dia_a_data_iso,
-                                                 alliberaments_cfg=pla.cfg.alliberaments,
-                                                 nivells_actius=pla.nivells)
+    meta = horari["metadata"]
+    error = meta.get("error", "No és possible col·locar tots els exàmens")
+    diagnostic = _diagnosticar_incompatibilitats(
+        gen=gen,
+        restriccions=pla.restriccions,
+        dies_utilitzar=pla.dies,
+        dia_a_data_iso=pla.dia_a_data_iso,
+        alliberaments_cfg=pla.cfg.alliberaments,
+        nivells_actius=pla.nivells,
+    )
     if diagnostic and del_precheck:
         incompat = diagnostic
     else:
-        del_motor = (meta.get('incompatibilitats')
-                     or getattr(gen, '_incompatibilitats_bt', [])
-                     or _identificar_sessions_no_collocades(horari, gen))
+        del_motor = (
+            meta.get("incompatibilitats")
+            or getattr(gen, "_incompatibilitats_bt", [])
+            or _identificar_sessions_no_collocades(horari, gen)
+        )
         incompat = list(dict.fromkeys(diagnostic + list(del_motor)))
     if incompat:
-        meta['incompatibilitats'] = incompat
-    meta['logs'] = list(dict.fromkeys(meta.get('logs', []) + [f"❌ {error}"]))
+        meta["incompatibilitats"] = incompat
+    meta["logs"] = list(dict.fromkeys(meta.get("logs", []) + [f"❌ {error}"]))
 
 
 @router.post("/generate")
@@ -614,20 +698,34 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
             # La pantalla no ho permet: els motors col·loquen exàmens en dates concretes
             raise HTTPException(status_code=400, detail="Cal triar les dates dels exàmens")
         motor = (payload.motor or "v3").lower()
-        parametres = {k: getattr(payload, k, None) for k in PARAMETRES_V3
-                      if motor == "v3" and getattr(payload, k, None) is not None}
+        parametres = {
+            k: getattr(payload, k, None)
+            for k in PARAMETRES_V3
+            if motor == "v3" and getattr(payload, k, None) is not None
+        }
 
         from captura_sortida import captura_stdout
+
         with captura_stdout() as sortida:
             gen, metode = pla.motor(motor, **parametres)
             incompatibilitats = _precheck_incompatibilitats_deterministes(
-                gen=gen, restriccions=pla.restriccions, dies_utilitzar=pla.dies,
-                nivells_actius=pla.nivells, selected_dates=pla.dates)
+                gen=gen,
+                restriccions=pla.restriccions,
+                dies_utilitzar=pla.dies,
+                nivells_actius=pla.nivells,
+                selected_dates=pla.dates,
+            )
             if incompatibilitats:
-                horari = {'dies': [], 'metadata': {
-                    'viable': False, 'error': "No s'han pogut col·locar tots els exàmens",
-                    'incompatibilitats': incompatibilitats, 'motor': motor,
-                    'logs': ["❌ Precheck de viabilitat: incompatibilitats deterministes detectades"]}}
+                horari = {
+                    "dies": [],
+                    "metadata": {
+                        "viable": False,
+                        "error": "No s'han pogut col·locar tots els exàmens",
+                        "incompatibilitats": incompatibilitats,
+                        "motor": motor,
+                        "logs": ["❌ Precheck de viabilitat: incompatibilitats deterministes detectades"],
+                    },
+                }
             else:
                 horari = _executa_motor(gen, metode, motor, payload, pla)
 
@@ -635,13 +733,14 @@ def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(r
             _marca_sessions_pendents(horari, gen)
 
         if horari and "metadata" in horari:
-            meta = horari['metadata']
-            if not meta.get('viable', True):
+            meta = horari["metadata"]
+            if not meta.get("viable", True):
                 _explica_no_viable(horari, gen, pla, del_precheck=bool(incompatibilitats))
                 return {"status": "ok", "horari": horari}
 
             # Incidències: les del motor, la sortida capturada i la validació
             from scheduler_engine.validacio import ValidadorHorari
+
             validacio = ValidadorHorari(horari, pla.restriccions, pla.cfg.no_substituir).validar()
             logs = [linia.strip() for linia in meta.get("logs", []) if linia.strip()]
             logs += [linia.strip() for linia in sortida.getvalue().splitlines() if linia.strip()]
@@ -686,11 +785,16 @@ def scheduler_analisi_pdf(payload: SchedulerGenerateRequest, current_user=Depend
         pdf_path = pdf_f.name
     _write_analysis_pdf(pdf_path, [seccions[pestanya]] if pestanya in seccions else list(seccions.values()))
     # El fitxer temporal s'esborra un cop enviat
-    return FileResponse(pdf_path, media_type="application/pdf", filename=f"analisi_{payload.data_inici}.pdf",
-                        background=BackgroundTask(os.remove, pdf_path))
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=f"analisi_{payload.data_inici}.pdf",
+        background=BackgroundTask(os.remove, pdf_path),
+    )
 
 
 # ===== PUBLICAR VIGILÀNCIES =====
+
 
 @router.post("/publicar")
 async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Depends(require_admin)):
@@ -705,20 +809,24 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
     opcions = payload.opcions
     dry_run = payload.dry_run
 
-    if not horari or not horari.get('dies'):
+    if not horari or not horari.get("dies"):
         raise HTTPException(status_code=400, detail="L'horari no conté dies")
     if not setmanes:
         raise HTTPException(status_code=400, detail="Cal indicar almenys una setmana amb dates")
 
-    dates_horari = [d.get('data') for d in horari['dies'] if isinstance(d, dict) and d.get('data')]
+    dates_horari = [d.get("data") for d in horari["dies"] if isinstance(d, dict) and d.get("data")]
     dates_horari += [v for setmana in setmanes for v in setmana.values() if isinstance(v, str)]
     with get_data_db_session(current_user.institucio) as db:
         anterior = _cursos_anteriors(db, dates_horari)
     if anterior:
-        raise HTTPException(status_code=400, detail=(
-            f"Les dates són del curs {', '.join(anterior['cursos'])}, anterior a l'actual "
-            f"({anterior['curs_actual']}). El planificador fa servir la configuració d'exàmens del "
-            "curs actual; les vigilàncies de cursos anteriors es consulten a Vigilàncies."))
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Les dates són del curs {', '.join(anterior['cursos'])}, anterior a l'actual "
+                f"({anterior['curs_actual']}). El planificador fa servir la configuració d'exàmens del "
+                "curs actual; les vigilàncies de cursos anteriors es consulten a Vigilàncies."
+            ),
+        )
 
     # Hores lectives del centre (per allargar els exàmens de més d'una hora)
     totes_hores = []
@@ -730,10 +838,11 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
             log.warning(f"No s'han pogut carregar hores lectives: {e}")
 
     with get_data_db_session(current_user.institucio) as db:
-        publicacio = PublicacioExamens(db, carrega_config(current_user.institucio), totes_hores,
-                                       grups_sense_classe, opcions.netejar_existents)
+        publicacio = PublicacioExamens(
+            db, carrega_config(current_user.institucio), totes_hores, grups_sense_classe, opcions.netejar_existents
+        )
         resum = publicacio.resum
-        for dia_info in horari['dies']:
+        for dia_info in horari["dies"]:
             data_iso = data_del_dia(dia_info, setmanes)
             if not data_iso:
                 continue
@@ -751,6 +860,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
         else:
             db.commit()
             from serveis.cobertures import refresca_cobertures
+
             for data_iso, hora in sorted(resum.hores_esborrades):
                 refresca_cobertures(data_iso, hora, db)
 
@@ -770,6 +880,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
 
 # ===== RECALCULAR COST (EDITOR INTERACTIU) =====
 
+
 @router.post("/recalcular-cost")
 def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(require_admin)):
     """
@@ -777,7 +888,7 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
     Usat per l'editor interactiu de drag-and-drop.
     """
     horari = payload.horari
-    if not horari or not horari.get('dies'):
+    if not horari or not horari.get("dies"):
         raise HTTPException(status_code=400, detail="L'horari no conté dies")
 
     from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
@@ -793,13 +904,14 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
     # Determinar data per XML
     data_ref = payload.data_referencia
     if not data_ref:
-        meta = horari.get('metadata', {})
-        data_ref = meta.get('data_inici')
+        meta = horari.get("metadata", {})
+        data_ref = meta.get("data_inici")
     if not data_ref:
         from datetime import date
+
         data_ref = date.today().isoformat()
 
-    dies_horari = [d.get('dia') for d in horari.get('dies', []) if d.get('dia')]
+    dies_horari = [d.get("dia") for d in horari.get("dies", []) if d.get("dia")]
     dia_a_data_iso = construir_mapa_dia_data_iso(
         dies_utilitzar=dies_horari,
         selected_dates=selected_dates,
@@ -812,13 +924,16 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
 
     # Carregar horaris professors
     import xml.etree.ElementTree as ET
+
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
     totes_hores = hores_lectives(root, hores_examen)
 
     # Aplicar també en recàlcul la restricció derivada de slots vàlids per nivell (marques 🟦).
-    aplica_restriccions_derivades(restriccions, cfg.alliberaments, nivells_actius, dies_horari, dia_a_data_iso, totes_hores)
+    aplica_restriccions_derivades(
+        restriccions, cfg.alliberaments, nivells_actius, dies_horari, dia_a_data_iso, totes_hores
+    )
 
     horaris_professors = llegeix_horaris_professors(root, cfg.ultim_professor, normalitza_hores=True)
 
@@ -848,14 +963,14 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
     # Cost, avisos i conflictes de cada franja
     slots_info = []
     conflicte_global = False
-    for dia in horari.get('dies', []):
-        dia_nom = dia.get('dia', '')
+    for dia in horari.get("dies", []):
+        dia_nom = dia.get("dia", "")
         _dates = dia_a_data_iso.get(normalitzar_dia(dia_nom))
-        data_iso_slot = dia.get('data') or (_dates[0] if isinstance(_dates, list) else _dates)
-        for slot in dia.get('sessions', []):
-            hora = slot.get('hora', '')
+        data_iso_slot = dia.get("data") or (_dates[0] if isinstance(_dates, list) else _dates)
+        for slot in dia.get("sessions", []):
+            hora = slot.get("hora", "")
             hora_norm = _normalitzar_hora(hora)
-            sessions_sim = slot.get('sessions_simultanees', [])
+            sessions_sim = slot.get("sessions_simultanees", [])
             conflicte_nivell = conflicte_de_nivell(sessions_sim)
             conflicte_global = conflicte_global or conflicte_nivell
 
@@ -864,7 +979,7 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
             for idx, sessio in enumerate(sessions_sim):
                 altres = [s for i, s in enumerate(sessions_sim) if i != idx]
                 nivell_sessio = detectar_nivell_sessio(sessio, nivells_actius or [])
-                sessio_nom_d = sessio.get('nom') if isinstance(sessio, dict) else None
+                sessio_nom_d = sessio.get("nom") if isinstance(sessio, dict) else None
                 durada_sessio = get_durada_per_sessio_key(
                     sessio_nom_d, nivell_sessio, cfg.durades_per_sessio, cfg.alliberaments, cfg.durada_titular
                 )
@@ -874,8 +989,8 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
                 durada_exam = max(durada_exam, durada_sessio)
                 if hora_norm in totes_hores:
                     idx_inici = totes_hores.index(hora_norm)
-                    hores_ocupades = totes_hores[idx_inici:min(idx_inici + max(1, durada_sessio), len(totes_hores))]
-                    hores_exam = totes_hores[idx_inici:min(idx_inici + max(1, durada_exam), len(totes_hores))]
+                    hores_ocupades = totes_hores[idx_inici : min(idx_inici + max(1, durada_sessio), len(totes_hores))]
+                    hores_exam = totes_hores[idx_inici : min(idx_inici + max(1, durada_exam), len(totes_hores))]
                 else:
                     hores_ocupades = [hora_norm]
                     hores_exam = [hora_norm]
@@ -896,7 +1011,7 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
                 )
                 # El validador posterior fa servir l'anàlisi nova
                 if isinstance(sessio, dict):
-                    sessio['analisi'] = analisi
+                    sessio["analisi"] = analisi
 
                 incidencies_sessio = list(incidencies(analisi, hora, dia_nom, restriccions))
                 for incidencia in incidencies_sessio:
@@ -904,7 +1019,7 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
                 # Els avisos de cada examen, per a l'editor (per _uid i per item_id)
                 if isinstance(sessio, dict) and incidencies_sessio:
                     avisos_sessio = [avis for _, _, _, avis, _ in incidencies_sessio]
-                    for clau in (sessio.get('_uid'), sessio.get('item_id')):
+                    for clau in (sessio.get("_uid"), sessio.get("item_id")):
                         if clau:
                             item_avisos[clau] = avisos_sessio
 
@@ -912,18 +1027,20 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
             if conflicte_nivell:
                 avisos.insert(0, "⚠️ CONFLICTE: Múltiples exàmens del mateix nivell!")
 
-            slots_info.append({
-                "slot_key": f"{data_iso_slot or dia_nom}_{hora}",
-                "cost": franja.cost,
-                "breakdown": {"sessions": len(sessions_sim)},
-                "conflicte_nivell": conflicte_nivell,
-                "avisos": avisos,
-                "item_avisos": item_avisos
-            })
+            slots_info.append(
+                {
+                    "slot_key": f"{data_iso_slot or dia_nom}_{hora}",
+                    "cost": franja.cost,
+                    "breakdown": {"sessions": len(sessions_sim)},
+                    "conflicte_nivell": conflicte_nivell,
+                    "avisos": avisos,
+                    "item_avisos": item_avisos,
+                }
+            )
 
     # Netejar logs antics per evitar que el validador ometi avisos (p. ex. LÍMIT DIES)
-    if horari.get('metadata', {}).get('logs'):
-        horari['metadata']['logs'] = []
+    if horari.get("metadata", {}).get("logs"):
+        horari["metadata"]["logs"] = []
     validation_result = ValidadorHorari(horari, restriccions, cfg.no_substituir).validar()
 
     breakdown_details = {}
@@ -932,28 +1049,31 @@ def recalcular_cost(payload: HorariRecalcularRequest, current_user=Depends(requi
         breakdown_details["limit_dies_professor"] = excessos
 
     # L'horari editat a mà passa a ser l'últim, amb el cost i les incidències nous
-    horari_desat = dict(horari, metadata={
-        **(horari.get('metadata') or {}),
-        "cost_total": cost_info.get('cost_total', 0),
-        "logs": validation_result.get("logs", []),
-        "total_substitucions": cost_info.get('total_substitucions', 0),
-        "professors_abans": cost_info.get('professors_abans', 0),
-        "professors_despres": cost_info.get('professors_despres', 0),
-        "professors_no_treballa": cost_info.get('professors_no_treballa', 0),
-    })
+    horari_desat = dict(
+        horari,
+        metadata={
+            **(horari.get("metadata") or {}),
+            "cost_total": cost_info.get("cost_total", 0),
+            "logs": validation_result.get("logs", []),
+            "total_substitucions": cost_info.get("total_substitucions", 0),
+            "professors_abans": cost_info.get("professors_abans", 0),
+            "professors_despres": cost_info.get("professors_despres", 0),
+            "professors_no_treballa": cost_info.get("professors_no_treballa", 0),
+        },
+    )
     _desa_ultim_resultat(current_user.institucio, horari_desat)
 
     return {
-        "cost_total": cost_info.get('cost_total', 0),
-        "cost_breakdown": cost_info.get('cost_breakdown', {}),
+        "cost_total": cost_info.get("cost_total", 0),
+        "cost_breakdown": cost_info.get("cost_breakdown", {}),
         "cost_breakdown_details": breakdown_details,
         "slots": slots_info,
         "valid": not conflicte_global,
         "logs": validation_result.get("logs", []),
         "stats": {
-            "total_substitucions": cost_info.get('total_substitucions', 0),
-            "professors_abans": cost_info.get('professors_abans', 0),
-            "professors_despres": cost_info.get('professors_despres', 0),
-            "professors_no_treballa": cost_info.get('professors_no_treballa', 0),
-        }
+            "total_substitucions": cost_info.get("total_substitucions", 0),
+            "professors_abans": cost_info.get("professors_abans", 0),
+            "professors_despres": cost_info.get("professors_despres", 0),
+            "professors_no_treballa": cost_info.get("professors_no_treballa", 0),
+        },
     }

@@ -7,6 +7,7 @@ actual (incloent-hi branques secundàries i casos "lletjos", com
 excepcions silencioses) perquè serveixin de xarxa de seguretat davant
 de qualsevol canvi futur, encara que algun comportament no sigui ideal.
 """
+
 from config import constants
 from core.vigilancia_core import VigilanciaCore
 
@@ -48,6 +49,7 @@ def _nucli(**overrides):
 
 
 # ===== get_categoria_prioritat / is_activitat_auto_assignable =====
+
 
 def test_categoria_prioritat_retorna_index_de_la_categoria(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}, {"CD"}])
@@ -103,6 +105,7 @@ def test_fallback_defensiu_quan_ordre_prioritats_encara_buit(monkeypatch):
 
 # ===== is_professor_assignable =====
 
+
 def test_professor_absent_no_es_assignable(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
@@ -120,46 +123,67 @@ def test_professor_present_assignable_si_activitat_ho_es(monkeypatch):
 
 # ===== buscar_professor_titular: ordre de prioritats =====
 
+
 def _config_assignatures(assignacions):
     return {"assignatures": {"Matemàtiques": {"assignacions": assignacions}}}
 
 
 def test_titular_prioritat1_match_exacte_grup_i_aula():
-    nucli = _nucli(assignatures_config=_config_assignatures([
-        {"grup": "1-ESO-A", "aula": "A01", "titular": "Prof_Exacte"},
-        {"grup": "1-ESO-A", "aula": "A02", "titular": "Prof_Altra_Aula"},
-    ]))
+    nucli = _nucli(
+        assignatures_config=_config_assignatures(
+            [
+                {"grup": "1-ESO-A", "aula": "A01", "titular": "Prof_Exacte"},
+                {"grup": "1-ESO-A", "aula": "A02", "titular": "Prof_Altra_Aula"},
+            ]
+        )
+    )
     assert nucli.buscar_professor_titular("Matemàtiques", "1-ESO-A", "A01") == "Prof_Exacte"
 
 
 def test_titular_prioritat2_match_grup_ignora_enllac():
-    nucli = _nucli(assignatures_config=_config_assignatures([
-        {"grup": "1-ESO-A", "aula": "ENLLAÇ", "titular": "Prof_Enllac"},
-        {"grup": "1-ESO-A", "aula": "A09", "titular": "Prof_Grup"},
-    ]))
+    nucli = _nucli(
+        assignatures_config=_config_assignatures(
+            [
+                {"grup": "1-ESO-A", "aula": "ENLLAÇ", "titular": "Prof_Enllac"},
+                {"grup": "1-ESO-A", "aula": "A09", "titular": "Prof_Grup"},
+            ]
+        )
+    )
     # Cap match d'aula exacta; ha de trobar el del mateix grup, saltant l'ENLLAÇ
     assert nucli.buscar_professor_titular("Matemàtiques", "1-ESO-A", "A99") == "Prof_Grup"
 
 
 def test_titular_prioritat3_match_nomes_aula():
-    nucli = _nucli(assignatures_config=_config_assignatures([
-        {"grup": "2-ESO-B", "aula": "A01", "titular": "Prof_Aula"},
-    ]))
+    nucli = _nucli(
+        assignatures_config=_config_assignatures(
+            [
+                {"grup": "2-ESO-B", "aula": "A01", "titular": "Prof_Aula"},
+            ]
+        )
+    )
     assert nucli.buscar_professor_titular("Matemàtiques", "", "A01") == "Prof_Aula"
 
 
 def test_titular_prioritat4_enllac_amb_grup_compatible():
-    nucli = _nucli(assignatures_config=_config_assignatures([
-        {"grup": "1-ESO-A-B", "aula": "ENLLAÇ", "titular": "Prof_Enllac"},
-    ]))
+    nucli = _nucli(
+        assignatures_config=_config_assignatures(
+            [
+                {"grup": "1-ESO-A-B", "aula": "ENLLAÇ", "titular": "Prof_Enllac"},
+            ]
+        )
+    )
     # "1-ESO-A" ha de trobar l'ENLLAÇ perquè "1-ESO-A" és part de "1-ESO-A-B"
     assert nucli.buscar_professor_titular("Matemàtiques", "1-ESO-A", "") == "Prof_Enllac"
 
 
 def test_titular_prioritat5_fallback_primer_de_la_llista():
-    nucli = _nucli(assignatures_config=_config_assignatures([
-        {"grup": "", "aula": "", "titular": "Prof_Fallback"},
-    ]))
+    nucli = _nucli(
+        assignatures_config=_config_assignatures(
+            [
+                {"grup": "", "aula": "", "titular": "Prof_Fallback"},
+            ]
+        )
+    )
     assert nucli.buscar_professor_titular("Matemàtiques", "Cap-Grup", "Cap-Aula") == "Prof_Fallback"
 
 
@@ -174,14 +198,19 @@ def test_titular_sense_config_retorna_none():
 
 
 def test_es_titular_per_assignatura_compara_amb_el_trobat():
-    nucli = _nucli(assignatures_config=_config_assignatures([
-        {"grup": "1-ESO-A", "aula": "A01", "titular": "Prof_Exacte"},
-    ]))
+    nucli = _nucli(
+        assignatures_config=_config_assignatures(
+            [
+                {"grup": "1-ESO-A", "aula": "A01", "titular": "Prof_Exacte"},
+            ]
+        )
+    )
     assert nucli.es_titular_per_assignatura("Prof_Exacte", "Matemàtiques", "1-ESO-A", "A01") is True
     assert nucli.es_titular_per_assignatura("Un_Altre", "Matemàtiques", "1-ESO-A", "A01") is False
 
 
 # ===== get_disponibles_for_vigilance =====
+
 
 def test_disponibles_for_vigilance_sense_alliberats_gestor_retorna_buit():
     nucli = _nucli(alliberats_gestor=None)
@@ -242,6 +271,7 @@ def test_disponibles_for_vigilance_excepcio_silenciosa_retorna_buit():
 
 # ===== get_titular_status =====
 
+
 def test_titular_status_absent():
     nucli = _nucli(absents_actuals={"Prof_A": ["09:00"]})
     assert nucli.get_titular_status("Prof_A", "09:00") == "absent"
@@ -293,10 +323,9 @@ def test_titular_status_sense_horari_gestor_retorna_lliure():
 
 # ===== get_vigilants_assignats_hora =====
 
+
 def test_vigilants_assignats_hora_placeholder_sempre_buit():
     # Characterization: el mètode és un placeholder no implementat, sempre
     # retorna un set buit independentment de l'estat real.
     nucli = _nucli()
     assert nucli.get_vigilants_assignats_hora("09:00") == set()
-
-

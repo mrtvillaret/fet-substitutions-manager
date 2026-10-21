@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/prioritats", tags=["Prioritats i Professors"])
 
 # ===== FUNCIONS AUXILIARS =====
 
+
 def _recarregar_prioritats_desde_bd(db: Session):
     """
     Recarrega les constants de prioritats (PRIORITATS, ORDRE_PRIORITATS, CATEGORIES_ACTIVES, NO_SUBST)
@@ -64,10 +65,10 @@ def _recarregar_prioritats_desde_bd(db: Session):
     # Convertir a format que espera el sistema: llista de dicts amb professor, data_inici, data_final
     professors_baixa = [
         {
-            'professor': p['professor'],
-            'data_inici': p['data_inici'],
-            'data_final': p['data_final'],
-            'motiu': p.get('motiu', '')
+            "professor": p["professor"],
+            "data_inici": p["data_inici"],
+            "data_final": p["data_final"],
+            "motiu": p.get("motiu", ""),
         }
         for p in professors_baixa_list
     ]
@@ -76,6 +77,7 @@ def _recarregar_prioritats_desde_bd(db: Session):
     # Es desen per a la institució de la petició en curs (config.context);
     # constants.PRIORITATS i companyia en mostren les d'aquesta institució.
     from config.context import institucio_peticio
+
     constants.desa_prioritats(
         institucio_peticio(),
         ORDRE_PRIORITATS=ordre_prioritats,
@@ -88,6 +90,7 @@ def _recarregar_prioritats_desde_bd(db: Session):
 
 
 # ===== MODELS PYDANTIC =====
+
 
 class ProfessorBaixaCreate(BaseModel):
     professor: str
@@ -111,6 +114,7 @@ class AssignaturaPrioritatCreate(BaseModel):
 
 # ===== PROFESSORS DE BAIXA =====
 
+
 @router.get("/professors-baixa")
 async def get_professors_baixa(db: Session = Depends(get_db)):
     """Retorna tots els professors de baixa"""
@@ -129,24 +133,27 @@ def _aplica_baixa_desada(db: Session, baixa_id: int):
 @router.post("/professors-baixa")
 async def create_professor_baixa(baixa: ProfessorBaixaCreate, db: Session = Depends(get_db)):
     """Crea un nou professor de baixa"""
-    baixa_id = ProfessorBaixaRepository.create(
-        db, baixa.professor, baixa.data_inici, baixa.data_final, baixa.motiu
-    )
+    baixa_id = ProfessorBaixaRepository.create(db, baixa.professor, baixa.data_inici, baixa.data_final, baixa.motiu)
     _recarregar_prioritats_desde_bd(db)
     canvis = _aplica_baixa_desada(db, baixa_id)
-    return {"success": True, "id": baixa_id, "message": f"Professor '{baixa.professor}' afegit a baixa",
-            "canvis": canvis}
+    return {
+        "success": True,
+        "id": baixa_id,
+        "message": f"Professor '{baixa.professor}' afegit a baixa",
+        "canvis": canvis,
+    }
 
 
 @router.put("/professors-baixa/{baixa_id}")
 async def update_professor_baixa(baixa_id: int, baixa: Dict, db: Session = Depends(get_db)):
     """Actualitza un professor de baixa"""
     success = ProfessorBaixaRepository.update(
-        db, baixa_id,
+        db,
+        baixa_id,
         professor=baixa.get("professor"),
         data_inici=baixa.get("data_inici"),
         data_final=baixa.get("data_final"),
-        motiu=baixa.get("motiu")
+        motiu=baixa.get("motiu"),
     )
 
     if not success:
@@ -171,6 +178,7 @@ async def delete_professor_baixa(baixa_id: int, db: Session = Depends(get_db)):
 
 # ===== CATEGORIES PRIORITAT =====
 
+
 @router.get("/categories")
 async def get_categories(db: Session = Depends(get_db)):
     """Retorna totes les categories de prioritat"""
@@ -190,10 +198,7 @@ async def create_categoria(cat: CategoriaPrioritatCreate, db: Session = Depends(
 async def update_categoria(categoria_id: int, cat: Dict, db: Session = Depends(get_db)):
     """Actualitza una categoria"""
     success = CategoriaPrioritatRepository.update(
-        db, categoria_id,
-        nom=cat.get("nom"),
-        ordre=cat.get("ordre"),
-        activa=cat.get("activa")
+        db, categoria_id, nom=cat.get("nom"), ordre=cat.get("ordre"), activa=cat.get("activa")
     )
 
     if not success:
@@ -225,6 +230,7 @@ async def delete_categoria(categoria_id: int, db: Session = Depends(get_db)):
 
 # ===== ASSIGNATURES PRIORITAT =====
 
+
 @router.get("/assignatures")
 async def get_assignatures_prioritat(db: Session = Depends(get_db)):
     """Retorna totes les assignatures amb prioritat"""
@@ -242,9 +248,7 @@ async def get_assignatures_by_categoria(categoria_id: int, db: Session = Depends
 @router.post("/assignatures")
 async def create_assignatura_prioritat(assig: AssignaturaPrioritatCreate, db: Session = Depends(get_db)):
     """Crea una nova assignatura dins una categoria"""
-    assig_id = AssignaturaPrioritatRepository.create(
-        db, assig.assignatura, assig.categoria_id, assig.pes, assig.ordre
-    )
+    assig_id = AssignaturaPrioritatRepository.create(db, assig.assignatura, assig.categoria_id, assig.pes, assig.ordre)
     _recarregar_prioritats_desde_bd(db)
     return {"success": True, "id": assig_id, "message": f"Assignatura '{assig.assignatura}' afegida"}
 
@@ -253,11 +257,12 @@ async def create_assignatura_prioritat(assig: AssignaturaPrioritatCreate, db: Se
 async def update_assignatura_prioritat(assignatura_id: int, assig: Dict, db: Session = Depends(get_db)):
     """Actualitza una assignatura de prioritat"""
     success = AssignaturaPrioritatRepository.update(
-        db, assignatura_id,
+        db,
+        assignatura_id,
         assignatura=assig.get("assignatura"),
         categoria_id=assig.get("categoria_id"),
         pes=assig.get("pes"),
-        ordre=assig.get("ordre")
+        ordre=assig.get("ordre"),
     )
 
     if not success:
@@ -280,6 +285,7 @@ async def delete_assignatura_prioritat(assignatura_id: int, db: Session = Depend
 
 
 # ===== NO SUBSTITUIR =====
+
 
 @router.get("/no-substituir")
 async def get_no_substituir(db: Session = Depends(get_db)):
@@ -314,9 +320,10 @@ async def delete_no_substituir(assignatura: str, db: Session = Depends(get_db)):
 
 # ===== ACTIVITATS ALLIBERABLES =====
 
+
 class ActivitatsAlliberables(BaseModel):
     activitats: List[str]
-    per_defecte: List[str] = []   # alliberades fins que tenen alumnes (p.ex. Reforç)
+    per_defecte: List[str] = []  # alliberades fins que tenen alumnes (p.ex. Reforç)
 
 
 @router.get("/activitats-alliberables")
@@ -326,6 +333,7 @@ async def get_activitats_alliberables(db: Session = Depends(get_db), dia_calenda
     sense, avui) per triar-les."""
     from helpers import MissingXmlError
     from routes.grups import activitats_alliberables
+
     disponibles = set()
     try:
         horari = dia_calendari.horari
@@ -338,9 +346,12 @@ async def get_activitats_alliberables(db: Session = Depends(get_db), dia_calenda
     except MissingXmlError:
         pass
     from repositories import GrupsAlliberatsRepository
-    return {"activitats": activitats_alliberables(db),
-            "per_defecte": GrupsAlliberatsRepository.activitats_per_defecte(db),
-            "disponibles": sorted(disponibles)}
+
+    return {
+        "activitats": activitats_alliberables(db),
+        "per_defecte": GrupsAlliberatsRepository.activitats_per_defecte(db),
+        "disponibles": sorted(disponibles),
+    }
 
 
 @router.put("/activitats-alliberables")
@@ -348,17 +359,22 @@ async def set_activitats_alliberables(dades: ActivitatsAlliberables, db: Session
     import json
 
     from routes.grups import CLAU_ACTIVITATS_ALLIBERABLES
+
     activitats = sorted({a.strip() for a in dades.activitats if a and a.strip()})
     per_defecte = sorted({a.strip() for a in dades.per_defecte if a and a.strip() in activitats})
-    ConfiguracioRepository.set(db, CLAU_ACTIVITATS_ALLIBERABLES, json.dumps(activitats, ensure_ascii=False), 'json')
-    ConfiguracioRepository.set(db, "activitats_alliberades_per_defecte", json.dumps(per_defecte, ensure_ascii=False), 'json')
+    ConfiguracioRepository.set(db, CLAU_ACTIVITATS_ALLIBERABLES, json.dumps(activitats, ensure_ascii=False), "json")
+    ConfiguracioRepository.set(
+        db, "activitats_alliberades_per_defecte", json.dumps(per_defecte, ensure_ascii=False), "json"
+    )
     return {"success": True, "activitats": activitats, "per_defecte": per_defecte}
 
 
 # ===== DESAR TOTES LES PRIORITATS =====
 
+
 class PrioritatsCompletesUpdate(BaseModel):
     """Model per actualitzar totes les prioritats d'una vegada"""
+
     ordre_categories: List[List[str]]  # [["Reforç", "alliberat"], ["Guàrdia", ...], ...]
     pesos: Dict[str, int]  # {"Reforç": 1, "Guàrdia": 6, ...}
     categories_actives: List[bool] = []  # [True, True, False, ...] - estat activa per cada categoria
@@ -390,11 +406,7 @@ async def desar_totes_prioritats(data: PrioritatsCompletesUpdate, db: Session = 
             # Obtenir estat activa de l'array (per defecte True si no existeix)
             activa = data.categories_actives[cat_ordre] if cat_ordre < len(data.categories_actives) else True
 
-            nova_categoria = CategoriaPrioritat(
-                nom=nom_categoria,
-                ordre=cat_ordre,
-                activa=activa
-            )
+            nova_categoria = CategoriaPrioritat(nom=nom_categoria, ordre=cat_ordre, activa=activa)
             db.add(nova_categoria)
             db.flush()  # Per obtenir l'ID
 
@@ -408,7 +420,7 @@ async def desar_totes_prioritats(data: PrioritatsCompletesUpdate, db: Session = 
                     categoria_id=nova_categoria.id,
                     pes=pes,
                     ordre=assig_ordre,
-                    auto_assignada=activa
+                    auto_assignada=activa,
                 )
                 db.add(nova_assignatura)
 
@@ -419,7 +431,7 @@ async def desar_totes_prioritats(data: PrioritatsCompletesUpdate, db: Session = 
 
         return {
             "success": True,
-            "message": f"Prioritats desades: {len(data.ordre_categories)} categories, {len(data.pesos)} pesos"
+            "message": f"Prioritats desades: {len(data.ordre_categories)} categories, {len(data.pesos)} pesos",
         }
 
     except Exception:

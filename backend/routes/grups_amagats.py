@@ -34,5 +34,6 @@ async def desar_grups_amagats(payload: Dict, db: Session = Depends(get_db)):
     # L'horari filtra els grups segons aquesta llista durant la càrrega;
     # cal invalidar-lo perquè es recarregui.
     from helpers import invalidar_horari
+
     invalidar_horari()
     return {"success": True, "total": total}

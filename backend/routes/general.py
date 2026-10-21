@@ -2,6 +2,7 @@
 Rutes generals de l'aplicació: estat de l'horari carregat, professors i hores
 de l'horari vigent (avui o en una data) i activitats que no se substitueixen.
 """
+
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
@@ -25,14 +26,14 @@ async def get_config(dia: Dia = Depends(dia_del_calendari)):
             horari_carregat=False,
             num_professors=0,
             num_hores=0,
-            xml_missing=True
+            xml_missing=True,
         )
 
     return ConfigResponse(
         data_actual=datetime.now().strftime("%Y-%m-%d"),
         horari_carregat=True,
         num_professors=len(horari.professors),
-        num_hores=len(horari.hores)
+        num_hores=len(horari.hores),
     )
 
 
@@ -42,14 +43,9 @@ async def get_professors(dia: Dia = Depends(dia_del_calendari)):
     try:
         horari = dia.horari
     except MissingXmlError:
-        return {
-            "professors": [],
-            "xml_missing": True
-        }
+        return {"professors": [], "xml_missing": True}
     # horari.professors ja té el límit aplicat (veure core/horari.py línia 50-62)
-    return {
-        "professors": sorted(horari.professors)
-    }
+    return {"professors": sorted(horari.professors)}
 
 
 @router.get("/api/hores")
@@ -59,10 +55,7 @@ async def get_hores(dia: Dia = Depends(dia_del_calendari)):
     try:
         horari = dia.horari
     except MissingXmlError:
-        return {
-            "hores": [],
-            "xml_missing": True
-        }
+        return {"hores": [], "xml_missing": True}
     return {
         "hores": horari.hores  # Ja estan en l'ordre correcte de l'XML
     }
@@ -72,6 +65,5 @@ async def get_hores(dia: Dia = Depends(dia_del_calendari)):
 async def get_no_substituir():
     """Retorna llista d'activitats que no necessiten substitució"""
     from config.constants import NO_SUBST
-    return {
-        "no_substituir": list(NO_SUBST)
-    }
+
+    return {"no_substituir": list(NO_SUBST)}

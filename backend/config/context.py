@@ -11,6 +11,7 @@ La fixa get_current_user un cop validat l'usuari. Fora d'una petició (arrencada
 scripts, tests unitaris) no té valor i qui la llegeix fa servir el seu valor
 per defecte.
 """
+
 from contextvars import ContextVar
 from typing import Optional
 

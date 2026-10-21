@@ -9,6 +9,7 @@ professors de l'XML d'exemple (Prof N) que fan classe a 2-BAT.
 Si un canvi al motor fa variar EXPECTED_SNAPSHOT de manera intencionada,
 torna a executar el test, revisa els valors nous i actualitza'ls.
 """
+
 import io
 import json
 import random
@@ -64,10 +65,7 @@ def _config_examens():
     return {
         "assignatures": {
             assignatura: {
-                "assignacions": [
-                    {"grup": grup, "titular": titular, "aula": ""}
-                    for grup, titular in assignacions
-                ]
+                "assignacions": [{"grup": grup, "titular": titular, "aula": ""} for grup, titular in assignacions]
             }
             for assignatura, assignacions in ASSIGNACIONS.items()
         }
@@ -142,6 +140,7 @@ def _dies_utilitzar(dates):
 
 class _MotorsExemple(unittest.TestCase):
     """Executa els tres motors amb l'horari d'exemple (sense tests propis)."""
+
     ESTRICTES = []
 
     @classmethod
@@ -150,9 +149,7 @@ class _MotorsExemple(unittest.TestCase):
             raise unittest.SkipTest(f"No es troba l'XML d'exemple a {XML_PATH}")
 
         cls.alliberaments = _alliberaments()
-        cls.hores_examen, cls.hores_per_nivell = extreure_hores_examen_des_alliberaments(
-            cls.alliberaments
-        )
+        cls.hores_examen, cls.hores_per_nivell = extreure_hores_examen_des_alliberaments(cls.alliberaments)
         cls.dies_utilitzar = _dies_utilitzar(DATES)
         cls.dia_a_data_iso = construir_mapa_dia_data_iso(
             dies_utilitzar=cls.dies_utilitzar,
@@ -235,7 +232,6 @@ class _MotorsExemple(unittest.TestCase):
         return result
 
 
-
 class SchedulerRegressioExempleTest(_MotorsExemple):
     def test_motors_return_expected_structure(self):
         for motor, result in self.results.items():
@@ -263,7 +259,8 @@ class SchedulerRegressioExempleTest(_MotorsExemple):
                             dia_de[sessio.get("nom")] = dia.get("dia")
 
                 self.assertEqual(
-                    {f"{a} ({NIVELL})" for a in ASSIGNACIONS}, set(slot_de),
+                    {f"{a} ({NIVELL})" for a in ASSIGNACIONS},
+                    set(slot_de),
                     f"Motor {motor}: no s'han programat totes les assignatures",
                 )
                 for grup in restriccions["mateix_slot"]:
@@ -298,8 +295,6 @@ class SchedulerRegressioExempleTest(_MotorsExemple):
                             )
 
 
-
-
 def _dia_de(result, nom_sessio):
     for dia in result.get("dies", []):
         for slot in dia.get("sessions", []):
@@ -313,6 +308,7 @@ class SchedulerHorariEstricteTest(_MotorsExemple):
     """Prof 3, titular de «2.4», no té cap activitat el dimarts (a l'XML el
     dia hi és, amb les franges buides). Amb horari estricte, cap motor no hi
     ha de posar el seu examen."""
+
     ESTRICTES = ["Prof 3"]
 
     def test_l_examen_no_cau_el_dia_que_el_titular_no_hi_es(self):
@@ -321,6 +317,7 @@ class SchedulerHorariEstricteTest(_MotorsExemple):
                 dia = _dia_de(result, "2.4 (2-BAT)")
                 self.assertIsNotNone(dia)
                 self.assertNotIn("dimarts", str(dia).lower())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -29,7 +29,7 @@ def ara_utc() -> datetime:
 
 
 class Nivell(Base):
-    __tablename__ = 'nivells'
+    __tablename__ = "nivells"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     codi = Column(String, unique=True, nullable=False)
@@ -41,28 +41,26 @@ class Nivell(Base):
 
 
 class Assignatura(Base):
-    __tablename__ = 'assignatures'
+    __tablename__ = "assignatures"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     nom = Column(String, nullable=False)
-    nivell_id = Column(Integer, ForeignKey('nivells.id', ondelete='CASCADE'), nullable=False)
+    nivell_id = Column(Integer, ForeignKey("nivells.id", ondelete="CASCADE"), nullable=False)
     ordre = Column(Integer)
     activa = Column(Boolean, default=True)
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
-    __table_args__ = (
-        Index('idx_assignatura_nivell', 'nom', 'nivell_id', unique=True),
-    )
+    __table_args__ = (Index("idx_assignatura_nivell", "nom", "nivell_id", unique=True),)
 
 
 class Grup(Base):
-    __tablename__ = 'grups'
+    __tablename__ = "grups"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     codi = Column(String, unique=True, nullable=False)
     nom = Column(String, nullable=False)
-    nivell_id = Column(Integer, ForeignKey('nivells.id', ondelete='CASCADE'), nullable=False)
+    nivell_id = Column(Integer, ForeignKey("nivells.id", ondelete="CASCADE"), nullable=False)
     es_combinat = Column(Boolean, default=False)
     grups_components = Column(Text)
     ordre = Column(Integer)
@@ -72,7 +70,7 @@ class Grup(Base):
 
 
 class Aula(Base):
-    __tablename__ = 'aules'
+    __tablename__ = "aules"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     codi = Column(String, unique=True, nullable=False)
@@ -86,7 +84,7 @@ class Aula(Base):
 
 
 class Vigilancia(Base):
-    __tablename__ = 'vigilancies'
+    __tablename__ = "vigilancies"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     data = Column(Date, nullable=False)
@@ -101,15 +99,15 @@ class Vigilancia(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_vigilancies_data', 'data'),
-        Index('idx_vigilancies_data_nivell', 'data', 'nivell'),
-        Index('idx_vigilancies_data_hora', 'data', 'hora'),
-        Index('idx_vigilancies_vigilant', 'vigilant'),
+        Index("idx_vigilancies_data", "data"),
+        Index("idx_vigilancies_data_nivell", "data", "nivell"),
+        Index("idx_vigilancies_data_hora", "data", "hora"),
+        Index("idx_vigilancies_vigilant", "vigilant"),
     )
 
 
 class Substitucio(Base):
-    __tablename__ = 'substitucions'
+    __tablename__ = "substitucions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     data = Column(Date, nullable=False)
@@ -126,14 +124,14 @@ class Substitucio(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_substitucions_data', 'data'),
-        Index('idx_substitucions_professor', 'professor_absent'),
-        Index('idx_substitucions_substitut', 'substitut'),
+        Index("idx_substitucions_data", "data"),
+        Index("idx_substitucions_professor", "professor_absent"),
+        Index("idx_substitucions_substitut", "substitut"),
     )
 
 
 class GrupAlliberat(Base):
-    __tablename__ = 'grups_alliberats'
+    __tablename__ = "grups_alliberats"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     data = Column(Date, nullable=False)
@@ -143,8 +141,8 @@ class GrupAlliberat(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_grups_alliberats_data', 'data'),
-        Index('idx_grups_alliberats_data_hora', 'data', 'hora'),
+        Index("idx_grups_alliberats_data", "data"),
+        Index("idx_grups_alliberats_data_hora", "data", "hora"),
     )
 
 
@@ -156,11 +154,12 @@ class AlliberamentPeriode(Base):
     o deixa de ser-ho. L'estat d'un dia concret és el del darrer canvi fet
     abans o el mateix dia.
     """
-    __tablename__ = 'alliberaments_periode'
+
+    __tablename__ = "alliberaments_periode"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tipus = Column(String, nullable=False)        # grup | professor | activitat
-    clau = Column(String, nullable=False)         # nom del grup, professor o activitat
+    tipus = Column(String, nullable=False)  # grup | professor | activitat
+    clau = Column(String, nullable=False)  # nom del grup, professor o activitat
     dia_setmana = Column(String, nullable=False)  # nom del dia segons l'XML (p.ex. "Dimarts")
     hora = Column(String, nullable=False)
     des_de = Column(Date, nullable=False)
@@ -168,30 +167,29 @@ class AlliberamentPeriode(Base):
     created_at = Column(DateTime, default=ara_utc)
 
     __table_args__ = (
-        Index('idx_alliberaments_periode_clau', 'tipus', 'clau'),
-        Index('idx_alliberaments_periode_dia', 'dia_setmana', 'hora'),
+        Index("idx_alliberaments_periode_clau", "tipus", "clau"),
+        Index("idx_alliberaments_periode_dia", "dia_setmana", "hora"),
     )
 
 
 class Configuracio(Base):
-    __tablename__ = 'configuracio'
+    __tablename__ = "configuracio"
 
     clau = Column(String, primary_key=True)
     valor = Column(Text)
-    tipus = Column(String, default='string')
+    tipus = Column(String, default="string")
     descripcio = Column(Text)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
-    __table_args__ = (
-        Index('idx_configuracio_clau', 'clau'),
-    )
+    __table_args__ = (Index("idx_configuracio_clau", "clau"),)
 
 
 class XMLVersion(Base):
     """
     Històric de versions de l'XML d'horari per data.
     """
-    __tablename__ = 'xml_versions'
+
+    __tablename__ = "xml_versions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     path = Column(String, nullable=False)
@@ -202,8 +200,8 @@ class XMLVersion(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_xml_versions_inici', 'data_inici'),
-        Index('idx_xml_versions_fi', 'data_fi'),
+        Index("idx_xml_versions_inici", "data_inici"),
+        Index("idx_xml_versions_fi", "data_fi"),
     )
 
 
@@ -216,18 +214,17 @@ class Curs(Base):
     pertany exactament a un curs i no cal cap flag d'"actiu": el curs d'una data es
     resol amb `CursRepository.get_for_date()`, igual que la versió d'XML.
     """
-    __tablename__ = 'cursos'
+
+    __tablename__ = "cursos"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    nom = Column(String, nullable=False)         # p.ex. "2025-2026"
+    nom = Column(String, nullable=False)  # p.ex. "2025-2026"
     data_inici = Column(Date, nullable=False)
-    data_fi = Column(Date)                        # derivada; NULL = últim curs (obert)
+    data_fi = Column(Date)  # derivada; NULL = últim curs (obert)
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
-    __table_args__ = (
-        Index('idx_cursos_data_inici', 'data_inici'),
-    )
+    __table_args__ = (Index("idx_cursos_data_inici", "data_inici"),)
 
 
 class ConfiguracioExamen(Base):
@@ -235,7 +232,8 @@ class ConfiguracioExamen(Base):
     Assignacions professor-titular per exàmens
     Relaciona: Assignatura → Grup → Professor Titular → Aula
     """
-    __tablename__ = 'configuracio_examens'
+
+    __tablename__ = "configuracio_examens"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     assignatura = Column(String, nullable=False)
@@ -247,9 +245,9 @@ class ConfiguracioExamen(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_config_examens_assignatura', 'assignatura'),
-        Index('idx_config_examens_grup', 'grup'),
-        Index('idx_config_examens_titular', 'titular'),
+        Index("idx_config_examens_assignatura", "assignatura"),
+        Index("idx_config_examens_grup", "grup"),
+        Index("idx_config_examens_titular", "titular"),
     )
 
 
@@ -260,7 +258,8 @@ class PropostaDescartada(Base):
     d'importació no es tornin a marcar soles (encara no existeixen a la
     configuració, però ja s'ha decidit que no es volen).
     """
-    __tablename__ = 'propostes_descartades'
+
+    __tablename__ = "propostes_descartades"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     assignatura = Column(String, nullable=False)
@@ -268,9 +267,7 @@ class PropostaDescartada(Base):
     titular = Column(String, nullable=True)
     created_at = Column(DateTime, default=ara_utc)
 
-    __table_args__ = (
-        Index('idx_proposta_descartada', 'assignatura', 'grup', 'titular', unique=True),
-    )
+    __table_args__ = (Index("idx_proposta_descartada", "assignatura", "grup", "titular", unique=True),)
 
 
 class AbreviaturaGrup(Base):
@@ -278,7 +275,8 @@ class AbreviaturaGrup(Base):
     Abreviatures per agrupar múltiples grups
     Ex: "1-ESO-A,1-ESO-B,1-ESO-C" → "1-ESO-ABC"
     """
-    __tablename__ = 'abreviatures_grups'
+
+    __tablename__ = "abreviatures_grups"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     grups_originals = Column(String, unique=True, nullable=False)  # "1-ESO-A,1-ESO-B,1-ESO-C"
@@ -286,9 +284,7 @@ class AbreviaturaGrup(Base):
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
-    __table_args__ = (
-        Index('idx_abreviatura', 'abreviatura'),
-    )
+    __table_args__ = (Index("idx_abreviatura", "abreviatura"),)
 
 
 class GrupAmagat(Base):
@@ -301,10 +297,11 @@ class GrupAmagat(Base):
     canvia l'XML (un grup nou surt sol; un grup amagat que ja no existeix,
     simplement no es filtra). No té res a veure amb els nivells (només exàmens).
     """
-    __tablename__ = 'grups_amagats'
+
+    __tablename__ = "grups_amagats"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    grup = Column(String, unique=True, nullable=False)   # p.ex. "1A" o "I3A"
+    grup = Column(String, unique=True, nullable=False)  # p.ex. "1A" o "I3A"
     created_at = Column(DateTime, default=ara_utc)
 
 
@@ -313,7 +310,8 @@ class Professor(Base):
     Taula històrica de professors per evitar pèrdua de substitucions
     quan un professor desapareix del nou XML.
     """
-    __tablename__ = 'professors'
+
+    __tablename__ = "professors"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     nom = Column(String, unique=True, nullable=False)
@@ -324,8 +322,8 @@ class Professor(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_professors_nom', 'nom'),
-        Index('idx_professors_actiu', 'actiu'),
+        Index("idx_professors_nom", "nom"),
+        Index("idx_professors_actiu", "actiu"),
     )
 
 
@@ -334,7 +332,8 @@ class ProfessorBaixa(Base):
     Professors de baixa temporal
     Durant el període especificat, no substitueixen ni són substituïts
     """
-    __tablename__ = 'professors_baixa'
+
+    __tablename__ = "professors_baixa"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     professor = Column(String, nullable=False)
@@ -345,8 +344,8 @@ class ProfessorBaixa(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_professor_baixa', 'professor'),
-        Index('idx_baixa_dates', 'data_inici', 'data_final'),
+        Index("idx_professor_baixa", "professor"),
+        Index("idx_baixa_dates", "data_inici", "data_final"),
     )
 
 
@@ -355,7 +354,8 @@ class CategoriaPrioritat(Base):
     Categories de prioritat per a substitucions
     Ordre més baix = més prioritat
     """
-    __tablename__ = 'categories_prioritat'
+
+    __tablename__ = "categories_prioritat"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     nom = Column(String, nullable=False)  # Nom descriptiu (opcional)
@@ -370,11 +370,12 @@ class AssignaturaPrioritat(Base):
     Assignatures dins de cada categoria amb el seu pes
     Pes més baix = més probabilitat de ser triat (dins de la mateixa categoria)
     """
-    __tablename__ = 'assignatures_prioritat'
+
+    __tablename__ = "assignatures_prioritat"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     assignatura = Column(String, nullable=False)
-    categoria_id = Column(Integer, ForeignKey('categories_prioritat.id', ondelete='CASCADE'), nullable=False)
+    categoria_id = Column(Integer, ForeignKey("categories_prioritat.id", ondelete="CASCADE"), nullable=False)
     pes = Column(Integer, default=1)  # 1-10: menor = més prioritat dins categoria
     ordre = Column(Integer, default=0)  # Ordre dins de la categoria
     auto_assignada = Column(Boolean, default=False)  # S'assigna automàticament (ex: "alliberat")
@@ -382,8 +383,8 @@ class AssignaturaPrioritat(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_assignatura_prioritat', 'assignatura'),
-        Index('idx_assignatura_categoria', 'categoria_id'),
+        Index("idx_assignatura_prioritat", "assignatura"),
+        Index("idx_assignatura_categoria", "categoria_id"),
     )
 
 
@@ -392,7 +393,8 @@ class NoSubstituir(Base):
     Assignatures que NO necessiten substitució
     Ex: "", "-x-", "Reforç", "alliberat", etc.
     """
-    __tablename__ = 'no_substituir'
+
+    __tablename__ = "no_substituir"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     assignatura = Column(String, unique=True, nullable=False)
@@ -401,7 +403,7 @@ class NoSubstituir(Base):
 
 
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String, unique=True, nullable=False)
@@ -423,7 +425,8 @@ class ExamRestriccio(Base):
     - 100% = obligatòria (hard constraint)
     - 0-99% = preferència amb diferent importància (soft constraint)
     """
-    __tablename__ = 'exam_restriccions'
+
+    __tablename__ = "exam_restriccions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tipus = Column(String, nullable=False)  # dia_fix, hora_fix, dies_diferents, mateix_slot, etc.
@@ -435,14 +438,15 @@ class ExamRestriccio(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_exam_restriccio_tipus', 'tipus'),
-        Index('idx_exam_restriccio_clau', 'clau'),
+        Index("idx_exam_restriccio_tipus", "tipus"),
+        Index("idx_exam_restriccio_clau", "clau"),
     )
 
 
 class ExamPreferencia(Base):
     """LEGACY: Migrat a ExamRestriccio (tipus='mateix_dia'/'dies_diferents'). Mantingut per compatibilitat amb BDs existents."""
-    __tablename__ = 'exam_preferencies'
+
+    __tablename__ = "exam_preferencies"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tipus = Column(String, nullable=False)
@@ -452,14 +456,13 @@ class ExamPreferencia(Base):
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
-    __table_args__ = (
-        Index('idx_exam_preferencia_tipus', 'tipus'),
-    )
+    __table_args__ = (Index("idx_exam_preferencia_tipus", "tipus"),)
 
 
 class ExamPesOptimitzacio(Base):
     """LEGACY: Migrat a ExamRestriccio (tipus='pes_optimitzacio'). Mantingut per compatibilitat amb BDs existents."""
-    __tablename__ = 'exam_pesos_optimitzacio'
+
+    __tablename__ = "exam_pesos_optimitzacio"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     clau = Column(String, unique=True, nullable=False)
@@ -482,7 +485,8 @@ class ExamCostProfessor(Base):
     - despres_jornada: quan ha de quedar-se després de l'última hora
     - no_treballa_dia: quan ha de venir un dia que no treballa
     """
-    __tablename__ = 'exam_costos_professors'
+
+    __tablename__ = "exam_costos_professors"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     professor = Column(String, nullable=True)  # NULL = global, "Nom" = individual
@@ -492,7 +496,6 @@ class ExamCostProfessor(Base):
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (
-        Index('idx_exam_cost_professor', 'professor'),
-        Index('idx_exam_cost_tipus', 'tipus'),
+        Index("idx_exam_cost_professor", "professor"),
+        Index("idx_exam_cost_tipus", "tipus"),
     )
-

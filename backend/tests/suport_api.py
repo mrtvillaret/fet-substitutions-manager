@@ -3,6 +3,7 @@ Utilitats compartides pels tests d'API: app mínima amb els routers que calguin,
 institucions temporals (opcionalment amb l'XML d'exemple) i usuaris de prova.
 Tot viu dins del DATA_DIR temporal que prepara el conftest.
 """
+
 import shutil
 import uuid
 from pathlib import Path
@@ -11,7 +12,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from slowapi.errors import RateLimitExceeded
 
-from auth_utils import hash_password, registra_renovacio_sessio
+from auth.repositories import UserRepository
+from auth.router import router as auth_router
+from auth.security import hash_password, registra_renovacio_sessio
 from database import (
     AuthSessionLocal,
     create_auth_tables,
@@ -21,8 +24,7 @@ from database import (
 from errors_servidor import registra_gestors_errors
 from models import AssignaturaPrioritat, CategoriaPrioritat
 from rate_limit import limit_superat, limiter
-from repositories import ConfiguracioRepository, UserRepository
-from routes import auth
+from repositories import ConfiguracioRepository
 
 CONTRASENYA = "contrasenya-de-prova"
 XML_EXEMPLE = Path(__file__).resolve().parents[2] / "data" / "exemple" / "teachers.xml"
@@ -33,8 +35,8 @@ def crea_app(*routers):
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, limit_superat)
     registra_gestors_errors(app)
-    registra_renovacio_sessio(app)   # com a main.py
-    app.include_router(auth.router)
+    registra_renovacio_sessio(app)  # com a main.py
+    app.include_router(auth_router)
     for router in routers:
         app.include_router(router)
     return app
@@ -71,14 +73,16 @@ def nova_institucio(amb_xml=False, prioritats=PRIORITATS_PER_DEFECTE):
 def crea_usuari(username, institucio, role="user", active=True):
     create_auth_tables()
     with AuthSessionLocal() as db:
-        return UserRepository.create(
+        user = UserRepository.create(
             db=db,
             username=username,
             password_hash=hash_password(CONTRASENYA),
             institucio=institucio,
             role=role,
             active=active,
-        ).id
+        )
+        db.commit()
+        return user.id
 
 
 def entra(client, username, password=CONTRASENYA):

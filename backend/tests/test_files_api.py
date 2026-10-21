@@ -3,6 +3,7 @@ Tests de la pujada de l'horari XML (routes/files.py, upload-xml): versionat,
 i que el nom que envia el navegador no permet escriure fora de la carpeta de
 la institució ni trepitjar l'XML vigent abans de desar-lo a l'històric.
 """
+
 import uuid
 from datetime import date, timedelta
 
@@ -69,6 +70,7 @@ def _fitxers(centre):
 
 # ------------------------------------------------------------------ accés
 
+
 def test_nomes_els_admins_poden_pujar_l_horari(centre):
     assert _puja(_usuari_de(centre, role="user")).status_code == 403
 
@@ -79,11 +81,15 @@ def test_nomes_s_accepten_fitxers_xml(client):
 
 XML_INVALIDS = {
     "mal format": b"<Teachers_Timetable><Teacher>",
-    "entitat externa": (b'<?xml version="1.0"?><!DOCTYPE t [<!ENTITY x SYSTEM "file:///etc/passwd">]>'
-                        b"<Teachers_Timetable>&x;</Teachers_Timetable>"),
-    "bomba d'entitats": (b'<?xml version="1.0"?><!DOCTYPE t [<!ENTITY a "aaaaaaaaaa">'
-                         b'<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;"><!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;">]>'
-                         b"<Teachers_Timetable>&c;</Teachers_Timetable>"),
+    "entitat externa": (
+        b'<?xml version="1.0"?><!DOCTYPE t [<!ENTITY x SYSTEM "file:///etc/passwd">]>'
+        b"<Teachers_Timetable>&x;</Teachers_Timetable>"
+    ),
+    "bomba d'entitats": (
+        b'<?xml version="1.0"?><!DOCTYPE t [<!ENTITY a "aaaaaaaaaa">'
+        b'<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;"><!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;">]>'
+        b"<Teachers_Timetable>&c;</Teachers_Timetable>"
+    ),
 }
 
 
@@ -95,6 +101,7 @@ def test_es_rebutja_un_xml_mal_format_o_amb_entitats(client, centre, contingut):
 
 
 # ---------------------------------------------------------------- versionat
+
 
 def test_pujar_desa_l_horari_a_l_historic_i_el_fa_vigent(client, centre):
     resp = _puja(client, nom="Curs26-27_teachers.xml")
@@ -136,11 +143,15 @@ def test_una_versio_no_pot_comencar_abans_que_la_vigent(client):
 
 # ------------------------------------------------ nom del fitxer segur
 
-@pytest.mark.parametrize("nom_maliciós", [
-    "../{altre}/teachers.xml",
-    "../../{altre}/teachers.xml",
-    "/tmp/{altre}.xml",
-])
+
+@pytest.mark.parametrize(
+    "nom_maliciós",
+    [
+        "../{altre}/teachers.xml",
+        "../../{altre}/teachers.xml",
+        "/tmp/{altre}.xml",
+    ],
+)
 def test_el_nom_del_fitxer_no_permet_escriure_fora_de_la_institucio(client, centre, nom_maliciós):
     altre = nova_institucio(amb_xml=True)
     xml_altre = get_data_dir_for_institucio(altre) / "teachers.xml"

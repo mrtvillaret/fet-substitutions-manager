@@ -3,6 +3,7 @@ Les rutes de fitxers (XML de l'horari, PDF exportats) són sempre dins la
 carpeta del centre. Abans un admin podia escriure des de la configuració la
 ruta d'un altre centre i llegir-ne l'horari o llistar-ne i esborrar-ne PDF.
 """
+
 import uuid
 
 import pytest
@@ -38,11 +39,14 @@ def test_la_configuracio_no_deixa_canviar_les_rutes():
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(APP), nom)
 
-    resp = client.put("/api/settings", json={
-        "xml_horari_path": str(get_data_dir_for_institucio(altre) / "teachers.xml"),
-        "export_dir": str(get_data_dir_for_institucio(altre)),
-        "idioma": "ca",
-    })
+    resp = client.put(
+        "/api/settings",
+        json={
+            "xml_horari_path": str(get_data_dir_for_institucio(altre) / "teachers.xml"),
+            "export_dir": str(get_data_dir_for_institucio(altre)),
+            "idioma": "ca",
+        },
+    )
     assert resp.status_code == 200, resp.text
     assert _config(centre, "xml_horari_path") == "teachers.xml"
     assert _config(centre, "export_dir") is None

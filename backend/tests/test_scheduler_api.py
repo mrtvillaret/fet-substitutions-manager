@@ -6,6 +6,7 @@ ser d'un horari anterior: si els nivells han canviat de nom o ja no hi són,
 no s'han de tornar, perquè el selector de nivells els mostraria com a `null`
 i sortirien pestanyes de nivells que no existeixen.
 """
+
 import json
 import uuid
 

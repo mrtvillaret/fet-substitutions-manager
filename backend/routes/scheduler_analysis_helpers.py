@@ -37,7 +37,7 @@ def _diagnosticar_incompatibilitats(
             construir_dies_efectius,
         )
 
-        hores_examen = list(getattr(gen, 'hores_examen', []) or [])
+        hores_examen = list(getattr(gen, "hores_examen", []) or [])
         if not hores_examen or not dies_utilitzar:
             return []
 
@@ -80,20 +80,20 @@ def _identificar_sessions_no_collocades(horari: dict, gen) -> list[str]:
     Fallback: usa recompte_nivells del metadata (cobreix dies=[] i sessions no
     identificades per nom).
     """
-    sessions_per_nivell = getattr(gen, 'sessions_per_nivell', {}) or {}
-    has_partial = bool(horari.get('dies'))
+    sessions_per_nivell = getattr(gen, "sessions_per_nivell", {}) or {}
+    has_partial = bool(horari.get("dies"))
 
     manquen_per_nivell: dict = defaultdict(list)
 
     # Estratègia 1: comparació per-curs
     if has_partial and sessions_per_nivell:
         noms_per_curs: dict = defaultdict(set)
-        for dia in (horari.get('dies') or []):
-            for slot in dia.get('sessions', []):
-                for sess in slot.get('sessions_simultanees', []):
-                    curs = sess.get('curs') or ''
-                    nom = sess.get('nom') or ''
-                    nom_base = sess.get('nom_base') or ''
+        for dia in horari.get("dies") or []:
+            for slot in dia.get("sessions", []):
+                for sess in slot.get("sessions_simultanees", []):
+                    curs = sess.get("curs") or ""
+                    nom = sess.get("nom") or ""
+                    nom_base = sess.get("nom_base") or ""
                     if nom:
                         noms_per_curs[curs].add(nom)
                     if nom_base:
@@ -101,20 +101,20 @@ def _identificar_sessions_no_collocades(horari: dict, gen) -> list[str]:
 
         for nivell, sessions in sessions_per_nivell.items():
             collocats = noms_per_curs.get(nivell, set())
-            for s in (sessions or []):
-                nom = (s.get('nom') if isinstance(s, dict) else getattr(s, 'nom', '')) or ''
-                nom_base = (s.get('nom_base') if isinstance(s, dict) else getattr(s, 'nom_base', '')) or ''
+            for s in sessions or []:
+                nom = (s.get("nom") if isinstance(s, dict) else getattr(s, "nom", "")) or ""
+                nom_base = (s.get("nom_base") if isinstance(s, dict) else getattr(s, "nom_base", "")) or ""
                 if nom and nom not in collocats and (not nom_base or nom_base not in collocats):
                     manquen_per_nivell[nivell].append(nom)
 
     # Fallback: recompte_nivells (dies=[] o sessions no identificades per nom)
     if not manquen_per_nivell:
-        recompte = (horari.get('metadata') or {}).get('recompte_nivells') or {}
+        recompte = (horari.get("metadata") or {}).get("recompte_nivells") or {}
         for niv, info in sorted(recompte.items()):
-            p = (info or {}).get('pendents', 0)
+            p = (info or {}).get("pendents", 0)
             if p > 0:
-                e = (info or {}).get('esperats', 0)
-                c = (info or {}).get('collocats', 0)
+                e = (info or {}).get("esperats", 0)
+                c = (info or {}).get("collocats", 0)
                 manquen_per_nivell[niv] = [f"\x00RECOMPTE\x00{p}\x00{e}\x00{c}"]
         if not manquen_per_nivell:
             return []
@@ -124,8 +124,8 @@ def _identificar_sessions_no_collocades(horari: dict, gen) -> list[str]:
     for nivell, manquen in sorted(manquen_per_nivell.items()):
         manquen_u = list(dict.fromkeys(manquen))
         # Missatge de fallback (recompte per nivell)
-        if len(manquen_u) == 1 and manquen_u[0].startswith('\x00RECOMPTE\x00'):
-            _, _, p_s, e_s, c_s = manquen_u[0].split('\x00')
+        if len(manquen_u) == 1 and manquen_u[0].startswith("\x00RECOMPTE\x00"):
+            _, _, p_s, e_s, c_s = manquen_u[0].split("\x00")
             p, e, c = int(p_s), int(e_s), int(c_s)
             if c == 0:
                 result.append(f"{nivell}: cap sessió col·locada ({p} previstes){suffix_hint}")
@@ -184,6 +184,7 @@ def _precheck_incompatibilitats_deterministes(
       3) Per nivell, unió de slots possibles >= nombre d'items
     """
     from datetime import datetime as _dt
+
     try:
         from scheduler_engine.core.constraints import (
             es_slot_valid_per_nivell,
@@ -213,10 +214,7 @@ def _precheck_incompatibilitats_deterministes(
     slots_disponibles = len(dies_efectius) * len(hores_examen)
     items = []
     try:
-        items = (
-            gen.preparar_particio_nivells(slots_disponibles=max(1, slots_disponibles))
-            or []
-        )
+        items = gen.preparar_particio_nivells(slots_disponibles=max(1, slots_disponibles)) or []
     except Exception:
         items = []
 
@@ -270,9 +268,7 @@ def _precheck_incompatibilitats_deterministes(
                 hores_ocupades = _hores_ocupades(hora, nivell)
                 if len(hores_ocupades) < durada:
                     continue
-                if not es_slot_valid_per_nivell(
-                    nivell, dia_nom, hora, restriccions, nivells_actius
-                ):
+                if not es_slot_valid_per_nivell(nivell, dia_nom, hora, restriccions, nivells_actius):
                     continue
                 slots_fisics_per_nivell[nivell].add(f"{sk_prefix}_{hora}")
 
@@ -283,9 +279,7 @@ def _precheck_incompatibilitats_deterministes(
     items_per_nivell = defaultdict(int)
     for item in items:
         sessions = item.get("sessions") or []
-        nivell = item.get("curs") or (
-            _sessio_to_dict_precheck(sessions[0]).get("curs") if sessions else None
-        )
+        nivell = item.get("curs") or (_sessio_to_dict_precheck(sessions[0]).get("curs") if sessions else None)
         if not nivell:
             continue
         items_per_nivell[nivell] += 1
@@ -318,9 +312,7 @@ def _precheck_incompatibilitats_deterministes(
                 slot_ok = True
                 for sessio in sessions:
                     s_dict = _sessio_to_dict_precheck(sessio)
-                    if viola_restriccio_dia_hora_fixos(
-                        s_dict, dia_nom, hora, restriccions, nivells_actius, sk_prefix
-                    ):
+                    if viola_restriccio_dia_hora_fixos(s_dict, dia_nom, hora, restriccions, nivells_actius, sk_prefix):
                         slot_ok = False
                         break
                 if slot_ok:
@@ -337,9 +329,7 @@ def _precheck_incompatibilitats_deterministes(
     for nivell, count in items_per_nivell.items():
         slots_count = len(slots_items_per_nivell.get(nivell, set()))
         if count and slots_count and count > slots_count:
-            msg = (
-                f"{nivell}: {count} ítems > {slots_count} slots possibles després de fixos"
-            )
+            msg = f"{nivell}: {count} ítems > {slots_count} slots possibles després de fixos"
             if msg not in seen:
                 seen.add(msg)
                 incompat.append(msg)
@@ -485,20 +475,12 @@ def _format_report_lines(tab: str, text: str) -> list[tuple[str, bool, int]]:
 
 
 def _write_analysis_pdf(path: str, sections: list[tuple[str, str, str]]):
-    doc = SimpleDocTemplate(
-        path, pagesize=A4, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36
-    )
+    doc = SimpleDocTemplate(path, pagesize=A4, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=16, spaceAfter=12)
-    section_style = ParagraphStyle(
-        "Section", parent=styles["Heading2"], fontSize=12, spaceBefore=10, spaceAfter=6
-    )
-    day_style = ParagraphStyle(
-        "Day", parent=styles["Heading3"], fontSize=11, spaceBefore=8, spaceAfter=4
-    )
-    slot_style = ParagraphStyle(
-        "Slot", parent=styles["Heading4"], fontSize=10, spaceBefore=6, spaceAfter=3
-    )
+    section_style = ParagraphStyle("Section", parent=styles["Heading2"], fontSize=12, spaceBefore=10, spaceAfter=6)
+    day_style = ParagraphStyle("Day", parent=styles["Heading3"], fontSize=11, spaceBefore=8, spaceAfter=4)
+    slot_style = ParagraphStyle("Slot", parent=styles["Heading4"], fontSize=10, spaceBefore=6, spaceAfter=3)
     body_style = ParagraphStyle("Body", parent=styles["BodyText"], fontSize=9.5, leading=12)
     label_style = ParagraphStyle("Label", parent=body_style, fontName="Helvetica-Bold")
 
@@ -527,11 +509,7 @@ def _write_analysis_pdf(path: str, sections: list[tuple[str, str, str]]):
             # Escapat: ReportLab interpreta etiquetes dins dels Paragraph, i
             # els noms d'assignatures o professors podrien contenir "<".
             clean = html.escape(
-                line.replace("📅", "")
-                .replace("⏰", "")
-                .replace("📝", "")
-                .replace("⏱️", "")
-                .strip(),
+                line.replace("📅", "").replace("⏰", "").replace("📝", "").replace("⏱️", "").strip(),
                 quote=False,
             )
             if line.startswith("- "):
@@ -549,9 +527,7 @@ def _write_analysis_pdf(path: str, sections: list[tuple[str, str, str]]):
                 flow.append(Paragraph(clean, slot_style))
                 continue
 
-            if clean.endswith(":") and (
-                "Òptimes" in clean or "Bones" in clean or "Acceptables" in clean
-            ):
+            if clean.endswith(":") and ("Òptimes" in clean or "Bones" in clean or "Acceptables" in clean):
                 color = label_color(clean)
                 if color:
                     flow.append(

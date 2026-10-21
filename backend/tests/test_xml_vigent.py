@@ -2,6 +2,7 @@
 Quin horari (XML) es fa servir quan n'hi ha un de pujat amb data futura.
 Sense data, el vigent avui: no l'últim pujat, que encara no ha començat.
 """
+
 import pytest
 from suport_xml import amb_horari_futur, amb_versions, dia, professor_que_plega
 
@@ -26,7 +27,7 @@ def test_amb_data_es_fa_servir_el_d_aquella_data(amb_futur):
 
 
 def test_un_professor_que_plega_amb_l_horari_futur_continua_actiu_fins_aleshores(amb_futur):
-    get_horari(amb_futur, data_iso=avui())          # sincronitza els professors amb l'horari sense data
+    get_horari(amb_futur, data_iso=avui())  # sincronitza els professors amb l'horari sense data
     with get_data_db_session(amb_futur) as db:
         prof = db.query(Professor).filter(Professor.nom == professor_que_plega()).one()
         assert prof.actiu

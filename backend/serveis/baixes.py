@@ -7,6 +7,7 @@ substitucions o vigilàncies:
 - es treu com a substitut (la fila queda pendent).
 Els dies passats no es toquen: són historial (PDF ja repartits, informes).
 """
+
 import logging
 from datetime import date, datetime
 
@@ -30,9 +31,11 @@ def _dies_afectats(db, data_inici: str, data_final: str, avui: date) -> list:
         return []
     dates = set()
     for model in (Substitucio, Vigilancia):
-        for (d,) in (db.query(model.data)
-                     .filter(model.data >= parse_date(inici.isoformat()), model.data <= parse_date(final.isoformat()))
-                     .distinct()):
+        for (d,) in (
+            db.query(model.data)
+            .filter(model.data >= parse_date(inici.isoformat()), model.data <= parse_date(final.isoformat()))
+            .distinct()
+        ):
             dates.add(d.isoformat())
     return sorted(dates)
 
@@ -47,9 +50,13 @@ def aplica_baixa(db, professor: str, data_inici: str, data_final: str, avui: dat
         return canvis
 
     for d in _dies_afectats(db, data_inici, data_final, avui or date.today()):
-        hores_absent = sorted({s.get("hora", "") for s in SubstitucioRepository.get_by_date(db, d)
-                               if s.get("professor_absent") == professor
-                               and s.get("tipus_absencia") in ("ABSENCIA", "SERVEI")})
+        hores_absent = sorted(
+            {
+                s.get("hora", "")
+                for s in SubstitucioRepository.get_by_date(db, d)
+                if s.get("professor_absent") == professor and s.get("tipus_absencia") in ("ABSENCIA", "SERVEI")
+            }
+        )
         if hores_absent:
             # El mateix que esborrar-li totes les absències des de la pantalla
             # (també treu els substituts que ja no són vàlids, com ell mateix)
@@ -64,7 +71,8 @@ def aplica_baixa(db, professor: str, data_inici: str, data_final: str, avui: dat
                     VigilanciaRepository.update_by_id(db, d, str(vig["id"]), {"vigilant": ""})
                     hores_vigilancia.add(vig.get("hora", ""))
                     canvis["vigilancies_buidades"].append(
-                        {"data": d, "hora": vig.get("hora", ""), "tipus": vig.get("tipus", "")})
+                        {"data": d, "hora": vig.get("hora", ""), "tipus": vig.get("tipus", "")}
+                    )
         for hora in sorted(hores_vigilancia):
             refresca_cobertures(d, hora, db)
 
@@ -87,7 +95,8 @@ def baixa_de(professor: str, data: str):
 
 
 def missatge_de_baixa(professor: str, baixa: dict) -> str:
-    return (f"{professor} està de baixa ({baixa.get('data_inici')} – {baixa.get('data_final')}): "
-            "els professors de baixa no són substituïts. Si cal cobrir-li les classes, "
-            "escurça o treu la baixa.")
-
+    return (
+        f"{professor} està de baixa ({baixa.get('data_inici')} – {baixa.get('data_final')}): "
+        "els professors de baixa no són substituïts. Si cal cobrir-li les classes, "
+        "escurça o treu la baixa."
+    )

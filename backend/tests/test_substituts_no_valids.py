@@ -7,6 +7,7 @@ només ho fan «Genera pendents», «Regenera tot» i «Reassignar problemàtics
 Dilluns 19/10/2026 a les 10:00: Prof 15 fa Anglès a 3-ESO-A, Prof 1 té classe
 amb 3-ESO-C i Prof 3 fa guàrdia.
 """
+
 import uuid
 
 import pytest
@@ -35,28 +36,40 @@ def client():
 
 
 def _desa_grups(client, per_hora, professors=None):
-    resp = client.put(f"/api/grups/{DATA}", json={
-        "grups": per_hora, "professors": professors or {}, "activitats": {}, "ocupats": {},
-    })
+    resp = client.put(
+        f"/api/grups/{DATA}",
+        json={
+            "grups": per_hora,
+            "professors": professors or {},
+            "activitats": {},
+            "ocupats": {},
+        },
+    )
     assert resp.status_code == 200, resp.text
     return resp.json()
 
 
 def _absencia(client, professor, hores=(HORA,)):
-    resp = client.put(f"/api/substitucions/{DATA}/absencies/{professor}",
-                      json={"hores_absencia": list(hores), "updated_at_map": {}})
+    resp = client.put(
+        f"/api/substitucions/{DATA}/absencies/{professor}", json={"hores_absencia": list(hores), "updated_at_map": {}}
+    )
     assert resp.status_code == 200, resp.text
     return resp.json()
 
 
 def _fila(client, professor="Prof 15"):
-    return next(s for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
-                if s["hora"] == HORA and s["professor_absent"] == professor)
+    return next(
+        s
+        for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
+        if s["hora"] == HORA and s["professor_absent"] == professor
+    )
 
 
 def _assigna(client, substitut, professor="Prof 15"):
-    resp = client.put(f"/api/substitucions/{DATA}/{HORA}/{professor}",
-                      json={"substitut": substitut, "updated_at": _fila(client, professor)["updated_at"]})
+    resp = client.put(
+        f"/api/substitucions/{DATA}/{HORA}/{professor}",
+        json={"substitut": substitut, "updated_at": _fila(client, professor)["updated_at"]},
+    )
     assert resp.status_code == 200, resp.text
 
 
@@ -65,12 +78,16 @@ def test_qui_perd_la_condicio_d_alliberat_deixa_de_ser_substitut(client):
     _absencia(client, "Prof 15")
     _assigna(client, "Prof 1")
 
-    resp = _desa_grups(client, {"12:30": ["3-ESO-C"]})   # a les 10:00 torna a tenir classe
+    resp = _desa_grups(client, {"12:30": ["3-ESO-C"]})  # a les 10:00 torna a tenir classe
 
     assert _fila(client)["substitut"] == ""
     [tret] = resp["substituts_trets"]
-    assert (tret["hora"], tret["professor_absent"], tret["substitut"], tret["motiu"]) == \
-        (HORA, "Prof 15", "Prof 1", "classe")
+    assert (tret["hora"], tret["professor_absent"], tret["substitut"], tret["motiu"]) == (
+        HORA,
+        "Prof 15",
+        "Prof 1",
+        "classe",
+    )
     assert tret["classe_grup"] == "3-ESO-C"
 
 
@@ -125,14 +142,25 @@ def test_genera_pendents_si_que_omple_les_files_buides(client):
 
 def _vigilancia_absent(client):
     """Fila de vigilant absent: Prof 21 vigila a les 10:00 i és absent."""
-    resp = client.post(f"/api/vigilancies/{DATA}", json={
-        "hora": HORA, "tipus": "Anglès", "grups": "2-BAT-A", "aula": "A1",
-        "vigilant": "Prof 21", "comentaris": "", "nivell": "2-BAT",
-    })
+    resp = client.post(
+        f"/api/vigilancies/{DATA}",
+        json={
+            "hora": HORA,
+            "tipus": "Anglès",
+            "grups": "2-BAT-A",
+            "aula": "A1",
+            "vigilant": "Prof 21",
+            "comentaris": "",
+            "nivell": "2-BAT",
+        },
+    )
     assert resp.status_code == 200, resp.text
     _absencia(client, "Prof 21")
-    return next(s for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
-                if s["tipus_absencia"] == "VIGILANCIA_ABSENT")
+    return next(
+        s
+        for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
+        if s["tipus_absencia"] == "VIGILANCIA_ABSENT"
+    )
 
 
 def test_un_canvi_del_dia_tampoc_assigna_la_vigilancia_d_un_vigilant_absent(client):
@@ -140,6 +168,9 @@ def test_un_canvi_del_dia_tampoc_assigna_la_vigilancia_d_un_vigilant_absent(clie
 
     _desa_grups(client, {"12:30": ["3-ESO-C"]})
 
-    fila = next(s for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
-                if s["tipus_absencia"] == "VIGILANCIA_ABSENT")
+    fila = next(
+        s
+        for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
+        if s["tipus_absencia"] == "VIGILANCIA_ABSENT"
+    )
     assert fila["substitut"] == ""

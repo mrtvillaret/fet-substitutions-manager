@@ -3,6 +3,7 @@ Funcions auxiliars compartides pel backend
 - Gestors singleton (horari, substitucions, etc.)
 - Funcions d'assignació automàtica de vigilàncies
 """
+
 import json
 import logging
 import os
@@ -59,8 +60,8 @@ def _get_institucio_actual() -> str:
     """Institució de la petició en curs; fora d'una petició, la per defecte."""
     from config.context import institucio_peticio
     from config.settings import config
-    return (institucio_peticio() or config.global_data.get("institucio")
-            or os.getenv("APP_INSTITUCIO") or "exemple")
+
+    return institucio_peticio() or config.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or "exemple"
 
 
 def invalidar_horari(institucio: str = None):
@@ -76,7 +77,6 @@ def invalidar_horari(institucio: str = None):
         _horari = {}
         _vigilancia_core = {}
     log.debug("🔄 Singleton d'horari invalidat - es recarregarà en proper ús")
-
 
 
 def avui() -> str:
@@ -103,7 +103,7 @@ def _resolve_xml_path(institucio: str, data_iso: str) -> Optional[str]:
     if not xml_path:
         try:
             with get_data_db_session(institucio) as db:
-                xml_path = ConfiguracioRepository.get(db, 'xml_horari_path')
+                xml_path = ConfiguracioRepository.get(db, "xml_horari_path")
         except Exception:
             xml_path = None
 
@@ -143,7 +143,7 @@ def get_horari(institucio: str = None, *, data_iso: str) -> GestorHorariWeb:
 
     # Llegir configuració de SQLite
     with get_data_db_session(institucio) as db:
-        ultim_professor_subs = ConfiguracioRepository.get(db, 'ultim_professor_subs')
+        ultim_professor_subs = ConfiguracioRepository.get(db, "ultim_professor_subs")
         if not ultim_professor_subs:
             ultim_professor_subs = None  # Sense límit
 
@@ -160,7 +160,9 @@ def get_horari(institucio: str = None, *, data_iso: str) -> GestorHorariWeb:
         except Exception as e:
             log.warning(f"⚠️  Error sincronitzant professors ({institucio}): {e}")
 
-    log.debug(f"✅ Horari carregat ({institucio}): {len(horari.professors)} professors (límit: {ultim_professor_subs or 'cap'})")
+    log.debug(
+        f"✅ Horari carregat ({institucio}): {len(horari.professors)} professors (límit: {ultim_professor_subs or 'cap'})"
+    )
     return horari
 
 
@@ -269,7 +271,7 @@ def get_vigilancia_core(data: str, db: Session = None, institucio: str = None) -
         horari_gestor=horari,
         alliberats_gestor=alliberats,
         grups_sense_classe=grups_sense_classe,
-        dia_actual=dia_name
+        dia_actual=dia_name,
     )
 
     return _vigilancia_core[key]
@@ -277,14 +279,15 @@ def get_vigilancia_core(data: str, db: Session = None, institucio: str = None) -
 
 # ===== Funcions d'Assignació Automàtica =====
 
+
 def get_vigilants_assignats_hora(vigilancies_dict: Dict, data: str, hora: str) -> set:
     """Retorna set de professors ja assignats a una hora"""
     vigilants = set()
     if data in vigilancies_dict:
         for vig_list in vigilancies_dict[data].values():
             for vig in vig_list:
-                if vig.get('hora') == hora and vig.get('vigilant'):
-                    vigilants.add(vig['vigilant'])
+                if vig.get("hora") == hora and vig.get("vigilant"):
+                    vigilants.add(vig["vigilant"])
     return vigilants
 
 
@@ -345,7 +348,7 @@ def save_vigilancies_afinitats(db: Session, rows: List[Dict[str, Any]]) -> List[
         VIGILANCIES_AFINITATS_KEY,
         json.dumps(normalized, ensure_ascii=False),
         tipus="json",
-        descripcio="Afinitats de grups per autoassignació de vigilàncies"
+        descripcio="Afinitats de grups per autoassignació de vigilàncies",
     )
     return normalized
 
@@ -367,23 +370,23 @@ def _resolve_affinity_prefix(grups: str, bases_sorted: List[str]) -> Optional[st
     return None
 
 
-
-def assign_phase1_titulars(vigilancies_list: list, core: VigilanciaCore,
-                           vigilants_assignats_global: Dict[str, set], db: Session = None) -> int:
+def assign_phase1_titulars(
+    vigilancies_list: list, core: VigilanciaCore, vigilants_assignats_global: Dict[str, set], db: Session = None
+) -> int:
     """FASE 1: Assigna NOMÉS titulars alliberats/disponibles"""
     assigned_count = 0
 
     for vigilance in vigilancies_list:
-        vigilant_actual = vigilance.get('vigilant', '')
+        vigilant_actual = vigilance.get("vigilant", "")
 
         # Saltar si ja té vigilant
         if vigilant_actual and vigilant_actual != "-- selecciona vigilant --":
             continue
 
-        tipus = vigilance.get('tipus', '')
-        grups = vigilance.get('grups', '')
-        aula = vigilance.get('aula', '')
-        hora = vigilance.get('hora', '')
+        tipus = vigilance.get("tipus", "")
+        grups = vigilance.get("grups", "")
+        aula = vigilance.get("aula", "")
+        hora = vigilance.get("hora", "")
 
         # Intentar assignar titular
         if tipus not in ["VIGILÀNCIA"] and grups:
@@ -397,12 +400,11 @@ def assign_phase1_titulars(vigilancies_list: list, core: VigilanciaCore,
                 titular_status = core.get_titular_status(titular, hora)
                 vigilants_hora = vigilants_assignats_global.get(hora, set())
 
-                if (titular_status in ["alliberat", "disponible"] and
-                    titular not in vigilants_hora):
+                if titular_status in ["alliberat", "disponible"] and titular not in vigilants_hora:
                     # Regla funcional: si és titular i està disponible/alliberat,
                     # s'ha d'assignar sempre que no estigui absent.
                     if titular not in core.absents_actuals or hora not in core.absents_actuals.get(titular, []):
-                        vigilance['vigilant'] = titular
+                        vigilance["vigilant"] = titular
                         vigilants_hora.add(titular)
                         vigilants_assignats_global[hora] = vigilants_hora
                         assigned_count += 1
@@ -410,19 +412,20 @@ def assign_phase1_titulars(vigilancies_list: list, core: VigilanciaCore,
     return assigned_count
 
 
-def assign_phase2_professors_grup(vigilancies_list: list, core: VigilanciaCore,
-                                   vigilants_assignats_global: Dict[str, set]) -> int:
+def assign_phase2_professors_grup(
+    vigilancies_list: list, core: VigilanciaCore, vigilants_assignats_global: Dict[str, set]
+) -> int:
     """FASE 2: Assigna professors que tenien classe amb el grup (alliberats)"""
     assigned_count = 0
 
     for vigilance in vigilancies_list:
-        vigilant_actual = vigilance.get('vigilant', '')
+        vigilant_actual = vigilance.get("vigilant", "")
 
         if vigilant_actual and vigilant_actual != "-- selecciona vigilant --":
             continue
 
-        grups = vigilance.get('grups', '')
-        hora = vigilance.get('hora', '')
+        grups = vigilance.get("grups", "")
+        hora = vigilance.get("hora", "")
 
         if grups and isinstance(core.grups_sense_classe, dict):
             # Obtenir professors que tenien aquest grup
@@ -443,7 +446,7 @@ def assign_phase2_professors_grup(vigilancies_list: list, core: VigilanciaCore,
                     if grups in grups_hora:
                         # Fail-safe: regla de domini abans d'assignar
                         if core.is_professor_assignable(prof, hora, "alliberat"):
-                            vigilance['vigilant'] = prof
+                            vigilance["vigilant"] = prof
                             vigilants_hora.add(prof)
                             vigilants_assignats_global[hora] = vigilants_hora
                             assigned_count += 1
@@ -452,11 +455,14 @@ def assign_phase2_professors_grup(vigilancies_list: list, core: VigilanciaCore,
     return assigned_count
 
 
-def assign_phase3_passada(vigilancies_list: list, core: VigilanciaCore,
-                          vigilants_assignats_global: Dict[str, set],
-                          filter_mode: str,
-                          only_alliberats: bool,
-                          afinitats_cfg: Optional[List[Dict[str, List[str]]]] = None) -> int:
+def assign_phase3_passada(
+    vigilancies_list: list,
+    core: VigilanciaCore,
+    vigilants_assignats_global: Dict[str, set],
+    filter_mode: str,
+    only_alliberats: bool,
+    afinitats_cfg: Optional[List[Dict[str, List[str]]]] = None,
+) -> int:
     """
     Una passada d'assignació amb filtre específic
 
@@ -472,15 +478,15 @@ def assign_phase3_passada(vigilancies_list: list, core: VigilanciaCore,
     bases_sorted = sorted(afinitat_map.keys(), key=len, reverse=True)
 
     for vigilance in vigilancies_list:
-        vigilant_actual = vigilance.get('vigilant', '')
+        vigilant_actual = vigilance.get("vigilant", "")
 
         if vigilant_actual and vigilant_actual != "-- selecciona vigilant --":
             continue
 
-        tipus = vigilance.get('tipus', '')
-        grups = vigilance.get('grups', '')
-        aula = vigilance.get('aula', '')
-        hora = vigilance.get('hora', '')
+        tipus = vigilance.get("tipus", "")
+        grups = vigilance.get("grups", "")
+        aula = vigilance.get("aula", "")
+        hora = vigilance.get("hora", "")
 
         # Obtenir disponibles
         disponibles = core.get_disponibles_for_vigilance(hora, vigilance)
@@ -508,8 +514,9 @@ def assign_phase3_passada(vigilancies_list: list, core: VigilanciaCore,
                 categoria = core.get_categoria_prioritat(tipus_disp)
 
                 # Detectar alliberats reals
-                es_alliberat_real = (tipus_disp == "alliberat" or
-                                    (tipus_disp == "vigilància" and "tenia" in detall and " - " in detall))
+                es_alliberat_real = tipus_disp == "alliberat" or (
+                    tipus_disp == "vigilància" and "tenia" in detall and " - " in detall
+                )
 
                 # Filtrar per tipus si només volem alliberats
                 if only_alliberats and not es_alliberat_real:
@@ -533,9 +540,7 @@ def assign_phase3_passada(vigilancies_list: list, core: VigilanciaCore,
                     # Prefix proper segons ordre configurable (exclou mateix prefix).
                     if not vig_order:
                         continue
-                    if (not prof_prefix or
-                        prof_prefix not in vig_order or
-                        prof_prefix == vig_prefix):
+                    if not prof_prefix or prof_prefix not in vig_order or prof_prefix == vig_prefix:
                         continue
                     prox_idx = vig_order.index(prof_prefix)
                 elif filter_mode == "sense_prefix":
@@ -587,7 +592,7 @@ def assign_phase3_passada(vigilancies_list: list, core: VigilanciaCore,
             if not core.is_professor_assignable(best_candidate[0], hora, best_candidate[1]):
                 continue
 
-            vigilance['vigilant'] = best_candidate[0]
+            vigilance["vigilant"] = best_candidate[0]
             vigilants_hora.add(best_candidate[0])
             vigilants_assignats_global[hora] = vigilants_hora
             assigned_count += 1

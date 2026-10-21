@@ -22,6 +22,7 @@ _abreviatures_cache: Dict[str, Dict[str, str]] = {}
 
 def _get_institucio_actual() -> str:
     from config.settings import config
+
     return config.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or "exemple"
 
 
@@ -43,11 +44,11 @@ def normalitzar_llista_grups(grups_string: str) -> str:
         >>> normalitzar_llista_grups("1-ESO-C,1-ESO-A,1-ESO-B")
         "1-ESO-A,1-ESO-B,1-ESO-C"
     """
-    if not grups_string or ',' not in grups_string:
+    if not grups_string or "," not in grups_string:
         return grups_string.strip()
 
-    grups = [g.strip() for g in grups_string.split(',')]
-    return ','.join(sorted(grups))
+    grups = [g.strip() for g in grups_string.split(",")]
+    return ",".join(sorted(grups))
 
 
 def carregar_abreviatures_grups() -> Dict[str, str]:
@@ -189,7 +190,7 @@ def aplicar_abreviatura_grup(grup: str) -> str:
 
     abreviatures = get_abreviatures_cached()
     for originals, abbr in abreviatures.items():
-        parts = [g.strip() for g in originals.split(',') if g.strip()]
+        parts = [g.strip() for g in originals.split(",") if g.strip()]
         if grup in parts:
             return abbr
 

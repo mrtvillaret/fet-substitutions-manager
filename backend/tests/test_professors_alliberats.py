@@ -10,6 +10,7 @@ Horari d'exemple, dilluns 20/04/2026 a les 10:00:
   - Prof 15 fa Anglès amb 3-ESO-A.
 A les 11:30, Prof 26 fa «2.1» amb 2-BAT-A,2-BAT-B.
 """
+
 import uuid
 
 import pytest
@@ -44,17 +45,19 @@ def client():
 
 
 def _allibera(client, professors=None, grups_per_hora=None):
-    resp = client.put(URL_GRUPS, json={
-        "grups": grups_per_hora or {},
-        "professors": professors if professors is not None else {"10:00": [ALLIBERAT]},
-    })
+    resp = client.put(
+        URL_GRUPS,
+        json={
+            "grups": grups_per_hora or {},
+            "professors": professors if professors is not None else {"10:00": [ALLIBERAT]},
+        },
+    )
     assert resp.status_code == 200, resp.text
     return resp.json()
 
 
 def _marca_absencia(client, professor, hores=("10:00",)):
-    resp = client.put(f"{URL_SUBS}/absencies/{professor}",
-                      json={"hores_absencia": list(hores), "updated_at_map": {}})
+    resp = client.put(f"{URL_SUBS}/absencies/{professor}", json={"hores_absencia": list(hores), "updated_at_map": {}})
     assert resp.status_code == 200, resp.text
 
 
@@ -64,8 +67,10 @@ def _fila(client, professor, hora="10:00"):
 
 
 def _assigna(client, substitut, hora="10:00", absent="Prof 15"):
-    return client.put(f"{URL_SUBS}/{hora}/{absent}", json={
-        "substitut": substitut, "updated_at": _fila(client, absent, hora)["updated_at"]})
+    return client.put(
+        f"{URL_SUBS}/{hora}/{absent}",
+        json={"substitut": substitut, "updated_at": _fila(client, absent, hora)["updated_at"]},
+    )
 
 
 def _disponibles_subs(client, hora="10:00"):
@@ -76,6 +81,7 @@ def _disponibles_subs(client, hora="10:00"):
 
 # ------------------------------------------------------------------ desar i llegir
 
+
 def test_es_desen_i_es_llegeixen_separats_dels_grups(client):
     resposta = _allibera(client, grups_per_hora={"10:00": ["3-ESO-C"]})
     assert (resposta["total_grups"], resposta["total_professors"]) == (1, 1)
@@ -83,8 +89,7 @@ def test_es_desen_i_es_llegeixen_separats_dels_grups(client):
     cos = client.get(URL_GRUPS).json()
     assert cos["grups_seleccionats_per_hora"] == {"10:00": ["3-ESO-C"]}
     assert cos["professors_alliberats_per_hora"] == {"10:00": [ALLIBERAT]}
-    assert sorted(cos["professors_per_grup_hora"]["10:00"][GRUP_FRANJA]) == [
-        "Prof 26", "Prof 31", "Prof 35", "Prof 47"]
+    assert sorted(cos["professors_per_grup_hora"]["10:00"][GRUP_FRANJA]) == ["Prof 26", "Prof 31", "Prof 35", "Prof 47"]
     assert not any(g.startswith("professor:") for g in cos["grups_disponibles"])
 
 
@@ -109,6 +114,7 @@ def test_un_grup_no_es_pot_fer_passar_per_professor(client):
 
 
 # ------------------------------------------------------------------ substitucions
+
 
 def test_surt_com_a_alliberat_i_els_companys_no(client):
     assert ALLIBERAT not in _disponibles_subs(client)
@@ -152,6 +158,7 @@ def test_si_es_absent_no_cal_substituir_lo(client):
 
 # ------------------------------------------------------------------ vigilàncies
 
+
 def test_a_vigilancies_tambe_surt_com_a_alliberat(client):
     def estat(professor):
         llista = client.get(f"{URL_VIGS}/10:00/disponibles").json()
@@ -168,9 +175,17 @@ def test_si_vigila_no_cal_cobrir_la_seva_classe(client):
         files = client.get(URL_SUBS, params={"include_all": True}).json()
         return [s for s in files if s["professor_absent"] == professor and s["tipus_absencia"] == "VIGILANCIA"]
 
-    resp = client.post(URL_VIGS, json={
-        "hora": "10:00", "tipus": "Anglès", "grups": "3-ESO-A", "aula": "",
-        "nivell": "3-ESO", "vigilant": ALLIBERAT})
+    resp = client.post(
+        URL_VIGS,
+        json={
+            "hora": "10:00",
+            "tipus": "Anglès",
+            "grups": "3-ESO-A",
+            "aula": "",
+            "nivell": "3-ESO",
+            "vigilant": ALLIBERAT,
+        },
+    )
     assert resp.status_code == 200, resp.text
     assert len(cobertures(ALLIBERAT)) == 1
 

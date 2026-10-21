@@ -88,7 +88,7 @@ a leave), and the assignment engine in `core/`.
   with a notice.
 - A teacher on leave neither covers nor is covered.
 
-Over 500 tests (`cd backend && pytest tests/`) on temporary institutions with
+Over 650 tests (`cd backend && pytest tests/`) on temporary institutions with
 the sample timetable.
 
 For the full dependency map and the rules in detail see
@@ -126,8 +126,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 The backend automatically creates the databases (`auth.db` and
-`data/{APP_INSTITUCIO}/gestor.db`) on first start, plus a super_admin from
-`ADMIN_USERNAME`/`ADMIN_PASSWORD` in `.env`.
+`data/{APP_INSTITUCIO}/gestor.db`) on first start and, if there are no users
+yet, a super_admin from `ADMIN_USERNAME`/`ADMIN_PASSWORD` in `.env`.
 
 API at `http://localhost:8000` · Docs at `http://localhost:8000/docs`.
 
@@ -213,10 +213,12 @@ docker compose up --build -d
 Caddy obtains the TLS certificate automatically. The app will be at
 `https://{your-domain}`.
 
-The application **will not start** without `SECRET_KEY`, or without
-`ADMIN_PASSWORD` while the admin user does not yet exist. Neither has a default
+The application **will not start** without `SECRET_KEY`, or, on a new
+installation (no users yet), without `ADMIN_PASSWORD`. Neither has a default
 value, on purpose: no installation should end up exposed with credentials that
-are published in this repository.
+are published in this repository. If super_admin access is lost, it can be
+recovered with `ADMIN_PASSWORD_RECUPERACIO` (see `.env.example`), which must be
+removed from the environment after use.
 
 ### 3. First login
 

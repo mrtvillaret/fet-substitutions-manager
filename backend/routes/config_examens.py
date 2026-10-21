@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from auth_utils import require_admin
+from auth.dependencies import require_admin
 from dependencies import dia_de_la_planificacio, get_db
 from helpers import (
     MissingXmlError,
@@ -33,6 +33,7 @@ router = APIRouter(prefix="/api/config", tags=["Configuració Exàmens"])
 
 
 # ===== NIVELLS =====
+
 
 @router.get("/nivells")
 async def get_nivells(db: Session = Depends(get_db)):
@@ -85,6 +86,7 @@ async def update_nivells_ordre(nivells: List[str], db: Session = Depends(get_db)
 
 
 # ===== ASSIGNATURES =====
+
 
 @router.get("/assignatures")
 async def get_all_assignatures(db: Session = Depends(get_db)):
@@ -147,6 +149,7 @@ async def update_assignatures_ordre(nivell: str, assignatures: List[str], db: Se
 
 
 # ===== GRUPS =====
+
 
 @router.get("/grups")
 async def get_all_grups(db: Session = Depends(get_db)):
@@ -213,6 +216,7 @@ async def update_grups_ordre(nivell: str, grups: List[str], db: Session = Depend
 
 # ===== AULES =====
 
+
 @router.get("/aules")
 async def get_aules(db: Session = Depends(get_db)):
     """Retorna totes les aules"""
@@ -256,6 +260,7 @@ async def delete_aula(codi: str, db: Session = Depends(get_db)):
 
 # ===== ASSIGNACIONS PROFESSOR-TITULAR =====
 
+
 @router.get("/assignacions")
 async def get_assignacions(db: Session = Depends(get_db)):
     """Retorna totes les assignacions professor-titular"""
@@ -264,15 +269,16 @@ async def get_assignacions(db: Session = Depends(get_db)):
 
 
 @router.get("/assignacions-obsoletes")
-async def get_assignacions_obsoletes(db: Session = Depends(get_db),
-                                    current_user=Depends(require_admin),
-                                    dia: Dia = Depends(dia_de_la_planificacio)):
+async def get_assignacions_obsoletes(
+    db: Session = Depends(get_db), current_user=Depends(require_admin), dia: Dia = Depends(dia_de_la_planificacio)
+):
     """Assignacions amb un grup o un titular que no són a l'horari del
     planificador (el vigent a la primera data planificada; sense dates, avui):
     p.ex. d'un curs anterior. El nom de l'assignatura no es té en compte: es
     pot haver canviat a mà (p.ex. "1.1 Prof 7" per a una franja d'optatives).
     Per treure-les: DELETE /assignacions amb els ids."""
     from models import AbreviaturaGrup
+
     try:
         horari = dia.horari
     except MissingXmlError:
@@ -280,8 +286,9 @@ async def get_assignacions_obsoletes(db: Session = Depends(get_db),
 
     grups = set(horari.tots_grups) | set(horari.tots_grups_raw)
     grups |= {part.strip() for g in list(grups) for part in g.split(",")}
-    abreviatures = {a.abreviatura: [g.strip() for g in a.grups_originals.split(",")]
-                    for a in db.query(AbreviaturaGrup).all()}
+    abreviatures = {
+        a.abreviatura: [g.strip() for g in a.grups_originals.split(",")] for a in db.query(AbreviaturaGrup).all()
+    }
     professors = set(horari.professors or [])
 
     def grup_existeix(grup: str) -> bool:
@@ -325,15 +332,9 @@ async def create_assignacio(assignacio: Dict, db: Session = Depends(get_db)):
     titular = titular if titular else None
     aula = aula if aula else None
 
-    assignacio_id = ConfiguracioExamenRepository.create(
-        db, assignatura, grup, titular, aula, ordre
-    )
+    assignacio_id = ConfiguracioExamenRepository.create(db, assignatura, grup, titular, aula, ordre)
 
-    return {
-        "success": True,
-        "id": assignacio_id,
-        "message": f"Assignació creada: {assignatura} - {grup}"
-    }
+    return {"success": True, "id": assignacio_id, "message": f"Assignació creada: {assignatura} - {grup}"}
 
 
 @router.put("/assignacions/{assignacio_id}")
@@ -364,8 +365,9 @@ async def delete_assignacio(assignacio_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/assignacions")
-async def eliminar_assignacions_massiu(payload: Dict, db: Session = Depends(get_db),
-                                       current_user=Depends(require_admin)):
+async def eliminar_assignacions_massiu(
+    payload: Dict, db: Session = Depends(get_db), current_user=Depends(require_admin)
+):
     """Elimina diverses assignacions de cop (per net a fons abans de re-importar
     des d'un XML nou). `ids`: llista d'ids a esborrar; `tot: true` ho esborra tot."""
     from models import ConfiguracioExamen
@@ -379,9 +381,7 @@ async def eliminar_assignacions_massiu(payload: Dict, db: Session = Depends(get_
     if not ids:
         raise HTTPException(status_code=400, detail="Cal indicar 'ids' o 'tot: true'")
 
-    eliminades = db.query(ConfiguracioExamen).filter(
-        ConfiguracioExamen.id.in_(ids)
-    ).delete(synchronize_session=False)
+    eliminades = db.query(ConfiguracioExamen).filter(ConfiguracioExamen.id.in_(ids)).delete(synchronize_session=False)
     db.commit()
     return {"success": True, "eliminades": eliminades}
 
@@ -394,6 +394,7 @@ def _esborra_tota_configuracio_examens(db: Session):
     comença sempre net. També oblida les propostes que s'havien descartat
     expressament (amb tot net, té sentit tornar-les a revisar de zero)."""
     from models import Assignatura, Aula, ConfiguracioExamen, Grup, Nivell
+
     db.query(ConfiguracioExamen).delete()
     db.query(Grup).delete()
     db.query(Assignatura).delete()
@@ -478,9 +479,9 @@ def _calcula_impacte_assignacions(db: Session, propostes: List[Dict], overwrite:
 
 
 @router.get("/importar-assignacions/preview")
-async def importar_assignacions_preview(db: Session = Depends(get_db),
-                                        current_user=Depends(require_admin),
-                                        dia: Dia = Depends(dia_de_la_planificacio)):
+async def importar_assignacions_preview(
+    db: Session = Depends(get_db), current_user=Depends(require_admin), dia: Dia = Depends(dia_de_la_planificacio)
+):
     """Genera propostes d'assignacions (assignatura/grup/titular/aula) a partir
     de l'horari del planificador (el vigent a la primera data planificada;
     sense dates, avui), sense escriure res a la BD."""
@@ -497,10 +498,7 @@ async def importar_assignacions_preview(db: Session = Depends(get_db),
         if nivells_valids:
             propostes = [p for p in propostes if p["nivell"] in nivells_valids]
 
-        existents = {
-            (a["assignatura"], a["grup"], a["titular"])
-            for a in ConfiguracioExamenRepository.get_all(db)
-        }
+        existents = {(a["assignatura"], a["grup"], a["titular"]) for a in ConfiguracioExamenRepository.get_all(db)}
         descartades = PropostaDescartadaRepository.get_totes(db)
         for p in propostes:
             clau = (p["assignatura"], p["grup"], p["titular"])
@@ -513,8 +511,9 @@ async def importar_assignacions_preview(db: Session = Depends(get_db),
 
 
 @router.post("/importar-assignacions/dry-run")
-async def importar_assignacions_dry_run(payload: Dict, db: Session = Depends(get_db),
-                                        current_user=Depends(require_admin)):
+async def importar_assignacions_dry_run(
+    payload: Dict, db: Session = Depends(get_db), current_user=Depends(require_admin)
+):
     """Calcula què faria una importació (nivells/grups/assignatures/aules/
     assignacions que es crearien) SENSE escriure res, perquè es pugui mostrar
     un resum previ abans de confirmar."""
@@ -524,8 +523,7 @@ async def importar_assignacions_dry_run(payload: Dict, db: Session = Depends(get
 
 
 @router.post("/importar-assignacions")
-async def importar_assignacions(payload: Dict, db: Session = Depends(get_db),
-                                current_user=Depends(require_admin)):
+async def importar_assignacions(payload: Dict, db: Session = Depends(get_db), current_user=Depends(require_admin)):
     """Aplica una llista de propostes: crea nivell/assignatura/grup/aula mestres si
     calen, i l'assignació (evitant duplicats exactes assignatura+grup+titular).
     Amb `overwrite: true` s'esborra TOTA la configuració d'exàmens abans.
@@ -571,9 +569,7 @@ async def importar_assignacions(payload: Dict, db: Session = Depends(get_db),
         if aula and MasterConfigRepository.add_aula(db, aula):
             aules_creades.append(aula)
 
-        existent = db.query(ConfiguracioExamen).filter_by(
-            assignatura=assignatura, grup=grup, titular=titular
-        ).first()
+        existent = db.query(ConfiguracioExamen).filter_by(assignatura=assignatura, grup=grup, titular=titular).first()
         if existent:
             ja_existien += 1
             continue
@@ -608,8 +604,7 @@ _CSV_COLUMNES = ["nivell", "assignatura", "grup", "titular", "aula"]
 
 
 @router.get("/exportar-assignacions-csv")
-async def exportar_assignacions_csv(db: Session = Depends(get_db),
-                                    current_user=Depends(require_admin)):
+async def exportar_assignacions_csv(db: Session = Depends(get_db), current_user=Depends(require_admin)):
     """Exporta totes les assignacions actuals a un fitxer CSV descarregable,
     incloent-hi el nivell real de cada grup (des de la taula mestra) perquè
     el fitxer es pugui reimportar sense ambigüitat."""
@@ -632,7 +627,7 @@ async def exportar_assignacions_csv(db: Session = Depends(get_db),
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=assignacions_{current_user.institucio}.csv"}
+        headers={"Content-Disposition": f"attachment; filename=assignacions_{current_user.institucio}.csv"},
     )
 
 
@@ -680,7 +675,9 @@ def _calcula_impacte_csv(db: Session, files_rows: List[tuple], overwrite: bool) 
         if not any([nivell, grup, assignatura, titular_csv, aula]):
             continue
 
-        falten = [camp for camp, valor in [("nivell", nivell), ("assignatura", assignatura), ("grup", grup)] if not valor]
+        falten = [
+            camp for camp, valor in [("nivell", nivell), ("assignatura", assignatura), ("grup", grup)] if not valor
+        ]
         if falten:
             avisos.append(f"Línia {num_fila}: falten camps obligatoris ({', '.join(falten)}), no s'importarà")
             continue
@@ -733,17 +730,19 @@ def _llegeix_csv(file: UploadFile, contingut: bytes):
     if not columnes_conegudes.intersection(reader.fieldnames or []):
         raise HTTPException(
             status_code=400,
-            detail=f"El CSV ha de tenir com a mínim una d'aquestes columnes: {', '.join(sorted(columnes_conegudes))}"
+            detail=f"El CSV ha de tenir com a mínim una d'aquestes columnes: {', '.join(sorted(columnes_conegudes))}",
         )
 
     return list(enumerate(reader, start=2))  # línia 1 = capçalera
 
 
 @router.post("/importar-assignacions-csv/dry-run")
-async def importar_assignacions_csv_dry_run(file: UploadFile = File(...),
-                                            overwrite: bool = Form(False),
-                                            db: Session = Depends(get_db),
-                                            current_user=Depends(require_admin)):
+async def importar_assignacions_csv_dry_run(
+    file: UploadFile = File(...),
+    overwrite: bool = Form(False),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
     """Calcula què faria una importació CSV (mateixa lògica que l'endpoint
     real) SENSE escriure res, perquè es pugui mostrar un resum previ."""
     contingut = await file.read()
@@ -752,10 +751,12 @@ async def importar_assignacions_csv_dry_run(file: UploadFile = File(...),
 
 
 @router.post("/importar-assignacions-csv")
-async def importar_assignacions_csv(file: UploadFile = File(...),
-                                    overwrite: bool = Form(False),
-                                    db: Session = Depends(get_db),
-                                    current_user=Depends(require_admin)):
+async def importar_assignacions_csv(
+    file: UploadFile = File(...),
+    overwrite: bool = Form(False),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
     """Importa des d'un CSV (columnes: nivell,assignatura,grup,titular,aula).
     nivell, assignatura i grup són obligatoris (cap valor es dedueix ni
     s'inventa): si en falta algun, la fila es descarta sencera amb un avís.
@@ -789,7 +790,9 @@ async def importar_assignacions_csv(file: UploadFile = File(...),
         if not any([nivell, grup, assignatura, titular_csv, aula]):
             continue  # fila totalment buida, no cal ni avisar
 
-        falten = [camp for camp, valor in [("nivell", nivell), ("assignatura", assignatura), ("grup", grup)] if not valor]
+        falten = [
+            camp for camp, valor in [("nivell", nivell), ("assignatura", assignatura), ("grup", grup)] if not valor
+        ]
         if falten:
             avisos.append(f"Línia {num_fila}: falten camps obligatoris ({', '.join(falten)}), no s'ha importat")
             continue
@@ -807,9 +810,9 @@ async def importar_assignacions_csv(file: UploadFile = File(...),
         if MasterConfigRepository.add_assignatura(db, nivell, assignatura):
             assignatures_creades.append(f"{assignatura} ({nivell})")
 
-        existent = db.query(ConfiguracioExamen).filter_by(
-            assignatura=assignatura, grup=grup, titular=titular_csv
-        ).first()
+        existent = (
+            db.query(ConfiguracioExamen).filter_by(assignatura=assignatura, grup=grup, titular=titular_csv).first()
+        )
         if existent:
             ja_existien += 1
         else:
@@ -829,6 +832,7 @@ async def importar_assignacions_csv(file: UploadFile = File(...),
 
 
 # ===== ABREVIATURES =====
+
 
 @router.get("/abreviatures")
 async def get_abreviatures(db: Session = Depends(get_db)):
@@ -850,12 +854,13 @@ async def create_abreviatura(abreviatura: Dict, db: Session = Depends(get_db)):
 
     # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures
     from helpers import invalidar_horari
+
     invalidar_horari()
 
     return {
         "success": True,
         "id": abreviatura_id,
-        "message": f"Abreviatura creada: {grups_originals} → {abreviatura_text}"
+        "message": f"Abreviatura creada: {grups_originals} → {abreviatura_text}",
     }
 
 
@@ -871,6 +876,7 @@ async def update_abreviatura(abreviatura_id: int, abreviatura: Dict, db: Session
 
     # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures
     from helpers import invalidar_horari
+
     invalidar_horari()
 
     return {"success": True, "message": "Abreviatura actualitzada"}
@@ -885,12 +891,14 @@ async def delete_abreviatura(abreviatura_id: int, db: Session = Depends(get_db))
 
     # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures
     from helpers import invalidar_horari
+
     invalidar_horari()
 
     return {"success": True, "message": "Abreviatura eliminada"}
 
 
 # ===== AFINITATS VIGILÀNCIES =====
+
 
 @router.get("/afinitats")
 async def get_afinitats(db: Session = Depends(get_db)):
@@ -905,8 +913,4 @@ async def update_afinitats(payload: Dict, db: Session = Depends(get_db)):
     if not isinstance(afinitats, list):
         raise HTTPException(status_code=400, detail="El camp 'afinitats' ha de ser una llista")
     normalized = save_vigilancies_afinitats(db, afinitats)
-    return {
-        "success": True,
-        "afinitats": normalized,
-        "message": "Afinitats desades correctament"
-    }
+    return {"success": True, "afinitats": normalized, "message": "Afinitats desades correctament"}

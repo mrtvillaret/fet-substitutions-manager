@@ -1,4 +1,5 @@
 """utils/date_context.DateContext: la data dels PDF i el dia de la setmana."""
+
 from datetime import datetime
 
 import i18n_setup
@@ -13,8 +14,8 @@ def test_data_completa_en_l_idioma_actiu(monkeypatch):
 
 
 def test_dia_de_la_setmana():
-    assert DateContext.from_iso("2026-10-19").weekday_index == 0   # dilluns
-    assert DateContext.from_iso("2026-10-18").weekday_index == 6   # diumenge
+    assert DateContext.from_iso("2026-10-19").weekday_index == 0  # dilluns
+    assert DateContext.from_iso("2026-10-18").weekday_index == 6  # diumenge
 
 
 def test_una_data_no_valida_es_avui():

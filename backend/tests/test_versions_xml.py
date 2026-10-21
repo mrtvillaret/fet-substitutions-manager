@@ -3,6 +3,7 @@ Versions de l'horari (XML): només es tria quan comença cadascuna. La data de
 fi es calcula sempre (el dia abans que comenci la següent; l'última, oberta),
 en una sola operació, com els cursos: no hi pot haver forats ni solapaments.
 """
+
 import uuid
 
 import pytest
@@ -10,7 +11,7 @@ from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra
 from suport_xml import amb_versions, dia
 
-from auth_utils import require_admin
+from auth.dependencies import require_admin
 from database import get_data_db_session
 from models import XMLVersion
 from rate_limit import limiter
@@ -18,7 +19,7 @@ from repositories import ConfiguracioRepository
 from routes import settings
 
 APP = crea_app()
-APP.include_router(settings.router, dependencies=[Depends(require_admin)])   # com a main.py
+APP.include_router(settings.router, dependencies=[Depends(require_admin)])  # com a main.py
 URL = "/api/settings/xml-versions"
 
 
@@ -63,10 +64,11 @@ def test_canviar_l_inici_d_una_versio_recalcula_la_fi_de_l_anterior(centre):
 
 def test_la_data_de_fi_no_es_pot_posar_a_ma(centre):
     client = _client(centre)
-    resp = client.put(f"{URL}/{_id(centre, 'actual.xml')}",
-                      json={"data_inici": dia(-30).isoformat(), "data_fi": dia(-20).isoformat()})
+    resp = client.put(
+        f"{URL}/{_id(centre, 'actual.xml')}", json={"data_inici": dia(-30).isoformat(), "data_fi": dia(-20).isoformat()}
+    )
     assert resp.status_code == 200
-    assert _cadena(centre)[0] == ("actual.xml", dia(-30), dia(2))      # la que toca, no la demanada
+    assert _cadena(centre)[0] == ("actual.xml", dia(-30), dia(2))  # la que toca, no la demanada
 
 
 def test_dues_versions_no_poden_comencar_el_mateix_dia(centre):
@@ -76,7 +78,9 @@ def test_dues_versions_no_poden_comencar_el_mateix_dia(centre):
 
 
 def test_una_data_mal_escrita_dona_400(centre):
-    assert _client(centre).put(f"{URL}/{_id(centre, 'futur.xml')}", json={"data_inici": "20/10/2026"}).status_code == 400
+    assert (
+        _client(centre).put(f"{URL}/{_id(centre, 'futur.xml')}", json={"data_inici": "20/10/2026"}).status_code == 400
+    )
 
 
 def test_esborrar_la_darrera_reobre_l_anterior_i_mou_el_punter(centre):
@@ -87,8 +91,9 @@ def test_esborrar_la_darrera_reobre_l_anterior_i_mou_el_punter(centre):
 
 
 def test_esborrar_una_versio_del_mig_no_deixa_cap_forat():
-    centre = amb_versions(("actual.xml", dia(-60), dia(-31)), ("futur.xml", dia(-30), dia(2)),
-                          ("teachers.xml", dia(3), None))
+    centre = amb_versions(
+        ("actual.xml", dia(-60), dia(-31)), ("futur.xml", dia(-30), dia(2)), ("teachers.xml", dia(3), None)
+    )
     client = _client(centre)
     assert client.delete(f"{URL}/{_id(centre, 'futur.xml')}").status_code == 200
     assert _cadena(centre) == [("actual.xml", dia(-60), dia(2)), ("teachers.xml", dia(3), None)]

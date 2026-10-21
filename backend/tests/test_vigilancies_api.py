@@ -12,6 +12,7 @@ prioritats mínimes de suport_api. Dilluns 20/04/2026 a les 10:00:
   Prof 1                     E.F. amb 3-ESO-C
   Prof 48                    Filosofia amb 1-BAT-A
 """
+
 import uuid
 
 import pytest
@@ -52,10 +53,18 @@ def client(centre):
 
 
 def _crea(client, vigilant="", hora="10:00", grups="2-BAT-A", tipus="Anglès", nivell="2-BAT"):
-    resp = client.post(URL, json={
-        "hora": hora, "tipus": tipus, "grups": grups, "aula": "A1",
-        "vigilant": vigilant, "comentaris": "", "nivell": nivell,
-    })
+    resp = client.post(
+        URL,
+        json={
+            "hora": hora,
+            "tipus": tipus,
+            "grups": grups,
+            "aula": "A1",
+            "vigilant": vigilant,
+            "comentaris": "",
+            "nivell": nivell,
+        },
+    )
     assert resp.status_code == 200, resp.text
     return resp.json()["vigilancia"]
 
@@ -72,13 +81,11 @@ def _vigilants(client):
 
 def _subs(client):
     files = client.get(URL_SUBS, params={"include_all": True}).json()
-    return {(s["hora"], s["professor_absent"], s["assignatura"], s["tipus_absencia"]): s["substitut"]
-            for s in files}
+    return {(s["hora"], s["professor_absent"], s["assignatura"], s["tipus_absencia"]): s["substitut"] for s in files}
 
 
 def _absent(client, professor, hores=("10:00",)):
-    resp = client.put(f"{URL_SUBS}/absencies/{professor}",
-                      json={"hores_absencia": list(hores), "updated_at_map": {}})
+    resp = client.put(f"{URL_SUBS}/absencies/{professor}", json={"hores_absencia": list(hores), "updated_at_map": {}})
     assert resp.status_code == 200, resp.text
 
 
@@ -89,6 +96,7 @@ def _disponibles(client, hora="10:00", **params):
 
 
 # ------------------------------------------------------------------ accés
+
 
 def test_sense_sessio_no_es_pot_accedir():
     assert client_per(APP).get(URL).status_code == 401
@@ -101,6 +109,7 @@ def test_cada_institucio_nomes_veu_les_seves_vigilancies(client):
 
 
 # -------------------------------------------------------------- config
+
 
 def test_config_treu_professors_i_hores_de_l_horari(client):
     resp = client.get("/api/vigilancies/config")
@@ -119,6 +128,7 @@ def test_config_inclou_els_tipus_d_examen_ja_usats(client):
 
 
 # ----------------------------------------------------------------- CRUD
+
 
 def test_crear_i_llistar(client):
     creada = _crea(client, "Prof 21")
@@ -181,6 +191,7 @@ def test_esborrar_demana_updated_at(client):
 
 # ------------------------------------------- substitucions derivades
 
+
 def test_si_el_vigilant_te_classe_es_crea_una_substitucio_per_cobrir_la(client):
     _crea(client, "Prof 15")
     assert _subs(client) == {("10:00", "Prof 15", "Anglès", "VIGILANCIA"): ""}
@@ -202,10 +213,10 @@ def test_esborrar_la_vigilancia_esborra_la_substitucio_derivada(client):
 
 def test_el_substitut_de_la_cobertura_es_conserva_si_es_refresca_la_vigilancia(client):
     _crea(client, "Prof 15")
-    cobertura = next(s for s in client.get(URL_SUBS, params={"include_all": True}).json()
-                     if s["tipus_absencia"] == "VIGILANCIA")
-    resp = client.put(f"{URL_SUBS}/10:00/Prof 15",
-                      json={"substitut": "Prof 3", "updated_at": cobertura["updated_at"]})
+    cobertura = next(
+        s for s in client.get(URL_SUBS, params={"include_all": True}).json() if s["tipus_absencia"] == "VIGILANCIA"
+    )
+    resp = client.put(f"{URL_SUBS}/10:00/Prof 15", json={"substitut": "Prof 3", "updated_at": cobertura["updated_at"]})
     assert resp.status_code == 200
 
     vig = _vigilancies(client)[0]
@@ -232,12 +243,13 @@ def test_qui_passa_a_vigilant_deixa_la_substitucio_de_la_mateixa_hora(client):
 
 # ---------------------------------------------------------- disponibles
 
+
 def test_disponibles_classifica_cada_professor_segons_el_que_fa(client, centre):
     with get_data_db_session(centre) as db:
         GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
     _absent(client, "Prof 28")
     disp = _disponibles(client)
-    assert disp["Prof 15"]["estat"] == "ALLIBERAT"   # el seu grup no té classe
+    assert disp["Prof 15"]["estat"] == "ALLIBERAT"  # el seu grup no té classe
     assert disp["Prof 21"]["estat"] == "DISPONIBLE"  # fa guàrdia
     assert disp["Prof 1"]["estat"] == "CLASSE"
     assert disp["Prof 28"]["estat"] == "ABSENT"
@@ -275,6 +287,7 @@ def test_disponibles_en_bloc_dona_el_mateix_que_d_un_en_un(client):
 
 
 # ------------------------------------------------ assignació automàtica
+
 
 def _comprova_assignacions_valides(client):
     vigs = _vigilancies(client)
@@ -360,6 +373,7 @@ def test_assignar_sense_vigilancies(client, ruta):
 
 # ------------------------------------------------- netejar
 
+
 def test_netejar_buida_els_vigilants_i_les_substitucions_derivades(client):
     _crea(client, "Prof 15", grups="2-BAT-A")
     _crea(client, "Prof 21", grups="2-BAT-B")
@@ -381,15 +395,17 @@ def test_vigilant_que_despres_queda_absent_no_perd_cap_cobertura(client):
     _crea(client, "Prof 15")
     _absent(client, "Prof 15")
     files = _subs(client)
-    assert files[("10:00", "Prof 15", "Anglès", "ABSENCIA")] == ""            # la classe
+    assert files[("10:00", "Prof 15", "Anglès", "ABSENCIA")] == ""  # la classe
     assert any(t == "VIGILANCIA_ABSENT" and p == "Prof 15" for (_, p, _, t) in files)  # l'examen
     # La classe la cobreix l'ABSENCIA: no hi ha també una VIGILANCIA (seria doble).
     assert ("10:00", "Prof 15", "Anglès", "VIGILANCIA") not in files
 
-    examen = next(s for s in client.get(URL_SUBS, params={"include_all": True}).json()
-                  if s["tipus_absencia"] == "VIGILANCIA_ABSENT")
-    resp = client.put(f"{URL_SUBS}/10:00/Prof 15",
-                      json={"substitut": "Prof 3", "updated_at": examen["updated_at"]})
+    examen = next(
+        s
+        for s in client.get(URL_SUBS, params={"include_all": True}).json()
+        if s["tipus_absencia"] == "VIGILANCIA_ABSENT"
+    )
+    resp = client.put(f"{URL_SUBS}/10:00/Prof 15", json={"substitut": "Prof 3", "updated_at": examen["updated_at"]})
     assert resp.status_code == 200
 
     # Tornar a desar la vigilància (refresca les substitucions) no perd res.

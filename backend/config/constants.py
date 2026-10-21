@@ -1,6 +1,7 @@
 """
 Constants globals del sistema
 """
+
 import logging
 from collections.abc import Mapping as _Mapping
 from collections.abc import Sequence as _Sequence
@@ -12,6 +13,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 try:
     from i18n_setup import translate as _
 except ImportError:
+
     def _(text):
         return text
 
@@ -34,6 +36,7 @@ _PRIORITATS_PER_INSTITUCIO: dict = {}
 
 def _dades_actuals() -> dict:
     from config.context import institucio_peticio
+
     return _PRIORITATS_PER_INSTITUCIO.get(institucio_peticio(), {})
 
 
@@ -107,41 +110,34 @@ GENERA_ENCADENADES = _VistaLlista("GENERA_ENCADENADES", ())
 # EMOJI MAPPING FOR PROFESSOR TYPES
 PROFESSOR_TYPE_EMOJIS = {
     # Categoria 0 - Prioritat màxima
-    'reforç': '⭐',
-    'alliberat': '✅',
-
+    "reforç": "⭐",
+    "alliberat": "✅",
     # Categoria 1 - Guàrdies
-    'guàrdia': '🛡️',
-    'guàrdia-r': '🔁',  # Guàrdia de reforç
-    'guàrdia-t': '📚',  # Guàrdia de tutoria
-    'guàrdia-p': '⛪',  # Guàrdia pastoral
-
+    "guàrdia": "🛡️",
+    "guàrdia-r": "🔁",  # Guàrdia de reforç
+    "guàrdia-t": "📚",  # Guàrdia de tutoria
+    "guàrdia-p": "⛪",  # Guàrdia pastoral
     # Categoria 2 - Activitats específiques
-    'web': '💻',
-    'informàtica': '🖥️',
-    'correcció': '✏️',
-    'bat dual': '🎓',
-
+    "web": "💻",
+    "informàtica": "🖥️",
+    "correcció": "✏️",
+    "bat dual": "🎓",
     # Categoria 3
-    'reforç-a': '⭐',  # Reforç avançat
-
+    "reforç-a": "⭐",  # Reforç avançat
     # Categoria 4
-    'cd': '👨‍💼',  # Cap de departament
-
+    "cd": "👨‍💼",  # Cap de departament
     # Categoria 5
-    'alumnes': '👥',
-    'alumnes-batx': '👨‍🎓',
-
+    "alumnes": "👥",
+    "alumnes-batx": "👨‍🎓",
     # Categoria 6
-    'orientació': '🧭',
-
+    "orientació": "🧭",
     # Categoria 7
-    'gp': '🌳',  # Guàrdia pati
-
+    "gp": "🌳",  # Guàrdia pati
     # Altres possibles
-    'disponible': '🟢',
-    'lliure': '⚪'
+    "disponible": "🟢",
+    "lliure": "⚪",
 }
+
 
 def get_professor_emoji(tipus: str) -> str:
     """Retorna emoji per tipus de professor (consolidated helper)"""
@@ -149,4 +145,4 @@ def get_professor_emoji(tipus: str) -> str:
     for key, emoji in PROFESSOR_TYPE_EMOJIS.items():
         if key in tipus_lower:
             return emoji
-    return '🟢'  # Emoji per defecte per disponibles genèrics
+    return "🟢"  # Emoji per defecte per disponibles genèrics

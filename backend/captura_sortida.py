@@ -8,6 +8,7 @@ mostrar missatges d'un altre). Aquí sys.stdout es substitueix un sol cop per
 un objecte que escriu al destí de la petició en curs (ContextVar) o, fora
 d'una captura, a la sortida original.
 """
+
 import io
 import sys
 from contextlib import contextmanager

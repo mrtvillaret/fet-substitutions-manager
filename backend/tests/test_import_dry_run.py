@@ -3,6 +3,7 @@ Tests de _calcula_impacte_assignacions (routes/config_examens.py): el
 càlcul de dry-run que decideix què crearia una importació sense escriure
 res, fet servir tant pel resum previ com pel resultat final.
 """
+
 from repositories import MasterConfigRepository
 from routes.config_examens import _calcula_impacte_assignacions
 

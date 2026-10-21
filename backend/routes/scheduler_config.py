@@ -2,6 +2,7 @@
 Configuració del planificador d'exàmens d'un centre, tal com la fan servir
 generar, analitzar i recalcular el cost: es llegeix d'un sol lloc.
 """
+
 from dataclasses import dataclass
 from datetime import date
 
@@ -36,15 +37,15 @@ from scheduler_engine.defaults import DEFAULT_DURADA_TITULAR
 
 @dataclass
 class ConfigPlanificador:
-    config: dict                     # assignacions d'exàmens per nivell (per al motor)
+    config: dict  # assignacions d'exàmens per nivell (per al motor)
     restriccions: dict
-    durada_titular: int              # hores que el titular vigila (general)
-    durada_examen: int               # hores que dura l'examen per a l'alumnat (general)
+    durada_titular: int  # hores que el titular vigila (general)
+    durada_examen: int  # hores que dura l'examen per a l'alumnat (general)
     nivells_configurats: list
     nivells_master: list
     dates_configurades: list
-    alliberaments: dict              # per nivell: dates, hores sense classe i d'inici
-    durades_per_sessio: dict         # hores de vigilància de cada examen amb durada pròpia
+    alliberaments: dict  # per nivell: dates, hores sense classe i d'inici
+    durades_per_sessio: dict  # hores de vigilància de cada examen amb durada pròpia
     durades_examen_per_sessio: dict  # hores d'examen (≥ les de vigilància)
     no_substituir: set
     ultim_professor: str
@@ -66,8 +67,12 @@ class ConfigPlanificador:
     def dates(self, demanades, nivells) -> list:
         """Les dates dels alliberaments dels nivells si n'hi ha; si no, les
         demanades o les desades a la configuració."""
-        return (_selected_dates_from_alliberaments(self.alliberaments, nivells)
-                or demanades or self.dates_configurades or [])
+        return (
+            _selected_dates_from_alliberaments(self.alliberaments, nivells)
+            or demanades
+            or self.dates_configurades
+            or []
+        )
 
 
 def _positiu(valor) -> int | None:
@@ -114,8 +119,9 @@ def carrega_config(institucio: str) -> ConfigPlanificador:
         )
 
 
-def aplica_restriccions_derivades(restriccions: dict, alliberaments: dict, nivells: list,
-                                  dies: list, dia_a_data_iso: dict, hores: list) -> None:
+def aplica_restriccions_derivades(
+    restriccions: dict, alliberaments: dict, nivells: list, dies: list, dia_a_data_iso: dict, hores: list
+) -> None:
     """Afegeix a les restriccions dures les que surten dels alliberaments: on
     pot començar l'examen de cada nivell (per dia i per data) i les dates de
     cada nivell."""

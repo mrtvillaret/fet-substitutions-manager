@@ -1,6 +1,7 @@
 """
 Models Pydantic per validació de dades de l'API
 """
+
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -89,11 +90,6 @@ class VigilanciaDisponiblesBatchRequest(BaseModel):
     queries: List[VigilanciaDisponiblesQuery]
 
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
@@ -131,14 +127,14 @@ class SchedulerGenerateRequest(BaseModel):
 
 
 class PinItem(BaseModel):
-    nom: str       # Nom de la sessió (ex: "Matemàtiques (2-BATX)")
-    dia: str       # Dia de la setmana (ex: "Dilluns")
-    hora: str      # Hora lectiva (ex: "09:00")
+    nom: str  # Nom de la sessió (ex: "Matemàtiques (2-BATX)")
+    dia: str  # Dia de la setmana (ex: "Dilluns")
+    hora: str  # Hora lectiva (ex: "09:00")
 
 
 class SchedulerPinRequest(BaseModel):
-    pins: List[PinItem] = []     # Sessions a fixar
-    unpins: List[str] = []       # Noms de sessions a desfixar
+    pins: List[PinItem] = []  # Sessions a fixar
+    unpins: List[str] = []  # Noms de sessions a desfixar
 
 
 class SchedulerDatesRequest(BaseModel):

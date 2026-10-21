@@ -36,19 +36,35 @@ from scheduler_engine.generators.base import GeneradorSessionsExamensBase
 
 
 class GeneradorV2Intents(GeneradorSessionsExamensBase):
-    def __init__(self, config_examens_path: str, horari_xml_path: str,
-                 restriccions_path: str = None, ultim_professor: str = "",
-                 nivells_actius: List[str] = None, hores_examen: List[str] = None,
-                 hores_per_nivell: dict = None,
-                 durada_titular: int = 1, no_substituir: set = None,
-                 alliberaments_per_nivell: dict = None,
-                 durades_per_sessio: dict = None,
-                 durades_examen_per_sessio: dict = None):
-        super().__init__(config_examens_path, horari_xml_path, restriccions_path,
-                         ultim_professor, nivells_actius, hores_examen,
-                         hores_per_nivell, durada_titular, no_substituir,
-                         alliberaments_per_nivell, durades_per_sessio,
-                         durades_examen_per_sessio)
+    def __init__(
+        self,
+        config_examens_path: str,
+        horari_xml_path: str,
+        restriccions_path: str = None,
+        ultim_professor: str = "",
+        nivells_actius: List[str] = None,
+        hores_examen: List[str] = None,
+        hores_per_nivell: dict = None,
+        durada_titular: int = 1,
+        no_substituir: set = None,
+        alliberaments_per_nivell: dict = None,
+        durades_per_sessio: dict = None,
+        durades_examen_per_sessio: dict = None,
+    ):
+        super().__init__(
+            config_examens_path,
+            horari_xml_path,
+            restriccions_path,
+            ultim_professor,
+            nivells_actius,
+            hores_examen,
+            hores_per_nivell,
+            durada_titular,
+            no_substituir,
+            alliberaments_per_nivell,
+            durades_per_sessio,
+            durades_examen_per_sessio,
+        )
         self.restriccions = {}
         self.dia_a_data_iso = {}  # Mapa dia -> data_iso per als alliberaments
 
@@ -56,25 +72,37 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         self._carregar_config()
         for curs in self.nivells_actius:
             self.sessions_per_nivell[curs] = []
-            for assignatura_nom, dades in self.config.get('assignatures', {}).items():
-                examens = [a for a in dades.get('assignacions', []) if curs in a['grup']]
+            for assignatura_nom, dades in self.config.get("assignatures", {}).items():
+                examens = [a for a in dades.get("assignacions", []) if curs in a["grup"]]
                 if examens:
                     sid = f"{assignatura_nom}_{curs}"
-                    s = {'id': sid, 'nom': f"{assignatura_nom} ({curs})", 'nom_base': assignatura_nom, 'curs': curs, 'examens': examens}
+                    s = {
+                        "id": sid,
+                        "nom": f"{assignatura_nom} ({curs})",
+                        "nom_base": assignatura_nom,
+                        "curs": curs,
+                        "examens": examens,
+                    }
                     self.sessions_per_nivell[curs].append(s)
         self.restriccions = self._carregar_restriccions_raw()
 
-    def analitzar_disponibilitat_sessio(self, sessio: Dict, dia: str, hora: str,
-                                       sessions_al_slot: List[Dict] = None,
-                                       hores_override: List[str] | None = None,
-                                       data_iso: str = None) -> Dict:
+    def analitzar_disponibilitat_sessio(
+        self,
+        sessio: Dict,
+        dia: str,
+        hora: str,
+        sessions_al_slot: List[Dict] = None,
+        hores_override: List[str] | None = None,
+        data_iso: str = None,
+    ) -> Dict:
         from scheduler_engine.core.normalitzacio import normalitzar_dia
+
         dia_norm = normalitzar_dia(dia)
         if data_iso is None:
             dates = self.dia_a_data_iso.get(dia_norm)
             data_iso = dates[0] if isinstance(dates, list) else dates
-        nom = sessio.get('nom')
-        curs = sessio.get('curs')
+        nom = sessio.get("nom")
+        curs = sessio.get("curs")
         durada_supervisio = self.get_durada_per_sessio_key(nom, curs)
         durada_exam = self.get_durada_examen_per_sessio_key(nom, curs)
 
@@ -87,46 +115,67 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             hora_norm = hora
             if hora_norm in self.totes_hores:
                 idx = self.totes_hores.index(hora_norm)
-                hores_sup_final = self.totes_hores[idx:min(idx + durada_supervisio, len(self.totes_hores))]
-                hores_exam_final = self.totes_hores[idx:min(idx + durada_exam, len(self.totes_hores))]
+                hores_sup_final = self.totes_hores[idx : min(idx + durada_supervisio, len(self.totes_hores))]
+                hores_exam_final = self.totes_hores[idx : min(idx + durada_exam, len(self.totes_hores))]
             else:
                 hores_sup_final = [hora_norm]
                 hores_exam_final = [hora_norm]
 
         return analitzar_disponibilitat_sessio(
-            sessio=sessio, dia=dia, hora=hora, horaris_professors=self.horaris_professors,
-            totes_hores=self.totes_hores, nivells_actius=self.nivells_actius,
-            durada_titular=durada_supervisio, no_substituir_norm=self.no_substituir_norm,
+            sessio=sessio,
+            dia=dia,
+            hora=hora,
+            horaris_professors=self.horaris_professors,
+            totes_hores=self.totes_hores,
+            nivells_actius=self.nivells_actius,
+            durada_titular=durada_supervisio,
+            no_substituir_norm=self.no_substituir_norm,
             sessions_al_slot=sessions_al_slot,
             hores_override=hores_exam_final,
             hores_supervisio=hores_sup_final,
             alliberaments_per_nivell=self.alliberaments_per_nivell,
             data_iso=data_iso,
-            horaris_professors_norm=getattr(self, '_horaris_norm', None),
+            horaris_professors_norm=getattr(self, "_horaris_norm", None),
         )
 
-    def _calcular_cost_sessio(self, sessio: Dict, dia: str, hora: str,
-                              sessions_dia: List = None, sessions_slot: List = None,
-                              hores_override: List[str] | None = None,
-                              data_iso: str = None, ja_comptats: set | None = None) -> Dict:
-        analisi = self.analitzar_disponibilitat_sessio(sessio, dia, hora, sessions_slot, hores_override=hores_override, data_iso=data_iso)
-        resultat_scoring = calcular_cost_slot(
-            sessio=sessio, dia=dia, hora=hora, analisi=analisi, restriccions=self.restriccions,
-            sessions_dia=sessions_dia, sessions_slot=sessions_slot, include_limit_dies=False,
-            data_iso=data_iso or "", ja_comptats=ja_comptats
+    def _calcular_cost_sessio(
+        self,
+        sessio: Dict,
+        dia: str,
+        hora: str,
+        sessions_dia: List = None,
+        sessions_slot: List = None,
+        hores_override: List[str] | None = None,
+        data_iso: str = None,
+        ja_comptats: set | None = None,
+    ) -> Dict:
+        analisi = self.analitzar_disponibilitat_sessio(
+            sessio, dia, hora, sessions_slot, hores_override=hores_override, data_iso=data_iso
         )
-        breakdown = resultat_scoring.get('breakdown', {})
-        subs_professors = [i['professor'] for i in analisi.get('substitucions', []) if i.get('professor')]
-        abans_professors = [i['professor'] for i in analisi.get('abans_jornada', []) if i.get('professor')]
-        despres_professors = [i['professor'] for i in analisi.get('despres_jornada', []) if i.get('professor')]
-        no_treballa_professors = [i['professor'] for i in analisi.get('no_treballa_dia', []) if i.get('professor')]
+        resultat_scoring = calcular_cost_slot(
+            sessio=sessio,
+            dia=dia,
+            hora=hora,
+            analisi=analisi,
+            restriccions=self.restriccions,
+            sessions_dia=sessions_dia,
+            sessions_slot=sessions_slot,
+            include_limit_dies=False,
+            data_iso=data_iso or "",
+            ja_comptats=ja_comptats,
+        )
+        breakdown = resultat_scoring.get("breakdown", {})
+        subs_professors = [i["professor"] for i in analisi.get("substitucions", []) if i.get("professor")]
+        abans_professors = [i["professor"] for i in analisi.get("abans_jornada", []) if i.get("professor")]
+        despres_professors = [i["professor"] for i in analisi.get("despres_jornada", []) if i.get("professor")]
+        no_treballa_professors = [i["professor"] for i in analisi.get("no_treballa_dia", []) if i.get("professor")]
 
         subs_detalls = []
-        for item in analisi.get('substitucions', []):
-            prof = item.get('professor', '').strip()
-            act = item.get('activitat', {}) or {}
-            assig = act.get('assignatura', '').strip()
-            grup = act.get('grup', '').strip()
+        for item in analisi.get("substitucions", []):
+            prof = item.get("professor", "").strip()
+            act = item.get("activitat", {}) or {}
+            assig = act.get("assignatura", "").strip()
+            grup = act.get("grup", "").strip()
             if not prof:
                 continue
             label = f"{prof} → {assig}" if assig else prof
@@ -135,30 +184,32 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             subs_detalls.append(label)
 
         def _cnt(lst):
-            return len({(i['professor'], i.get('hora', hora)) for i in lst})
+            return len({(i["professor"], i.get("hora", hora)) for i in lst})
+
         # Soft cost per conflictes a la zona examen (sense titular): guia el greedy cap a slots nets
-        zona_examen_count = len({(i['professor'], i.get('hora', hora)) for i in analisi.get('zona_examen', [])})
+        zona_examen_count = len({(i["professor"], i.get("hora", hora)) for i in analisi.get("zona_examen", [])})
         cost_zona_examen = zona_examen_count * DEFAULT_PES_ZONA_EXAMEN
         return {
-            'analisi': analisi,
-            'cost_substitucions': _cnt(analisi.get('substitucions', [])),
-            'cost_abans': _cnt(analisi.get('abans_jornada', [])),
-            'cost_despres': _cnt(analisi.get('despres_jornada', [])),
-            'cost_no_treballa': _cnt(analisi.get('no_treballa_dia', [])),
-            'subs_professors': subs_professors,
-            'subs_detalls': subs_detalls,
-            'abans_professors': abans_professors,
-            'despres_professors': despres_professors,
-            'no_treballa_professors': no_treballa_professors,
-            'cost_preferencies': breakdown.get('preferencies', 0),
-            'cost_total': resultat_scoring['cost_total'] + cost_zona_examen,
-            'professors_estrictes_violats': resultat_scoring.get('professors_estrictes_violats', [])
+            "analisi": analisi,
+            "cost_substitucions": _cnt(analisi.get("substitucions", [])),
+            "cost_abans": _cnt(analisi.get("abans_jornada", [])),
+            "cost_despres": _cnt(analisi.get("despres_jornada", [])),
+            "cost_no_treballa": _cnt(analisi.get("no_treballa_dia", [])),
+            "subs_professors": subs_professors,
+            "subs_detalls": subs_detalls,
+            "abans_professors": abans_professors,
+            "despres_professors": despres_professors,
+            "no_treballa_professors": no_treballa_professors,
+            "cost_preferencies": breakdown.get("preferencies", 0),
+            "cost_total": resultat_scoring["cost_total"] + cost_zona_examen,
+            "professors_estrictes_violats": resultat_scoring.get("professors_estrictes_violats", []),
         }
 
     def _te_restriccio_dia_hora_fix(self, nom_sessio: str) -> Tuple[str, str]:
-        dures = self.restriccions.get('restriccions_dures', {})
-        return dures.get('assignatures_dia_fix', {}).get(nom_sessio), dures.get('assignatures_hora_fix', {}).get(nom_sessio)
-
+        dures = self.restriccions.get("restriccions_dures", {})
+        return dures.get("assignatures_dia_fix", {}).get(nom_sessio), dures.get("assignatures_hora_fix", {}).get(
+            nom_sessio
+        )
 
     def _calcular_penalitzacio_professors_dies(self, sessio: Dict, dia: str, sessions_assignades: Dict) -> int:
         return calcular_penalitzacio_professors_dies(sessio, dia, sessions_assignades, self.restriccions)
@@ -184,105 +235,112 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         matriu_costos = {}
         for curs, idx, item, label in totes_items:
             nom_item = f"{curs}_{idx}_{label}"
-            matriu_costos[nom_item] = {
-                'item': item,
-                'label': label,
-                'curs': curs,
-                'idx': idx,
-                'slots': {}
-            }
+            matriu_costos[nom_item] = {"item": item, "label": label, "curs": curs, "idx": idx, "slots": {}}
 
             for dia in dies_utilitzar:
                 import re as _re_iso
-                _is_iso = bool(_re_iso.match(r'^\d{4}-\d{2}-\d{2}$', dia))
+
+                _is_iso = bool(_re_iso.match(r"^\d{4}-\d{2}-\d{2}$", dia))
                 dia_horari = dia_nom_per_horari(dia)
                 if _is_iso:
                     _data_iso_calc = dia
                 else:
-                    _d = (getattr(self, 'dia_a_data_iso', {}) or {}).get(normalitzar_dia(dia))
-                    _data_iso_calc = (_d[0] if isinstance(_d, list) else _d)
+                    _d = (getattr(self, "dia_a_data_iso", {}) or {}).get(normalitzar_dia(dia))
+                    _data_iso_calc = _d[0] if isinstance(_d, list) else _d
                 for hora in self.hores_examen:
                     if self._slot_bloquejat(dia_horari, hora, curs):
                         continue
                     # Respectar slots vàlids per nivell (alliberaments per dia/hora)
                     if any(
-                        not es_slot_valid_per_nivell(s.get('nom', ''), dia_horari, hora, self.restriccions, self.nivells_actius, curs=s.get('curs', ''), data_iso=_data_iso_calc)
-                        for s in item.get('sessions', [])
+                        not es_slot_valid_per_nivell(
+                            s.get("nom", ""),
+                            dia_horari,
+                            hora,
+                            self.restriccions,
+                            self.nivells_actius,
+                            curs=s.get("curs", ""),
+                            data_iso=_data_iso_calc,
+                        )
+                        for s in item.get("sessions", [])
                     ):
                         continue
                     # En anàlisi només considerem subst/abans/després/no_treballa
                     slot_key = f"{dia}_{hora}"
                     total = {
-                        'cost_substitucions': 0,
-                        'cost_abans': 0,
-                        'cost_despres': 0,
-                        'cost_no_treballa': 0,
-                        'cost_preferencies': 0,
-                        'cost_total': 0,
-                        'subs_professors': [],
-                        'subs_detalls': [],
-                        'abans_professors': [],
-                        'despres_professors': [],
-                        'no_treballa_professors': []
+                        "cost_substitucions": 0,
+                        "cost_abans": 0,
+                        "cost_despres": 0,
+                        "cost_no_treballa": 0,
+                        "cost_preferencies": 0,
+                        "cost_total": 0,
+                        "subs_professors": [],
+                        "subs_detalls": [],
+                        "abans_professors": [],
+                        "despres_professors": [],
+                        "no_treballa_professors": [],
                     }
                     hores_slot = self._get_hores_ocupades(hora, curs)
                     # Un examen que dura més que la durada general s'analitza sencer
-                    durada_item = max((self.get_durada_examen_per_sessio_key(s.get('nom'), curs)
-                                       for s in item.get('sessions', [])), default=0)
+                    durada_item = max(
+                        (self.get_durada_examen_per_sessio_key(s.get("nom"), curs) for s in item.get("sessions", [])),
+                        default=0,
+                    )
                     if durada_item > len(hores_slot) and hora in self.totes_hores:
                         idx = self.totes_hores.index(hora)
-                        hores_slot = self.totes_hores[idx:min(idx + durada_item, len(self.totes_hores))]
+                        hores_slot = self.totes_hores[idx : min(idx + durada_item, len(self.totes_hores))]
                     per_hour = {
                         hora_real: {
-                            'cost_substitucions': 0,
-                            'cost_abans': 0,
-                            'cost_despres': 0,
-                            'cost_no_treballa': 0,
-                            'cost_preferencies': 0,
-                            'cost_total': 0,
-                            'subs_professors': [],
-                            'subs_detalls': [],
-                            'abans_professors': [],
-                            'despres_professors': [],
-                            'no_treballa_professors': []
+                            "cost_substitucions": 0,
+                            "cost_abans": 0,
+                            "cost_despres": 0,
+                            "cost_no_treballa": 0,
+                            "cost_preferencies": 0,
+                            "cost_total": 0,
+                            "subs_professors": [],
+                            "subs_detalls": [],
+                            "abans_professors": [],
+                            "despres_professors": [],
+                            "no_treballa_professors": [],
                         }
                         for hora_real in hores_slot
                     }
-                    for sessio in item.get('sessions', []):
+                    for sessio in item.get("sessions", []):
                         for hora_real in hores_slot:
-                            cost_info = self._calcular_cost_sessio(sessio, dia_horari, hora_real, hores_override=[hora_real], data_iso=_data_iso_calc)
-                            total['cost_substitucions'] += cost_info.get('cost_substitucions', 0)
-                            total['cost_abans'] += cost_info.get('cost_abans', 0)
-                            total['cost_despres'] += cost_info.get('cost_despres', 0)
-                            total['cost_no_treballa'] += cost_info.get('cost_no_treballa', 0)
-                            total['cost_preferencies'] += cost_info.get('cost_preferencies', 0)
-                            total['cost_total'] += cost_info.get('cost_total', 0)
-                            total['subs_professors'].extend(cost_info.get('subs_professors', []))
-                            total['subs_detalls'].extend(cost_info.get('subs_detalls', []))
-                            total['abans_professors'].extend(cost_info.get('abans_professors', []))
-                            total['despres_professors'].extend(cost_info.get('despres_professors', []))
-                            total['no_treballa_professors'].extend(cost_info.get('no_treballa_professors', []))
+                            cost_info = self._calcular_cost_sessio(
+                                sessio, dia_horari, hora_real, hores_override=[hora_real], data_iso=_data_iso_calc
+                            )
+                            total["cost_substitucions"] += cost_info.get("cost_substitucions", 0)
+                            total["cost_abans"] += cost_info.get("cost_abans", 0)
+                            total["cost_despres"] += cost_info.get("cost_despres", 0)
+                            total["cost_no_treballa"] += cost_info.get("cost_no_treballa", 0)
+                            total["cost_preferencies"] += cost_info.get("cost_preferencies", 0)
+                            total["cost_total"] += cost_info.get("cost_total", 0)
+                            total["subs_professors"].extend(cost_info.get("subs_professors", []))
+                            total["subs_detalls"].extend(cost_info.get("subs_detalls", []))
+                            total["abans_professors"].extend(cost_info.get("abans_professors", []))
+                            total["despres_professors"].extend(cost_info.get("despres_professors", []))
+                            total["no_treballa_professors"].extend(cost_info.get("no_treballa_professors", []))
 
                             hora_bucket = per_hour[hora_real]
-                            hora_bucket['cost_substitucions'] += cost_info.get('cost_substitucions', 0)
-                            hora_bucket['cost_abans'] += cost_info.get('cost_abans', 0)
-                            hora_bucket['cost_despres'] += cost_info.get('cost_despres', 0)
-                            hora_bucket['cost_no_treballa'] += cost_info.get('cost_no_treballa', 0)
-                            hora_bucket['cost_preferencies'] += cost_info.get('cost_preferencies', 0)
-                            hora_bucket['cost_total'] += cost_info.get('cost_total', 0)
-                            hora_bucket['subs_professors'].extend(cost_info.get('subs_professors', []))
-                            hora_bucket['subs_detalls'].extend(cost_info.get('subs_detalls', []))
-                            hora_bucket['abans_professors'].extend(cost_info.get('abans_professors', []))
-                            hora_bucket['despres_professors'].extend(cost_info.get('despres_professors', []))
-                            hora_bucket['no_treballa_professors'].extend(cost_info.get('no_treballa_professors', []))
+                            hora_bucket["cost_substitucions"] += cost_info.get("cost_substitucions", 0)
+                            hora_bucket["cost_abans"] += cost_info.get("cost_abans", 0)
+                            hora_bucket["cost_despres"] += cost_info.get("cost_despres", 0)
+                            hora_bucket["cost_no_treballa"] += cost_info.get("cost_no_treballa", 0)
+                            hora_bucket["cost_preferencies"] += cost_info.get("cost_preferencies", 0)
+                            hora_bucket["cost_total"] += cost_info.get("cost_total", 0)
+                            hora_bucket["subs_professors"].extend(cost_info.get("subs_professors", []))
+                            hora_bucket["subs_detalls"].extend(cost_info.get("subs_detalls", []))
+                            hora_bucket["abans_professors"].extend(cost_info.get("abans_professors", []))
+                            hora_bucket["despres_professors"].extend(cost_info.get("despres_professors", []))
+                            hora_bucket["no_treballa_professors"].extend(cost_info.get("no_treballa_professors", []))
                     # Penalització de límit dies (un sol cop per ítem)
                     p_limit = calcular_penalitzacio_professors_dies_item(
-                        item, dia_horari, {dia_horari: item.get('sessions', [])}, self.restriccions
+                        item, dia_horari, {dia_horari: item.get("sessions", [])}, self.restriccions
                     )
                     if p_limit:
-                        total['cost_total'] += p_limit
-                    total['per_hour'] = per_hour
-                    matriu_costos[nom_item]['slots'][slot_key] = total
+                        total["cost_total"] += p_limit
+                    total["per_hour"] = per_hour
+                    matriu_costos[nom_item]["slots"][slot_key] = total
 
         return matriu_costos
 
@@ -302,17 +360,21 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         sessions_problematiques = set()
         for _, info in matriu_costos.items():
             slots_viables = 0
-            for cost_info in info['slots'].values():
-                num_conflictes = (cost_info.get('cost_substitucions', 0) +
-                                  cost_info.get('cost_abans', 0) +
-                                  cost_info.get('cost_despres', 0))
-                te_no_treballa = cost_info.get('cost_no_treballa', 0) > 0
-                if cost_info['cost_total'] == 0 or (num_conflictes <= 2 and not te_no_treballa):
+            for cost_info in info["slots"].values():
+                num_conflictes = (
+                    cost_info.get("cost_substitucions", 0)
+                    + cost_info.get("cost_abans", 0)
+                    + cost_info.get("cost_despres", 0)
+                )
+                te_no_treballa = cost_info.get("cost_no_treballa", 0) > 0
+                if cost_info["cost_total"] == 0 or (num_conflictes <= 2 and not te_no_treballa):
                     slots_viables += 1
             if slots_viables <= 2:
-                sessions_problematiques.add(info.get('label', '(sense nom)'))
+                sessions_problematiques.add(info.get("label", "(sense nom)"))
 
-        linies.append(f"⚠️  Sessions problemàtiques detectades ({len(sessions_problematiques)}): {', '.join(sorted(sessions_problematiques))}")
+        linies.append(
+            f"⚠️  Sessions problemàtiques detectades ({len(sessions_problematiques)}): {', '.join(sorted(sessions_problematiques))}"
+        )
         linies.append("")
 
         hores_considerades = []
@@ -326,68 +388,69 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             for hora in hores_considerades:
                 slot_key = f"{dia}_{hora}"
                 slots_disponibilitat[slot_key] = {
-                    'dia': dia,
-                    'hora': hora,
-                    'optimes': [],
-                    'bones': [],
-                    'acceptables': [],
-                    'conflictes': []
+                    "dia": dia,
+                    "hora": hora,
+                    "optimes": [],
+                    "bones": [],
+                    "acceptables": [],
+                    "conflictes": [],
                 }
 
         for _, info in matriu_costos.items():
-            nom_curt = info.get('label', '(sense nom)')
-            for slot_key, cost_info in info['slots'].items():
-                dia, _ = slot_key.split('_', 1)
-                per_hour = cost_info.get('per_hour') or {}
+            nom_curt = info.get("label", "(sense nom)")
+            for slot_key, cost_info in info["slots"].items():
+                dia, _ = slot_key.split("_", 1)
+                per_hour = cost_info.get("per_hour") or {}
                 if not per_hour:
-                    per_hour = {cost_info.get('hora'): cost_info}
+                    per_hour = {cost_info.get("hora"): cost_info}
 
                 for hora_real, hora_info in per_hour.items():
                     dest_key = f"{dia}_{hora_real}"
                     if dest_key not in slots_disponibilitat:
                         continue
-                    cost = hora_info['cost_total']
+                    cost = hora_info["cost_total"]
                     entrada = {
-                        'nom': nom_curt,
-                        'cost': cost,
-                        'subs': hora_info.get('cost_substitucions', 0),
-                        'abans': hora_info.get('cost_abans', 0),
-                        'despres': hora_info.get('cost_despres', 0),
-                        'no_treballa': hora_info.get('cost_no_treballa', 0),
-                        'curs': info.get('curs'),
-                        'subs_detalls': sorted(set(hora_info.get('subs_detalls', []))),
-                        'abans_professors': hora_info.get('abans_professors', []),
-                        'despres_professors': hora_info.get('despres_professors', []),
-                        'no_treballa_professors': hora_info.get('no_treballa_professors', [])
+                        "nom": nom_curt,
+                        "cost": cost,
+                        "subs": hora_info.get("cost_substitucions", 0),
+                        "abans": hora_info.get("cost_abans", 0),
+                        "despres": hora_info.get("cost_despres", 0),
+                        "no_treballa": hora_info.get("cost_no_treballa", 0),
+                        "curs": info.get("curs"),
+                        "subs_detalls": sorted(set(hora_info.get("subs_detalls", []))),
+                        "abans_professors": hora_info.get("abans_professors", []),
+                        "despres_professors": hora_info.get("despres_professors", []),
+                        "no_treballa_professors": hora_info.get("no_treballa_professors", []),
                     }
 
-                    num_conflictes = entrada['subs'] + entrada['abans'] + entrada['despres']
-                    te_no_treballa = entrada['no_treballa'] > 0
+                    num_conflictes = entrada["subs"] + entrada["abans"] + entrada["despres"]
+                    te_no_treballa = entrada["no_treballa"] > 0
                     es_problematica = nom_curt in sessions_problematiques
 
                     if cost == 0:
-                        slots_disponibilitat[dest_key]['optimes'].append(entrada)
+                        slots_disponibilitat[dest_key]["optimes"].append(entrada)
                     elif num_conflictes <= 2 and not te_no_treballa:
-                        slots_disponibilitat[dest_key]['bones'].append(entrada)
+                        slots_disponibilitat[dest_key]["bones"].append(entrada)
                     elif num_conflictes == 3 and not te_no_treballa and es_problematica:
-                        slots_disponibilitat[dest_key]['acceptables'].append(entrada)
+                        slots_disponibilitat[dest_key]["acceptables"].append(entrada)
+
         def _format_entry(entry: Dict) -> str:
             parts = []
-            subs_detalls = entry.get('subs_detalls', [])
+            subs_detalls = entry.get("subs_detalls", [])
             if subs_detalls:
                 parts.append(f"subst: {' | '.join(subs_detalls)}")
-            abans = sorted(set(entry.get('abans_professors', [])))
+            abans = sorted(set(entry.get("abans_professors", [])))
             if abans:
                 parts.append(f"abans: {', '.join(abans)}")
-            despres = sorted(set(entry.get('despres_professors', [])))
+            despres = sorted(set(entry.get("despres_professors", [])))
             if despres:
                 parts.append(f"despres: {', '.join(despres)}")
-            no_treballa = sorted(set(entry.get('no_treballa_professors', [])))
+            no_treballa = sorted(set(entry.get("no_treballa_professors", [])))
             if no_treballa:
                 parts.append(f"no_treballa: {', '.join(no_treballa)}")
             if parts:
                 return f"{entry.get('nom')} [{'; '.join(parts)}]"
-            return entry.get('nom')
+            return entry.get("nom")
 
         for dia in dies_utilitzar:
             linies.append("=" * 85)
@@ -404,22 +467,26 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                 sessions_per_curs = {}
                 for nivell in self.nivells_actius:
                     sessions_per_curs[nivell] = {
-                        'optimes': sorted([s for s in slot_info['optimes'] if s['curs'] == nivell], key=lambda x: x['nom']),
-                        'bones': sorted([s for s in slot_info['bones'] if s['curs'] == nivell], key=lambda x: x['nom']),
-                        'acceptables': sorted([s for s in slot_info['acceptables'] if s['curs'] == nivell], key=lambda x: x['nom'])
+                        "optimes": sorted(
+                            [s for s in slot_info["optimes"] if s["curs"] == nivell], key=lambda x: x["nom"]
+                        ),
+                        "bones": sorted([s for s in slot_info["bones"] if s["curs"] == nivell], key=lambda x: x["nom"]),
+                        "acceptables": sorted(
+                            [s for s in slot_info["acceptables"] if s["curs"] == nivell], key=lambda x: x["nom"]
+                        ),
                     }
 
                 for nivell, grups in sessions_per_curs.items():
-                    if grups['optimes'] or grups['bones'] or grups['acceptables']:
+                    if grups["optimes"] or grups["bones"] or grups["acceptables"]:
                         linies.append(f"{nivell}:")
-                        if grups['optimes']:
-                            noms = ', '.join([_format_entry(s) for s in grups['optimes']])
+                        if grups["optimes"]:
+                            noms = ", ".join([_format_entry(s) for s in grups["optimes"]])
                             linies.append(f"  ✅ Òptimes: {noms}")
-                        if grups['bones']:
-                            noms = ', '.join([_format_entry(s) for s in grups['bones']])
+                        if grups["bones"]:
+                            noms = ", ".join([_format_entry(s) for s in grups["bones"]])
                             linies.append(f"  🟡 Bones: {noms}")
-                        if grups['acceptables']:
-                            noms = ', '.join([_format_entry(s) for s in grups['acceptables']])
+                        if grups["acceptables"]:
+                            noms = ", ".join([_format_entry(s) for s in grups["acceptables"]])
                             linies.append(f"  🔶 Acceptables: {noms}")
                 linies.append("")
 
@@ -437,8 +504,12 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         linies.append("")
 
         def emoji(cost_info):
-            num_conf = cost_info.get('cost_substitucions', 0) + cost_info.get('cost_abans', 0) + cost_info.get('cost_despres', 0)
-            te_no_treballa = cost_info.get('cost_no_treballa', 0) > 0
+            num_conf = (
+                cost_info.get("cost_substitucions", 0)
+                + cost_info.get("cost_abans", 0)
+                + cost_info.get("cost_despres", 0)
+            )
+            te_no_treballa = cost_info.get("cost_no_treballa", 0) > 0
             if te_no_treballa or num_conf > 3:
                 return "🔴"
             if num_conf == 0:
@@ -450,9 +521,9 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         for _, info in matriu_costos.items():
             linies.append(f"📝 {info.get('label')}")
             profs = set()
-            for s in info.get('item', {}).get('sessions', []):
-                for ex in s.get('examens', []):
-                    p = ex.get('titular')
+            for s in info.get("item", {}).get("sessions", []):
+                for ex in s.get("examens", []):
+                    p = ex.get("titular")
                     if p:
                         profs.add(p)
             if profs:
@@ -466,16 +537,16 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                     if self._slot_bloquejat(dia_horari_inf, hora):
                         continue
                     slot_key = f"{dia}_{hora}"
-                    cost_info = info['slots'].get(slot_key)
+                    cost_info = info["slots"].get(slot_key)
                     if not cost_info:
                         continue
-                    per_hour = cost_info.get('per_hour') or {}
+                    per_hour = cost_info.get("per_hour") or {}
                     for hora_real, hora_info in per_hour.items():
                         detalls = []
-                        subs = hora_info.get('subs_professors', [])
-                        abans = hora_info.get('abans_professors', [])
-                        despres = hora_info.get('despres_professors', [])
-                        no_treballa = hora_info.get('no_treballa_professors', [])
+                        subs = hora_info.get("subs_professors", [])
+                        abans = hora_info.get("abans_professors", [])
+                        despres = hora_info.get("despres_professors", [])
+                        no_treballa = hora_info.get("no_treballa_professors", [])
                         if subs:
                             detalls.append("Subst: " + ", ".join(sorted(set(subs))))
                         if abans:
@@ -485,7 +556,9 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                         if no_treballa:
                             detalls.append("No treb: " + ", ".join(sorted(set(no_treballa))))
                         det_text = " | ".join(detalls) if detalls else "cap conflicte"
-                        linies.append(f"{emoji(hora_info)} {format_dia_label(dia)} | {hora_real} | {hora_info.get('cost_total', 0)} | {hora_info.get('cost_substitucions', 0)} | {hora_info.get('cost_abans', 0)} | {hora_info.get('cost_despres', 0)} | {hora_info.get('cost_no_treballa', 0)} | {det_text}")
+                        linies.append(
+                            f"{emoji(hora_info)} {format_dia_label(dia)} | {hora_real} | {hora_info.get('cost_total', 0)} | {hora_info.get('cost_substitucions', 0)} | {hora_info.get('cost_abans', 0)} | {hora_info.get('cost_despres', 0)} | {hora_info.get('cost_no_treballa', 0)} | {det_text}"
+                        )
             linies.append("")
 
         return "\n".join(linies)
@@ -521,15 +594,18 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                         act = dia_rec.get(hora_real)
                         if not act:
                             continue
-                        grup = (act.get('grup') or '').strip()
-                        assig = (act.get('assignatura') or '').strip()
+                        grup = (act.get("grup") or "").strip()
+                        assig = (act.get("assignatura") or "").strip()
                         if grup:
                             from utils.grups_utils import aplicar_abreviatura_grup
+
                             grup = aplicar_abreviatura_grup(grup)
                         if any(n in grup for n in self.nivells_actius):
                             # Els slots vàlids es defineixen per hora d'inici (🟦), no per hora interna.
                             # Si el bloc comença a les 09:15 i dura 2h, la 10:15 ha de mantenir el mateix filtre.
-                            if not es_slot_valid_per_nivell(grup, dia_horari_prof, hora, self.restriccions, self.nivells_actius):
+                            if not es_slot_valid_per_nivell(
+                                grup, dia_horari_prof, hora, self.restriccions, self.nivells_actius
+                            ):
                                 continue
                             if grup and assig:
                                 alliberats.append(f"{prof} ({assig}, {grup})")
@@ -557,14 +633,24 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         return "\n".join(linies)
 
     def _format_item_label(self, item: Dict) -> str:
-        return item.get('nom', 'group')
+        return item.get("nom", "group")
 
-    def generar_horari_optimitzat(self, data_inici: str = None, data_inici_iso: str = None, max_dies: int = 5, dies_utilitzar: List[str] = None,
-                                  dia_a_data_iso: Dict[str, List[str]] = None,
-                                  max_intents_validacio: int = 250, estrategia: str = "ponderada",
-                                  epsilon: float = 0.2, track_intents: bool = False, **kwargs) -> Dict:
+    def generar_horari_optimitzat(
+        self,
+        data_inici: str = None,
+        data_inici_iso: str = None,
+        max_dies: int = 5,
+        dies_utilitzar: List[str] = None,
+        dia_a_data_iso: Dict[str, List[str]] = None,
+        max_intents_validacio: int = 250,
+        estrategia: str = "ponderada",
+        epsilon: float = 0.2,
+        track_intents: bool = False,
+        **kwargs,
+    ) -> Dict:
         if dies_utilitzar is None:
             from scheduler_engine.defaults import DIES_SETMANA
+
             dies_utilitzar = list(DIES_SETMANA)[:max_dies]
 
         self.selected_dates = sorted(kwargs.get("selected_dates") or [])
@@ -586,78 +672,88 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             physical_slots = [f"{data}_{h}" for data in self.selected_dates for h in self.hores_examen]
         else:
             physical_slots = [f"{d}_{h}" for d in dies_utilitzar for h in self.hores_examen]
-        
+
         # 2. Obtenir partició atòmica de la base (UN SOL ÍTEM PER NIVELL I SLOT)
         items = self.preparar_particio_nivells(slots_disponibles=len(physical_slots))
         # Viabilitat per nivell
         counts = {}
         for it in items:
-            counts[it.get('curs')] = counts.get(it.get('curs'), 0) + 1
+            counts[it.get("curs")] = counts.get(it.get("curs"), 0) + 1
         for nivell, count in counts.items():
             if count > len(physical_slots):
                 return {
-                    'dies': [],
-                    'metadata': {
-                        'viable': False,
-                        'error': f"No és possible col·locar tots els exàmens ({nivell}: {count} items > {len(physical_slots)} slots)",
-                        'motor': 'v2-intents'
-                    }
+                    "dies": [],
+                    "metadata": {
+                        "viable": False,
+                        "error": f"No és possible col·locar tots els exàmens ({nivell}: {count} items > {len(physical_slots)} slots)",
+                        "motor": "v2-intents",
+                    },
                 }
-        
+
         total_sessions = self.get_total_sessions_count()
         ctx = self.build_context(dies_utilitzar)
-        millor, minim, intents = None, float('inf'), []
-        
+        millor, minim, intents = None, float("inf"), []
+
         for i in range(max_intents_validacio):
             horari = self._generar_un_intent_horari(physical_slots, items, estrategia, epsilon)
             # Garantir estadístiques a cada intent
             aplicar_estadistiques(horari)
             cost_info = recalcular_cost_i_breakdown(horari, ctx)
-            horari.setdefault('metadata', {})
-            horari['metadata']['cost_total'] = cost_info.get('cost_total', 0)
-            horari['metadata']['cost_breakdown'] = cost_info.get('cost_breakdown', {})
-            valid = horari['metadata']['total_sessions'] == total_sessions
-            if valid and horari['metadata']['cost_total'] < minim:
-                minim = horari['metadata']['cost_total']
+            horari.setdefault("metadata", {})
+            horari["metadata"]["cost_total"] = cost_info.get("cost_total", 0)
+            horari["metadata"]["cost_breakdown"] = cost_info.get("cost_breakdown", {})
+            valid = horari["metadata"]["total_sessions"] == total_sessions
+            if valid and horari["metadata"]["cost_total"] < minim:
+                minim = horari["metadata"]["cost_total"]
                 millor = copy.deepcopy(horari)
                 if minim == 0:
                     break  # Solució perfecta: no cal continuar
             if track_intents:
-                meta = horari.get('metadata', {})
-                intents.append({
-                    'intent': i + 1,
-                    'cost': meta.get('cost_total', 0),
-                    'valid': valid,
-                    'total_sessions': meta.get('total_sessions'),
-                    'total_substitucions': meta.get('total_substitucions'),
-                    'professors_abans': meta.get('professors_abans'),
-                    'professors_despres': meta.get('professors_despres'),
-                })
-        
+                meta = horari.get("metadata", {})
+                intents.append(
+                    {
+                        "intent": i + 1,
+                        "cost": meta.get("cost_total", 0),
+                        "valid": valid,
+                        "total_sessions": meta.get("total_sessions"),
+                        "total_substitucions": meta.get("total_substitucions"),
+                        "professors_abans": meta.get("professors_abans"),
+                        "professors_despres": meta.get("professors_despres"),
+                    }
+                )
+
         res = millor or horari
-        if track_intents: res['metadata']['intents'] = intents
-        res['metadata']['motor'] = 'v2-intents'
+        if track_intents:
+            res["metadata"]["intents"] = intents
+        res["metadata"]["motor"] = "v2-intents"
         return res
 
     def _generar_un_intent_horari(self, physical_slots, items, estrategia, epsilon):
         from scheduler_engine.core.restriction_engine import RestrictionEngine
+
         engine = RestrictionEngine(self.restriccions, self.nivells_actius)
 
         slots = {sk: [] for sk in physical_slots}
-        random.shuffle(items) # Per varietat
+        random.shuffle(items)  # Per varietat
 
         # Separar fixes de flexibles
         items_fixes = []
         items_flex = []
         for it in items:
-            is_fix = any(self._te_restriccio_dia_hora_fix(s['nom'])[0] or self._te_restriccio_dia_hora_fix(s['nom'])[1] for s in it['sessions'])
-            if is_fix: items_fixes.append(it)
-            else: items_flex.append(it)
+            is_fix = any(
+                self._te_restriccio_dia_hora_fix(s["nom"])[0] or self._te_restriccio_dia_hora_fix(s["nom"])[1]
+                for s in it["sessions"]
+            )
+            if is_fix:
+                items_fixes.append(it)
+            else:
+                items_flex.append(it)
 
         # Helper: (dia_nom, data_iso_or_none) des del prefix d'un slot key
         def _parse_prefix(prefix: str):
             try:
                 from datetime import datetime as _dt2
+
                 dt = _dt2.strptime(prefix, "%Y-%m-%d")
                 return _DIES_CAT[dt.weekday()], prefix
             except ValueError:
@@ -666,20 +762,21 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         # Professors ja comptats a cada franja (un que vigila dos exàmens alhora
         # deixa una sola classe)
         comptats_slot = defaultdict(set)
-        sessions_per_dia = defaultdict(list)   # keyed per dia-nom: per professor limit functions
-        data_sessions = defaultdict(list)       # keyed per data ISO o dia-nom: per no_mateix_dia
+        sessions_per_dia = defaultdict(list)  # keyed per dia-nom: per professor limit functions
+        data_sessions = defaultdict(list)  # keyed per data ISO o dia-nom: per no_mateix_dia
         total_assignades, cost_total = 0, 0
 
         for it in items_fixes + items_flex:
-            millor_s, min_p, millors_comptats = None, float('inf'), None
+            millor_s, min_p, millors_comptats = None, float("inf"), None
             llista_slots = list(physical_slots)
-            if estrategia != "greedy": random.shuffle(llista_slots)
+            if estrategia != "greedy":
+                random.shuffle(llista_slots)
 
             # On són les sessions ja col·locades (per a "Mateix dia i hora" entre nivells)
-            ubicacions = [(x['sessio'], k) for k, llista in slots.items() for x in llista]
+            ubicacions = [(x["sessio"], k) for k, llista in slots.items() for x in llista]
             for sk in llista_slots:
-                _idx = sk.rfind('_')
-                prefix, hora = sk[:_idx], sk[_idx + 1:]
+                _idx = sk.rfind("_")
+                prefix, hora = sk[:_idx], sk[_idx + 1 :]
                 dia, data_iso_sk = _parse_prefix(prefix)
                 # Restriccions dures compartides (nivell + no_mateix_slot obligatori)
                 compatible, _ = es_item_compatible_amb_slot(it, slots[sk], self.restriccions)
@@ -688,30 +785,43 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
 
                 p, possible = 0, True
                 comptats = set(comptats_slot[sk])
-                for s in it['sessions']:
-                    if engine.check_hard(
-                        s, dia, hora, prefix,
-                        data_sessions[prefix], slots[sk], sessions_per_dia
-                    ):
-                        possible = False; break
-                    res_c = self._calcular_cost_sessio(s, dia, hora, sessions_dia=data_sessions[prefix], sessions_slot=slots[sk], data_iso=data_iso_sk, ja_comptats=comptats)
-                    if res_c['cost_total'] >= DEFAULT_PES_RESTRICCIO_DURA: possible = False; break
-                    p += res_c['cost_total']
+                for s in it["sessions"]:
+                    if engine.check_hard(s, dia, hora, prefix, data_sessions[prefix], slots[sk], sessions_per_dia):
+                        possible = False
+                        break
+                    res_c = self._calcular_cost_sessio(
+                        s,
+                        dia,
+                        hora,
+                        sessions_dia=data_sessions[prefix],
+                        sessions_slot=slots[sk],
+                        data_iso=data_iso_sk,
+                        ja_comptats=comptats,
+                    )
+                    if res_c["cost_total"] >= DEFAULT_PES_RESTRICCIO_DURA:
+                        possible = False
+                        break
+                    p += res_c["cost_total"]
                     pct_pref = percent_pref_mateix_slot_violation(s, sk, ubicacions, self.restriccions)
-                    if pct_pref >= 100: possible = False; break
+                    if pct_pref >= 100:
+                        possible = False
+                        break
                     p += _percent_penalty(DEFAULT_PES_RESTRICCIO_DURA, pct_pref)
                 if possible:
                     p += calcular_penalitzacio_professors_dies_item(it, dia, sessions_per_dia, self.restriccions)
 
-                if possible and p < min_p: min_p = p; millor_s = sk; millors_comptats = comptats
+                if possible and p < min_p:
+                    min_p = p
+                    millor_s = sk
+                    millors_comptats = comptats
 
             if millor_s:
                 comptats_slot[millor_s] = millors_comptats
-                _idx_s = millor_s.rfind('_')
+                _idx_s = millor_s.rfind("_")
                 prefix_s = millor_s[:_idx_s]
                 dia_s, _ = _parse_prefix(prefix_s)
-                for s in it['sessions']:
-                    slots[millor_s].append({'sessio': s, 'nom': s['nom'], 'curs': s['curs']})
+                for s in it["sessions"]:
+                    slots[millor_s].append({"sessio": s, "nom": s["nom"], "curs": s["curs"]})
                     sessions_per_dia[dia_s].append(s)
                     data_sessions[prefix_s].append(s)
                     total_assignades += 1
@@ -720,27 +830,27 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         res_dies = []
         dia_map = {}  # prefix -> índex a res_dies
         for sk in physical_slots:
-            if not slots[sk]: continue
-            _idx2 = sk.rfind('_')
-            prefix, h = sk[:_idx2], sk[_idx2 + 1:]
+            if not slots[sk]:
+                continue
+            _idx2 = sk.rfind("_")
+            prefix, h = sk[:_idx2], sk[_idx2 + 1 :]
             dia_nom, data_iso_out = _parse_prefix(prefix)
             if prefix not in dia_map:
-                di = {'dia': dia_nom, 'sessions': []}
+                di = {"dia": dia_nom, "sessions": []}
                 if data_iso_out:
-                    di['data'] = data_iso_out
+                    di["data"] = data_iso_out
                 dia_map[prefix] = len(res_dies)
                 res_dies.append(di)
             dia_info = res_dies[dia_map[prefix]]
             sim = []
             for s_info in slots[sk]:
-                s = s_info['sessio'].copy()
-                s['analisi'] = self.analitzar_disponibilitat_sessio(
-                    s, dia_nom, h,
-                    [x['sessio'] for x in slots[sk] if x != s_info],
-                    data_iso=data_iso_out
+                s = s_info["sessio"].copy()
+                s["analisi"] = self.analitzar_disponibilitat_sessio(
+                    s, dia_nom, h, [x["sessio"] for x in slots[sk] if x != s_info], data_iso=data_iso_out
                 )
                 sim.append(s)
-            dia_info['sessions'].append({'hora': h, 'sessions_simultanees': sim})
+            dia_info["sessions"].append({"hora": h, "sessions_simultanees": sim})
 
-        final_res = {'dies': res_dies, 'metadata': {'total_sessions': total_assignades, 'cost_total': cost_total}}
-        aplicar_estadistiques(final_res); return final_res
+        final_res = {"dies": res_dies, "metadata": {"total_sessions": total_assignades, "cost_total": cost_total}}
+        aplicar_estadistiques(final_res)
+        return final_res

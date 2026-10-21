@@ -8,13 +8,14 @@ no cal cap flag d'"actiu": el curs es resol per la data on es treballa.
 
 Cap dada de substitucions o vigilàncies es toca en crear, editar o eliminar un curs.
 """
+
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from auth_utils import get_current_user, require_admin
+from auth.dependencies import get_current_user, require_admin
 from dependencies import get_db
 from repositories import CursRepository
 from routes.parametres import DataISO, data_iso
@@ -65,27 +66,28 @@ async def validacio_xml(db: Session = Depends(get_db), current_user=Depends(get_
 
     for c in cursos:
         if c.data_fi is not None and c.data_fi < avui:
-            continue                       # curs ja tancat: no accionable
+            continue  # curs ja tancat: no accionable
         if c.data_inici == primer_inici:
-            continue                       # el primer curs no té cap anterior
+            continue  # el primer curs no té cap anterior
         versio = XMLVersionRepository.get_for_date(db, c.data_inici.isoformat())
         if not versio:
-            continue                       # sense historial d'XML per aquella data
+            continue  # sense historial d'XML per aquella data
         if versio.data_inici < c.data_inici:
-            avisos.append({
-                "curs_id": c.id,
-                "curs_nom": c.nom,
-                "curs_inici": c.data_inici.isoformat(),
-                "xml_inici": versio.data_inici.isoformat(),
-                "xml_path": versio.path,
-            })
+            avisos.append(
+                {
+                    "curs_id": c.id,
+                    "curs_nom": c.nom,
+                    "curs_inici": c.data_inici.isoformat(),
+                    "xml_inici": versio.data_inici.isoformat(),
+                    "xml_path": versio.path,
+                }
+            )
 
     return avisos
 
 
 @router.get("/per-data/{data}")
-async def curs_per_data(data: DataISO, db: Session = Depends(get_db),
-                        current_user=Depends(get_current_user)):
+async def curs_per_data(data: DataISO, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """Curs al qual pertany una data (None si és anterior al primer curs definit)."""
     data_iso(data)
     c = CursRepository.get_for_date(db, data)
@@ -93,15 +95,15 @@ async def curs_per_data(data: DataISO, db: Session = Depends(get_db),
 
 
 @router.post("")
-async def crear_curs(payload: CursInput, db: Session = Depends(get_db),
-                     current_user=Depends(require_admin)):
+async def crear_curs(payload: CursInput, db: Session = Depends(get_db), current_user=Depends(require_admin)):
     c = CursRepository.create(db, payload.nom, payload.data_inici)
     return _serialize(c)
 
 
 @router.put("/{curs_id}")
-async def editar_curs(curs_id: int, payload: CursInput, db: Session = Depends(get_db),
-                      current_user=Depends(require_admin)):
+async def editar_curs(
+    curs_id: int, payload: CursInput, db: Session = Depends(get_db), current_user=Depends(require_admin)
+):
     c = CursRepository.update(db, curs_id, payload.nom, payload.data_inici)
     if not c:
         raise HTTPException(status_code=404, detail="Curs no trobat")
@@ -109,8 +111,7 @@ async def editar_curs(curs_id: int, payload: CursInput, db: Session = Depends(ge
 
 
 @router.delete("/{curs_id}")
-async def eliminar_curs(curs_id: int, db: Session = Depends(get_db),
-                        current_user=Depends(require_admin)):
+async def eliminar_curs(curs_id: int, db: Session = Depends(get_db), current_user=Depends(require_admin)):
     """Elimina només la metadada del curs; no toca substitucions ni vigilàncies."""
     ok = CursRepository.delete(db, curs_id)
     if not ok:

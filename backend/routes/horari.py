@@ -4,6 +4,7 @@ Routes per accedir a dades de l'horari (XML de FET):
 - Grups (detectar del XML)
 - Assignatures (detectar del XML)
 """
+
 import logging
 
 from fastapi import APIRouter, Depends
@@ -18,7 +19,6 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/horari", tags=["Horari"])
 
 
-
 @router.get("/professors/all")
 async def get_all_professors(dia: Dia = Depends(dia_del_calendari)):
     """
@@ -30,6 +30,7 @@ async def get_all_professors(dia: Dia = Depends(dia_del_calendari)):
 
         # Llegir professors directament del XML sense límit
         import xml.etree.ElementTree as ET
+
         tree = ET.parse(horari.xml_path)
         root = tree.getroot()
 
@@ -46,17 +47,9 @@ async def get_all_professors(dia: Dia = Depends(dia_del_calendari)):
         # Llista plana ordenada alfabèticament (compatibilitat: professors de baixa)
         professors = sorted(p["nom"] for p in professors_ordenats)
 
-        return {
-            "professors": professors,
-            "professors_ordenats": professors_ordenats,
-            "total": len(professors)
-        }
+        return {"professors": professors, "professors_ordenats": professors_ordenats, "total": len(professors)}
     except MissingXmlError:
-        return {
-            "professors": [],
-            "total": 0,
-            "xml_missing": True
-        }
+        return {"professors": [], "total": 0, "xml_missing": True}
 
 
 @router.get("/professors")
@@ -69,21 +62,15 @@ async def get_professors_filtered(data: DataISO = None, dia: Dia = Depends(dia_d
     try:
         horari = dia.horari
 
-        resposta = {
-            "professors": horari.professors,
-            "total": len(horari.professors)
-        }
+        resposta = {"professors": horari.professors, "total": len(horari.professors)}
         if data:
             from config.constants import PROFESSORS_BAIXA
             from core.baixes import professors_de_baixa
+
             resposta["de_baixa"] = sorted(professors_de_baixa(PROFESSORS_BAIXA, data))
         return resposta
     except MissingXmlError:
-        return {
-            "professors": [],
-            "total": 0,
-            "xml_missing": True
-        }
+        return {"professors": [], "total": 0, "xml_missing": True}
 
 
 @router.get("/grups/detectar")
@@ -117,13 +104,7 @@ async def detectar_grups(dia: Dia = Depends(dia_del_calendari)):
             "xml_data_inici": xml_data_inici,
         }
     except MissingXmlError:
-        return {
-            "grups_raw": [],
-            "grups": [],
-            "total_raw": 0,
-            "total_abreviats": 0,
-            "xml_missing": True
-        }
+        return {"grups_raw": [], "grups": [], "total_raw": 0, "total_abreviats": 0, "xml_missing": True}
 
 
 @router.get("/assignatures/detectar")
@@ -162,9 +143,4 @@ async def detectar_assignatures(dia: Dia = Depends(dia_del_calendari)):
             "xml_data_inici": xml_data_inici,
         }
     except MissingXmlError:
-        return {
-            "assignatures": [],
-            "total": 0,
-            "xml_missing": True
-        }
-
+        return {"assignatures": [], "total": 0, "xml_missing": True}

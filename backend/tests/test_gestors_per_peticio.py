@@ -4,6 +4,7 @@ d'alliberats, absències i substitucions són nous a cada crida. Cada petició
 hi fixa el seu estat (data, vigilants...) i compartits entre peticions es
 podrien trepitjar.
 """
+
 from datetime import date
 
 from suport_api import nova_institucio

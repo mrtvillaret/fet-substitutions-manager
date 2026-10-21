@@ -93,9 +93,7 @@ def _es_substitucio_real(sub, no_subst: set) -> bool:
 
 @router.get("/resum")
 async def get_resum_estadistiques(
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
-    db: Session = Depends(get_db)
+    data_inici: Optional[DataISO] = None, data_final: Optional[DataISO] = None, db: Session = Depends(get_db)
 ):
     """
     Retorna resum general d'estadístiques
@@ -113,10 +111,7 @@ async def get_resum_estadistiques(
     # - P, GP, Guàrdia, etc.: NO necessiten substitució (estan a NO_SUBST)
 
     # Carregar TOTES les substitucions del període
-    substitucions = db.query(Substitucio).filter(
-        Substitucio.data >= data_inici,
-        Substitucio.data <= data_final
-    ).all()
+    substitucions = db.query(Substitucio).filter(Substitucio.data >= data_inici, Substitucio.data <= data_final).all()
 
     total_substitucions = 0
     substitucions_assignades = 0
@@ -153,17 +148,20 @@ async def get_resum_estadistiques(
     substitucions_pendents = total_substitucions - substitucions_assignades
 
     # Estadístiques de vigilàncies
-    total_vigilancies = db.query(Vigilancia).filter(
-        Vigilancia.data >= data_inici,
-        Vigilancia.data <= data_final
-    ).count()
+    total_vigilancies = (
+        db.query(Vigilancia).filter(Vigilancia.data >= data_inici, Vigilancia.data <= data_final).count()
+    )
 
-    vigilancies_assignades = db.query(Vigilancia).filter(
-        Vigilancia.data >= data_inici,
-        Vigilancia.data <= data_final,
-        Vigilancia.vigilant.is_not(None),
-        Vigilancia.vigilant != ""
-    ).count()
+    vigilancies_assignades = (
+        db.query(Vigilancia)
+        .filter(
+            Vigilancia.data >= data_inici,
+            Vigilancia.data <= data_final,
+            Vigilancia.vigilant.is_not(None),
+            Vigilancia.vigilant != "",
+        )
+        .count()
+    )
 
     vigilancies_pendents = total_vigilancies - vigilancies_assignades
 
@@ -180,40 +178,38 @@ async def get_resum_estadistiques(
         dies_amb_substitucions_set.add(sub.data)
     dies_amb_substitucions = len(dies_amb_substitucions_set)
 
-    dies_amb_vigilancies = db.query(Vigilancia.data).filter(
-        Vigilancia.data >= data_inici,
-        Vigilancia.data <= data_final
-    ).distinct().count()
+    dies_amb_vigilancies = (
+        db.query(Vigilancia.data)
+        .filter(Vigilancia.data >= data_inici, Vigilancia.data <= data_final)
+        .distinct()
+        .count()
+    )
 
     return {
-        "periode": {
-            "data_inici": data_inici,
-            "data_final": data_final
-        },
+        "periode": {"data_inici": data_inici, "data_final": data_final},
         "substitucions": {
             "total": total_substitucions,
             "assignades": substitucions_assignades,
             "pendents": substitucions_pendents,
-            "percentatge_assignat": round(substitucions_assignades / total_substitucions * 100, 1) if total_substitucions > 0 else 0
+            "percentatge_assignat": round(substitucions_assignades / total_substitucions * 100, 1)
+            if total_substitucions > 0
+            else 0,
         },
         "vigilancies": {
             "total": total_vigilancies,
             "assignades": vigilancies_assignades,
             "pendents": vigilancies_pendents,
-            "percentatge_assignat": round(vigilancies_assignades / total_vigilancies * 100, 1) if total_vigilancies > 0 else 0
+            "percentatge_assignat": round(vigilancies_assignades / total_vigilancies * 100, 1)
+            if total_vigilancies > 0
+            else 0,
         },
-        "activitat": {
-            "dies_amb_substitucions": dies_amb_substitucions,
-            "dies_amb_vigilancies": dies_amb_vigilancies
-        }
+        "activitat": {"dies_amb_substitucions": dies_amb_substitucions, "dies_amb_vigilancies": dies_amb_vigilancies},
     }
 
 
 @router.get("/professors")
 async def get_estadistiques_professors(
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
-    db: Session = Depends(get_db)
+    data_inici: Optional[DataISO] = None, data_final: Optional[DataISO] = None, db: Session = Depends(get_db)
 ):
     """
     Retorna estadístiques per professor
@@ -224,10 +220,7 @@ async def get_estadistiques_professors(
     no_subst = set(NoSubstituirRepository.get_all(db))
 
     # Top professors absents (incloent VP que necessita substitució)
-    substitucions = db.query(Substitucio).filter(
-        Substitucio.data >= data_inici,
-        Substitucio.data <= data_final
-    ).all()
+    substitucions = db.query(Substitucio).filter(Substitucio.data >= data_inici, Substitucio.data <= data_final).all()
 
     absencies_per_professor = {}
     substitucions_per_professor = {}
@@ -265,57 +258,39 @@ async def get_estadistiques_professors(
 
     # Ordenar i limitar a top 10
     professors_absents = sorted(
-        [(prof, count) for prof, count in absencies_per_professor.items()],
-        key=lambda x: x[1],
-        reverse=True
+        [(prof, count) for prof, count in absencies_per_professor.items()], key=lambda x: x[1], reverse=True
     )[:10]
 
     substituts = sorted(
-        [(prof, count) for prof, count in substitucions_per_professor.items()],
-        key=lambda x: x[1],
-        reverse=True
+        [(prof, count) for prof, count in substitucions_per_professor.items()], key=lambda x: x[1], reverse=True
     )[:10]
 
     # Top vigilants
-    vigilants = db.query(
-        Vigilancia.vigilant,
-        func.count(Vigilancia.id).label('total_vigilancies')
-    ).filter(
-        Vigilancia.data >= data_inici,
-        Vigilancia.data <= data_final,
-        Vigilancia.vigilant.is_not(None),
-        Vigilancia.vigilant != ""
-    ).group_by(
-        Vigilancia.vigilant
-    ).order_by(
-        func.count(Vigilancia.id).desc()
-    ).limit(10).all()
+    vigilants = (
+        db.query(Vigilancia.vigilant, func.count(Vigilancia.id).label("total_vigilancies"))
+        .filter(
+            Vigilancia.data >= data_inici,
+            Vigilancia.data <= data_final,
+            Vigilancia.vigilant.is_not(None),
+            Vigilancia.vigilant != "",
+        )
+        .group_by(Vigilancia.vigilant)
+        .order_by(func.count(Vigilancia.id).desc())
+        .limit(10)
+        .all()
+    )
 
     return {
-        "periode": {
-            "data_inici": data_inici,
-            "data_final": data_final
-        },
-        "professors_absents": [
-            {"professor": prof, "total": count}
-            for prof, count in professors_absents
-        ],
-        "top_substituts": [
-            {"professor": prof, "total": count}
-            for prof, count in substituts
-        ],
-        "top_vigilants": [
-            {"professor": v[0], "total": v[1]}
-            for v in vigilants
-        ]
+        "periode": {"data_inici": data_inici, "data_final": data_final},
+        "professors_absents": [{"professor": prof, "total": count} for prof, count in professors_absents],
+        "top_substituts": [{"professor": prof, "total": count} for prof, count in substituts],
+        "top_vigilants": [{"professor": v[0], "total": v[1]} for v in vigilants],
     }
 
 
 @router.get("/temporal")
 async def get_estadistiques_temporals(
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
-    db: Session = Depends(get_db)
+    data_inici: Optional[DataISO] = None, data_final: Optional[DataISO] = None, db: Session = Depends(get_db)
 ):
     """
     Retorna distribució per dia de la setmana i per hora
@@ -325,15 +300,9 @@ async def get_estadistiques_temporals(
     # Carregar llista d'assignatures que NO necessiten substitució
     no_subst = set(NoSubstituirRepository.get_all(db))
 
-    substitucions = db.query(Substitucio).filter(
-        Substitucio.data >= data_inici,
-        Substitucio.data <= data_final
-    ).all()
+    substitucions = db.query(Substitucio).filter(Substitucio.data >= data_inici, Substitucio.data <= data_final).all()
 
-    vigilancies = db.query(Vigilancia).filter(
-        Vigilancia.data >= data_inici,
-        Vigilancia.data <= data_final
-    ).all()
+    vigilancies = db.query(Vigilancia).filter(Vigilancia.data >= data_inici, Vigilancia.data <= data_final).all()
 
     grups_alliberats_cache = {}
     subs_per_dia = {dia: 0 for dia in DIES_SETMANA}
@@ -379,55 +348,43 @@ async def get_estadistiques_temporals(
             vigs_per_hora[hora] = vigs_per_hora.get(hora, 0) + 1
 
     dies = [
-        {
-            "dia": dia,
-            "substitucions": subs_per_dia.get(dia, 0),
-            "vigilancies": vigs_per_dia.get(dia, 0)
-        }
+        {"dia": dia, "substitucions": subs_per_dia.get(dia, 0), "vigilancies": vigs_per_dia.get(dia, 0)}
         for dia in DIES_SETMANA
     ]
 
     hores_ordenades = sorted(set(list(subs_per_hora.keys()) + list(vigs_per_hora.keys())))
     hores = [
-        {
-            "hora": hora,
-            "substitucions": subs_per_hora.get(hora, 0),
-            "vigilancies": vigs_per_hora.get(hora, 0)
-        }
+        {"hora": hora, "substitucions": subs_per_hora.get(hora, 0), "vigilancies": vigs_per_hora.get(hora, 0)}
         for hora in hores_ordenades
     ]
 
     return {
-        "periode": {
-            "data_inici": data_inici,
-            "data_final": data_final
-        },
+        "periode": {"data_inici": data_inici, "data_final": data_final},
         "dies": dies,
         "hores": hores,
-        "totals": {
-            "substitucions": sum(subs_per_dia.values()),
-            "vigilancies": sum(vigs_per_dia.values())
-        }
+        "totals": {"substitucions": sum(subs_per_dia.values()), "vigilancies": sum(vigs_per_dia.values())},
     }
 
 
 @router.get("/classes")
 async def get_estadistiques_classes(
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
-    db: Session = Depends(get_db)
+    data_inici: Optional[DataISO] = None, data_final: Optional[DataISO] = None, db: Session = Depends(get_db)
 ):
     """
     Retorna estadístiques per classe/grup
     """
     data_inici, data_final = _default_date_range(data_inici, data_final)
 
-    substitucions_amb_grup = db.query(Substitucio).filter(
-        Substitucio.data >= data_inici,
-        Substitucio.data <= data_final,
-        Substitucio.grup.is_not(None),
-        Substitucio.grup != ""
-    ).all()
+    substitucions_amb_grup = (
+        db.query(Substitucio)
+        .filter(
+            Substitucio.data >= data_inici,
+            Substitucio.data <= data_final,
+            Substitucio.grup.is_not(None),
+            Substitucio.grup != "",
+        )
+        .all()
+    )
 
     stats_per_classe = {}
     grups_alliberats_cache = {}
@@ -448,12 +405,7 @@ async def get_estadistiques_classes(
             continue
 
         if grup not in stats_per_classe:
-            stats_per_classe[grup] = {
-                "total_subs": 0,
-                "assignatures": {},
-                "professors": {},
-                "hores": set()
-            }
+            stats_per_classe[grup] = {"total_subs": 0, "assignatures": {}, "professors": {}, "hores": set()}
 
         if sub.substitut and sub.substitut.strip():
             stats_per_classe[grup]["total_subs"] += 1
@@ -467,9 +419,7 @@ async def get_estadistiques_classes(
         professor = (sub.professor_absent or "").strip()
         # Només comptar professor si és absència real
         if professor and _is_absencia_real(sub.tipus_absencia):
-            stats_per_classe[grup]["professors"][professor] = (
-                stats_per_classe[grup]["professors"].get(professor, 0) + 1
-            )
+            stats_per_classe[grup]["professors"][professor] = stats_per_classe[grup]["professors"].get(professor, 0) + 1
 
         if hora:
             stats_per_classe[grup]["hores"].add(f"{data}|{hora}")
@@ -488,23 +438,19 @@ async def get_estadistiques_classes(
         else:
             professor_text = "-"
 
-        classes.append({
-            "grup": grup,
-            "total_subs": stats["total_subs"],
-            "assignatura_top": assignatura_text,
-            "professor_top": professor_text,
-            "hores": len(stats["hores"])
-        })
+        classes.append(
+            {
+                "grup": grup,
+                "total_subs": stats["total_subs"],
+                "assignatura_top": assignatura_text,
+                "professor_top": professor_text,
+                "hores": len(stats["hores"]),
+            }
+        )
 
     classes.sort(key=lambda x: x["total_subs"], reverse=True)
 
-    return {
-        "periode": {
-            "data_inici": data_inici,
-            "data_final": data_final
-        },
-        "classes": classes
-    }
+    return {"periode": {"data_inici": data_inici, "data_final": data_final}, "classes": classes}
 
 
 @router.get("/classes/detall")
@@ -513,7 +459,7 @@ async def get_estadistiques_classes_detall(
     data_final: Optional[DataISO] = None,
     grups: Optional[List[str]] = Query(None),
     grups_bracket: Optional[List[str]] = Query(None, alias="grups[]"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Retorna el detall de substitucions per classes seleccionades
@@ -530,13 +476,18 @@ async def get_estadistiques_classes_detall(
     data_inici, data_final = _default_date_range(data_inici, data_final)
     grups_set = {g.strip() for g in grups_list if g and g.strip()}
 
-    substitucions = db.query(Substitucio).filter(
-        Substitucio.data >= data_inici,
-        Substitucio.data <= data_final,
-        Substitucio.grup.is_not(None),
-        Substitucio.grup != "",
-        Substitucio.grup.in_(grups_set)
-    ).order_by(Substitucio.data, Substitucio.hora).all()
+    substitucions = (
+        db.query(Substitucio)
+        .filter(
+            Substitucio.data >= data_inici,
+            Substitucio.data <= data_final,
+            Substitucio.grup.is_not(None),
+            Substitucio.grup != "",
+            Substitucio.grup.in_(grups_set),
+        )
+        .order_by(Substitucio.data, Substitucio.hora)
+        .all()
+    )
 
     resultats = []
     grups_alliberats_cache = {}
@@ -565,16 +516,18 @@ async def get_estadistiques_classes_detall(
         substitut = (sub.substitut or "").strip()
         tipus_substitut = (sub.tipus_substitut or "").strip()
 
-        resultats.append({
-            "data": str(data),
-            "dia_setmana": _get_dia_setmana(data),
-            "hora": hora,
-            "grup": grup,
-            "assignatura": assignatura,
-            "professor_absent": professor,
-            "substitut": substitut,
-            "tipus_substitut": tipus_substitut
-        })
+        resultats.append(
+            {
+                "data": str(data),
+                "dia_setmana": _get_dia_setmana(data),
+                "hora": hora,
+                "grup": grup,
+                "assignatura": assignatura,
+                "professor_absent": professor,
+                "substitut": substitut,
+                "tipus_substitut": tipus_substitut,
+            }
+        )
 
         if assignatura:
             per_assignatura[assignatura] = per_assignatura.get(assignatura, 0) + 1
@@ -589,30 +542,24 @@ async def get_estadistiques_classes_detall(
     top_substitut = max(per_substitut.items(), key=lambda x: x[1]) if per_substitut else None
 
     return {
-        "periode": {
-            "data_inici": data_inici,
-            "data_final": data_final
-        },
+        "periode": {"data_inici": data_inici, "data_final": data_final},
         "grups": sorted(grups_set),
         "resultats": resultats,
         "resum": {
             "total": len(resultats),
             "per_grup": [
-                {"grup": g, "total": c}
-                for g, c in sorted(per_grup.items(), key=lambda x: x[1], reverse=True)
+                {"grup": g, "total": c} for g, c in sorted(per_grup.items(), key=lambda x: x[1], reverse=True)
             ],
             "top_assignatura": {"nom": top_assignatura[0], "total": top_assignatura[1]} if top_assignatura else None,
             "top_professor": {"nom": top_professor[0], "total": top_professor[1]} if top_professor else None,
-            "top_substitut": {"nom": top_substitut[0], "total": top_substitut[1]} if top_substitut else None
-        }
+            "top_substitut": {"nom": top_substitut[0], "total": top_substitut[1]} if top_substitut else None,
+        },
     }
 
 
 @router.get("/taula")
 async def get_estadistiques_taula_professors(
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
-    db: Session = Depends(get_db)
+    data_inici: Optional[DataISO] = None, data_final: Optional[DataISO] = None, db: Session = Depends(get_db)
 ):
     """
     Retorna taula detallada per professor (absències/substitucions per tipus)
@@ -624,10 +571,7 @@ async def get_estadistiques_taula_professors(
     # Carregar llista d'assignatures que NO necessiten substitució
     no_subst = set(NoSubstituirRepository.get_all(db))
 
-    substitucions = db.query(Substitucio).filter(
-        Substitucio.data >= data_inici,
-        Substitucio.data <= data_final
-    ).all()
+    substitucions = db.query(Substitucio).filter(Substitucio.data >= data_inici, Substitucio.data <= data_final).all()
 
     grups_alliberats_cache = {}
     stats = {}
@@ -661,7 +605,7 @@ async def get_estadistiques_taula_professors(
                     "abs_pati": 0,
                     "abs_altres": 0,
                     "subs_normals": 0,
-                    "subs_pati": 0
+                    "subs_pati": 0,
                 }
             if categoria == "pati":
                 stats[professor_absent]["abs_pati"] += 1
@@ -672,13 +616,7 @@ async def get_estadistiques_taula_professors(
 
         if substitut:
             if substitut not in stats:
-                stats[substitut] = {
-                    "abs_normals": 0,
-                    "abs_pati": 0,
-                    "abs_altres": 0,
-                    "subs_normals": 0,
-                    "subs_pati": 0
-                }
+                stats[substitut] = {"abs_normals": 0, "abs_pati": 0, "abs_altres": 0, "subs_normals": 0, "subs_pati": 0}
             if hora == "Pati":
                 stats[substitut]["subs_pati"] += 1
             else:
@@ -691,35 +629,31 @@ async def get_estadistiques_taula_professors(
         ratio = round(total_subs / total_abs, 2) if total_abs > 0 else None
         ratio_text = "∞" if total_abs == 0 and total_subs > 0 else (f"{ratio:.2f}" if ratio is not None else "0")
         puntuacio = (
-            values["subs_normals"] * 1.0 +
-            values["subs_pati"] * 0.5 -
-            values["abs_normals"] * 1.0 -
-            values["abs_pati"] * 0.5 +
-            values["abs_altres"] * 0.0
+            values["subs_normals"] * 1.0
+            + values["subs_pati"] * 0.5
+            - values["abs_normals"] * 1.0
+            - values["abs_pati"] * 0.5
+            + values["abs_altres"] * 0.0
         )
-        professors.append({
-            "professor": professor,
-            "abs_normals": values["abs_normals"],
-            "abs_pati": values["abs_pati"],
-            "abs_altres": values["abs_altres"],
-            "total_abs": total_abs,
-            "subs_normals": values["subs_normals"],
-            "subs_pati": values["subs_pati"],
-            "total_subs": total_subs,
-            "ratio": ratio,
-            "ratio_text": ratio_text,
-            "puntuacio": round(puntuacio, 1)
-        })
+        professors.append(
+            {
+                "professor": professor,
+                "abs_normals": values["abs_normals"],
+                "abs_pati": values["abs_pati"],
+                "abs_altres": values["abs_altres"],
+                "total_abs": total_abs,
+                "subs_normals": values["subs_normals"],
+                "subs_pati": values["subs_pati"],
+                "total_subs": total_subs,
+                "ratio": ratio,
+                "ratio_text": ratio_text,
+                "puntuacio": round(puntuacio, 1),
+            }
+        )
 
     professors.sort(key=lambda x: (x["puntuacio"], x["total_subs"]), reverse=True)
 
-    return {
-        "periode": {
-            "data_inici": data_inici,
-            "data_final": data_final
-        },
-        "professors": professors
-    }
+    return {"periode": {"data_inici": data_inici, "data_final": data_final}, "professors": professors}
 
 
 @router.get("/professor/{professor}")
@@ -727,7 +661,7 @@ async def get_estadistiques_professor_detall(
     professor: str,
     data_inici: Optional[DataISO] = None,
     data_final: Optional[DataISO] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Retorna detall d'absències i substitucions per professor
@@ -738,10 +672,9 @@ async def get_estadistiques_professor_detall(
     # Carregar llista d'assignatures que NO necessiten substitució
     no_subst = set(NoSubstituirRepository.get_all(db))
 
-    substitucions_all = db.query(Substitucio).filter(
-        Substitucio.data >= data_inici,
-        Substitucio.data <= data_final
-    ).all()
+    substitucions_all = (
+        db.query(Substitucio).filter(Substitucio.data >= data_inici, Substitucio.data <= data_final).all()
+    )
 
     grups_alliberats_cache = {}
     absencies = []
@@ -766,39 +699,40 @@ async def get_estadistiques_professor_detall(
                 continue
 
         if (sub.professor_absent or "").strip() == professor and _is_absencia_real(sub.tipus_absencia):
-            absencies.append({
-                "data": data.isoformat(),
-                "dia_setmana": _get_dia_setmana(data),
-                "hora": hora,
-                "grup": sub.grup or "",
-                "assignatura": sub.assignatura or "",
-                "substitut": sub.substitut or "",
-                "tipus_absencia": sub.tipus_absencia or "",
-                "categoria": _get_absencia_categoria(hora, sub.tipus_absencia)
-            })
+            absencies.append(
+                {
+                    "data": data.isoformat(),
+                    "dia_setmana": _get_dia_setmana(data),
+                    "hora": hora,
+                    "grup": sub.grup or "",
+                    "assignatura": sub.assignatura or "",
+                    "substitut": sub.substitut or "",
+                    "tipus_absencia": sub.tipus_absencia or "",
+                    "categoria": _get_absencia_categoria(hora, sub.tipus_absencia),
+                }
+            )
 
         if (sub.substitut or "").strip() == professor:
-            substitucions.append({
-                "data": data.isoformat(),
-                "dia_setmana": _get_dia_setmana(data),
-                "hora": hora,
-                "grup": sub.grup or "",
-                "assignatura": sub.assignatura or "",
-                "professor_absent": sub.professor_absent or "",
-                "tipus_substitut": sub.tipus_substitut or ""
-            })
+            substitucions.append(
+                {
+                    "data": data.isoformat(),
+                    "dia_setmana": _get_dia_setmana(data),
+                    "hora": hora,
+                    "grup": sub.grup or "",
+                    "assignatura": sub.assignatura or "",
+                    "professor_absent": sub.professor_absent or "",
+                    "tipus_substitut": sub.tipus_substitut or "",
+                }
+            )
 
     absencies.sort(key=lambda x: (x["data"], x["hora"]))
     substitucions.sort(key=lambda x: (x["data"], x["hora"]))
 
     return {
-        "periode": {
-            "data_inici": data_inici,
-            "data_final": data_final
-        },
+        "periode": {"data_inici": data_inici, "data_final": data_final},
         "professor": professor,
         "absencies": absencies,
-        "substitucions": substitucions
+        "substitucions": substitucions,
     }
 
 
@@ -808,7 +742,7 @@ async def get_resum_franges(
     hora: str,
     data_inici: Optional[DataISO] = None,
     data_final: Optional[DataISO] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Retorna resum per franges d'una hora concreta d'un dia de la setmana
@@ -823,10 +757,7 @@ async def get_resum_franges(
     # Carregar llista d'assignatures que NO necessiten substitució
     no_subst = set(NoSubstituirRepository.get_all(db))
 
-    substitucions = db.query(Substitucio).filter(
-        Substitucio.data >= data_inici,
-        Substitucio.data <= data_final
-    ).all()
+    substitucions = db.query(Substitucio).filter(Substitucio.data >= data_inici, Substitucio.data <= data_final).all()
 
     grups_alliberats_cache = {}
     slots = {}
@@ -882,19 +813,13 @@ async def get_resum_franges(
             {"professor": prof, "total": count}
             for prof, count in sorted(franges[num_subs].items(), key=lambda x: x[1], reverse=True)
         ]
-        franges_result.append({
-            "num_substitucions": num_subs,
-            "professors": professors
-        })
+        franges_result.append({"num_substitucions": num_subs, "professors": professors})
 
     return {
-        "periode": {
-            "data_inici": data_inici,
-            "data_final": data_final
-        },
+        "periode": {"data_inici": data_inici, "data_final": data_final},
         "dia": dia_normalitzat,
         "hora": hora,
         "total_slots": len(slots),
         "total_substitucions": total_subs,
-        "franges": franges_result
+        "franges": franges_result,
     }

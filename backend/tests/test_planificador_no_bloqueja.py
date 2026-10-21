@@ -3,6 +3,7 @@ Generar un horari d'exàmens tarda uns segons. Mentrestant, el backend ha de
 continuar atenent la resta de peticions (d'aquest centre o d'un altre).
 Amb un servidor uvicorn de veritat, com a test_concurrencia_institucions.
 """
+
 import threading
 import time
 
@@ -24,11 +25,15 @@ from routes import config_examens, scheduler
 @pytest.fixture(scope="module")
 def servidor():
     institucio, client = centre_amb_examens(nivells=("1-BAT", "2-BAT"))
-    configura(client, nivells_actius=["1-BAT", "2-BAT"],
-              alliberaments_per_nivell=alliberaments(nivells=("1-BAT", "2-BAT")))
+    configura(
+        client, nivells_actius=["1-BAT", "2-BAT"], alliberaments_per_nivell=alliberaments(nivells=("1-BAT", "2-BAT"))
+    )
     port = _port_lliure()
-    srv = uvicorn.Server(uvicorn.Config(crea_app(scheduler.router, config_examens.router),
-                                        host="127.0.0.1", port=port, log_level="error"))
+    srv = uvicorn.Server(
+        uvicorn.Config(
+            crea_app(scheduler.router, config_examens.router), host="127.0.0.1", port=port, log_level="error"
+        )
+    )
     fil = threading.Thread(target=srv.run, daemon=True)
     fil.start()
     while not srv.started:
@@ -46,9 +51,18 @@ def test_mentre_es_genera_un_horari_les_altres_peticions_responen(servidor):
 
     def genera():
         inici = time.monotonic()
-        estat, cos, _ = _peticio(port, "POST", "/api/scheduler/generate", {
-            "data_inici": DATES[0], "data_final": DATES[-1], "selected_dates": DATES, "dies_utilitzar": DIES,
-        }, galeta=galeta)
+        estat, cos, _ = _peticio(
+            port,
+            "POST",
+            "/api/scheduler/generate",
+            {
+                "data_inici": DATES[0],
+                "data_final": DATES[-1],
+                "selected_dates": DATES,
+                "dies_utilitzar": DIES,
+            },
+            galeta=galeta,
+        )
         generacio.update(estat=estat, fi=time.monotonic(), durada=time.monotonic() - inici, cos=cos)
 
     fil = threading.Thread(target=genera)

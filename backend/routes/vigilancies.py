@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from auth_utils import get_current_user
+from auth.dependencies import get_current_user
 from core.alliberats import sense_classe
 from core.baixes import professors_de_baixa
 from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
@@ -65,7 +65,7 @@ def _vig_to_payload(vig) -> dict:
         "vigilant": vig.vigilant or "",
         "comentaris": vig.comentaris or "",
         "nivell": vig.nivell,
-        "updated_at": vig.updated_at.isoformat() if vig.updated_at else None
+        "updated_at": vig.updated_at.isoformat() if vig.updated_at else None,
     }
 
 
@@ -77,7 +77,7 @@ def generar_pdf_vigilancies_alias(
     show_comments: bool = True,
     show_hours: bool = False,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
     """Alias per compatibilitat: delega a /api/pdf/vigilancies/{data}."""
     from routes.pdf import generar_pdf_vigilancies
@@ -89,7 +89,7 @@ def generar_pdf_vigilancies_alias(
         show_comments=show_comments,
         show_hours=show_hours,
         db=db,
-        current_user=current_user
+        current_user=current_user,
     )
 
 
@@ -104,7 +104,7 @@ def generar_pdf_interval_alias(
     show_comments: bool = True,
     show_hours: bool = False,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
     """Alias per compatibilitat: delega a /api/pdf/vigilancies/interval."""
     from routes.pdf import generar_pdf_interval
@@ -119,7 +119,7 @@ def generar_pdf_interval_alias(
         show_comments=show_comments,
         show_hours=show_hours,
         db=db,
-        current_user=current_user
+        current_user=current_user,
     )
 
 
@@ -176,10 +176,7 @@ def _build_disponibles_context(dia: Dia, db: Session, hores_consulta: set[str], 
             absents_per_professor[professor].add(hora_sub)
 
     grups_sense_classe_raw = GrupsAlliberatsRepository.get_by_date(db, data)
-    grups_sense_classe_per_hora = {
-        hora: set(grups or [])
-        for hora, grups in grups_sense_classe_raw.items()
-    }
+    grups_sense_classe_per_hora = {hora: set(grups or []) for hora, grups in grups_sense_classe_raw.items()}
 
     professors_baixa = professors_de_baixa(PROFESSORS_BAIXA, date_obj)
 
@@ -188,10 +185,7 @@ def _build_disponibles_context(dia: Dia, db: Session, hores_consulta: set[str], 
         activitats_per_hora[hora] = {}
         for professor in horari.professors:
             activitat = horari.get_activitat(dia_name, hora, professor) or {}
-            activitats_per_hora[hora][professor] = (
-                activitat.get("assignatura", ""),
-                activitat.get("grup", "")
-            )
+            activitats_per_hora[hora][professor] = (activitat.get("assignatura", ""), activitat.get("grup", ""))
 
     vigilancia_core = dia.vigilancia_core(db) if necessita_titulars else None
 
@@ -210,7 +204,9 @@ def _build_disponibles_context(dia: Dia, db: Session, hores_consulta: set[str], 
     }
 
 
-def _build_disponibles_for_query(context: dict, hora: str, tipus: str | None, grups: str | None, aula: str | None) -> list[dict]:
+def _build_disponibles_for_query(
+    context: dict, hora: str, tipus: str | None, grups: str | None, aula: str | None
+) -> list[dict]:
     ordre_prioritats = context["ordre_prioritats"]
     vigilants_assignats = context["vigilants_per_hora"].get(hora, set())
     absents_per_professor = context["absents_per_professor"]
@@ -227,9 +223,7 @@ def _build_disponibles_for_query(context: dict, hora: str, tipus: str | None, gr
         es_titular = False
         if vigilancia_core and tipus and tipus != "VIGILÀNCIA":
             try:
-                es_titular = vigilancia_core.es_titular_per_assignatura(
-                    professor, tipus, grups or "", aula or ""
-                )
+                es_titular = vigilancia_core.es_titular_per_assignatura(professor, tipus, grups or "", aula or "")
             except Exception:
                 es_titular = False
 
@@ -309,18 +303,20 @@ def _build_disponibles_for_query(context: dict, hora: str, tipus: str | None, gr
 
         categoria = _categoria_prioritat(assignatura, ordre_prioritats) if assignatura else len(ordre_prioritats)
         label = f"{base_icon}{emoji} {professor}{titular_text} ({info})"
-        professors_info.append({
-            "value": professor,
-            "label": label,
-            "emoji": emoji,
-            "estat": estat,
-            "info": info,
-            "ordre_tipus": ordre_tipus,
-            "categoria": categoria,
-            "color": color,
-            "ja_assignat": ja_assignat,
-            "es_titular": es_titular
-        })
+        professors_info.append(
+            {
+                "value": professor,
+                "label": label,
+                "emoji": emoji,
+                "estat": estat,
+                "info": info,
+                "ordre_tipus": ordre_tipus,
+                "categoria": categoria,
+                "color": color,
+                "ja_assignat": ja_assignat,
+                "es_titular": es_titular,
+            }
+        )
 
     professors_info.sort(key=lambda x: (x["ordre_tipus"], x["value"]))
     return professors_info
@@ -342,10 +338,7 @@ async def obtenir_config_vigilancies(db: Session = Depends(get_db), dia: Dia = D
 
     nivells_data = master_config.get("nivells", {})
     nivells = list(nivells_data.keys())
-    grups_per_nivell = {
-        nivell: dades.get("grups", [])
-        for nivell, dades in nivells_data.items()
-    }
+    grups_per_nivell = {nivell: dades.get("grups", []) for nivell, dades in nivells_data.items()}
     aules = master_config.get("aules", [])
 
     # Si no hi ha nivells, usar defaults
@@ -367,10 +360,7 @@ async def obtenir_config_vigilancies(db: Session = Depends(get_db), dia: Dia = D
         "grups_per_nivell": grups_per_nivell,
         "aules": [a for a in aules if a and a.strip()],
         "tipus_examens": tipus_examens_list,
-        "tipus_per_nivell": {
-            nivell: dades.get("assignatures", [])
-            for nivell, dades in nivells_data.items()
-        }
+        "tipus_per_nivell": {nivell: dades.get("assignatures", []) for nivell, dades in nivells_data.items()},
     }
 
 
@@ -382,7 +372,7 @@ async def obtenir_disponibles_vigilancia(
     grups: str = None,
     aula: str = None,
     db: Session = Depends(get_db),
-    dia: Dia = Depends(dia_de_la_peticio)
+    dia: Dia = Depends(dia_de_la_peticio),
 ):
     """
     Retorna professors disponibles per vigilància amb informació detallada (SQLite)
@@ -400,17 +390,10 @@ async def obtenir_disponibles_vigilancia(
     aula_norm = _normalize_disponibles_param(aula)
 
     context = _build_disponibles_context(
-        dia=dia,
-        db=db,
-        hores_consulta={hora_norm},
-        necessita_titulars=bool(tipus_norm and tipus_norm != "VIGILÀNCIA")
+        dia=dia, db=db, hores_consulta={hora_norm}, necessita_titulars=bool(tipus_norm and tipus_norm != "VIGILÀNCIA")
     )
     return _build_disponibles_for_query(
-        context=context,
-        hora=hora_norm,
-        tipus=tipus_norm,
-        grups=grups_norm,
-        aula=aula_norm
+        context=context, hora=hora_norm, tipus=tipus_norm, grups=grups_norm, aula=aula_norm
     )
 
 
@@ -419,7 +402,7 @@ async def obtenir_disponibles_vigilancia_batch(
     data: DataISO,
     payload: VigilanciaDisponiblesBatchRequest,
     db: Session = Depends(get_db),
-    dia: Dia = Depends(dia_de_la_peticio)
+    dia: Dia = Depends(dia_de_la_peticio),
 ):
     """
     Retorna disponibles per múltiples consultes en una sola crida.
@@ -437,13 +420,9 @@ async def obtenir_disponibles_vigilancia_batch(
         if cache_key in keys_seen:
             continue
         keys_seen.add(cache_key)
-        queries.append({
-            "hora": hora_norm,
-            "tipus": tipus_norm,
-            "grups": grups_norm,
-            "aula": aula_norm,
-            "cache_key": cache_key
-        })
+        queries.append(
+            {"hora": hora_norm, "tipus": tipus_norm, "grups": grups_norm, "aula": aula_norm, "cache_key": cache_key}
+        )
 
     if not queries:
         return {"results": {}}
@@ -451,20 +430,13 @@ async def obtenir_disponibles_vigilancia_batch(
     hores_consulta = {q["hora"] for q in queries}
     necessita_titulars = any(q["tipus"] and q["tipus"] != "VIGILÀNCIA" for q in queries)
     context = _build_disponibles_context(
-        dia=dia,
-        db=db,
-        hores_consulta=hores_consulta,
-        necessita_titulars=necessita_titulars
+        dia=dia, db=db, hores_consulta=hores_consulta, necessita_titulars=necessita_titulars
     )
 
     results = {}
     for query in queries:
         results[query["cache_key"]] = _build_disponibles_for_query(
-            context=context,
-            hora=query["hora"],
-            tipus=query["tipus"],
-            grups=query["grups"],
-            aula=query["aula"]
+            context=context, hora=query["hora"], tipus=query["tipus"], grups=query["grups"], aula=query["aula"]
         )
     return {"results": results}
 
@@ -496,9 +468,7 @@ async def crear_vigilancia(data: DataISO, vigilancia: VigilanciaCreate, db: Sess
     """
     # Normalitzar vigilant: convertir placeholder a string buit
     vigilant_normalized = (
-        vigilancia.vigilant
-        if vigilancia.vigilant and not vigilancia.vigilant.startswith("--")
-        else ""
+        vigilancia.vigilant if vigilancia.vigilant and not vigilancia.vigilant.startswith("--") else ""
     )
 
     # Crear vigilància amb el repository
@@ -509,7 +479,7 @@ async def crear_vigilancia(data: DataISO, vigilancia: VigilanciaCreate, db: Sess
         "aula": vigilancia.aula,
         "vigilant": vigilant_normalized,
         "comentaris": vigilancia.comentaris,
-        "nivell": vigilancia.nivell
+        "nivell": vigilancia.nivell,
     }
 
     nova_vig = VigilanciaRepository.create(db, data, vigilancia_data)
@@ -533,8 +503,8 @@ async def crear_vigilancia(data: DataISO, vigilancia: VigilanciaCreate, db: Sess
             "vigilant": nova_vig.vigilant or "",
             "comentaris": nova_vig.comentaris or "",
             "nivell": nova_vig.nivell,
-            "updated_at": nova_vig.updated_at.isoformat() if nova_vig.updated_at else None
-        }
+            "updated_at": nova_vig.updated_at.isoformat() if nova_vig.updated_at else None,
+        },
     }
 
 
@@ -556,11 +526,7 @@ async def actualitzar_vigilancia(data: DataISO, vig_id: str, update: VigilanciaU
         updates["aula"] = update.aula
     if update.vigilant is not None:
         # Normalitzar vigilant: convertir placeholder a string buit
-        updates["vigilant"] = (
-            update.vigilant
-            if update.vigilant and not update.vigilant.startswith("--")
-            else ""
-        )
+        updates["vigilant"] = update.vigilant if update.vigilant and not update.vigilant.startswith("--") else ""
 
     if update.comentaris is not None:
         updates["comentaris"] = update.comentaris
@@ -580,11 +546,14 @@ async def actualitzar_vigilancia(data: DataISO, vig_id: str, update: VigilanciaU
             raise HTTPException(status_code=404, detail="Vigilància no trobada")
         current_ts = vig_abans.updated_at.isoformat() if vig_abans.updated_at else None
         if update.updated_at != current_ts:
-            raise HTTPException(status_code=409, detail={
-                "error": "conflict",
-                "message": "Aquest registre ha estat modificat per un altre usuari",
-                "current_data": _vig_to_payload(vig_abans)
-            })
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "conflict",
+                    "message": "Aquest registre ha estat modificat per un altre usuari",
+                    "current_data": _vig_to_payload(vig_abans),
+                },
+            )
 
     # Actualitzar via repository
     vig_updated = VigilanciaRepository.update_by_id(db, data, vig_id, updates)
@@ -603,17 +572,13 @@ async def actualitzar_vigilancia(data: DataISO, vig_id: str, update: VigilanciaU
     return {
         "success": True,
         "message": "Vigilància actualitzada correctament",
-        "updated_at": vig_updated.updated_at.isoformat() if vig_updated.updated_at else None
+        "updated_at": vig_updated.updated_at.isoformat() if vig_updated.updated_at else None,
     }
 
 
 @router.delete("/{data}/{vig_id}")
 async def eliminar_vigilancia(
-    data: DataISO,
-    vig_id: str,
-    updated_at: str = None,
-    force: bool = False,
-    db: Session = Depends(get_db)
+    data: DataISO, vig_id: str, updated_at: str = None, force: bool = False, db: Session = Depends(get_db)
 ):
     """
     Elimina una vigilància (SQLite)
@@ -628,11 +593,14 @@ async def eliminar_vigilancia(
             raise HTTPException(status_code=404, detail="Vigilància no trobada")
         current_ts = vig_abans.updated_at.isoformat() if vig_abans.updated_at else None
         if updated_at != current_ts:
-            raise HTTPException(status_code=409, detail={
-                "error": "conflict",
-                "message": "Aquest registre ha estat modificat per un altre usuari",
-                "current_data": _vig_to_payload(vig_abans)
-            })
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "conflict",
+                    "message": "Aquest registre ha estat modificat per un altre usuari",
+                    "current_data": _vig_to_payload(vig_abans),
+                },
+            )
 
     # Eliminar via repository
     success = VigilanciaRepository.delete_by_id(db, data, vig_id)
@@ -643,13 +611,11 @@ async def eliminar_vigilancia(
     if vig_abans and vig_abans.hora:
         refresca_cobertures(data, vig_abans.hora, db)
 
-    return {
-        "success": True,
-        "message": "Vigilància eliminada correctament"
-    }
+    return {"success": True, "message": "Vigilància eliminada correctament"}
 
 
 # ===== Endpoints d'Assignació Automàtica =====
+
 
 @router.post("/{data}/assign/titulars", response_model=AssignmentResponse)
 async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
@@ -660,11 +626,7 @@ async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: D
     vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
 
     if not vigilancies_dict:
-        return AssignmentResponse(
-            assigned_count=0,
-            remaining_count=0,
-            message=f"No hi ha vigilàncies per {data}"
-        )
+        return AssignmentResponse(assigned_count=0, remaining_count=0, message=f"No hi ha vigilàncies per {data}")
 
     vigilants_abans = _collect_vigilants_by_hour(vigilancies_dict)
 
@@ -676,8 +638,8 @@ async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: D
     vigilants_assignats_global = {}
     for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
-            hora = vig.get('hora', '')
-            vigilant = vig.get('vigilant', '')
+            hora = vig.get("hora", "")
+            vigilant = vig.get("vigilant", "")
             if hora and vigilant and vigilant != "-- selecciona vigilant --":
                 if hora not in vigilants_assignats_global:
                     vigilants_assignats_global[hora] = set()
@@ -694,15 +656,15 @@ async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: D
     for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
             # Actualitzar si té vigilant assignat (i té ID)
-            if 'id' in vig and vig.get('vigilant'):
-                updates = {'vigilant': vig['vigilant']}
-                VigilanciaRepository.update_by_id(db, data, vig['id'], updates)
+            if "id" in vig and vig.get("vigilant"):
+                updates = {"vigilant": vig["vigilant"]}
+                VigilanciaRepository.update_by_id(db, data, vig["id"], updates)
 
     # Comptar pendents
     remaining_count = 0
     for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
-            vigilant = vig.get('vigilant', '')
+            vigilant = vig.get("vigilant", "")
             if not vigilant or vigilant == "-- selecciona vigilant --":
                 remaining_count += 1
 
@@ -715,12 +677,14 @@ async def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: D
     return AssignmentResponse(
         assigned_count=assigned_count,
         remaining_count=remaining_count,
-        message=f"✅ S'han assignat {assigned_count} titulars. Queden {remaining_count} vigilàncies pendents."
+        message=f"✅ S'han assignat {assigned_count} titulars. Queden {remaining_count} vigilàncies pendents.",
     )
 
 
 @router.post("/{data}/assign/pendents", response_model=AssignmentResponse)
-async def assignar_pendents(data: DataISO, disponibles: bool = False, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
+async def assignar_pendents(
+    data: DataISO, disponibles: bool = False, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)
+):
     """
     Assigna vigilàncies pendents amb scoring intel·ligent (SQLite)
 
@@ -732,11 +696,7 @@ async def assignar_pendents(data: DataISO, disponibles: bool = False, db: Sessio
     vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
 
     if not vigilancies_dict:
-        return AssignmentResponse(
-            assigned_count=0,
-            remaining_count=0,
-            message=f"No hi ha vigilàncies per {data}"
-        )
+        return AssignmentResponse(assigned_count=0, remaining_count=0, message=f"No hi ha vigilàncies per {data}")
 
     vigilants_abans = _collect_vigilants_by_hour(vigilancies_dict)
 
@@ -749,8 +709,8 @@ async def assignar_pendents(data: DataISO, disponibles: bool = False, db: Sessio
     vigilants_assignats_global = {}
     for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
-            hora = vig.get('hora', '')
-            vigilant = vig.get('vigilant', '')
+            hora = vig.get("hora", "")
+            vigilant = vig.get("vigilant", "")
             if hora and vigilant and vigilant != "-- selecciona vigilant --":
                 if hora not in vigilants_assignats_global:
                     vigilants_assignats_global[hora] = set()
@@ -771,30 +731,36 @@ async def assignar_pendents(data: DataISO, disponibles: bool = False, db: Sessio
     # FASE 3 - PASSADA 1: Alliberats del mateix prefix (prioritat absoluta)
     for vigilancies_list in vigilancies_dict.values():
         count = assign_phase3_passada(
-            vigilancies_list, core, vigilants_assignats_global,
+            vigilancies_list,
+            core,
+            vigilants_assignats_global,
             filter_mode="afinitat_exacta",
             only_alliberats=True,
-            afinitats_cfg=afinitats_cfg
+            afinitats_cfg=afinitats_cfg,
         )
         assigned_count += count
 
     # FASE 3 - PASSADA 2: Alliberats per proximitat de prefix (sense mateix prefix)
     for vigilancies_list in vigilancies_dict.values():
         count = assign_phase3_passada(
-            vigilancies_list, core, vigilants_assignats_global,
+            vigilancies_list,
+            core,
+            vigilants_assignats_global,
             filter_mode="afinitat_propera",
             only_alliberats=True,
-            afinitats_cfg=afinitats_cfg
+            afinitats_cfg=afinitats_cfg,
         )
         assigned_count += count
 
     # FASE 3 - PASSADA 3: Alliberats sense prefix resolt (al final dels alliberats)
     for vigilancies_list in vigilancies_dict.values():
         count = assign_phase3_passada(
-            vigilancies_list, core, vigilants_assignats_global,
+            vigilancies_list,
+            core,
+            vigilants_assignats_global,
             filter_mode="sense_prefix",
             only_alliberats=True,
-            afinitats_cfg=afinitats_cfg
+            afinitats_cfg=afinitats_cfg,
         )
         assigned_count += count
 
@@ -802,10 +768,12 @@ async def assignar_pendents(data: DataISO, disponibles: bool = False, db: Sessio
     if disponibles:
         for vigilancies_list in vigilancies_dict.values():
             count = assign_phase3_passada(
-                vigilancies_list, core, vigilants_assignats_global,
+                vigilancies_list,
+                core,
+                vigilants_assignats_global,
                 filter_mode="tots",
                 only_alliberats=False,
-                afinitats_cfg=afinitats_cfg
+                afinitats_cfg=afinitats_cfg,
             )
             assigned_count += count
 
@@ -813,15 +781,15 @@ async def assignar_pendents(data: DataISO, disponibles: bool = False, db: Sessio
     for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
             # Actualitzar si té vigilant assignat (i té ID)
-            if 'id' in vig and vig.get('vigilant'):
-                updates = {'vigilant': vig['vigilant']}
-                VigilanciaRepository.update_by_id(db, data, vig['id'], updates)
+            if "id" in vig and vig.get("vigilant"):
+                updates = {"vigilant": vig["vigilant"]}
+                VigilanciaRepository.update_by_id(db, data, vig["id"], updates)
 
     # Comptar pendents
     remaining_count = 0
     for vigilancies_list in vigilancies_dict.values():
         for vig in vigilancies_list:
-            vigilant = vig.get('vigilant', '')
+            vigilant = vig.get("vigilant", "")
             if not vigilant or vigilant == "-- selecciona vigilant --":
                 remaining_count += 1
 
@@ -835,7 +803,7 @@ async def assignar_pendents(data: DataISO, disponibles: bool = False, db: Sessio
     return AssignmentResponse(
         assigned_count=assigned_count,
         remaining_count=remaining_count,
-        message=f"✅ S'han assignat {assigned_count} vigilants ({tipus_text}). Queden {remaining_count} pendents."
+        message=f"✅ S'han assignat {assigned_count} vigilants ({tipus_text}). Queden {remaining_count} pendents.",
     )
 
 
@@ -846,21 +814,26 @@ async def netejar_assignacions(data: DataISO, db: Session = Depends(get_db)):
     """
     # Netejar directament amb una query SQL per evitar problemes amb IDs compostos
     from models import Vigilancia
-    vigilancies = db.query(Vigilancia).filter(
-        and_(
-            Vigilancia.data == parse_date(data),
-            Vigilancia.vigilant.isnot(None),
-            Vigilancia.vigilant != '',
-            Vigilancia.vigilant != '-- selecciona vigilant --'
+
+    vigilancies = (
+        db.query(Vigilancia)
+        .filter(
+            and_(
+                Vigilancia.data == parse_date(data),
+                Vigilancia.vigilant.isnot(None),
+                Vigilancia.vigilant != "",
+                Vigilancia.vigilant != "-- selecciona vigilant --",
+            )
         )
-    ).all()
+        .all()
+    )
 
     cleared_count = 0
     hores_cleared = set()
     for vig in vigilancies:
         if vig.hora:
             hores_cleared.add(vig.hora)
-        vig.vigilant = ''
+        vig.vigilant = ""
         cleared_count += 1
 
     db.commit()
@@ -871,7 +844,7 @@ async def netejar_assignacions(data: DataISO, db: Session = Depends(get_db)):
     return {
         "success": True,
         "cleared_count": cleared_count,
-        "message": f"✅ S'han netejat {cleared_count} assignacions"
+        "message": f"✅ S'han netejat {cleared_count} assignacions",
     }
 
 
@@ -892,8 +865,4 @@ async def ordenar_per_hora(data: DataISO, db: Session = Depends(get_db)):
     # Comptar vigilàncies
     sorted_count = sum(len(vigs) for vigs in vigilancies_dict.values())
 
-    return {
-        "success": True,
-        "sorted_count": sorted_count,
-        "message": "✅ Vigilàncies ordenades per hora"
-    }
+    return {"success": True, "sorted_count": sorted_count, "message": "✅ Vigilàncies ordenades per hora"}

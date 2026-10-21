@@ -4,6 +4,7 @@ sys.path i prepara variables d'entorn mínimes (SECRET_KEY, DATA_DIR cap a
 un directori temporal) perquè els mòduls de l'app es puguin importar sense
 dependre de la configuració real de desenvolupament ni tocar cap dada real.
 """
+
 import atexit
 import os
 import shutil

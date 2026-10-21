@@ -22,7 +22,7 @@ from scheduler_engine.core.constraints import (
 )
 from scheduler_engine.defaults import ETIQUETES_RESTRICCIONS
 
-_ISO_RE = _re.compile(r'^\d{4}-\d{2}-\d{2}$')
+_ISO_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _is_iso(s: str) -> bool:
@@ -31,10 +31,10 @@ def _is_iso(s: str) -> bool:
 
 @dataclass
 class ViolationResult:
-    restriction: str   # Clau interna: "no_mateix_dia", "dia_hora_fix", etc.
-    label: str         # Etiqueta llegible: "Dies distints", "Dia/hora fixat", etc.
+    restriction: str  # Clau interna: "no_mateix_dia", "dia_hora_fix", etc.
+    label: str  # Etiqueta llegible: "Dies distints", "Dia/hora fixat", etc.
     is_hard: bool = True
-    detail: str = ""   # Descripció específica de la violació
+    detail: str = ""  # Descripció específica de la violació
 
 
 class RestrictionEngine:
@@ -55,12 +55,10 @@ class RestrictionEngine:
         self.nivells_actius = list(nivells_actius or [])
 
         # Pre-carregar professors amb horari estricte
-        dures = restriccions.get('restriccions_dures', {})
-        pe = dures.get('professors_horari_estricte', [])
+        dures = restriccions.get("restriccions_dures", {})
+        pe = dures.get("professors_horari_estricte", [])
         if isinstance(pe, dict):
-            self.professors_estrictes: List[str] = [
-                k for k in pe.keys() if not k.startswith('_')
-            ]
+            self.professors_estrictes: List[str] = [k for k in pe.keys() if not k.startswith("_")]
         else:
             self.professors_estrictes = list(pe or [])
 
@@ -97,9 +95,7 @@ class RestrictionEngine:
         data_iso = prefix if _is_iso(prefix) else ""
 
         # 1. Dia/hora fix, slots prohibits, alliberaments
-        if viola_restriccio_dia_hora_fixos(
-            sessio, dia, hora, self.restriccions, self.nivells_actius, data_iso
-        ):
+        if viola_restriccio_dia_hora_fixos(sessio, dia, hora, self.restriccions, self.nivells_actius, data_iso):
             return ViolationResult(
                 restriction="dia_hora_fix",
                 label=ETIQUETES_RESTRICCIONS.get("dia_hora_fix", "Dia/hora fixat"),
@@ -115,9 +111,7 @@ class RestrictionEngine:
             )
 
         # 3. combinacions_permeses
-        if sessions_slot and viola_combinacions_permeses(
-            sessio, sessions_slot, self.restriccions
-        ):
+        if sessions_slot and viola_combinacions_permeses(sessio, sessions_slot, self.restriccions):
             return ViolationResult(
                 restriction="combinacions_permeses",
                 label=ETIQUETES_RESTRICCIONS.get("combinacions_permeses", "Combinació no permesa"),
@@ -135,9 +129,7 @@ class RestrictionEngine:
             )
 
         # 5. Preferència de dia obligatòria (pes >= 100)
-        if dia_sessions is not None and viola_preferencia_dia_obligatoria(
-            sessio, dia, dia_sessions, self.restriccions
-        ):
+        if dia_sessions is not None and viola_preferencia_dia_obligatoria(sessio, dia, dia_sessions, self.restriccions):
             return ViolationResult(
                 restriction="preferencia_dia",
                 label=ETIQUETES_RESTRICCIONS.get("preferencia_dia", "Preferència de dia"),
@@ -147,9 +139,9 @@ class RestrictionEngine:
         # 6. Professors estrictes (requereix analisi pre-computada)
         if analisi and self.professors_estrictes:
             estrictes_afectats: Set[str] = (
-                {i['professor'] for i in analisi.get('abans_jornada', [])} |
-                {i['professor'] for i in analisi.get('despres_jornada', [])} |
-                {i['professor'] for i in analisi.get('no_treballa_dia', [])}
+                {i["professor"] for i in analisi.get("abans_jornada", [])}
+                | {i["professor"] for i in analisi.get("despres_jornada", [])}
+                | {i["professor"] for i in analisi.get("no_treballa_dia", [])}
             ) & set(self.professors_estrictes)
             if estrictes_afectats:
                 return ViolationResult(
@@ -159,4 +151,3 @@ class RestrictionEngine:
                 )
 
         return None
-

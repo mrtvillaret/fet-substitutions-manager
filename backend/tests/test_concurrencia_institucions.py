@@ -8,6 +8,7 @@ petició: amb només dues peticions alhora, prop de la meitat de les respostes
 eren de l'altra institució. Aquí es fa amb un servidor uvicorn de veritat
 (fils i bucle d'esdeveniments reals), no amb el client de test.
 """
+
 import http.client
 import json
 import socket
@@ -22,7 +23,7 @@ from fastapi import APIRouter, Depends
 from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_institucio
 
 import i18n_setup
-from auth_utils import get_current_user
+from auth.dependencies import get_current_user
 from database import get_data_db_session, get_data_dir_for_institucio
 from repositories import ConfiguracioRepository, NoSubstituirRepository
 from routes import settings, vigilancies
@@ -36,8 +37,7 @@ _textos = APIRouter()
 
 @_textos.get("/api/prova/textos")
 def textos(_usuari=Depends(get_current_user)):
-    return {"dia": i18n_setup.translate("Dilluns"), "idioma": i18n_setup.CURRENT_LANGUAGE,
-            "builtins": _("Professor")}  # noqa: F821  (la `_` global que fan servir alguns mòduls)
+    return {"dia": i18n_setup.translate("Dilluns"), "idioma": i18n_setup.CURRENT_LANGUAGE, "builtins": _("Professor")}  # noqa: F821  (la `_` global que fan servir alguns mòduls)
 
 
 def _port_lliure():
@@ -65,15 +65,19 @@ def servidor():
     # pròpia que no se substitueix.
     a, b = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
     (get_data_dir_for_institucio(b) / "teachers.xml").write_bytes(
-        XML_EXEMPLE.read_bytes().replace(b'name="Prof ', b'name="Docent '))
+        XML_EXEMPLE.read_bytes().replace(b'name="Prof ', b'name="Docent ')
+    )
     for inst, activitat, idioma in ((a, "Reunió A", "ca"), (b, "Reunió B", "es")):
         with get_data_db_session(inst) as db:
             NoSubstituirRepository.create(db, activitat)
             ConfiguracioRepository.set(db, "idioma", idioma)
 
     port = _port_lliure()
-    srv = uvicorn.Server(uvicorn.Config(crea_app(vigilancies.router, settings.router, _textos),
-                                        host="127.0.0.1", port=port, log_level="error"))
+    srv = uvicorn.Server(
+        uvicorn.Config(
+            crea_app(vigilancies.router, settings.router, _textos), host="127.0.0.1", port=port, log_level="error"
+        )
+    )
     fil = threading.Thread(target=srv.run, daemon=True)
     fil.start()
     while not srv.started:
@@ -107,7 +111,9 @@ def test_l_horari_no_es_barreja_entre_institucions(servidor):
         return all(p.startswith(esperat) for p in professors) and not any(p.startswith(altre) for p in professors)
 
     resultats = _en_paral·lel(una, [a if i % 2 == 0 else b for i in range(PETICIONS)])
-    assert resultats.count(False) == 0, f"{resultats.count(False)} de {PETICIONS} respostes amb dades de l'altra institució"
+    assert resultats.count(False) == 0, (
+        f"{resultats.count(False)} de {PETICIONS} respostes amb dades de l'altra institució"
+    )
 
 
 def test_les_prioritats_no_es_barregen_entre_institucions(servidor):
@@ -121,13 +127,17 @@ def test_les_prioritats_no_es_barregen_entre_institucions(servidor):
         return dades["no_substituir"] == esperat and dades["institucio"] == inst
 
     resultats = _en_paral·lel(una, [a if i % 2 == 0 else b for i in range(PETICIONS)])
-    assert resultats.count(False) == 0, f"{resultats.count(False)} de {PETICIONS} respostes amb dades de l'altra institució"
+    assert resultats.count(False) == 0, (
+        f"{resultats.count(False)} de {PETICIONS} respostes amb dades de l'altra institució"
+    )
 
 
 def test_l_idioma_no_es_barreja_entre_institucions(servidor):
     port, a, b, galetes = servidor
-    esperat = {a: {"dia": "Dilluns", "idioma": "ca", "builtins": "Professor"},
-               b: {"dia": "Lunes", "idioma": "es", "builtins": "Profesor"}}
+    esperat = {
+        a: {"dia": "Dilluns", "idioma": "ca", "builtins": "Professor"},
+        b: {"dia": "Lunes", "idioma": "es", "builtins": "Profesor"},
+    }
 
     def una(inst):
         estat, cos, _ = _peticio(port, "GET", "/api/prova/textos", galeta=galetes[inst])
@@ -135,4 +145,6 @@ def test_l_idioma_no_es_barreja_entre_institucions(servidor):
         return json.loads(cos) == esperat[inst]
 
     resultats = _en_paral·lel(una, [a if i % 2 == 0 else b for i in range(PETICIONS)])
-    assert resultats.count(False) == 0, f"{resultats.count(False)} de {PETICIONS} respostes en l'idioma de l'altra institució"
+    assert resultats.count(False) == 0, (
+        f"{resultats.count(False)} de {PETICIONS} respostes en l'idioma de l'altra institució"
+    )

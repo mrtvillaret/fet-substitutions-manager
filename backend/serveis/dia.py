@@ -6,6 +6,7 @@ Un dia per a un centre i l'horari (XML) que hi correspon.
 (XMLVersionRepository.vigent). Les rutes el reben amb una dependència
 (dependencies.py): el dia de la petició, el del calendari o el del planificador.
 """
+
 from dataclasses import dataclass
 from datetime import date
 from functools import cached_property

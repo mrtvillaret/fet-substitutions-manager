@@ -1,6 +1,7 @@
 """
 Configuració bàsica del sistema
 """
+
 import json
 import locale
 import logging
@@ -12,6 +13,7 @@ log = logging.getLogger(__name__)
 try:
     from i18n_setup import translate as _
 except ImportError:
+
     def _(text):
         return text
 
@@ -27,7 +29,7 @@ class Config:
 
         self.global_defaults = {
             "institucio": None,  # None = auto-detectar o mostrar diàleg
-            "idioma": self._detect_system_language()
+            "idioma": self._detect_system_language(),
         }
         self.global_data = {}
         self.load_global()
@@ -45,7 +47,7 @@ class Config:
             "export_dir": "exports",
             "data_inici_estadistiques": "2024-07-01",
             "logo_path": "",
-            "idioma": self._detect_system_language()
+            "idioma": self._detect_system_language(),
         }
         self.institucio_data = {}
         self.load_institucio()
@@ -59,7 +61,7 @@ class Config:
     def load_global(self):
         """Carrega configuració global"""
         if self.global_config_file.exists():
-            with open(self.global_config_file, 'r', encoding='utf-8') as f:
+            with open(self.global_config_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
             self.global_data = {**self.global_defaults, **data}
         else:
@@ -92,7 +94,7 @@ class Config:
                 # Assegurar defaults si falten
                 for key, value in self.institucio_defaults.items():
                     if key not in existing:
-                        ConfiguracioRepository.set(db, key, str(value), 'string')
+                        ConfiguracioRepository.set(db, key, str(value), "string")
                         existing[key] = str(value)
 
                 self.institucio_data = {**self.institucio_defaults, **existing}
@@ -102,7 +104,7 @@ class Config:
 
     def save_global(self):
         """Desa configuració global"""
-        with open(self.global_config_file, 'w', encoding='utf-8') as f:
+        with open(self.global_config_file, "w", encoding="utf-8") as f:
             json.dump(self.global_data, f, indent=2, ensure_ascii=False)
 
     def save_institucio(self):
@@ -117,7 +119,7 @@ class Config:
 
             with get_data_db_session(instit) as db:
                 for key, value in self.institucio_data.items():
-                    ConfiguracioRepository.set(db, key, str(value), 'string')
+                    ConfiguracioRepository.set(db, key, str(value), "string")
         except Exception:
             log.warning("No s'ha pogut desar la configuració del centre", exc_info=True)
             return
@@ -137,8 +139,11 @@ class Config:
         """Intercepta canvis per desar-los al diccionari correcte"""
         # Atributs interns de la classe
         internal_attrs = {
-            'global_config_file', 'global_defaults', 'global_data',
-            'institucio_defaults', 'institucio_data'
+            "global_config_file",
+            "global_defaults",
+            "global_data",
+            "institucio_defaults",
+            "institucio_data",
         }
 
         if key in internal_attrs:
@@ -152,7 +157,7 @@ class Config:
                 self.global_data[key] = value
             else:
                 # Clau desconeguda: afegir a institucio_data (més específic)
-                if hasattr(self, 'institucio_data'):
+                if hasattr(self, "institucio_data"):
                     self.institucio_data[key] = value
                 else:
                     object.__setattr__(self, key, value)
@@ -169,12 +174,12 @@ class Config:
             if system_locale:
                 lang_code = system_locale[:2].lower()
                 # Només acceptem ca, es, en
-                if lang_code in ['ca', 'es', 'en']:
+                if lang_code in ["ca", "es", "en"]:
                     return lang_code
         except (ValueError, TypeError):
             pass
         # Fallback a català
-        return 'ca'
+        return "ca"
 
     def detectar_institucio(self, xml_path: str = None) -> str:
         """
@@ -307,7 +312,6 @@ class Config:
 
         return sorted(institucions)
 
-
     def _reload_prioritats(self):
         """Recalcula les prioritats, nivells i abreviatures globals després de canviar d'institució"""
         try:
@@ -383,6 +387,7 @@ class Config:
     def prioritats_path(self) -> Path:
         """Path del fitxer de prioritats de substitucions"""
         return Path(self.data_dir) / "prioritats_substitucions.json"
+
 
 # Instància global
 config = Config()

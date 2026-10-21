@@ -6,6 +6,7 @@ Descriuen el comportament actual (characterization tests). Treballen sobre
 una institució temporal amb l'horari d'exemple. Dilluns 20/04/2026:
   10:00  Prof 48 fa Filosofia amb 1-BAT-A; Prof 15 fa Anglès amb 3-ESO-A
 """
+
 import json
 import uuid
 
@@ -59,11 +60,22 @@ def _examen(grup, assignatura, aula="A01"):
 
 def _horari(*examens_per_curs, hora="10:00"):
     """Horari del planificador amb una sola franja: (curs, [exàmens]) per curs."""
-    return {"dies": [{"dia": "Dilluns", "data": DATA, "sessions": [{
-        "hora": hora,
-        "sessions_simultanees": [{"curs": curs, "nom": curs, "examens": examens}
-                                 for curs, examens in examens_per_curs],
-    }]}]}
+    return {
+        "dies": [
+            {
+                "dia": "Dilluns",
+                "data": DATA,
+                "sessions": [
+                    {
+                        "hora": hora,
+                        "sessions_simultanees": [
+                            {"curs": curs, "nom": curs, "examens": examens} for curs, examens in examens_per_curs
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
 
 
 FILOSOFIA_1BAT = ("1-BAT", [_examen("1-BAT-A", "Filosofia")])
@@ -71,8 +83,11 @@ ANGLES_2BAT = ("2-BAT", [_examen("2-BAT-A", "Anglès", "A02")])
 
 
 def _publica(client, horari, auto_assign=False, netejar=False, **camps):
-    cos = {"horari": horari, "setmanes": SETMANES,
-           "opcions": {"auto_assign_titulars": auto_assign, "netejar_existents": netejar}}
+    cos = {
+        "horari": horari,
+        "setmanes": SETMANES,
+        "opcions": {"auto_assign_titulars": auto_assign, "netejar_existents": netejar},
+    }
     cos.update(camps)
     resp = client.post(URL, json=cos)
     assert resp.status_code == 200, resp.text
@@ -95,22 +110,26 @@ def _grups_alliberats(centre):
 
 def _cobertures_de_vigilancia(client):
     files = client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
-    return [(s["hora"], s["professor_absent"], s["tipus_absencia"]) for s in files
-            if s["tipus_absencia"] in ("VIGILANCIA", "VIGILANCIA_ABSENT")]
+    return [
+        (s["hora"], s["professor_absent"], s["tipus_absencia"])
+        for s in files
+        if s["tipus_absencia"] in ("VIGILANCIA", "VIGILANCIA_ABSENT")
+    ]
 
 
 def _assigna_vigilant(client, grups, vigilant, comentaris=""):
     vig = next(v for v in _vigilancies(client) if v["grups"] == grups)
-    resp = client.put(f"/api/vigilancies/{DATA}/{vig['id']}",
-                      json={"vigilant": vigilant, "comentaris": comentaris, "updated_at": vig["updated_at"]})
+    resp = client.put(
+        f"/api/vigilancies/{DATA}/{vig['id']}",
+        json={"vigilant": vigilant, "comentaris": comentaris, "updated_at": vig["updated_at"]},
+    )
     assert resp.status_code == 200, resp.text
 
 
 def _alliberaments(centre, nivell, hores, seleccionats=None):
     """Hores en què el nivell queda sense classe el dia de l'examen; els
     nivells seleccionats al planificador (per defecte, aquest)."""
-    config = {nivell: {"durada": 1, "dates": [DATA],
-                       "config": {DATA: {h: {"a": True, "i": True} for h in hores}}}}
+    config = {nivell: {"durada": 1, "dates": [DATA], "config": {DATA: {h: {"a": True, "i": True} for h in hores}}}}
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(config), tipus="json")
         ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(seleccionats or [nivell]), tipus="json")
@@ -127,27 +146,35 @@ def _durades(centre, titular=1, examen=1, grups=None):
 
 # ------------------------------------------------------------------ accés
 
+
 def test_nomes_els_admins_poden_publicar(centre):
     resp = _usuari_de(centre, role="user").post(URL, json={"horari": _horari(FILOSOFIA_1BAT), "setmanes": SETMANES})
     assert resp.status_code == 403
 
 
-@pytest.mark.parametrize("cos", [
-    {"horari": {"dies": []}, "setmanes": SETMANES},
-    {"horari": _horari(FILOSOFIA_1BAT), "setmanes": []},
-], ids=["sense dies", "sense setmanes"])
+@pytest.mark.parametrize(
+    "cos",
+    [
+        {"horari": {"dies": []}, "setmanes": SETMANES},
+        {"horari": _horari(FILOSOFIA_1BAT), "setmanes": []},
+    ],
+    ids=["sense dies", "sense setmanes"],
+)
 def test_cal_un_horari_amb_dies_i_setmanes(client, cos):
     assert client.post(URL, json=cos).status_code == 400
 
 
 # ------------------------------------------------------------- vigilàncies
 
+
 def test_crea_una_vigilancia_per_examen(client):
     resultat = _publica(client, _horari(FILOSOFIA_1BAT, ANGLES_2BAT))
     assert resultat["vigilancies_creades"] == 2
     assert resultat["dates_processades"] == [DATA]
-    assert _resum(client) == [("10:00", "1-BAT", "1-BAT-A", "Filosofia", ""),
-                              ("10:00", "2-BAT", "2-BAT-A", "Anglès", "")]
+    assert _resum(client) == [
+        ("10:00", "1-BAT", "1-BAT-A", "Filosofia", ""),
+        ("10:00", "2-BAT", "2-BAT-A", "Anglès", ""),
+    ]
 
 
 def test_un_examen_de_dues_hores_te_vigilancia_a_cada_hora(client, centre):
@@ -175,6 +202,7 @@ def test_la_simulacio_no_desa_res(client, centre):
 
 # ------------------------------------------------------ tornar a publicar
 
+
 def test_tornar_a_publicar_conserva_el_vigilant_i_els_comentaris(client):
     _publica(client, _horari(FILOSOFIA_1BAT))
     _assigna_vigilant(client, "1-BAT-A", "Prof 3", "porta calculadora")
@@ -199,8 +227,10 @@ def test_un_examen_que_ja_no_hi_es_s_esborra_i_no_toca_els_altres_nivells(client
 
     resultat = _publica(client, _horari(("1-BAT", [_examen("1-BAT-B", "Filosofia")])))
     assert (resultat["vigilancies_creades"], resultat["vigilancies_eliminades"]) == (1, 1)
-    assert _resum(client) == [("10:00", "1-BAT", "1-BAT-B", "Filosofia", ""),
-                              ("10:00", "2-BAT", "2-BAT-A", "Anglès", "")]
+    assert _resum(client) == [
+        ("10:00", "1-BAT", "1-BAT-B", "Filosofia", ""),
+        ("10:00", "2-BAT", "2-BAT-A", "Anglès", ""),
+    ]
 
 
 def test_netejar_esborra_totes_les_vigilancies_del_dia(client):
@@ -227,8 +257,9 @@ def test_netejar_tambe_treu_les_cobertures_dels_vigilants_que_ja_no_vigilen(clie
     # Prof 15 vigila i és absent: la vigilància la cobreix la VIGILANCIA_ABSENT.
     _publica(client, _horari(FILOSOFIA_1BAT))
     _assigna_vigilant(client, "1-BAT-A", "Prof 15")
-    resp = client.put(f"/api/substitucions/{DATA}/absencies/Prof 15",
-                      json={"hores_absencia": ["10:00"], "updated_at_map": {}})
+    resp = client.put(
+        f"/api/substitucions/{DATA}/absencies/Prof 15", json={"hores_absencia": ["10:00"], "updated_at_map": {}}
+    )
     assert resp.status_code == 200, resp.text
     assert _cobertures_de_vigilancia(client) == [("10:00", "Prof 15", "VIGILANCIA_ABSENT")]
 
@@ -245,12 +276,17 @@ def test_la_simulacio_no_toca_les_cobertures(client):
 
 # -------------------------------------------------------- grups sense classe
 
+
 def test_marca_sense_classe_els_grups_indicats_a_les_hores_alliberades(client, centre):
     _alliberaments(centre, "1-BAT", ["10:00", "11:30"])
     resultat = _publica(client, _horari(FILOSOFIA_1BAT), grups_sense_classe=["1-BAT-A", "1-BAT-B"])
     assert resultat["grups_alliberats_creats"] == 4
-    assert _grups_alliberats(centre) == [("10:00", "1-BAT-A"), ("10:00", "1-BAT-B"),
-                                         ("11:30", "1-BAT-A"), ("11:30", "1-BAT-B")]
+    assert _grups_alliberats(centre) == [
+        ("10:00", "1-BAT-A"),
+        ("10:00", "1-BAT-B"),
+        ("11:30", "1-BAT-A"),
+        ("11:30", "1-BAT-B"),
+    ]
 
 
 def test_sense_llista_de_grups_marca_els_grups_actius_del_nivell(client, centre):
@@ -259,8 +295,12 @@ def test_sense_llista_de_grups_marca_els_grups_actius_del_nivell(client, centre)
         nivell = Nivell(codi="1-BAT", nom="1-BAT", ordre=0)
         db.add(nivell)
         db.flush()
-        db.add_all([Grup(codi="1-BAT-A", nom="1-BAT-A", nivell_id=nivell.id, ordre=0, actiu=True),
-                    Grup(codi="1-BAT-B", nom="1-BAT-B", nivell_id=nivell.id, ordre=1, actiu=False)])
+        db.add_all(
+            [
+                Grup(codi="1-BAT-A", nom="1-BAT-A", nivell_id=nivell.id, ordre=0, actiu=True),
+                Grup(codi="1-BAT-B", nom="1-BAT-B", nivell_id=nivell.id, ordre=1, actiu=False),
+            ]
+        )
         db.commit()
     _publica(client, _horari(FILOSOFIA_1BAT))
     assert _grups_alliberats(centre) == [("10:00", "1-BAT-A")]
@@ -281,6 +321,7 @@ def test_tornar_a_publicar_no_duplica_els_grups_sense_classe(client, centre):
 
 
 # ------------------------------------------------- titulars com a vigilants
+
 
 @pytest.fixture
 def titular_alliberat(centre):
@@ -314,11 +355,13 @@ def test_sense_l_opcio_no_s_assignen_titulars(client, titular_alliberat):
 # La configuració d'exàmens és la del curs actual: no es pot publicar sobre
 # dates d'un curs anterior (seria escriure damunt de l'històric).
 
+
 @pytest.fixture
 def amb_cursos(centre):
     from datetime import date, timedelta
 
     from repositories import CursRepository
+
     avui = date.today()
     with get_data_db_session(centre) as db:
         CursRepository.create(db, "Curs anterior", avui - timedelta(days=400))
@@ -337,7 +380,8 @@ def test_el_planificador_sap_si_les_dates_son_d_un_curs_anterior(client, amb_cur
     avui = amb_cursos.isoformat()
     assert client.get("/api/scheduler/curs-dates", params={"dates": avui}).json() == {"curs_anterior": None}
     assert client.get("/api/scheduler/curs-dates", params={"dates": f"{DATA},{avui}"}).json() == {
-        "curs_anterior": {"cursos": ["Curs anterior"], "curs_actual": "Curs actual"}}
+        "curs_anterior": {"cursos": ["Curs anterior"], "curs_actual": "Curs actual"}
+    }
 
 
 def test_sense_cursos_definits_no_es_comprova(client):
@@ -346,15 +390,31 @@ def test_sense_cursos_definits_no_es_comprova(client):
 
 # ------------------------------------- durades de l'examen i del titular
 
+
 def _horari_amb_nom(nom, hora="10:00"):
     """Una sola franja amb l'examen de Filosofia de 1-BAT amb nom de sessió `nom`."""
-    return {"dies": [{"dia": "Dilluns", "data": DATA, "sessions": [{"hora": hora, "sessions_simultanees": [
-        {"curs": "1-BAT", "nom": nom, "examens": [_examen("1-BAT-A", "Filosofia")]}]}]}]}
+    return {
+        "dies": [
+            {
+                "dia": "Dilluns",
+                "data": DATA,
+                "sessions": [
+                    {
+                        "hora": hora,
+                        "sessions_simultanees": [
+                            {"curs": "1-BAT", "nom": nom, "examens": [_examen("1-BAT-A", "Filosofia")]}
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
 
 
 def test_un_examen_te_vigilancia_a_totes_les_hores_del_seu_grup_de_durada(client, centre):
-    _durades(centre, titular=1, examen=1,
-             grups=[{"assignatures": ["Filosofia (1-BAT)"], "durada": 1, "durada_examen": 2}])
+    _durades(
+        centre, titular=1, examen=1, grups=[{"assignatures": ["Filosofia (1-BAT)"], "durada": 1, "durada_examen": 2}]
+    )
     _publica(client, _horari_amb_nom("Filosofia (1-BAT)", hora="08:00"))
     assert [v[0] for v in _resum(client)] == ["08:00", "09:00"]
     # Un altre examen sense grup de durada: la durada general (1 hora)
@@ -369,8 +429,10 @@ def test_el_titular_vigila_les_hores_de_l_examen_en_que_esta_disponible(client, 
     _durades(centre, titular=1, examen=2)
     resultat = _publica(client, _horari(FILOSOFIA_1BAT, hora="09:00"), auto_assign=True, grups_sense_classe=["1-BAT-A"])
     assert resultat["titulars_assignats"] == 1
-    assert _resum(client) == [("09:00", "1-BAT", "1-BAT-A", "Filosofia", ""),
-                              ("10:00", "1-BAT", "1-BAT-A", "Filosofia", "Prof 48")]
+    assert _resum(client) == [
+        ("09:00", "1-BAT", "1-BAT-A", "Filosofia", ""),
+        ("10:00", "1-BAT", "1-BAT-A", "Filosofia", "Prof 48"),
+    ]
 
 
 def test_en_una_hora_lliure_no_s_assigna_el_titular(client, centre, titular_alliberat):
@@ -378,11 +440,14 @@ def test_en_una_hora_lliure_no_s_assigna_el_titular(client, centre, titular_alli
     _alliberaments(centre, "1-BAT", ["10:00", "PATI"])
     _durades(centre, titular=1, examen=2)
     _publica(client, _horari(FILOSOFIA_1BAT), auto_assign=True, grups_sense_classe=["1-BAT-A"])
-    assert _resum(client) == [("10:00", "1-BAT", "1-BAT-A", "Filosofia", "Prof 48"),
-                              ("PATI", "1-BAT", "1-BAT-A", "Filosofia", "")]
+    assert _resum(client) == [
+        ("10:00", "1-BAT", "1-BAT-A", "Filosofia", "Prof 48"),
+        ("PATI", "1-BAT", "1-BAT-A", "Filosofia", ""),
+    ]
 
 
 # ------------------------------------- grups sense classe: hores marcades
+
 
 def test_s_alliberen_les_hores_marcades_encara_que_no_hi_hagi_examen_a_aquella_hora(client, centre):
     _alliberaments(centre, "1-BAT", ["09:00", "10:00", "11:30"])
@@ -391,12 +456,14 @@ def test_s_alliberen_les_hores_marcades_encara_que_no_hi_hagi_examen_a_aquella_h
 
 
 def test_s_allibera_un_nivell_seleccionat_amb_marques_encara_que_no_tingui_examen_aquell_dia(client, centre):
-    config = {niv: {"durada": 1, "dates": [DATA], "config": {DATA: {"10:00": {"a": True, "i": True}}}}
-              for niv in ("1-BAT", "2-BAT")}
+    config = {
+        niv: {"durada": 1, "dates": [DATA], "config": {DATA: {"10:00": {"a": True, "i": True}}}}
+        for niv in ("1-BAT", "2-BAT")
+    }
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(config), tipus="json")
         ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(["1-BAT", "2-BAT"]), tipus="json")
-    _publica(client, _horari(FILOSOFIA_1BAT), grups_sense_classe=["1-BAT-A", "2-BAT-A"])   # només examen de 1-BAT
+    _publica(client, _horari(FILOSOFIA_1BAT), grups_sense_classe=["1-BAT-A", "2-BAT-A"])  # només examen de 1-BAT
     assert _grups_alliberats(centre) == [("10:00", "1-BAT-A"), ("10:00", "2-BAT-A")]
 
 

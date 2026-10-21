@@ -11,7 +11,7 @@ DOMAINS = ["messages", "gui", "core", "export", "utils", "manual"]
 LOCALE_DIR = os.path.join(os.path.dirname(__file__), "locales")
 
 # Idioma per defecte (fora d'una petició: arrencada, scripts)
-IDIOMA_PER_DEFECTE = 'ca'
+IDIOMA_PER_DEFECTE = "ca"
 
 # Idioma de la petició en curs. Un mateix backend pot servir institucions amb
 # idiomes diferents: si l'idioma fos global, dues peticions simultànies el
@@ -32,9 +32,9 @@ def _carrega(language: str):
         translations = []
         for domain in DOMAINS:
             try:
-                translations.append(gettext.translation(
-                    domain, localedir=LOCALE_DIR, languages=[language], fallback=True
-                ))
+                translations.append(
+                    gettext.translation(domain, localedir=LOCALE_DIR, languages=[language], fallback=True)
+                )
             except FileNotFoundError:
                 logging.warning(f"No s'ha trobat el domini '{domain}' per a l'idioma '{language}'")
         if translations:
@@ -60,7 +60,7 @@ def idioma_actual() -> str:
     return _idioma_peticio.get() or IDIOMA_PER_DEFECTE
 
 
-def setup_translation(language: str = 'ca'):
+def setup_translation(language: str = "ca"):
     """Fixa l'idioma de la petició en curs (o del context on es cridi) i en
     carrega les traduccions si cal.
 

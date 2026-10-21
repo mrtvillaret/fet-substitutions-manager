@@ -1,6 +1,7 @@
 """
 Gestor d'horaris XML per al backend web - Llegeix configuració de SQLite
 """
+
 import logging
 import xml.etree.ElementTree as ET
 from typing import Dict, Optional, Set
@@ -10,8 +11,10 @@ log = logging.getLogger(__name__)
 try:
     from i18n_setup import translate as _
 except ImportError:
+
     def _(text):
         return text
+
 
 class GestorHorariWeb:
     """Gestor d'horaris amb límit de professor i consolidació de grups múltiples - Versió Web"""
@@ -30,7 +33,7 @@ class GestorHorariWeb:
         self.tots_grups = set()  # TOTS els grups detectats a l'XML (per al selector)
         self.tots_grups_raw = set()  # TOTS els grups detectats, versió RAW
         self.hores = []  # Hores extretes del XML en ordre cronològic
-        self.dies = []   # Dies extrets del XML
+        self.dies = []  # Dies extrets del XML
         self._abreviatures_cache = None  # Cache d'abreviatures de la BD
         self._grups_amagats = None  # Grups amagats (llista d'exclusió; buit = cap)
         self.carregar()
@@ -64,10 +67,7 @@ class GestorHorariWeb:
             with get_db_session() as db:
                 abreviatures_list = AbreviaturaGrupRepository.get_all(db)
                 # Convertir a diccionari {grups_originals: abreviatura}
-                self._abreviatures_cache = {
-                    item['grups_originals']: item['abreviatura']
-                    for item in abreviatures_list
-                }
+                self._abreviatures_cache = {item["grups_originals"]: item["abreviatura"] for item in abreviatures_list}
                 log.debug(f"✅ Carregades {len(self._abreviatures_cache)} abreviatures de grups des de BD")
                 return self._abreviatures_cache
         except Exception as e:
@@ -76,11 +76,11 @@ class GestorHorariWeb:
 
     def _normalitzar_llista_grups(self, grups_string: str) -> str:
         """Normalitza una llista de grups separats per comes ordenant-los alfabèticament"""
-        if not grups_string or ',' not in grups_string:
+        if not grups_string or "," not in grups_string:
             return grups_string.strip()
 
-        grups = [g.strip() for g in grups_string.split(',')]
-        return ','.join(sorted(grups))
+        grups = [g.strip() for g in grups_string.split(",")]
+        return ",".join(sorted(grups))
 
     def _aplicar_abreviatura(self, grups_string: str) -> str:
         """Aplica abreviatures llegint de la BD en lloc del JSON"""
@@ -129,9 +129,15 @@ class GestorHorariWeb:
                 try:
                     index_limit = tots_professors.index(ultim_prof) + 1
                     self.professors = tots_professors[:index_limit]
-                    log.debug(_("Aplicat límit de professor: fins '{professor}' ({count} professors)").format(professor=ultim_prof, count=index_limit))
+                    log.debug(
+                        _("Aplicat límit de professor: fins '{professor}' ({count} professors)").format(
+                            professor=ultim_prof, count=index_limit
+                        )
+                    )
                 except ValueError:
-                    log.debug(_("Professor límit '{professor}' no trobat, en carregar tots").format(professor=ultim_prof))
+                    log.debug(
+                        _("Professor límit '{professor}' no trobat, en carregar tots").format(professor=ultim_prof)
+                    )
                     self.professors = tots_professors
             else:
                 log.debug(_("Sense límit de professor o '{professor}' no trobat").format(professor=ultim_prof))
@@ -187,7 +193,7 @@ class GestorHorariWeb:
                             "assignatura": subject,
                             "grup": students_consolidat,
                             "aula": room,
-                            "tags": tags
+                            "tags": tags,
                         }
 
             # Extreure dies i hores del horari processat (mantenint ordre del XML)
@@ -203,11 +209,16 @@ class GestorHorariWeb:
                         hores_ordenades.append(hora)
             self.hores = hores_ordenades
 
-            log.debug(_("Horari carregat: {prof_count} professors, {grup_count} grups").format(prof_count=len(self.professors), grup_count=len(self.grups)))
+            log.debug(
+                _("Horari carregat: {prof_count} professors, {grup_count} grups").format(
+                    prof_count=len(self.professors), grup_count=len(self.grups)
+                )
+            )
 
         except Exception as e:
             log.warning(_("Error en carregar horari: {error}").format(error=e))
             raise
+
     def _consolidar_students_raw(self, hour_elem) -> str:
         """
         Retorna els grups RAW combinats per comes, SENSE aplicar abreviatures.
@@ -276,13 +287,13 @@ class GestorHorariWeb:
         idioma = self._detectar_idioma_xml()
 
         caps_setmana = {
-            'ca': [_('Dissabte'), _('Diumenge')],
-            'es': [_('Sábado'), _('Domingo')],
-            'en': [_('Saturday'), _('Sunday')],
-            'fr': [_('Samedi'), _('Dimanche')],
+            "ca": [_("Dissabte"), _("Diumenge")],
+            "es": [_("Sábado"), _("Domingo")],
+            "en": [_("Saturday"), _("Sunday")],
+            "fr": [_("Samedi"), _("Dimanche")],
         }
 
-        noms = caps_setmana.get(idioma, caps_setmana['ca'])  # Fallback a català
+        noms = caps_setmana.get(idioma, caps_setmana["ca"])  # Fallback a català
 
         if weekday_index == 5:
             return noms[0]  # Dissabte/Sábado/Saturday
@@ -297,21 +308,21 @@ class GestorHorariWeb:
         Returns: 'ca', 'es', 'en', 'fr' o 'ca' (per defecte)
         """
         if not self.dies:
-            return 'ca'
+            return "ca"
 
         primer_dia = self.dies[0].lower()
 
         # Detecta per primer dia (dilluns/lunes/monday/lundi)
-        if 'dilluns' in primer_dia or 'dimarts' in (self.dies[1].lower() if len(self.dies) > 1 else ''):
-            return 'ca'
-        elif 'lunes' in primer_dia or 'martes' in (self.dies[1].lower() if len(self.dies) > 1 else ''):
-            return 'es'
-        elif 'monday' in primer_dia or 'tuesday' in (self.dies[1].lower() if len(self.dies) > 1 else ''):
-            return 'en'
-        elif 'lundi' in primer_dia or 'mardi' in (self.dies[1].lower() if len(self.dies) > 1 else ''):
-            return 'fr'
+        if "dilluns" in primer_dia or "dimarts" in (self.dies[1].lower() if len(self.dies) > 1 else ""):
+            return "ca"
+        elif "lunes" in primer_dia or "martes" in (self.dies[1].lower() if len(self.dies) > 1 else ""):
+            return "es"
+        elif "monday" in primer_dia or "tuesday" in (self.dies[1].lower() if len(self.dies) > 1 else ""):
+            return "en"
+        elif "lundi" in primer_dia or "mardi" in (self.dies[1].lower() if len(self.dies) > 1 else ""):
+            return "fr"
 
-        return 'ca'  # Fallback a català
+        return "ca"  # Fallback a català
 
     def get_activitat(self, dia: str, hora: str, professor: str) -> Optional[Dict]:
         """Obté l'activitat d'un professor"""
@@ -326,12 +337,11 @@ class GestorHorariWeb:
         ultima = None
         for hora in self.hores:
             activitat = dia_data.get(hora, {}).get(professor)
-            if activitat and activitat.get('assignatura', ''):
+            if activitat and activitat.get("assignatura", ""):
                 if primera is None:
                     primera = hora
                 ultima = hora
         return (primera, ultima)
-
 
     def get_all_subjects(self) -> Set[str]:
         """
@@ -364,4 +374,3 @@ class GestorHorariWeb:
                     if aula and aula.strip():  # Només aules no buides
                         aules.add(aula.strip())
         return aules
-

@@ -2,6 +2,7 @@
 Tests de _calcula_impacte_csv (routes/config_examens.py): el càlcul de
 dry-run per a la importació CSV, sense escriure res a la BD.
 """
+
 from models import Professor
 from repositories import MasterConfigRepository
 from routes.config_examens import _calcula_impacte_csv

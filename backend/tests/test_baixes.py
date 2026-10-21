@@ -3,6 +3,7 @@ professors_de_baixa (core/baixes.py): la funció única que diu qui és de baixa
 en una data. Abans era copiada a deu llocs, i una sola baixa amb dates mal
 escrites aturava el bucle: els professors que venien després no comptaven.
 """
+
 from datetime import date, datetime
 
 from core.baixes import professors_de_baixa
@@ -27,6 +28,8 @@ def test_accepta_date_datetime_i_text():
 
 
 def test_una_baixa_mal_escrita_no_atura_les_altres():
-    baixes = [{"professor": "Prof 9", "data_inici": "01/04/2026", "data_final": "2026-04-30"},
-              {"professor": "Prof 8"}] + BAIXES
+    baixes = [
+        {"professor": "Prof 9", "data_inici": "01/04/2026", "data_final": "2026-04-30"},
+        {"professor": "Prof 8"},
+    ] + BAIXES
     assert professors_de_baixa(baixes, "2026-04-20") == {"Prof 1", "Prof 2"}

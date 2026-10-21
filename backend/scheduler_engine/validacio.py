@@ -58,43 +58,39 @@ class ValidadorHorari:
         self.logs: Set[str] = set()
 
         # Extreure pesos amb el mateix criteri que el cost final (només costos_professors + pesos_optimitzacio)
-        pesos_opt = restriccions.get('pesos_optimitzacio', {})
-        costos_globals = (restriccions.get('costos_professors', {}) or {}).get('globals', {})
-        self.pes_sub = costos_globals.get('substitucio', DEFAULT_COST_PROFESSORS["substitucio"])
-        self.pes_abans = costos_globals.get('abans_jornada', DEFAULT_COST_PROFESSORS["abans_jornada"])
-        self.pes_despres = costos_globals.get('despres_jornada', DEFAULT_COST_PROFESSORS["despres_jornada"])
-        self.pes_restriccio_dura = pesos_opt.get('restriccio_dura', 1000)
-        self.pes_restriccio_dura_violada = pesos_opt.get(
-            'restriccio_dura_violada',
-            self.pes_restriccio_dura
-        )
-        self.pes_dies_diferents = pesos_opt.get('preferencia_dies_diferents', 500)
+        pesos_opt = restriccions.get("pesos_optimitzacio", {})
+        costos_globals = (restriccions.get("costos_professors", {}) or {}).get("globals", {})
+        self.pes_sub = costos_globals.get("substitucio", DEFAULT_COST_PROFESSORS["substitucio"])
+        self.pes_abans = costos_globals.get("abans_jornada", DEFAULT_COST_PROFESSORS["abans_jornada"])
+        self.pes_despres = costos_globals.get("despres_jornada", DEFAULT_COST_PROFESSORS["despres_jornada"])
+        self.pes_restriccio_dura = pesos_opt.get("restriccio_dura", 1000)
+        self.pes_restriccio_dura_violada = pesos_opt.get("restriccio_dura_violada", self.pes_restriccio_dura)
+        self.pes_dies_diferents = pesos_opt.get("preferencia_dies_diferents", 500)
 
         # Pre-calcular estructures
-        self.mateix_slot_grups = _mateix_slot_groups(
-            restriccions.get('restriccions_dures', {}).get('mateix_slot', [])
-        )
-        _nms_raw = restriccions.get('restriccions_dures', {}).get('no_mateix_slot', {})
+        self.mateix_slot_grups = _mateix_slot_groups(restriccions.get("restriccions_dures", {}).get("mateix_slot", []))
+        _nms_raw = restriccions.get("restriccions_dures", {}).get("no_mateix_slot", {})
         self.no_mateix_slot_grups: Dict[str, list] = {
-            k: v for k, v in (_nms_raw.items() if isinstance(_nms_raw, dict) else {}.items())
-            if not k.startswith('_') and isinstance(v, list)
+            k: v
+            for k, v in (_nms_raw.items() if isinstance(_nms_raw, dict) else {}.items())
+            if not k.startswith("_") and isinstance(v, list)
         }
-        _nmd_raw = restriccions.get('restriccions_dures', {}).get('no_mateix_dia', [])
+        _nmd_raw = restriccions.get("restriccions_dures", {}).get("no_mateix_dia", [])
         self.no_mateix_dia_grups: List[dict] = []
-        for r in (_nmd_raw if isinstance(_nmd_raw, list) else []):
+        for r in _nmd_raw if isinstance(_nmd_raw, list) else []:
             if isinstance(r, dict):
-                assigs = r.get('assignatures', [])
-                pes = r.get('pes', 100)
+                assigs = r.get("assignatures", [])
+                pes = r.get("pes", 100)
             else:
                 assigs = list(r)
                 pes = 100
             if assigs:
-                self.no_mateix_dia_grups.append({'assignatures': assigs, 'pes': pes})
+                self.no_mateix_dia_grups.append({"assignatures": assigs, "pes": pes})
 
-        self.combinacions_permeses = restriccions.get('restriccions_dures', {}).get('combinacions_permeses', [])
+        self.combinacions_permeses = restriccions.get("restriccions_dures", {}).get("combinacions_permeses", [])
         self.combinacions_sets = []
         for c in self.combinacions_permeses:
-            assigs = c.get('assignatures', []) if isinstance(c, dict) else c
+            assigs = c.get("assignatures", []) if isinstance(c, dict) else c
             self.combinacions_sets.append({_nom_base_assignatura(a) for a in assigs})
 
         self.assignatures_ubicacio: Dict[str, list] = {}
@@ -123,43 +119,38 @@ class ValidadorHorari:
         """Crea mapes: assignatura -> [(dia, hora)] i assignatura -> {dia} per validació."""
         if not self.mateix_slot_grups and not self.no_mateix_slot_grups and not self.no_mateix_dia_grups:
             return
-        for dia in self.horari.get('dies', []):
-            dia_clau = dia.get('data') or dia.get('dia', '')
-            for slot in dia.get('sessions', []):
-                for sessio in slot.get('sessions_simultanees', []):
-                    nom = sessio.get('nom')
-                    nom_base = sessio.get('nom_base')
+        for dia in self.horari.get("dies", []):
+            dia_clau = dia.get("data") or dia.get("dia", "")
+            for slot in dia.get("sessions", []):
+                for sessio in slot.get("sessions_simultanees", []):
+                    nom = sessio.get("nom")
+                    nom_base = sessio.get("nom_base")
                     if nom:
-                        self.assignatures_ubicacio.setdefault(nom, []).append(
-                            (dia_clau, slot['hora'])
-                        )
+                        self.assignatures_ubicacio.setdefault(nom, []).append((dia_clau, slot["hora"]))
                         self.assignatures_per_dia.setdefault(nom, set()).add(dia_clau)
                     if nom_base:
-                        self.assignatures_ubicacio.setdefault(nom_base, []).append(
-                            (dia_clau, slot['hora'])
-                        )
+                        self.assignatures_ubicacio.setdefault(nom_base, []).append((dia_clau, slot["hora"]))
                         self.assignatures_per_dia.setdefault(nom_base, set()).add(dia_clau)
 
     def _detectar_conflictes_professors(self):
         """Detecta professors amb múltiples exàmens al mateix slot."""
-        for dia in self.horari.get('dies', []):
-            for slot in dia.get('sessions', []):
+        for dia in self.horari.get("dies", []):
+            for slot in dia.get("sessions", []):
                 professors_slot: Dict[str, list] = {}
-                for sessio in slot.get('sessions_simultanees', []):
-                    nivell = sessio.get('curs', '')
-                    assignatura_base = sessio.get('nom_base') or sessio.get('nom')
-                    for examen in sessio.get('examens', []):
-                        prof = examen.get('titular')
+                for sessio in slot.get("sessions_simultanees", []):
+                    nivell = sessio.get("curs", "")
+                    assignatura_base = sessio.get("nom_base") or sessio.get("nom")
+                    for examen in sessio.get("examens", []):
+                        prof = examen.get("titular")
                         if prof and prof != "":
-                            professors_slot.setdefault(prof, []).append({
-                                'assignatura': assignatura_base,
-                                'nivell': nivell
-                            })
+                            professors_slot.setdefault(prof, []).append(
+                                {"assignatura": assignatura_base, "nivell": nivell}
+                            )
 
                 for prof, examens_prof in professors_slot.items():
                     if len(examens_prof) <= 1:
                         continue
-                    parelles = {(e['assignatura'], e['nivell']) for e in examens_prof}
+                    parelles = {(e["assignatura"], e["nivell"]) for e in examens_prof}
                     assignatures_uniques = list({a for a, _ in parelles})
                     nivells_unics = list({n for _, n in parelles})
 
@@ -167,14 +158,17 @@ class ValidadorHorari:
                         msg = f"🔗 ENLLAÇ: {prof} → gestiona {len(assignatures_uniques)} exàmens de {nivells_unics[0]} a {slot.get('hora')} el {dia.get('dia')}: {', '.join(assignatures_uniques)}"
                         self.logs.add(_log_with_score(msg, 0))
                     else:
-                        detalls = ', '.join(sorted({f"{a} ({n})" for a, n in parelles}))
+                        detalls = ", ".join(sorted({f"{a} ({n})" for a, n in parelles}))
                         msg = f"⚠️ AVÍS: {prof} → té exàmens de nivells diferents a {slot.get('hora')} el {dia.get('dia')}: {detalls}"
                         # Calcular cost real si hi ha restricció no_mateix_slot per alguna parella
                         score_avis = 0
                         assigs_amb_nivell = list({f"{a} ({n})" for a, n in parelles})
                         for nom_grup, grup_assigs in self.no_mateix_slot_grups.items():
-                            matching = [a for a in assigs_amb_nivell
-                                        if a in grup_assigs or _nom_base_assignatura(a) in grup_assigs]
+                            matching = [
+                                a
+                                for a in assigs_amb_nivell
+                                if a in grup_assigs or _nom_base_assignatura(a) in grup_assigs
+                            ]
                             if len(matching) >= 2:
                                 pct = percent_no_mateix_slot(self.restriccions, nom_grup)
                                 score_avis = max(score_avis, _percent_penalty(self.pes_restriccio_dura, pct))
@@ -185,29 +179,27 @@ class ValidadorHorari:
 
     def _detectar_conflictes_alumnes(self):
         """Detecta alumnes amb múltiples exàmens simultanis (excloent optatives i combinacions permeses)."""
-        for dia in self.horari.get('dies', []):
-            for slot in dia.get('sessions', []):
+        for dia in self.horari.get("dies", []):
+            for slot in dia.get("sessions", []):
                 cursos_slot: Dict[str, list] = {}
-                for sessio in slot.get('sessions_simultanees', []):
-                    curs = sessio.get('curs')
+                for sessio in slot.get("sessions_simultanees", []):
+                    curs = sessio.get("curs")
                     if curs:
-                        cursos_slot.setdefault(curs, []).append(sessio.get('nom'))
+                        cursos_slot.setdefault(curs, []).append(sessio.get("nom"))
 
                 for curs, assignatures in cursos_slot.items():
                     if len(assignatures) <= 1:
                         continue
 
                     totes_mateix_grup = any(
-                        all(_assig_in_group(assig, grup) for assig in assignatures)
-                        for grup in self.mateix_slot_grups
+                        all(_assig_in_group(assig, grup) for assig in assignatures) for grup in self.mateix_slot_grups
                     )
 
                     es_combinacio_permesa = False
                     if not totes_mateix_grup and self.combinacions_sets:
                         assig_noms = {_nom_base_assignatura(a) for a in assignatures}
                         es_combinacio_permesa = any(
-                            assig_noms.issubset(comb_set)
-                            for comb_set in self.combinacions_sets
+                            assig_noms.issubset(comb_set) for comb_set in self.combinacions_sets
                         )
 
                     if not totes_mateix_grup and not es_combinacio_permesa:
@@ -224,30 +216,27 @@ class ValidadorHorari:
             if noms:
                 mateix_slot_sets.append(noms)
 
-        for dia in self.horari.get('dies', []):
-            for slot in dia.get('sessions', []):
+        for dia in self.horari.get("dies", []):
+            for slot in dia.get("sessions", []):
                 per_nivell: Dict[str, list] = {}
-                for sessio in slot.get('sessions_simultanees', []):
-                    curs = sessio.get('curs', '')
+                for sessio in slot.get("sessions_simultanees", []):
+                    curs = sessio.get("curs", "")
                     if curs:
                         per_nivell.setdefault(curs, []).append(sessio)
 
                 for curs, sess_list in per_nivell.items():
                     if len(sess_list) <= 1:
                         continue
-                    noms_slot = {
-                        _nom_base_assignatura(s.get('nom_base') or s.get('nom', ''))
-                        for s in sess_list if s
-                    }
+                    noms_slot = {_nom_base_assignatura(s.get("nom_base") or s.get("nom", "")) for s in sess_list if s}
                     if not noms_slot:
                         continue
                     if any(noms_slot.issubset(grup) for grup in mateix_slot_sets):
                         continue
                     if any(noms_slot.issubset(comb) for comb in self.combinacions_sets):
                         continue
-                    noms_txt = ', '.join(sorted(noms_slot))
+                    noms_txt = ", ".join(sorted(noms_slot))
                     for sessio in sess_list:
-                        sessio_nom = sessio.get('nom_base') or sessio.get('nom', '')
+                        sessio_nom = sessio.get("nom_base") or sessio.get("nom", "")
                         msg = f"🚫 COMBINACIÓ NO PERMESA: {curs} → {slot.get('hora')} el {dia.get('dia')}: {sessio_nom} amb {noms_txt}"
                         self.logs.add(_log_with_score(msg, self.pes_restriccio_dura))
 
@@ -261,9 +250,9 @@ class ValidadorHorari:
 
             if len(ubicacions) > 1:
                 percent = 100
-                for g in self.restriccions.get('restriccions_dures', {}).get('mateix_slot', []):
-                    if isinstance(g, dict) and set(g.get('assignatures', [])) == set(grup):
-                        percent = _percent_value(g.get('pes', 100))
+                for g in self.restriccions.get("restriccions_dures", {}).get("mateix_slot", []):
+                    if isinstance(g, dict) and set(g.get("assignatures", [])) == set(grup):
+                        percent = _percent_value(g.get("pes", 100))
                         break
                 score = _percent_penalty(self.pes_restriccio_dura, percent)
                 msg = f"⚠️ VIOLACIÓ 'mateix_slot': {', '.join(grup)} haurien d'estar juntes però estan separades:"
@@ -288,21 +277,21 @@ class ValidadorHorari:
                     if not slots_b:
                         continue
                     collisions = set(slots_a).intersection(slots_b)
-                    for (dia, hora) in collisions:
-                        msg = (f"⚠️ VIOLACIÓ 'no_mateix_slot': {assig_a} i {assig_b} "
-                               f"coincideixen a {hora} el {dia}")
+                    for dia, hora in collisions:
+                        msg = f"⚠️ VIOLACIÓ 'no_mateix_slot': {assig_a} i {assig_b} coincideixen a {hora} el {dia}"
                         self.logs.add(_log_with_score(msg, score))
 
     def _comprovar_no_mateix_dia(self):
         """Comprova que assignatures amb no_mateix_dia no coincideixin al mateix dia."""
         for grup in self.no_mateix_dia_grups:
-            assignatures = grup['assignatures']
-            pes = grup['pes']
+            assignatures = grup["assignatures"]
+            pes = grup["pes"]
             score = _percent_penalty(self.pes_restriccio_dura, pes)
 
-            assigs_list = [(a, self.assignatures_per_dia.get(a) or
-                            self.assignatures_per_dia.get(_nom_base_assignatura(a), set()))
-                           for a in assignatures]
+            assigs_list = [
+                (a, self.assignatures_per_dia.get(a) or self.assignatures_per_dia.get(_nom_base_assignatura(a), set()))
+                for a in assignatures
+            ]
             for i in range(len(assigs_list)):
                 assig_a, dies_a = assigs_list[i]
                 if not dies_a:
@@ -312,8 +301,7 @@ class ValidadorHorari:
                     if not dies_b:
                         continue
                     for dia in dies_a & dies_b:
-                        msg = (f"⚠️ VIOLACIÓ 'no_mateix_dia': {assig_a} i {assig_b} "
-                               f"coincideixen el {dia}")
+                        msg = f"⚠️ VIOLACIÓ 'no_mateix_dia': {assig_a} i {assig_b} coincideixen el {dia}"
                         self.logs.add(_log_with_score(msg, score))
 
     def _comprovar_limits_dies(self):
@@ -321,11 +309,9 @@ class ValidadorHorari:
         if any("LÍMIT DIES:" in linia for linia in self.horari.get("metadata", {}).get("logs", [])):
             return  # El motor ja ha generat aquests logs
 
-        professors_limits = self.restriccions.get('restriccions_dures', {}).get(
-            'professors_limit_dies_especifics', {}
-        )
+        professors_limits = self.restriccions.get("restriccions_dures", {}).get("professors_limit_dies_especifics", {})
         if isinstance(professors_limits, dict):
-            professors_limits = {k: v for k, v in professors_limits.items() if not k.startswith('_')}
+            professors_limits = {k: v for k, v in professors_limits.items() if not k.startswith("_")}
         else:
             professors_limits = {}
 
@@ -333,20 +319,20 @@ class ValidadorHorari:
             return
 
         sessions_per_dia: Dict[str, list] = {}
-        for dia in self.horari.get('dies', []):
+        for dia in self.horari.get("dies", []):
             sessions = []
-            for slot in dia.get('sessions', []):
-                sessions.extend(slot.get('sessions_simultanees', []))
-            sessions_per_dia[dia.get('dia')] = sessions
+            for slot in dia.get("sessions", []):
+                sessions.extend(slot.get("sessions_simultanees", []))
+            sessions_per_dia[dia.get("dia")] = sessions
 
         for prof, config_prof in professors_limits.items():
-            assignatures_restringides = config_prof.get('assignatures', [])
-            dies_restringits = config_prof.get('dies_restringits', [])
-            max_examens = config_prof.get('max_examens')
+            assignatures_restringides = config_prof.get("assignatures", [])
+            dies_restringits = config_prof.get("dies_restringits", [])
+            max_examens = config_prof.get("max_examens")
             if max_examens is None:
                 continue
             max_examens = int(max_examens)
-            _v = config_prof.get('pes_penalitzacio')
+            _v = config_prof.get("pes_penalitzacio")
             pes_penalitzacio = int(_v) if _v is not None else 50
             if not assignatures_restringides or not dies_restringits:
                 continue
@@ -355,10 +341,10 @@ class ValidadorHorari:
             per_day: Dict[str, int] = {}
             for dia_check in dies_restringits:
                 for sessio in sessions_per_dia.get(dia_check, []):
-                    profs = {e.get('titular') for e in sessio.get('examens', []) if e.get('titular')}
+                    profs = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
                     if prof not in profs:
                         continue
-                    nom_sessio = sessio.get('nom', '')
+                    nom_sessio = sessio.get("nom", "")
                     if _assig_in_group(nom_sessio, assignatures_restringides):
                         count_examens += 1
                         per_day[dia_check] = per_day.get(dia_check, 0) + 1
@@ -366,21 +352,23 @@ class ValidadorHorari:
             excedent = count_examens - max_examens
             if excedent > 0:
                 score = _percent_penalty(self.pes_restriccio_dura_violada, pes_penalitzacio) * excedent
-                dies_txt = ", ".join([f"{d}({per_day[d]})" for d in per_day]) if per_day else ", ".join(dies_restringits)
+                dies_txt = (
+                    ", ".join([f"{d}({per_day[d]})" for d in per_day]) if per_day else ", ".join(dies_restringits)
+                )
                 msg = f"🚨 LÍMIT DIES: {prof} → {count_examens} exàmens en {dies_txt} (màx {max_examens}, pes {pes_penalitzacio}%)"
                 self.logs.add(_log_with_score(msg, score))
 
     def _comprovar_dies_diferents(self):
         """Comprova preferència que assignatures estiguin en dies diferents."""
-        dies_diferents_grups = self.restriccions.get('preferencies', {}).get('dies_diferents', [])
+        dies_diferents_grups = self.restriccions.get("preferencies", {}).get("dies_diferents", [])
         if not dies_diferents_grups:
             return
 
         for grup in dies_diferents_grups:
-            assignatures = grup.get('assignatures', []) if isinstance(grup, dict) else grup
+            assignatures = grup.get("assignatures", []) if isinstance(grup, dict) else grup
             if not assignatures or len(assignatures) < 2:
                 continue
-            percent = grup.get('pes', 0) if isinstance(grup, dict) else 0
+            percent = grup.get("pes", 0) if isinstance(grup, dict) else 0
             score = _percent_penalty(self.pes_dies_diferents, percent)
 
             ubicacions_dia: Dict[str, list] = {}
@@ -405,67 +393,79 @@ class ValidadorHorari:
         la mateixa que compten els motors.
         """
         from scheduler_engine.core.scoring import pes_professor
+
         incidencies = {}  # (tipus, prof, dia, franja, hora) -> {'item', 'dia', 'contextos'}
-        for dia in self.horari.get('dies', []):
-            clau_dia = dia.get('data') or dia['dia']
-            for slot in dia.get('sessions', []):
-                for sessio in slot.get('sessions_simultanees', []):
-                    an = sessio.get('analisi', {})
-                    sessio_nom = sessio.get('nom', '')
-                    sessio_curs = sessio.get('curs', '')
+        for dia in self.horari.get("dies", []):
+            clau_dia = dia.get("data") or dia["dia"]
+            for slot in dia.get("sessions", []):
+                for sessio in slot.get("sessions_simultanees", []):
+                    an = sessio.get("analisi", {})
+                    sessio_nom = sessio.get("nom", "")
+                    sessio_curs = sessio.get("curs", "")
                     examen_ctx = (
-                        f"({sessio_nom})->{sessio_curs}" if sessio_nom and sessio_curs
-                        else f"({sessio_nom})" if sessio_nom
-                        else f"->{sessio_curs}" if sessio_curs
+                        f"({sessio_nom})->{sessio_curs}"
+                        if sessio_nom and sessio_curs
+                        else f"({sessio_nom})"
+                        if sessio_nom
+                        else f"->{sessio_curs}"
+                        if sessio_curs
                         else ""
                     )
-                    for tipus, camp in (('abans_jornada', 'abans_jornada'), ('despres_jornada', 'despres_jornada'),
-                                        ('substitucio', 'substitucions')):
+                    for tipus, camp in (
+                        ("abans_jornada", "abans_jornada"),
+                        ("despres_jornada", "despres_jornada"),
+                        ("substitucio", "substitucions"),
+                    ):
                         for item in an.get(camp, []):
-                            prof = item.get('professor', 'Desconegut')
-                            hora_item = item.get('hora', slot['hora'])
+                            prof = item.get("professor", "Desconegut")
+                            hora_item = item.get("hora", slot["hora"])
                             # Per franja, com el cost (costos_professors_analisi)
-                            entrada = incidencies.setdefault((tipus, prof, clau_dia, slot['hora'], hora_item),
-                                                             {'item': item, 'dia': dia['dia'], 'contextos': []})
-                            if examen_ctx and examen_ctx not in entrada['contextos']:
-                                entrada['contextos'].append(examen_ctx)
+                            entrada = incidencies.setdefault(
+                                (tipus, prof, clau_dia, slot["hora"], hora_item),
+                                {"item": item, "dia": dia["dia"], "contextos": []},
+                            )
+                            if examen_ctx and examen_ctx not in entrada["contextos"]:
+                                entrada["contextos"].append(examen_ctx)
 
         for (tipus, prof, _, _, hora_item), entrada in incidencies.items():
-            item, nom_dia = entrada['item'], entrada['dia']
-            ctx = f" {', '.join(sorted(entrada['contextos']))}" if entrada['contextos'] else ""
+            item, nom_dia = entrada["item"], entrada["dia"]
+            ctx = f" {', '.join(sorted(entrada['contextos']))}" if entrada["contextos"] else ""
             punts = pes_professor(self.restriccions, prof, tipus)
-            if tipus == 'abans_jornada':
+            if tipus == "abans_jornada":
                 msg = f"🕐 {prof}{ctx} → arriba abans a {hora_item} el {nom_dia} (primera hora: {item.get('primera_hora', '?')})"
-            elif tipus == 'despres_jornada':
+            elif tipus == "despres_jornada":
                 msg = f"🕐 {prof}{ctx} → queda més estona a {hora_item} el {nom_dia} (última hora: {item.get('ultima_hora', '?')})"
             else:
-                act = item.get('activitat', {})
-                assig = act.get('assignatura', 'Assignatura')
+                act = item.get("activitat", {})
+                assig = act.get("assignatura", "Assignatura")
                 if assig in self.no_subst:
                     continue
                 msg = f"🚨 {prof}{ctx} → ha de ser SUBSTITUÏT a {assig} amb {act.get('grup', 'un grup')} a les {hora_item} el {nom_dia}"
             self.logs.add(_log_with_score(msg, punts))
 
-        for dia in self.horari.get('dies', []):
-            for slot in dia.get('sessions', []):
-                for sessio in slot.get('sessions_simultanees', []):
-                    an = sessio.get('analisi', {})
-                    sessio_nom = sessio.get('nom', '')
-                    sessio_curs = sessio.get('curs', '')
+        for dia in self.horari.get("dies", []):
+            for slot in dia.get("sessions", []):
+                for sessio in slot.get("sessions_simultanees", []):
+                    an = sessio.get("analisi", {})
+                    sessio_nom = sessio.get("nom", "")
+                    sessio_curs = sessio.get("curs", "")
                     examen_ctx = (
-                        f" ({sessio_nom})->{sessio_curs}" if sessio_nom and sessio_curs
-                        else f" ({sessio_nom})" if sessio_nom
-                        else f" ->{sessio_curs}" if sessio_curs
+                        f" ({sessio_nom})->{sessio_curs}"
+                        if sessio_nom and sessio_curs
+                        else f" ({sessio_nom})"
+                        if sessio_nom
+                        else f" ->{sessio_curs}"
+                        if sessio_curs
                         else ""
                     )
                     vistos_zona = set()
-                    for item in an.get('zona_examen', []):
-                        prof = item.get('professor', 'Desconegut')
-                        act = item.get('activitat', {})
-                        assig = act.get('assignatura', 'Assignatura')
-                        grp = act.get('grup', 'un grup')
-                        hora_item = item.get('hora', slot['hora'])
-                        key = (prof, dia['dia'], hora_item, sessio_nom)
+                    for item in an.get("zona_examen", []):
+                        prof = item.get("professor", "Desconegut")
+                        act = item.get("activitat", {})
+                        assig = act.get("assignatura", "Assignatura")
+                        grp = act.get("grup", "un grup")
+                        hora_item = item.get("hora", slot["hora"])
+                        key = (prof, dia["dia"], hora_item, sessio_nom)
                         if key in vistos_zona:
                             continue
                         vistos_zona.add(key)

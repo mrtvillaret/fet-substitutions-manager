@@ -5,6 +5,7 @@ a text, no interpretat com a etiquetes de ReportLab. Abans, un simple
 "Examen <font" feia fallar el PDF de tot el dia, i "<img src=...>" feia que el
 generador llegís fitxers del servidor.
 """
+
 import uuid
 
 import pytest
@@ -15,7 +16,7 @@ from routes import informes, pdf, substitucions, vigilancies
 
 APP = crea_app(vigilancies.router, substitucions.router, pdf.router, informes.router)
 DATA = "2026-04-20"  # dilluns
-TEXT_PERILLÓS = "Aula <font"                      # etiqueta sense tancar
+TEXT_PERILLÓS = "Aula <font"  # etiqueta sense tancar
 IMATGE = "<img src='/etc/hostname' width='9' height='9'/>"
 MARCATGE = "<b>negreta</b>"
 
@@ -44,17 +45,26 @@ def client():
 
 def _prepara(client, valor):
     """Vigilància i substitució amb `valor` a tots els camps de text lliure."""
-    resp = client.post(f"/api/vigilancies/{DATA}", json={
-        "hora": "10:00", "tipus": valor, "grups": valor, "aula": valor,
-        "vigilant": "Prof 21", "comentaris": valor, "nivell": valor,
-    })
+    resp = client.post(
+        f"/api/vigilancies/{DATA}",
+        json={
+            "hora": "10:00",
+            "tipus": valor,
+            "grups": valor,
+            "aula": valor,
+            "vigilant": "Prof 21",
+            "comentaris": valor,
+            "nivell": valor,
+        },
+    )
     assert resp.status_code == 200, resp.text
-    client.put(f"/api/substitucions/{DATA}/absencies/Prof 15",
-               json={"hores_absencia": ["11:30"], "updated_at_map": {}})
-    assert any(s["hora"] == "11:30"
-               for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json())
-    resp = client.put(f"/api/substitucions/{DATA}/11:30/Prof 15",
-                      json={"substitut": valor, "comentaris": valor, "force": True})
+    client.put(f"/api/substitucions/{DATA}/absencies/Prof 15", json={"hores_absencia": ["11:30"], "updated_at_map": {}})
+    assert any(
+        s["hora"] == "11:30" for s in client.get(f"/api/substitucions/{DATA}", params={"include_all": True}).json()
+    )
+    resp = client.put(
+        f"/api/substitucions/{DATA}/11:30/Prof 15", json={"substitut": valor, "comentaris": valor, "force": True}
+    )
     assert resp.status_code == 200, resp.text
 
 
@@ -69,18 +79,19 @@ def test_el_text_dels_usuaris_no_trenca_ni_s_interpreta_al_pdf(client, ruta, val
 
 # ------------------------------------------------ espai per escriure a mà
 
+
 def _text_pdf(contingut: bytes) -> str:
     """Text del PDF amb pdftotext (poppler-utils); sense l'eina, el test se salta."""
     import shutil
     import subprocess
+
     if not shutil.which("pdftotext"):
         pytest.skip("cal pdftotext (poppler-utils)")
     return subprocess.run(["pdftotext", "-", "-"], input=contingut, capture_output=True, check=True).stdout.decode()
 
 
 def _hores_del_pdf(client, **params):
-    client.put(f"/api/substitucions/{DATA}/absencies/Prof 15",
-               json={"hores_absencia": ["11:30"], "updated_at_map": {}})
+    client.put(f"/api/substitucions/{DATA}/absencies/Prof 15", json={"hores_absencia": ["11:30"], "updated_at_map": {}})
     resp = client.get(f"/api/pdf/complete/{DATA}", params=params)
     assert resp.status_code == 200, resp.text[:300]
     return [linia for linia in _text_pdf(resp.content).splitlines() if linia.startswith("Hora ")]
@@ -94,8 +105,7 @@ def test_amb_espai_a_ma_surten_les_hores_on_hi_pot_haver_substitucions(client):
     # Dilluns a l'horari d'exemple: hi ha classe a totes les hores menys al pati,
     # a les 13:30, a les 14:30 i a les 17:00, on ningú no té cap activitat.
     hores = _hores_del_pdf(client, blank_rows=True)
-    assert sorted(hores) == sorted(f"Hora {h}" for h in
-                                   ["08:00", "09:00", "10:00", "11:30", "12:30", "15:00", "16:00"])
+    assert sorted(hores) == sorted(f"Hora {h}" for h in ["08:00", "09:00", "10:00", "11:30", "12:30", "15:00", "16:00"])
 
 
 def test_l_espai_a_ma_no_afecta_el_pdf_nomes_de_vigilancies(client):
@@ -104,12 +114,20 @@ def test_l_espai_a_ma_no_afecta_el_pdf_nomes_de_vigilancies(client):
 
 # ------------------------------------------------ format «taula del dia»
 
+
 def _text_dia(client, **params):
-    client.put(f"/api/substitucions/{DATA}/absencies/Prof 15",
-               json={"hores_absencia": ["11:30"], "updated_at_map": {}})
-    client.post(f"/api/vigilancies/{DATA}", json={
-        "hora": "10:00", "tipus": "Física", "grups": "2-BAT-A", "aula": "A01",
-        "vigilant": "Prof 21", "nivell": "2-BAT"})
+    client.put(f"/api/substitucions/{DATA}/absencies/Prof 15", json={"hores_absencia": ["11:30"], "updated_at_map": {}})
+    client.post(
+        f"/api/vigilancies/{DATA}",
+        json={
+            "hora": "10:00",
+            "tipus": "Física",
+            "grups": "2-BAT-A",
+            "aula": "A01",
+            "vigilant": "Prof 21",
+            "nivell": "2-BAT",
+        },
+    )
     resp = client.get(f"/api/pdf/complete/{DATA}", params={"format": "dia", **params})
     assert resp.status_code == 200, resp.text[:300]
     return _text_pdf(resp.content)
@@ -117,9 +135,9 @@ def _text_dia(client, **params):
 
 def test_format_dia_una_taula_amb_substitucions_i_vigilancies(client):
     text = _text_dia(client)
-    assert "Hora 11:30" not in text          # sense títols per hora
+    assert "Hora 11:30" not in text  # sense títols per hora
     assert "Prof 15" in text and "Física" in text and "Prof 21" in text
-    assert "Files en gris" in text            # llegenda de les vigilàncies
+    assert "Files en gris" in text  # llegenda de les vigilàncies
 
 
 def test_format_dia_amb_espai_a_ma_mostra_les_hores_detectades(client):
@@ -153,6 +171,7 @@ def test_mida_de_lletra_desconeguda_dona_400(client):
 
 
 # ------------------------------------------- disponibles de tots els dies
+
 
 def test_el_pdf_de_disponibles_de_tots_els_dies_comenca_a_la_data_donada(client):
     resp = client.post("/api/pdf/disponibles-tots-dies", json={"data_inici": DATA})

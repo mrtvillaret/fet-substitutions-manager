@@ -3,6 +3,7 @@ L'estat d'un dia tal com és a la BD (substitucions, vigilàncies, alliberats,
 baixes i horari), llegit un sol cop, i les regles que en depenen: per què un
 substitut ja no pot fer la substitució.
 """
+
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -110,11 +111,17 @@ def substituts_no_valids(db, data: str) -> list:
             continue
         motius = dia.motius_substitut(substitut, hora)
         if motius:
-            resultat.append({
-                "id": sub["id"], "hora": hora, "professor_absent": sub.get("professor_absent", ""),
-                "assignatura": sub.get("assignatura", ""), "grup": sub.get("grup", ""),
-                "substitut": substitut, **motius[0],
-            })
+            resultat.append(
+                {
+                    "id": sub["id"],
+                    "hora": hora,
+                    "professor_absent": sub.get("professor_absent", ""),
+                    "assignatura": sub.get("assignatura", ""),
+                    "grup": sub.get("grup", ""),
+                    "substitut": substitut,
+                    **motius[0],
+                }
+            )
     return resultat
 
 

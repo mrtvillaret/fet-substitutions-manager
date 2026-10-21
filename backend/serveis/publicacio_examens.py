@@ -9,6 +9,7 @@ opcionalment, els titulars com a vigilants.
 - Queden sense classe els grups dels nivells seleccionats al planificador a
   les hores marcades aquell dia, tinguin examen o no a aquella hora.
 """
+
 import logging
 from dataclasses import dataclass, field
 
@@ -25,20 +26,20 @@ log = logging.getLogger(__name__)
 def data_del_dia(dia_info: dict, setmanes: list) -> str | None:
     """La data d'un dia de l'horari: la seva o, si no en té, la que li toca
     pel nom («Dilluns») a la primera setmana que el tingui."""
-    if dia_info.get('data'):
-        return dia_info['data']
-    dia_nom = dia_info.get('dia', '')
+    if dia_info.get("data"):
+        return dia_info["data"]
+    dia_nom = dia_info.get("dia", "")
     return next((setmana[dia_nom] for setmana in setmanes if setmana.get(dia_nom)), None)
 
 
 def primera_data(horari: dict, setmanes: list) -> str | None:
     """La primera data de l'horari, per saber-ne les hores lectives."""
-    for dia_info in horari.get('dies', []):
-        if isinstance(dia_info, dict) and dia_info.get('data'):
-            return dia_info['data']
+    for dia_info in horari.get("dies", []):
+        if isinstance(dia_info, dict) and dia_info.get("data"):
+            return dia_info["data"]
     for setmana in setmanes:
-        for dia_info in horari.get('dies', []):
-            d = setmana.get(dia_info.get('dia', '')) if isinstance(dia_info, dict) else setmana.get(dia_info, '')
+        for dia_info in horari.get("dies", []):
+            d = setmana.get(dia_info.get("dia", "")) if isinstance(dia_info, dict) else setmana.get(dia_info, "")
             if d:
                 return d
     return None
@@ -80,8 +81,12 @@ class PublicacioExamens:
         data = parse_date(data_iso)
         if self.netejar_existents:
             self._esborra_el_dia(data, data_iso)
-        nivells_dia = {s['curs'] for slot in dia_info.get('sessions', [])
-                       for s in slot.get('sessions_simultanees', []) if s.get('curs')}
+        nivells_dia = {
+            s["curs"]
+            for slot in dia_info.get("sessions", [])
+            for s in slot.get("sessions_simultanees", [])
+            if s.get("curs")
+        }
         self._sincronitza_vigilancies(dia_info, data, data_iso, nivells_dia)
         self._allibera_grups(data, data_iso)
         self.db.flush()
@@ -93,15 +98,16 @@ class PublicacioExamens:
             self.resum.hores_esborrades.add((data_iso, hora))
         self.resum.eliminades += db.query(Vigilancia).filter(Vigilancia.data == data).delete(synchronize_session=False)
         db.query(GrupAlliberat).filter(GrupAlliberat.data == data).delete(synchronize_session=False)
-        db.query(Substitucio).filter(Substitucio.data == data, Substitucio.tipus_absencia == "VIGILANCIA") \
-            .delete(synchronize_session=False)
+        db.query(Substitucio).filter(Substitucio.data == data, Substitucio.tipus_absencia == "VIGILANCIA").delete(
+            synchronize_session=False
+        )
         db.flush()
 
     def _hores_seguents(self, hora_inici: str, durada: int) -> list:
         """`durada` hores de l'horari del centre a partir de `hora_inici`."""
         if durada > 1 and self.totes_hores and hora_inici in self.totes_hores:
             idx = self.totes_hores.index(hora_inici)
-            return self.totes_hores[idx:idx + durada]
+            return self.totes_hores[idx : idx + durada]
         return [hora_inici]
 
     def _sincronitza_vigilancies(self, dia_info: dict, data, data_iso: str, nivells_dia: set) -> None:
@@ -111,34 +117,43 @@ class PublicacioExamens:
         Els nivells que l'horari no toca no es modifiquen."""
         db = self.db
         existents = {
-            (v.hora, v.nivell or '', v.grups or '', v.aula or ''): v
-            for v in db.query(Vigilancia).filter(
-                Vigilancia.data == data,
-                Vigilancia.nivell.in_(list(nivells_dia)) if nivells_dia else False
-            ).all()
+            (v.hora, v.nivell or "", v.grups or "", v.aula or ""): v
+            for v in db.query(Vigilancia)
+            .filter(Vigilancia.data == data, Vigilancia.nivell.in_(list(nivells_dia)) if nivells_dia else False)
+            .all()
         }
         noves = set()
-        for slot in dia_info.get('sessions', []):
-            hora_inici = slot.get('hora', '')
+        for slot in dia_info.get("sessions", []):
+            hora_inici = slot.get("hora", "")
             if not hora_inici:
                 continue
-            for sessio in slot.get('sessions_simultanees', []):
-                curs = sessio.get('curs', '')
-                nom = sessio.get('nom', '')
+            for sessio in slot.get("sessions_simultanees", []):
+                curs = sessio.get("curs", "")
+                nom = sessio.get("nom", "")
                 hores = self._hores_seguents(hora_inici, self.cfg.durada_examen_de(nom))
-                for examen in sessio.get('examens', []):
-                    grup = examen.get('grup', '')
-                    aula = examen.get('aula', '') or ''
-                    tipus = examen.get('assignatura') or sessio.get('nom_base') or sessio.get('nom', '')
+                for examen in sessio.get("examens", []):
+                    grup = examen.get("grup", "")
+                    aula = examen.get("aula", "") or ""
+                    tipus = examen.get("assignatura") or sessio.get("nom_base") or sessio.get("nom", "")
                     for hora in hores:
                         clau = (hora, curs, grup, aula)
                         self._publicades.add((data_iso, *clau))
                         noves.add(clau)
                         if clau not in existents:
-                            db.add(Vigilancia(data=data, hora=hora, tipus=tipus, grups=grup, aula=aula,
-                                              vigilant=None, comentaris='', nivell=curs))
+                            db.add(
+                                Vigilancia(
+                                    data=data,
+                                    hora=hora,
+                                    tipus=tipus,
+                                    grups=grup,
+                                    aula=aula,
+                                    vigilant=None,
+                                    comentaris="",
+                                    nivell=curs,
+                                )
+                            )
                             self.resum.creades += 1
-                        elif (existents[clau].tipus or '') != tipus:
+                        elif (existents[clau].tipus or "") != tipus:
                             existents[clau].tipus = tipus
                             self.resum.actualitzades += 1
                         else:
@@ -151,24 +166,34 @@ class PublicacioExamens:
 
     def _nivells_marcats(self, data_iso: str) -> list:
         """Nivells seleccionats al planificador amb alguna hora marcada sense classe aquell dia."""
-        return [niv for niv in self.nivells_seleccionats
-                if any(isinstance(flags, dict) and flags.get('a')
-                       for flags in (((self.alliberaments.get(niv) or {}).get('config') or {})
-                                     .get(data_iso) or {}).values())]
+        return [
+            niv
+            for niv in self.nivells_seleccionats
+            if any(
+                isinstance(flags, dict) and flags.get("a")
+                for flags in (((self.alliberaments.get(niv) or {}).get("config") or {}).get(data_iso) or {}).values()
+            )
+        ]
 
     def _allibera_grups(self, data, data_iso: str) -> None:
         """Els grups dels nivells seleccionats queden sense classe a les hores
         marcades d'aquell dia, tinguin examen o no (sense repetir els que ja hi són)."""
         db = self.db
         marcats = self._nivells_marcats(data_iso)
-        grups = [g for g in self.grups_sense_classe if self._nivell_del_grup(g) in marcats] \
-            if self.grups_sense_classe else [
-            g.codi
-            for niv in marcats
-            for nivell_obj in [db.query(Nivell).filter(Nivell.codi == niv).first()] if nivell_obj
-            for g in db.query(Grup).filter(Grup.nivell_id == nivell_obj.id, Grup.actiu == True).all()  # noqa: E712
-        ]
-        existents = {(ga.hora, ga.grups or '') for ga in db.query(GrupAlliberat).filter(GrupAlliberat.data == data).all()}
+        grups = (
+            [g for g in self.grups_sense_classe if self._nivell_del_grup(g) in marcats]
+            if self.grups_sense_classe
+            else [
+                g.codi
+                for niv in marcats
+                for nivell_obj in [db.query(Nivell).filter(Nivell.codi == niv).first()]
+                if nivell_obj
+                for g in db.query(Grup).filter(Grup.nivell_id == nivell_obj.id, Grup.actiu == True).all()  # noqa: E712
+            ]
+        )
+        existents = {
+            (ga.hora, ga.grups or "") for ga in db.query(GrupAlliberat).filter(GrupAlliberat.data == data).all()
+        }
         for grup in grups:
             nivell = self._nivell_del_grup(grup)
             if not nivell:
@@ -187,15 +212,17 @@ class PublicacioExamens:
                 return nivell
         try:
             nivell = detectar_nivell_grup(grup, self.nivells)
-            return None if nivell == 'altres' else nivell
+            return None if nivell == "altres" else nivell
         except Exception:
             log.warning("No s'ha pogut detectar el nivell d'un grup", exc_info=True)
             return None
 
     def _hores_alliberades(self, nivell: str, data_iso: str) -> list:
         """Les hores sense classe (marca «a») d'un nivell aquell dia, en l'ordre de l'horari."""
-        dia_cfg = ((self.alliberaments.get(nivell, {}).get('config')) or {}).get(data_iso, {})
-        hores = [normalitzar_hora(h) for h, flags in (dia_cfg or {}).items() if isinstance(flags, dict) and flags.get('a')]
+        dia_cfg = ((self.alliberaments.get(nivell, {}).get("config")) or {}).get(data_iso, {})
+        hores = [
+            normalitzar_hora(h) for h, flags in (dia_cfg or {}).items() if isinstance(flags, dict) and flags.get("a")
+        ]
         if self.totes_hores:
             ordre = {h: i for i, h in enumerate(self.totes_hores)}
             return sorted(set(hores), key=lambda h: ordre.get(h, 10**9))
@@ -210,26 +237,30 @@ class PublicacioExamens:
             db.flush()
             # Les vigilàncies dels exàmens publicats (no les d'altres nivells);
             # el titular s'hi posa a les hores que està disponible o alliberat
-            vigilancies = [v for vigs in VigilanciaRepository.get_by_date(db, data_iso).values() for v in vigs
-                           if (data_iso, v.get('hora'), v.get('nivell') or '', v.get('grups') or '',
-                               v.get('aula') or '') in self._publicades]
+            vigilancies = [
+                v
+                for vigs in VigilanciaRepository.get_by_date(db, data_iso).values()
+                for v in vigs
+                if (data_iso, v.get("hora"), v.get("nivell") or "", v.get("grups") or "", v.get("aula") or "")
+                in self._publicades
+            ]
             if not vigilancies:
                 continue
             try:
                 core = Dia.de_text(data_iso, institucio).vigilancia_core(db)
                 vigilants = {}
                 for v in vigilancies:
-                    hora = v.get('hora', '')
+                    hora = v.get("hora", "")
                     vigilants.setdefault(hora, set())
-                    if v.get('vigilant'):
-                        vigilants[hora].add(v['vigilant'])
+                    if v.get("vigilant"):
+                        vigilants[hora].add(v["vigilant"])
                 assign_phase1_titulars(vigilancies, core, vigilants, db)
                 for v in vigilancies:
-                    db_id = v.get('db_id') or v.get('id')
-                    if v.get('vigilant') and db_id:
+                    db_id = v.get("db_id") or v.get("id")
+                    if v.get("vigilant") and db_id:
                         vig = db.query(Vigilancia).filter(Vigilancia.id == int(db_id)).first()
                         if vig and not vig.vigilant:
-                            vig.vigilant = v['vigilant']
+                            vig.vigilant = v["vigilant"]
                             self.resum.titulars += 1
             except Exception as e:
                 self.resum.errors.append(f"Auto-assignació {data_iso}: {str(e)}")

@@ -1,6 +1,7 @@
 """
 Configuració d'autenticació JWT
 """
+
 import os
 
 # "development" habilita la documentació interactiva de l'API i permet els
@@ -13,13 +14,15 @@ IS_DEVELOPMENT = ENVIRONMENT == "development"
 # l'aplicació en local sense configurar res, més els marcadors que han sortit
 # en versions anteriors de les plantilles. Com que són públics, fora de
 # desenvolupament val més aturar-se que arrencar amb ells.
-_VALORS_DE_MOSTRA = frozenset({
-    "dev-secret-key-change-in-production",
-    "admin123",
-    "user123",
-    "change-me",
-    "canvia-aquesta-contrasenya",
-})
+_VALORS_DE_MOSTRA = frozenset(
+    {
+        "dev-secret-key-change-in-production",
+        "admin123",
+        "user123",
+        "change-me",
+        "canvia-aquesta-contrasenya",
+    }
+)
 
 
 def _comprova_valor_de_mostra(nom: str, valor: str | None) -> None:
@@ -69,9 +72,7 @@ COOKIE_NAME = os.getenv("COOKIE_NAME", "gestor_token").strip() or "gestor_token"
 #     amb el nom ja escrit, però no hi envia la contrasenya.
 #   LOGIN_DELEGACIO_USUARIS=user_demo,admin_demo
 #   LOGIN_DELEGACIO_URL=/demo/   o bé   https://demo.exemple.cat/
-LOGIN_DELEGACIO_USUARIS = frozenset(
-    u.strip() for u in os.getenv("LOGIN_DELEGACIO_USUARIS", "").split(",") if u.strip()
-)
+LOGIN_DELEGACIO_USUARIS = frozenset(u.strip() for u in os.getenv("LOGIN_DELEGACIO_USUARIS", "").split(",") if u.strip())
 LOGIN_DELEGACIO_URL = os.getenv("LOGIN_DELEGACIO_URL", "").strip()
 _delegacio_ruta = LOGIN_DELEGACIO_URL.startswith("/") and not LOGIN_DELEGACIO_URL.startswith("//")
 _delegacio_https = LOGIN_DELEGACIO_URL.startswith("https://") and len(LOGIN_DELEGACIO_URL) > len("https://")
@@ -81,15 +82,25 @@ if LOGIN_DELEGACIO_USUARIS and not (_delegacio_ruta or _delegacio_https):
         "comenci per '/' (p.ex. /demo/) o una adreça https (p.ex. https://demo.exemple.cat/).\n"
     )
 
-# Les contrasenyes no tenen valor per defecte a propòsit. Si no es defineixen
-# per variable d'entorn, l'usuari administrador no es pot crear i l'aplicació
-# s'atura; els usuaris de mostra, simplement, no es creen. Amb un valor fix
-# aquí, qualsevol instal·lació que no llegís les instruccions quedaria exposada
-# amb credencials que consten al codi públic.
+# Usuaris inicials: només es creen en una instal·lació nova (taula d'usuaris
+# buida); després no es toquen mai sols (auth.services.crea_usuaris_inicials).
+# Les contrasenyes no tenen valor per defecte a propòsit. Sense ADMIN_PASSWORD,
+# una instal·lació nova no pot crear l'administrador i l'aplicació s'atura; els
+# usuaris de mostra, simplement, no es creen. Amb un valor fix aquí, qualsevol
+# instal·lació que no llegís les instruccions quedaria exposada amb
+# credencials que consten al codi públic.
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "super_admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 ADMIN_INSTITUCIO = os.getenv("ADMIN_INSTITUCIO", "exemple")
 _comprova_valor_de_mostra("ADMIN_PASSWORD", ADMIN_PASSWORD)
+
+# Recuperació del superadmin (p.ex. si s'ha perdut la contrasenya o s'ha
+# desactivat): només si es defineix expressament. En arrencar, el superadmin
+# ADMIN_USERNAME es crea o es reactiva amb aquesta contrasenya, i se li tanquen
+# les sessions. Cal treure-la de l'entorn tan bon punt s'hagi fet servir: si no,
+# cada reinici tornaria a posar aquesta contrasenya.
+ADMIN_PASSWORD_RECUPERACIO = os.getenv("ADMIN_PASSWORD_RECUPERACIO") or None
+_comprova_valor_de_mostra("ADMIN_PASSWORD_RECUPERACIO", ADMIN_PASSWORD_RECUPERACIO)
 
 DEFAULT_USERS = [
     {
@@ -113,6 +124,4 @@ for _usuari in DEFAULT_USERS:
 # tancar les altres sessions) ni cap admin (editar, desactivar). Per a una demo
 # pública, on la contrasenya és coneguda i qualsevol visitant hi pot entrar.
 #   USUARIS_PROTEGITS=user_demo,admin_demo
-USUARIS_PROTEGITS = frozenset(
-    u.strip() for u in os.getenv("USUARIS_PROTEGITS", "").split(",") if u.strip()
-)
+USUARIS_PROTEGITS = frozenset(u.strip() for u in os.getenv("USUARIS_PROTEGITS", "").split(",") if u.strip())

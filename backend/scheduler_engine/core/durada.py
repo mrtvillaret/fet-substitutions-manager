@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional
 from scheduler_engine.core.constraints import detectar_nivell_grup
 
 
-def get_durada_per_nivell(nivell: Optional[str],
-                          alliberaments_per_nivell: Optional[Dict[str, Any]],
-                          default: int) -> int:
+def get_durada_per_nivell(
+    nivell: Optional[str], alliberaments_per_nivell: Optional[Dict[str, Any]], default: int
+) -> int:
     """Retorna la durada per nivell si existeix, o el default."""
     if not nivell or not alliberaments_per_nivell:
         return default
@@ -18,7 +18,7 @@ def get_durada_per_nivell(nivell: Optional[str],
     if not isinstance(data, dict):
         return default
 
-    durada = data.get('durada')
+    durada = data.get("durada")
     if durada is None:
         return default
 
@@ -30,11 +30,13 @@ def get_durada_per_nivell(nivell: Optional[str],
     return durada_int if durada_int > 0 else default
 
 
-def get_durada_per_sessio_key(sessio_nom: Optional[str],
-                               nivell: Optional[str],
-                               durades_per_sessio: Optional[Dict[str, int]],
-                               alliberaments_per_nivell: Optional[Dict[str, Any]],
-                               default: int) -> int:
+def get_durada_per_sessio_key(
+    sessio_nom: Optional[str],
+    nivell: Optional[str],
+    durades_per_sessio: Optional[Dict[str, int]],
+    alliberaments_per_nivell: Optional[Dict[str, Any]],
+    default: int,
+) -> int:
     """Prioritat: durades_per_sessio > default global (durada_titular).
 
     Nota: el fallback per nivell s'ha eliminat deliberadament per evitar
@@ -59,18 +61,18 @@ def detectar_nivell_sessio(sessio: Any, nivells_actius: list[str]) -> Optional[s
         return None
 
     if isinstance(sessio, dict):
-        curs = sessio.get('curs') or sessio.get('nivell')
-        examens = sessio.get('examens', [])
+        curs = sessio.get("curs") or sessio.get("nivell")
+        examens = sessio.get("examens", [])
     else:
-        curs = getattr(sessio, 'curs', None) or getattr(sessio, 'nivell', None)
-        examens = getattr(sessio, 'examens', []) or []
+        curs = getattr(sessio, "curs", None) or getattr(sessio, "nivell", None)
+        examens = getattr(sessio, "examens", []) or []
 
     if curs and (not nivells_actius or curs in nivells_actius):
         return curs
 
     for ex in examens:
-        grup = ex.get('grup') if isinstance(ex, dict) else getattr(ex, 'grup', None)
-        nivell = detectar_nivell_grup(grup or '', nivells_actius)
+        grup = ex.get("grup") if isinstance(ex, dict) else getattr(ex, "grup", None)
+        nivell = detectar_nivell_grup(grup or "", nivells_actius)
         if nivell:
             return nivell
 

@@ -1,7 +1,9 @@
 """
-FastAPI Backend per Gestor de Substitucions
-Versió modularitzada amb routes, schemas i helpers separats
+Punt d'entrada del backend del Gestor de Substitucions: crea l'aplicació,
+registra els gestors d'errors, els middlewares i tots els routers. Mapa del
+codi: ARQUITECTURA.md.
 """
+
 # Carregar variables d'entorn ABANS de qualsevol altre import
 from dotenv import load_dotenv
 
@@ -18,21 +20,16 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from auth_utils import (
-    COOKIE_NAME,
-    decode_access_token,
-    ensure_default_users,
-    get_current_user,
-    registra_renovacio_sessio,
-    require_admin,
-)
-from config.auth import IS_DEVELOPMENT
+from auth.dependencies import get_current_user, require_admin
+from auth.router import router as auth_router
+from auth.security import decode_access_token, registra_renovacio_sessio
+from auth.services import crea_usuaris_inicials
+from config.auth import COOKIE_NAME, IS_DEVELOPMENT
 from database import create_auth_tables
 from errors_servidor import registra_gestors_errors
 from helpers import MissingXmlError
 from rate_limit import limit_superat, limiter
 from routes import (
-    auth,
     config_examens,
     cursos,
     dades,
@@ -49,9 +46,9 @@ from routes import (
     scheduler,
     settings,
     substitucions,
-    users,
     vigilancies,
 )
+from usuaris.router import router as usuaris_router
 
 log = logging.getLogger(__name__)
 access_logger = logging.getLogger("uvicorn.error")
@@ -59,10 +56,11 @@ access_logger.setLevel(logging.INFO)
 
 # Crear taules si no existeixen
 create_auth_tables()
-ensure_default_users()
+crea_usuaris_inicials()
 
 # Les taules de dades (exam_*, etc.) es creen automàticament
 # dins de get_data_db_session() la primera vegada que s'usa
+
 
 # Carregar prioritats des de la BD (per web, no usem JSON)
 def _inicialitzar_prioritats():
@@ -79,6 +77,7 @@ def _inicialitzar_prioritats():
         log.warning(f"⚠️  No s'han pogut carregar prioritats des de BD: {e}")
         log.warning("   Es faran servir les constants del JSON per defecte")
 
+
 _inicialitzar_prioritats()
 
 # Fora de desenvolupament no es publica ni la documentació interactiva ni
@@ -93,19 +92,14 @@ app = FastAPI(
 )
 
 
-# Errors 5xx: detall al registre, a l'usuari només una referència
+# Errors del domini → 4xx; errors interns → només una referència (errors_servidor.py)
 registra_gestors_errors(app)
 
 
 @app.exception_handler(MissingXmlError)
 async def missing_xml_exception_handler(request: Request, exc: MissingXmlError):
     return JSONResponse(
-        status_code=400,
-        content={
-            "detail": str(exc),
-            "xml_missing": True,
-            "institucio": exc.institucio
-        }
+        status_code=400, content={"detail": str(exc), "xml_missing": True, "institucio": exc.institucio}
     )
 
 
@@ -149,6 +143,7 @@ def _log_request(request: Request, duration_ms: int, status_code: int) -> None:
         f"{timestamp} | {username} ({role}@{instit}) | {ip} | {request.method} {full_path} | {status_code} | {duration_ms}ms"
     )
 
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, limit_superat)
 app.add_middleware(SlowAPIMiddleware)
@@ -165,7 +160,7 @@ app.add_middleware(
 )
 
 # ===== Registre de routers modularitzats =====
-app.include_router(auth.router)
+app.include_router(auth_router)
 app.include_router(config_examens.router, dependencies=[Depends(require_admin)])
 app.include_router(grups.router, dependencies=[Depends(get_current_user)])
 app.include_router(grups_amagats.router, dependencies=[Depends(require_admin)])
@@ -177,7 +172,7 @@ app.include_router(estadistiques.router, dependencies=[Depends(require_admin)])
 app.include_router(prioritats.router, dependencies=[Depends(require_admin)])
 app.include_router(horari.router, dependencies=[Depends(get_current_user)])
 app.include_router(files.router, dependencies=[Depends(require_admin)])
-app.include_router(users.router, dependencies=[Depends(get_current_user)])
+app.include_router(usuaris_router, dependencies=[Depends(get_current_user)])
 app.include_router(disponibles.router, dependencies=[Depends(get_current_user)])
 app.include_router(scheduler.router, dependencies=[Depends(require_admin)])
 app.include_router(informes.router, dependencies=[Depends(require_admin)])
@@ -188,14 +183,11 @@ app.include_router(general.router, dependencies=[Depends(get_current_user)])
 
 # ===== Endpoints generals (no modularitzats) =====
 
+
 @app.get("/")
 async def root():
     """Health check"""
-    return {
-        "status": "ok",
-        "message": "Gestor Substitucions API",
-        "docs": "/docs"
-    }
+    return {"status": "ok", "message": "Gestor Substitucions API", "docs": "/docs"}
 
 
 @app.get("/api/health")
@@ -207,4 +199,5 @@ async def health():
 # ===== Punt d'entrada per executar amb uvicorn =====
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

@@ -48,17 +48,17 @@ def analitzar_disponibilitat_sessio(
 
     # Preparar el resultat
     analisi = {
-        'lliures': [],
-        'alliberats': [],
-        'abans_jornada': [],
-        'despres_jornada': [],
-        'no_treballa_dia': [],
-        'substitucions': [],
-        'altres': [],
-        'zona_examen': [],  # Conflictes a la zona examen sense titular (cost=0)
+        "lliures": [],
+        "alliberats": [],
+        "abans_jornada": [],
+        "despres_jornada": [],
+        "no_treballa_dia": [],
+        "substitucions": [],
+        "altres": [],
+        "zona_examen": [],  # Conflictes a la zona examen sense titular (cost=0)
     }
     for nivell in nivells_actius:
-        analisi[f'classe_{nivell}'] = []
+        analisi[f"classe_{nivell}"] = []
 
     def _dedup(seq):
         seen = set()
@@ -85,7 +85,7 @@ def analitzar_disponibilitat_sessio(
         if not nivell_data:
             return False
 
-        config = nivell_data.get('config', {})
+        config = nivell_data.get("config", {})
         if not config:
             return False
 
@@ -101,7 +101,7 @@ def analitzar_disponibilitat_sessio(
             return False
 
         # Comprovar si està alliberat (clau 'a')
-        return hora_config.get('a', False) is True
+        return hora_config.get("a", False) is True
 
     def _detectar_nivell_del_grup(grup: str) -> Optional[str]:
         """
@@ -146,45 +146,44 @@ def analitzar_disponibilitat_sessio(
     # Identificar professors titulars d'altres sessions al mateix slot (per alliberaments)
     profs_altres = set()
     if sessions_al_slot:
-        sessio_nom = sessio.get('nom') if isinstance(sessio, dict) else getattr(sessio, 'nom', None)
+        sessio_nom = sessio.get("nom") if isinstance(sessio, dict) else getattr(sessio, "nom", None)
         for s_info in sessions_al_slot:
-            s_real = s_info.get('sessio', s_info) if isinstance(s_info, dict) else s_info
-            curr_nom = s_real.get('nom') if isinstance(s_real, dict) else getattr(s_real, 'nom', None)
-            
+            s_real = s_info.get("sessio", s_info) if isinstance(s_info, dict) else s_info
+            curr_nom = s_real.get("nom") if isinstance(s_real, dict) else getattr(s_real, "nom", None)
+
             if curr_nom != sessio_nom:
                 # Extraure professors de la sessió (suport Dict i Objecte)
-                examens = s_real.get('examens', []) if isinstance(s_real, dict) else getattr(s_real, 'examens', [])
+                examens = s_real.get("examens", []) if isinstance(s_real, dict) else getattr(s_real, "examens", [])
                 for ex in examens:
-                    p = ex.get('titular') if isinstance(ex, dict) else getattr(ex, 'titular', None)
-                    if p: profs_altres.add(p)
+                    p = ex.get("titular") if isinstance(ex, dict) else getattr(ex, "titular", None)
+                    if p:
+                        profs_altres.add(p)
 
     # Analitzar cada professor de la sessió actual
-    examens_actuals = sessio.get('examens', []) if isinstance(sessio, dict) else getattr(sessio, 'examens', [])
+    examens_actuals = sessio.get("examens", []) if isinstance(sessio, dict) else getattr(sessio, "examens", [])
 
     for ex in examens_actuals:
-        prof = ex.get('titular') if isinstance(ex, dict) else getattr(ex, 'titular', None)
+        prof = ex.get("titular") if isinstance(ex, dict) else getattr(ex, "titular", None)
         if not prof:
             continue
 
-
         if prof not in horaris_professors:
-            analisi['lliures'].append({'professor': prof, 'examen': ex})
+            analisi["lliures"].append({"professor": prof, "examen": ex})
             continue
-
 
         if horaris_professors_norm:
             prof_dies_norm = horaris_professors_norm.get(prof, {})
             if dia_norm not in prof_dies_norm:
                 for h in hores_examen:
                     if h in hores_supervisio_set:
-                        analisi['no_treballa_dia'].append({'professor': prof, 'examen': ex, 'dia': dia_norm, 'hora': h})
+                        analisi["no_treballa_dia"].append({"professor": prof, "examen": ex, "dia": dia_norm, "hora": h})
                 continue
             horari_dia_norm = prof_dies_norm[dia_norm]
         else:
             if dia_norm not in horaris_professors[prof]:
                 for h in hores_examen:
                     if h in hores_supervisio_set:
-                        analisi['no_treballa_dia'].append({'professor': prof, 'examen': ex, 'dia': dia_norm, 'hora': h})
+                        analisi["no_treballa_dia"].append({"professor": prof, "examen": ex, "dia": dia_norm, "hora": h})
                 continue
             horari_dia = horaris_professors[prof][dia_norm]
             horari_dia_norm = {}
@@ -197,7 +196,7 @@ def analitzar_disponibilitat_sessio(
         if not horari_dia_norm:
             for h in hores_examen:
                 if h in hores_supervisio_set:
-                    analisi['no_treballa_dia'].append({'professor': prof, 'examen': ex, 'dia': dia_norm, 'hora': h})
+                    analisi["no_treballa_dia"].append({"professor": prof, "examen": ex, "dia": dia_norm, "hora": h})
             continue
         # Determinar jornada del professor
         primera = None
@@ -230,8 +229,8 @@ def analitzar_disponibilitat_sessio(
             es_supervisio = h in hores_supervisio_set
             act = horari_dia_norm.get(h)
             if act:
-                grup = act.get('grup', '') or ''
-                assig = act.get('assignatura', '') or ''
+                grup = act.get("grup", "") or ""
+                assig = act.get("assignatura", "") or ""
 
                 if not es_supervisio:
                     # Zona examen: el titular ja no ha d'estar present → no cost real
@@ -240,7 +239,7 @@ def analitzar_disponibilitat_sessio(
                     is_alliberat_z = nivell_del_grup_z and _nivell_alliberat_a_slot(nivell_del_grup_z, data_iso, h)
                     is_no_subst_z = not grup.strip() or normalitzar_text(assig) in no_substituir_norm
                     if not is_alliberat_z and not is_no_subst_z:
-                        analisi['zona_examen'].append({'professor': prof, 'examen': ex, 'activitat': act, 'hora': h})
+                        analisi["zona_examen"].append({"professor": prof, "examen": ex, "activitat": act, "hora": h})
                     continue  # cap cost real per zona examen
 
                 # Zona supervisió: el titular HA d'estar → cost real
@@ -255,20 +254,20 @@ def analitzar_disponibilitat_sessio(
 
                 # Cas 2: Altres activitats (guàrdies, CD, etc.) o assignatures No Substituir
                 if not grup.strip() or normalitzar_text(assig) in no_substituir_norm:
-                    analisi['altres'].append({'professor': prof, 'examen': ex, 'activitat': act, 'hora': h})
+                    analisi["altres"].append({"professor": prof, "examen": ex, "activitat": act, "hora": h})
                     continue
 
                 # Cas 3: Substitució real
                 te_substitucio = True
-                detall = {'professor': prof, 'examen': ex, 'activitat': act, 'hora': h}
+                detall = {"professor": prof, "examen": ex, "activitat": act, "hora": h}
 
                 nivell_detectat = detectar_nivell_grup(grup, nivells_actius)
-                clau_classe = f'classe_{nivell_detectat}'
+                clau_classe = f"classe_{nivell_detectat}"
                 if clau_classe in analisi:
                     analisi[clau_classe].append(detall)
                 else:
-                    analisi['altres'].append(detall)
-                analisi['substitucions'].append(detall)
+                    analisi["altres"].append(detall)
+                analisi["substitucions"].append(detall)
             else:
                 if not es_supervisio:
                     continue  # No avant/despres per zona examen
@@ -283,24 +282,26 @@ def analitzar_disponibilitat_sessio(
                     for h_espera in totes_hores_norm[idx_h:idx_primera]:
                         if h_espera not in abans_vistes:
                             abans_vistes.add(h_espera)
-                            analisi['abans_jornada'].append(
-                                {'professor': prof, 'examen': ex, 'primera_hora': primera, 'hora': h_espera})
+                            analisi["abans_jornada"].append(
+                                {"professor": prof, "examen": ex, "primera_hora": primera, "hora": h_espera}
+                            )
                     any_outside = True
                 elif idx_h > idx_ultima:
                     # De després de l'última classe fins a l'hora de l'examen
-                    for h_espera in totes_hores_norm[idx_ultima + 1:idx_h + 1]:
+                    for h_espera in totes_hores_norm[idx_ultima + 1 : idx_h + 1]:
                         if h_espera not in despres_vistes:
                             despres_vistes.add(h_espera)
-                            analisi['despres_jornada'].append(
-                                {'professor': prof, 'examen': ex, 'ultima_hora': ultima, 'hora': h_espera})
+                            analisi["despres_jornada"].append(
+                                {"professor": prof, "examen": ex, "ultima_hora": ultima, "hora": h_espera}
+                            )
                     any_outside = True
                 else:
                     any_inside_no_overlap = True
 
         if not had_overlap and not any_outside and any_inside_no_overlap:
-            analisi['lliures'].append({'professor': prof, 'examen': ex})
+            analisi["lliures"].append({"professor": prof, "examen": ex})
 
         if had_overlap and not te_substitucio and (te_alliberat or is_in_altres):
-            analisi['alliberats'].append({'professor': prof, 'examen': ex})
-                
+            analisi["alliberats"].append({"professor": prof, "examen": ex})
+
     return analisi

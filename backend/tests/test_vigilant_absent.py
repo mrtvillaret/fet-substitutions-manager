@@ -13,6 +13,7 @@ desapareixia del tot.
 Dilluns 20/04/2026 a les 10:00: Prof 15 fa Anglès amb 3-ESO-A; Prof 3, 21 i
 28 fan guàrdia.
 """
+
 from test_vigilancies_api import (  # noqa: F401  (fixtures)
     URL,
     URL_SUBS,
@@ -33,8 +34,10 @@ def _files(client):
 
 def _totes(client):
     # include_all amaga les ENCADENADES; aquí no n'hi ha cap que interessi.
-    return [(s["hora"], s["professor_absent"], s["assignatura"], s["tipus_absencia"], s["substitut"])
-            for s in _files(client)]
+    return [
+        (s["hora"], s["professor_absent"], s["assignatura"], s["tipus_absencia"], s["substitut"])
+        for s in _files(client)
+    ]
 
 
 def _cobertures_classe(client):
@@ -52,10 +55,12 @@ def _canvia_vigilant(client, nou):
 
 
 def _posa_substitut(client, tipus, substitut, professor="Prof 15"):
-    fila = next(s for s in _files(client)
-                if s["professor_absent"] == professor and s["hora"] == "10:00" and s["tipus_absencia"] == tipus)
-    resp = client.put(f"{URL_SUBS}/10:00/{professor}",
-                      json={"substitut": substitut, "updated_at": fila["updated_at"]})
+    fila = next(
+        s
+        for s in _files(client)
+        if s["professor_absent"] == professor and s["hora"] == "10:00" and s["tipus_absencia"] == tipus
+    )
+    resp = client.put(f"{URL_SUBS}/10:00/{professor}", json={"substitut": substitut, "updated_at": fila["updated_at"]})
     assert resp.status_code == 200, resp.text
 
 
@@ -65,6 +70,7 @@ def _treu_absencia(client, professor="Prof 15"):
 
 
 # ------------------------------------------------ vigilant absent: estat
+
 
 def test_vigilant_i_despres_absent(client):
     _crea(client, "Prof 15")
@@ -82,13 +88,16 @@ def test_absent_i_despres_vigilant(client):
 
 def test_nova_substitucio_d_un_vigilant(client):
     _crea(client, "Prof 15")
-    resp = client.post(f"{URL_SUBS}/nova", json={"professor": "Prof 15", "hores": ["10:00"], "tipus_absencia": "ABSENCIA"})
+    resp = client.post(
+        f"{URL_SUBS}/nova", json={"professor": "Prof 15", "hores": ["10:00"], "tipus_absencia": "ABSENCIA"}
+    )
     assert resp.status_code == 200
     assert _cobertures_classe(client) == [("ABSENCIA", "")]
     assert _vigilancia_absent_de(client, "Prof 15") == [""]
 
 
 # ------------------------------------------- canvis posteriors (l'error)
+
 
 def test_canviar_el_vigilant_no_fa_perdre_l_absencia(client):
     _crea(client, "Prof 15")
@@ -116,6 +125,7 @@ def test_treure_l_absencia_d_un_vigilant_torna_a_cobrir_la_classe_per_la_vigilan
 
 # --------------------------------------- es conserven els substituts
 
+
 def test_el_substitut_de_la_classe_es_conserva_en_marcar_l_absencia(client):
     _crea(client, "Prof 15")
     _posa_substitut(client, "VIGILANCIA", "Prof 3")
@@ -141,6 +151,7 @@ def test_el_substitut_de_la_classe_es_conserva_en_canviar_el_vigilant(client):
 
 # ----------------------------------------------------------- generar
 
+
 def test_generar_no_duplica_la_classe_d_un_vigilant_absent(client):
     _crea(client, "Prof 15")
     _absent(client, "Prof 15")
@@ -153,6 +164,7 @@ def test_generar_no_duplica_la_classe_d_un_vigilant_absent(client):
 
 
 # --------------------------------------------- el que no ha de canviar
+
 
 def test_un_vigilant_que_no_es_absent_continua_tenint_la_classe_coberta_per_la_vigilancia(client):
     _crea(client, "Prof 15")
@@ -183,8 +195,17 @@ def test_generar_no_duplica_la_cobertura_d_un_vigilant_sense_substitut(client):
     # Amb una altra absència el mateix dia, «generar» tornava a crear la
     # cobertura (VIGILANCIA) de la classe del vigilant si encara no tenia substitut.
     client.put(f"{URL_SUBS}/absencies/Prof 33", json={"hores_absencia": ["12:30"], "updated_at_map": {}})
-    resp = client.post(URL, json={"hora": "12:30", "tipus": "Anglès", "grups": "1-BAT-A", "aula": "A04",
-                                  "vigilant": "Prof 41", "nivell": "1-BAT"})
+    resp = client.post(
+        URL,
+        json={
+            "hora": "12:30",
+            "tipus": "Anglès",
+            "grups": "1-BAT-A",
+            "aula": "A04",
+            "vigilant": "Prof 41",
+            "nivell": "1-BAT",
+        },
+    )
     assert resp.status_code == 200, resp.text
     for _ in range(2):
         assert client.post(f"{URL_SUBS}/generar").status_code == 200
@@ -195,8 +216,10 @@ def test_generar_no_duplica_la_cobertura_d_un_vigilant_sense_substitut(client):
 def test_canviar_l_hora_d_una_vigilancia_treu_la_cobertura_de_l_hora_antiga(client):
     # Prof 15 té classe a les 10:00 (Anglès 3-ESO-A): vigilar-hi crea la cobertura
     _crea(client, "Prof 15")
+
     def cobertures():
         return [(h, p) for h, p, a, t, s in _totes(client) if t == "VIGILANCIA"]
+
     assert cobertures() == [("10:00", "Prof 15")]
 
     vig = _vigilancies(client)[0]
@@ -212,7 +235,8 @@ def test_moure_la_vigilancia_d_un_vigilant_absent_treu_la_cobertura_de_l_hora_an
     assert _vigilancia_absent_de(client, "Prof 15") == [""]
 
     vig = _vigilancies(client)[0]
-    resp = client.put(f"{URL}/{vig['id']}", json={"hora": "10:00", "vigilant": "Prof 21",
-                                                   "updated_at": vig["updated_at"]})
+    resp = client.put(
+        f"{URL}/{vig['id']}", json={"hora": "10:00", "vigilant": "Prof 21", "updated_at": vig["updated_at"]}
+    )
     assert resp.status_code == 200
     assert _vigilancia_absent_de(client, "Prof 15") == []

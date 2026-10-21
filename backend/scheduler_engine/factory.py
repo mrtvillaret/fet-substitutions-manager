@@ -19,27 +19,42 @@ MOTORS = {
             "temperatura_inicial": {
                 "label": "Temperatura inicial",
                 "help": "Controla l'exploració inicial (més alt = més exploració)",
-                "type": "number", "min": 1, "max": 10000, "step": 10,
+                "type": "number",
+                "min": 1,
+                "max": 10000,
+                "step": 10,
             },
             "temperatura_final": {
                 "label": "Temperatura final",
                 "help": "Punt on s'atura el refinament",
-                "type": "number", "min": 0.001, "max": 1, "step": 0.01,
+                "type": "number",
+                "min": 0.001,
+                "max": 1,
+                "step": 0.01,
             },
             "factor_refredament": {
                 "label": "Factor de refredament",
                 "help": "0.9 = ràpid, 0.999 = lent (valors lents necessiten més iteracions per convergir)",
-                "type": "number", "min": 0.5, "max": 0.9999, "step": 0.0001,
+                "type": "number",
+                "min": 0.5,
+                "max": 0.9999,
+                "step": 0.0001,
             },
             "iteracions_per_temperatura": {
                 "label": "Iteracions per temperatura",
                 "help": "Proves per cada nivell de temperatura",
-                "type": "number", "min": 10, "max": 5000, "step": 10,
+                "type": "number",
+                "min": 10,
+                "max": 5000,
+                "step": 10,
             },
             "max_iteracions": {
                 "label": "Límit global d'iteracions",
                 "help": "Nombre màxim total d'iteracions",
-                "type": "number", "min": 1000, "max": 1000000, "step": 1000,
+                "type": "number",
+                "min": 1000,
+                "max": 1000000,
+                "step": 1000,
             },
         },
     },
@@ -64,13 +79,19 @@ MOTORS = {
             "max_intents_validacio": {
                 "label": "Nombre d'intents",
                 "help": "Quantes solucions es proven per trobar la millor",
-                "type": "number", "min": 10, "max": 5000, "step": 10,
+                "type": "number",
+                "min": 10,
+                "max": 5000,
+                "step": 10,
                 "main": True,
             },
             "epsilon": {
                 "label": "Epsilon",
                 "help": "Probabilitat d'acceptar pitjors solucions (exploració)",
-                "type": "number", "min": 0, "max": 1, "step": 0.05,
+                "type": "number",
+                "min": 0,
+                "max": 1,
+                "step": 0.05,
             },
         },
     },
@@ -126,15 +147,22 @@ MOTORS = {
 }
 
 
-def crear_motor(motor_id: str, config_path: str, xml_path: str,
-                restriccions_path: str = None, ultim_professor: str = "",
-                nivells_actius: List[str] = None, hores_examen: List[str] = None,
-                hores_per_nivell: dict = None,
-                durada_titular: int = 1, no_substituir: set = None,
-                alliberaments_per_nivell: dict = None,
-                durades_per_sessio: dict = None,
-                durades_examen_per_sessio: dict = None,
-                **override_params) -> Tuple[Any, str]:
+def crear_motor(
+    motor_id: str,
+    config_path: str,
+    xml_path: str,
+    restriccions_path: str = None,
+    ultim_professor: str = "",
+    nivells_actius: List[str] = None,
+    hores_examen: List[str] = None,
+    hores_per_nivell: dict = None,
+    durada_titular: int = 1,
+    no_substituir: set = None,
+    alliberaments_per_nivell: dict = None,
+    durades_per_sessio: dict = None,
+    durades_examen_per_sessio: dict = None,
+    **override_params,
+) -> Tuple[Any, str]:
     """
     Crea una instància del motor especificat.
 
@@ -166,11 +194,13 @@ def crear_motor(motor_id: str, config_path: str, xml_path: str,
 
     # Import dinàmic
     import importlib
+
     module = importlib.import_module(motor_info["module"])
     cls = getattr(module, motor_info["class_name"])
 
     gen = cls(
-        config_path, xml_path,
+        config_path,
+        xml_path,
         restriccions_path=restriccions_path,
         ultim_professor=ultim_professor,
         nivells_actius=nivells_actius,
@@ -198,10 +228,12 @@ def get_motors_info() -> list:
     """
     result = []
     for motor_id, info in MOTORS.items():
-        result.append({
-            "id": motor_id,
-            "label": info["label"],
-            "params": info["params"],
-            "param_labels": info["param_labels"],
-        })
+        result.append(
+            {
+                "id": motor_id,
+                "label": info["label"],
+                "params": info["params"],
+                "param_labels": info["param_labels"],
+            }
+        )
     return result

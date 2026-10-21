@@ -53,19 +53,19 @@ def activitats_alliberables(db: Session) -> List[str]:
 
 
 class AlliberatsDia(BaseModel):
-    grups: Dict[str, List[str]] = {}       # {hora: [grups sense classe]}
+    grups: Dict[str, List[str]] = {}  # {hora: [grups sense classe]}
     professors: Dict[str, List[str]] = {}  # {hora: [professors alliberats]}
     activitats: Dict[str, List[str]] = {}  # {hora: [activitats alliberades]}
-    ocupats: Dict[str, List[str]] = {}     # {hora: [reforços sense alumnes que aquell dia sí en tenen]}
+    ocupats: Dict[str, List[str]] = {}  # {hora: [reforços sense alumnes que aquell dia sí en tenen]}
 
 
 class CanviPeriode(BaseModel):
-    tipus: str              # grup | professor | activitat
-    clau: str               # nom del grup, professor o activitat
+    tipus: str  # grup | professor | activitat
+    clau: str  # nom del grup, professor o activitat
     hores: List[str]
-    data: str               # a partir d'aquest dia
+    data: str  # a partir d'aquest dia
     alliberat: bool = True
-    dia_setmana: str = ""   # el dia de la setmana (per defecte, el de `data`)
+    dia_setmana: str = ""  # el dia de la setmana (per defecte, el de `data`)
 
 
 def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
@@ -97,9 +97,7 @@ def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
 
         vig_dict = VigilanciaRepository.get_by_date(db, data)
         hores_amb_vig = {
-            (v.get("hora") or "").strip()
-            for vigs in vig_dict.values() for v in vigs
-            if (v.get("hora") or "").strip()
+            (v.get("hora") or "").strip() for vigs in vig_dict.values() for v in vigs if (v.get("hora") or "").strip()
         }
         for hora in hores_amb_vig | {h.strip() for h in hores_afectades if h and h.strip()}:
             refresca_cobertures(data, hora, db)
@@ -110,6 +108,7 @@ def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
 
 
 # ===== Alliberaments per període (definides abans de /{data}) =====
+
 
 @router.get("/periode/canvis")
 async def llista_canvis_periode(tipus: str = None, clau: str = None, db: Session = Depends(get_db)):
@@ -145,7 +144,9 @@ async def afegeix_canvi_periode(canvi: CanviPeriode, db: Session = Depends(get_d
 
 
 @router.get("/reforcos/{activitat}")
-async def franges_activitat_per_defecte(activitat: str, data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)):
+async def franges_activitat_per_defecte(
+    activitat: str, data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)
+):
     """Per a una activitat «alliberada fins que tingui alumnes» (p.ex. Reforç):
     les franges de la setmana de cada professor que la fa, i si en aquella data
     ja tenen alumnes."""
@@ -158,7 +159,8 @@ async def franges_activitat_per_defecte(activitat: str, data: DataISO, db: Sessi
     historial = {}
     for c in AlliberamentsPeriodeRepository.canvis(db, tipus="professor"):
         historial.setdefault((c["clau"], c["dia_setmana"], c["hora"]), []).append(
-            {"des_de": c["des_de"], "amb_alumnes": not c["alliberat"]})
+            {"des_de": c["des_de"], "amb_alumnes": not c["alliberat"]}
+        )
     professors = {}
     for dia in horari.dies:
         for hora in horari.hores:
@@ -168,11 +170,15 @@ async def franges_activitat_per_defecte(activitat: str, data: DataISO, db: Sessi
                     continue
                 canvi = darrers.get(("professor", professor, dia, hora))
                 amb_alumnes = canvi is not None and not canvi.alliberat
-                professors.setdefault(professor, []).append({
-                    "dia": dia, "hora": hora, "amb_alumnes": amb_alumnes,
-                    "des_de": canvi.des_de.isoformat() if canvi is not None else None,
-                    "historial": historial.get((professor, dia, hora), []),
-                })
+                professors.setdefault(professor, []).append(
+                    {
+                        "dia": dia,
+                        "hora": hora,
+                        "amb_alumnes": amb_alumnes,
+                        "des_de": canvi.des_de.isoformat() if canvi is not None else None,
+                        "historial": historial.get((professor, dia, hora), []),
+                    }
+                )
     return {"dies": horari.dies, "hores": horari.hores, "professors": professors}
 
 
@@ -191,6 +197,7 @@ def _reconcilia_dies_afectats(des_de: str, dia_setmana: int, hores: set, db: Ses
     setmana: es reconcilien els que ja tenen substitucions o vigilàncies."""
     from models import Substitucio, Vigilancia
     from repositories import parse_date
+
     dates = set()
     for model in (Substitucio, Vigilancia):
         for (d,) in db.query(model.data).filter(model.data >= parse_date(des_de)).distinct():
@@ -203,7 +210,9 @@ def _reconcilia_dies_afectats(des_de: str, dia_setmana: int, hores: set, db: Ses
 
 
 @router.get("/{data}")
-async def obtenir_grups_sense_classe(data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)):
+async def obtenir_grups_sense_classe(
+    data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)
+):
     """
     Retorna grups sense classe per una data (SQLite)
     Format compatible amb GrupsView.vue
@@ -268,10 +277,12 @@ async def obtenir_grups_sense_classe(data: DataISO, db: Session = Depends(get_db
                 if nom not in per_defecte_noms or activitat.get("grup"):
                     continue
                 canvi = darrers.get(("professor", professor, dia, hora))
-                reforcs_del_dia.setdefault(nom, {}).setdefault(hora, []).append({
-                    "professor": professor,
-                    "amb_alumnes": canvi is not None and not canvi.alliberat,
-                })
+                reforcs_del_dia.setdefault(nom, {}).setdefault(hora, []).append(
+                    {
+                        "professor": professor,
+                        "amb_alumnes": canvi is not None and not canvi.alliberat,
+                    }
+                )
 
     # Activitats alliberables (Prioritats) que algú fa aquell dia: {activitat: {hora: [professors]}}
     # Les «alliberades fins que tenen alumnes» no hi surten: es gestionen a part
@@ -291,18 +302,15 @@ async def obtenir_grups_sense_classe(data: DataISO, db: Session = Depends(get_db
         "hores": hores,
         "grups_disponibles": tots_grups,
         "grups_seleccionats_per_hora": {
-            hora: nomes_grups(valors) for hora, valors in alliberats_per_hora.items()
-            if nomes_grups(valors)
+            hora: nomes_grups(valors) for hora, valors in alliberats_per_hora.items() if nomes_grups(valors)
         },
         "professors_per_grup_hora": professors_per_grup_hora,
         "professors_alliberats_per_hora": {
-            hora: professors_de(valors) for hora, valors in alliberats_per_hora.items()
-            if professors_de(valors)
+            hora: professors_de(valors) for hora, valors in alliberats_per_hora.items() if professors_de(valors)
         },
         "activitats_per_hora": {act: activitats_per_hora[act] for act in sorted(activitats_per_hora)},
         "activitats_seleccionades_per_hora": {
-            hora: activitats_de(valors) for hora, valors in alliberats_per_hora.items()
-            if activitats_de(valors)
+            hora: activitats_de(valors) for hora, valors in alliberats_per_hora.items() if activitats_de(valors)
         },
         # Alliberats per període aquell dia: {hora: [{tipus, clau, des_de}]}
         "periode": AlliberamentsPeriodeRepository.estats(db, data, dia),
@@ -310,8 +318,7 @@ async def obtenir_grups_sense_classe(data: DataISO, db: Session = Depends(get_db
         "activitats_per_defecte": per_defecte,
         "reforcs_per_hora": reforcs_del_dia,
         "ocupats_per_hora": {
-            hora: ocupats_de(valors) for hora, valors in alliberats_per_hora.items()
-            if ocupats_de(valors)
+            hora: ocupats_de(valors) for hora, valors in alliberats_per_hora.items() if ocupats_de(valors)
         },
     }
 
@@ -361,5 +368,5 @@ async def desar_grups_sense_classe(data: DataISO, payload: AlliberatsDia, db: Se
         "message": f"Grups sense classe actualitzats per {data}",
         "total_hores": len(grups_per_hora),
         "total_grups": sum(len(nomes_grups(v)) for v in grups_per_hora.values()),
-        "total_professors": sum(len(professors_de(v)) for v in grups_per_hora.values())
+        "total_professors": sum(len(professors_de(v)) for v in grups_per_hora.values()),
     }

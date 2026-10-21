@@ -97,9 +97,7 @@ def _build_restriccions_from_db(db):
             if isinstance(data["restriccions_dures"][t], list):
                 if t in ("mateix_slot", "combinacions_permeses"):
                     if isinstance(val, list):
-                        data["restriccions_dures"][t].append(
-                            {"nom": r.clau or "", "assignatures": val, "pes": pes}
-                        )
+                        data["restriccions_dures"][t].append({"nom": r.clau or "", "assignatures": val, "pes": pes})
                     elif val:
                         data["restriccions_dures"][t].append(val)
                 elif t == "assignatures_dies_exclosos":
@@ -141,9 +139,7 @@ def _build_restriccions_from_db(db):
 
         # Mapejar a pesos_percentatge pel motor v3
         data["pesos_percentatge"] = {
-            "substitucio": costos_professors["globals"].get(
-                "substitucio", DEFAULT_COST_PROFESSORS["substitucio"]
-            ),
+            "substitucio": costos_professors["globals"].get("substitucio", DEFAULT_COST_PROFESSORS["substitucio"]),
             "professor_abans": costos_professors["globals"].get(
                 "abans_jornada", DEFAULT_COST_PROFESSORS["abans_jornada"]
             ),
@@ -176,6 +172,7 @@ def _save_restriccions_to_db(db, payload: dict):
     Guarda restriccions a la BD amb pes individual.
     """
     try:
+
         def _coerce_pes(value, default=100):
             if isinstance(value, list):
                 value = value[0] if value else default

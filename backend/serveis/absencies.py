@@ -3,6 +3,7 @@ Marcar o treure les absències d'un professor un dia: les files d'absència i
 de servei, les cobertures de les seves classes si vigila i les de vigilant
 absent. Després es treuen els substituts que ja no poden ser-ho.
 """
+
 from datetime import datetime
 
 from helpers import get_gestors
@@ -19,15 +20,15 @@ def canvia_tipus_cobertures(db, data: str, professor: str, hores, de: str, a: st
     professor vigila un examen) o una ABSENCIA (el professor és absent)."""
     canviades = set()
     for sub in SubstitucioRepository.get_by_date(db, data):
-        if (sub.get("professor_absent") == professor and sub.get("hora") in hores
-                and sub.get("tipus_absencia") == de):
+        if sub.get("professor_absent") == professor and sub.get("hora") in hores and sub.get("tipus_absencia") == de:
             SubstitucioRepository.update(db, int(sub["id"]), {"tipus_absencia": a})
             canviades.add((sub.get("hora"), sub.get("assignatura", ""), sub.get("grup", "")))
     return canviades
 
 
-def desa_absencies(db, data: str, professor: str, hores_absencia=None, hores_servei=None,
-                   gestors=None, dia_name: str = None) -> dict:
+def desa_absencies(
+    db, data: str, professor: str, hores_absencia=None, hores_servei=None, gestors=None, dia_name: str = None
+) -> dict:
     """Deixa el professor absent (ABSENCIA) i de servei (SERVEI) exactament a
     les hores donades; None vol dir que aquell tipus no es toca. `gestors`:
     (horari, absencies) si ja es tenen."""
@@ -41,9 +42,9 @@ def desa_absencies(db, data: str, professor: str, hores_absencia=None, hores_ser
 
     types_a_processar = []
     if hores_absencia is not None:
-        types_a_processar.append(('ABSENCIA', set(hores_absencia)))
+        types_a_processar.append(("ABSENCIA", set(hores_absencia)))
     if hores_servei is not None:
-        types_a_processar.append(('SERVEI', set(hores_servei)))
+        types_a_processar.append(("SERVEI", set(hores_servei)))
 
     total_afegides = 0
     total_eliminades = 0
@@ -52,59 +53,57 @@ def desa_absencies(db, data: str, professor: str, hores_absencia=None, hores_ser
     for tipus, hores_noves_tipus in types_a_processar:
         # Hores antigues FILTRADES per aquest tipus concret (evita interferències entre tipus)
         hores_antigues_tipus = set(
-            sub.get("hora") for sub in substitucions_list
-            if sub.get("professor_absent") == professor
-            and sub.get("tipus_absencia") == tipus
+            sub.get("hora")
+            for sub in substitucions_list
+            if sub.get("professor_absent") == professor and sub.get("tipus_absencia") == tipus
         )
 
         hores_a_eliminar_tipus = hores_antigues_tipus - hores_noves_tipus
         hores_a_afegir_tipus = hores_noves_tipus - hores_antigues_tipus
 
-
         # Hores que es treuen. Si a alguna el professor vigila un examen, la
         # seva classe torna a cobrir-la una VIGILANCIA (la mateixa fila, amb
         # el mateix substitut); refresca_cobertures deixa després l'hora com toca.
         hores_vigilant = {
-            h for h in hores_a_eliminar_tipus
-            if professor in VigilanciaRepository.get_vigilants_per_hora(db, data, h)
+            h for h in hores_a_eliminar_tipus if professor in VigilanciaRepository.get_vigilants_per_hora(db, data, h)
         }
         canvia_tipus_cobertures(db, data, professor, hores_vigilant, tipus, "VIGILANCIA")
         for sub in substitucions_list:
-            if (sub.get("professor_absent") == professor
-                    and sub.get("tipus_absencia") == tipus
-                    and sub.get("hora") in hores_a_eliminar_tipus - hores_vigilant):
-                SubstitucioRepository.delete(db, int(sub['id']))
+            if (
+                sub.get("professor_absent") == professor
+                and sub.get("tipus_absencia") == tipus
+                and sub.get("hora") in hores_a_eliminar_tipus - hores_vigilant
+            ):
+                SubstitucioRepository.delete(db, int(sub["id"]))
         if hores_vigilant:
             for hora_vigilant in hores_vigilant:
                 refresca_cobertures(data, hora_vigilant, db)
-
 
         # Afegir hores noves d'aquest tipus
         if hores_a_afegir_tipus:
             # Si vigila un examen a alguna d'aquestes hores, la seva classe ja
             # la cobria una VIGILANCIA: ara que és absent, aquella mateixa
             # fila (amb el seu substitut) passa a ser l'absència.
-            ja_cobertes = canvia_tipus_cobertures(
-                db, data, professor, hores_a_afegir_tipus, "VIGILANCIA", tipus)
+            ja_cobertes = canvia_tipus_cobertures(db, data, professor, hores_a_afegir_tipus, "VIGILANCIA", tipus)
 
             absents_nous = {professor: list(hores_a_afegir_tipus)}
             absents_nous_tipus = {professor: tipus}
             subs_generades = absencies.get_substitucions_necessaries(dia_name, absents_nous, absents_nous_tipus)
 
             for sub in subs_generades:
-                if (sub.get('hora'), sub.get('assignatura', ''), sub.get('grup', '')) in ja_cobertes:
+                if (sub.get("hora"), sub.get("assignatura", ""), sub.get("grup", "")) in ja_cobertes:
                     continue
                 sub_data = {
-                    'data': data,
-                    'hora': sub.get('hora', ''),
-                    'professor_absent': sub.get('professor_absent', ''),
-                    'assignatura': sub.get('assignatura', ''),
-                    'grup': sub.get('grup', ''),
-                    'aula': sub.get('aula', ''),
-                    'substitut': sub.get('substitut', ''),
-                    'tipus_substitut': sub.get('tipus_substitut', ''),
-                    'tipus_absencia': sub.get('tipus_absencia', ''),
-                    'comentaris': sub.get('comentaris', '')
+                    "data": data,
+                    "hora": sub.get("hora", ""),
+                    "professor_absent": sub.get("professor_absent", ""),
+                    "assignatura": sub.get("assignatura", ""),
+                    "grup": sub.get("grup", ""),
+                    "aula": sub.get("aula", ""),
+                    "substitut": sub.get("substitut", ""),
+                    "tipus_substitut": sub.get("tipus_substitut", ""),
+                    "tipus_absencia": sub.get("tipus_absencia", ""),
+                    "comentaris": sub.get("comentaris", ""),
                 }
                 SubstitucioRepository.create(db, sub_data)
 
@@ -116,16 +115,16 @@ def desa_absencies(db, data: str, professor: str, hores_absencia=None, hores_ser
                     grup_absent = activitat.get("grup", "") if activitat else ""
                     aula_absent = activitat.get("aula", "") if activitat else ""
                     sub_data = {
-                        'data': data,
-                        'hora': hora,
-                        'professor_absent': professor,
-                        'assignatura': assignatura_absent,
-                        'grup': grup_absent,
-                        'aula': aula_absent,
-                        'substitut': '',
-                        'tipus_substitut': '',
-                        'tipus_absencia': tipus,
-                        'comentaris': ''
+                        "data": data,
+                        "hora": hora,
+                        "professor_absent": professor,
+                        "assignatura": assignatura_absent,
+                        "grup": grup_absent,
+                        "aula": aula_absent,
+                        "substitut": "",
+                        "tipus_substitut": "",
+                        "tipus_absencia": tipus,
+                        "comentaris": "",
                     }
                     SubstitucioRepository.create(db, sub_data)
 

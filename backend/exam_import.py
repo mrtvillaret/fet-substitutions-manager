@@ -16,6 +16,7 @@ Regles:
   configurat (en general, en una importació nova, encara no n'hi ha cap) —
   es deixa editar a mà a la taula de revisió.
 """
+
 import re
 from collections import Counter, defaultdict
 from typing import Dict, List, Set
@@ -70,13 +71,15 @@ def generar_propostes(horari) -> List[Dict]:
     propostes = []
     for (assignatura, grup, titular, nivell), aules_counter in combos.items():
         aula = aules_counter.most_common(1)[0][0] if aules_counter else ""
-        propostes.append({
-            "assignatura": assignatura,
-            "grup": grup,
-            "titular": titular,
-            "aula": aula,
-            "nivell": nivell,
-        })
+        propostes.append(
+            {
+                "assignatura": assignatura,
+                "grup": grup,
+                "titular": titular,
+                "aula": aula,
+                "nivell": nivell,
+            }
+        )
 
     propostes.sort(key=lambda p: (p["nivell"], p["assignatura"], p["grup"], p["titular"]))
     return propostes
@@ -90,14 +93,10 @@ def nivells_amb_substitucions(db) -> Set[str]:
 
     grups_historics = set()
 
-    for (grup,) in db.query(Substitucio.grup).filter(
-        Substitucio.grup.isnot(None), Substitucio.grup != ""
-    ).distinct():
+    for (grup,) in db.query(Substitucio.grup).filter(Substitucio.grup.isnot(None), Substitucio.grup != "").distinct():
         grups_historics.add(grup)
 
-    for (grups,) in db.query(Vigilancia.grups).filter(
-        Vigilancia.grups.isnot(None), Vigilancia.grups != ""
-    ).distinct():
+    for (grups,) in db.query(Vigilancia.grups).filter(Vigilancia.grups.isnot(None), Vigilancia.grups != "").distinct():
         grups_historics.add(grups)
 
     nivells = set()

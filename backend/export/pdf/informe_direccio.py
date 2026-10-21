@@ -2,6 +2,7 @@
 Generador d'informe de direcció en PDF
 Informe complet d'absències, substitucions i vigilàncies
 """
+
 import html
 from datetime import datetime
 from pathlib import Path
@@ -26,17 +27,17 @@ from i18n_setup import setup_translation
 from i18n_setup import translate as _
 
 # Paleta de colors moderna
-C_NAVY     = colors.HexColor("#1e3a5f")
-C_BLUE     = colors.HexColor("#2980b9")
-C_TEAL     = colors.HexColor("#16a085")
-C_GREEN    = colors.HexColor("#27ae60")
-C_ORANGE   = colors.HexColor("#e67e22")
-C_RED      = colors.HexColor("#c0392b")
-C_GREY_BG  = colors.HexColor("#f4f6f8")
+C_NAVY = colors.HexColor("#1e3a5f")
+C_BLUE = colors.HexColor("#2980b9")
+C_TEAL = colors.HexColor("#16a085")
+C_GREEN = colors.HexColor("#27ae60")
+C_ORANGE = colors.HexColor("#e67e22")
+C_RED = colors.HexColor("#c0392b")
+C_GREY_BG = colors.HexColor("#f4f6f8")
 C_GREY_MID = colors.HexColor("#bdc3c7")
 C_GREY_TXT = colors.HexColor("#7f8c8d")
-C_WHITE    = colors.white
-C_BLACK    = colors.HexColor("#2c3e50")
+C_WHITE = colors.white
+C_BLACK = colors.HexColor("#2c3e50")
 
 PAGE_W, PAGE_H = A4
 MARGIN = 1.5 * cm
@@ -56,74 +57,68 @@ def _s(name, **kwargs):
 
 
 STYLES = {
-    "title": _s("title",
-        fontName="Helvetica-Bold", fontSize=22, textColor=C_WHITE,
-        alignment=TA_LEFT, leading=28),
-    "subtitle": _s("subtitle",
-        fontName="Helvetica", fontSize=11, textColor=colors.HexColor("#a8c8e8"),
-        alignment=TA_LEFT, leading=16),
-    "section": _s("section",
-        fontName="Helvetica-Bold", fontSize=13, textColor=C_NAVY,
-        alignment=TA_LEFT, leading=18, spaceBefore=8),
-    "kpi_num": _s("kpi_num",
-        fontName="Helvetica-Bold", fontSize=26, textColor=C_NAVY,
-        alignment=TA_CENTER, leading=30),
-    "kpi_lbl": _s("kpi_lbl",
-        fontName="Helvetica", fontSize=8, textColor=C_GREY_TXT,
-        alignment=TA_CENTER, leading=11),
-    "table_header": _s("th",
-        fontName="Helvetica-Bold", fontSize=9, textColor=C_WHITE,
-        alignment=TA_CENTER, leading=12),
-    "table_cell": _s("td",
-        fontName="Helvetica", fontSize=8.5, textColor=C_BLACK,
-        alignment=TA_LEFT, leading=12),
-    "table_cell_c": _s("tdc",
-        fontName="Helvetica", fontSize=8.5, textColor=C_BLACK,
-        alignment=TA_CENTER, leading=12),
-    "table_cell_r": _s("tdr",
-        fontName="Helvetica", fontSize=8.5, textColor=C_BLACK,
-        alignment=TA_RIGHT, leading=12),
-    "table_cell_bold": _s("tdb",
-        fontName="Helvetica-Bold", fontSize=8.5, textColor=C_BLACK,
-        alignment=TA_LEFT, leading=12),
-    "note": _s("note",
-        fontName="Helvetica-Oblique", fontSize=8, textColor=C_GREY_TXT,
-        alignment=TA_LEFT, leading=11),
-    "footer": _s("footer",
-        fontName="Helvetica", fontSize=8, textColor=C_GREY_TXT,
-        alignment=TA_CENTER, leading=11),
+    "title": _s("title", fontName="Helvetica-Bold", fontSize=22, textColor=C_WHITE, alignment=TA_LEFT, leading=28),
+    "subtitle": _s(
+        "subtitle",
+        fontName="Helvetica",
+        fontSize=11,
+        textColor=colors.HexColor("#a8c8e8"),
+        alignment=TA_LEFT,
+        leading=16,
+    ),
+    "section": _s(
+        "section",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        textColor=C_NAVY,
+        alignment=TA_LEFT,
+        leading=18,
+        spaceBefore=8,
+    ),
+    "kpi_num": _s("kpi_num", fontName="Helvetica-Bold", fontSize=26, textColor=C_NAVY, alignment=TA_CENTER, leading=30),
+    "kpi_lbl": _s("kpi_lbl", fontName="Helvetica", fontSize=8, textColor=C_GREY_TXT, alignment=TA_CENTER, leading=11),
+    "table_header": _s("th", fontName="Helvetica-Bold", fontSize=9, textColor=C_WHITE, alignment=TA_CENTER, leading=12),
+    "table_cell": _s("td", fontName="Helvetica", fontSize=8.5, textColor=C_BLACK, alignment=TA_LEFT, leading=12),
+    "table_cell_c": _s("tdc", fontName="Helvetica", fontSize=8.5, textColor=C_BLACK, alignment=TA_CENTER, leading=12),
+    "table_cell_r": _s("tdr", fontName="Helvetica", fontSize=8.5, textColor=C_BLACK, alignment=TA_RIGHT, leading=12),
+    "table_cell_bold": _s(
+        "tdb", fontName="Helvetica-Bold", fontSize=8.5, textColor=C_BLACK, alignment=TA_LEFT, leading=12
+    ),
+    "note": _s("note", fontName="Helvetica-Oblique", fontSize=8, textColor=C_GREY_TXT, alignment=TA_LEFT, leading=11),
+    "footer": _s("footer", fontName="Helvetica", fontSize=8, textColor=C_GREY_TXT, alignment=TA_CENTER, leading=11),
 }
 
 
-
 def _table_style_base(header_color=C_NAVY, row_alt=C_GREY_BG):
-    return TableStyle([
-        # Capçalera
-        ("BACKGROUND", (0, 0), (-1, 0), header_color),
-        ("TEXTCOLOR",  (0, 0), (-1, 0), C_WHITE),
-        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE",   (0, 0), (-1, 0), 8.5),
-        ("ALIGN",      (0, 0), (-1, 0), "CENTER"),
-        ("TOPPADDING",    (0, 0), (-1, 0), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 7),
-        # Files
-        ("FONTNAME",   (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE",   (0, 1), (-1, -1), 8.5),
-        ("TOPPADDING",    (0, 1), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 5),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
-        # Línies
-        ("LINEBELOW",  (0, 0), (-1, 0), 0.5, header_color),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, row_alt]),
-        ("GRID", (0, 0), (-1, -1), 0.3, C_GREY_MID),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-    ])
+    return TableStyle(
+        [
+            # Capçalera
+            ("BACKGROUND", (0, 0), (-1, 0), header_color),
+            ("TEXTCOLOR", (0, 0), (-1, 0), C_WHITE),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 8.5),
+            ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+            ("TOPPADDING", (0, 0), (-1, 0), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 7),
+            # Files
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 1), (-1, -1), 8.5),
+            ("TOPPADDING", (0, 1), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            # Línies
+            ("LINEBELOW", (0, 0), (-1, 0), 0.5, header_color),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, row_alt]),
+            ("GRID", (0, 0), (-1, -1), 0.3, C_GREY_MID),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]
+    )
 
 
-def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: str,
-                  logo_path: str = None) -> list:
+def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: str, logo_path: str = None) -> list:
     """Bloc de capçalera amb fons fosc, logo opcional i nom del centre"""
+
     def fmt(d):
         try:
             return datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y")
@@ -136,7 +131,7 @@ def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: 
             f"<font size='13'><b>{_text(nom_centre)}</b></font><br/>"
             f"<font size='9' color='#a8c8e8'>{_('Període')}: {fmt(data_inici)} – {fmt(data_final)}"
             f" &nbsp;|&nbsp; {_('Generat')}: {timestamp}</font>",
-            STYLES["subtitle"]
+            STYLES["subtitle"],
         ),
     ]
 
@@ -144,6 +139,7 @@ def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: 
         MAX_H = 1.8 * cm
         MAX_W = 4.0 * cm
         from PIL import Image as PILImage
+
         with PILImage.open(logo_path) as pil_img:
             img_w, img_h = pil_img.size
         aspect = img_w / img_h
@@ -165,59 +161,81 @@ def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: 
         style_extra = []
 
     t = Table(header_data, colWidths=col_w)
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), C_NAVY),
-        ("TOPPADDING",    (0, 0), (-1, -1), 18),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 18),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 20),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 20),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        *style_extra,
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), C_NAVY),
+                ("TOPPADDING", (0, 0), (-1, -1), 18),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 18),
+                ("LEFTPADDING", (0, 0), (-1, -1), 20),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 20),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                *style_extra,
+            ]
+        )
+    )
     return [t, Spacer(1, 0.5 * cm)]
 
 
 def _kpi_cards(stats: dict) -> list:
     """Fila de targetes KPI"""
-    total_abs   = stats["total_absencies"]
-    total_serv  = stats["total_serveis"]
+    total_abs = stats["total_absencies"]
+    total_serv = stats["total_serveis"]
     total_baixa = stats["total_baixes"]
-    total_subs  = stats["total_substitucions"]
-    cobertura   = stats["cobertura_pct"]
+    total_subs = stats["total_substitucions"]
+    cobertura = stats["cobertura_pct"]
     dies_actius = stats["dies_actius"]
 
     def card(num, lbl, color):
         data = [
-            [Paragraph(str(num), _s("kn", fontName="Helvetica-Bold", fontSize=24,
-                                    textColor=color, alignment=TA_CENTER, leading=28))],
-            [Paragraph(lbl, _s("kl", fontName="Helvetica", fontSize=7.5,
-                               textColor=C_GREY_TXT, alignment=TA_CENTER, leading=10))],
+            [
+                Paragraph(
+                    str(num),
+                    _s("kn", fontName="Helvetica-Bold", fontSize=24, textColor=color, alignment=TA_CENTER, leading=28),
+                )
+            ],
+            [
+                Paragraph(
+                    lbl,
+                    _s("kl", fontName="Helvetica", fontSize=7.5, textColor=C_GREY_TXT, alignment=TA_CENTER, leading=10),
+                )
+            ],
         ]
         t = Table(data, colWidths=[(CONTENT_W / 6) - 0.15 * cm])
-        t.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, -1), C_GREY_BG),
-            ("TOPPADDING",    (0, 0), (-1, -1), 10),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
-            ("LINEABOVE",     (0, 0), (-1, 0), 3, color),
-        ]))
+        t.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), C_GREY_BG),
+                    ("TOPPADDING", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("LINEABOVE", (0, 0), (-1, 0), 3, color),
+                ]
+            )
+        )
         return t
 
-    row = [[
-        card(total_abs,            _("Absències"),         C_ORANGE),
-        card(total_serv,           _("Serveis"),           C_BLUE),
-        card(total_baixa,          _("Baixes"),            C_RED),
-        card(total_subs,           _("Substitucions"),     C_TEAL),
-        card(f"{cobertura:.0f}%",  _("Cobertura"),         C_GREEN),
-        card(dies_actius,          _("Dies amb incid."),   C_NAVY),
-    ]]
+    row = [
+        [
+            card(total_abs, _("Absències"), C_ORANGE),
+            card(total_serv, _("Serveis"), C_BLUE),
+            card(total_baixa, _("Baixes"), C_RED),
+            card(total_subs, _("Substitucions"), C_TEAL),
+            card(f"{cobertura:.0f}%", _("Cobertura"), C_GREEN),
+            card(dies_actius, _("Dies amb incid."), C_NAVY),
+        ]
+    ]
     t = Table(row, colWidths=[(CONTENT_W / 6)] * 6, hAlign="LEFT")
-    t.setStyle(TableStyle([
-        ("LEFTPADDING",   (0, 0), (-1, -1), 3),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 3),
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
     return [t, Spacer(1, 0.5 * cm)]
 
 
@@ -239,15 +257,17 @@ def _taula_evolucio_mensual(per_mes: list) -> list:
     for m in per_mes:
         total = m["absencies"] + m["serveis"]
         cob = f"{m['cobertura']:.0f}%" if total > 0 else "—"
-        rows.append([
-            m["mes"],
-            str(m["absencies"]),
-            str(m["serveis"]),
-            str(total),
-            str(m["substitucions"]),
-            cob,
-        ])
-        tot_abs  += m["absencies"]
+        rows.append(
+            [
+                m["mes"],
+                str(m["absencies"]),
+                str(m["serveis"]),
+                str(total),
+                str(m["substitucions"]),
+                cob,
+            ]
+        )
+        tot_abs += m["absencies"]
         tot_serv += m["serveis"]
         tot_subs += m["substitucions"]
 
@@ -255,7 +275,7 @@ def _taula_evolucio_mensual(per_mes: list) -> list:
     tot_cob = f"{tot_subs / tot_total * 100:.0f}%" if tot_total > 0 else "—"
     rows.append([_("TOTAL"), str(tot_abs), str(tot_serv), str(tot_total), str(tot_subs), tot_cob])
 
-    col_w = [3.8*cm, 2.2*cm, 2.2*cm, 2.5*cm, 2.8*cm, 2.3*cm]
+    col_w = [3.8 * cm, 2.2 * cm, 2.2 * cm, 2.5 * cm, 2.8 * cm, 2.3 * cm]
     t = Table(rows, colWidths=col_w, hAlign="LEFT")
     st = _table_style_base(C_NAVY)
     for col in range(1, 6):
@@ -263,8 +283,8 @@ def _taula_evolucio_mensual(per_mes: list) -> list:
     # Fila TOTAL en negreta amb fons destacat
     last = len(rows) - 1
     st.add("BACKGROUND", (0, last), (-1, last), colors.HexColor("#d5e8f5"))
-    st.add("FONTNAME",   (0, last), (-1, last), "Helvetica-Bold")
-    st.add("LINEABOVE",  (0, last), (-1, last), 1, C_NAVY)
+    st.add("FONTNAME", (0, last), (-1, last), "Helvetica-Bold")
+    st.add("LINEABOVE", (0, last), (-1, last), 1, C_NAVY)
     t.setStyle(st)
     elems.append(t)
     elems.append(Spacer(1, 0.4 * cm))
@@ -280,25 +300,32 @@ def _mini_bar(value: int, max_val: int, width: float, color) -> Table:
     empty_w = max(width - fill_w, 0)
     data = [[""]]
     bar = Table(data, colWidths=[fill_w], rowHeights=[0.35 * cm])
-    bar.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), color),
-        ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-    ]))
+    bar.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), color),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
     if empty_w > 0:
         outer = Table([[bar, ""]], colWidths=[fill_w, empty_w], rowHeights=[0.35 * cm])
-        outer.setStyle(TableStyle([
-            ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#e8ecf0")),
-            ("TOPPADDING",    (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-        ]))
+        outer.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#e8ecf0")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ]
+            )
+        )
         return outer
     return bar
-
 
 
 def _text_color_for_bg(bg: colors.Color) -> colors.Color:
@@ -319,8 +346,9 @@ def _heatmap_color_blue(value: int, max_val: int) -> colors.Color:
     return colors.Color(r, g, b)
 
 
-def _taula_matriu_professors_mesos(per_professor_mes_abs: dict, per_professor_mes_serv: dict,
-                                    mesos: list, professors: list) -> list:
+def _taula_matriu_professors_mesos(
+    per_professor_mes_abs: dict, per_professor_mes_serv: dict, mesos: list, professors: list
+) -> list:
     """Matriu heatmap professors × mesos amb absències (taronja) i serveis (blau)"""
     elems = _section_title(_("Evolució d'absències per professor i mes"))
 
@@ -329,29 +357,40 @@ def _taula_matriu_professors_mesos(per_professor_mes_abs: dict, per_professor_me
 
     mesos_curts = [m.split()[0][:3] for m in mesos]
 
-    max_abs  = max((v for d in per_professor_mes_abs.values()  for v in d.values()), default=1) or 1
+    max_abs = max((v for d in per_professor_mes_abs.values() for v in d.values()), default=1) or 1
     max_serv = max((v for d in per_professor_mes_serv.values() for v in d.values()), default=1) or 1
 
     # Capçalera
-    header = [
-        Paragraph(_("Professor/a"), _s("ph", fontName="Helvetica-Bold", fontSize=7.5,
-                                    textColor=C_WHITE, alignment=TA_LEFT, leading=10))
-    ] + [
-        Paragraph(mc, _s("mhc", fontName="Helvetica-Bold", fontSize=7,
-                         textColor=C_WHITE, alignment=TA_CENTER, leading=9))
-        for mc in mesos_curts
-    ] + [
-        Paragraph(_("Abs"), _s("tha", fontName="Helvetica-Bold", fontSize=7,
-                            textColor=C_WHITE, alignment=TA_CENTER, leading=9)),
-        Paragraph(_("Serv"), _s("ths", fontName="Helvetica-Bold", fontSize=7,
-                             textColor=C_WHITE, alignment=TA_CENTER, leading=9)),
-    ]
+    header = (
+        [
+            Paragraph(
+                _("Professor/a"),
+                _s("ph", fontName="Helvetica-Bold", fontSize=7.5, textColor=C_WHITE, alignment=TA_LEFT, leading=10),
+            )
+        ]
+        + [
+            Paragraph(
+                mc, _s("mhc", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9)
+            )
+            for mc in mesos_curts
+        ]
+        + [
+            Paragraph(
+                _("Abs"),
+                _s("tha", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9),
+            ),
+            Paragraph(
+                _("Serv"),
+                _s("ths", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9),
+            ),
+        ]
+    )
 
     # Pre-calcular backgrounds per determinar color text
     bg_matrix = {}
-    for p in professors[:len(per_professor_mes_abs)]:
+    for p in professors[: len(per_professor_mes_abs)]:
         nom = p["nom"]
-        abs_data  = per_professor_mes_abs.get(nom, {})
+        abs_data = per_professor_mes_abs.get(nom, {})
         serv_data = per_professor_mes_serv.get(nom, {})
         for mes in mesos:
             a = abs_data.get(mes, 0)
@@ -364,68 +403,94 @@ def _taula_matriu_professors_mesos(per_professor_mes_abs: dict, per_professor_me
                 bg_matrix[(nom, mes)] = C_WHITE
 
     rows = [header]
-    for p in professors[:len(per_professor_mes_abs)]:
+    for p in professors[: len(per_professor_mes_abs)]:
         nom = p["nom"]
-        abs_data  = per_professor_mes_abs.get(nom, {})
+        abs_data = per_professor_mes_abs.get(nom, {})
         serv_data = per_professor_mes_serv.get(nom, {})
-        tot_abs  = p["absencies"]
+        tot_abs = p["absencies"]
         tot_serv = p["serveis"]
 
-        row = [Paragraph(_text(nom), _s("pn", fontName="Helvetica", fontSize=7.5,
-                                 textColor=C_BLACK, alignment=TA_LEFT, leading=10))]
+        row = [
+            Paragraph(
+                _text(nom),
+                _s("pn", fontName="Helvetica", fontSize=7.5, textColor=C_BLACK, alignment=TA_LEFT, leading=10),
+            )
+        ]
         for mes in mesos:
             a = abs_data.get(mes, 0)
             s = serv_data.get(mes, 0)
             if a == 0 and s == 0:
-                cell = Paragraph("—", _s("pz", fontName="Helvetica", fontSize=7,
-                                         textColor=C_GREY_MID, alignment=TA_CENTER, leading=9))
+                cell = Paragraph(
+                    "—",
+                    _s("pz", fontName="Helvetica", fontSize=7, textColor=C_GREY_MID, alignment=TA_CENTER, leading=9),
+                )
             else:
                 a_str = f'<font color="#c0392b"><b>{a}</b></font>' if a > 0 else '<font color="#c0392b">0</font>'
                 s_str = f'<font color="#7c3aed">{s}</font>' if s > 0 else '<font color="#7c3aed">0</font>'
                 cell = Paragraph(
-                    f'{a_str}/{s_str}',
-                    _s("pcell", fontName="Helvetica", fontSize=7.5,
-                       alignment=TA_CENTER, leading=10)
+                    f"{a_str}/{s_str}", _s("pcell", fontName="Helvetica", fontSize=7.5, alignment=TA_CENTER, leading=10)
                 )
             row.append(cell)
 
-        row.append(Paragraph(str(tot_abs) if tot_abs else "—",
-                             _s("pta", fontName="Helvetica-Bold", fontSize=7.5,
-                                textColor=colors.HexColor("#c0392b"), alignment=TA_CENTER, leading=10)))
-        row.append(Paragraph(str(tot_serv) if tot_serv else "—",
-                             _s("pts", fontName="Helvetica-Bold", fontSize=7.5,
-                                textColor=colors.HexColor("#7c3aed"), alignment=TA_CENTER, leading=10)))
+        row.append(
+            Paragraph(
+                str(tot_abs) if tot_abs else "—",
+                _s(
+                    "pta",
+                    fontName="Helvetica-Bold",
+                    fontSize=7.5,
+                    textColor=colors.HexColor("#c0392b"),
+                    alignment=TA_CENTER,
+                    leading=10,
+                ),
+            )
+        )
+        row.append(
+            Paragraph(
+                str(tot_serv) if tot_serv else "—",
+                _s(
+                    "pts",
+                    fontName="Helvetica-Bold",
+                    fontSize=7.5,
+                    textColor=colors.HexColor("#7c3aed"),
+                    alignment=TA_CENTER,
+                    leading=10,
+                ),
+            )
+        )
         rows.append(row)
 
     n_mesos = len(mesos)
-    nom_w  = 3.8 * cm
-    tot_w  = 1.0 * cm
-    mes_w  = (CONTENT_W - nom_w - 2 * tot_w) / n_mesos
-    col_w  = [nom_w] + [mes_w] * n_mesos + [tot_w, tot_w]
+    nom_w = 3.8 * cm
+    tot_w = 1.0 * cm
+    mes_w = (CONTENT_W - nom_w - 2 * tot_w) / n_mesos
+    col_w = [nom_w] + [mes_w] * n_mesos + [tot_w, tot_w]
 
     t = Table(rows, colWidths=col_w, hAlign="LEFT")
-    st = TableStyle([
-        ("BACKGROUND",     (0, 0), (-1, 0), C_NAVY),
-        ("TOPPADDING",     (0, 0), (-1, 0), 5),
-        ("BOTTOMPADDING",  (0, 0), (-1, 0), 5),
-        ("TOPPADDING",     (0, 1), (-1, -1), 3),
-        ("BOTTOMPADDING",  (0, 1), (-1, -1), 3),
-        ("LEFTPADDING",    (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING",   (0, 0), (-1, -1), 4),
-        ("GRID",           (0, 0), (-1, -1), 0.3, C_GREY_MID),
-        ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_GREY_BG]),
-        # Columnes totals destacades
-        ("BACKGROUND",     (-2, 0), (-1, 0), C_ORANGE),
-        ("BACKGROUND",     (-2, 1), (-2, -1), colors.HexColor("#fff0e0")),
-        ("BACKGROUND",     (-1, 1), (-1, -1), colors.HexColor("#e8f4fb")),
-        ("LINEABOVE",      (0, -1), (-1, -1), 0.5, C_GREY_MID),
-    ])
+    st = TableStyle(
+        [
+            ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
+            ("TOPPADDING", (0, 0), (-1, 0), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+            ("TOPPADDING", (0, 1), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("GRID", (0, 0), (-1, -1), 0.3, C_GREY_MID),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_GREY_BG]),
+            # Columnes totals destacades
+            ("BACKGROUND", (-2, 0), (-1, 0), C_ORANGE),
+            ("BACKGROUND", (-2, 1), (-2, -1), colors.HexColor("#fff0e0")),
+            ("BACKGROUND", (-1, 1), (-1, -1), colors.HexColor("#e8f4fb")),
+            ("LINEABOVE", (0, -1), (-1, -1), 0.5, C_GREY_MID),
+        ]
+    )
 
     # Heatmap: fons taronja per absències, blau per serveis (el que és més gran domina)
-    for r_idx, p in enumerate(professors[:len(per_professor_mes_abs)], start=1):
+    for r_idx, p in enumerate(professors[: len(per_professor_mes_abs)], start=1):
         nom = p["nom"]
-        abs_data  = per_professor_mes_abs.get(nom, {})
+        abs_data = per_professor_mes_abs.get(nom, {})
         serv_data = per_professor_mes_serv.get(nom, {})
         for c_idx, mes in enumerate(mesos, start=1):
             a = abs_data.get(mes, 0)
@@ -438,18 +503,19 @@ def _taula_matriu_professors_mesos(per_professor_mes_abs: dict, per_professor_me
     t.setStyle(st)
     elems.append(t)
     elems.append(Spacer(1, 0.2 * cm))
-    elems.append(Paragraph(
-        f'<font color="#c0392b">■ {_("Absències reals")}</font> &nbsp;&nbsp; '
-        f'<font color="#7c3aed">■ {_("Serveis / comissions")}</font> &nbsp;&nbsp; '
-        f'{_("Intensitat de color: proporció respecte al màxim del curs")}',
-        STYLES["note"]
-    ))
+    elems.append(
+        Paragraph(
+            f'<font color="#c0392b">■ {_("Absències reals")}</font> &nbsp;&nbsp; '
+            f'<font color="#7c3aed">■ {_("Serveis / comissions")}</font> &nbsp;&nbsp; '
+            f"{_('Intensitat de color: proporció respecte al màxim del curs')}",
+            STYLES["note"],
+        )
+    )
     elems.append(Spacer(1, 0.4 * cm))
     return elems
 
 
-def _taula_matriu_substitucions_mesos(per_substitut_mes: dict, mesos: list,
-                                       professors_subs: list) -> list:
+def _taula_matriu_substitucions_mesos(per_substitut_mes: dict, mesos: list, professors_subs: list) -> list:
     """Matriu heatmap substituts × mesos"""
     elems = _section_title(_("Evolució de substitucions fetes per professor i mes"))
 
@@ -468,40 +534,64 @@ def _taula_matriu_substitucions_mesos(per_substitut_mes: dict, mesos: list,
         b = 1.0 - intensity * (1.0 - 0.522)
         return colors.Color(r, g, b)
 
-    header = [
-        Paragraph(_("Professor/a"), _s("sh", fontName="Helvetica-Bold", fontSize=7.5,
-                                    textColor=C_WHITE, alignment=TA_LEFT, leading=10))
-    ] + [
-        Paragraph(mc, _s("shc", fontName="Helvetica-Bold", fontSize=7,
-                         textColor=C_WHITE, alignment=TA_CENTER, leading=9))
-        for mc in mesos_curts
-    ] + [
-        Paragraph(_("Total"), _s("sht", fontName="Helvetica-Bold", fontSize=7,
-                              textColor=C_WHITE, alignment=TA_CENTER, leading=9))
-    ]
+    header = (
+        [
+            Paragraph(
+                _("Professor/a"),
+                _s("sh", fontName="Helvetica-Bold", fontSize=7.5, textColor=C_WHITE, alignment=TA_LEFT, leading=10),
+            )
+        ]
+        + [
+            Paragraph(
+                mc, _s("shc", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9)
+            )
+            for mc in mesos_curts
+        ]
+        + [
+            Paragraph(
+                _("Total"),
+                _s("sht", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9),
+            )
+        ]
+    )
 
     rows = [header]
-    for p in professors_subs[:len(per_substitut_mes)]:
+    for p in professors_subs[: len(per_substitut_mes)]:
         nom = p["nom"]
         mes_data = per_substitut_mes.get(nom, {})
         total = p["total"]
-        row = [Paragraph(_text(nom), _s("spn", fontName="Helvetica", fontSize=7.5,
-                                 textColor=C_BLACK, alignment=TA_LEFT, leading=10))]
+        row = [
+            Paragraph(
+                _text(nom),
+                _s("spn", fontName="Helvetica", fontSize=7.5, textColor=C_BLACK, alignment=TA_LEFT, leading=10),
+            )
+        ]
         for mes in mesos:
             val = mes_data.get(mes, 0)
             if val == 0:
-                cell = Paragraph("—", _s("spz", fontName="Helvetica", fontSize=7,
-                                         textColor=C_GREY_MID, alignment=TA_CENTER, leading=9))
+                cell = Paragraph(
+                    "—",
+                    _s("spz", fontName="Helvetica", fontSize=7, textColor=C_GREY_MID, alignment=TA_CENTER, leading=9),
+                )
             else:
                 cell = Paragraph(
                     f"<b>{val}</b>",
-                    _s("spcell", fontName="Helvetica-Bold", fontSize=7.5,
-                       textColor=C_NAVY, alignment=TA_CENTER, leading=10)
+                    _s(
+                        "spcell",
+                        fontName="Helvetica-Bold",
+                        fontSize=7.5,
+                        textColor=C_NAVY,
+                        alignment=TA_CENTER,
+                        leading=10,
+                    ),
                 )
             row.append(cell)
-        row.append(Paragraph(str(total),
-                             _s("sptot", fontName="Helvetica-Bold", fontSize=7.5,
-                                textColor=C_TEAL, alignment=TA_CENTER, leading=10)))
+        row.append(
+            Paragraph(
+                str(total),
+                _s("sptot", fontName="Helvetica-Bold", fontSize=7.5, textColor=C_TEAL, alignment=TA_CENTER, leading=10),
+            )
+        )
         rows.append(row)
 
     n_mesos = len(mesos)
@@ -511,39 +601,36 @@ def _taula_matriu_substitucions_mesos(per_substitut_mes: dict, mesos: list,
     col_w = [nom_w] + [mes_w] * n_mesos + [tot_w]
 
     t = Table(rows, colWidths=col_w, hAlign="LEFT")
-    st = TableStyle([
-        ("BACKGROUND",     (0, 0), (-1, 0), C_TEAL),
-        ("TOPPADDING",     (0, 0), (-1, 0), 5),
-        ("BOTTOMPADDING",  (0, 0), (-1, 0), 5),
-        ("TOPPADDING",     (0, 1), (-1, -1), 3),
-        ("BOTTOMPADDING",  (0, 1), (-1, -1), 3),
-        ("LEFTPADDING",    (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING",   (0, 0), (-1, -1), 4),
-        ("GRID",           (0, 0), (-1, -1), 0.3, C_GREY_MID),
-        ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_GREY_BG]),
-        ("BACKGROUND",     (-1, 1), (-1, -1), colors.HexColor("#e0f5f1")),
-    ])
+    st = TableStyle(
+        [
+            ("BACKGROUND", (0, 0), (-1, 0), C_TEAL),
+            ("TOPPADDING", (0, 0), (-1, 0), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+            ("TOPPADDING", (0, 1), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("GRID", (0, 0), (-1, -1), 0.3, C_GREY_MID),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_GREY_BG]),
+            ("BACKGROUND", (-1, 1), (-1, -1), colors.HexColor("#e0f5f1")),
+        ]
+    )
 
-    for r_idx, p in enumerate(professors_subs[:len(per_substitut_mes)], start=1):
+    for r_idx, p in enumerate(professors_subs[: len(per_substitut_mes)], start=1):
         nom = p["nom"]
         mes_data = per_substitut_mes.get(nom, {})
         for c_idx, mes in enumerate(mesos, start=1):
             val = mes_data.get(mes, 0)
             if val > 0:
-                st.add("BACKGROUND", (c_idx, r_idx), (c_idx, r_idx),
-                       _heatmap_teal(val, max_val))
+                st.add("BACKGROUND", (c_idx, r_idx), (c_idx, r_idx), _heatmap_teal(val, max_val))
 
     t.setStyle(st)
     elems.append(t)
     elems.append(Spacer(1, 0.2 * cm))
-    elems.append(Paragraph(
-        _("Intensitat de color: proporció respecte al màxim del curs"),
-        STYLES["note"]
-    ))
+    elems.append(Paragraph(_("Intensitat de color: proporció respecte al màxim del curs"), STYLES["note"]))
     elems.append(Spacer(1, 0.4 * cm))
     return elems
-
 
 
 def _heatmap_color(value: int, max_val: int) -> colors.Color:
@@ -576,10 +663,13 @@ def _taula_grups_per_nivell(grups_data: dict) -> list:
     per_nivell = grups_data["per_nivell"]
 
     # ── Part 1: Resum per nivell ───────────────────────────────────────
-    elems.append(Paragraph(_("Resum per nivell"), _s("sub",
-        fontName="Helvetica-Bold", fontSize=10, textColor=C_NAVY,
-        leading=14, spaceBefore=4)))
-    elems.append(Spacer(1, 0.2*cm))
+    elems.append(
+        Paragraph(
+            _("Resum per nivell"),
+            _s("sub", fontName="Helvetica-Bold", fontSize=10, textColor=C_NAVY, leading=14, spaceBefore=4),
+        )
+    )
+    elems.append(Spacer(1, 0.2 * cm))
 
     headers_niv = [_("Nivell"), _("Grups"), _("Absències"), _("Cobertes"), _("Pendents"), _("Cobertura")]
     rows_niv = [headers_niv]
@@ -587,22 +677,24 @@ def _taula_grups_per_nivell(grups_data: dict) -> list:
         if niv not in per_nivell:
             continue
         v = per_nivell[niv]
-        rows_niv.append([
-            niv,
-            str(v["n_grups"]),
-            str(v["absencies"]),
-            str(v["cobertes"]),
-            str(v["pendents"]),
-            f"{v['pct']}%",
-        ])
+        rows_niv.append(
+            [
+                niv,
+                str(v["n_grups"]),
+                str(v["absencies"]),
+                str(v["cobertes"]),
+                str(v["pendents"]),
+                f"{v['pct']}%",
+            ]
+        )
     # Fila total
     tot_abs = sum(v["absencies"] for v in per_nivell.values())
-    tot_cob = sum(v["cobertes"]  for v in per_nivell.values())
+    tot_cob = sum(v["cobertes"] for v in per_nivell.values())
     tot_pen = tot_abs - tot_cob
     tot_pct = round(tot_cob / tot_abs * 100) if tot_abs else 0
     rows_niv.append([_("TOTAL"), "—", str(tot_abs), str(tot_cob), str(tot_pen), f"{tot_pct}%"])
 
-    col_niv = [3*cm, 1.8*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm]
+    col_niv = [3 * cm, 1.8 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm]
     t_niv = Table(rows_niv, colWidths=col_niv, hAlign="LEFT")
     st_niv = _table_style_base(C_NAVY)
     for col in range(1, 6):
@@ -612,23 +704,25 @@ def _taula_grups_per_nivell(grups_data: dict) -> list:
         pct = per_nivell[niv]["pct"]
         c = _color_cobertura(pct)
         st_niv.add("TEXTCOLOR", (5, r_idx), (5, r_idx), c)
-        st_niv.add("FONTNAME",  (5, r_idx), (5, r_idx), "Helvetica-Bold")
+        st_niv.add("FONTNAME", (5, r_idx), (5, r_idx), "Helvetica-Bold")
     # Fila total
     last = len(rows_niv) - 1
     st_niv.add("BACKGROUND", (0, last), (-1, last), colors.HexColor("#d5e8f5"))
-    st_niv.add("FONTNAME",   (0, last), (-1, last), "Helvetica-Bold")
-    st_niv.add("LINEABOVE",  (0, last), (-1, last), 1, C_NAVY)
-    st_niv.add("TEXTCOLOR",  (5, last), (5, last), _color_cobertura(tot_pct))
+    st_niv.add("FONTNAME", (0, last), (-1, last), "Helvetica-Bold")
+    st_niv.add("LINEABOVE", (0, last), (-1, last), 1, C_NAVY)
+    st_niv.add("TEXTCOLOR", (5, last), (5, last), _color_cobertura(tot_pct))
     t_niv.setStyle(st_niv)
     elems.append(t_niv)
-    elems.append(Spacer(1, 0.3*cm))
-    elems.append(Paragraph(
-        '<font color="#27ae60">■ ≥90%</font>  '
-        '<font color="#e67e22">■ 70-89%</font>  '
-        '<font color="#c0392b">■ &lt;70%</font>',
-        STYLES["note"]
-    ))
-    elems.append(Spacer(1, 0.4*cm))
+    elems.append(Spacer(1, 0.3 * cm))
+    elems.append(
+        Paragraph(
+            '<font color="#27ae60">■ ≥90%</font>  '
+            '<font color="#e67e22">■ 70-89%</font>  '
+            '<font color="#c0392b">■ &lt;70%</font>',
+            STYLES["note"],
+        )
+    )
+    elems.append(Spacer(1, 0.4 * cm))
     return elems
 
 
@@ -644,93 +738,107 @@ def _taula_matriu_grups_mesos(grups_data: dict) -> list:
         return elems
 
     mesos_curts = [m.split()[0][:3] for m in mesos]
-    max_val = max(
-        (v for d in per_grup_mes.values() for v in d.values()),
-        default=1
-    ) or 1
+    max_val = max((v for d in per_grup_mes.values() for v in d.values()), default=1) or 1
 
-    header = [
-        Paragraph(_("Grup"), _s("gh", fontName="Helvetica-Bold", fontSize=7.5,
-                              textColor=C_WHITE, alignment=TA_LEFT, leading=10)),
-        Paragraph(_("Niv."), _s("ghn", fontName="Helvetica-Bold", fontSize=7,
-                              textColor=C_WHITE, alignment=TA_CENTER, leading=9)),
-    ] + [
-        Paragraph(mc, _s("ghc", fontName="Helvetica-Bold", fontSize=7,
-                         textColor=C_WHITE, alignment=TA_CENTER, leading=9))
-        for mc in mesos_curts
-    ] + [
-        Paragraph(_("Tot."), _s("ght", fontName="Helvetica-Bold", fontSize=7,
-                             textColor=C_WHITE, alignment=TA_CENTER, leading=9))
-    ]
+    header = (
+        [
+            Paragraph(
+                _("Grup"),
+                _s("gh", fontName="Helvetica-Bold", fontSize=7.5, textColor=C_WHITE, alignment=TA_LEFT, leading=10),
+            ),
+            Paragraph(
+                _("Niv."),
+                _s("ghn", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9),
+            ),
+        ]
+        + [
+            Paragraph(
+                mc, _s("ghc", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9)
+            )
+            for mc in mesos_curts
+        ]
+        + [
+            Paragraph(
+                _("Tot."),
+                _s("ght", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9),
+            )
+        ]
+    )
 
     rows = [header]
     for g in grups_ordenats:
         nom = g["nom"]
         mes_data = per_grup_mes.get(nom, {})
         row = [
-            Paragraph(_text(nom), _s("gn", fontName="Helvetica", fontSize=7.5,
-                              textColor=C_BLACK, alignment=TA_LEFT, leading=10)),
-            Paragraph(_text(g["nivell"]).replace(" ", "\n"), _s("gnv", fontName="Helvetica", fontSize=6.5,
-                              textColor=C_GREY_TXT, alignment=TA_CENTER, leading=8)),
+            Paragraph(
+                _text(nom),
+                _s("gn", fontName="Helvetica", fontSize=7.5, textColor=C_BLACK, alignment=TA_LEFT, leading=10),
+            ),
+            Paragraph(
+                _text(g["nivell"]).replace(" ", "\n"),
+                _s("gnv", fontName="Helvetica", fontSize=6.5, textColor=C_GREY_TXT, alignment=TA_CENTER, leading=8),
+            ),
         ]
         for mes in mesos:
             val = mes_data.get(mes, 0)
             if val == 0:
-                cell = Paragraph("—", _s("gz", fontName="Helvetica", fontSize=7,
-                                         textColor=C_GREY_MID, alignment=TA_CENTER, leading=9))
+                cell = Paragraph(
+                    "—",
+                    _s("gz", fontName="Helvetica", fontSize=7, textColor=C_GREY_MID, alignment=TA_CENTER, leading=9),
+                )
             else:
                 bg = _heatmap_color(val, max_val)
                 tc = _text_color_for_bg(bg)
                 cell = Paragraph(
                     f'<font color="{tc.hexval()}"><b>{val}</b></font>',
-                    _s("gcell", fontName="Helvetica-Bold", fontSize=7.5,
-                       alignment=TA_CENTER, leading=10)
+                    _s("gcell", fontName="Helvetica-Bold", fontSize=7.5, alignment=TA_CENTER, leading=10),
                 )
             row.append(cell)
-        row.append(Paragraph(str(g["absencies"]),
-                             _s("gtot", fontName="Helvetica-Bold", fontSize=7.5,
-                                textColor=C_NAVY, alignment=TA_CENTER, leading=10)))
+        row.append(
+            Paragraph(
+                str(g["absencies"]),
+                _s("gtot", fontName="Helvetica-Bold", fontSize=7.5, textColor=C_NAVY, alignment=TA_CENTER, leading=10),
+            )
+        )
         rows.append(row)
 
     n_mesos = len(mesos)
-    nom_w  = 2.8*cm
-    niv_w  = 1.5*cm
-    tot_w  = 1.0*cm
-    mes_w  = (CONTENT_W - nom_w - niv_w - tot_w) / n_mesos
-    col_w  = [nom_w, niv_w] + [mes_w]*n_mesos + [tot_w]
+    nom_w = 2.8 * cm
+    niv_w = 1.5 * cm
+    tot_w = 1.0 * cm
+    mes_w = (CONTENT_W - nom_w - niv_w - tot_w) / n_mesos
+    col_w = [nom_w, niv_w] + [mes_w] * n_mesos + [tot_w]
 
     t = Table(rows, colWidths=col_w, hAlign="LEFT")
-    st = TableStyle([
-        ("BACKGROUND",     (0, 0), (-1, 0), C_NAVY),
-        ("TOPPADDING",     (0, 0), (-1, 0), 5),
-        ("BOTTOMPADDING",  (0, 0), (-1, 0), 5),
-        ("TOPPADDING",     (0, 1), (-1, -1), 3),
-        ("BOTTOMPADDING",  (0, 1), (-1, -1), 3),
-        ("LEFTPADDING",    (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING",   (0, 0), (-1, -1), 4),
-        ("GRID",           (0, 0), (-1, -1), 0.3, C_GREY_MID),
-        ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_GREY_BG]),
-        ("BACKGROUND",     (-1, 1), (-1, -1), colors.HexColor("#eaf0f8")),
-        ("FONTNAME",       (-1, 1), (-1, -1), "Helvetica-Bold"),
-    ])
+    st = TableStyle(
+        [
+            ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
+            ("TOPPADDING", (0, 0), (-1, 0), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+            ("TOPPADDING", (0, 1), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("GRID", (0, 0), (-1, -1), 0.3, C_GREY_MID),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_GREY_BG]),
+            ("BACKGROUND", (-1, 1), (-1, -1), colors.HexColor("#eaf0f8")),
+            ("FONTNAME", (-1, 1), (-1, -1), "Helvetica-Bold"),
+        ]
+    )
 
     for r_idx, g in enumerate(grups_ordenats, start=1):
         mes_data = per_grup_mes.get(g["nom"], {})
         for c_idx, mes in enumerate(mesos, start=2):  # +2 per nom+niv
             val = mes_data.get(mes, 0)
             if val > 0:
-                st.add("BACKGROUND", (c_idx, r_idx), (c_idx, r_idx),
-                       _heatmap_color(val, max_val))
+                st.add("BACKGROUND", (c_idx, r_idx), (c_idx, r_idx), _heatmap_color(val, max_val))
 
     t.setStyle(st)
     elems.append(t)
-    elems.append(Spacer(1, 0.2*cm))
-    elems.append(Paragraph(
-        _("Intensitat de color: proporció d'absències respecte al màxim del curs"),
-        STYLES["note"]
-    ))
-    elems.append(Spacer(1, 0.4*cm))
+    elems.append(Spacer(1, 0.2 * cm))
+    elems.append(Paragraph(_("Intensitat de color: proporció d'absències respecte al màxim del curs"), STYLES["note"]))
+    elems.append(Spacer(1, 0.4 * cm))
     return elems
 
 
@@ -741,7 +849,7 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
     # Claus canòniques neutres d'idioma (índex del dia, 0=dilluns) — coincideixen
     # amb les guardades a informes.py. La traducció es fa només a l'etiqueta mostrada.
     dies_ordre = list(range(5))
-    dies_curt  = [_("Dll"), _("Dmt"), _("Dmc"), _("Djo"), _("Div")]
+    dies_curt = [_("Dll"), _("Dmt"), _("Dmc"), _("Djo"), _("Div")]
 
     # Usar ordre del XML si disponible, sinó ordenar cronològicament amb no-hora al final
     def _sort_key_hora(h):
@@ -755,28 +863,37 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
         hores_ordre = sorted(per_hora.keys(), key=_sort_key_hora)
 
     # Màxim d'absències per normalitzar el heatmap
-    max_abs = max(
-        (per_dia_hora.get((dia, hora), {}).get("absencies", 0)
-         for dia in dies_ordre for hora in hores_ordre),
-        default=1
-    ) or 1
+    max_abs = (
+        max(
+            (per_dia_hora.get((dia, hora), {}).get("absencies", 0) for dia in dies_ordre for hora in hores_ordre),
+            default=1,
+        )
+        or 1
+    )
 
     # Capçalera
     header_row = [
-        Paragraph(_("Hora"), _s("mh", fontName="Helvetica-Bold", fontSize=8,
-                              textColor=C_WHITE, alignment=TA_CENTER, leading=10))
+        Paragraph(
+            _("Hora"),
+            _s("mh", fontName="Helvetica-Bold", fontSize=8, textColor=C_WHITE, alignment=TA_CENTER, leading=10),
+        )
     ]
     for dc in dies_curt:
         header_row.append(
-            Paragraph(dc, _s("mh2", fontName="Helvetica-Bold", fontSize=8,
-                             textColor=C_WHITE, alignment=TA_CENTER, leading=10))
+            Paragraph(
+                dc, _s("mh2", fontName="Helvetica-Bold", fontSize=8, textColor=C_WHITE, alignment=TA_CENTER, leading=10)
+            )
         )
 
     rows = [header_row]
 
     for hora in hores_ordre:
-        row = [Paragraph(_text(hora), _s("mhr", fontName="Helvetica-Bold", fontSize=8,
-                                  textColor=C_NAVY, alignment=TA_CENTER, leading=10))]
+        row = [
+            Paragraph(
+                _text(hora),
+                _s("mhr", fontName="Helvetica-Bold", fontSize=8, textColor=C_NAVY, alignment=TA_CENTER, leading=10),
+            )
+        ]
         for dia in dies_ordre:
             d = per_dia_hora.get((dia, hora), {"absencies": 0, "substitucions": 0})
             abs_n = d["absencies"]
@@ -784,67 +901,68 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
             if abs_n == 0:
                 cell_text = Paragraph(
                     "—",
-                    _s("mc0", fontName="Helvetica", fontSize=8,
-                       textColor=C_GREY_MID, alignment=TA_CENTER, leading=10)
+                    _s("mc0", fontName="Helvetica", fontSize=8, textColor=C_GREY_MID, alignment=TA_CENTER, leading=10),
                 )
             else:
                 pct = int(sub_n / abs_n * 100) if abs_n > 0 else 0
                 cell_text = Paragraph(
                     f'<font size="11" color="{C_NAVY.hexval()}"><b>{abs_n}</b></font>'
                     f'<br/><font size="7" color="#16a085">▶ {sub_n} ({pct}%)</font>',
-                    _s("mc", fontName="Helvetica", fontSize=8,
-                       alignment=TA_CENTER, leading=12)
+                    _s("mc", fontName="Helvetica", fontSize=8, alignment=TA_CENTER, leading=12),
                 )
             row.append(cell_text)
         rows.append(row)
 
     # Fila de totals per dia
-    total_row = [Paragraph(_("TOTAL"), _s("mtt", fontName="Helvetica-Bold", fontSize=7.5,
-                                        textColor=C_NAVY, alignment=TA_CENTER, leading=10))]
+    total_row = [
+        Paragraph(
+            _("TOTAL"),
+            _s("mtt", fontName="Helvetica-Bold", fontSize=7.5, textColor=C_NAVY, alignment=TA_CENTER, leading=10),
+        )
+    ]
     for dia in dies_ordre:
-        tot_abs = sum(
-            per_dia_hora.get((dia, h), {}).get("absencies", 0) for h in hores_ordre
-        )
-        tot_sub = sum(
-            per_dia_hora.get((dia, h), {}).get("substitucions", 0) for h in hores_ordre
-        )
+        tot_abs = sum(per_dia_hora.get((dia, h), {}).get("absencies", 0) for h in hores_ordre)
+        tot_sub = sum(per_dia_hora.get((dia, h), {}).get("substitucions", 0) for h in hores_ordre)
         pct = int(tot_sub / tot_abs * 100) if tot_abs > 0 else 0
-        total_row.append(Paragraph(
-            f'<b>{tot_abs}</b><br/><font size="7" color="#16a085">{tot_sub} ({pct}%)</font>',
-            _s("mtt2", fontName="Helvetica-Bold", fontSize=8,
-               alignment=TA_CENTER, leading=12)
-        ))
+        total_row.append(
+            Paragraph(
+                f'<b>{tot_abs}</b><br/><font size="7" color="#16a085">{tot_sub} ({pct}%)</font>',
+                _s("mtt2", fontName="Helvetica-Bold", fontSize=8, alignment=TA_CENTER, leading=12),
+            )
+        )
     rows.append(total_row)
 
     # Amplades: hora + 5 dies
     hora_w = 1.8 * cm
-    dia_w  = (CONTENT_W - hora_w) / 5
-    col_w  = [hora_w] + [dia_w] * 5
+    dia_w = (CONTENT_W - hora_w) / 5
+    col_w = [hora_w] + [dia_w] * 5
 
     t = Table(rows, colWidths=col_w, hAlign="LEFT")
 
-    st = TableStyle([
-        # Capçalera
-        ("BACKGROUND",    (0, 0), (-1, 0), C_NAVY),
-        ("TEXTCOLOR",     (0, 0), (-1, 0), C_WHITE),
-        ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("ALIGN",         (0, 0), (-1, 0), "CENTER"),
-        ("TOPPADDING",    (0, 0), (-1, 0), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
-        # Columna hora
-        ("BACKGROUND",    (0, 1), (0, -2), colors.HexColor("#eaf0f8")),
-        ("FONTNAME",      (0, 1), (0, -2), "Helvetica-Bold"),
-        # Fila total
-        ("BACKGROUND",    (0, -1), (-1, -1), colors.HexColor("#d5e8f5")),
-        ("FONTNAME",      (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("LINEABOVE",     (0, -1), (-1, -1), 1, C_NAVY),
-        # General
-        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("GRID",          (0, 0), (-1, -1), 0.3, C_GREY_MID),
-        ("TOPPADDING",    (0, 1), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
-    ])
+    st = TableStyle(
+        [
+            # Capçalera
+            ("BACKGROUND", (0, 0), (-1, 0), C_NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), C_WHITE),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+            ("TOPPADDING", (0, 0), (-1, 0), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+            # Columna hora
+            ("BACKGROUND", (0, 1), (0, -2), colors.HexColor("#eaf0f8")),
+            ("FONTNAME", (0, 1), (0, -2), "Helvetica-Bold"),
+            # Fila total
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#d5e8f5")),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("LINEABOVE", (0, -1), (-1, -1), 1, C_NAVY),
+            # General
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("GRID", (0, 0), (-1, -1), 0.3, C_GREY_MID),
+            ("TOPPADDING", (0, 1), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
+        ]
+    )
 
     # Heatmap: color de fons per cada cel·la de dades
     for r_idx, hora in enumerate(hores_ordre, start=1):
@@ -858,14 +976,17 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
 
     # Llegenda
     elems.append(Spacer(1, 0.2 * cm))
-    elems.append(Paragraph(
-        _("Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) "
-        "i <font color='#16a085'>▶ substitucions cobertes (%)</font>"),
-        STYLES["note"]
-    ))
+    elems.append(
+        Paragraph(
+            _(
+                "Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) "
+                "i <font color='#16a085'>▶ substitucions cobertes (%)</font>"
+            ),
+            STYLES["note"],
+        )
+    )
     elems.append(Spacer(1, 0.4 * cm))
     return elems
-
 
 
 def generar_informe_pdf(
@@ -953,10 +1074,12 @@ def generar_informe_pdf(
     story.append(Spacer(1, 0.5 * cm))
     story.append(HRFlowable(width=CONTENT_W, thickness=0.3, color=C_GREY_MID))
     story.append(Spacer(1, 0.2 * cm))
-    story.append(Paragraph(
-        _("Informe generat el {timestamp} · {nom_centre}").format(timestamp=timestamp, nom_centre=nom_centre),
-        STYLES["footer"]
-    ))
+    story.append(
+        Paragraph(
+            _("Informe generat el {timestamp} · {nom_centre}").format(timestamp=timestamp, nom_centre=nom_centre),
+            STYLES["footer"],
+        )
+    )
 
     doc.build(story)
     return str(filename)

@@ -15,6 +15,7 @@ Per seguretat es fa en dos passos:
    l'interval, PDF que no es poden datar pel nom).
 2. executar_purga()   → esborra segons el manifest, que es recalcula al servidor.
 """
+
 import json
 import os
 import re
@@ -27,8 +28,8 @@ from sqlalchemy.orm import Session
 # Nom persistit dels PDF operatius: {YYMMDD}_{tipus}_{YYMMDD}_{HHMMSS}.pdf
 # La primera data és la del CONTINGUT (el dia al qual es refereix el document).
 _PDF_DATAT_RE = re.compile(
-    r'^(\d{6})_(substitucions_vigilancies|substitucions|vigilancies|document_buit)'
-    r'_\d{6}_\d{6}\.pdf$'
+    r"^(\d{6})_(substitucions_vigilancies|substitucions|vigilancies|document_buit)"
+    r"_\d{6}_\d{6}\.pdf$"
 )
 
 
@@ -47,8 +48,8 @@ def _pdf_content_date(filename: str) -> Optional[date]:
 def llista_professors_db(db: Session) -> List[Dict]:
     """Professors de la BD (històric) amb el flag actiu, ordenats: actius primer."""
     from models import Professor
-    profs = db.query(Professor).order_by(
-        Professor.actiu.desc(), Professor.nom).all()
+
+    profs = db.query(Professor).order_by(Professor.actiu.desc(), Professor.nom).all()
     return [{"nom": p.nom, "actiu": bool(p.actiu)} for p in profs]
 
 
@@ -93,20 +94,20 @@ def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> Dict[str,
 
     counts = {
         "substitucions_absent": db.query(Substitucio)
-            .filter(Substitucio.professor_absent == nom_actual)
-            .update({Substitucio.professor_absent: nom_nou}, synchronize_session=False),
+        .filter(Substitucio.professor_absent == nom_actual)
+        .update({Substitucio.professor_absent: nom_nou}, synchronize_session=False),
         "substitucions_substitut": db.query(Substitucio)
-            .filter(Substitucio.substitut == nom_actual)
-            .update({Substitucio.substitut: nom_nou}, synchronize_session=False),
+        .filter(Substitucio.substitut == nom_actual)
+        .update({Substitucio.substitut: nom_nou}, synchronize_session=False),
         "vigilancies": db.query(Vigilancia)
-            .filter(Vigilancia.vigilant == nom_actual)
-            .update({Vigilancia.vigilant: nom_nou}, synchronize_session=False),
+        .filter(Vigilancia.vigilant == nom_actual)
+        .update({Vigilancia.vigilant: nom_nou}, synchronize_session=False),
         "baixes": db.query(ProfessorBaixa)
-            .filter(ProfessorBaixa.professor == nom_actual)
-            .update({ProfessorBaixa.professor: nom_nou}, synchronize_session=False),
+        .filter(ProfessorBaixa.professor == nom_actual)
+        .update({ProfessorBaixa.professor: nom_nou}, synchronize_session=False),
         "costos_examens": db.query(ExamCostProfessor)
-            .filter(ExamCostProfessor.professor == nom_actual)
-            .update({ExamCostProfessor.professor: nom_nou}, synchronize_session=False),
+        .filter(ExamCostProfessor.professor == nom_actual)
+        .update({ExamCostProfessor.professor: nom_nou}, synchronize_session=False),
     }
     prof.nom = nom_nou
     counts["professor"] = 1
@@ -120,6 +121,7 @@ CLAU_ULTIM_HORARI = "scheduler_ultim_resultat"
 
 def _json_config(db: Session, clau: str):
     from repositories import ConfiguracioRepository
+
     try:
         return json.loads(ConfiguracioRepository.get(db, clau) or "null")
     except ValueError:
@@ -139,6 +141,7 @@ def _dates_iso(valors) -> List[date]:
 def _planificador(db: Session, data_inici: date, data_final: date) -> Dict:
     """El que el planificador recorda de l'interval: les dates triades que hi
     cauen i l'últim horari desat si en toca alguna data (s'esborra sencer)."""
+
     def dins(d):
         return data_inici <= d <= data_final
 
@@ -162,8 +165,7 @@ def _planificador(db: Session, data_inici: date, data_final: date) -> Dict:
     }
 
 
-def analitzar_purga(db: Session, institucio: Optional[str],
-                    data_inici: date, data_final: date) -> Dict:
+def analitzar_purga(db: Session, institucio: Optional[str], data_inici: date, data_final: date) -> Dict:
     """
     MANIFEST (només lectura) de tot el que eliminaria una purga de l'interval
     [data_inici, data_final] (inclòs). No esborra res.
@@ -181,16 +183,19 @@ def analitzar_purga(db: Session, institucio: Optional[str],
 
     # --- Registres de BD (per columna 'data') ---
     bd = {
-        "substitucions": db.query(Substitucio).filter(
-            Substitucio.data >= data_inici, Substitucio.data <= data_final).count(),
-        "vigilancies": db.query(Vigilancia).filter(
-            Vigilancia.data >= data_inici, Vigilancia.data <= data_final).count(),
-        "grups_alliberats": db.query(GrupAlliberat).filter(
-            GrupAlliberat.data >= data_inici, GrupAlliberat.data <= data_final).count(),
+        "substitucions": db.query(Substitucio)
+        .filter(Substitucio.data >= data_inici, Substitucio.data <= data_final)
+        .count(),
+        "vigilancies": db.query(Vigilancia)
+        .filter(Vigilancia.data >= data_inici, Vigilancia.data <= data_final)
+        .count(),
+        "grups_alliberats": db.query(GrupAlliberat)
+        .filter(GrupAlliberat.data >= data_inici, GrupAlliberat.data <= data_final)
+        .count(),
         # Baixes: se solapen amb l'interval (toquen alguna data del rang)
-        "baixes": db.query(ProfessorBaixa).filter(
-            ProfessorBaixa.data_inici <= data_final,
-            ProfessorBaixa.data_final >= data_inici).count(),
+        "baixes": db.query(ProfessorBaixa)
+        .filter(ProfessorBaixa.data_inici <= data_final, ProfessorBaixa.data_final >= data_inici)
+        .count(),
     }
 
     # --- PDF exportats ---
@@ -199,6 +204,7 @@ def analitzar_purga(db: Session, institucio: Optional[str],
     export_dir = None
     try:
         from database import get_export_dir_for_institucio
+
         export_dir = get_export_dir_for_institucio(institucio) if institucio else None
     except Exception:
         export_dir = None
@@ -224,20 +230,21 @@ def analitzar_purga(db: Session, institucio: Optional[str],
         if not solapa:
             continue
         activa = v_fi is None
-        s_esten_fora = activa or (v.data_inici < data_inici) or (
-            v_fi is not None and v_fi > data_final)
+        s_esten_fora = activa or (v.data_inici < data_inici) or (v_fi is not None and v_fi > data_final)
         # Només s'esborren automàticament les versions 100% contingudes dins
         # l'interval. Les que s'estenen fora (o l'activa) es mantenen bloquejades
         # per no afectar dates de fora de l'interval ni deixar l'app sense horari.
-        xml_versions.append({
-            "id": v.id,
-            "path": v.path,
-            "data_inici": v.data_inici.isoformat(),
-            "data_fi": v_fi.isoformat() if v_fi else None,
-            "activa": activa,
-            "s_esten_fora": s_esten_fora,
-            "bloquejat": s_esten_fora,
-        })
+        xml_versions.append(
+            {
+                "id": v.id,
+                "path": v.path,
+                "data_inici": v.data_inici.isoformat(),
+                "data_fi": v_fi.isoformat() if v_fi else None,
+                "activa": activa,
+                "s_esten_fora": s_esten_fora,
+                "bloquejat": s_esten_fora,
+            }
+        )
 
     # Les baixes que toquen l'interval s'esborren senceres: el detall permet
     # avisar de les que s'estenen fora.
@@ -248,9 +255,9 @@ def analitzar_purga(db: Session, institucio: Optional[str],
             "data_final": b.data_final.isoformat(),
             "s_esten_fora": b.data_inici < data_inici or b.data_final > data_final,
         }
-        for b in db.query(ProfessorBaixa).filter(
-            ProfessorBaixa.data_inici <= data_final,
-            ProfessorBaixa.data_final >= data_inici).order_by(ProfessorBaixa.data_inici)
+        for b in db.query(ProfessorBaixa)
+        .filter(ProfessorBaixa.data_inici <= data_final, ProfessorBaixa.data_final >= data_inici)
+        .order_by(ProfessorBaixa.data_inici)
     ]
 
     total_bd = sum(bd.values())
@@ -266,8 +273,7 @@ def analitzar_purga(db: Session, institucio: Optional[str],
     }
 
 
-def executar_purga(db: Session, institucio: Optional[str],
-                   data_inici: date, data_final: date) -> Dict:
+def executar_purga(db: Session, institucio: Optional[str], data_inici: date, data_final: date) -> Dict:
     """
     Executa la purga de l'interval [data_inici, data_final] (inclòs).
 
@@ -298,19 +304,18 @@ def executar_purga(db: Session, institucio: Optional[str],
 
     # --- Registres de BD ---
     bd_esborrat = {
-        "substitucions": db.query(Substitucio).filter(
-            Substitucio.data >= data_inici, Substitucio.data <= data_final
-        ).delete(synchronize_session=False),
-        "vigilancies": db.query(Vigilancia).filter(
-            Vigilancia.data >= data_inici, Vigilancia.data <= data_final
-        ).delete(synchronize_session=False),
-        "grups_alliberats": db.query(GrupAlliberat).filter(
-            GrupAlliberat.data >= data_inici, GrupAlliberat.data <= data_final
-        ).delete(synchronize_session=False),
-        "baixes": db.query(ProfessorBaixa).filter(
-            ProfessorBaixa.data_inici <= data_final,
-            ProfessorBaixa.data_final >= data_inici
-        ).delete(synchronize_session=False),
+        "substitucions": db.query(Substitucio)
+        .filter(Substitucio.data >= data_inici, Substitucio.data <= data_final)
+        .delete(synchronize_session=False),
+        "vigilancies": db.query(Vigilancia)
+        .filter(Vigilancia.data >= data_inici, Vigilancia.data <= data_final)
+        .delete(synchronize_session=False),
+        "grups_alliberats": db.query(GrupAlliberat)
+        .filter(GrupAlliberat.data >= data_inici, GrupAlliberat.data <= data_final)
+        .delete(synchronize_session=False),
+        "baixes": db.query(ProfessorBaixa)
+        .filter(ProfessorBaixa.data_inici <= data_final, ProfessorBaixa.data_final >= data_inici)
+        .delete(synchronize_session=False),
     }
 
     errors: List[str] = []
@@ -320,6 +325,7 @@ def executar_purga(db: Session, institucio: Optional[str],
     export_dir = None
     try:
         from database import get_data_dir_for_institucio, get_export_dir_for_institucio
+
         if institucio:
             data_dir = get_data_dir_for_institucio(institucio)
             export_dir = get_export_dir_for_institucio(institucio)
@@ -331,10 +337,7 @@ def executar_purga(db: Session, institucio: Optional[str],
     if ids_esborrar:
         # Paths que es conserven (per no esborrar un fitxer compartit amb una
         # versió que es manté).
-        paths_conservats = {
-            p.path for p in db.query(XMLVersion).filter(
-                ~XMLVersion.id.in_(ids_esborrar)).all()
-        }
+        paths_conservats = {p.path for p in db.query(XMLVersion).filter(~XMLVersion.id.in_(ids_esborrar)).all()}
         for v in db.query(XMLVersion).filter(XMLVersion.id.in_(ids_esborrar)).all():
             if data_dir is not None and v.path and v.path not in paths_conservats:
                 carpeta = data_dir.resolve()
@@ -348,14 +351,17 @@ def executar_purga(db: Session, institucio: Optional[str],
                             fpath.unlink()
                     except OSError as e:
                         errors.append(f"XML {v.path}: {e}")
-            xml_esborrats.append({
-                "id": v.id,
-                "data_inici": v.data_inici.isoformat(),
-                "data_fi": v.data_fi.isoformat() if v.data_fi else None,
-            })
+            xml_esborrats.append(
+                {
+                    "id": v.id,
+                    "data_inici": v.data_inici.isoformat(),
+                    "data_fi": v.data_fi.isoformat() if v.data_fi else None,
+                }
+            )
             db.delete(v)
         # Les que queden s'encadenen de nou: sense forats on hi havia les esborrades
         from repositories import XMLVersionRepository
+
         XMLVersionRepository.encadena(db)
 
     # --- PDF datats dins l'interval ---
@@ -373,12 +379,17 @@ def executar_purga(db: Session, institucio: Optional[str],
     # --- Planificador d'exàmens ---
     # (sense ConfiguracioRepository.set, que fa commit: tot va en el commit final)
     from models import Configuracio
+
     planificador = manifest["planificador"]
     if planificador["dates_seleccionades"]:
-        queden = [d.isoformat() for d in _dates_iso(_json_config(db, CLAU_DATES_PLANIFICADOR))
-                  if not data_inici <= d <= data_final]
+        queden = [
+            d.isoformat()
+            for d in _dates_iso(_json_config(db, CLAU_DATES_PLANIFICADOR))
+            if not data_inici <= d <= data_final
+        ]
         db.query(Configuracio).filter(Configuracio.clau == CLAU_DATES_PLANIFICADOR).update(
-            {Configuracio.valor: json.dumps(queden)}, synchronize_session=False)
+            {Configuracio.valor: json.dumps(queden)}, synchronize_session=False
+        )
     if planificador["ultim_horari"]:
         db.query(Configuracio).filter(Configuracio.clau == CLAU_ULTIM_HORARI).delete(synchronize_session=False)
 

@@ -1,6 +1,7 @@
 """
 Gestió d'absències de professors
 """
+
 from typing import Dict, List
 
 from config.constants import NO_SUBST
@@ -8,13 +9,17 @@ from config.constants import NO_SUBST
 
 class GestorAbsencies:
     """Gestiona les absències dels professors"""
-    
+
     def __init__(self, gestor_horari):
         self.horari = gestor_horari
-    
-    def get_substitucions_necessaries(self, dia: str, absents: Dict[str, List[str]],
-                                    absents_tipus: Dict[str, str] = None,
-                                    activitats_fallback: Dict = None) -> List[Dict]:
+
+    def get_substitucions_necessaries(
+        self,
+        dia: str,
+        absents: Dict[str, List[str]],
+        absents_tipus: Dict[str, str] = None,
+        activitats_fallback: Dict = None,
+    ) -> List[Dict]:
         """
         Calcula quines substitucions calen segons les absències
         Args:
@@ -24,13 +29,15 @@ class GestorAbsencies:
         Returns: [{professor, hora, assignatura, grup, tipus_absencia}, ...]
         """
         import logging
+
         logger = logging.getLogger(__name__)
         logger.debug(f"🟢 get_substitucions_necessaries() START: dia='{dia}', absents={len(absents)}")
 
         # Assegura que dia està en format nom dia XML, no ISO
-        if isinstance(dia, str) and len(dia) == 10 and '-' in dia:
+        if isinstance(dia, str) and len(dia) == 10 and "-" in dia:
             # Rebut format ISO (2025-08-11), converteix a nom dia XML
             from utils.date_context import DateContext
+
             try:
                 weekday_idx = DateContext.from_iso(dia).weekday_index
                 dia = self.horari.get_dia_name(weekday_idx)
@@ -45,7 +52,7 @@ class GestorAbsencies:
 
         for professor, hores in absents.items():
             # Obté el tipus d'absència per aquest professor
-            tipus_professor = absents_tipus.get(professor, 'ABSENCIA')
+            tipus_professor = absents_tipus.get(professor, "ABSENCIA")
             logger.debug(f"      Professor '{professor}' absent a {len(hores)} hores: {hores}")
 
             for hora in hores:
@@ -58,7 +65,7 @@ class GestorAbsencies:
                         activitat = {
                             "assignatura": fallback.get("assignatura", ""),
                             "grup": fallback.get("grup", ""),
-                            "aula": fallback.get("aula", "")
+                            "aula": fallback.get("aula", ""),
                         }
                     else:
                         continue
@@ -82,13 +89,13 @@ class GestorAbsencies:
                         "aula": aula,
                         "substitut": "",
                         "tipus_substitut": "",
-                        "tipus_absencia": tipus_absencia
+                        "tipus_absencia": tipus_absencia,
                     }
                     substitucions.append(sub)
 
         logger.debug(f"🟢 get_substitucions_necessaries() END: retorna {len(substitucions)} substitucions")
         return substitucions
-    
+
     def _necessita_substitucio(self, activitat: Dict) -> bool:
         """Comprova si una activitat necessita substitució"""
         assignatura = activitat.get("assignatura", "")

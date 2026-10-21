@@ -3,6 +3,7 @@ Gestor d'errors 5xx (errors_servidor.py): l'usuari no rep mai el detall intern
 (consultes SQL, rutes, missatges d'excepció), només una referència que
 permet trobar-lo al registre del servidor. Els errors 4xx no canvien.
 """
+
 from fastapi import APIRouter, HTTPException
 from fastapi.testclient import TestClient
 from suport_api import crea_app

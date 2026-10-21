@@ -7,11 +7,12 @@ Dependències compartides de les rutes: la BD de dades de l'usuari i el dia
 - dia_de_la_planificacio: la primera data planificada (sense dates, avui).
 - dia_d_avui: avui (p. ex. qui és actiu o inactiu).
 """
+
 from typing import Optional
 
 from fastapi import Depends
 
-from auth_utils import get_current_user
+from auth.dependencies import get_current_user
 from database import get_data_db
 from routes.parametres import DataISO
 from serveis.dia import Dia
@@ -31,6 +32,7 @@ def dia_del_calendari(data: Optional[DataISO] = None, current_user=Depends(get_c
 
 def dia_de_la_planificacio(current_user=Depends(get_current_user)) -> Dia:
     from routes.scheduler_config import data_referencia
+
     return Dia.de_text(data_referencia(current_user.institucio), current_user.institucio)
 
 

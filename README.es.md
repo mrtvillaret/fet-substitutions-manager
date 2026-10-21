@@ -89,7 +89,7 @@ motor de asignación en `core/`.
   aviso.
 - Un profesor de baja ni sustituye ni es sustituido.
 
-Más de 500 tests (`cd backend && pytest tests/`) sobre instituciones temporales
+Más de 650 tests (`cd backend && pytest tests/`) sobre instituciones temporales
 con el horario de ejemplo.
 
 Para el mapa de dependencias completo y las reglas en detalle, ver
@@ -127,7 +127,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 El backend crea automáticamente las BD (`auth.db` y `data/{APP_INSTITUCIO}/gestor.db`)
-en el primer arranque, y un super_admin según `ADMIN_USERNAME`/`ADMIN_PASSWORD` del `.env`.
+en el primer arranque y, si aún no hay ningún usuario, un super_admin según
+`ADMIN_USERNAME`/`ADMIN_PASSWORD` del `.env`.
 
 API disponible en `http://localhost:8000` · Documentación en `http://localhost:8000/docs`.
 
@@ -213,9 +214,11 @@ docker compose up --build -d
 Caddy obtiene el certificado TLS automáticamente. La aplicación estará en
 `https://{tu-dominio}`.
 
-La aplicación **no arranca** si falta `SECRET_KEY` o, mientras no exista el
-administrador, `ADMIN_PASSWORD`. No tienen valor por defecto a propósito: así
+La aplicación **no arranca** si falta `SECRET_KEY` o, en una instalación nueva
+(sin ningún usuario), `ADMIN_PASSWORD`. No tienen valor por defecto a propósito: así
 ninguna instalación queda abierta con credenciales que constan en este repositorio.
+Si se pierde el acceso del superadmin, se recupera con `ADMIN_PASSWORD_RECUPERACIO`
+(ver `.env.example`), que hay que quitar del entorno después de usarla.
 
 ### 3. Primer acceso
 

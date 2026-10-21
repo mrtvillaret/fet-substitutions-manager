@@ -3,6 +3,7 @@ Suport per als tests del planificador d'exàmens: una institució amb l'horari
 d'exemple i la configuració d'exàmens de 1-BAT importada amb la mateixa
 funció de l'aplicació (Importar assignacions).
 """
+
 import uuid
 
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
@@ -36,13 +37,23 @@ def centre_amb_examens(assignatures=ASSIGNATURES, nivells=("1-BAT",)):
 
 def alliberaments(dates=DATES, hores_inici=("09:00", "11:30"), nivells=("1-BAT",)):
     """Hores sense classe de cada nivell; les d'inici són on pot començar un examen."""
-    return {nivell: {"durada": 1, "dates": list(dates), "config": {
-        d: {h: {"a": True, "i": True} for h in hores_inici} for d in dates}} for nivell in nivells}
+    return {
+        nivell: {
+            "durada": 1,
+            "dates": list(dates),
+            "config": {d: {h: {"a": True, "i": True} for h in hores_inici} for d in dates},
+        }
+        for nivell in nivells
+    }
 
 
 def configura(client, **camps):
-    cos = {"nivells_actius": ["1-BAT"], "alliberaments_per_nivell": alliberaments(),
-           "durada_titular": 1, "durada_examen": 1}
+    cos = {
+        "nivells_actius": ["1-BAT"],
+        "alliberaments_per_nivell": alliberaments(),
+        "durada_titular": 1,
+        "durada_examen": 1,
+    }
     cos.update(camps)
     resp = client.put("/api/scheduler/config", json=cos)
     assert resp.status_code == 200, resp.text

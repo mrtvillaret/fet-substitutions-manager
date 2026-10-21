@@ -3,8 +3,7 @@ Constants centralitzades per al scheduler d'exàmens.
 Punt únic de veritat per a tots els defaults del sistema.
 """
 
-
-DIES_SETMANA = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres']
+DIES_SETMANA = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
 
 
 # Costos globals de professors (percentatge 0-100)
@@ -44,9 +43,9 @@ DEFAULT_NIVELLS_ACTIUS = ["1-BATX", "2-BATX"]
 DEFAULT_DURADA_TITULAR = 1  # Nombre d'hores lectives que dura l'examen
 
 # Pesos de restriccions per al càlcul de costos
-DEFAULT_PES_ZONA_EXAMEN = 5               # Soft cost per conflicte a la zona d'examen sense titular
-DEFAULT_PES_RESTRICCIO_DURA = 10000       # Cost base per restricció dura
-DEFAULT_PES_RESTRICCIO_VIOLADA = 20000    # Cost per restricció dura violada
+DEFAULT_PES_ZONA_EXAMEN = 5  # Soft cost per conflicte a la zona d'examen sense titular
+DEFAULT_PES_RESTRICCIO_DURA = 10000  # Cost base per restricció dura
+DEFAULT_PES_RESTRICCIO_VIOLADA = 20000  # Cost per restricció dura violada
 DEFAULT_PES_RESTRICCIO_PROHIBITIU = 10000000  # Cost prohibitiu (mandatori absolut)
 
 # Etiquetes llegibles per a cada clau de restricció (backend → frontend)

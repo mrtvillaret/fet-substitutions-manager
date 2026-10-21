@@ -44,20 +44,8 @@ def _extract_assignatures_from_restriccions(restr: dict) -> set[str]:
         elif isinstance(grup, list):
             resultat.update(grup)
 
-    resultat.update(
-        {
-            k
-            for k in (dures.get("assignatures_dia_fix") or {}).keys()
-            if not str(k).startswith("_pes_")
-        }
-    )
-    resultat.update(
-        {
-            k
-            for k in (dures.get("assignatures_hora_fix") or {}).keys()
-            if not str(k).startswith("_pes_")
-        }
-    )
+    resultat.update({k for k in (dures.get("assignatures_dia_fix") or {}).keys() if not str(k).startswith("_pes_")})
+    resultat.update({k for k in (dures.get("assignatures_hora_fix") or {}).keys() if not str(k).startswith("_pes_")})
 
     for cfg in (dures.get("professors_limit_dies_especifics") or {}).values():
         if isinstance(cfg, dict):
@@ -84,6 +72,7 @@ def _treu_assignatures_de_restriccions(restr: dict, fora: set[str]) -> dict:
     agrupació buida; una incompatibilitat, preferència o combinació amb menys
     de dos exàmens; un examen fixat o un límit de professor sense exàmens."""
     import copy
+
     restr = copy.deepcopy(restr or {})
     dures = restr.setdefault("restriccions_dures", {})
     prefs = restr.setdefault("preferencies", {})
@@ -108,8 +97,11 @@ def _treu_assignatures_de_restriccions(restr: dict, fora: set[str]) -> dict:
         dures["mateix_slot"] = [i for i in (amb_llista(x, 1) for x in dures["mateix_slot"]) if i]
     if "no_mateix_dia" in dures:
         dures["no_mateix_dia"] = [i for i in (amb_llista(x, 2) for x in dures["no_mateix_dia"]) if i]
-    for tipus, minim in (("combinacions_permeses", 2), ("assignatures_dies_exclosos", 1),
-                         ("assignatures_slot_prohibit", 1)):
+    for tipus, minim in (
+        ("combinacions_permeses", 2),
+        ("assignatures_dies_exclosos", 1),
+        ("assignatures_slot_prohibit", 1),
+    ):
         if tipus in dures:
             dures[tipus] = [i for i in (amb_llista(x, minim) for x in dures[tipus] or []) if i]
 
@@ -127,8 +119,9 @@ def _treu_assignatures_de_restriccions(restr: dict, fora: set[str]) -> dict:
 
     for tipus in ("assignatures_dia_fix", "assignatures_hora_fix"):
         if isinstance(dures.get(tipus), dict):
-            dures[tipus] = {k: v for k, v in dures[tipus].items()
-                            if (k[5:] if k.startswith("_pes_") else k) not in fora}
+            dures[tipus] = {
+                k: v for k, v in dures[tipus].items() if (k[5:] if k.startswith("_pes_") else k) not in fora
+            }
 
     if isinstance(dures.get("professors_limit_dies_especifics"), dict):
         nou = {}
@@ -147,9 +140,7 @@ def _treu_assignatures_de_restriccions(restr: dict, fora: set[str]) -> dict:
     return restr
 
 
-def _selected_dates_from_alliberaments(
-    alliberaments_cfg: dict, nivells_actius: list[str] | None = None
-) -> list[str]:
+def _selected_dates_from_alliberaments(alliberaments_cfg: dict, nivells_actius: list[str] | None = None) -> list[str]:
     """
     Extreu les dates ISO (YYYY-MM-DD) des de scheduler_alliberaments_per_nivell.
     Prioritza `dates`; si no n'hi ha, usa claus de `config`.
@@ -201,8 +192,6 @@ def _selected_dates_from_alliberaments(
     return sorted(out)
 
 
-
-
 def _hores_lectives_des_de_xml(xml_path: str, fallback: list[str] | None = None) -> list[str]:
     """
     Extreu totes les hores lectives (ordenades) des de l'XML.
@@ -244,6 +233,7 @@ def extreure_hores_examen_des_alliberaments(alliberaments: dict) -> tuple[list, 
     - ``hores_globals``: unió ordenada de TOTES les hores amb ``i=true`` de tots els nivells
     - ``hores_per_nivell``: ``{ nivell: [hores_amb_i_true_ordenades] }``
     """
+
     def _to_minutes(h: str) -> int:
         try:
             hh, mm = h.split(":")
@@ -370,7 +360,7 @@ def _build_slots_valids_iso_from_alliberaments(
             continue
         cfg = nivell_data.get("config") or {}
         per_data = {}
-        for d_str in (nivell_data.get("dates") or []):
+        for d_str in nivell_data.get("dates") or []:
             if not isinstance(d_str, str):
                 continue
             cfg_dia = cfg.get(d_str) or {}

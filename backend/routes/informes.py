@@ -1,6 +1,7 @@
 """
 Endpoints per generar informes PDF de direcció i per professor.
 """
+
 import shutil
 import sys
 import tempfile
@@ -12,7 +13,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
-from auth_utils import require_admin
+from auth.dependencies import require_admin
 from core.alliberats import sense_classe
 from database import get_data_dir_for_institucio
 from repositories import ConfiguracioRepository, MasterConfigRepository
@@ -33,18 +34,49 @@ router = APIRouter(prefix="/api/informes", tags=["informes"])
 # Noms de mes per idioma. El render del PDF no re-tradueix: mostra aquestes etiquetes
 # tal qual i n'abreuja els 3 primers caràcters (Novembre→Nov, Noviembre→Nov, November→Nov).
 MESOS = {
-    "ca": {1: "Gener", 2: "Febrer", 3: "Març", 4: "Abril",
-           5: "Maig", 6: "Juny", 7: "Juliol", 8: "Agost",
-           9: "Setembre", 10: "Octubre", 11: "Novembre", 12: "Desembre"},
-    "es": {1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-           5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-           9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"},
-    "en": {1: "January", 2: "February", 3: "March", 4: "April",
-           5: "May", 6: "June", 7: "July", 8: "August",
-           9: "September", 10: "October", 11: "November", 12: "December"},
+    "ca": {
+        1: "Gener",
+        2: "Febrer",
+        3: "Març",
+        4: "Abril",
+        5: "Maig",
+        6: "Juny",
+        7: "Juliol",
+        8: "Agost",
+        9: "Setembre",
+        10: "Octubre",
+        11: "Novembre",
+        12: "Desembre",
+    },
+    "es": {
+        1: "Enero",
+        2: "Febrero",
+        3: "Marzo",
+        4: "Abril",
+        5: "Mayo",
+        6: "Junio",
+        7: "Julio",
+        8: "Agosto",
+        9: "Septiembre",
+        10: "Octubre",
+        11: "Noviembre",
+        12: "Diciembre",
+    },
+    "en": {
+        1: "January",
+        2: "February",
+        3: "March",
+        4: "April",
+        5: "May",
+        6: "June",
+        7: "July",
+        8: "August",
+        9: "September",
+        10: "October",
+        11: "November",
+        12: "December",
+    },
 }
-
-
 
 
 def _get_db_and_helpers(institucio: str):
@@ -76,6 +108,7 @@ class _AlliberatsPerData(dict):
     def __missing__(self, data):
         from database import get_data_db_session
         from repositories import GrupsAlliberatsRepository
+
         with get_data_db_session(self.institucio) as db:
             valor = GrupsAlliberatsRepository.get_by_date(db, data) if data else {}
         self[data] = valor
@@ -107,6 +140,7 @@ def _carregar_nivells_grups(institucio: str) -> tuple:
       - grup2nivell: codi de grup -> nivell ("Altres" per GENERAL/RECERCA i desconeguts)
     """
     from database import get_data_db_session
+
     ALTRES = "Altres"
     EXCLOSOS = {"GENERAL", "RECERCA"}
     try:
@@ -142,14 +176,14 @@ def _carregar_nivells_grups(institucio: str) -> tuple:
     return ordre_nivells, grup2nivell
 
 
-def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, institucio: str,
-                             lang: str = "ca") -> dict:
+def _calcular_dades_direccio(
+    data_inici: str, data_final: str, hores_xml: list, institucio: str, lang: str = "ca"
+) -> dict:
     conn, no_sub, grups_all = _get_db_and_helpers(institucio)
     cur = conn.cursor()
     mesos_nom = MESOS.get(lang, MESOS["ca"])
 
-    cur.execute("SELECT * FROM substitucions WHERE data >= ? AND data <= ?",
-                (data_inici, data_final))
+    cur.execute("SELECT * FROM substitucions WHERE data >= ? AND data <= ?", (data_inici, data_final))
     subs = [dict(r) for r in cur.fetchall()]
 
     cur.execute("SELECT * FROM professors_baixa ORDER BY data_inici")
@@ -157,22 +191,22 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
 
     conn.close()
 
-    subs_reals     = [s for s in subs if _es_substitucio_real(s, no_sub, grups_all)]
+    subs_reals = [s for s in subs if _es_substitucio_real(s, no_sub, grups_all)]
     subs_assignades = [s for s in subs_reals if (s.get("substitut") or "").strip()]
 
     absencies = [s for s in subs_reals if s["tipus_absencia"] == "ABSENCIA"]
-    serveis   = [s for s in subs_reals if s["tipus_absencia"] == "SERVEI"]
+    serveis = [s for s in subs_reals if s["tipus_absencia"] == "SERVEI"]
 
     cobertura = len(subs_assignades) / len(subs_reals) * 100 if subs_reals else 0
 
     stats = {
-        "total_absencies":     len(absencies),
-        "total_serveis":       len(serveis),
-        "total_baixes":        len(baixes),
+        "total_absencies": len(absencies),
+        "total_serveis": len(serveis),
+        "total_baixes": len(baixes),
         "total_substitucions": len(subs_assignades),
-        "total_necessiten":    len(subs_reals),
-        "cobertura_pct":       cobertura,
-        "dies_actius":         len({s["data"] for s in subs_reals}),
+        "total_necessiten": len(subs_reals),
+        "cobertura_pct": cobertura,
+        "dies_actius": len({s["data"] for s in subs_reals}),
     }
 
     # Per mes
@@ -193,13 +227,15 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
     per_mes = []
     for (any_, mes), v in sorted(per_mes_raw.items()):
         total_m = v["absencies"] + v["serveis"]
-        per_mes.append({
-            "mes": f"{mesos_nom[mes]} {any_}",
-            "absencies":     v["absencies"],
-            "serveis":       v["serveis"],
-            "substitucions": v["substitucions"],
-            "cobertura":     v["substitucions"] / total_m * 100 if total_m else 0,
-        })
+        per_mes.append(
+            {
+                "mes": f"{mesos_nom[mes]} {any_}",
+                "absencies": v["absencies"],
+                "serveis": v["serveis"],
+                "substitucions": v["substitucions"],
+                "cobertura": v["substitucions"] / total_m * 100 if total_m else 0,
+            }
+        )
 
     mesos_ordenats = [m["mes"] for m in per_mes]
 
@@ -214,10 +250,11 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
         elif s["tipus_absencia"] == "SERVEI":
             prof_abs[prof]["serveis"] += 1
 
-    professors_absencies = sorted([
-        {"nom": p, **v, "total": v["absencies"] + v["serveis"]}
-        for p, v in prof_abs.items()
-    ], key=lambda x: x["total"], reverse=True)
+    professors_absencies = sorted(
+        [{"nom": p, **v, "total": v["absencies"] + v["serveis"]} for p, v in prof_abs.items()],
+        key=lambda x: x["total"],
+        reverse=True,
+    )
 
     prof_subs = defaultdict(int)
     for s in subs_reals:
@@ -225,9 +262,9 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
         if sub:
             prof_subs[sub] += 1
 
-    professors_substitucions = sorted([
-        {"nom": p, "total": n} for p, n in prof_subs.items()
-    ], key=lambda x: x["total"], reverse=True)
+    professors_substitucions = sorted(
+        [{"nom": p, "total": n} for p, n in prof_subs.items()], key=lambda x: x["total"], reverse=True
+    )
 
     # Per dia/hora
     per_dia = defaultdict(lambda: {"absencies": 0, "substitucions": 0})
@@ -252,10 +289,10 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
 
     # Matrius professor × mes
     top_profs = [p["nom"] for p in professors_absencies[:20]]
-    top_subs  = [p["nom"] for p in professors_substitucions[:20]]
-    per_professor_mes_abs  = {p: {m: 0 for m in mesos_ordenats} for p in top_profs}
+    top_subs = [p["nom"] for p in professors_substitucions[:20]]
+    per_professor_mes_abs = {p: {m: 0 for m in mesos_ordenats} for p in top_profs}
     per_professor_mes_serv = {p: {m: 0 for m in mesos_ordenats} for p in top_profs}
-    per_substitut_mes      = {p: {m: 0 for m in mesos_ordenats} for p in top_subs}
+    per_substitut_mes = {p: {m: 0 for m in mesos_ordenats} for p in top_subs}
 
     for s in subs_reals:
         prof = (s.get("professor_absent") or "").strip()
@@ -290,6 +327,7 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
 
     def _nivell(g):
         return grup2nivell.get(g, "Altres")
+
     per_grup = defaultdict(lambda: {"absencies": 0, "cobertes": 0})
     per_grup_mes = {}
     for s in subs_reals:
@@ -313,28 +351,35 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
     for grup, v in per_grup.items():
         niv = _nivell(grup)
         per_nivell[niv]["absencies"] += v["absencies"]
-        per_nivell[niv]["cobertes"]  += v["cobertes"]
+        per_nivell[niv]["cobertes"] += v["cobertes"]
         per_nivell[niv]["grups"].add(grup)
 
     grups_data = {
         "per_nivell": {
             niv: {
-                "absencies": v["absencies"], "cobertes": v["cobertes"],
+                "absencies": v["absencies"],
+                "cobertes": v["cobertes"],
                 "pendents": v["absencies"] - v["cobertes"],
                 "pct": round(v["cobertes"] / v["absencies"] * 100) if v["absencies"] else 0,
                 "n_grups": len(v["grups"]),
-            } for niv, v in per_nivell.items()
+            }
+            for niv, v in per_nivell.items()
         },
         "ordre_nivells": ORDRE_NIVELLS,
         "per_grup_mes": per_grup_mes,
         "mesos": mesos_ordenats,
         "grups_ordenats": sorted(
-            [{"nom": g, **v, "pendents": v["absencies"] - v["cobertes"],
-              "pct": round(v["cobertes"] / v["absencies"] * 100) if v["absencies"] else 0,
-              "nivell": _nivell(g)}
-             for g, v in per_grup.items()],
-            key=lambda x: (ORDRE_NIVELLS.index(x["nivell"])
-                           if x["nivell"] in ORDRE_NIVELLS else 99, x["nom"])
+            [
+                {
+                    "nom": g,
+                    **v,
+                    "pendents": v["absencies"] - v["cobertes"],
+                    "pct": round(v["cobertes"] / v["absencies"] * 100) if v["absencies"] else 0,
+                    "nivell": _nivell(g),
+                }
+                for g, v in per_grup.items()
+            ],
+            key=lambda x: (ORDRE_NIVELLS.index(x["nivell"]) if x["nivell"] in ORDRE_NIVELLS else 99, x["nom"]),
         ),
     }
 
@@ -355,12 +400,10 @@ def _calcular_dades_direccio(data_inici: str, data_final: str, hores_xml: list, 
     }
 
 
-def _calcular_dades_professors(data_inici: str, data_final: str,
-                                institucio: str, professor: str = None) -> list:
+def _calcular_dades_professors(data_inici: str, data_final: str, institucio: str, professor: str = None) -> list:
     conn, no_sub, grups_all = _get_db_and_helpers(institucio)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM substitucions WHERE data >= ? AND data <= ?",
-                (data_inici, data_final))
+    cur.execute("SELECT * FROM substitucions WHERE data >= ? AND data <= ?", (data_inici, data_final))
     subs = [dict(r) for r in cur.fetchall()]
     conn.close()
 
@@ -381,15 +424,13 @@ def _calcular_dades_professors(data_inici: str, data_final: str,
         tots = [p for p in tots if professor.lower() in p.lower()]
 
     return [
-        {"nom": p,
-         "absencies": per_absent.get(p, []),
-         "substitucions_fetes": per_substitut.get(p, [])}
-        for p in tots
+        {"nom": p, "absencies": per_absent.get(p, []), "substitucions_fetes": per_substitut.get(p, [])} for p in tots
     ]
 
 
 def _get_idioma(institucio: str) -> str:
     from database import get_data_db_session
+
     try:
         with get_data_db_session(institucio) as db:
             return ConfiguracioRepository.get(db, "idioma") or "ca"
@@ -401,6 +442,7 @@ def _get_idioma(institucio: str) -> str:
 def _get_nom_centre(institucio: str) -> str:
     """Retorna el nom visible de la institució des de la config, o el slug si no hi ha."""
     from database import get_data_db_session
+
     try:
         with get_data_db_session(institucio) as db:
             name = ConfiguracioRepository.get(db, "institucio_display_name")
@@ -413,6 +455,7 @@ def _get_nom_centre(institucio: str) -> str:
 def _get_hores_xml(institucio: str, data: str) -> list:
     """Les hores, en l'ordre de l'XML, de l'horari vigent a `data`."""
     import xml.etree.ElementTree as ET
+
     xml_path = Dia.de_text(data, institucio).xml_path
     if not xml_path or not Path(xml_path).exists():
         return []
@@ -441,7 +484,7 @@ def informe_direccio(
     institucio = current_user.institucio
     nom_centre = _get_nom_centre(institucio)
     lang = _get_idioma(institucio)
-    hores_xml = _get_hores_xml(institucio, data_inici)   # l'horari de l'inici del període
+    hores_xml = _get_hores_xml(institucio, data_inici)  # l'horari de l'inici del període
     dades = _calcular_dades_direccio(data_inici, data_final, hores_xml, institucio, lang)
     # Directori temporal per petició: el PDF no es desa al servidor, es genera i
     # es retorna; s'esborra un cop enviada la resposta.
@@ -477,10 +520,11 @@ def informe_professor(
     institucio = current_user.institucio
     nom_centre = _get_nom_centre(institucio)
     lang = _get_idioma(institucio)
-    hores_xml = _get_hores_xml(institucio, data_inici)   # l'horari de l'inici del període
+    hores_xml = _get_hores_xml(institucio, data_inici)  # l'horari de l'inici del període
     professors_data = _calcular_dades_professors(data_inici, data_final, institucio, professor)
     if not professors_data:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Cap professor trobat")
 
     # Directori temporal per petició (el PDF no es desa al servidor).
@@ -497,8 +541,8 @@ def informe_professor(
     )
     nom_fitxer = (
         f"informe_{professor}_{data_inici}_{data_final}.pdf"
-        if professor else
-        f"informe_professors_{data_inici}_{data_final}.pdf"
+        if professor
+        else f"informe_professors_{data_inici}_{data_final}.pdf"
     )
     return FileResponse(
         pdf_path,

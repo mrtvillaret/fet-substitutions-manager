@@ -7,6 +7,7 @@ Horari d'exemple: 1-BAT i 2-BAT, grups A i B. Filosofia la fa Prof 48 a tots
 dos nivells. Tot el que es fa servir (assignatures, titulars) surt de l'XML
 d'exemple a través de la mateixa importació de l'aplicació.
 """
+
 import re
 
 import pytest
@@ -44,7 +45,11 @@ def _col_locats(horari):
     for dia in horari["dies"]:
         for slot in dia["sessions"]:
             for sessio in slot["sessions_simultanees"]:
-                col[sessio["nom"]] = (dia["data"], slot["hora"], sorted((e["grup"], e["titular"]) for e in sessio["examens"]))
+                col[sessio["nom"]] = (
+                    dia["data"],
+                    slot["hora"],
+                    sorted((e["grup"], e["titular"]) for e in sessio["examens"]),
+                )
     return col
 
 
@@ -58,8 +63,9 @@ def un_nivell():
 @pytest.fixture
 def dos_nivells():
     _, client = centre_amb_examens(nivells=("1-BAT", "2-BAT"))
-    configura(client, nivells_actius=["1-BAT", "2-BAT"],
-              alliberaments_per_nivell=alliberaments(nivells=("1-BAT", "2-BAT")))
+    configura(
+        client, nivells_actius=["1-BAT", "2-BAT"], alliberaments_per_nivell=alliberaments(nivells=("1-BAT", "2-BAT"))
+    )
     return client
 
 
@@ -76,8 +82,9 @@ def test_col_loca_tots_els_examens_a_les_dates_i_hores_d_inici(un_nivell):
 
 
 def test_un_examen_fixat_va_on_s_ha_fixat(un_nivell):
-    un_nivell.post("/api/scheduler/restriccions/pin",
-                   json={"pins": [{"nom": "Català (1-BAT)", "dia": "Dilluns", "hora": "11:30"}]})
+    un_nivell.post(
+        "/api/scheduler/restriccions/pin", json={"pins": [{"nom": "Català (1-BAT)", "dia": "Dilluns", "hora": "11:30"}]}
+    )
     for _ in range(3):
         assert _col_locats(_genera(un_nivell))["Català (1-BAT)"][:2] == (DATES[0], "11:30")
 
@@ -93,8 +100,11 @@ def test_una_franja_d_optatives_va_sencera_a_la_mateixa_hora():
     # fan tres professors; cada un és un examen i van tots alhora.
     institucio, client = centre_amb_examens()
     propostes = client.get("/api/config/importar-assignacions/preview").json()["propostes"]
-    franja = [dict(p, assignatura=f"1.1 {p['titular']}") for p in propostes
-              if p["assignatura"] == "1.1" and p["nivell"] == "1-BAT"]
+    franja = [
+        dict(p, assignatura=f"1.1 {p['titular']}")
+        for p in propostes
+        if p["assignatura"] == "1.1" and p["nivell"] == "1-BAT"
+    ]
     assert len(franja) == 3
     client.post("/api/config/importar-assignacions", json={"propostes": franja})
     configura(client)
@@ -125,7 +135,9 @@ def test_els_examens_incompatibles_no_coincideixen(dos_nivells):
     # definir-ho com a incompatibilitat (Prof 48 fa Filosofia a tots dos nivells).
     restr = dos_nivells.get("/api/scheduler/restriccions").json()["restriccions"]
     restr["restriccions_dures"]["no_mateix_slot"] = {
-        "Prof 48": ["Filosofia (1-BAT)", "Filosofia (2-BAT)"], "_pes_Prof 48": 100}
+        "Prof 48": ["Filosofia (1-BAT)", "Filosofia (2-BAT)"],
+        "_pes_Prof 48": 100,
+    }
     dos_nivells.put("/api/scheduler/restriccions", json={"restriccions": restr})
     for _ in range(5):
         col = _col_locats(_genera(dos_nivells))
@@ -150,11 +162,19 @@ def test_si_no_es_viable_diu_quina_restriccio_ho_impedeix(dos_nivells, motor):
     # xoca, no només quin examen no s'ha pogut col·locar.
     restr = dos_nivells.get("/api/scheduler/restriccions").json()["restriccions"]
     restr["restriccions_dures"]["no_mateix_slot"] = {
-        "Prof 48": ["Filosofia (1-BAT)", "Filosofia (2-BAT)"], "_pes_Prof 48": 100}
+        "Prof 48": ["Filosofia (1-BAT)", "Filosofia (2-BAT)"],
+        "_pes_Prof 48": 100,
+    }
     dos_nivells.put("/api/scheduler/restriccions", json={"restriccions": restr})
-    dos_nivells.post("/api/scheduler/restriccions/pin", json={"pins": [
-        {"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "09:00"},
-        {"nom": "Filosofia (2-BAT)", "dia": "Dilluns", "hora": "09:00"}]})
+    dos_nivells.post(
+        "/api/scheduler/restriccions/pin",
+        json={
+            "pins": [
+                {"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "09:00"},
+                {"nom": "Filosofia (2-BAT)", "dia": "Dilluns", "hora": "09:00"},
+            ]
+        },
+    )
     horari = _genera(dos_nivells, motor=motor)
     assert horari["metadata"]["viable"] is False
     # Primer el diagnòstic, després el que diu el motor
@@ -167,9 +187,14 @@ def test_si_no_es_viable_diu_quina_restriccio_ho_impedeix(dos_nivells, motor):
 def test_si_el_diagnostic_no_hi_veu_res_surt_el_missatge_del_motor(un_nivell):
     # El límit d'exàmens per professor no el comprova el diagnòstic
     restr = un_nivell.get("/api/scheduler/restriccions").json()["restriccions"]
-    restr["restriccions_dures"]["professors_limit_dies_especifics"] = {"Prof 48": {
-        "assignatures": ["Filosofia (1-BAT)"], "dies_restringits": DIES, "max_examens": 0,
-        "pes_penalitzacio": 100}}
+    restr["restriccions_dures"]["professors_limit_dies_especifics"] = {
+        "Prof 48": {
+            "assignatures": ["Filosofia (1-BAT)"],
+            "dies_restringits": DIES,
+            "max_examens": 0,
+            "pes_penalitzacio": 100,
+        }
+    }
     un_nivell.put("/api/scheduler/restriccions", json={"restriccions": restr})
     horari = _genera(un_nivell)
     assert horari["metadata"]["viable"] is False
@@ -183,13 +208,26 @@ def test_sense_horari_xml_no_es_pot_generar():
 
 def test_un_professor_amb_examens_de_dos_nivells_alhora_surt_a_les_incidencies(dos_nivells):
     # Es permet (si no es vol, es defineix una incompatibilitat), però s'avisa.
-    dos_nivells.post("/api/scheduler/restriccions/pin", json={"pins": [
-        {"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "09:00"},
-        {"nom": "Filosofia (2-BAT)", "dia": "Dilluns", "hora": "09:00"}]})
+    dos_nivells.post(
+        "/api/scheduler/restriccions/pin",
+        json={
+            "pins": [
+                {"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "09:00"},
+                {"nom": "Filosofia (2-BAT)", "dia": "Dilluns", "hora": "09:00"},
+            ]
+        },
+    )
     logs = [linia for linia in _genera(dos_nivells)["metadata"]["logs"] if "Prof 48 →" in linia]
-    assert any(linia.startswith("⚠️ AVÍS: Prof 48 → té exàmens de nivells diferents a 09:00 el Dilluns") for linia in logs)
-    assert any(linia.startswith("🔗 ENLLAÇ: Prof 48 → gestiona 2 exàmens de nivells diferents a 09:00 el Dilluns: "
-                            "Filosofia (1-BAT), Filosofia (2-BAT)") for linia in logs), logs
+    assert any(
+        linia.startswith("⚠️ AVÍS: Prof 48 → té exàmens de nivells diferents a 09:00 el Dilluns") for linia in logs
+    )
+    assert any(
+        linia.startswith(
+            "🔗 ENLLAÇ: Prof 48 → gestiona 2 exàmens de nivells diferents a 09:00 el Dilluns: "
+            "Filosofia (1-BAT), Filosofia (2-BAT)"
+        )
+        for linia in logs
+    ), logs
 
 
 # ------------------------------------------------------------------ costos
@@ -197,13 +235,15 @@ def test_un_professor_amb_examens_de_dos_nivells_alhora_surt_a_les_incidencies(d
 # calculés diferent, podria donar per bona una solució pitjor. Ha de
 # coincidir amb el que recalcula la pantalla i amb la suma de les incidències.
 
+
 def _punts(logs):
     return sum(int(m.group(1)) for linia in logs if (m := re.search(r"\(punt: *(\d+)\)", linia)))
 
 
 def _costos(client, horari):
-    recalculat = client.post("/api/scheduler/recalcular-cost", json={
-        "horari": horari, "data_referencia": DATES[0], "selected_dates": DATES}).json()
+    recalculat = client.post(
+        "/api/scheduler/recalcular-cost", json={"horari": horari, "data_referencia": DATES[0], "selected_dates": DATES}
+    ).json()
     return horari["metadata"]["cost_total"], recalculat["cost_total"], _punts(horari["metadata"]["logs"])
 
 
@@ -211,10 +251,16 @@ def _costos(client, horari):
 def filosofia_i_angles_fixats(dos_nivells):
     # Prof 48 vigila Filosofia de 1r i de 2n alhora: deixa una sola classe
     # (Optativa42 amb 4-ESO-A). Prof 25 (Anglès de 1r) en deixa una altra.
-    dos_nivells.post("/api/scheduler/restriccions/pin", json={"pins": [
-        {"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "09:00"},
-        {"nom": "Filosofia (2-BAT)", "dia": "Dilluns", "hora": "09:00"},
-        {"nom": "Anglès (1-BAT)", "dia": "Dilluns", "hora": "11:30"}]})
+    dos_nivells.post(
+        "/api/scheduler/restriccions/pin",
+        json={
+            "pins": [
+                {"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "09:00"},
+                {"nom": "Filosofia (2-BAT)", "dia": "Dilluns", "hora": "09:00"},
+                {"nom": "Anglès (1-BAT)", "dia": "Dilluns", "hora": "11:30"},
+            ]
+        },
+    )
     dos_nivells.put("/api/scheduler/costos-professors", json={"globals": {"substitucio": 80}})
     return dos_nivells
 
@@ -229,8 +275,13 @@ def test_un_professor_amb_dos_examens_alhora_es_compta_un_sol_cop(filosofia_i_an
 
 @pytest.mark.parametrize("motor", ["v3", "v2", "v2-backtrack"])
 def test_els_costos_individuals_dels_professors_compten(filosofia_i_angles_fixats, motor):
-    filosofia_i_angles_fixats.put("/api/scheduler/costos-professors", json={
-        "globals": {"substitucio": 80}, "individuals": {"Prof 25": {"substitucio": 0}, "Prof 48": {"substitucio": 30}}})
+    filosofia_i_angles_fixats.put(
+        "/api/scheduler/costos-professors",
+        json={
+            "globals": {"substitucio": 80},
+            "individuals": {"Prof 25": {"substitucio": 0}, "Prof 48": {"substitucio": 30}},
+        },
+    )
     horari = _genera(filosofia_i_angles_fixats, motor=motor)
     assert _costos(filosofia_i_angles_fixats, horari) == (30, 30, 30)
 
@@ -239,11 +290,15 @@ def test_el_motor_v3_fa_tots_els_reinicis(dos_nivells):
     # Abans s'aturava al primer reinici viable: cada reinici acaba en un mínim
     # local diferent i quedar-se amb el primer donava horaris pitjors.
     from scheduler_engine.generators.v3_sa import REINICIS
+
     logs = _genera(dos_nivells)["metadata"]["logs"]
-    assert any(f"Reinici {REINICIS}/{REINICIS}" in linia for linia in logs) or any("Temps esgotat" in linia for linia in logs)
+    assert any(f"Reinici {REINICIS}/{REINICIS}" in linia for linia in logs) or any(
+        "Temps esgotat" in linia for linia in logs
+    )
 
 
 # ------------------------------------------------- l'últim horari generat
+
 
 def test_el_planificador_recorda_l_ultim_horari_generat(un_nivell):
     assert un_nivell.get("/api/scheduler/ultim-resultat").json() is None
@@ -258,8 +313,9 @@ def test_un_horari_editat_a_ma_passa_a_ser_l_ultim(un_nivell):
     horari = _genera(un_nivell)
     # L'editor envia l'horari modificat a recalcular el cost: es desa aquest
     horari["metadata"]["editat_a_ma"] = True
-    resp = un_nivell.post("/api/scheduler/recalcular-cost", json={
-        "horari": horari, "data_referencia": DATES[0], "selected_dates": DATES})
+    resp = un_nivell.post(
+        "/api/scheduler/recalcular-cost", json={"horari": horari, "data_referencia": DATES[0], "selected_dates": DATES}
+    )
     assert resp.status_code == 200
     desat = un_nivell.get("/api/scheduler/ultim-resultat").json()["resultat"]
     assert desat["horari"]["metadata"]["editat_a_ma"] is True
@@ -271,12 +327,14 @@ def test_un_intent_no_viable_no_esborra_l_ultim_horari(un_nivell):
     horari = _genera(un_nivell)
     configura(un_nivell, alliberaments_per_nivell=alliberaments(dates=DATES[:1], hores_inici=("09:00",)))
     assert _genera(un_nivell)["metadata"]["viable"] is False
-    assert _col_locats(un_nivell.get("/api/scheduler/ultim-resultat").json()["resultat"]["horari"]) == _col_locats(horari)
+    assert _col_locats(un_nivell.get("/api/scheduler/ultim-resultat").json()["resultat"]["horari"]) == _col_locats(
+        horari
+    )
 
 
 def test_sense_dates_no_es_pot_generar():
     _, client = centre_amb_examens()
-    configura(client, alliberaments_per_nivell={})          # cap data als alliberaments
+    configura(client, alliberaments_per_nivell={})  # cap data als alliberaments
     peticio = {"data_inici": DATES[0], "data_final": DATES[-1], "dies_utilitzar": DIES}
     resp = client.post(URL, json=dict(peticio, motor="v3"))
     assert resp.status_code == 400

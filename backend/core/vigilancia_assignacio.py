@@ -8,6 +8,7 @@ Funcions de negoci per:
 
 Extret del GUI per separació de responsabilitats.
 """
+
 import random
 from typing import List, Tuple
 
@@ -16,13 +17,12 @@ from config.constants import ORDRE_PRIORITATS, PRIORITATS
 try:
     from i18n_setup import translate as _
 except ImportError:
+
     def _(text):
         return text
 
 
-def escollir_aleatoriament_amb_pesos(
-    candidats: List[Tuple[str, str, str]]
-) -> Tuple[str, str, str]:
+def escollir_aleatoriament_amb_pesos(candidats: List[Tuple[str, str, str]]) -> Tuple[str, str, str]:
     """Escull aleatòriament segons pesos d'activitat (PRIORITATS)
 
     Args:
@@ -81,11 +81,7 @@ def get_categoria_prioritat(tipus_activitat: str) -> int:
 
 
 def calculate_assignment_score(
-    es_titular: bool,
-    categoria: int,
-    pes: int,
-    proximitat_idx: int,
-    max_proximitat: int
+    es_titular: bool, categoria: int, pes: int, proximitat_idx: int, max_proximitat: int
 ) -> float:
     """Calcula score d'assignació per ordenar candidats
 
@@ -129,6 +125,6 @@ def calculate_assignment_score(
         proximitat_penalty = (proximitat_idx + 1) / max_proximitat * (max_proximitat + 1)
         score -= proximitat_penalty
     else:
-        score -= (proximitat_idx + 1)
+        score -= proximitat_idx + 1
 
     return score

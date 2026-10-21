@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 
-from auth_utils import require_admin
+from auth.dependencies import require_admin
 from database import get_data_db_session, get_data_dir_for_institucio
 from routes.parametres import DataISO, data_iso
 
@@ -36,9 +36,7 @@ LOGO_MAX_PIXELS_ORIGINAL = 25_000_000
 
 @router.post("/upload-xml")
 async def upload_xml(
-    file: UploadFile = File(...),
-    data_inici: Optional[DataISO] = Form(None),
-    current_user=Depends(require_admin)
+    file: UploadFile = File(...), data_inici: Optional[DataISO] = Form(None), current_user=Depends(require_admin)
 ):
     """
     Puja un fitxer XML de FET i el versiona a partir d'una data de vigència.
@@ -56,7 +54,7 @@ async def upload_xml(
     file_path = None
     try:
         # Validar que és un fitxer XML
-        if not nom_original.endswith('.xml'):
+        if not nom_original.endswith(".xml"):
             raise HTTPException(status_code=400, detail="El fitxer ha de ser XML")
 
         # Data de vigència de la nova versió
@@ -71,7 +69,7 @@ async def upload_xml(
         # Guardar fitxer (temporalment, fins que se'n fa la còpia a l'històric)
         file_path = os.path.join(data_dir, f".pujada_{uuid.uuid4().hex}.xml")
 
-        with open(file_path, 'wb') as buffer:
+        with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
         # Ha de ser un XML ben format i sense entitats ni referències externes:
@@ -88,8 +86,8 @@ async def upload_xml(
         with get_data_db_session(current_user.institucio) as db:
             # Calcular hash del fitxer
             sha = hashlib.sha256()
-            with open(file_path, 'rb') as fh:
-                for chunk in iter(lambda: fh.read(8192), b''):
+            with open(file_path, "rb") as fh:
+                for chunk in iter(lambda: fh.read(8192), b""):
                     sha.update(chunk)
             hash_contingut = sha.hexdigest()
 
@@ -108,10 +106,10 @@ async def upload_xml(
                     detail=(
                         f"La data de vigència ({vigent_des_de.isoformat()}) ha de ser posterior "
                         f"a la de la versió actual ({current_version.data_inici.isoformat()})"
-                    )
+                    ),
                 )
 
-            previous_path = ConfiguracioRepository.get(db, 'xml_horari_path')
+            previous_path = ConfiguracioRepository.get(db, "xml_horari_path")
 
             if previous_path and not os.path.isabs(previous_path):
                 previous_path = os.path.join(str(data_dir), previous_path)
@@ -119,8 +117,8 @@ async def upload_xml(
             previous_hash = None
             if previous_path and os.path.exists(previous_path):
                 sha_prev = hashlib.sha256()
-                with open(previous_path, 'rb') as fh:
-                    for chunk in iter(lambda: fh.read(8192), b''):
+                with open(previous_path, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(8192), b""):
                         sha_prev.update(chunk)
                 previous_hash = sha_prev.hexdigest()
 
@@ -132,7 +130,7 @@ async def upload_xml(
                     "success": True,
                     "filename": nom_original,
                     "path": current_version.path,
-                    "message": "XML idèntic a l'actual; no s'ha creat nova versió"
+                    "message": "XML idèntic a l'actual; no s'ha creat nova versió",
                 }
 
             # Si no hi ha versions prèvies, crear versió inicial amb l'XML anterior (si existeix)
@@ -150,10 +148,7 @@ async def upload_xml(
 
                 if previous_hash == hash_contingut:
                     XMLVersionRepository.create(
-                        db,
-                        path=stored_prev_path,
-                        data_inici=date(2000, 1, 1),
-                        hash_contingut=previous_hash
+                        db, path=stored_prev_path, data_inici=date(2000, 1, 1), hash_contingut=previous_hash
                     )
                     XMLVersionRepository.encadena(db)
                     db.commit()
@@ -162,14 +157,11 @@ async def upload_xml(
                         "success": True,
                         "filename": nom_original,
                         "path": stored_prev_path,
-                        "message": "XML idèntic a l'anterior; s'ha creat la versió inicial"
+                        "message": "XML idèntic a l'anterior; s'ha creat la versió inicial",
                     }
 
                 XMLVersionRepository.create(
-                    db,
-                    path=stored_prev_path,
-                    data_inici=date(2000, 1, 1),
-                    hash_contingut=previous_hash
+                    db, path=stored_prev_path, data_inici=date(2000, 1, 1), hash_contingut=previous_hash
                 )
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -183,12 +175,7 @@ async def upload_xml(
             except ValueError:
                 pass
 
-            XMLVersionRepository.create(
-                db,
-                path=stored_path,
-                data_inici=vigent_des_de,
-                hash_contingut=hash_contingut
-            )
+            XMLVersionRepository.create(db, path=stored_path, data_inici=vigent_des_de, hash_contingut=hash_contingut)
             # L'anterior es tanca el dia abans que entri en vigor la nova; el
             # punter "actual" només es mou si la nova ja és vigent avui
             XMLVersionRepository.encadena(db)
@@ -197,6 +184,7 @@ async def upload_xml(
 
         # Invalidar cache del horari per forçar recàrrega del nou XML
         from helpers import invalidar_horari
+
         invalidar_horari(current_user.institucio)
         log.debug(f"✅ Cache del horari invalidada - nou XML carregat: {stored_path}")
 
@@ -206,7 +194,7 @@ async def upload_xml(
             "path": stored_path,
             "data_inici": vigent_des_de.isoformat(),
             "vigent_avui": es_vigent_avui,
-            "message": f"Fitxer '{nom_original}' pujat correctament"
+            "message": f"Fitxer '{nom_original}' pujat correctament",
         }
 
     finally:
@@ -258,17 +246,15 @@ async def upload_logo(file: UploadFile = File(...), current_user=Depends(require
             os.remove(os.path.join(data_dir, antic))
 
     from repositories import ConfiguracioRepository
+
     with get_data_db_session(current_user.institucio) as db:
-        ConfiguracioRepository.set(
-            db, "logo_path", file_path,
-            "Path del logo de la institució"
-        )
+        ConfiguracioRepository.set(db, "logo_path", file_path, "Path del logo de la institució")
 
     return {
         "success": True,
         "filename": logo_filename,
         "path": file_path,
-        "message": f"Logo '{logo_filename}' pujat correctament"
+        "message": f"Logo '{logo_filename}' pujat correctament",
     }
 
 
@@ -281,6 +267,7 @@ async def get_logo(current_user=Depends(require_admin)):
     logo_path = None
     try:
         from repositories import ConfiguracioRepository
+
         with get_data_db_session(current_user.institucio) as db:
             logo_path = ConfiguracioRepository.get(db, "logo_path")
     except Exception:
@@ -301,9 +288,4 @@ async def get_logo(current_user=Depends(require_admin)):
     if ext in [".jpg", ".jpeg"]:
         media_type = "image/jpeg"
 
-    return FileResponse(
-        path=logo_path,
-        media_type=media_type,
-        filename=os.path.basename(logo_path)
-    )
-
+    return FileResponse(path=logo_path, media_type=media_type, filename=os.path.basename(logo_path))

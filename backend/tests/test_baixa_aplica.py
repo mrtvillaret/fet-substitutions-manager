@@ -6,6 +6,7 @@ queden pendents. Els dies passats no es toquen.
 Dilluns, horari d'exemple: Prof 3 fa guàrdia a les 10:00 i té classe (ViP,
 1-ESO-C) a les 11:30; Prof 15 fa Anglès a les 10:00.
 """
+
 import uuid
 from datetime import date, timedelta
 
@@ -13,7 +14,7 @@ import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
-from auth_utils import get_current_user
+from auth.dependencies import get_current_user
 from rate_limit import limiter
 from routes import horari, prioritats, substitucions, vigilancies
 
@@ -21,8 +22,8 @@ APP = crea_app(substitucions.router, vigilancies.router, prioritats.router)
 # Com a main.py: el router de l'horari agafa el centre de la sessió
 APP.include_router(horari.router, dependencies=[Depends(get_current_user)])
 _avui = date.today()
-FUTUR = (_avui + timedelta(days=7 - _avui.weekday())).isoformat()       # dilluns vinent
-PASSAT = (_avui - timedelta(days=_avui.weekday() + 7)).isoformat()      # dilluns de fa una setmana
+FUTUR = (_avui + timedelta(days=7 - _avui.weekday())).isoformat()  # dilluns vinent
+PASSAT = (_avui - timedelta(days=_avui.weekday() + 7)).isoformat()  # dilluns de fa una setmana
 
 
 @pytest.fixture(autouse=True)
@@ -44,16 +45,18 @@ def _files(client, data):
 
 
 def _absencia(client, data, professor, hores):
-    resp = client.put(f"/api/substitucions/{data}/absencies/{professor}",
-                      json={"hores_absencia": hores, "updated_at_map": {}})
+    resp = client.put(
+        f"/api/substitucions/{data}/absencies/{professor}", json={"hores_absencia": hores, "updated_at_map": {}}
+    )
     assert resp.status_code == 200, resp.text
 
 
 def _substitut_de_prof_15(client, data, substitut=None):
     fila = next(s for s in _files(client, data) if s["hora"] == "10:00" and s["professor_absent"] == "Prof 15")
     if substitut is not None:
-        resp = client.put(f"/api/substitucions/{data}/10:00/Prof 15",
-                          json={"substitut": substitut, "updated_at": fila["updated_at"]})
+        resp = client.put(
+            f"/api/substitucions/{data}/10:00/Prof 15", json={"substitut": substitut, "updated_at": fila["updated_at"]}
+        )
         assert resp.status_code == 200, resp.text
         return substitut
     return fila["substitut"]
@@ -63,9 +66,18 @@ def _prepara(client, data):
     _absencia(client, data, "Prof 15", ["10:00"])
     _substitut_de_prof_15(client, data, "Prof 3")
     _absencia(client, data, "Prof 3", ["12:30"])
-    resp = client.post(f"/api/vigilancies/{data}", json={
-        "hora": "11:30", "tipus": "Anglès", "grups": "2-BAT-A", "aula": "A1",
-        "vigilant": "Prof 3", "comentaris": "", "nivell": "2-BAT"})
+    resp = client.post(
+        f"/api/vigilancies/{data}",
+        json={
+            "hora": "11:30",
+            "tipus": "Anglès",
+            "grups": "2-BAT-A",
+            "aula": "A1",
+            "vigilant": "Prof 3",
+            "comentaris": "",
+            "nivell": "2-BAT",
+        },
+    )
     assert resp.status_code == 200, resp.text
 
 
@@ -74,8 +86,10 @@ def _vigilant(client, data):
 
 
 def _baixa(client, inici, final):
-    resp = client.post("/api/prioritats/professors-baixa", json={
-        "professor": "Prof 3", "data_inici": inici, "data_final": final, "motiu": ""})
+    resp = client.post(
+        "/api/prioritats/professors-baixa",
+        json={"professor": "Prof 3", "data_inici": inici, "data_final": final, "motiu": ""},
+    )
     assert resp.status_code == 200, resp.text
     return resp.json()
 
@@ -87,7 +101,7 @@ def test_la_baixa_treu_absencies_vigilancies_i_substitucions_d_avui_endavant(cli
     canvis = _baixa(client, PASSAT, FUTUR)["canvis"]
 
     files = _files(client, FUTUR)
-    assert not any(s["professor_absent"] == "Prof 3" for s in files)   # absència i cobertura de la seva classe
+    assert not any(s["professor_absent"] == "Prof 3" for s in files)  # absència i cobertura de la seva classe
     assert _substitut_de_prof_15(client, FUTUR) == ""
     assert _vigilant(client, FUTUR) == ""
     assert canvis["absencies_esborrades"] == [{"data": FUTUR, "hora": "12:30"}]
@@ -108,11 +122,13 @@ def test_els_dies_passats_no_es_toquen(client):
 
 def test_allargar_la_baixa_tambe_s_aplica(client):
     _prepara(client, FUTUR)
-    baixa = _baixa(client, PASSAT, PASSAT)              # acabada: no toca res
+    baixa = _baixa(client, PASSAT, PASSAT)  # acabada: no toca res
     assert _substitut_de_prof_15(client, FUTUR) == "Prof 3"
 
-    resp = client.put(f"/api/prioritats/professors-baixa/{baixa['id']}", json={
-        "professor": "Prof 3", "data_inici": PASSAT, "data_final": FUTUR, "motiu": ""})
+    resp = client.put(
+        f"/api/prioritats/professors-baixa/{baixa['id']}",
+        json={"professor": "Prof 3", "data_inici": PASSAT, "data_final": FUTUR, "motiu": ""},
+    )
     assert resp.status_code == 200, resp.text
 
     assert _substitut_de_prof_15(client, FUTUR) == ""
@@ -122,29 +138,36 @@ def test_allargar_la_baixa_tambe_s_aplica(client):
 
 def test_no_es_pot_marcar_absent_un_professor_de_baixa(client):
     _absencia(client, FUTUR, "Prof 15", ["10:00"])
-    resp = client.post("/api/prioritats/professors-baixa", json={
-        "professor": "Prof 15", "data_inici": PASSAT, "data_final": FUTUR, "motiu": ""})
+    resp = client.post(
+        "/api/prioritats/professors-baixa",
+        json={"professor": "Prof 15", "data_inici": PASSAT, "data_final": FUTUR, "motiu": ""},
+    )
     assert resp.status_code == 200, resp.text
-    assert not any(s["professor_absent"] == "Prof 15" for s in _files(client, FUTUR))   # la baixa les ha tretes
+    assert not any(s["professor_absent"] == "Prof 15" for s in _files(client, FUTUR))  # la baixa les ha tretes
 
-    resp = client.put(f"/api/substitucions/{FUTUR}/absencies/Prof 15",
-                      json={"hores_absencia": ["10:00"], "updated_at_map": {}})
+    resp = client.put(
+        f"/api/substitucions/{FUTUR}/absencies/Prof 15", json={"hores_absencia": ["10:00"], "updated_at_map": {}}
+    )
     assert resp.status_code == 400 and "està de baixa" in resp.json()["detail"]
-    resp = client.post(f"/api/substitucions/{FUTUR}/nova",
-                       json={"professor": "Prof 15", "hores": ["10:00"], "tipus_absencia": "ABSENCIA"})
+    resp = client.post(
+        f"/api/substitucions/{FUTUR}/nova",
+        json={"professor": "Prof 15", "hores": ["10:00"], "tipus_absencia": "ABSENCIA"},
+    )
     assert resp.status_code == 400 and "està de baixa" in resp.json()["detail"]
     assert not any(s["professor_absent"] == "Prof 15" for s in _files(client, FUTUR))
 
     # Treure-li absències sí que es pot
-    resp = client.put(f"/api/substitucions/{FUTUR}/absencies/Prof 15",
-                      json={"hores_absencia": [], "updated_at_map": {}})
+    resp = client.put(
+        f"/api/substitucions/{FUTUR}/absencies/Prof 15", json={"hores_absencia": [], "updated_at_map": {}}
+    )
     assert resp.status_code == 200, resp.text
 
 
-
 def test_la_llista_de_professors_diu_qui_esta_de_baixa_aquell_dia(client):
-    resp = client.post("/api/prioritats/professors-baixa", json={
-        "professor": "Prof 15", "data_inici": FUTUR, "data_final": FUTUR, "motiu": ""})
+    resp = client.post(
+        "/api/prioritats/professors-baixa",
+        json={"professor": "Prof 15", "data_inici": FUTUR, "data_final": FUTUR, "motiu": ""},
+    )
     assert resp.status_code == 200, resp.text
 
     assert client.get("/api/horari/professors", params={"data": FUTUR}).json()["de_baixa"] == ["Prof 15"]

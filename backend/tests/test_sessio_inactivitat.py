@@ -1,8 +1,9 @@
 """
-Durada de les sessions (auth_utils): caduquen al cap de SESSIO_INACTIVITAT_MINUTS
+Durada de les sessions (auth/security.py): caduquen al cap de SESSIO_INACTIVITAT_MINUTS
 sense peticions, es renoven mentre s'hi treballa i no passen de
 SESSIO_MAXIMA_HORES des de l'entrada.
 """
+
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -10,17 +11,17 @@ import jwt
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
-from auth_utils import COOKIE_NAME
 from config.auth import (
     ALGORITHM,
+    COOKIE_NAME,
     SECRET_KEY,
     SESSIO_INACTIVITAT_MINUTS,
     SESSIO_MAXIMA_HORES,
 )
 from rate_limit import limiter
-from routes import users
+from usuaris.router import router as usuaris_router
 
-APP = crea_app(users.router)
+APP = crea_app(usuaris_router)
 ARA = None
 
 
@@ -69,7 +70,7 @@ def test_una_peticio_al_cap_d_una_estona_renova_la_sessio(client):
     assert COOKIE_NAME in resp.headers.get("set-cookie", "")
     p = _payload(client)
     assert p["exp"] >= int(ARA.timestamp()) + SESSIO_INACTIVITAT_MINUTS * 60 - 5
-    assert p["ini"] == pytest.approx((ARA - timedelta(hours=2)).timestamp())   # l'entrada no canvia
+    assert p["ini"] == pytest.approx((ARA - timedelta(hours=2)).timestamp())  # l'entrada no canvia
 
 
 def test_si_s_acaba_de_renovar_no_es_torna_a_renovar(client):
@@ -87,8 +88,12 @@ def test_la_renovacio_no_passa_del_maxim_des_de_l_entrada(client):
 
 
 def test_sense_activitat_la_sessio_caduca(client):
-    _amb_testimoni(client, ARA - timedelta(minutes=SESSIO_INACTIVITAT_MINUTS + 5),
-                   ARA - timedelta(hours=3), ARA - timedelta(minutes=5))
+    _amb_testimoni(
+        client,
+        ARA - timedelta(minutes=SESSIO_INACTIVITAT_MINUTS + 5),
+        ARA - timedelta(hours=3),
+        ARA - timedelta(minutes=5),
+    )
     resp = _perfil(client)
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Sessió caducada"

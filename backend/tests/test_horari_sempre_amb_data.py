@@ -6,6 +6,7 @@ l'error no es veia fins que hi havia un horari nou pujat amb data futura.
 Ara la data és obligatòria (data_iso=...; per a avui, avui()) i aquest test
 revisa el codi perquè cap crida la torni a deixar implícita.
 """
+
 import ast
 from pathlib import Path
 

@@ -4,6 +4,7 @@
 [tool.ruff]
 # La versió de la imatge Docker (Dockerfile: python:3.13-slim).
 target-version = "py313"
+line-length = 120
 extend-exclude = ["venv*", "data*", "exports"]
 # i18n_setup instal·la la funció de traducció a builtins.
 builtins = ["_"]
@@ -14,11 +15,10 @@ select = ["E4", "E7", "E9", "F", "I", "B"]
 ignore = [
     # FastAPI declara les dependències com a valor per defecte: Depends(...).
     "B008",
-    # Diverses sentències en una línia: les separa `ruff format`, que es farà
-    # en un commit propi a l'inici de la fase 2. Llavors es treu d'aquí.
-    "E701",
-    "E702",
 ]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.ruff.lint.per-file-ignores]
 # Els fixtures de pytest s'importen i es reben com a paràmetre amb el mateix nom.

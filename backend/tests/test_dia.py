@@ -1,6 +1,7 @@
 """
 serveis.dia.Dia: un dia per a un centre i l'horari (XML) vigent aquell dia.
 """
+
 from datetime import date
 
 import pytest
@@ -36,4 +37,4 @@ def test_els_gestors_son_nous_a_cada_crida(centre):
     # Cada petició hi fixa el seu estat: no s'han de compartir
     d = Dia(dia(1), centre)
     assert d.gestors()[0] is not d.gestors()[0]
-    assert d.gestors()[1] is d.horari          # l'horari sí (memòria cau)
+    assert d.gestors()[1] is d.horari  # l'horari sí (memòria cau)
