@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user, require_admin
 from auth.router import router as auth_router
 from auth.security import decode_access_token, registra_renovacio_sessio
@@ -28,6 +29,7 @@ from config.auth import COOKIE_NAME, IS_DEVELOPMENT
 from database import create_auth_tables
 from errors_servidor import registra_gestors_errors
 from helpers import MissingXmlError
+from prioritats.router import router as prioritats_router
 from rate_limit import limit_superat, limiter
 from routes import (
     config_examens,
@@ -42,7 +44,6 @@ from routes import (
     horari,
     informes,
     pdf,
-    prioritats,
     scheduler,
     settings,
     substitucions,
@@ -67,12 +68,12 @@ def _inicialitzar_prioritats():
     """Carrega prioritats des de la BD en iniciar el backend"""
     from config.settings import config
     from database import get_data_db_session
-    from routes.prioritats import _recarregar_prioritats_desde_bd
+    from prioritats.services import carrega_prioritats
 
     try:
         institucio = os.getenv("APP_INSTITUCIO") or config.global_data.get("institucio") or "exemple"
         with get_data_db_session(institucio) as db:
-            _recarregar_prioritats_desde_bd(db)
+            carrega_prioritats(db)
     except Exception as e:
         log.warning(f"⚠️  No s'han pogut carregar prioritats des de BD: {e}")
         log.warning("   Es faran servir les constants del JSON per defecte")
@@ -169,7 +170,8 @@ app.include_router(vigilancies.router, dependencies=[Depends(get_current_user)])
 app.include_router(substitucions.router, dependencies=[Depends(get_current_user)])
 app.include_router(settings.router, dependencies=[Depends(require_admin)])
 app.include_router(estadistiques.router, dependencies=[Depends(require_admin)])
-app.include_router(prioritats.router, dependencies=[Depends(require_admin)])
+app.include_router(prioritats_router, dependencies=[Depends(require_admin)])
+app.include_router(absencia_coberta_router, dependencies=[Depends(require_admin)])
 app.include_router(horari.router, dependencies=[Depends(get_current_user)])
 app.include_router(files.router, dependencies=[Depends(require_admin)])
 app.include_router(usuaris_router, dependencies=[Depends(get_current_user)])

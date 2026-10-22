@@ -170,6 +170,7 @@
           :key="idx"
           :value="item || $t('common.empty')"
           severity="secondary"
+          v-tooltip.top="item === '' ? $t('config.priorities.noSubstEmptyHint') : null"
         >
           <template #default>
             {{ item || $t('common.empty') }}
@@ -288,7 +289,13 @@
             :filter="true"
             display="chip"
             class="w-full"
-          />
+          >
+            <template #option="{ option }">
+              <span v-tooltip.right="option.value === '' ? $t('config.priorities.noSubstEmptyHint') : null">
+                {{ option.label }}
+              </span>
+            </template>
+          </MultiSelect>
           <small class="field-hint">{{ $t('config.priorities.synthHint') }}</small>
         </div>
       </div>

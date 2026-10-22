@@ -3856,13 +3856,13 @@ msgstr "❌ {hora}: {prof_absent} ({assignatura}, {grup}) without substitute"
 
 #: routes/pdf.py
 #, python-brace-format
-msgid "🏥 {hora}: {vigilant} està de baixa però assignat com a vigilant"
-msgstr "🏥 {hora}: {vigilant} is on leave but assigned as supervisor"
+msgid "🔄 {hora}: {vigilant} té una absència coberta però és assignat com a vigilant"
+msgstr "🔄 {hora}: {vigilant} has a covered absence but is assigned as supervisor"
 
 #: routes/pdf.py
 #, python-brace-format
-msgid "🏥 {hora}: {substitut} està de baixa però assignat com a substitut"
-msgstr "🏥 {hora}: {substitut} is on leave but assigned as substitute"
+msgid "🔄 {hora}: {substitut} té una absència coberta però és assignat com a substitut"
+msgstr "🔄 {hora}: {substitut} has a covered absence but is assigned as substitute"
 
 #: routes/pdf.py
 #, python-brace-format

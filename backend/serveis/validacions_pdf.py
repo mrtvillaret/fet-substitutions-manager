@@ -199,7 +199,7 @@ def _baixes_i_substituts_no_valids(
             vigilant = vig.get("vigilant", "")
             if vigilant and vigilant in dia.baixes:
                 warnings.append(
-                    translate("🏥 {hora}: {vigilant} està de baixa però assignat com a vigilant").format(
+                    translate("🔄 {hora}: {vigilant} té una absència coberta però és assignat com a vigilant").format(
                         hora=hora, vigilant=vigilant
                     )
                 )
@@ -214,7 +214,7 @@ def _baixes_i_substituts_no_valids(
     for sub, mots in motius:
         if any(m["motiu"] == "baixa" for m in mots):
             warnings.append(
-                translate("🏥 {hora}: {substitut} està de baixa però assignat com a substitut").format(
+                translate("🔄 {hora}: {substitut} té una absència coberta però és assignat com a substitut").format(
                     hora=sub.get("hora", ""), substitut=sub["substitut"]
                 )
             )

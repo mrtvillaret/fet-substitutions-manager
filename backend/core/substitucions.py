@@ -414,22 +414,8 @@ class GestorSubstitucions:
         """Prepara i filtra candidats per una hora específica"""
         disponibles = self.alliberats.get_tots_disponibles(dia, hora, grups_sense_classe)
 
-        # Filtrar absents i professors de baixa
-        from config.constants import PROFESSORS_BAIXA
-
-        # Obtenir llista de professors de baixa per aquesta data (si està configurada)
-        professors_baixa_noms = set()
-        if hasattr(self, "data_substitucions"):
-            # Si tenim la data de les substitucions, filtrar per rang
-            from core.baixes import professors_de_baixa
-
-            professors_baixa_noms = professors_de_baixa(PROFESSORS_BAIXA, self.data_substitucions)
-
-        candidats = [
-            (prof, tipus, detall)
-            for prof, tipus, detall in disponibles
-            if hora not in absents.get(prof, []) and prof not in professors_baixa_noms
-        ]
+        # Fora els absents (els que tenen una absència coberta ja no són a l'horari del dia)
+        candidats = [(prof, tipus, detall) for prof, tipus, detall in disponibles if hora not in absents.get(prof, [])]
 
         candidats_per_categoria = defaultdict(list)
         for prof, tipus, detall in candidats:

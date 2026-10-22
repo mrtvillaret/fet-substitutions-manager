@@ -225,6 +225,7 @@
               v-model="dropdownProfValue"
               :options="professorsAmbInfo"
               optionLabel="nom"
+              optionDisabled="coberta"
               :filter="true"
               :placeholder="$t('substitutions.dialogs.absences.selectTeacher')"
               @change="seleccionarProfessorDropdown"
@@ -234,8 +235,8 @@
                 {{ value ? value.nom : placeholder }}
               </template>
               <template #option="{ option }">
-                <div class="bs-prof-option" :class="{ 'bs-prof-option--absencies': option.teAbsencies, 'bs-prof-option--baixa': option.deBaixa }">
-                  <span>{{ option.nom }}<span v-if="option.deBaixa" class="bs-badge-baixa"> 🏥 {{ $t('substitutions.dialogs.absences.onLeave') }}</span></span>
+                <div class="bs-prof-option" :class="{ 'bs-prof-option--absencies': option.teAbsencies, 'bs-prof-option--coberta': option.coberta }">
+                  <span>{{ option.nom }}<span v-if="option.coberta" class="bs-badge-coberta"> {{ option.finsA ? $t('substitutions.dialogs.absences.coveredUntil', { data: option.finsA }) : $t('substitutions.dialogs.absences.covered') }}</span></span>
                   <span v-if="option.teAbsencies" class="bs-badge-hores">{{ option.numHores }}h</span>
                 </div>
               </template>
@@ -582,8 +583,10 @@ const substitucionsFiltrades = ref([])
 const totesAbsencies = ref([]) // TOTES les absències (amb i sense grup) per detectar professors absents
 const vigilanciesCount = ref(0)
 const professors = ref([])
-// Professors de baixa el dia que es mira: no se'ls poden posar absències
-const professorsDeBaixa = ref(new Set())
+// Professors amb una absència coberta el dia que es mira: no són a la llista de
+// l'horari d'aquell dia (no se'ls poden posar absències), però es mostren al final
+// del desplegable, sense que es puguin triar, perquè qui els busqui els trobi
+const absenciesCobertes = ref([])  // [{ professor, data_final }]
 const horesDisponibles = ref([])
 const noSubstituir = ref([])
 const xmlMissingNotified = ref(false)
@@ -691,12 +694,22 @@ const professorsAmbInfo = computed(() => {
     absenciesReals.map(sub => sub.professor_absent)
   );
 
-  return professors.value.map(prof => ({
-    nom: prof,
-    teAbsencies: professorsAmbAbsencies.has(prof),
-    numHores: absenciesReals.filter(sub => sub.professor_absent === prof).length,
-    deBaixa: professorsDeBaixa.value.has(prof)
-  }))
+  const finsA = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : null)  // dd/mm
+  return [
+    ...professors.value.map(prof => ({
+      nom: prof,
+      teAbsencies: professorsAmbAbsencies.has(prof),
+      numHores: absenciesReals.filter(sub => sub.professor_absent === prof).length,
+      coberta: false
+    })),
+    ...absenciesCobertes.value.map(a => ({
+      nom: a.professor,
+      teAbsencies: false,
+      numHores: 0,
+      coberta: true,
+      finsA: finsA(a.data_final)
+    }))
+  ]
 })
 
 // Detecta si una sub és Tipus A VIGILANCIA_ABSENT (vigilant absent → slot descobert)
@@ -864,7 +877,7 @@ const carregarProfessors = async () => {
     }
     const llista = response.data.professors || []
     professors.value = [...llista].sort((a, b) => collator.value.compare(a, b))
-    professorsDeBaixa.value = new Set(response.data.de_baixa || [])
+    absenciesCobertes.value = response.data.absencies_cobertes || []
   } catch (error) {
     console.error('Error carregant professors:', error)
   }
@@ -2364,14 +2377,14 @@ onMounted(async () => {
   padding-right: 0.75rem;
 }
 
-.bs-prof-option--baixa {
+.bs-prof-option--coberta {
   opacity: 0.6;
 }
 
-.bs-badge-baixa {
+.bs-badge-coberta {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #9a3412;
+  color: #6b7280;
 }
 
 .bs-badge-hores {

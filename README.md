@@ -75,12 +75,12 @@ data/
 - `routes/` — endpoints per àrea funcional (substitucions, vigilàncies,
   scheduler, informes, PDFs, auth, files, settings...)
 - `core/` — lògica de negoci: motor d'assignació automàtica de substituts i
-  vigilàncies, alliberats (`sense_classe`: qui no té classe a una hora),
-  absències i baixes
+  vigilàncies, alliberats (`sense_classe`: qui no té classe a una hora) i
+  absències
 - `serveis/` — la lògica que criden les rutes: l'estat d'un dia
   (`DiaEscolar`) i la regla de quan un substitut ja no pot ser-ho, generar
   les substitucions d'un dia, marcar absències, cobertures dels vigilants,
-  validar abans del PDF i aplicar una baixa. Cap servei no depèn de `routes/`
+  i validar abans del PDF. Cap servei no depèn de `routes/`
 - `scheduler_engine/` — motor de planificació d'exàmens amb 3 generadors
   (v2-intents, v2-backtrack, v3-SA Simulated Annealing) i model de
   restriccions configurable
@@ -91,6 +91,12 @@ data/
   d'1 h sense activitat (es renova mentre s'hi treballa) i com a màxim 24 h
   després d'entrar
 - `usuaris/` — gestió d'usuaris (admin del centre i superadmin)
+- `prioritats/` — ordre i pes de les activitats per triar substituts i
+  «No substituir»
+- `absencia_coberta/` — absències cobertes: un professor absent que té les
+  classes cobertes a l'XML queda fora de l'horari dels dies de l'absència
+- `noms.py` — els noms de professors, assignatures i aules, sense espais al
+  principi ni al final (`migracions/noms_nets.py` hi adapta les dades desades)
 
 ### Frontend (Vue 3)
 
@@ -107,10 +113,12 @@ data/
 - Un professor queda lliure si el seu grup està marcat sense classe aquella
   hora (exactament, també les agrupacions) o si ell està alliberat.
 - Només assignen substituts els botons «Genera pendents», «Regenera tot» i
-  «Reassigna» (a la validació abans del PDF). Els canvis del dia (alliberats, absències, baixes)
+  «Reassigna» (a la validació abans del PDF). Els canvis del dia (alliberats, absències, absències cobertes)
   treuen els substituts que ja no poden ser-ho i deixen la fila pendent, amb un
   avís.
-- Un professor de baixa ni substitueix ni és substituït.
+- Un professor amb una absència coberta (té les classes cobertes a l'XML, per
+  un substitut o per altres professors) queda fora de tot durant el període:
+  ni substitueix, ni és substituït, ni vigila.
 
 Per al mapa de dependències complet, les regles en detall i el flux de la
 generació, veure [ARQUITECTURA.md](ARQUITECTURA.md).
@@ -180,7 +188,7 @@ pip install -r requirements-dev.txt
 pytest tests/
 ```
 
-Més de 650 tests sobre institucions temporals amb l'horari d'exemple; la
+Més de 700 tests sobre institucions temporals amb l'horari d'exemple; la
 majoria passen per l'API i comproven el que queda desat a la BD. Els de
 regressió del planificador fan servir també l'horari d'exemple.
 
@@ -282,7 +290,7 @@ fet-substitutions-manager/
 ├── backend/
 │   ├── main.py                # FastAPI app + startup
 │   ├── routes/                # Endpoints: substitucions, vigilancies, scheduler...
-│   ├── core/                  # Lògica de negoci (motor, alliberats, absències, baixes)
+│   ├── core/                  # Lògica de negoci (motor, alliberats, absències)
 │   ├── serveis/               # Lògica que criden les rutes (DiaEscolar, generació, PDF...)
 │   ├── scheduler_engine/      # Motor de planificació d'exàmens
 │   ├── config/                # Configuració, constants, settings

@@ -139,7 +139,7 @@ def get_horari(institucio: str = None, *, data_iso: str) -> GestorHorariWeb:
         raise MissingXmlError(institucio, xml_path)
     key = _cache_key(institucio, xml_path or "none")
     if key in _horari:
-        return _horari[key]
+        return _del_dia(_horari[key], institucio, data_iso)
 
     # Llegir configuració de SQLite
     with get_data_db_session(institucio) as db:
@@ -163,7 +163,16 @@ def get_horari(institucio: str = None, *, data_iso: str) -> GestorHorariWeb:
     log.debug(
         f"✅ Horari carregat ({institucio}): {len(horari.professors)} professors (límit: {ultim_professor_subs or 'cap'})"
     )
-    return horari
+    return _del_dia(horari, institucio, data_iso)
+
+
+def _del_dia(horari: GestorHorariWeb, institucio: str, data_iso: str) -> GestorHorariWeb:
+    """L'horari tal com és aquell dia: sense els professors amb una absència
+    coberta (el punt únic de la regla; absencia_coberta.services)."""
+    from absencia_coberta.services import absents_coberts, sense_absents_coberts
+
+    with get_data_db_session(institucio) as db:
+        return sense_absents_coberts(horari, absents_coberts(db, data_iso))
 
 
 def get_gestors(institucio: str = None, *, data_iso: str):
@@ -178,13 +187,6 @@ def get_gestors(institucio: str = None, *, data_iso: str):
     alliberats = GestorAlliberats(horari)
     absencies = GestorAbsencies(horari)
     substitucions_mgr = GestorSubstitucions(horari, alliberats, absencies)
-
-    # El gestor d'alliberats necessita la data per filtrar professors de baixa.
-    if data_iso:
-        try:
-            alliberats.set_data_actual(datetime.strptime(data_iso, "%Y-%m-%d").date())
-        except (ValueError, TypeError):
-            pass
 
     return substitucions_mgr, horari, alliberats, absencies
 
@@ -228,18 +230,6 @@ def get_vigilancia_core(data: str, db: Session = None, institucio: str = None) -
                 absents_tipus[professor] = tipus_abs
             if hora not in absents[professor]:
                 absents[professor].append(hora)
-
-    # Professors de baixa: absents a totes les hores (regla única de no-assignació automàtica).
-    from config.constants import PROFESSORS_BAIXA
-    from core.baixes import professors_de_baixa
-
-    hores_dia = list(getattr(horari, "hores", []) or [])
-    for professor in professors_de_baixa(PROFESSORS_BAIXA, date_obj):
-        absents.setdefault(professor, [])
-        for hora in hores_dia:
-            if hora not in absents[professor]:
-                absents[professor].append(hora)
-        absents_tipus[professor] = "BAIXA"
 
     # Grups sense classe (Des de SQLite)
     grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)

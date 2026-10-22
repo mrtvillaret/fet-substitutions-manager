@@ -25,7 +25,8 @@ from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_ins
 import i18n_setup
 from auth.dependencies import get_current_user
 from database import get_data_db_session, get_data_dir_for_institucio
-from repositories import ConfiguracioRepository, NoSubstituirRepository
+from prioritats.repositories import NoSubstituirRepository
+from repositories import ConfiguracioRepository
 from routes import settings, vigilancies
 
 PETICIONS = 400
@@ -70,6 +71,7 @@ def servidor():
     for inst, activitat, idioma in ((a, "Reunió A", "ca"), (b, "Reunió B", "es")):
         with get_data_db_session(inst) as db:
             NoSubstituirRepository.create(db, activitat)
+            db.commit()
             ConfiguracioRepository.set(db, "idioma", idioma)
 
     port = _port_lliure()

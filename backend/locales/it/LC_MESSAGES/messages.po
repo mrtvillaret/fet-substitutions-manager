@@ -3138,3 +3138,11 @@ msgstr "assente"
 #: export/pdf/engine.py
 msgid "absent (servei)"
 msgstr "assente (servizio)"
+
+#, python-brace-format
+msgid "🔄 {hora}: {vigilant} té una absència coberta però és assignat com a vigilant"
+msgstr "🔄 {hora}: {vigilant} ha un'assenza coperta ma è assegnato come sorvegliante"
+
+#, python-brace-format
+msgid "🔄 {hora}: {substitut} té una absència coberta però és assignat com a substitut"
+msgstr "🔄 {hora}: {substitut} ha un'assenza coperta ma è assegnato come supplente"

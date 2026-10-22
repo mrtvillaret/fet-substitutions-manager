@@ -108,6 +108,15 @@
           <li v-for="(err, i) in resultat.errors" :key="i" class="text-red-600 text-sm">{{ err }}</li>
         </ul>
       </div>
+
+      <div v-if="resultat.avisos?.length" class="mb-3">
+        <div class="font-semibold text-orange-500 mb-1">{{ $t('scheduler.publish.warnings') }}</div>
+        <ul class="pl-3 m-0">
+          <li v-for="(avis, i) in resultat.avisos" :key="i" class="text-orange-600 text-sm">
+            {{ avis.codi === 'titular_amb_absencia_coberta' ? $t('scheduler.publish.warningTitularAbsenciaCoberta', avis.params) : avis.codi }}
+          </li>
+        </ul>
+      </div>
     </div>
 
     <template #footer>

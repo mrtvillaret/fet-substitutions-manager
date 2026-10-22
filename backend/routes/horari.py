@@ -9,8 +9,10 @@ import logging
 
 from fastapi import APIRouter, Depends
 
+from absencia_coberta.services import absencies_cobertes_del_dia
 from dependencies import dia_del_calendari
 from helpers import MissingXmlError
+from noms import nom_net
 from routes.parametres import DataISO
 from serveis.dia import Dia
 
@@ -40,7 +42,7 @@ async def get_all_professors(dia: Dia = Depends(dia_del_calendari)):
         professors_ordenats = []
         for teacher in root.findall("Teacher"):
             nom_cru = teacher.get("name", "")
-            nom = nom_cru.strip()
+            nom = nom_net(nom_cru)
             if nom:
                 professors_ordenats.append({"nom": nom, "nom_cru": nom_cru})
 
@@ -56,18 +58,18 @@ async def get_all_professors(dia: Dia = Depends(dia_del_calendari)):
 async def get_professors_filtered(data: DataISO = None, dia: Dia = Depends(dia_del_calendari)):
     """
     Retorna professors amb el límit ultim_professor_subs aplicat. Amb `data`
-    (AAAA-MM-DD), els de l'horari vigent aquell dia i els que hi estan de
-    baixa (no se'ls posen absències); sense, els de l'horari vigent avui.
+    (AAAA-MM-DD), els de l'horari vigent aquell dia i, a part, els que hi
+    tenen una absència coberta, amb la data de fi (no se'ls posen absències);
+    sense, els de l'horari vigent avui.
     """
     try:
         horari = dia.horari
 
         resposta = {"professors": horari.professors, "total": len(horari.professors)}
         if data:
-            from config.constants import PROFESSORS_BAIXA
-            from core.baixes import professors_de_baixa
-
-            resposta["de_baixa"] = sorted(professors_de_baixa(PROFESSORS_BAIXA, data))
+            # Els que tenen una absència coberta aquell dia: ja no són a la llista,
+            # però la pantalla els mostra a part (sense que es puguin triar)
+            resposta["absencies_cobertes"] = absencies_cobertes_del_dia(dia.institucio, data, horari.absents_coberts)
         return resposta
     except MissingXmlError:
         return {"professors": [], "total": 0, "xml_missing": True}

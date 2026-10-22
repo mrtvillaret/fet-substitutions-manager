@@ -3,7 +3,6 @@ Gestió de professors alliberats millorada amb estadístiques
 """
 
 import logging
-from datetime import date
 from typing import List, Set, Tuple
 
 log = logging.getLogger(__name__)
@@ -94,30 +93,6 @@ class GestorAlliberats:
     def __init__(self, gestor_horari):
         self.horari = gestor_horari
         self.professors_ocupats_examens = {}  # {hora: set(professors)}
-        self.data_actual = None  # Data per filtrar baixes
-
-    def set_data_actual(self, data: date):
-        """Estableix la data actual per filtrar baixes"""
-        self.data_actual = data
-
-    def _esta_de_baixa(self, professor: str) -> bool:
-        """
-        Comprova si un professor està de baixa en la data actual
-        Retorna False si no hi ha data configurada
-        """
-        if self.data_actual is None:
-            return False
-
-        try:
-            from core.baixes import gestor_baixes
-            from helpers import _get_institucio_actual
-
-            instit = _get_institucio_actual()
-
-            return gestor_baixes.esta_de_baixa(professor, self.data_actual, instit)
-        except Exception as e:
-            log.warning(_("⚠️ Error en comprovar baixa de {professor}: {e}").format(professor=professor, e=e))
-            return False
 
     def get_tots_disponibles(self, dia: str, hora: str, grups_sense_classe: Set[str]) -> List[Tuple[str, str, str]]:
         """
@@ -131,10 +106,6 @@ class GestorAlliberats:
         alliberats = self.get_alliberats(dia, hora, grups_sense_classe)
 
         for prof, tipus, detall in alliberats:
-            # Filtra professors de baixa
-            if self._esta_de_baixa(prof):
-                continue
-
             if prof in professors_ocupats_hora:
                 # Marca com a ocupat amb vigilància
                 detall_amb_vigilancia = _("{detall} - VIGILÀNCIA").format(detall=detall)
@@ -150,10 +121,6 @@ class GestorAlliberats:
             # Una guàrdia alliberada ja surt com a alliberat
             if prof in ja_alliberats:
                 continue
-            # Filtra professors de baixa
-            if self._esta_de_baixa(prof):
-                continue
-
             if prof in professors_ocupats_hora:
                 # Marca com a ocupat amb vigilància
                 detall_amb_vigilancia = _("{detall} - VIGILÀNCIA").format(detall=detall)

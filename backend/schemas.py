@@ -6,6 +6,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
+from noms import NomNet
+
 
 class SubstitucioResponse(BaseModel):
     hora: str
@@ -21,7 +23,7 @@ class SubstitucioResponse(BaseModel):
 
 
 class SubstitucioUpdate(BaseModel):
-    substitut: Optional[str] = None
+    substitut: Optional[NomNet] = None
     comentaris: Optional[str] = None
     updated_at: Optional[str] = None
     force: Optional[bool] = False
@@ -31,7 +33,7 @@ class SubstitucioUpdate(BaseModel):
 
 
 class NovaSubstitucioRequest(BaseModel):
-    professor: str
+    professor: NomNet
     hores: List[str]
     tipus_absencia: str
 
@@ -55,8 +57,8 @@ class VigilanciaCreate(BaseModel):
     hora: str
     tipus: str
     grups: str
-    aula: str
-    vigilant: Optional[str] = ""
+    aula: NomNet
+    vigilant: Optional[NomNet] = ""
     comentaris: Optional[str] = ""
     nivell: str
 
@@ -65,8 +67,8 @@ class VigilanciaUpdate(BaseModel):
     hora: Optional[str] = None
     tipus: Optional[str] = None
     grups: Optional[str] = None
-    aula: Optional[str] = None
-    vigilant: Optional[str] = None
+    aula: Optional[NomNet] = None
+    vigilant: Optional[NomNet] = None
     comentaris: Optional[str] = None
     nivell: Optional[str] = None
     updated_at: Optional[str] = None
@@ -83,7 +85,7 @@ class VigilanciaDisponiblesQuery(BaseModel):
     hora: str
     tipus: Optional[str] = None
     grups: Optional[str] = None
-    aula: Optional[str] = None
+    aula: Optional[NomNet] = None
 
 
 class VigilanciaDisponiblesBatchRequest(BaseModel):

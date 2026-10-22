@@ -16,11 +16,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from absencia_coberta.services import absencia_coberta_de, missatge_absencia_coberta
 from core.alliberats import sense_classe
-from core.baixes import professors_de_baixa
 from dependencies import dia_de_la_peticio, get_db
 from helpers import MissingXmlError
 from models import Substitucio
+from noms import NomNet
 from repositories import (
     CursRepository,
     GrupsAlliberatsRepository,
@@ -35,7 +36,6 @@ from schemas import (
     SubstitucioUpdate,
 )
 from serveis.absencies import canvia_tipus_cobertures, desa_absencies
-from serveis.baixes import baixa_de, missatge_de_baixa
 from serveis.dia import Dia
 from serveis.dia_escolar import DiaEscolar, treu_substituts_no_valids
 from serveis.generacio import genera_substitucions_dia
@@ -164,7 +164,7 @@ async def get_substitucions(
             grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
 
             # Carregar llista de no_substituir
-            from repositories import NoSubstituirRepository
+            from prioritats.repositories import NoSubstituirRepository
 
             no_substituir = NoSubstituirRepository.get_all(db)
 
@@ -247,7 +247,7 @@ async def generar_substitucions(
 @router.put("/{data}/absencies/{professor}")
 async def actualitzar_absencies_professor(
     data: DataISO,
-    professor: str,
+    professor: NomNet,
     update: ActualitzarAbsenciesRequest,
     db: Session = Depends(get_db),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -302,8 +302,8 @@ async def actualitzar_absencies_professor(
                 )
 
         # Un professor de baixa no és substituït: no se li posen absències (sí que se li poden treure)
-        if (update.hores_absencia or update.hores_servei) and (baixa := baixa_de(professor, data)):
-            raise HTTPException(status_code=400, detail=missatge_de_baixa(professor, baixa))
+        if (update.hores_absencia or update.hores_servei) and (baixa := absencia_coberta_de(db, professor, data)):
+            raise HTTPException(status_code=400, detail=missatge_absencia_coberta(professor, baixa))
 
         resultat = desa_absencies(
             db,
@@ -327,7 +327,7 @@ async def actualitzar_absencies_professor(
 async def update_substitucio(
     data: DataISO,
     hora: str,
-    professor: str,
+    professor: NomNet,
     update: SubstitucioUpdate,
     db: Session = Depends(get_db),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -378,7 +378,7 @@ async def update_substitucio(
         files_a_alliberar = []
         # 0. Validar que l'assignatura no estigui a la llista no_substituir (SQLite)
         assignatura_actual = substitucio_actual.get("assignatura", "")
-        from repositories import NoSubstituirRepository
+        from prioritats.repositories import NoSubstituirRepository
 
         no_substituir = NoSubstituirRepository.get_all(db)
 
@@ -519,8 +519,8 @@ async def update_substitucio(
 async def eliminar_substitucio(
     data: DataISO,
     hora: str,
-    professor: str,
-    assignatura: str,
+    professor: NomNet,
+    assignatura: NomNet,
     grup: str,
     updated_at: Optional[str] = None,
     force: bool = False,
@@ -594,8 +594,8 @@ async def afegir_nova_substitucio(
         # Validar que hi hagi almenys una hora
         if not nova.hores or len(nova.hores) == 0:
             raise HTTPException(status_code=400, detail="Has de seleccionar almenys una hora")
-        if baixa := baixa_de(nova.professor, data):
-            raise HTTPException(status_code=400, detail=missatge_de_baixa(nova.professor, baixa))
+        if baixa := absencia_coberta_de(db, nova.professor, data):
+            raise HTTPException(status_code=400, detail=missatge_absencia_coberta(nova.professor, baixa))
 
         # Obtenir gestors
         substitucions_mgr, horari, alliberats, absencies = dia.gestors()
@@ -780,11 +780,11 @@ async def reassignar_problematics(data: DataISO, db: Session = Depends(get_db), 
 
 @router.get("/{data}/hores-professor/{professor}")
 async def get_hores_professor(
-    data: DataISO, professor: str, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)
+    data: DataISO, professor: NomNet, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)
 ):
     """Retorna les hores on el professor té classe, i les hores que és al centre sense classe."""
     try:
-        from repositories import NoSubstituirRepository
+        from prioritats.repositories import NoSubstituirRepository
 
         horari = dia.horari
         weekday_idx = datetime.strptime(data, "%Y-%m-%d").weekday()
@@ -840,13 +840,9 @@ async def get_disponibles(
                 if sub.get("substitut"):
                     substituts_ocupats.add(sub["substitut"])
 
-        # Carregar professors de baixa per aquesta data
-        from config.constants import PROFESSORS_BAIXA
-
-        professors_baixa = professors_de_baixa(PROFESSORS_BAIXA, data)
-
         # Obtenir gestors
         substitucions_mgr, horari, alliberats, absencies = dia.gestors()
+        absents_coberts = horari.absents_coberts  # ja no hi són: no sortiran com a disponibles
 
         # Convertir data ISO a nom del dia de l'XML
         date_obj = datetime.strptime(data, "%Y-%m-%d")
@@ -887,7 +883,7 @@ async def get_disponibles(
             if professor in professors_absents:
                 return "rgba(255, 255, 0, 0.4)", "ABSENT"
 
-            if professor in professors_baixa:
+            if professor in absents_coberts:
                 return "rgba(255, 160, 122, 0.5)", "DE BAIXA"
 
             if professor in vigilants_ocupats:
@@ -921,7 +917,7 @@ async def get_disponibles(
 
             # Flags d'ocupació
             es_absent = professor in professors_absents
-            es_de_baixa = professor in professors_baixa
+            es_de_baixa = professor in absents_coberts
             es_vigilant = professor in vigilants_ocupats
             es_ja_assignat = professor in substituts_ocupats
             es_ocupat = es_absent or es_de_baixa or es_vigilant or es_ja_assignat

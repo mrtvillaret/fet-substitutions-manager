@@ -10,7 +10,6 @@ from datetime import datetime
 from functools import cached_property
 
 from core.alliberats import sense_classe
-from core.baixes import professors_de_baixa
 from helpers import get_horari
 from repositories import (
     GrupsAlliberatsRepository,
@@ -25,15 +24,12 @@ TIPUS_ABSENCIA_REAL = ("ABSENCIA", "SERVEI")
 
 class DiaEscolar:
     def __init__(self, db, data: str, institucio: str = None):
-        from config.constants import PROFESSORS_BAIXA
-
         self.data = data
         self.institucio = institucio
         self.files = SubstitucioRepository.get_by_date(db, data)
         self.vigilancies = [v for vigs in VigilanciaRepository.get_by_date(db, data).values() for v in vigs]
         # Alliberats efectius per hora (grups sense classe, professors, activitats)
         self.alliberats = GrupsAlliberatsRepository.get_by_date(db, data)
-        self.baixes = professors_de_baixa(PROFESSORS_BAIXA, data)
 
         self.vigilants_per_hora = defaultdict(set)
         for vig in self.vigilancies:
@@ -63,6 +59,12 @@ class DiaEscolar:
             except Exception:
                 log.warning("No s'ha pogut carregar l'horari del dia", exc_info=True)
         return self._horari
+
+    @property
+    def baixes(self) -> frozenset:
+        """Els professors amb una absència coberta aquell dia (els que l'horari
+        del dia ja no té)."""
+        return self.horari.absents_coberts if self.horari is not None else frozenset()
 
     @cached_property
     def dia(self) -> str:
@@ -98,7 +100,7 @@ class DiaEscolar:
 
 def substituts_no_valids(db, data: str) -> list:
     """Les files d'un dia amb un substitut que ja no pot fer la substitució
-    (DiaEscolar.motius_substitut: vigila un examen, està de baixa, és absent o
+    (DiaEscolar.motius_substitut: vigila un examen, té una absència coberta, és absent o
     hi té classe). Són canvis posteriors a l'assignació: des de la pantalla no
     es pot desar un substitut que no sigui vàlid. Cada element: {id, hora,
     professor_absent, assignatura, grup, substitut} més el primer motiu."""

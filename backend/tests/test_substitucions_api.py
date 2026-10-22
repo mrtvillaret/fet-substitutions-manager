@@ -28,10 +28,10 @@ from suport_api import (
 
 from database import get_data_db_session
 from horari_web import GestorHorariWeb
+from prioritats.repositories import NoSubstituirRepository
 from rate_limit import limiter
 from repositories import (
     GrupsAlliberatsRepository,
-    NoSubstituirRepository,
     SubstitucioRepository,
     VigilanciaRepository,
 )
@@ -175,6 +175,7 @@ def test_absencia_modificada_per_un_altre_usuari_dona_conflicte(client):
 def test_la_vista_per_defecte_amaga_activitats_que_no_se_substitueixen(client, centre):
     with get_data_db_session(centre) as db:
         NoSubstituirRepository.create(db, "Pares")
+        db.commit()
     _marca_absencia(client)
     assert [s["hora"] for s in _subs(client)] == ["10:00", "11:30"]
     assert [s["hora"] for s in _subs(client, include_all=True)] == HORES_ABSENT
@@ -327,6 +328,7 @@ def test_no_es_pot_assignar_qui_vigila_un_examen_a_aquella_hora(client, centre):
 def test_no_es_pot_assignar_substitut_a_una_activitat_que_no_se_substitueix(client, centre):
     with get_data_db_session(centre) as db:
         NoSubstituirRepository.create(db, "Pares")
+        db.commit()
     _marca_absencia(client, hores=["12:30"])
     assert _assigna(client, "12:30", "Prof 21").status_code == 400
 
@@ -414,6 +416,7 @@ def test_nova_substitucio_amb_error_inesperat_dona_500_sense_detalls_interns(cen
 def test_hores_professor_separa_classes_d_activitats_que_no_se_substitueixen(client, centre):
     with get_data_db_session(centre) as db:
         NoSubstituirRepository.create(db, "Pares")
+        db.commit()
     resp = client.get(f"{URL}/hores-professor/{ABSENT}")
     assert resp.status_code == 200
     assert resp.json() == {

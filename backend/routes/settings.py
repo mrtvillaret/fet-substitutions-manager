@@ -19,6 +19,7 @@ from config.settings import config
 from database import get_auth_db, get_data_dir_for_institucio, get_engine_for_institucio
 from dependencies import get_db
 from models import XMLVersion
+from noms import NomNet
 from repositories import ConfiguracioRepository, XMLVersionRepository
 from routes.parametres import data_iso
 from serveis.dia import Dia
@@ -35,7 +36,7 @@ class SettingsUpdate(BaseModel):
     idioma: Optional[str] = None
     data_inici_estadistiques: Optional[str] = None
     data_final_estadistiques: Optional[str] = None
-    ultim_professor_subs: Optional[str] = None
+    ultim_professor_subs: Optional[NomNet] = None
     institucio_display_name: Optional[str] = None
 
 

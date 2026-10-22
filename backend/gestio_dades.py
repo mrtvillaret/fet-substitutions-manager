@@ -65,9 +65,9 @@ def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> Dict[str,
     implicats); només substitueix la identitat.
     """
     from models import (
+        AbsenciaCoberta,
         ExamCostProfessor,
         Professor,
-        ProfessorBaixa,
         Substitucio,
         Vigilancia,
     )
@@ -102,9 +102,9 @@ def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> Dict[str,
         "vigilancies": db.query(Vigilancia)
         .filter(Vigilancia.vigilant == nom_actual)
         .update({Vigilancia.vigilant: nom_nou}, synchronize_session=False),
-        "baixes": db.query(ProfessorBaixa)
-        .filter(ProfessorBaixa.professor == nom_actual)
-        .update({ProfessorBaixa.professor: nom_nou}, synchronize_session=False),
+        "baixes": db.query(AbsenciaCoberta)
+        .filter(AbsenciaCoberta.professor == nom_actual)
+        .update({AbsenciaCoberta.professor: nom_nou}, synchronize_session=False),
         "costos_examens": db.query(ExamCostProfessor)
         .filter(ExamCostProfessor.professor == nom_actual)
         .update({ExamCostProfessor.professor: nom_nou}, synchronize_session=False),
@@ -171,8 +171,8 @@ def analitzar_purga(db: Session, institucio: Optional[str], data_inici: date, da
     [data_inici, data_final] (inclòs). No esborra res.
     """
     from models import (
+        AbsenciaCoberta,
         GrupAlliberat,
-        ProfessorBaixa,
         Substitucio,
         Vigilancia,
         XMLVersion,
@@ -193,8 +193,8 @@ def analitzar_purga(db: Session, institucio: Optional[str], data_inici: date, da
         .filter(GrupAlliberat.data >= data_inici, GrupAlliberat.data <= data_final)
         .count(),
         # Baixes: se solapen amb l'interval (toquen alguna data del rang)
-        "baixes": db.query(ProfessorBaixa)
-        .filter(ProfessorBaixa.data_inici <= data_final, ProfessorBaixa.data_final >= data_inici)
+        "baixes": db.query(AbsenciaCoberta)
+        .filter(AbsenciaCoberta.data_inici <= data_final, AbsenciaCoberta.data_final >= data_inici)
         .count(),
     }
 
@@ -255,9 +255,9 @@ def analitzar_purga(db: Session, institucio: Optional[str], data_inici: date, da
             "data_final": b.data_final.isoformat(),
             "s_esten_fora": b.data_inici < data_inici or b.data_final > data_final,
         }
-        for b in db.query(ProfessorBaixa)
-        .filter(ProfessorBaixa.data_inici <= data_final, ProfessorBaixa.data_final >= data_inici)
-        .order_by(ProfessorBaixa.data_inici)
+        for b in db.query(AbsenciaCoberta)
+        .filter(AbsenciaCoberta.data_inici <= data_final, AbsenciaCoberta.data_final >= data_inici)
+        .order_by(AbsenciaCoberta.data_inici)
     ]
 
     total_bd = sum(bd.values())
@@ -291,8 +291,8 @@ def executar_purga(db: Session, institucio: Optional[str], data_inici: date, dat
     Retorna un informe del que s'ha esborrat realment.
     """
     from models import (
+        AbsenciaCoberta,
         GrupAlliberat,
-        ProfessorBaixa,
         Substitucio,
         Vigilancia,
         XMLVersion,
@@ -313,8 +313,8 @@ def executar_purga(db: Session, institucio: Optional[str], data_inici: date, dat
         "grups_alliberats": db.query(GrupAlliberat)
         .filter(GrupAlliberat.data >= data_inici, GrupAlliberat.data <= data_final)
         .delete(synchronize_session=False),
-        "baixes": db.query(ProfessorBaixa)
-        .filter(ProfessorBaixa.data_inici <= data_final, ProfessorBaixa.data_final >= data_inici)
+        "baixes": db.query(AbsenciaCoberta)
+        .filter(AbsenciaCoberta.data_inici <= data_final, AbsenciaCoberta.data_final >= data_inici)
         .delete(synchronize_session=False),
     }
 

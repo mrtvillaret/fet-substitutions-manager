@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session
 from core.alliberats import sense_classe
 from dependencies import get_db
 from models import Substitucio, Vigilancia
-from repositories import GrupsAlliberatsRepository, NoSubstituirRepository
+from noms import NomNet
+from prioritats.repositories import NoSubstituirRepository
+from repositories import GrupsAlliberatsRepository
 from routes.parametres import DataISO
 
 router = APIRouter(prefix="/api/estadistiques", tags=["Estadístiques"])
@@ -658,7 +660,7 @@ async def get_estadistiques_taula_professors(
 
 @router.get("/professor/{professor}")
 async def get_estadistiques_professor_detall(
-    professor: str,
+    professor: NomNet,
     data_inici: Optional[DataISO] = None,
     data_final: Optional[DataISO] = None,
     db: Session = Depends(get_db),

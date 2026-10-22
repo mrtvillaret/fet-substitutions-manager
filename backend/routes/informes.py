@@ -16,6 +16,7 @@ from starlette.background import BackgroundTask
 from auth.dependencies import require_admin
 from core.alliberats import sense_classe
 from database import get_data_dir_for_institucio
+from noms import NomNet
 from repositories import ConfiguracioRepository, MasterConfigRepository
 from utils.hores import normalitzar_hora as _normalitzar_hora
 
@@ -512,7 +513,7 @@ def informe_direccio(
 def informe_professor(
     data_inici: DataISO = Query(...),
     data_final: DataISO = Query(...),
-    professor: str = Query(default=None),
+    professor: NomNet = None,
     mostrar_taules: bool = Query(default=False),
     current_user=Depends(require_admin),
 ):

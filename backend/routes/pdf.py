@@ -24,7 +24,6 @@ from starlette.background import BackgroundTask
 
 from auth.dependencies import get_current_user
 from core.alliberats import sense_classe
-from core.baixes import professors_de_baixa
 from dependencies import dia_de_la_peticio, get_db
 from export.pdf.engine import PDFCompletExporter
 from i18n_setup import translate
@@ -218,7 +217,7 @@ def generar_pdf_complet(
         # 2. NO té grup però l'assignatura NO està a no_substituir
         grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
 
-        from repositories import NoSubstituirRepository
+        from prioritats.repositories import NoSubstituirRepository
 
         no_substituir = NoSubstituirRepository.get_all(db)
 
@@ -293,7 +292,7 @@ def generar_pdf_complet(
         raise HTTPException(status_code=400, detail="Mida de lletra desconeguda")
     exporter.mida_lletra = mida_lletra
     if exporter.espai_a_ma or exporter.format_dia:
-        from repositories import NoSubstituirRepository
+        from prioritats.repositories import NoSubstituirRepository
 
         exporter.hores_amb_classe = _hores_amb_possible_substitucio(
             horari_mgr, horari_mgr.get_dia_name(date_obj.weekday()), NoSubstituirRepository.get_all(db)
@@ -692,11 +691,6 @@ def generar_pdf_disponibles_tots_dies(
                 dia_iso, current_user.institucio
             ).gestors()
 
-            # Obtenir professors de baixa
-            from config.constants import PROFESSORS_BAIXA
-
-            professors_baixa_avui = professors_de_baixa(PROFESSORS_BAIXA, dia_iso)
-
             # Obtenir substitucions del dia
             from repositories import (
                 GrupsAlliberatsRepository,
@@ -779,7 +773,7 @@ def generar_pdf_disponibles_tots_dies(
                             categoria_idx = i
                             break
                     # Determinar estat del professor
-                    if prof in professors_baixa_avui or prof in absents_per_hora.get(hora, set()):
+                    if prof in absents_per_hora.get(hora, set()):
                         estat = "absent"
                     elif prof in substituts_per_hora.get(hora, set()) or prof in vigilants_per_hora.get(hora, set()):
                         estat = "ocupat"

@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from auth.dependencies import get_current_user
 from core.alliberats import sense_classe
-from core.baixes import professors_de_baixa
 from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
 from helpers import (
     assign_phase1_titulars,
@@ -24,6 +23,7 @@ from helpers import (
     assign_phase3_passada,
     get_vigilancies_afinitats,
 )
+from noms import NomNet
 from repositories import (
     GrupsAlliberatsRepository,
     MasterConfigRepository,
@@ -144,7 +144,7 @@ def _categoria_prioritat(tipus_activitat: str, ordre_prioritats: list) -> int:
 
 
 def _build_disponibles_context(dia: Dia, db: Session, hores_consulta: set[str], necessita_titulars: bool) -> dict:
-    from config.constants import ORDRE_PRIORITATS, PRIORITATS, PROFESSORS_BAIXA
+    from config.constants import ORDRE_PRIORITATS, PRIORITATS
 
     data = dia.iso
     horari = dia.horari
@@ -178,7 +178,7 @@ def _build_disponibles_context(dia: Dia, db: Session, hores_consulta: set[str], 
     grups_sense_classe_raw = GrupsAlliberatsRepository.get_by_date(db, data)
     grups_sense_classe_per_hora = {hora: set(grups or []) for hora, grups in grups_sense_classe_raw.items()}
 
-    professors_baixa = professors_de_baixa(PROFESSORS_BAIXA, date_obj)
+    absents_coberts = dia.horari.absents_coberts  # ja no hi són: no sortiran com a disponibles
 
     activitats_per_hora = {}
     for hora in hores_consulta:
@@ -197,7 +197,7 @@ def _build_disponibles_context(dia: Dia, db: Session, hores_consulta: set[str], 
         "absents_tipus": absents_tipus,
         "substituts_ocupats_per_hora": substituts_ocupats_per_hora,
         "grups_sense_classe_per_hora": grups_sense_classe_per_hora,
-        "professors_baixa": professors_baixa,
+        "absents_coberts": absents_coberts,
         "activitats_per_hora": activitats_per_hora,
         "vigilancia_core": vigilancia_core,
         "professors_ordenats": sorted(horari.professors),
@@ -213,7 +213,7 @@ def _build_disponibles_for_query(
     absents_tipus = context["absents_tipus"]
     substituts_ocupats_hora = context["substituts_ocupats_per_hora"].get(hora, set())
     grups_sense_classe_hora = context["grups_sense_classe_per_hora"].get(hora, set())
-    professors_baixa = context["professors_baixa"]
+    absents_coberts = context["absents_coberts"]
     activitats_hora = context["activitats_per_hora"].get(hora, {})
     vigilancia_core = context["vigilancia_core"]
     prioritats = context["prioritats"]
@@ -234,7 +234,7 @@ def _build_disponibles_for_query(
         base_icon = "👨‍🏫 " if es_titular else ""
         titular_text = f" (TITULAR {tipus})" if es_titular else ""
 
-        if professor in professors_baixa:
+        if professor in absents_coberts:
             emoji = "🏥"
             estat = "DE BAIXA"
             info = "DE BAIXA"
@@ -370,7 +370,7 @@ async def obtenir_disponibles_vigilancia(
     hora: str,
     tipus: str = None,
     grups: str = None,
-    aula: str = None,
+    aula: NomNet = None,
     db: Session = Depends(get_db),
     dia: Dia = Depends(dia_de_la_peticio),
 ):

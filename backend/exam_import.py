@@ -21,6 +21,8 @@ import re
 from collections import Counter, defaultdict
 from typing import Dict, List, Set
 
+from noms import nom_net
+
 # Sufix de subgrup real: només lletres A-D (convenció dels centres), amb o
 # sense guionet abans (les convencions de nom varien per centre: "1-ESO-A"
 # a un centre, "ESO1A" a un altre). Mai paraules senceres com "BATX".
@@ -28,8 +30,8 @@ _GRUP_LLETRES_PATTERN = re.compile(r"^(.*?)-?([A-D]{1,4})$")
 
 
 def normalitza_assignatura(subject: str) -> str:
-    """Retorna l'assignatura tal com surt al XML (només neteja espais)."""
-    return (subject or "").strip()
+    """L'assignatura tal com surt a l'XML, amb el nom net (noms.py)."""
+    return nom_net(subject or "")
 
 
 def deriva_nivell(grup: str) -> str:

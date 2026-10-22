@@ -6,6 +6,8 @@ import logging
 import xml.etree.ElementTree as ET
 from typing import Dict, Optional, Set
 
+from noms import nom_net
+
 log = logging.getLogger(__name__)
 
 try:
@@ -18,6 +20,10 @@ except ImportError:
 
 class GestorHorariWeb:
     """Gestor d'horaris amb límit de professor i consolidació de grups múltiples - Versió Web"""
+
+    # Els professors amb una absència coberta que s'han tret d'aquest horari
+    # (absencia_coberta.services.sense_absents_coberts); el de l'XML, cap
+    absents_coberts = frozenset()
 
     def __init__(self, xml_path: str, ultim_professor_subs: Optional[str] = None):
         """
@@ -117,13 +123,15 @@ class GestorHorariWeb:
             # Primera passada: recull tots els professors
             tots_professors = []
             for teacher in root.findall("Teacher"):
-                nom = teacher.get("name", "").strip()
+                nom = nom_net(teacher.get("name", ""))
                 if not nom:
                     continue
                 tots_professors.append(nom)
 
             # Aplica límit de professor
-            ultim_prof = self.ultim_professor_subs
+            # Mateix nom net que els professors: el límit talla pel mateix lloc
+            # tant si el valor desat té espais com si no (l'ordre és el de l'XML)
+            ultim_prof = nom_net(self.ultim_professor_subs)
             if ultim_prof and ultim_prof in tots_professors:
                 # Troba l'índex del professor límit
                 try:
@@ -147,7 +155,7 @@ class GestorHorariWeb:
             professors_set = set(self.professors)
 
             for teacher in root.findall("Teacher"):
-                nom = teacher.get("name", "").strip()
+                nom = nom_net(teacher.get("name", ""))
                 if not nom or nom not in professors_set:
                     continue
 
@@ -164,7 +172,7 @@ class GestorHorariWeb:
                         # Processa activitat
                         # Si no hi ha Subject, cadena buida (professor no al centre o hora lliure)
                         subject_elem = hour.find("Subject")
-                        subject = subject_elem.get("name", "") if subject_elem is not None else ""
+                        subject = nom_net(subject_elem.get("name", "")) if subject_elem is not None else ""
 
                         # Consolida múltiples Students d'una mateixa hora.
                         # `tots_grups` recull tot el que apareix a l'XML (per al
@@ -185,9 +193,9 @@ class GestorHorariWeb:
 
                         # Carrega l'aula (Room)
                         room_elem = hour.find("Room")
-                        room = room_elem.get("name", "") if room_elem is not None else ""
+                        room = nom_net(room_elem.get("name", "")) if room_elem is not None else ""
 
-                        tags = [tag.get("name", "") for tag in hour.findall("Activity_Tag")]
+                        tags = [nom_net(tag.get("name", "")) for tag in hour.findall("Activity_Tag")]
 
                         self.horari[dia][hora][nom] = {
                             "assignatura": subject,

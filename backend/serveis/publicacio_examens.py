@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from helpers import assign_phase1_titulars
 from models import Grup, GrupAlliberat, Nivell, Substitucio, Vigilancia
-from repositories import VigilanciaRepository, parse_date
+from repositories import ConfiguracioExamenRepository, VigilanciaRepository, parse_date
 from scheduler_engine.core.constraints import detectar_nivell_grup
 from serveis.dia import Dia
 from utils.hores import normalitzar_hora
@@ -55,6 +55,9 @@ class ResumPublicacio:
     grups_alliberats: int = 0
     titulars: int = 0
     errors: list = field(default_factory=list)
+    # Avisos per a l'usuari, amb codi i paràmetres (els tradueix la pantalla):
+    # p.ex. un titular amb una absència coberta, la vigilància del qual queda sense vigilant
+    avisos: list = field(default_factory=list)
     # (data, hora) on s'ha esborrat alguna vigilància: cal refrescar-ne les
     # cobertures de classe dels vigilants (com fa esborrar-la a Vigilàncies)
     hores_esborrades: set = field(default_factory=set)
@@ -230,6 +233,33 @@ class PublicacioExamens:
 
     # ------------------------------------------------------------ titulars
 
+    def _avisa_titulars_absents(self, db, vigilancies: list, institucio: str, data_iso: str) -> None:
+        """Un titular amb una absència coberta aquell dia no és a l'horari del
+        dia (Dia) i, per tant, no s'assigna: la vigilància queda sense vigilant
+        i cal que l'usuari ho sàpiga per assignar-la."""
+        absents = Dia.de_text(data_iso, institucio).horari.absents_coberts
+        if not absents:
+            return
+        for v in vigilancies:
+            if v.get("vigilant"):
+                continue
+            titular = ConfiguracioExamenRepository.buscar_titular(
+                db, v.get("tipus", ""), v.get("grups", ""), v.get("aula", "")
+            )
+            if titular in absents:
+                self.resum.avisos.append(
+                    {
+                        "codi": "titular_amb_absencia_coberta",
+                        "params": {
+                            "data": data_iso,
+                            "hora": v.get("hora", ""),
+                            "titular": titular,
+                            "assignatura": v.get("tipus", ""),
+                            "grups": v.get("grups", ""),
+                        },
+                    }
+                )
+
     def assigna_titulars(self, institucio: str) -> None:
         """Cada examen, amb el seu titular com a vigilant si està lliure."""
         db = self.db
@@ -255,6 +285,7 @@ class PublicacioExamens:
                     if v.get("vigilant"):
                         vigilants[hora].add(v["vigilant"])
                 assign_phase1_titulars(vigilancies, core, vigilants, db)
+                self._avisa_titulars_absents(db, vigilancies, institucio, data_iso)
                 for v in vigilancies:
                     db_id = v.get("db_id") or v.get("id")
                     if v.get("vigilant") and db_id:

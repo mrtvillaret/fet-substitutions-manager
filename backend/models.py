@@ -327,10 +327,11 @@ class Professor(Base):
     )
 
 
-class ProfessorBaixa(Base):
+class AbsenciaCoberta(Base):
     """
-    Professors de baixa temporal
-    Durant el període especificat, no substitueixen ni són substituïts
+    Absència coberta (abans «baixa»): un professor absent que té un substitut
+    extern a l'XML. Durant el període queda fora de tot (absencia_coberta/).
+    La taula conserva el nom d'abans.
     """
 
     __tablename__ = "professors_baixa"

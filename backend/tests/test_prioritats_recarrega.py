@@ -10,14 +10,16 @@ from datetime import date, timedelta
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
+from absencia_coberta.router import router as absencia_coberta_router
 from database import get_data_db_session
+from prioritats.router import router as prioritats_router
 from rate_limit import limiter
 from repositories import SubstitucioRepository
-from routes import pdf, prioritats, settings, substitucions
+from routes import pdf, settings, substitucions
 
-APP = crea_app(substitucions.router, pdf.router, prioritats.router, settings.router)
+APP = crea_app(substitucions.router, pdf.router, prioritats_router, absencia_coberta_router, settings.router)
 _avui = date.today()
-# Un dilluns passat: la baixa no hi treu res (serveis/baixes.py), però s'hi ha de veure.
+# Un dilluns passat: la baixa no hi treu res (absencia_coberta/services.py), però s'hi ha de veure.
 DATA = (_avui - timedelta(days=_avui.weekday() + 7)).isoformat()
 
 
@@ -41,7 +43,7 @@ def client(centre):
 
 def _avis_baixa(client):
     avisos = client.get(f"/api/pdf/{DATA}/validacions").json()["warnings"]
-    return any("Prof 3 està de baixa" in a for a in avisos)
+    return any("Prof 3 té una absència coberta" in a for a in avisos)
 
 
 def test_una_baixa_nova_es_te_en_compte_de_seguida(client, centre):
@@ -55,7 +57,7 @@ def test_una_baixa_nova_es_te_en_compte_de_seguida(client, centre):
     assert not _avis_baixa(client)
 
     resp = client.post(
-        "/api/prioritats/professors-baixa",
+        "/api/absencies-cobertes",
         json={"professor": "Prof 3", "data_inici": DATA, "data_final": DATA, "motiu": ""},
     )
     assert resp.status_code == 200, resp.text
@@ -63,18 +65,18 @@ def test_una_baixa_nova_es_te_en_compte_de_seguida(client, centre):
 
     baixa_id = resp.json()["id"]
     resp = client.put(
-        f"/api/prioritats/professors-baixa/{baixa_id}",
+        f"/api/absencies-cobertes/{baixa_id}",
         json={"professor": "Prof 3", "data_inici": "2020-09-01", "data_final": "2020-09-30", "motiu": ""},
     )
     assert resp.status_code == 200, resp.text
     assert not _avis_baixa(client)
 
     client.put(
-        f"/api/prioritats/professors-baixa/{baixa_id}",
+        f"/api/absencies-cobertes/{baixa_id}",
         json={"professor": "Prof 3", "data_inici": DATA, "data_final": DATA, "motiu": ""},
     )
     assert _avis_baixa(client)
-    assert client.delete(f"/api/prioritats/professors-baixa/{baixa_id}").status_code == 200
+    assert client.delete(f"/api/absencies-cobertes/{baixa_id}").status_code == 200
     assert not _avis_baixa(client)
 
 

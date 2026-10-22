@@ -25,6 +25,7 @@ from core.alliberats import (
     professors_de,
 )
 from dependencies import dia_de_la_peticio, get_db
+from noms import NomNet
 from repositories import (
     AlliberamentsPeriodeRepository,
     ConfiguracioRepository,
@@ -54,9 +55,9 @@ def activitats_alliberables(db: Session) -> List[str]:
 
 class AlliberatsDia(BaseModel):
     grups: Dict[str, List[str]] = {}  # {hora: [grups sense classe]}
-    professors: Dict[str, List[str]] = {}  # {hora: [professors alliberats]}
-    activitats: Dict[str, List[str]] = {}  # {hora: [activitats alliberades]}
-    ocupats: Dict[str, List[str]] = {}  # {hora: [reforços sense alumnes que aquell dia sí en tenen]}
+    professors: Dict[str, List[NomNet]] = {}  # {hora: [professors alliberats]}
+    activitats: Dict[str, List[NomNet]] = {}  # {hora: [activitats alliberades]}
+    ocupats: Dict[str, List[NomNet]] = {}  # {hora: [reforços sense alumnes que aquell dia sí en tenen]}
 
 
 class CanviPeriode(BaseModel):
@@ -145,7 +146,7 @@ async def afegeix_canvi_periode(canvi: CanviPeriode, db: Session = Depends(get_d
 
 @router.get("/reforcos/{activitat}")
 async def franges_activitat_per_defecte(
-    activitat: str, data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)
+    activitat: NomNet, data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)
 ):
     """Per a una activitat «alliberada fins que tingui alumnes» (p.ex. Reforç):
     les franges de la setmana de cada professor que la fa, i si en aquella data

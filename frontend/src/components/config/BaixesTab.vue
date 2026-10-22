@@ -1,7 +1,7 @@
 <template>
   <div class="tab-content">
     <div class="toolbar">
-      <Tag severity="info" :value="$t('config.absences.count', { count: professorsBaixa.length })" />
+      <Tag severity="info" :value="$t('config.absences.count', professorsBaixa.length)" />
       <Button
         :label="$t('common.add')"
         icon="pi pi-plus"
@@ -178,14 +178,26 @@ const carregarProfessorsAll = async () => {
 
 const carregarProfessorsBaixa = async () => {
   try {
-    const response = await axios.get('/api/prioritats/professors-baixa')
-    professorsBaixa.value = response.data.professors_baixa
+    const response = await axios.get('/api/absencies-cobertes')
+    professorsBaixa.value = response.data.absencies_cobertes
   } catch (error) {
     console.error('Error carregant professors de baixa:', error)
   }
 }
 
 // El que s'ha tret en desar la baixa, d'avui endavant (routes/baixes_aplica.py)
+// Avisos sense bloquejar: classes de l'absent que no tenen cap substitut a l'XML
+const avisaSenseSubstitut = (avisos) => {
+  const classes = (avisos || []).filter(a => a.codi === 'classe_sense_substitut')
+  if (!classes.length) return
+  toast.add({
+    severity: 'warn',
+    summary: t('config.absences.noSubstituteTitle'),
+    detail: classes.map(a => t('config.absences.noSubstitute', a.params)).join('\n'),
+    life: 12000
+  })
+}
+
 const avisaCanvis = (canvis) => {
   if (!canvis) return
   const linies = [
@@ -218,7 +230,7 @@ const desarProfessorBaixa = async () => {
 
     if (professorBaixaEditant.value) {
       // Actualitzar existent
-      const resposta = await axios.put(`/api/prioritats/professors-baixa/${professorBaixaEditant.value}`, baixaData)
+      const resposta = await axios.put(`/api/absencies-cobertes/${professorBaixaEditant.value}`, baixaData)
       toast.add({
         severity: 'success',
         summary: t('common.updated'),
@@ -226,9 +238,10 @@ const desarProfessorBaixa = async () => {
         life: 3000
       })
       avisaCanvis(resposta.data.canvis)
+      avisaSenseSubstitut(resposta.data.avisos)
     } else {
       // Crear nou
-      const resposta = await axios.post('/api/prioritats/professors-baixa', baixaData)
+      const resposta = await axios.post('/api/absencies-cobertes', baixaData)
       toast.add({
         severity: 'success',
         summary: t('common.added'),
@@ -236,11 +249,12 @@ const desarProfessorBaixa = async () => {
         life: 3000
       })
       avisaCanvis(resposta.data.canvis)
+      avisaSenseSubstitut(resposta.data.avisos)
     }
 
     // Recarregar professors baixa
-    const response = await axios.get('/api/prioritats/professors-baixa')
-    professorsBaixa.value = response.data.professors_baixa
+    const response = await axios.get('/api/absencies-cobertes')
+    professorsBaixa.value = response.data.absencies_cobertes
 
     // Tancar diàleg i netejar
     cancelarProfessorBaixa()
@@ -268,7 +282,7 @@ const editarProfessorBaixa = (baixa) => {
 
 const eliminarProfessorBaixa = async (id) => {
   try {
-    await axios.delete(`/api/prioritats/professors-baixa/${id}`)
+    await axios.delete(`/api/absencies-cobertes/${id}`)
 
     toast.add({
       severity: 'success',
@@ -278,8 +292,8 @@ const eliminarProfessorBaixa = async (id) => {
     })
 
     // Recarregar professors baixa
-    const response = await axios.get('/api/prioritats/professors-baixa')
-    professorsBaixa.value = response.data.professors_baixa
+    const response = await axios.get('/api/absencies-cobertes')
+    professorsBaixa.value = response.data.absencies_cobertes
   } catch (error) {
     console.error('Error eliminant professor baixa:', error)
     toast.add({

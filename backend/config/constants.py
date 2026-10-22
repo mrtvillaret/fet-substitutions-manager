@@ -17,10 +17,10 @@ except ImportError:
     def _(text):
         return text
 
-# ── Prioritats, activitats que no se substitueixen i baixes, per institució ──
+# ── Prioritats i activitats que no se substitueixen, per institució ──
 #
 # Cada institució té les seves (es carreguen de la seva BD amb
-# routes.prioritats._recarregar_prioritats_desde_bd). Els noms públics de sota
+# prioritats.services.carrega_prioritats). Els noms públics de sota
 # (PRIORITATS, NO_SUBST, ...) són vistes: objectes fixos que, cada cop que es
 # consulten, mostren les dades de la institució de la petició en curs
 # (config.context). Així:
@@ -42,7 +42,7 @@ def _dades_actuals() -> dict:
 
 def desa_prioritats(institucio, **valors) -> None:
     """Desa les prioritats d'una institució (claus: PRIORITATS, NO_SUBST,
-    ORDRE_PRIORITATS, CATEGORIES_ACTIVES, PROFESSORS_BAIXA, GENERA_ENCADENADES)."""
+    ORDRE_PRIORITATS, CATEGORIES_ACTIVES, GENERA_ENCADENADES)."""
     _PRIORITATS_PER_INSTITUCIO[institucio] = valors
 
 
@@ -102,7 +102,6 @@ PRIORITATS = _VistaDict("PRIORITATS", {})
 NO_SUBST = _VistaSet("NO_SUBST", frozenset())
 ORDRE_PRIORITATS = _VistaLlista("ORDRE_PRIORITATS", ())
 CATEGORIES_ACTIVES = _VistaLlista("CATEGORIES_ACTIVES", ())
-PROFESSORS_BAIXA = _VistaLlista("PROFESSORS_BAIXA", ())
 
 # Assignatures que generen substitucions encadenades (estan a PRIORITATS però NO a NO_SUBST)
 GENERA_ENCADENADES = _VistaLlista("GENERA_ENCADENADES", ())

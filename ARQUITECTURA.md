@@ -37,8 +37,9 @@
 │  ├── ConflicteDialog.vue                                         │
 │  ├── HorariEditable.vue                                          │
 │  ├── SlotDropZone.vue                                            │
-│  └── config/: pestanyes de Configuració (Baixes, Prioritats,     │
-│               Grups, Cursos, Usuaris, Gestió de dades...)        │
+│  └── config/: pestanyes de Configuració (Absències cobertes,     │
+│               Prioritats, Grups, Cursos, Usuaris, Gestió de      │
+│               dades...)                                          │
 │                                                                  │
 │  substitutsTrets.js ← avís dels substituts trets per un canvi    │
 │  dataTreball.js ← data de treball (data del calendari), store    │
@@ -56,13 +57,17 @@
 │  MÒDULS (estructura nova; vegeu «Estructura d'un mòdul»)         │
 │  ├── auth/               → entrar, sortir, perfil propi, cookie  │
 │  │                         JWT i Depends de l'usuari i del rol   │
-│  └── usuaris/            → gestió d'usuaris (admin i superadmin) │
+│  ├── usuaris/            → gestió d'usuaris (admin i superadmin) │
+│  ├── prioritats/         → categories i pesos, «No substituir» i │
+│  │                         la càrrega a memòria; de pas, les     │
+│  │                         activitats alliberables               │
+│  └── absencia_coberta/   → absències cobertes (abans «baixes»):  │
+│                            l'horari del dia ja no té l'absent    │
 │                                                                  │
 │  CAPA DE ROUTES (/api/*) — estructura antiga, es va migrant      │
 │  ├── substitucions.py    → absències, substitucions, reassignar  │
 │  ├── vigilancies.py      → CRUD vigilàncies                      │
 │  ├── disponibles.py      → professors disponibles/forat          │
-│  ├── prioritats.py       → categories, prioritats, baixes        │
 │  ├── estadistiques.py    → recomptes i estadístiques             │
 │  ├── informes.py         → PDF informe direcció/professors       │
 │  ├── pdf.py              → PDF substitucions/vigilàncies/int.    │
@@ -159,6 +164,7 @@
 │  ├── errors_servidor.py   ← errors no previstos: es registren    │
 │  │                           amb una referència; l'usuari només  │
 │  │                           rep la referència                   │
+│  ├── noms.py              ← la regla dels noms: nom_net, NomNet  │
 │  ├── errors_domini.py     ← errors de les regles (NoTrobat,      │
 │  │                           NoPermes, NoValid, Conflicte)       │
 │  └── utils/                                                      │
@@ -238,8 +244,12 @@ set_auth_cookie(response, testimoni_de_sessio(user, current_user.institucio))
 l'estructura nova, amb un arnès de caracterització que comprova que les
 respostes no canvien.
 
-Mòduls migrats: `auth/` (entrar, sessió, perfil propi) i `usuaris/` (gestió
-d'usuaris de l'admin i el superadmin).
+Mòduls migrats: `auth/` (entrar, sessió, perfil propi), `usuaris/` (gestió
+d'usuaris de l'admin i el superadmin) i `prioritats/` (categories i pesos de
+prioritat, «No substituir» i la seva càrrega a memòria, `carrega_prioritats`;
+les rutes de les activitats alliberables hi són de pas fins que es migri el
+mòdul de grups) i `absencia_coberta/` (abans «baixes»: `/api/absencies-cobertes`,
+i el punt únic que treu l'absent de l'horari de cada data).
 
 ## Desplegament
 
@@ -272,15 +282,26 @@ Les decisions de negoci viuen en un sol lloc i les fan servir totes les parts
   tot» i «Reassigna» (validació del PDF). Els canvis del dia (grups i professors
   alliberats, estats per període, absències, baixes) no n'assignen cap: treuen
   els que ja no poden ser-ho i la fila queda pendent, amb un avís.
+- **Noms** — `noms.py`: un nom de professor, assignatura o aula és el text
+  sense espais al principi ni al final, normalitzat en entrar (lectors de l'XML
+  i API amb `NomNet`), amb tests guardians. El buit és vàlid; l'ordre és el de
+  l'XML, que es desa tal com es puja. Les dades ja desades es migren amb
+  `migracions/noms_nets.py` (fusiona només dins de la mateixa llista).
 - **Usuaris** — `usuaris/services.py`: cap operació (desactivar, esborrar,
   treure el rol, canviar de centre) pot deixar un centre sense cap admin
   actiu, i ningú no es pot desactivar ni esborrar a si mateix. Els usuaris
   inicials només es creen en una instal·lació nova (`auth/services.py:
   crea_usuaris_inicials`); el superadmin es recupera amb
   `ADMIN_PASSWORD_RECUPERACIO`.
-- **Baixes** — un professor de baixa ni substitueix ni és substituït. En desar
-  la baixa, d'avui endavant, se li esborren les absències i se'l treu de
-  vigilant i de substitut. Els dies passats no es toquen.
+- **Absència coberta** (abans «baixa») — `absencia_coberta/`: l'absent té les
+  classes cobertes a l'XML. Durant el període, l'horari de cada data ja no el
+  té (`sense_absents_coberts`, cridat des de `helpers.get_horari`, per on passa
+  `Dia`): ni substitueix, ni és substituït, ni vigila, ni surt com a
+  disponible; ho vigila `tests/test_absencia_coberta_punt_unic.py`. En desar-la,
+  d'avui endavant, se li esborren les absències i se'l treu de vigilant i de
+  substitut (els dies passats no es toquen), i s'avisa si alguna classe seva
+  no té cap altre professor a l'XML. El planificador no la té en compte; en
+  publicar, el titular amb una absència coberta no vigila i se n'avisa.
 
 - **Quin horari (XML) es fa servir** — cada versió de l'XML té una data
   d'inici i la de fi la calcula el backend (`XMLVersionRepository.encadena`).

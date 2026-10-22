@@ -16,6 +16,7 @@ from starlette.background import BackgroundTask
 from auth.dependencies import require_admin
 from database import get_data_db_session
 from models import AbreviaturaGrup, ExamCostProfessor, ExamRestriccio, Grup, Nivell
+from noms import NomNet, nom_net
 from repositories import (
     ConfiguracioExamenRepository,
     ConfiguracioRepository,
@@ -417,7 +418,7 @@ async def update_costos_professors(payload: dict, current_user=Depends(require_a
             # Individuals
             for professor, tipus_dict in payload.get("individuals", {}).items():
                 for tipus, pes in tipus_dict.items():
-                    db.add(ExamCostProfessor(professor=professor, tipus=tipus, pes=int(pes)))
+                    db.add(ExamCostProfessor(professor=nom_net(professor), tipus=tipus, pes=int(pes)))
 
             db.commit()
             return {"success": True}
@@ -427,7 +428,7 @@ async def update_costos_professors(payload: dict, current_user=Depends(require_a
 
 
 @router.put("/costos-professors/{professor}")
-async def update_cost_professor_individual(professor: str, payload: dict, current_user=Depends(require_admin)):
+async def update_cost_professor_individual(professor: NomNet, payload: dict, current_user=Depends(require_admin)):
     """
     Actualitza els costos d'un professor específic.
 
@@ -451,7 +452,7 @@ async def update_cost_professor_individual(professor: str, payload: dict, curren
 
 
 @router.delete("/costos-professors/{professor}")
-async def delete_cost_professor_individual(professor: str, current_user=Depends(require_admin)):
+async def delete_cost_professor_individual(professor: NomNet, current_user=Depends(require_admin)):
     """Elimina els costos individuals d'un professor (tornarà a usar globals)."""
     with get_data_db_session(current_user.institucio) as db:
         try:
@@ -875,6 +876,7 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
         "grups_alliberats_creats": resum.grups_alliberats,
         "titulars_assignats": resum.titulars,
         "errors": resum.errors or None,
+        "avisos": resum.avisos or None,
     }
 
 

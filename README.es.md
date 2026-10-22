@@ -76,7 +76,7 @@ Annealing) con un modelo de restricciones configurable.
 
 La lógica que llaman las rutas está en `serveis/` (el estado de un día,
 `DiaEscolar`, y la regla de cuándo un sustituto ya no puede serlo; generar las
-sustituciones, marcar ausencias, validar antes del PDF, aplicar una baja), y el
+sustituciones, marcar ausencias, validar antes del PDF), y el
 motor de asignación en `core/`.
 
 ### Reglas de funcionamiento
@@ -84,12 +84,14 @@ motor de asignación en `core/`.
 - Un profesor queda libre si su grupo está marcado sin clase a esa hora
   (exactamente, también las agrupaciones) o si él está liberado.
 - Solo asignan sustitutos los botones «Generar pendientes», «Regenerar todo» y
-  «Reasignar» (en la validación antes del PDF). Los cambios del día (liberados, ausencias, bajas)
+  «Reasignar» (en la validación antes del PDF). Los cambios del día (liberados, ausencias, ausencias cubiertas)
   quitan los sustitutos que ya no pueden serlo y dejan la fila pendiente, con un
   aviso.
-- Un profesor de baja ni sustituye ni es sustituido.
+- Un profesor con una ausencia cubierta (tiene las clases cubiertas en el XML,
+  por un sustituto o por otros profesores) queda fuera de todo durante el
+  período: ni sustituye, ni es sustituido, ni vigila.
 
-Más de 650 tests (`cd backend && pytest tests/`) sobre instituciones temporales
+Más de 700 tests (`cd backend && pytest tests/`) sobre instituciones temporales
 con el horario de ejemplo.
 
 Para el mapa de dependencias completo y las reglas en detalle, ver

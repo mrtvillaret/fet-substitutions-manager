@@ -17,7 +17,7 @@ from database import (
     get_data_dir_for_institucio,
     get_export_dir_for_institucio,
 )
-from models import GrupAlliberat, ProfessorBaixa, Substitucio, Vigilancia, XMLVersion
+from models import AbsenciaCoberta, GrupAlliberat, Substitucio, Vigilancia, XMLVersion
 from rate_limit import limiter
 from routes import dades
 
@@ -43,9 +43,9 @@ def _omple(centre):
             db.add(Substitucio(data=d, hora="10:00", professor_absent="Prof 1", substitut="Prof 2"))
             db.add(Vigilancia(data=d, hora="10:00", tipus="Examen", grups="1A", aula="A1", nivell="ESO"))
             db.add(GrupAlliberat(data=d, hora="10:00", grups="1A"))
-        db.add(ProfessorBaixa(professor="Prof 3", data_inici=date(2026, 3, 10), data_final=date(2026, 3, 12)))
-        db.add(ProfessorBaixa(professor="Prof 4", data_inici=date(2026, 2, 20), data_final=date(2026, 3, 5)))
-        db.add(ProfessorBaixa(professor="Prof 5", data_inici=date(2026, 4, 10), data_final=date(2026, 4, 20)))
+        db.add(AbsenciaCoberta(professor="Prof 3", data_inici=date(2026, 3, 10), data_final=date(2026, 3, 12)))
+        db.add(AbsenciaCoberta(professor="Prof 4", data_inici=date(2026, 2, 20), data_final=date(2026, 3, 5)))
+        db.add(AbsenciaCoberta(professor="Prof 5", data_inici=date(2026, 4, 10), data_final=date(2026, 4, 20)))
         carpeta = get_data_dir_for_institucio(centre)
         for nom, inici, fi in [
             ("dins.xml", date(2026, 3, 2), date(2026, 3, 20)),
@@ -70,7 +70,7 @@ def _queda(centre):
             "substitucions": sorted(s.data for s in db.query(Substitucio)),
             "vigilancies": sorted(v.data for v in db.query(Vigilancia)),
             "grups_alliberats": sorted(g.data for g in db.query(GrupAlliberat)),
-            "baixes": sorted(b.professor for b in db.query(ProfessorBaixa)),
+            "baixes": sorted(b.professor for b in db.query(AbsenciaCoberta)),
             "xml": sorted(v.path for v in db.query(XMLVersion)),
         }
 

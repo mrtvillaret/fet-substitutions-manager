@@ -9,10 +9,13 @@ una institució temporal amb l'horari d'exemple. Dilluns 20/04/2026:
 
 import json
 import uuid
+from datetime import date, timedelta
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
+from absencia_coberta.repositories import AbsenciaCobertaRepository
+from absencia_coberta.router import router as absencia_coberta_router
 from database import get_data_db_session
 from models import ConfiguracioExamen, Grup, GrupAlliberat, Nivell
 from rate_limit import limiter
@@ -26,7 +29,7 @@ from routes.scheduler_service import (
     SCHEDULER_NIVELLS_KEY,
 )
 
-APP = crea_app(scheduler.router, vigilancies.router, substitucions.router)
+APP = crea_app(scheduler.router, vigilancies.router, substitucions.router, absencia_coberta_router)
 URL = "/api/scheduler/publicar"
 DATA = "2026-04-20"  # dilluns
 SETMANES = [{"Dilluns": DATA}]
@@ -349,6 +352,75 @@ def test_no_canvia_un_vigilant_ja_assignat(client, titular_alliberat):
 def test_sense_l_opcio_no_s_assignen_titulars(client, titular_alliberat):
     _publica(client, _horari(FILOSOFIA_1BAT), auto_assign=False, grups_sense_classe=["1-BAT-A"])
     assert _resum(client) == [("10:00", "1-BAT", "1-BAT-A", "Filosofia", "")]
+
+
+# ------------------------------------------- titular amb una absència coberta
+# El planificador planifica exàmens, no persones: la persona es decideix en
+# publicar, amb l'horari de cada data (Dia), que ja no té els professors amb
+# una absència coberta aquell dia.
+
+
+def test_un_titular_amb_absencia_coberta_no_s_assigna_i_hi_ha_un_avis(client, centre, titular_alliberat):
+    with get_data_db_session(centre) as db:
+        AbsenciaCobertaRepository.create(db, "Prof 48", DATA, DATA, "Llarga")
+        db.commit()
+    resultat = _publica(client, _horari(FILOSOFIA_1BAT), auto_assign=True, grups_sense_classe=["1-BAT-A"])
+    assert resultat["titulars_assignats"] == 0
+    assert _resum(client) == [("10:00", "1-BAT", "1-BAT-A", "Filosofia", "")]
+    assert resultat["avisos"] == [
+        {
+            "codi": "titular_amb_absencia_coberta",
+            "params": {
+                "data": DATA,
+                "hora": "10:00",
+                "titular": "Prof 48",
+                "assignatura": "Filosofia",
+                "grups": "1-BAT-A",
+            },
+        }
+    ]
+    # Ni el titular ni ningú amb una absència coberta surt per vigilar-la
+    disponibles = client.get(f"/api/vigilancies/{DATA}/10:00/disponibles").json()
+    assert "Prof 48" not in {d["value"] for d in disponibles}
+
+
+def test_sense_absencia_coberta_no_hi_ha_cap_avis(client, titular_alliberat):
+    resultat = _publica(client, _horari(FILOSOFIA_1BAT), auto_assign=True, grups_sense_classe=["1-BAT-A"])
+    assert resultat["titulars_assignats"] == 1 and resultat["avisos"] is None
+
+
+def test_una_absencia_coberta_desada_despres_de_publicar_treu_les_vigilancies_futures(client, centre):
+    """Publicat amb el titular com a vigilant; si després se li desa una
+    absència coberta, se li treu la vigilància (d'avui endavant)."""
+    avui = date.today()
+    futur = (avui + timedelta(days=7 - avui.weekday())).isoformat()  # dilluns vinent
+    config = {"1-BAT": {"durada": 1, "dates": [futur], "config": {futur: {"10:00": {"a": True, "i": True}}}}}
+    with get_data_db_session(centre) as db:
+        ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(config), tipus="json")
+        ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(["1-BAT"]), tipus="json")
+        db.add(ConfiguracioExamen(assignatura="Filosofia", grup="1-BAT-A", titular="Prof 48", aula="A01"))
+        db.commit()
+    horari = _horari(FILOSOFIA_1BAT)
+    horari["dies"][0]["data"] = futur
+    resp = client.post(
+        URL,
+        json={
+            "horari": horari,
+            "setmanes": [{"Dilluns": futur}],
+            "opcions": {"auto_assign_titulars": True, "netejar_existents": False},
+            "grups_sense_classe": ["1-BAT-A"],
+        },
+    )
+    assert resp.status_code == 200 and resp.json()["titulars_assignats"] == 1, resp.text
+    assert [v["vigilant"] for v in client.get(f"/api/vigilancies/{futur}").json()] == ["Prof 48"]
+
+    resp = client.post(
+        "/api/absencies-cobertes",
+        json={"professor": "Prof 48", "data_inici": futur, "data_final": futur, "motiu": ""},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["canvis"]["vigilancies_buidades"]
+    assert [v["vigilant"] for v in client.get(f"/api/vigilancies/{futur}").json()] == [""]
 
 
 # ------------------------------------------------- dates d'un curs anterior

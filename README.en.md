@@ -75,8 +75,8 @@ configurable constraint model.
 
 The logic called by the routes lives in `serveis/` (the state of a day,
 `DiaEscolar`, and the single rule for when a substitute can no longer cover;
-generating substitutions, marking absences, validating before the PDF, applying
-a leave), and the assignment engine in `core/`.
+generating substitutions, marking absences, validating before the PDF), and the
+assignment engine in `core/`.
 
 ### Rules
 
@@ -84,11 +84,13 @@ a leave), and the assignment engine in `core/`.
   (exactly, including combined groups) or if they are released.
 - Only the "Generate pending", "Regenerate all" and "Reassign" (in the
   pre-PDF validation) buttons assign substitutes. Changes to the day (released groups, absences,
-  leaves) remove substitutes who can no longer cover and leave the row pending,
+  covered absences) remove substitutes who can no longer cover and leave the row pending,
   with a notice.
-- A teacher on leave neither covers nor is covered.
+- A teacher with a covered absence (their classes are covered in the XML, by a
+  substitute or by other teachers) is left out of everything during the
+  period: they neither cover, nor are covered, nor supervise.
 
-Over 650 tests (`cd backend && pytest tests/`) on temporary institutions with
+Over 700 tests (`cd backend && pytest tests/`) on temporary institutions with
 the sample timetable.
 
 For the full dependency map and the rules in detail see

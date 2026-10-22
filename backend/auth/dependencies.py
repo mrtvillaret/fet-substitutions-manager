@@ -37,10 +37,10 @@ def _prepara_institucio(institucio: str) -> str:
         log.warning("No s'ha pogut carregar l'idioma del centre", exc_info=True)
     if not constants.te_prioritats(institucio):
         try:
-            from routes.prioritats import _recarregar_prioritats_desde_bd
+            from prioritats.services import carrega_prioritats
 
             with get_data_db_session(institucio) as db:
-                _recarregar_prioritats_desde_bd(db)
+                carrega_prioritats(db)
         except Exception:
             log.warning("No s'han pogut carregar les prioritats de %s", institucio, exc_info=True)
     return idioma

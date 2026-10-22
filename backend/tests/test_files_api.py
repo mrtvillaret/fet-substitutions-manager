@@ -179,3 +179,12 @@ def test_pujar_un_fitxer_amb_el_mateix_nom_que_l_xml_vigent_no_perd_l_anterior(c
     # La versió inicial conserva l'horari que hi havia abans de la pujada.
     assert (carpeta / versions[0]["path"]).read_bytes() == XML
     assert (carpeta / versions[1]["path"]).read_bytes() == XML.replace(b"Prof 1", b"Prof 1b")
+
+
+def test_l_xml_es_desa_tal_com_es_puja_amb_els_espais_dels_noms(client, centre):
+    # Els espais del davant dels professors serveixen a FET per ordenar-los per
+    # nivells: l'aplicació llegeix els noms nets, però el fitxer no es toca mai.
+    amb_espais = XML.replace(b'name="Prof ', b'name="   Prof ', 3)
+    assert amb_espais != XML
+    cos = _puja(client, contingut=amb_espais).json()
+    assert (get_data_dir_for_institucio(centre) / cos["path"]).read_bytes() == amb_espais

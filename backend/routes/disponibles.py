@@ -58,12 +58,6 @@ async def get_disponibles_dia(
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Error carregant horari: {str(e)}") from e
 
-    # Obtenir professors de baixa
-    from config.constants import PROFESSORS_BAIXA
-    from core.baixes import professors_de_baixa
-
-    professors_baixa_avui = professors_de_baixa(PROFESSORS_BAIXA, data)
-
     # Obtenir substitucions del dia
     from repositories import SubstitucioRepository
 
@@ -91,11 +85,11 @@ async def get_disponibles_dia(
         # Obtenir disponibles
         disponibles = alliberats_mgr.get_tots_disponibles(dia_name, hora, grups_hora)
 
-        # Filtrar professors de baixa i substituts ja assignats
+        # Fora els substituts ja assignats (els que tenen una absència coberta ja no són a l'horari)
         disponibles_filtrats = [
             (prof, tipus, detall)
             for prof, tipus, detall in disponibles
-            if prof not in professors_baixa_avui and prof not in substituts_per_hora.get(hora, set())
+            if prof not in substituts_per_hora.get(hora, set())
         ]
 
         # Agrupar per categoria i tipus

@@ -1,14 +1,15 @@
 """
-Tests per a routes/prioritats.py:
+Tests per al mòdul prioritats (prioritats/):
 
-- _recarregar_prioritats_desde_bd: reconstrueix ORDRE_PRIORITATS/PRIORITATS/
-  CATEGORIES_ACTIVES/NO_SUBST/GENERA_ENCADENADES/PROFESSORS_BAIXA a
+- carrega_prioritats: reconstrueix ORDRE_PRIORITATS/PRIORITATS/
+  CATEGORIES_ACTIVES/NO_SUBST/GENERA_ENCADENADES a
   config.constants llegint-les de la BD. Alimenta directament la lògica
   d'assignació de core/substitucions.py i core/vigilancia_core.py — és la
   peça de més risc real d'aquest mòdul, perquè si trenca, l'assignació
   automàtica es trenca en silenci sense que cap altre test ho detecti.
 
-- CRUD de categories, assignatures, no-substituir i professors de baixa:
+- CRUD de no-substituir i «Desar tot» (categories i
+  assignatures):
   es criden les funcions dels endpoints directament amb asyncio.run (el
   projecte no fa servir pytest-asyncio i cap d'aquestes funcions té `await`
   real dins seu, només crides síncrones a SQLAlchemy).
@@ -17,40 +18,19 @@ Tests per a routes/prioritats.py:
 import asyncio
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
 
 import config.constants as constants
-from repositories import (
-    AssignaturaPrioritatRepository,
-    CategoriaPrioritatRepository,
-    NoSubstituirRepository,
-    ProfessorBaixaRepository,
-)
-from routes.prioritats import (
-    AssignaturaPrioritatCreate,
-    CategoriaPrioritatCreate,
-    PrioritatsCompletesUpdate,
-    ProfessorBaixaCreate,
-    _recarregar_prioritats_desde_bd,
-    create_assignatura_prioritat,
-    create_categoria,
+from errors_domini import NoTrobat, NoValid
+from prioritats.repositories import AssignaturaPrioritatRepository, CategoriaPrioritatRepository, NoSubstituirRepository
+from prioritats.router import (
     create_no_substituir,
-    create_professor_baixa,
-    delete_assignatura_prioritat,
-    delete_categoria,
     delete_no_substituir,
-    delete_professor_baixa,
     desar_totes_prioritats,
-    get_assignatures_by_categoria,
     get_categories,
     get_no_substituir,
-    get_professors_baixa,
-    update_assignatura_prioritat,
-    update_categoria,
-    update_categories_ordre,
-    update_professor_baixa,
 )
+from prioritats.schemas import NoSubstituirRequest, PrioritatsRequest
+from prioritats.services import carrega_prioritats
 
 
 def run(coro):
@@ -58,19 +38,18 @@ def run(coro):
 
 
 # ===================================================================
-# _recarregar_prioritats_desde_bd
+# carrega_prioritats
 # ===================================================================
 
 
 def test_recarrega_bd_buida_dona_tot_buit(db_session):
-    _recarregar_prioritats_desde_bd(db_session)
+    carrega_prioritats(db_session)
 
     assert constants.ORDRE_PRIORITATS == []
     assert constants.CATEGORIES_ACTIVES == []
     assert constants.PRIORITATS == {}
     assert constants.NO_SUBST == set()
     assert constants.GENERA_ENCADENADES == []
-    assert constants.PROFESSORS_BAIXA == []
 
 
 def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
@@ -86,7 +65,7 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     AssignaturaPrioritatRepository.create(db_session, "Guàrdia", cat, pes=4)
     NoSubstituirRepository.create(db_session, "Reunió")
 
-    _recarregar_prioritats_desde_bd(db_session)
+    carrega_prioritats(db_session)
 
     for modul in (helpers, core.vigilancia_assignacio):
         assert modul.PRIORITATS == {"Guàrdia": 4}, modul.__name__
@@ -103,7 +82,7 @@ def test_recarrega_construeix_ordre_i_pesos(db_session):
     AssignaturaPrioritatRepository.create(db_session, "Guàrdia", cat2, pes=6)
     AssignaturaPrioritatRepository.create(db_session, "Guàrdia-R", cat2, pes=3)
 
-    _recarregar_prioritats_desde_bd(db_session)
+    carrega_prioritats(db_session)
 
     assert constants.ORDRE_PRIORITATS == [["Reforç-A"], ["Guàrdia", "Guàrdia-R"]]
     assert constants.PRIORITATS == {"Reforç-A": 1, "Guàrdia": 6, "Guàrdia-R": 3}
@@ -116,7 +95,7 @@ def test_recarrega_respecta_ordre_de_categoria_no_ordre_de_creacio(db_session):
     AssignaturaPrioritatRepository.create(db_session, "AssigB", cat_b, pes=1)
     AssignaturaPrioritatRepository.create(db_session, "AssigA", cat_a, pes=1)
 
-    _recarregar_prioritats_desde_bd(db_session)
+    carrega_prioritats(db_session)
 
     assert constants.ORDRE_PRIORITATS == [["AssigA"], ["AssigB"]]
 
@@ -125,7 +104,7 @@ def test_recarrega_categories_actives_en_el_mateix_ordre_que_ordre_prioritats(db
     CategoriaPrioritatRepository.create(db_session, "Activa", ordre=0, activa=True)
     CategoriaPrioritatRepository.create(db_session, "Inactiva", ordre=1, activa=False)
 
-    _recarregar_prioritats_desde_bd(db_session)
+    carrega_prioritats(db_session)
 
     assert constants.CATEGORIES_ACTIVES == [True, False]
 
@@ -136,32 +115,11 @@ def test_recarrega_no_subst_i_genera_encadenades(db_session):
     AssignaturaPrioritatRepository.create(db_session, "Guàrdia-P", cat, pes=1)
     NoSubstituirRepository.create(db_session, "Guàrdia-P")
 
-    _recarregar_prioritats_desde_bd(db_session)
+    carrega_prioritats(db_session)
 
     assert constants.NO_SUBST == {"Guàrdia-P"}
     assert set(constants.GENERA_ENCADENADES) == {"Normal"}
     assert "Guàrdia-P" not in constants.GENERA_ENCADENADES
-
-
-def test_recarrega_professors_baixa(db_session):
-    ProfessorBaixaRepository.create(db_session, "Prof Test", "2026-01-10", "2026-01-20", motiu="Permís")
-
-    _recarregar_prioritats_desde_bd(db_session)
-
-    assert len(constants.PROFESSORS_BAIXA) == 1
-    baixa = constants.PROFESSORS_BAIXA[0]
-    assert baixa["professor"] == "Prof Test"
-    assert baixa["data_inici"] == "2026-01-10"
-    assert baixa["data_final"] == "2026-01-20"
-    assert baixa["motiu"] == "Permís"
-
-
-def test_recarrega_professor_baixa_sense_motiu_dona_string_buit(db_session):
-    ProfessorBaixaRepository.create(db_session, "Prof Sense Motiu", "2026-02-01", "2026-02-05")
-
-    _recarregar_prioritats_desde_bd(db_session)
-
-    assert constants.PROFESSORS_BAIXA[0]["motiu"] == ""
 
 
 def test_recarrega_categoria_sense_assignatures_dona_llista_buida_en_ordre(db_session):
@@ -172,104 +130,10 @@ def test_recarrega_categoria_sense_assignatures_dona_llista_buida_en_ordre(db_se
     cat2 = CategoriaPrioritatRepository.create(db_session, "Amb assignatures", ordre=1, activa=True)
     AssignaturaPrioritatRepository.create(db_session, "X", cat2, pes=1)
 
-    _recarregar_prioritats_desde_bd(db_session)
+    carrega_prioritats(db_session)
 
     assert constants.ORDRE_PRIORITATS == [[], ["X"]]
     assert constants.CATEGORIES_ACTIVES == [True, True]
-
-
-# ===================================================================
-# CRUD: categories
-# ===================================================================
-
-
-def test_crud_categoria_creada_apareix_a_get(db_session):
-    payload = CategoriaPrioritatCreate(nom="Nova categoria", ordre=0, activa=True)
-    resultat = run(create_categoria(payload, db_session))
-    assert resultat["success"] is True
-
-    resposta = run(get_categories(db_session))
-    noms = [c["nom"] for c in resposta["categories"]]
-    assert "Nova categoria" in noms
-
-
-def test_crud_categoria_update_inexistent_dona_404(db_session):
-    with pytest.raises(HTTPException) as exc_info:
-        run(update_categoria(999999, {"nom": "X"}, db_session))
-    assert exc_info.value.status_code == 404
-
-
-def test_crud_categoria_delete_inexistent_dona_404(db_session):
-    with pytest.raises(HTTPException) as exc_info:
-        run(delete_categoria(999999, db_session))
-    assert exc_info.value.status_code == 404
-
-
-def test_crud_categoria_delete_fa_cascada_sobre_assignatures(db_session):
-    """El comentari del codi diu 'per CASCADE' — es comprova que realment
-    ho fa a nivell de BD (PRAGMA foreign_keys=ON + ondelete='CASCADE')."""
-    payload = CategoriaPrioritatCreate(nom="Amb fills", ordre=0, activa=True)
-    creada = run(create_categoria(payload, db_session))
-    cat_id = creada["id"]
-    AssignaturaPrioritatRepository.create(db_session, "Filla", cat_id, pes=1)
-
-    run(delete_categoria(cat_id, db_session))
-
-    assig_restants = run(get_assignatures_by_categoria(cat_id, db_session))
-    assert assig_restants["assignatures"] == []
-
-
-def test_crud_categories_ordre_swap_funciona(db_session):
-    """Bug corregit: `update_ordre` passava els valors finals fila a fila,
-    cosa que amb la restricció UNIQUE de `ordre` petava en intercanviar dues
-    categories (l'operació normal de "puja"/"baixa" a la UI). Ara passa
-    per un pas intermedi amb valors negatius que no col·lisionen."""
-    c1 = run(create_categoria(CategoriaPrioritatCreate(nom="A", ordre=0), db_session))
-    c2 = run(create_categoria(CategoriaPrioritatCreate(nom="B", ordre=1), db_session))
-
-    run(update_categories_ordre([c2["id"], c1["id"]], db_session))
-
-    categories = run(get_categories(db_session))["categories"]
-    per_id = {c["id"]: c["ordre"] for c in categories}
-    assert per_id[c2["id"]] == 0
-    assert per_id[c1["id"]] == 1
-
-
-# ===================================================================
-# CRUD: assignatures de prioritat
-# ===================================================================
-
-
-def test_crud_assignatura_creada_apareix_a_la_seva_categoria(db_session):
-    cat = run(create_categoria(CategoriaPrioritatCreate(nom="Cat"), db_session))
-    payload = AssignaturaPrioritatCreate(assignatura="Guàrdia", categoria_id=cat["id"], pes=2)
-    creada = run(create_assignatura_prioritat(payload, db_session))
-    assert creada["success"] is True
-
-    resposta = run(get_assignatures_by_categoria(cat["id"], db_session))
-    assert any(a["assignatura"] == "Guàrdia" and a["pes"] == 2 for a in resposta["assignatures"])
-
-
-def test_crud_assignatura_update_inexistent_dona_404(db_session):
-    with pytest.raises(HTTPException) as exc_info:
-        run(update_assignatura_prioritat(999999, {"pes": 5}, db_session))
-    assert exc_info.value.status_code == 404
-
-
-def test_crud_assignatura_delete_inexistent_dona_404(db_session):
-    with pytest.raises(HTTPException) as exc_info:
-        run(delete_assignatura_prioritat(999999, db_session))
-    assert exc_info.value.status_code == 404
-
-
-def test_crud_assignatura_creacio_amb_categoria_inexistent_falla(db_session):
-    """No hi ha validació prèvia a nivell d'aplicació — depèn únicament de
-    la restricció de clau forana de la BD (FK enforcement ON). Es
-    caracteritza el comportament real: no dona un 400 net, deixa pujar
-    l'excepció de SQLAlchemy/SQLite tal qual."""
-    payload = AssignaturaPrioritatCreate(assignatura="Orfe", categoria_id=999999, pes=1)
-    with pytest.raises(IntegrityError):
-        run(create_assignatura_prioritat(payload, db_session))
 
 
 # ===================================================================
@@ -278,7 +142,7 @@ def test_crud_assignatura_creacio_amb_categoria_inexistent_falla(db_session):
 
 
 def test_crud_no_substituir_creat_apareix_a_get(db_session):
-    run(create_no_substituir({"assignatura": "Pati"}, db_session))
+    run(create_no_substituir(NoSubstituirRequest(assignatura="Pati"), db_session))
     resposta = run(get_no_substituir(db_session))
     assert "Pati" in resposta["assignatures"]
 
@@ -287,53 +151,24 @@ def test_crud_no_substituir_string_buit_es_accepta(db_session):
     """El codi accepta explícitament un string buit com a valor vàlid
     (comentari 'Acceptar string buit' a create_no_substituir) — es
     caracteritza tal com és, per estrany que sembli."""
-    resultat = run(create_no_substituir({"assignatura": ""}, db_session))
+    resultat = run(create_no_substituir(NoSubstituirRequest(assignatura=""), db_session))
     assert resultat["success"] is True
 
 
 def test_crud_no_substituir_sense_clau_assignatura_dona_400(db_session):
-    """Sense assignatura, la validació arriba a l'usuari com a 400 (abans un
-    except Exception genèric l'atrapava i la convertia en 500)."""
-    with pytest.raises(HTTPException) as exc_info:
-        run(create_no_substituir({}, db_session))
-    assert exc_info.value.status_code == 400
-    assert "Assignatura requerida" in exc_info.value.detail
+    """Sense assignatura, un NoValid (400 per l'API, errors_servidor.py);
+    abans un except Exception genèric l'atrapava i la convertia en 500."""
+    with pytest.raises(NoValid, match="Assignatura requerida"):
+        run(create_no_substituir(NoSubstituirRequest(), db_session))
 
 
 def test_crud_no_substituir_delete_inexistent_dona_404(db_session):
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(NoTrobat):
         run(delete_no_substituir("No existeix enlloc", db_session))
-    assert exc_info.value.status_code == 404
 
 
 # ===================================================================
 # CRUD: professors de baixa
-# ===================================================================
-
-
-def test_crud_professor_baixa_creat_apareix_a_get(db_session):
-    payload = ProfessorBaixaCreate(
-        professor="Prof X", data_inici="2026-03-01", data_final="2026-03-10", motiu="Formació"
-    )
-    run(create_professor_baixa(payload, db_session))
-
-    resposta = run(get_professors_baixa(db_session))
-    professors = [p["professor"] for p in resposta["professors_baixa"]]
-    assert "Prof X" in professors
-
-
-def test_crud_professor_baixa_update_inexistent_dona_404(db_session):
-    with pytest.raises(HTTPException) as exc_info:
-        run(update_professor_baixa(999999, {"professor": "X"}, db_session))
-    assert exc_info.value.status_code == 404
-
-
-def test_crud_professor_baixa_delete_inexistent_dona_404(db_session):
-    with pytest.raises(HTTPException) as exc_info:
-        run(delete_professor_baixa(999999, db_session))
-    assert exc_info.value.status_code == 404
-
-
 # ===================================================================
 # desar_totes_prioritats: reemplaça tot i recarrega les constants
 # ===================================================================
@@ -341,9 +176,9 @@ def test_crud_professor_baixa_delete_inexistent_dona_404(db_session):
 
 def test_desar_tot_reemplaca_categories_existents(db_session):
     # Estat inicial: una categoria que hauria de desaparèixer.
-    run(create_categoria(CategoriaPrioritatCreate(nom="Vella"), db_session))
+    CategoriaPrioritatRepository.create(db_session, "Vella", ordre=0)
 
-    payload = PrioritatsCompletesUpdate(
+    payload = PrioritatsRequest(
         ordre_categories=[["Reforç-A"], ["Guàrdia", "Guàrdia-R"]],
         pesos={"Reforç-A": 1, "Guàrdia": 6, "Guàrdia-R": 3},
         categories_actives=[True, False],
@@ -358,21 +193,21 @@ def test_desar_tot_reemplaca_categories_existents(db_session):
 
 
 def test_desar_tot_recarrega_les_constants_globals(db_session):
-    payload = PrioritatsCompletesUpdate(
+    payload = PrioritatsRequest(
         ordre_categories=[["Reforç-A"]],
         pesos={"Reforç-A": 1},
         categories_actives=[True],
     )
     run(desar_totes_prioritats(payload, db_session))
 
-    # _recarregar_prioritats_desde_bd() s'ha cridat internament: les
+    # carrega_prioritats() s'ha cridat internament: les
     # constants globals han de reflectir el que s'acaba de desar.
     assert constants.ORDRE_PRIORITATS == [["Reforç-A"]]
     assert constants.PRIORITATS == {"Reforç-A": 1}
 
 
 def test_desar_tot_categoria_amb_una_sola_assignatura_pren_el_seu_nom(db_session):
-    payload = PrioritatsCompletesUpdate(
+    payload = PrioritatsRequest(
         ordre_categories=[["Sol"]],
         pesos={"Sol": 1},
         categories_actives=[True],
@@ -387,7 +222,7 @@ def test_desar_tot_categoria_amb_diverses_assignatures_concatena_les_dues_primer
     """Caracteritza el comportament real de generació del nom (no
     necessàriament l'ideal): `", ".join(assignatures_list[:2])` — només
     les DUES primeres, encara que la categoria en tingui més."""
-    payload = PrioritatsCompletesUpdate(
+    payload = PrioritatsRequest(
         ordre_categories=[["Un", "Dos", "Tres"]],
         pesos={"Un": 1, "Dos": 1, "Tres": 1},
         categories_actives=[True],
@@ -401,7 +236,7 @@ def test_desar_tot_categoria_amb_diverses_assignatures_concatena_les_dues_primer
 def test_desar_tot_categoria_buida_a_ordre_categories_es_salta(db_session):
     """Una llista d'assignatures buida dins ordre_categories no crea cap
     categoria (`if not assignatures_list: continue`)."""
-    payload = PrioritatsCompletesUpdate(
+    payload = PrioritatsRequest(
         ordre_categories=[[], ["Real"]],
         pesos={"Real": 1},
         categories_actives=[True, True],
@@ -411,3 +246,40 @@ def test_desar_tot_categoria_buida_a_ordre_categories_es_salta(db_session):
     categories = run(get_categories(db_session))["categories"]
     assert len(categories) == 1
     assert categories[0]["nom"] == "Real"
+
+
+def test_els_repositoris_de_prioritats_no_fan_commit(db_session):
+    """El commit el fa el servei, un cop per operació: sense, no es desa res."""
+    cat = CategoriaPrioritatRepository.create(db_session, "Sense commit", ordre=0)
+    AssignaturaPrioritatRepository.create(db_session, "Guàrdia", cat, pes=2)
+    NoSubstituirRepository.create(db_session, "Reunió")
+    db_session.rollback()
+    assert CategoriaPrioritatRepository.get_all(db_session) == []
+    assert AssignaturaPrioritatRepository.get_all(db_session) == []
+    assert NoSubstituirRepository.get_all(db_session) == []
+
+
+def test_una_categoria_sense_ordre_va_al_final_sense_xocar(db_session):
+    # Ordres que no comencen per 0 (com les de suport_api): comptar-les donava
+    # l'ordre d'una que ja existeix, i la restricció UNIQUE petava
+    CategoriaPrioritatRepository.create(db_session, "Primera", ordre=1)
+    CategoriaPrioritatRepository.create(db_session, "Segona", ordre=2)
+    CategoriaPrioritatRepository.create(db_session, "Nova")
+    db_session.commit()
+    assert [(c["nom"], c["ordre"]) for c in CategoriaPrioritatRepository.get_all(db_session)] == [
+        ("Primera", 1),
+        ("Segona", 2),
+        ("Nova", 3),
+    ]
+
+
+def test_una_assignatura_sense_ordre_va_al_final_de_la_seva_categoria(db_session):
+    cat = CategoriaPrioritatRepository.create(db_session, "Cat", ordre=0)
+    AssignaturaPrioritatRepository.create(db_session, "A", cat, ordre=0)
+    AssignaturaPrioritatRepository.create(db_session, "B", cat, ordre=5)
+    AssignaturaPrioritatRepository.create(db_session, "C", cat)
+    altra = CategoriaPrioritatRepository.create(db_session, "Altra", ordre=1)
+    AssignaturaPrioritatRepository.create(db_session, "D", altra)
+    db_session.commit()
+    ordres = {a["assignatura"]: a["ordre"] for a in AssignaturaPrioritatRepository.get_all(db_session)}
+    assert ordres == {"A": 0, "B": 5, "C": 6, "D": 0}

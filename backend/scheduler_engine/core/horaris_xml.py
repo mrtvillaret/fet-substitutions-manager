@@ -1,5 +1,6 @@
 """Lectura de l'horari dels professors des de l'XML de FET."""
 
+from noms import nom_net
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from utils.hores import normalitzar_hora
 
@@ -8,10 +9,10 @@ def horaris_professors(root, ultim_professor: str = "", normalitza_hores: bool =
     """{professor: {dia: {hora: {'assignatura', 'grup'}}}} de les hores amb
     classe o activitat. Els professors van en l'ordre de l'XML fins a
     `ultim_professor` inclòs (el límit de "Configuració"); buit, tots."""
-    ultim = (ultim_professor or "").strip()
+    ultim = nom_net(ultim_professor or "")
     horaris = {}
     for teacher in root.findall("Teacher"):
-        nom = teacher.get("name").strip()
+        nom = nom_net(teacher.get("name"))
         horaris[nom] = {}
         for day in teacher.findall("Day"):
             dia = normalitzar_dia(day.get("name"))
@@ -23,7 +24,7 @@ def horaris_professors(root, ultim_professor: str = "", normalitza_hores: bool =
                 if (act is not None and act.get("id")) or sub is not None:
                     students = hour.find("Students")
                     horaris[nom][dia][hora] = {
-                        "assignatura": sub.get("name") if sub is not None else "",
+                        "assignatura": nom_net(sub.get("name")) if sub is not None else "",
                         "grup": students.get("name") if students is not None else "",
                     }
         if ultim and nom == ultim:

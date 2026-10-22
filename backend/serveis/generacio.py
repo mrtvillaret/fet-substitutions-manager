@@ -13,9 +13,9 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
+from prioritats.repositories import NoSubstituirRepository
 from repositories import (
     GrupsAlliberatsRepository,
-    NoSubstituirRepository,
     SubstitucioRepository,
     VigilanciaRepository,
 )
@@ -262,7 +262,6 @@ def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir
     # Les files amb substitut es conserven (només en mode pendents)
     desats = {} if regenerar_tot else {clau_fila(s): s for s in estat.files if s.get("substitut")}
 
-    substitucions_mgr.data_substitucions = data  # per filtrar professors de baixa
     files_motor = [
         s
         for s in substitucions_mgr.assignar_substitucions(

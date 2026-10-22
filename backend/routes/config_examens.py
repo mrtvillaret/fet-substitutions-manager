@@ -20,6 +20,7 @@ from helpers import (
     get_vigilancies_afinitats,
     save_vigilancies_afinitats,
 )
+from noms import NomNet, neteja_noms, nom_net
 from repositories import (
     AbreviaturaGrupRepository,
     ConfiguracioExamenRepository,
@@ -227,7 +228,7 @@ async def get_aules(db: Session = Depends(get_db)):
 @router.post("/aules")
 async def add_aula(aula: Dict[str, str], db: Session = Depends(get_db)):
     """Afegeix una aula"""
-    codi = aula.get("codi")
+    codi = nom_net(aula.get("codi"))
     if not codi:
         raise HTTPException(status_code=400, detail="Codi d'aula requerit")
 
@@ -310,7 +311,7 @@ async def get_assignacions_obsoletes(
 
 
 @router.get("/assignacions/{assignatura}")
-async def get_assignacions_by_assignatura(assignatura: str, db: Session = Depends(get_db)):
+async def get_assignacions_by_assignatura(assignatura: NomNet, db: Session = Depends(get_db)):
     """Retorna assignacions d'una assignatura específica"""
     assignacions = ConfiguracioExamenRepository.get_by_assignatura(db, assignatura)
     return {"assignacions": assignacions}
@@ -319,6 +320,7 @@ async def get_assignacions_by_assignatura(assignatura: str, db: Session = Depend
 @router.post("/assignacions")
 async def create_assignacio(assignacio: Dict, db: Session = Depends(get_db)):
     """Crea una nova assignació professor-titular"""
+    assignacio = neteja_noms(assignacio, "assignatura", "titular", "aula")
     assignatura = assignacio.get("assignatura")
     grup = assignacio.get("grup")
     titular = assignacio.get("titular", "")
@@ -340,6 +342,7 @@ async def create_assignacio(assignacio: Dict, db: Session = Depends(get_db)):
 @router.put("/assignacions/{assignacio_id}")
 async def update_assignacio(assignacio_id: int, assignacio: Dict, db: Session = Depends(get_db)):
     """Actualitza una assignació existent"""
+    assignacio = neteja_noms(assignacio, "titular", "aula")
     titular = assignacio.get("titular", "")
     aula = assignacio.get("aula", "")
 
@@ -517,7 +520,7 @@ async def importar_assignacions_dry_run(
     """Calcula què faria una importació (nivells/grups/assignatures/aules/
     assignacions que es crearien) SENSE escriure res, perquè es pugui mostrar
     un resum previ abans de confirmar."""
-    propostes = payload.get("propostes", [])
+    propostes = [neteja_noms(p, "assignatura", "titular", "aula") for p in payload.get("propostes", [])]
     overwrite = bool(payload.get("overwrite"))
     return _calcula_impacte_assignacions(db, propostes, overwrite)
 
@@ -535,7 +538,7 @@ async def importar_assignacions(payload: Dict, db: Session = Depends(get_db), cu
     if payload.get("overwrite"):
         _esborra_tota_configuracio_examens(db)
 
-    propostes = payload.get("propostes", [])
+    propostes = [neteja_noms(p, "assignatura", "titular", "aula") for p in payload.get("propostes", [])]
     nivells_creats = []
     grups_creats = []
     assignatures_creades = []
@@ -733,7 +736,8 @@ def _llegeix_csv(file: UploadFile, contingut: bytes):
             detail=f"El CSV ha de tenir com a mínim una d'aquestes columnes: {', '.join(sorted(columnes_conegudes))}",
         )
 
-    return list(enumerate(reader, start=2))  # línia 1 = capçalera
+    # línia 1 = capçalera; els noms, nets (noms.py)
+    return [(n, neteja_noms(fila, "assignatura", "titular", "aula")) for n, fila in enumerate(reader, start=2)]
 
 
 @router.post("/importar-assignacions-csv/dry-run")

@@ -316,13 +316,13 @@ class Config:
         """Recalcula les prioritats, nivells i abreviatures globals després de canviar d'institució"""
         try:
             from database import get_data_db_session
-            from routes.prioritats import _recarregar_prioritats_desde_bd
+            from prioritats.services import carrega_prioritats
             from utils.grups_utils import invalidar_cache_abreviatures
 
             instit = self.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or self.detectar_institucio()
             if instit:
                 with get_data_db_session(instit) as db:
-                    _recarregar_prioritats_desde_bd(db)
+                    carrega_prioritats(db)
 
             # Invalidar cache d'abreviatures per forçar nova lectura
             invalidar_cache_abreviatures()

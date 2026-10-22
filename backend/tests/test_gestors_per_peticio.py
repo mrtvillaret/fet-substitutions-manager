@@ -5,8 +5,6 @@ hi fixa el seu estat (data, vigilants...) i compartits entre peticions es
 podrien trepitjar.
 """
 
-from datetime import date
-
 from suport_api import nova_institucio
 
 from helpers import get_gestors
@@ -30,7 +28,6 @@ def test_la_data_d_una_crida_no_afecta_una_altra():
     subs_2, _, alliberats_2, _ = get_gestors(centre, data_iso="2026-04-21")
     subs_2.professors_ocupats_examens = {"10:00": {"Prof 21"}}
 
-    assert alliberats_1.data_actual == date(2026, 4, 20)
-    assert alliberats_2.data_actual == date(2026, 4, 21)
+    assert alliberats_1 is not alliberats_2
     subs_3, _, _, _ = get_gestors(centre, data_iso="2026-04-20")
     assert subs_3.professors_ocupats_examens == {}
