@@ -93,8 +93,8 @@ def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
     # perquè el resultat NO depengui de l'ordre d'entrada de dades (abans calia editar
     # l'hora manualment perquè es netegés).
     try:
-        from repositories import VigilanciaRepository
         from serveis.cobertures import refresca_cobertures
+        from vigilancies.repositories import VigilanciaRepository
 
         vig_dict = VigilanciaRepository.get_by_date(db, data)
         hores_amb_vig = {

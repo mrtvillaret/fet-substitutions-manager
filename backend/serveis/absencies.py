@@ -7,10 +7,11 @@ absent. Després es treuen els substituts que ja no poden ser-ho.
 from datetime import datetime
 
 from helpers import get_gestors
-from repositories import SubstitucioRepository, VigilanciaRepository
+from repositories import SubstitucioRepository
 from serveis.cobertures import refresca_cobertures
 from serveis.dia_escolar import treu_substituts_no_valids
 from serveis.vigilancia_absent import sincronitzar_vigilancies_absents
+from vigilancies.repositories import VigilanciaRepository
 
 
 def canvia_tipus_cobertures(db, data: str, professor: str, hores, de: str, a: str) -> set:

@@ -215,13 +215,13 @@
       "abbrevAdded": "Abbreviation added successfully",
       "abbrevUpdated": "Abbreviation updated successfully",
       "abbrevDeleted": "Abbreviation deleted successfully",
-      "detectedCount": "Detected {count} groups from the XML",
+      "detectedCount": "Detected {count} group from the XML | Detected {count} groups from the XML",
       "groupsLabel": "School groups",
       "hideHint": "All timetable groups are shown. Click the ones you do NOT want in \"groups without class\" (e.g. primary or pre-school) to hide them. Hidden ones are struck through.",
       "xmlContext": "Configuring against the timetable in effect on {data}",
       "xmlVersion": "version from {versio}",
       "showAllBtn": "Show all",
-      "hiddenCount": "{n} hidden",
+      "hiddenCount": "{n} hidden | {n} hidden",
       "saveHidden": "Save",
       "hiddenSaved": "Hidden groups saved",
       "hiddenSaveError": "Could not save hidden groups"
@@ -275,7 +275,7 @@
       "freeableHint": "Activities without a group (e.g. Support, a teaching team) shown as rows in “Freed groups and teachers”. Freeing one frees the teachers doing it at that hour, for one day or from a day onwards.",
       "freeableDefault": "freed until it has students",
       "freeableDefaultHint": "If ticked (e.g. Support), whoever does the activity is freed without marking anything; in “Freed groups and teachers” you mark the slots that already have students.",
-      "noSubstCount": "{count} subjects",
+      "noSubstCount": "{count} subject | {count} subjects",
       "generateAllDaysPDF": "📄 Generate PDF for All Days",
       "pdfGenerated": "PDF generated successfully",
       "startDate": "From day",
@@ -290,8 +290,8 @@
       "categoryPlaceholder": "e.g. Reinforcement, free",
       "subjectsCommaHint": "Separate multiple subjects with commas",
       "addSubjectTitle": "Subjects in category {index}",
-      "categoryAdded": "Category added with {count} subjects",
-      "deleteCategoryConfirm": "Delete category {index} with {count} subjects?",
+      "categoryAdded": "Category added with {count} subject | Category added with {count} subjects",
+      "deleteCategoryConfirm": "Delete category {index} with {count} subject? | Delete category {index} with {count} subjects?",
       "categoryDeleted": "Category deleted",
       "subjectDuplicate": "\"{subject}\" already exists in category {index}",
       "subjectAdded": "\"{subject}\" added to category {index}",
@@ -427,10 +427,10 @@
       "resultErrors": "With errors: {errors}",
       "errorSummary": "Error",
       "successSummary": "Purge completed",
-      "successDetail": "{n} records deleted",
+      "successDetail": "{n} record deleted | {n} records deleted",
       "warnXmlActive": "The XML version starting {start} is the ACTIVE one (covers the present). It is kept locked: deleting it would leave the app without a timetable.",
       "warnXmlExtends": "The XML version {start} → {end} extends outside the interval. It is kept locked to avoid affecting dates outside it.",
-      "warnPdfsManual": "{n} PDFs (management/staff reports) have no date in their name and will NOT be deleted automatically; review them manually.",
+      "warnPdfsManual": "{n} PDF (management/staff reports) has no date in its name and will NOT be deleted automatically; review it manually. | {n} PDFs (management/staff reports) have no date in their name and will NOT be deleted automatically; review them manually.",
       "anonTitle": "Rename teacher",
       "anonDescription": "Rename a teacher no longer in the timetable (inactive) to remove their identity from historical records, keeping the counts. Covers the right to erasure.",
       "anonSelect": "Teacher to anonymise",
@@ -441,7 +441,7 @@
       "anonConfirmHeader": "Confirm rename",
       "anonConfirmMessage": "«{old}» will be renamed to «{new}» in all records. Continue?",
       "anonSuccessSummary": "Teacher renamed",
-      "anonSuccessDetail": "{n} records updated",
+      "anonSuccessDetail": "{n} record updated | {n} records updated",
       "anonAccept": "Yes, rename",
       "course": "School year",
       "coursePlaceholder": "Choose a school year to fill in the dates",
@@ -449,7 +449,7 @@
       "plannerLast": "Planner's last timetable ({start} → {end})",
       "warnAbsenceExtends": "The covered absence of {prof} ({start} → {end}) extends beyond the range and will be deleted entirely.",
       "warnPlannerExtends": "The planner's last timetable ({start} → {end}) extends beyond the range and will be deleted entirely.",
-      "resultPlanner": "Planner: {n} dates removed.",
+      "resultPlanner": "Planner: {n} date removed. | Planner: {n} dates removed.",
       "resultPlannerLast": "The last saved timetable was also deleted."
     }
   },
@@ -532,7 +532,7 @@
     "range": {
       "onlyToday": "Today only",
       "until": "Until",
-      "summary": "{count} school days",
+      "summary": "{count} school day | {count} school days",
       "daysRegistered": "days registered for {teacher}"
     },
     "dialogs": {
@@ -564,7 +564,7 @@
         "critical": "🚨 CRITICAL:",
         "warnings": "⚠️ WARNINGS:",
         "appliedChanges": "🔄 APPLIED CHANGES:",
-        "totalIssues": "Total: {count} issues detected",
+        "totalIssues": "Total: {count} issue detected | Total: {count} issues detected",
         "continueQuestion": "🔍 Do you want to continue with the PDF export?",
         "reassign": "Reassign"
       },
@@ -573,24 +573,11 @@
         "includeContent": "Content to include",
         "substitutions": "Substitutions",
         "vigilancies": "Supervisions",
-        "format": "Format",
-        "formatHours": "By hour (one section per hour)",
-        "formatDay": "Day table (one table, invigilations within each hour)",
-        "options": "Export options",
-        "showComments": "Show observations",
-        "showHours": "Show hours column",
-        "showConflicts": "Show conflicts and warnings",
-        "compress": "Automatic compression",
         "blankRows": "Leave space for handwriting",
         "blankRowsHint": "Shows the hours where substitutions may be needed (classes with visible groups or activities not in “Do not substitute”) with blank rows, to add some by hand after printing.",
         "selectAtLeastOne": "⚠️ You must select at least one content type (substitutions or supervisions)",
         "selectAtLeastOneShort": "You must select at least one content type",
-        "generate": "Generate PDF",
-        "fontSize": "Font size",
-        "fontNormal": "Normal",
-        "fontLarge": "Large",
-        "fontLarger": "Extra large",
-        "fontSizeOnlyDay": "Only for the “Day table” format"
+        "generate": "Generate PDF"
       }
     },
     "confirm": {
@@ -611,11 +598,11 @@
       "allAbsencesDeleted": "All absences of {teacher} deleted",
       "absencesSaved": "Absences for {teacher} updated",
       "vigilanciesUnassignedTitle": "Supervisions added to substitutions",
-      "vigilanciesUnassignedDetail": "{count} SUPERVISION substitution(s) have been created to cover the absent teacher's exam duties.",
+      "vigilanciesUnassignedDetail": "{count} SUPERVISION substitution has been created to cover the absent teacher's exam duties. | {count} SUPERVISION substitutions have been created to cover the absent teacher's exam duties.",
       "pdfGeneratedTitle": "PDF generated",
       "pdfGeneratedDetail": "Downloaded full PDF for {date}",
       "reassignSubstitutionsTitle": "Substitutions reassigned",
-      "reassignSubstitutionsDetail": "Reviewed {count} problematic substitutions",
+      "reassignSubstitutionsDetail": "Reviewed {count} problematic substitution | Reviewed {count} problematic substitutions",
       "reassignDoneTitle": "Reassignment done",
       "reassignDoneDetail": "There are still issues. Review the list.",
       "substituteMoved": "{name} has been moved here; {absent}'s substitution is now pending"
@@ -654,7 +641,7 @@
       "affinities": "🧭 Affinities"
     },
     "levels": {
-      "count": "{count} levels",
+      "count": "{count} level | {count} levels",
       "empty": "No levels configured",
       "hint": "Levels define the organizational structure (1-ESO, 2-ESO, 1-BACH, etc.)",
       "addTitle": "➕ Add level",
@@ -687,7 +674,7 @@
       "deleteConfirmMessage": "Do you want to delete subject \"{name}\"?"
     },
     "rooms": {
-      "count": "{count} rooms",
+      "count": "{count} room | {count} rooms",
       "empty": "No rooms configured",
       "addTitle": "➕ Add room",
       "codeLabel": "Room code",
@@ -712,18 +699,19 @@
       "deleteConfirmMessage": "Do you want to delete this assignment?",
       "deleteFiltered": "Delete filtered",
       "deleteAll": "Delete all",
-      "deleteFilteredConfirmMessage": "Delete the {count} assignments shown with the current filter?",
-      "deleteAllConfirmMessage": "Delete ALL {count} assignments? This action cannot be undone.",
+      "deleteFilteredConfirmMessage": "Delete the assignment shown with the current filter? | Delete the {count} assignments shown with the current filter?",
+      "deleteAllConfirmMessage": "Delete the only assignment? This action cannot be undone. | Delete ALL {count} assignments? This action cannot be undone.",
       "obsolete": {
-        "text": "There are {count} assignments with a group or teacher that is no longer in the current timetable (probably from a previous year):",
+        "text": "There is {count} assignment with a group or teacher that is no longer in the current timetable (probably from a previous year): | There are {count} assignments with a group or teacher that is no longer in the current timetable (probably from a previous year):",
         "reason": {
           "grup": "the group no longer exists",
           "titular": "the teacher is no longer there"
         },
         "remove": "Remove them",
-        "confirm": "{count} assignments that no longer match the current timetable will be removed. Existing invigilations and substitutions are not affected.",
-        "removed": "{count} assignments removed"
-      }
+        "confirm": "{count} assignment that no longer matches the current timetable will be removed. Existing invigilations and substitutions are not affected. | {count} assignments that no longer match the current timetable will be removed. Existing invigilations and substitutions are not affected.",
+        "removed": "{count} assignment removed | {count} assignments removed"
+      },
+      "filterRoom": "Filter by room:"
     },
     "import": {
       "tabIntro": "Import exam configuration (levels, groups, subjects, rooms and who teaches what) from the active timetable, or from a CSV exported earlier.",
@@ -735,13 +723,13 @@
       "helpText": "Proposed assignments are based on who teaches each subject to each group in the active timetable. Review and edit before confirming; only checked rows will be imported.",
       "selectedCount": "{selected} selected of {total} proposals",
       "filteredCount": "{count} with current filter",
-      "levelsSelected": "{count} levels",
-      "subjectsSelected": "{count} subjects",
+      "levelsSelected": "{count} level | {count} levels",
+      "subjectsSelected": "{count} subject | {count} subjects",
       "status": "Status",
       "alreadyExists": "Already exists",
       "newProposal": "New",
       "previouslyDismissed": "Previously dismissed",
-      "confirmButton": "Import {count} selected",
+      "confirmButton": "Import {count} selected | Import {count} selected",
       "errorPreview": "Could not generate import proposals",
       "errorApply": "Could not complete the import",
       "exportCsv": "Export CSV",
@@ -756,7 +744,7 @@
       "confirmImport": "Confirm the import",
       "doneBrief": "Imported {nivells} levels, {grups} groups, {assignatures} subjects, {aules} rooms and {assignacions} assignments.",
       "summaryTitle": "✅ Import summary",
-      "alreadyExistedCount": "{count} assignments already existed and were not duplicated."
+      "alreadyExistedCount": "{count} assignment already existed and was not duplicated. | {count} assignments already existed and were not duplicated."
     },
     "affinities": {
       "title": "Proximity order by group prefix",
@@ -803,12 +791,21 @@
       "exportPdfHint": "Generate PDF for the day",
       "exportInterval": "Interval PDF",
       "exportIntervalHint": "Generate PDF for a date interval",
-      "addRow": "Add supervision"
+      "duplicateRow": "Duplicate invigilation"
     },
     "filters": {
       "level": "Filter by level",
       "hour": "Filter by hour",
-      "status": "Status"
+      "status": "Status",
+      "room": "Filter by room",
+      "levelAll": "Level: all",
+      "levelValue": "Level: {valor}",
+      "hourAll": "Hour: all",
+      "hourValue": "Hour: {valor}",
+      "statusAll": "Status: all",
+      "statusValue": "Status: {valor}",
+      "roomAll": "Room: all",
+      "roomValue": "Room: {valor}"
     },
     "stats": {
       "assigned": "Assigned",
@@ -836,11 +833,6 @@
       "levelsLabel": "Levels to include *",
       "levelsPlaceholder": "Select levels",
       "levelsHint": "Select the levels to include in the PDF",
-      "options": "Options",
-      "showComments": "Show observations column",
-      "showHours": "Show hours column",
-      "showHoursShort": "Show hours",
-      "compress": "Automatic compression",
       "generatePdf": "Generate PDF",
       "intervalTitle": "📅 Export interval PDF",
       "startDateLabel": "Start date *",
@@ -855,22 +847,24 @@
       "deleteMessage": "Do you want to delete the supervision at {hour}?",
       "assignAvailableMessage": "📋 Assigned {assigned} freed teachers.\n\n{pending} supervisions are still pending.\n\nDo you want to assign available teachers too (duty, free, etc.)?",
       "assignAvailableTitle": "Assign available?",
-      "assignAvailableAccept": "✅ Yes, assign {count} available",
+      "assignAvailableAccept": "✅ Yes, assign {count} available | ✅ Yes, assign {count} available",
       "assignAvailableReject": "❌ No, leave pending",
       "clearMessage": "🗑️ Do you want to clear all supervisor assignments?\n\nOnly assigned teachers will be removed, keeping subjects and rooms.",
       "clearTitle": "Confirm clearing",
       "clearAccept": "Yes, clear",
-      "deleteSelectedMessage": "Do you want to delete the {count} selected supervisions?"
+      "deleteSelectedMessage": "Do you want to delete the selected supervision? | Do you want to delete the {count} selected supervisions?",
+      "sortManualTitle": "Sort the invigilations?",
+      "sortManualMessage": "Manual changes to the order will be lost. Sort anyway?"
     },
     "messages": {
       "updated": "Supervision updated successfully",
       "added": "Supervision added successfully",
       "deleted": "Supervision deleted successfully",
-      "deletedSelected": "{count} supervisions deleted successfully",
+      "deletedSelected": "{count} supervision deleted successfully | {count} supervisions deleted successfully",
       "deletedSelectedPartial": "{ok} supervisions deleted, {errors} errors",
       "assignOwnersTitle": "Assignment completed",
       "assignedFreeTitle": "Freed assigned",
-      "assignedFreeDetail": "✅ Assigned {count} freed teachers",
+      "assignedFreeDetail": "✅ Assigned {count} freed teacher | ✅ Assigned {count} freed teachers",
       "availableAssignedTitle": "Available assigned",
       "allAssignedTitle": "All assigned",
       "allAssignedDetail": "🎉 All supervisions are assigned!",
@@ -879,7 +873,8 @@
       "pdfGeneratedTitle": "PDF generated",
       "pdfGeneratedDetail": "The PDF was downloaded successfully",
       "pdfIntervalTitle": "PDF generated",
-      "pdfIntervalDetail": "The interval PDF was downloaded successfully"
+      "pdfIntervalDetail": "The interval PDF was downloaded successfully",
+      "orderChanged": "The rows of this hour had changed: they have been reloaded."
     },
     "errors": {
       "load": "Error loading supervisions",
@@ -898,7 +893,40 @@
       "levelsRequired": "You must select at least one level",
       "dateFormatTitle": "Format error",
       "dateFormat": "Selected dates are not valid",
-      "generatePdfInterval": "Could not generate interval PDF"
+      "generatePdfInterval": "Could not generate interval PDF",
+      "order": "The order of the rows could not be saved"
+    },
+    "freeHourOwners": {
+      "title": "1 exam owner was not assigned because they had a free period. Decide whether to put them in their row: | {count} exam owners were not assigned because they had a free period. Decide whether to put them in their rows:",
+      "assign": "Assign",
+      "assigned": "Owner assigned",
+      "conflict": "Someone changed this supervision: it has been reloaded."
+    },
+    "withoutOwner": {
+      "title": "1 supervision has no owner defined in the exam settings: | {count} supervisions have no owner defined in the exam settings:",
+      "cap_fila_grup": "no row for the group",
+      "diversos_titulars": "several possible owners: set each teacher's room so it is defined (assigned anyway)",
+      "openConfig": "Open exam settings"
+    },
+    "table": {
+      "selectAll": "Select all invigilations",
+      "selectBlock": "Select the invigilations at {hora}",
+      "selectRow": "Select the invigilation at {hora}",
+      "rowsInBlock": "{count} invigilation | {count} invigilations",
+      "dragHandle": "Drag to change the order within the hour",
+      "moveUp": "Move row up",
+      "moveDown": "Move row down",
+      "orderDisabledByFilter": "Rows cannot be reordered while a filter is set. Clear the filters to drag them."
+    },
+    "help": {
+      "title": "What {nom} has at this hour",
+      "loading": "Loading...",
+      "error": "The help could not be loaded.",
+      "invigilationsDay": "{count} invigilation this day | {count} invigilations this day"
+    },
+    "form": {
+      "title": "New invigilation",
+      "optional": "optional"
     }
   },
   "help": {
@@ -1134,8 +1162,8 @@
       "daysWithVigs": "Days with supervisions",
       "perTeacher": "Detail by teacher",
       "perTeacherHint": "Click a teacher to see the day-by-day detail",
-      "substitutionsDetail": "{count} substitutions ({percent}%)",
-      "vigilanciesDetail": "{count} assigned ({percent}%)",
+      "substitutionsDetail": "{count} substitution ({percent}%) | {count} substitutions ({percent}%)",
+      "vigilanciesDetail": "{count} assigned ({percent}%) | {count} assigned ({percent}%)",
       "topAbsences": "Top 5 absences",
       "topSubstitutions": "Top 5 substitutions"
     },
@@ -1344,7 +1372,7 @@
       "levelConflictsDetected": "Level conflicts detected",
       "pinAll": "Pin all",
       "unpinAll": "Unpin all",
-      "pinCount": "{count} pinned",
+      "pinCount": "{count} pinned | {count} pinned",
       "pin": "Pin",
       "unpin": "Unpin",
       "actions": {
@@ -1503,7 +1531,7 @@
       },
       "messages": {
         "configSaved": "Configuration saved",
-        "vigilanciesPublished": "Published {count} vigilancies",
+        "vigilanciesPublished": "Published {count} supervision | Published {count} supervisions",
         "scheduleUpdated": "Schedule updated",
         "localChangesApplied": "Changes were applied locally",
         "notViable": "Not viable",
@@ -1512,7 +1540,7 @@
       "staleSubjects": {
         "text": "Some restrictions contain subjects that are no longer in the exam configuration (from a previous year or before a level was renamed) and do not apply to any exam:",
         "remove": "Remove them from the restrictions",
-        "removed": "{count} subjects removed from the restrictions"
+        "removed": "{count} subject removed from the restrictions | {count} subjects removed from the restrictions"
       },
       "previousCourse": "The selected dates belong to {cursos}, before the current year ({actual}). The planner uses the current year's exam configuration and cannot publish them. Invigilations from previous years can be viewed in Invigilations.",
       "lastResult": "This is the last schedule generated or edited ({data}). If you have changed the configuration or the dates, generate again.",
@@ -1824,5 +1852,20 @@
         "optionalName": "Name (optional)"
       }
     }
+  },
+  "pdfOptions": {
+    "format": "Format",
+    "formatHours": "By hour (one section per hour)",
+    "formatDay": "Day table (a single table, with the hour in the first column)",
+    "fontSize": "Font size",
+    "fontNormal": "Normal",
+    "fontLarge": "Large",
+    "fontLarger": "Extra large",
+    "options": "Export options",
+    "showComments": "Show observations",
+    "showHours": "Show hours column (by hour only)",
+    "compress": "Automatic compression",
+    "showConflicts": "Show conflicts and warnings",
+    "dayPerPage": "Each day on a new page"
   }
 }

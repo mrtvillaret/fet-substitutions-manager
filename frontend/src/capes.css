@@ -1,0 +1,6 @@
+/* Ordre de les capes CSS: s'ha de declarar abans de carregar el tema.
+   El reinici de l'aplicació (* { margin: 0; padding: 0 }, a App.vue) va a la
+   capa `reset`, per sota de la del tema (`primevue`): així els components de
+   PrimeVue (diàlegs, avisos, toasts...) conserven els seus espais interiors.
+   Els estils de l'aplicació que no són en cap capa guanyen a totes dues. */
+@layer reset, primevue;

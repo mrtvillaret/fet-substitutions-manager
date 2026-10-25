@@ -215,13 +215,13 @@
       "abbrevAdded": "Abbreviazione aggiunta correttamente",
       "abbrevUpdated": "Abbreviazione aggiornata correttamente",
       "abbrevDeleted": "Abbreviazione eliminata correttamente",
-      "detectedCount": "Rilevati {count} gruppi dall'XML",
+      "detectedCount": "Rilevato {count} gruppo dall'XML | Rilevati {count} gruppi dall'XML",
       "groupsLabel": "Gruppi della scuola",
       "hideHint": "Vengono mostrati tutti i gruppi dell'orario. Clicca su quelli che NON vuoi nei \"gruppi senza lezione\" (es. primaria o infanzia) per nasconderli. Quelli nascosti sono barrati.",
       "xmlContext": "Configurazione rispetto all'orario in vigore il {data}",
       "xmlVersion": "versione del {versio}",
       "showAllBtn": "Mostra tutti",
-      "hiddenCount": "{n} nascosti",
+      "hiddenCount": "{n} nascosto | {n} nascosti",
       "saveHidden": "Salva",
       "hiddenSaved": "Gruppi nascosti salvati",
       "hiddenSaveError": "Impossibile salvare i gruppi nascosti"
@@ -275,7 +275,7 @@
       "freeableHint": "Attività senza gruppo (es. Recupero, un team docente) che compaiono come righe in «Gruppi e docenti liberi». Liberarne una libera i docenti che la svolgono a quell'ora, per un giorno o a partire da un giorno.",
       "freeableDefault": "libera finché non ha studenti",
       "freeableDefaultHint": "Se selezionato (es. Recupero), chi svolge l'attività è libero senza segnare nulla; in «Gruppi e docenti liberi» si segnano le fasce che hanno già studenti.",
-      "noSubstCount": "{count} materie",
+      "noSubstCount": "{count} materia | {count} materie",
       "generateAllDaysPDF": "📄 Genera PDF per tutti i giorni",
       "pdfGenerated": "PDF generato correttamente",
       "startDate": "Dal giorno",
@@ -290,8 +290,8 @@
       "categoryPlaceholder": "es. Potenziamento, libero",
       "subjectsCommaHint": "Separa più materie con virgole",
       "addSubjectTitle": "Materie nella categoria {index}",
-      "categoryAdded": "Categoria aggiunta con {count} materie",
-      "deleteCategoryConfirm": "Eliminare la categoria {index} con {count} materie?",
+      "categoryAdded": "Categoria aggiunta con {count} materia | Categoria aggiunta con {count} materie",
+      "deleteCategoryConfirm": "Eliminare la categoria {index} con {count} materia? | Eliminare la categoria {index} con {count} materie?",
       "categoryDeleted": "Categoria eliminata",
       "subjectDuplicate": "\"{subject}\" esiste già nella categoria {index}",
       "subjectAdded": "\"{subject}\" aggiunto alla categoria {index}",
@@ -430,10 +430,10 @@
       "resultErrors": "Con errori: {errors}",
       "errorSummary": "Errore",
       "successSummary": "Eliminazione completata",
-      "successDetail": "{n} record eliminati",
+      "successDetail": "{n} record eliminato | {n} record eliminati",
       "warnXmlActive": "La versione XML che inizia il {start} è quella ATTIVA (copre il presente). Viene mantenuta bloccata: eliminarla lascerebbe l'app senza orario.",
       "warnXmlExtends": "La versione XML {start} → {end} si estende oltre l'intervallo. Viene mantenuta bloccata per evitare di interessare date fuori da esso.",
-      "warnPdfsManual": "{n} PDF (report di direzione/personale) non hanno una data nel nome e NON verranno eliminati automaticamente; rivedili manualmente.",
+      "warnPdfsManual": "{n} PDF (report di direzione/personale) non ha una data nel nome e NON verrà eliminato automaticamente; rivedilo manualmente. | {n} PDF (report di direzione/personale) non hanno una data nel nome e NON verranno eliminati automaticamente; rivedili manualmente.",
       "anonTitle": "Rinomina docente",
       "anonDescription": "Rinomina un docente non più presente nell'orario (inattivo) per rimuovere la sua identità dai record storici, mantenendo i conteggi. Copre il diritto alla cancellazione.",
       "anonSelect": "Docente da anonimizzare",
@@ -444,7 +444,7 @@
       "anonConfirmHeader": "Conferma rinomina",
       "anonConfirmMessage": "«{old}» verrà rinominato in «{new}» in tutti i record. Continuare?",
       "anonSuccessSummary": "Docente rinominato",
-      "anonSuccessDetail": "{n} record aggiornati",
+      "anonSuccessDetail": "{n} record aggiornato | {n} record aggiornati",
       "anonAccept": "Sì, rinomina",
       "course": "Anno scolastico",
       "coursePlaceholder": "Scegli un anno scolastico per compilare le date",
@@ -452,7 +452,7 @@
       "plannerLast": "Ultimo orario del pianificatore ({start} → {end})",
       "warnAbsenceExtends": "L'assenza coperta di {prof} ({start} → {end}) si estende oltre l'intervallo e verrà cancellata per intero.",
       "warnPlannerExtends": "L'ultimo orario del pianificatore ({start} → {end}) si estende oltre l'intervallo e verrà cancellato per intero.",
-      "resultPlanner": "Pianificatore: {n} date rimosse.",
+      "resultPlanner": "Pianificatore: {n} data rimossa. | Pianificatore: {n} date rimosse.",
       "resultPlannerLast": "È stato cancellato anche l'ultimo orario salvato."
     }
   },
@@ -535,7 +535,7 @@
     "range": {
       "onlyToday": "Solo oggi",
       "until": "Fino al",
-      "summary": "{count} giorni scolastici",
+      "summary": "{count} giorno scolastico | {count} giorni scolastici",
       "daysRegistered": "giorni registrati per {teacher}"
     },
     "dialogs": {
@@ -567,7 +567,7 @@
         "critical": "🚨 CRITICI:",
         "warnings": "⚠️ AVVISI:",
         "appliedChanges": "🔄 MODIFICHE APPLICATE:",
-        "totalIssues": "Totale: {count} problemi rilevati",
+        "totalIssues": "Totale: {count} problema rilevato | Totale: {count} problemi rilevati",
         "continueQuestion": "🔍 Vuoi continuare con l'esportazione del PDF?",
         "reassign": "Riassegna"
       },
@@ -576,24 +576,11 @@
         "includeContent": "Contenuto da includere",
         "substitutions": "Sostituzioni",
         "vigilancies": "Vigilanze",
-        "format": "Formato",
-        "formatHours": "Per ore (una sezione per ogni ora)",
-        "formatDay": "Tabella del giorno (una tabella, con le sorveglianze dentro ogni ora)",
-        "options": "Opzioni di esportazione",
-        "showComments": "Mostra osservazioni",
-        "showHours": "Mostra colonna delle ore",
-        "showConflicts": "Mostra conflitti e avvisi",
-        "compress": "Compressione automatica",
         "blankRows": "Lascia spazio per scrivere a mano",
         "blankRowsHint": "Mostra le ore in cui possono servire supplenze (lezioni con gruppi visibili o attività non in «Non sostituire») con righe vuote, per aggiungerne a mano dopo la stampa.",
         "selectAtLeastOne": "⚠️ Devi selezionare almeno un tipo di contenuto (sostituzioni o vigilanze)",
         "selectAtLeastOneShort": "Devi selezionare almeno un tipo di contenuto",
-        "generate": "Genera PDF",
-        "fontSize": "Dimensione del testo",
-        "fontNormal": "Normale",
-        "fontLarge": "Grande",
-        "fontLarger": "Molto grande",
-        "fontSizeOnlyDay": "Solo per il formato «Tabella del giorno»"
+        "generate": "Genera PDF"
       }
     },
     "confirm": {
@@ -614,11 +601,11 @@
       "allAbsencesDeleted": "Tutte le assenze di {teacher} eliminate",
       "absencesSaved": "Assenze di {teacher} aggiornate",
       "vigilanciesUnassignedTitle": "Vigilanze aggiunte alle sostituzioni",
-      "vigilanciesUnassignedDetail": "Sono state create {count} sostituzione/i di VIGILANZA per coprire i turni d'esame del docente assente.",
+      "vigilanciesUnassignedDetail": "È stata creata {count} sostituzione di VIGILANZA per coprire i turni d'esame del docente assente. | Sono state create {count} sostituzioni di VIGILANZA per coprire i turni d'esame del docente assente.",
       "pdfGeneratedTitle": "PDF generato",
       "pdfGeneratedDetail": "Scaricato il PDF completo per il {date}",
       "reassignSubstitutionsTitle": "Sostituzioni riassegnate",
-      "reassignSubstitutionsDetail": "Riviste {count} sostituzioni problematiche",
+      "reassignSubstitutionsDetail": "Rivista {count} sostituzione problematica | Riviste {count} sostituzioni problematiche",
       "reassignDoneTitle": "Riassegnazione completata",
       "reassignDoneDetail": "Ci sono ancora problemi. Rivedi l'elenco.",
       "substituteMoved": "{name} è stato spostato qui; la supplenza di {absent} è in sospeso"
@@ -657,7 +644,7 @@
       "affinities": "🧭 Affinità"
     },
     "levels": {
-      "count": "{count} livelli",
+      "count": "{count} livello | {count} livelli",
       "empty": "Nessun livello configurato",
       "hint": "I livelli definiscono la struttura organizzativa (1-ESO, 2-ESO, 1-BACH, ecc.)",
       "addTitle": "➕ Aggiungi livello",
@@ -690,7 +677,7 @@
       "deleteConfirmMessage": "Vuoi eliminare la materia \"{name}\"?"
     },
     "rooms": {
-      "count": "{count} aule",
+      "count": "{count} aula | {count} aule",
       "empty": "Nessuna aula configurata",
       "addTitle": "➕ Aggiungi aula",
       "codeLabel": "Codice dell'aula",
@@ -715,18 +702,19 @@
       "deleteConfirmMessage": "Vuoi eliminare questa assegnazione?",
       "deleteFiltered": "Elimina filtrate",
       "deleteAll": "Elimina tutte",
-      "deleteFilteredConfirmMessage": "Eliminare le {count} assegnazioni mostrate con il filtro attuale?",
-      "deleteAllConfirmMessage": "Eliminare TUTTE le {count} assegnazioni? Questa azione non può essere annullata.",
+      "deleteFilteredConfirmMessage": "Eliminare l'assegnazione mostrata con il filtro attuale? | Eliminare le {count} assegnazioni mostrate con il filtro attuale?",
+      "deleteAllConfirmMessage": "Eliminare l'unica assegnazione? Questa azione non può essere annullata. | Eliminare TUTTE le {count} assegnazioni? Questa azione non può essere annullata.",
       "obsolete": {
-        "text": "Ci sono {count} assegnazioni con un gruppo o un titolare che non sono più nell'orario vigente (probabilmente di un anno precedente):",
+        "text": "C'è {count} assegnazione con un gruppo o un titolare che non è più nell'orario vigente (probabilmente di un anno precedente): | Ci sono {count} assegnazioni con un gruppo o un titolare che non sono più nell'orario vigente (probabilmente di un anno precedente):",
         "reason": {
           "grup": "il gruppo non c'è più",
           "titular": "il titolare non c'è più"
         },
         "remove": "Rimuoverle",
-        "confirm": "Verranno rimosse {count} assegnazioni che non corrispondono più all'orario vigente. Le sorveglianze e sostituzioni già fatte non vengono toccate.",
-        "removed": "Rimosse {count} assegnazioni"
-      }
+        "confirm": "Verrà rimossa {count} assegnazione che non corrisponde più all'orario vigente. Le sorveglianze e sostituzioni già fatte non vengono toccate. | Verranno rimosse {count} assegnazioni che non corrispondono più all'orario vigente. Le sorveglianze e sostituzioni già fatte non vengono toccate.",
+        "removed": "Rimossa {count} assegnazione | Rimosse {count} assegnazioni"
+      },
+      "filterRoom": "Filtra per aula:"
     },
     "import": {
       "tabIntro": "Importa la configurazione degli esami (livelli, gruppi, materie, aule e chi insegna cosa) dall'orario attivo, oppure da un CSV esportato in precedenza.",
@@ -738,13 +726,13 @@
       "helpText": "Le assegnazioni proposte si basano su chi insegna ogni materia a ogni gruppo nell'orario attivo. Rivedi e modifica prima di confermare; verranno importate solo le righe selezionate.",
       "selectedCount": "{selected} selezionate su {total} proposte",
       "filteredCount": "{count} con il filtro attuale",
-      "levelsSelected": "{count} livelli",
-      "subjectsSelected": "{count} materie",
+      "levelsSelected": "{count} livello | {count} livelli",
+      "subjectsSelected": "{count} materia | {count} materie",
       "status": "Stato",
       "alreadyExists": "Già esistente",
       "newProposal": "Nuova",
       "previouslyDismissed": "Scartata in precedenza",
-      "confirmButton": "Importa {count} selezionate",
+      "confirmButton": "Importa {count} selezionata | Importa {count} selezionate",
       "errorPreview": "Impossibile generare le proposte di importazione",
       "errorApply": "Impossibile completare l'importazione",
       "exportCsv": "Esporta CSV",
@@ -759,7 +747,7 @@
       "confirmImport": "Conferma l'importazione",
       "doneBrief": "Importati {nivells} livelli, {grups} gruppi, {assignatures} materie, {aules} aule e {assignacions} assegnazioni.",
       "summaryTitle": "✅ Riepilogo importazione",
-      "alreadyExistedCount": "{count} assegnazioni esistevano già e non sono state duplicate."
+      "alreadyExistedCount": "{count} assegnazione esisteva già e non è stata duplicata. | {count} assegnazioni esistevano già e non sono state duplicate."
     },
     "affinities": {
       "title": "Ordine di prossimità per prefisso di gruppo",
@@ -806,12 +794,21 @@
       "exportPdfHint": "Genera PDF per la giornata",
       "exportInterval": "PDF intervallo",
       "exportIntervalHint": "Genera PDF per un intervallo di date",
-      "addRow": "Aggiungi vigilanza"
+      "duplicateRow": "Duplica la vigilanza"
     },
     "filters": {
       "level": "Filtra per livello",
       "hour": "Filtra per ora",
-      "status": "Stato"
+      "status": "Stato",
+      "room": "Filtra per aula",
+      "levelAll": "Livello: tutti",
+      "levelValue": "Livello: {valor}",
+      "hourAll": "Ora: tutte",
+      "hourValue": "Ora: {valor}",
+      "statusAll": "Stato: tutti",
+      "statusValue": "Stato: {valor}",
+      "roomAll": "Aula: tutte",
+      "roomValue": "Aula: {valor}"
     },
     "stats": {
       "assigned": "Assegnate",
@@ -839,11 +836,6 @@
       "levelsLabel": "Livelli da includere *",
       "levelsPlaceholder": "Seleziona livelli",
       "levelsHint": "Seleziona i livelli da includere nel PDF",
-      "options": "Opzioni",
-      "showComments": "Mostra colonna osservazioni",
-      "showHours": "Mostra colonna delle ore",
-      "showHoursShort": "Mostra ore",
-      "compress": "Compressione automatica",
       "generatePdf": "Genera PDF",
       "intervalTitle": "📅 Esporta PDF intervallo",
       "startDateLabel": "Data di inizio *",
@@ -858,22 +850,24 @@
       "deleteMessage": "Vuoi eliminare la vigilanza delle {hour}?",
       "assignAvailableMessage": "📋 Assegnati {assigned} docenti liberati.\n\n{pending} vigilanze sono ancora in sospeso.\n\nVuoi assegnare anche i docenti disponibili (turno, libero, ecc.)?",
       "assignAvailableTitle": "Assegnare i disponibili?",
-      "assignAvailableAccept": "✅ Sì, assegna {count} disponibili",
+      "assignAvailableAccept": "✅ Sì, assegna {count} disponibile | ✅ Sì, assegna {count} disponibili",
       "assignAvailableReject": "❌ No, lascia in sospeso",
       "clearMessage": "🗑️ Vuoi cancellare tutte le assegnazioni di sorveglianza?\n\nVerranno rimossi solo i docenti assegnati, mantenendo materie e aule.",
       "clearTitle": "Conferma cancellazione",
       "clearAccept": "Sì, cancella",
-      "deleteSelectedMessage": "Vuoi eliminare le {count} vigilanze selezionate?"
+      "deleteSelectedMessage": "Vuoi eliminare la vigilanza selezionata? | Vuoi eliminare le {count} vigilanze selezionate?",
+      "sortManualTitle": "Ordinare le sorveglianze?",
+      "sortManualMessage": "Le modifiche manuali all'ordine andranno perse. Vuoi ordinare comunque?"
     },
     "messages": {
       "updated": "Vigilanza aggiornata correttamente",
       "added": "Vigilanza aggiunta correttamente",
       "deleted": "Vigilanza eliminata correttamente",
-      "deletedSelected": "{count} vigilanze eliminate correttamente",
+      "deletedSelected": "{count} vigilanza eliminata correttamente | {count} vigilanze eliminate correttamente",
       "deletedSelectedPartial": "{ok} vigilanze eliminate, {errors} errori",
       "assignOwnersTitle": "Assegnazione completata",
       "assignedFreeTitle": "Liberati assegnati",
-      "assignedFreeDetail": "✅ Assegnati {count} docenti liberati",
+      "assignedFreeDetail": "✅ Assegnato {count} docente liberato | ✅ Assegnati {count} docenti liberati",
       "availableAssignedTitle": "Disponibili assegnati",
       "allAssignedTitle": "Tutte assegnate",
       "allAssignedDetail": "🎉 Tutte le vigilanze sono assegnate!",
@@ -882,7 +876,8 @@
       "pdfGeneratedTitle": "PDF generato",
       "pdfGeneratedDetail": "Il PDF è stato scaricato correttamente",
       "pdfIntervalTitle": "PDF generato",
-      "pdfIntervalDetail": "Il PDF dell'intervallo è stato scaricato correttamente"
+      "pdfIntervalDetail": "Il PDF dell'intervallo è stato scaricato correttamente",
+      "orderChanged": "Le righe di quest'ora erano cambiate: sono state ricaricate."
     },
     "errors": {
       "load": "Errore nel caricamento delle vigilanze",
@@ -901,7 +896,40 @@
       "levelsRequired": "Devi selezionare almeno un livello",
       "dateFormatTitle": "Errore di formato",
       "dateFormat": "Le date selezionate non sono valide",
-      "generatePdfInterval": "Impossibile generare il PDF dell'intervallo"
+      "generatePdfInterval": "Impossibile generare il PDF dell'intervallo",
+      "order": "Impossibile salvare l'ordine delle righe"
+    },
+    "freeHourOwners": {
+      "title": "1 titolare non è stato assegnato perché aveva l'ora libera. Decidi se metterlo nella sua riga: | {count} titolari non sono stati assegnati perché avevano l'ora libera. Decidi se metterli nella loro riga:",
+      "assign": "Assegna",
+      "assigned": "Titolare assegnato",
+      "conflict": "Qualcuno ha modificato questa vigilanza: è stata ricaricata."
+    },
+    "withoutOwner": {
+      "title": "1 vigilanza non ha un titolare definito nella configurazione degli esami: | {count} vigilanze non hanno un titolare definito nella configurazione degli esami:",
+      "cap_fila_grup": "nessuna riga per il gruppo",
+      "diversos_titulars": "diversi titolari possibili: configura l'aula di ogni docente perché sia definito (assegnato comunque)",
+      "openConfig": "Apri la configurazione degli esami"
+    },
+    "table": {
+      "selectAll": "Seleziona tutte le sorveglianze",
+      "selectBlock": "Seleziona le sorveglianze delle {hora}",
+      "selectRow": "Seleziona la sorveglianza delle {hora}",
+      "rowsInBlock": "{count} sorveglianza | {count} sorveglianze",
+      "dragHandle": "Trascina per cambiare l'ordine all'interno dell'ora",
+      "moveUp": "Sposta la riga in su",
+      "moveDown": "Sposta la riga in giù",
+      "orderDisabledByFilter": "Con un filtro attivo non si può cambiare l'ordine delle righe. Togli i filtri per trascinarle."
+    },
+    "help": {
+      "title": "Cosa ha {nom} a quest'ora",
+      "loading": "Caricamento...",
+      "error": "Impossibile caricare l'aiuto.",
+      "invigilationsDay": "{count} sorveglianza in questo giorno | {count} sorveglianze in questo giorno"
+    },
+    "form": {
+      "title": "Nuova sorveglianza",
+      "optional": "facoltativo"
     }
   },
   "help": {
@@ -1137,8 +1165,8 @@
       "daysWithVigs": "Giorni con vigilanze",
       "perTeacher": "Dettaglio per docente",
       "perTeacherHint": "Clicca su un docente per vedere il dettaglio giorno per giorno",
-      "substitutionsDetail": "{count} sostituzioni ({percent}%)",
-      "vigilanciesDetail": "{count} assegnate ({percent}%)",
+      "substitutionsDetail": "{count} sostituzione ({percent}%) | {count} sostituzioni ({percent}%)",
+      "vigilanciesDetail": "{count} assegnata ({percent}%) | {count} assegnate ({percent}%)",
       "topAbsences": "Top 5 assenze",
       "topSubstitutions": "Top 5 sostituzioni"
     },
@@ -1347,7 +1375,7 @@
       "levelConflictsDetected": "Rilevati conflitti di livello",
       "pinAll": "Blocca tutti",
       "unpinAll": "Sblocca tutti",
-      "pinCount": "{count} bloccati",
+      "pinCount": "{count} bloccato | {count} bloccati",
       "pin": "Blocca",
       "unpin": "Sblocca",
       "actions": {
@@ -1506,7 +1534,7 @@
       },
       "messages": {
         "configSaved": "Configurazione salvata",
-        "vigilanciesPublished": "Pubblicate {count} vigilanze",
+        "vigilanciesPublished": "Pubblicata {count} vigilanza | Pubblicate {count} vigilanze",
         "scheduleUpdated": "Pianificazione aggiornata",
         "localChangesApplied": "Le modifiche sono state applicate localmente",
         "notViable": "Non fattibile",
@@ -1515,7 +1543,7 @@
       "staleSubjects": {
         "text": "Alcune restrizioni contengono materie che non sono più nella configurazione degli esami (di un anno precedente o di prima di rinominare un livello) e non si applicano a nessun esame:",
         "remove": "Rimuoverle dalle restrizioni",
-        "removed": "{count} materie rimosse dalle restrizioni"
+        "removed": "{count} materia rimossa dalle restrizioni | {count} materie rimosse dalle restrizioni"
       },
       "previousCourse": "Le date scelte sono dell'anno {cursos}, precedente a quello attuale ({actual}). Il pianificatore usa la configurazione degli esami dell'anno attuale e non si potrà pubblicare. Le sorveglianze degli anni precedenti si consultano in Sorveglianze.",
       "lastResult": "Questo è l'ultimo orario generato o modificato ({data}). Se hai cambiato la configurazione o le date, rigenera.",
@@ -1828,5 +1856,20 @@
         "optionalName": "Nome (facoltativo)"
       }
     }
+  },
+  "pdfOptions": {
+    "format": "Formato",
+    "formatHours": "Per ore (una sezione per ogni ora)",
+    "formatDay": "Tabella del giorno (una sola tabella, con l'ora nella prima colonna)",
+    "fontSize": "Dimensione del testo",
+    "fontNormal": "Normale",
+    "fontLarge": "Grande",
+    "fontLarger": "Molto grande",
+    "options": "Opzioni di esportazione",
+    "showComments": "Mostra osservazioni",
+    "showHours": "Mostra colonna delle ore (solo per ore)",
+    "compress": "Compressione automatica",
+    "showConflicts": "Mostra conflitti e avvisi",
+    "dayPerPage": "Ogni giorno in una pagina nuova"
   }
 }

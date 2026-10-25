@@ -515,6 +515,7 @@ onMounted(async () => {
   actualitzarModeMobil()
   mediaQuery.addEventListener('change', actualitzarModeMobil)
   window.addEventListener('popstate', actualitzarRuta)
+  window.addEventListener('obre-configuracio-examens', obreConfiguracioExamensDesDeVista)
 
   axios.interceptors.response.use(
     (response) => response,
@@ -560,6 +561,7 @@ onBeforeUnmount(() => {
     mediaQuery.removeEventListener('change', actualitzarModeMobil)
   }
   window.removeEventListener('popstate', actualitzarRuta)
+  window.removeEventListener('obre-configuracio-examens', obreConfiguracioExamensDesDeVista)
   if (loginRetryTimer) {
     clearInterval(loginRetryTimer)
   }
@@ -638,6 +640,11 @@ const obrirConfiguracioExamens = () => {
   mostrarConfiguracioExamens.value = true
 }
 
+// Des d'una pantalla (p. ex. l'avís de vigilàncies sense titular): només per als admins
+const obreConfiguracioExamensDesDeVista = () => {
+  if (isAdmin.value) obrirConfiguracioExamens()
+}
+
 const obrirEstadistiques = () => {
   mostrarEstadistiques.value = true
 }
@@ -699,10 +706,15 @@ const diaSeguent = () => {
   --border-color: #e5e7eb;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* Reinici: a la capa `reset`, per sota del tema (veure capes.css). Fora de
+   cap capa guanyava als estils del tema i els components de PrimeVue perdien
+   els espais interiors (diàlegs, avisos, toasts...). */
+@layer reset {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 }
 
 body {

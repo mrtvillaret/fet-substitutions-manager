@@ -18,9 +18,10 @@ from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import horari, substitucions, vigilancies
+from routes import horari, substitucions
+from vigilancies.router import router as vigilancies_router
 
-APP = crea_app(substitucions.router, vigilancies.router, prioritats_router, absencia_coberta_router)
+APP = crea_app(substitucions.router, vigilancies_router, prioritats_router, absencia_coberta_router)
 # Com a main.py: el router de l'horari agafa el centre de la sessió
 APP.include_router(horari.router, dependencies=[Depends(get_current_user)])
 _avui = date.today()

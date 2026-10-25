@@ -53,45 +53,6 @@ class ConfigResponse(BaseModel):
     xml_missing: Optional[bool] = False
 
 
-class VigilanciaCreate(BaseModel):
-    hora: str
-    tipus: str
-    grups: str
-    aula: NomNet
-    vigilant: Optional[NomNet] = ""
-    comentaris: Optional[str] = ""
-    nivell: str
-
-
-class VigilanciaUpdate(BaseModel):
-    hora: Optional[str] = None
-    tipus: Optional[str] = None
-    grups: Optional[str] = None
-    aula: Optional[NomNet] = None
-    vigilant: Optional[NomNet] = None
-    comentaris: Optional[str] = None
-    nivell: Optional[str] = None
-    updated_at: Optional[str] = None
-    force: Optional[bool] = False
-
-
-class AssignmentResponse(BaseModel):
-    assigned_count: int
-    remaining_count: int
-    message: str
-
-
-class VigilanciaDisponiblesQuery(BaseModel):
-    hora: str
-    tipus: Optional[str] = None
-    grups: Optional[str] = None
-    aula: Optional[NomNet] = None
-
-
-class VigilanciaDisponiblesBatchRequest(BaseModel):
-    queries: List[VigilanciaDisponiblesQuery]
-
-
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str

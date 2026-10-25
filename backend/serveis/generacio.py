@@ -17,7 +17,6 @@ from prioritats.repositories import NoSubstituirRepository
 from repositories import (
     GrupsAlliberatsRepository,
     SubstitucioRepository,
-    VigilanciaRepository,
 )
 from serveis.vigilancia_absent import (
     assignar_substituts_pendents as assignar_vigilancies_absents_pendents,
@@ -25,6 +24,7 @@ from serveis.vigilancia_absent import (
 from serveis.vigilancia_absent import (
     es_vigilancia_absent,
 )
+from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 

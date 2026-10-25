@@ -17,9 +17,10 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
-from routes import grups, substitucions, vigilancies
+from routes import grups, substitucions
+from vigilancies.router import router as vigilancies_router
 
-APP = crea_app(grups.router, substitucions.router, vigilancies.router)
+APP = crea_app(grups.router, substitucions.router, vigilancies_router)
 DATA = "2026-04-20"  # dilluns
 URL_GRUPS = f"/api/grups/{DATA}"
 URL_SUBS = f"/api/substitucions/{DATA}"

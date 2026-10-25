@@ -39,10 +39,11 @@ def test_les_rutes_arriben_a_l_horari_nomes_a_traves_de_dia():
     """La regla de quin horari toca és a Dia i a les dependències; una ruta que
     cridés get_horari pel seu compte la podria saltar."""
     directes = []
-    for fitxer in sorted((BACKEND / "routes").glob("*.py")):
+    # routes/ i els router.py dels mòduls (auth/, prioritats/, vigilancies/...)
+    for fitxer in sorted([*(BACKEND / "routes").glob("*.py"), *BACKEND.glob("*/router.py")]):
         for node in ast.walk(ast.parse(fitxer.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Call):
                 nom = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
                 if nom in PORTES_A_L_HORARI:
-                    directes.append(f"{fitxer.name}:{node.lineno}  {ast.unparse(node)}")
+                    directes.append(f"{fitxer.relative_to(BACKEND)}:{node.lineno}  {ast.unparse(node)}")
     assert directes == []

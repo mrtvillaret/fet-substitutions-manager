@@ -1,0 +1,119 @@
+/* Aspecte comú de les taules de dades (Substitucions i Vigilàncies). Una taula
+   amb la classe .taula-dades: serveix igual per a una taula pròpia (<table>) i
+   per a una DataTable de PrimeVue. Els valors, en variables, en un sol lloc. */
+:root {
+  --taula-fons: #fff;
+  --taula-radi: 12px;
+  --taula-ombra: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --taula-capcalera-fons: #f8fafc;
+  --taula-capcalera-text: #374151;
+  --taula-capcalera-vora: #e5e7eb;
+  --taula-cella-espai: 0.4rem 0.6rem;
+  --taula-fila-alcada: 2.75rem;
+  --taula-fila-vora: #f1f5f9;
+  --taula-fila-hover: #f5f7ff;
+  --taula-fila-seleccionada: #eef2ff;
+  --taula-separador-hora: #c7d2fe;
+}
+
+.taula-dades {
+  background: var(--taula-fons);
+  border-radius: var(--taula-radi);
+  box-shadow: var(--taula-ombra);
+  font-size: 0.95rem;
+}
+
+/* Capçalera */
+.taula-dades thead th,
+.taula-dades .p-datatable-thead > tr > th {
+  padding: 0.5rem 0.6rem;
+  background: var(--taula-capcalera-fons);
+  border-bottom: 1px solid var(--taula-capcalera-vora);
+  color: var(--taula-capcalera-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Files: alçada i espais */
+.taula-dades .taula-fila > td,
+.taula-dades .p-datatable-tbody > tr > td {
+  height: var(--taula-fila-alcada);
+  padding: var(--taula-cella-espai);
+  border-width: 1px 0 0;
+  border-style: solid;
+  border-color: var(--taula-fila-vora);
+  vertical-align: middle;
+}
+
+/* En passar el ratolí i fila seleccionada */
+.taula-dades .taula-fila:hover > td,
+.taula-dades .p-datatable-tbody > tr:hover > td {
+  background: var(--taula-fila-hover);
+}
+
+.taula-dades .taula-fila--seleccionada > td,
+.taula-dades .p-datatable-tbody > tr.p-highlight > td {
+  background: var(--taula-fila-seleccionada);
+}
+
+/* Separador entre hores (la primera fila d'una hora o la capçalera del bloc) */
+.taula-dades tr.taula-separador-hora > td {
+  border-top: 2px solid var(--taula-separador-hora);
+}
+
+/* Etiqueta de l'hora */
+.taula-hora {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 6px;
+  background: var(--primary-color, #6366f1);
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Botons d'acció de fila: discrets, només en passar per la fila o amb el focus */
+.taula-accio {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #6b7280;
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.taula-accio + .taula-accio {
+  margin-left: 0.3rem;
+}
+
+.taula-accio:hover {
+  background: #eef2f7;
+  border-color: #d1d5db;
+}
+
+.taula-dades .taula-fila:hover .taula-accio,
+.taula-dades .p-datatable-tbody > tr:hover .taula-accio,
+.taula-accio:focus-visible {
+  opacity: 1;
+}
+
+.taula-accio .pi {
+  font-size: 0.75rem;
+}
+
+/* Pantalles tàctils (sense ratolí per passar per damunt de la fila): la
+   columna d'accions no hi és; en tocar una fila, les seves accions surten en
+   una barra a sota (AccionsFila.vue, useFilaTactil) i la fila es ressalta */
+@media (hover: none) {
+  .taula-dades .taula-accions {
+    display: none;
+  }
+
+  .taula-dades .taula-fila--activa > td,
+  .taula-dades .p-datatable-tbody > tr.taula-fila--activa > td {
+    background: var(--taula-fila-seleccionada);
+  }
+}

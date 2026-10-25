@@ -22,9 +22,11 @@ from database import get_data_db_session
 from models import ConfiguracioExamen
 from rate_limit import limiter
 from repositories import GrupsAlliberatsRepository
-from routes import substitucions, vigilancies
+from routes import substitucions
+from vigilancies import services
+from vigilancies.router import router as vigilancies_router
 
-APP = crea_app(vigilancies.router, substitucions.router)
+APP = crea_app(vigilancies_router, substitucions.router)
 DATA = "2026-04-20"  # dilluns
 URL = f"/api/vigilancies/{DATA}"
 URL_SUBS = f"/api/substitucions/{DATA}"
@@ -284,6 +286,94 @@ def test_disponibles_en_bloc_dona_el_mateix_que_d_un_en_un(client):
     resultats = resp.json()["results"]
     assert set(resultats) == {"10:00", "11:30"}
     assert resultats["10:00"] == client.get(f"{URL}/10:00/disponibles").json()
+
+
+# ------------------------------------------------ ajuda del vigilant
+
+
+def _ajuda(client, nom, hora="10:00"):
+    resp = client.get(f"{URL}/{hora}/professor", params={"nom": nom})
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+def test_l_ajuda_diu_la_classe_i_les_vigilancies_de_l_hora_i_del_dia(client):
+    _crea(client, "Prof 1", grups="2-BAT-A")
+    _crea(client, "Prof 1", grups="2-BAT-B")
+    _crea(client, "Prof 1", hora="08:00")
+    ajuda = _ajuda(client, "Prof 1")
+    assert ajuda["estat"] == "classe"
+    assert (ajuda["activitat"]["assignatura"], ajuda["activitat"]["grup"]) == ("E.F.", "3-ESO-C")
+    assert [v["grups"] for v in ajuda["vigilancies_hora"]] == ["2-BAT-A", "2-BAT-B"]
+    assert ajuda["vigilancies_dia"] == 3
+
+
+def test_l_ajuda_fa_servir_la_mateixa_regla_que_els_disponibles(client, centre):
+    with get_data_db_session(centre) as db:
+        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+    _absent(client, "Prof 28")
+    disponibles = _disponibles(client)
+    for nom, estat in (
+        ("Prof 15", "alliberat"),
+        ("Prof 21", "disponible"),
+        ("Prof 1", "classe"),
+        ("Prof 28", "absent"),
+    ):
+        assert disponibles[nom]["estat"].lower() == estat
+        assert _ajuda(client, nom)["estat"] == estat
+    assert _ajuda(client, "Prof 28")["tipus_absencia"]
+
+
+def test_l_ajuda_diu_les_substitucions_que_fa_a_aquella_hora(client):
+    _absent(client, "Prof 15")
+    fila = client.get(URL_SUBS, params={"include_all": True}).json()[0]
+    client.put(f"{URL_SUBS}/10:00/Prof 15", json={"substitut": "Prof 21", "updated_at": fila["updated_at"]})
+    substitucions = _ajuda(client, "Prof 21")["substitucions"]
+    assert [(s["professor_absent"], s["assignatura"]) for s in substitucions] == [("Prof 15", "Anglès")]
+    assert _ajuda(client, "Prof 21", hora="08:00")["substitucions"] == []
+
+
+def test_l_ajuda_d_un_nom_que_no_es_a_l_horari(client):
+    ajuda = _ajuda(client, "Ningú")
+    assert (ajuda["estat"], ajuda["activitat"], ajuda["vigilancies_dia"]) == ("fora_de_l_horari", None, 0)
+
+
+def test_l_ajuda_neteja_els_espais_del_nom(client):
+    assert _ajuda(client, "  Prof 1 ")["professor"] == "Prof 1"
+
+
+def test_la_regla_de_l_estat_a_l_hora_amb_tots_els_estats():
+    context = {
+        "activitats_per_hora": {
+            "10:00": {
+                "Lliure": ("", ""),
+                "Guàrdia": ("Guàrdia", ""),
+                "Reunió": ("Reunió", ""),
+                "Classe": ("Mates", "1A"),
+                "Alliberat": ("Mates", "1B"),
+                "Absent": ("Mates", "1C"),
+            }
+        },
+        "absents_coberts": {"Coberta"},
+        "absents_per_professor": {"Absent": {"10:00"}},
+        "absents_tipus": {"Absent": "MALALTIA"},
+        "grups_sense_classe_per_hora": {"10:00": {"1B"}},
+        "prioritats": {"Guàrdia"},
+    }
+    estats = {
+        p: services.estat_a_l_hora(context, "10:00", p)["estat"]
+        for p in ("Coberta", "Absent", "Alliberat", "Guàrdia", "Reunió", "Classe", "Lliure")
+    }
+    assert estats == {
+        "Coberta": "DE BAIXA",
+        "Absent": "ABSENT",
+        "Alliberat": "ALLIBERAT",
+        "Guàrdia": "DISPONIBLE",
+        "Reunió": "LLIURE",
+        "Classe": "CLASSE",
+        "Lliure": "LLIURE",
+    }
+    assert services.estat_a_l_hora(context, "10:00", "Absent")["tipus_absencia"] == "MALALTIA"
 
 
 # ------------------------------------------------ assignació automàtica

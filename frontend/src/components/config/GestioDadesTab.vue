@@ -135,7 +135,7 @@
       </Message>
       <Message v-if="resultat.planificador.dates_tretes || resultat.planificador.ultim_horari_esborrat"
                severity="success" :closable="false">
-        {{ $t('config.dataManagement.resultPlanner', { n: resultat.planificador.dates_tretes }) }}
+        {{ $t('config.dataManagement.resultPlanner', { n: resultat.planificador.dates_tretes }, resultat.planificador.dates_tretes) }}
         <template v-if="resultat.planificador.ultim_horari_esborrat">
           {{ $t('config.dataManagement.resultPlannerLast') }}
         </template>
@@ -207,7 +207,7 @@ async function anonimitzar() {
       nom_actual: profSeleccionat.value,
       nom_nou: nomNou.value.trim(),
     })
-    toast.add({ severity: 'success', summary: t('config.dataManagement.anonSuccessSummary'), detail: t('config.dataManagement.anonSuccessDetail', { n: data.total }), life: 6000 })
+    toast.add({ severity: 'success', summary: t('config.dataManagement.anonSuccessSummary'), detail: t('config.dataManagement.anonSuccessDetail', { n: data.total }, data.total), life: 6000 })
     profSeleccionat.value = null
     nomNou.value = ''
     await carregarProfessors()
@@ -289,7 +289,7 @@ const avisos = computed(() => {
     out.push(t('config.dataManagement.warnPlannerExtends', { start: ultim.dates[0], end: ultim.dates[ultim.dates.length - 1] }))
   }
   if (m.pdfs_revisio_manual.length) {
-    out.push(t('config.dataManagement.warnPdfsManual', { n: m.pdfs_revisio_manual.length }))
+    out.push(t('config.dataManagement.warnPdfsManual', { n: m.pdfs_revisio_manual.length }, m.pdfs_revisio_manual.length))
   }
   return out
 })
@@ -338,7 +338,7 @@ async function purgar() {
     })
     resultat.value = data
     manifest.value = null
-    toast.add({ severity: 'success', summary: t('config.dataManagement.successSummary'), detail: t('config.dataManagement.successDetail', { n: data.total_bd }), life: 6000 })
+    toast.add({ severity: 'success', summary: t('config.dataManagement.successSummary'), detail: t('config.dataManagement.successDetail', { n: data.total_bd }, data.total_bd), life: 6000 })
   } catch (e) {
     toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 6000 })
   } finally {

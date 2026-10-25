@@ -420,3 +420,74 @@ const tipusDiaHoraOptions = computed(() => [
   { label: t('scheduler.dialogs.daysHours.typeProhibit'), value: 'prohibir' }
 ])
 </script>
+
+<style scoped>
+/* L'aplicació no carrega PrimeFlex: les seves classes (field, grid, flex,
+   gap-2...) no fan res i els camps dels formularis quedaven enganxats.
+   Provisional, fins que es parteixi aquesta vista (fase 3): els espais dels
+   diàlegs, aquí, només per a les classes que s'hi fan servir. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-3 {
+  gap: 1rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.pl-3 {
+  padding-left: 1.25rem;
+}
+
+.font-bold {
+  font-weight: 600;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+}
+
+.text-color-secondary {
+  color: var(--text-color-secondary, #6b7280);
+}
+
+.w-full {
+  width: 100%;
+}
+</style>

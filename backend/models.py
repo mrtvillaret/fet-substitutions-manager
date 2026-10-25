@@ -95,6 +95,9 @@ class Vigilancia(Base):
     vigilant = Column(String)
     comentaris = Column(Text)
     nivell = Column(String, nullable=False)
+    # Posició dins de la seva hora aquell dia (el mateix ordre per a la
+    # pantalla i el PDF; veure vigilancies/services.py)
+    ordre = Column(Integer)
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 

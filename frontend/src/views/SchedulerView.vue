@@ -296,7 +296,7 @@ const treureAssignaturesInexistents = async () => {
     const { data } = await axios.post('/api/scheduler/restriccions/treure-inexistents')
     aplicarRestriccions(data.restriccions)
     assignaturesInexistents.value = []
-    toast.add({ severity: 'success', summary: t('scheduler.view.staleSubjects.removed', { count: data.trets.length }), life: 4000 })
+    toast.add({ severity: 'success', summary: t('scheduler.view.staleSubjects.removed', { count: data.trets.length }, data.trets.length), life: 4000 })
   } catch (err) {
     toast.add({ severity: 'error', summary: t('common.error') })
   }
@@ -839,7 +839,7 @@ const publicarVigilancies = () => {
 const onPublicat = (data) => {
   toast.add({
     severity: 'success',
-    summary: t('scheduler.view.messages.vigilanciesPublished', { count: data.vigilancies_creades }),
+    summary: t('scheduler.view.messages.vigilanciesPublished', { count: data.vigilancies_creades }, data.vigilancies_creades),
     life: 5000,
   })
 }

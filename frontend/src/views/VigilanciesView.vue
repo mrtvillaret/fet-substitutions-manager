@@ -94,23 +94,33 @@
             v-model="filtreLevell"
             :options="[allLabel, ...nivells]"
             :placeholder="$t('vigilancies.filters.level')"
+            :aria-label="$t('vigilancies.filters.level')"
             class="p-inputtext-sm"
             style="width: 180px;"
-          />
+          >
+            <template #value="{ value }">{{ etiquetaFiltre('level', value) }}</template>
+          </Dropdown>
           <Dropdown
             v-model="filtreHora"
             :options="[allLabel, ...hores]"
             :placeholder="$t('vigilancies.filters.hour')"
+            :aria-label="$t('vigilancies.filters.hour')"
             class="p-inputtext-sm"
             style="width: 150px;"
-          />
+          >
+            <template #value="{ value }">{{ etiquetaFiltre('hour', value) }}</template>
+          </Dropdown>
           <Dropdown
             v-model="filtreEstat"
             :options="statusOptions"
             :placeholder="$t('vigilancies.filters.status')"
+            :aria-label="$t('vigilancies.filters.status')"
             class="p-inputtext-sm"
             style="width: 150px;"
-          />
+          >
+            <template #value="{ value }">{{ etiquetaFiltre('status', value) }}</template>
+          </Dropdown>
+          <FiltreAula v-model="filtreAula" :aules="aulesDelFiltre" :etiqueta-totes="allLabel" amb-nom />
         </div>
       </div>
 
@@ -130,8 +140,55 @@
       </div>
     </div>
 
-    <!-- Carregant -->
-    <div v-if="loading" class="loading">
+    <!-- Titulars que no s'han posat perquè tenien l'hora lliure: ho decideix qui fa les vigilàncies -->
+    <Message
+      v-if="!loading && !error && titularsHoraLliure.length"
+      severity="warn"
+      :closable="true"
+      class="titulars-hora-lliure"
+      @close="titularsHoraLliure = []"
+    >
+      <div>{{ $t('vigilancies.freeHourOwners.title', { count: titularsHoraLliure.length }, titularsHoraLliure.length) }}</div>
+      <ul>
+        <li v-for="item in titularsHoraLliure" :key="item.vigilancia_id">
+          {{ item.hora }} · {{ item.grups }} · {{ item.tipus }} — <strong>{{ item.titular }}</strong>
+          <Button
+            :label="$t('vigilancies.freeHourOwners.assign')"
+            size="small"
+            text
+            :loading="posantTitular === item.vigilancia_id"
+            @click="posaTitularHoraLliure(item)"
+          />
+        </li>
+      </ul>
+    </Message>
+
+    <!-- Vigilàncies que la configuració d'exàmens no deixa definides -->
+    <Message
+      v-if="!loading && !error && vigilanciesSenseTitular.length"
+      severity="info"
+      :closable="true"
+      class="titulars-hora-lliure"
+      @close="vigilanciesSenseTitular = []"
+    >
+      <div>{{ $t('vigilancies.withoutOwner.title', { count: vigilanciesSenseTitular.length }, vigilanciesSenseTitular.length) }}</div>
+      <ul>
+        <li v-for="item in vigilanciesSenseTitular" :key="item.vigilancia_id">
+          {{ item.hora }} · {{ item.grups }} · {{ item.tipus }} — {{ $t(`vigilancies.withoutOwner.${item.motiu}`) }}
+        </li>
+      </ul>
+      <Button
+        :label="$t('vigilancies.withoutOwner.openConfig')"
+        icon="pi pi-cog"
+        size="small"
+        text
+        @click="obreConfiguracioExamens"
+      />
+    </Message>
+
+    <!-- Carregant: només la primera vegada; amb files ja carregades, la taula es
+         queda i mostra la càrrega a sobre (tornar-la a crear costava 1,5 s) -->
+    <div v-if="loading && !vigilancies.length" class="loading">
       <i class="pi pi-spin pi-spinner" style="font-size: 2rem;"></i>
       <p>{{ $t('vigilancies.loading') }}</p>
     </div>
@@ -140,175 +197,39 @@
       <Message severity="error" :closable="false">{{ error }}</Message>
     </div>
 
-    <!-- Taula de vigilàncies -->
-    <div v-else class="table-wrapper">
-      <DataTable
-        :value="vigilanciesFiltrades"
-        :loading="loading"
-        stripedRows
-        :paginator="true"
-        :rows="25"
-        :rowsPerPageOptions="[10, 20, 25, 50, 100]"
-        responsiveLayout="scroll"
-        class="vigilancies-table"
-        :rowClass="getRowClass"
-        :scrollable="true"
-        :autoLayout="false"
-        selectionMode="multiple"
-        v-model:selection="seleccionades"
-        dataKey="id"
-      >
-        <Column selectionMode="multiple" style="width: 2.5rem; min-width: 2.5rem; max-width: 2.5rem;" />
+    <!-- Taula de vigilàncies: agrupada per hores, en l'ordre desat -->
+    <template v-else>
+      <Message v-if="filtresActius && vigilancies.length" severity="info" :closable="false" class="avis-ordre-filtres">
+        {{ $t('vigilancies.table.orderDisabledByFilter') }}
+      </Message>
+      <TaulaVigilancies
+        v-model:seleccionades="seleccionades"
+        :files="vigilanciesFiltrades"
+        :hores="hores"
+        :data="dataISO"
+        :opcions="opcionsFiles"
+        :disponibles-de="disponiblesDe"
+        :etiqueta-vigilant-de="etiquetaVigilantDe"
+        :ressaltades="ressaltades"
+        :titulars-lliures="idsTitularsHoraLliure"
+        :ordre-editable="!filtresActius"
+        :carregant="loading"
+        @canvi="canviaCamp"
+        @afegeix="afegirVigilanciaDesprés"
+        @esborra="confirmarEliminar"
+        @mou="mouFiles"
+      />
+    </template>
 
-        <template #empty>
-          <div class="empty-state">
-            <i class="pi pi-inbox" style="font-size: 3rem; color: #ccc;"></i>
-            <p>{{ $t('vigilancies.empty.title') }}</p>
-            <small>{{ $t('vigilancies.empty.hint') }}</small>
-          </div>
-        </template>
-
-        <Column field="hora" :header="$t('common.hour')" :sortable="true" style="width: 75px;">
-          <template #body="slotProps">
-            <Dropdown
-              v-model="slotProps.data.hora"
-              :options="hores"
-              @change="actualitzarVigilancia(slotProps.data)"
-              class="hora-dropdown"
-            >
-              <template #value="slotPropsValue">
-                <Tag
-                  :value="slotPropsValue.value || $t('common.hour')"
-                  :style="{
-                    backgroundColor: 'var(--primary-color)',
-                    color: 'white',
-                    fontSize: '0.95rem',
-                    fontWeight: '600',
-                    padding: '0.4rem 0.8rem',
-                    width: '100%',
-                    textAlign: 'center'
-                  }"
-                />
-              </template>
-            </Dropdown>
-          </template>
-        </Column>
-
-        <Column field="nivell" :header="$t('vigilancies.columns.level')" :sortable="true" style="width: 100px;">
-          <template #body="slotProps">
-            <Dropdown
-              v-model="slotProps.data.nivell"
-              :options="[$t('vigilancies.placeholders.level'), ...nivells]"
-              @change="actualitzarVigilancia(slotProps.data)"
-              :placeholder="$t('vigilancies.placeholders.level')"
-              class="p-inputtext-sm w-full"
-            />
-          </template>
-        </Column>
-
-        <Column field="tipus" :header="$t('vigilancies.columns.type')" :sortable="true" style="width: 120px;">
-          <template #body="slotProps">
-            <Dropdown
-              :modelValue="slotProps.data.tipus || $t('vigilancies.placeholders.type')"
-              @update:modelValue="slotProps.data.tipus = $event; actualitzarVigilancia(slotProps.data)"
-              :options="getTipusOptions(slotProps.data.nivell, true)"
-              class="p-inputtext-sm w-full"
-              :placeholder="$t('vigilancies.placeholders.type')"
-            />
-          </template>
-        </Column>
-
-        <Column field="grups" :header="$t('common.group')" :sortable="true" style="width: 80px;">
-          <template #body="slotProps">
-            <div class="cell-wrapper-relative">
-              <Dropdown
-                :modelValue="slotProps.data.grups || $t('vigilancies.placeholders.groups')"
-                @update:modelValue="slotProps.data.grups = $event; actualitzarVigilancia(slotProps.data)"
-                :options="[$t('vigilancies.placeholders.groups'), ...getGrupsPerNivell(slotProps.data.nivell)]"
-                class="p-inputtext-sm w-full"
-                :placeholder="$t('vigilancies.placeholders.groups')"
-              />
-              <!-- Botons hover (estil Colab) - Centrats a la fila (columna central) -->
-              <div class="row-hover-actions">
-                <Button
-                  icon="pi pi-plus"
-                  :label="$t('common.add')"
-                  class="p-button-secondary p-button-sm action-btn subtle-action"
-                  @click.stop="afegirVigilanciaDesprés(slotProps.data)"
-                  v-tooltip.top="$t('vigilancies.actions.addRow')"
-                />
-                <Button
-                  icon="pi pi-trash"
-                  :label="$t('common.delete')"
-                  class="p-button-secondary p-button-sm action-btn subtle-action"
-                  @click.stop="confirmarEliminar(slotProps.data)"
-                  v-tooltip.top="$t('common.delete')"
-                />
-              </div>
-            </div>
-          </template>
-        </Column>
-
-        <Column field="aula" :header="$t('common.room')" :sortable="true" style="width: 100px;">
-          <template #body="slotProps">
-            <Dropdown
-              :modelValue="slotProps.data.aula || $t('vigilancies.placeholders.room')"
-              @update:modelValue="slotProps.data.aula = $event; actualitzarVigilancia(slotProps.data)"
-              :options="[$t('vigilancies.placeholders.room'), ...aules]"
-              :placeholder="$t('vigilancies.placeholders.room')"
-              class="p-inputtext-sm w-full"
-            />
-          </template>
-        </Column>
-
-        <Column field="vigilant" :header="$t('vigilancies.columns.supervisor')" style="width: 200px;">
-          <template #body="slotProps">
-            <Dropdown
-              v-model="slotProps.data.vigilant"
-              :options="getDisponiblesPerHora(slotProps.data.hora, slotProps.data.tipus, slotProps.data.grups, slotProps.data.aula)"
-              optionLabel="label"
-              optionValue="value"
-              @change="actualitzarVigilancia(slotProps.data)"
-              :placeholder="$t('vigilancies.placeholders.supervisor')"
-              filter
-              class="p-inputtext-sm w-full"
-            >
-              <template #value="slotPropsValue">
-                <span v-if="slotPropsValue.value">
-                  {{ getVigilantLabel(slotProps.data.hora, slotPropsValue.value, slotProps.data.tipus, slotProps.data.grups, slotProps.data.aula) }}
-                </span>
-                <span v-else class="text-gray-400">{{ $t('vigilancies.placeholders.supervisor') }}</span>
-              </template>
-              <template #option="optionProps">
-                <div
-                  class="professor-option"
-                  :style="{
-                    backgroundColor: optionProps.option.color,
-                    padding: '0.5rem',
-                    borderRadius: '4px',
-                    fontWeight: optionProps.option.ja_assignat ? 'normal' : '500',
-                    opacity: optionProps.option.ja_assignat ? 0.7 : 1
-                  }"
-                >
-                  {{ optionProps.option.label }}
-                </div>
-              </template>
-            </Dropdown>
-          </template>
-        </Column>
-
-        <Column field="comentaris" :header="$t('common.comments')" style="min-width: 200px;">
-          <template #body="slotProps">
-            <InputText
-              v-model="slotProps.data.comentaris"
-              @change="actualitzarVigilancia(slotProps.data)"
-              class="p-inputtext-sm w-full"
-              :placeholder="$t('common.commentsPlaceholder')"
-            />
-          </template>
-        </Column>
-      </DataTable>
-    </div>
+    <FormulariVigilancia
+      v-model:visible="mostrarFormulariNova"
+      :data="dataISO"
+      :opcions="opcionsFiles"
+      :proposta="propostaNova"
+      :carrega-disponibles="disponiblesDelFormulari"
+      :desant="creantVigilancia"
+      @desa="creaVigilancia"
+    />
 
     <!-- Diàleg validacions PDF -->
     <Dialog
@@ -377,27 +298,11 @@
           <small style="color: #6b7280;">{{ $t('vigilancies.dialogs.levelsHint') }}</small>
         </div>
 
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.options') }}</label>
-          <div class="flex flex-column gap-2">
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.showComments" inputId="showComments" :binary="true" />
-              <label for="showComments" class="ml-2">{{ $t('vigilancies.dialogs.showComments') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.showHours" inputId="showHours" :binary="true" />
-              <label for="showHours" class="ml-2">{{ $t('vigilancies.dialogs.showHours') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.compress" inputId="compress" :binary="true" />
-              <label for="compress" class="ml-2">{{ $t('vigilancies.dialogs.compress') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.includeSubstitucions" inputId="includeSubstitucions" :binary="true" />
-              <label for="includeSubstitucions" class="ml-2">{{ $t('vigilancies.dialogs.includeSubstitucions') }}</label>
-            </div>
-          </div>
-        </div>
+        <PdfOpcionsComunes
+          v-model:config="pdfConfig"
+          prefix="vig"
+          :opcions-propies="[{ clau: 'includeSubstitucions', etiqueta: 'vigilancies.dialogs.includeSubstitucions' }]"
+        />
       </div>
 
       <template #footer>
@@ -453,35 +358,16 @@
           />
         </div>
 
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.options') }}</label>
-          <div class="flex flex-column gap-2">
-            <div class="flex align-items-center">
-              <Checkbox v-model="intervalConfig.includeWeekends" inputId="includeWeekends" :binary="true" />
-              <label for="includeWeekends" class="ml-2">{{ $t('vigilancies.dialogs.includeWeekends') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="intervalConfig.includeEmptyDays" inputId="includeEmptyDays" :binary="true" />
-              <label for="includeEmptyDays" class="ml-2">{{ $t('vigilancies.dialogs.includeEmpty') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="intervalConfig.showComments" inputId="intervalShowComments" :binary="true" />
-              <label for="intervalShowComments" class="ml-2">{{ $t('vigilancies.dialogs.showComments') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="intervalConfig.showHours" inputId="intervalShowHours" :binary="true" />
-              <label for="intervalShowHours" class="ml-2">{{ $t('vigilancies.dialogs.showHoursShort') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="intervalConfig.compress" inputId="intervalCompress" :binary="true" />
-              <label for="intervalCompress" class="ml-2">{{ $t('vigilancies.dialogs.compress') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="intervalConfig.includeSubstitucions" inputId="includeSubstitucions" :binary="true" />
-              <label for="includeSubstitucions" class="ml-2">{{ $t('vigilancies.dialogs.includeSubstitucions') }}</label>
-            </div>
-          </div>
-        </div>
+        <PdfOpcionsComunes
+          v-model:config="intervalConfig"
+          prefix="interval"
+          amb-dia-per-pagina
+          :opcions-propies="[
+            { clau: 'includeWeekends', etiqueta: 'vigilancies.dialogs.includeWeekends' },
+            { clau: 'includeEmptyDays', etiqueta: 'vigilancies.dialogs.includeEmpty' },
+            { clau: 'includeSubstitucions', etiqueta: 'vigilancies.dialogs.includeSubstitucions' }
+          ]"
+        />
       </div>
 
       <template #footer>
@@ -519,20 +405,23 @@ import { ambDataTreball, dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
-import InputText from 'primevue/inputtext'
-import Tag from 'primevue/tag'
 import Message from 'primevue/message'
 import Dialog from 'primevue/dialog'
 import ConfirmDialog from 'primevue/confirmdialog'
 import MultiSelect from 'primevue/multiselect'
 import Calendar from 'primevue/calendar'
-import Checkbox from 'primevue/checkbox'
+import PdfOpcionsComunes from '../components/PdfOpcionsComunes.vue'
+import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions'
 import Badge from 'primevue/badge'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
+import FiltreAula from '../components/vigilancies/FiltreAula.vue'
+import FormulariVigilancia from '../components/vigilancies/FormulariVigilancia.vue'
+import TaulaVigilancies from '../components/vigilancies/TaulaVigilancies.vue'
+import * as apiVigilancies from '../api/vigilancies'
+import { useAjudaVigilant } from '../composables/useAjudaVigilant'
+import { useOrdreFiles } from '../composables/useOrdreFiles'
 
 const emit = defineEmits(['anar-substitucions'])
 const toast = useToast()
@@ -541,6 +430,12 @@ const { t, locale } = useI18n()
 
 // State
 const vigilancies = ref([])
+// Titulars que «Assigna titulars» no ha posat perquè tenien l'hora lliure
+const titularsHoraLliure = ref([])
+// Vigilàncies sense un titular definit a la configuració d'exàmens (motiu)
+const vigilanciesSenseTitular = ref([])
+const obreConfiguracioExamens = () => window.dispatchEvent(new CustomEvent('obre-configuracio-examens'))
+const posantTitular = ref(null)
 const seleccionades = ref([])
 const substitucionsCount = ref(0)
 const loading = ref(false)
@@ -575,6 +470,8 @@ const totalVigFiltrats = computed(() =>
 
 const pdfConfig = ref({
   nivells: [],
+  format: 'hores',
+  midaLletra: midaPerDefecte('hores'),
   showComments: true,
   showHours: false,
   compress: false,
@@ -587,6 +484,9 @@ const intervalConfig = ref({
   nivells: [],
   includeWeekends: false,
   includeEmptyDays: false,
+  format: 'hores',
+  midaLletra: midaPerDefecte('hores'),
+  diaPerPagina: false,
   showComments: true,
   showHours: false,
   compress: false,
@@ -617,6 +517,16 @@ const statusOptions = computed(() => [
 const filtreLevell = ref(allLabel.value)
 const filtreHora = ref(allLabel.value)
 const filtreEstat = ref(allLabel.value)
+const filtreAula = ref(allLabel.value)
+// El nom del filtre dins del seu valor: «Nivell: tots», «Hora: 08:00»...
+const etiquetaFiltre = (clau, valor) =>
+  !valor || valor === allLabel.value
+    ? t(`vigilancies.filters.${clau}All`)
+    : t(`vigilancies.filters.${clau}Value`, { valor })
+// Amb un filtre posat no es pot canviar l'ordre: no és clar on aniria la fila
+const filtresActius = computed(() =>
+  [filtreLevell.value, filtreHora.value, filtreEstat.value, filtreAula.value].some(f => f && f !== allLabel.value)
+)
 
 watch(allLabel, (newVal, oldVal) => {
   if (filtreLevell.value === oldVal) {
@@ -627,6 +537,9 @@ watch(allLabel, (newVal, oldVal) => {
   }
   if (filtreEstat.value === oldVal) {
     filtreEstat.value = newVal
+  }
+  if (filtreAula.value === oldVal) {
+    filtreAula.value = newVal
   }
 })
 
@@ -652,38 +565,50 @@ const vigilanciesPendents = computed(() =>
   vigilanciesFiltrades.value.filter(v => !v.vigilant || !v.vigilant.trim()).length
 )
 
+// Les vigilàncies que es veuen, en l'ordre desat (el backend les dona per
+// hora i, dins de cada hora, per l'ordre de les files). La taula les agrupa
+// per hores; no s'hi reordena res.
 const vigilanciesFiltrades = computed(() => {
-  let result = [...vigilancies.value]
+  let result = vigilancies.value
 
-  // Filtrar per nivell
   if (filtreLevell.value && filtreLevell.value !== allLabel.value) {
     result = result.filter(v => v.nivell === filtreLevell.value)
   }
-
-  // Filtrar per hora
   if (filtreHora.value && filtreHora.value !== allLabel.value) {
     result = result.filter(v => v.hora === filtreHora.value)
   }
-
-  // Filtrar per estat
   if (filtreEstat.value === statusAssignedLabel.value) {
     result = result.filter(v => v.vigilant && v.vigilant.trim())
   } else if (filtreEstat.value === statusPendingLabel.value) {
     result = result.filter(v => !v.vigilant || !v.vigilant.trim())
   }
-
-  const horesIndex = new Map(hores.value.map((hora, idx) => [hora, idx]))
-  result.sort((a, b) => {
-    const idxA = horesIndex.has(a.hora) ? horesIndex.get(a.hora) : Number.POSITIVE_INFINITY
-    const idxB = horesIndex.has(b.hora) ? horesIndex.get(b.hora) : Number.POSITIVE_INFINITY
-    if (idxA !== idxB) return idxA - idxB
-    const nivellA = a.nivell || ''
-    const nivellB = b.nivell || ''
-    return nivellA.localeCompare(nivellB)
-  })
-
+  if (filtreAula.value && filtreAula.value !== allLabel.value) {
+    result = result.filter(v => v.aula === filtreAula.value)
+  }
   return result
 })
+
+const { ressaltades, ressalta } = useOrdreFiles()
+const { oblida: oblidaAjudes } = useAjudaVigilant()
+
+// El que necessita cada fila per als seus desplegables
+const opcionsFiles = computed(() => ({
+  hores: hores.value,
+  nivells: nivells.value,
+  aules: aules.value,
+  tipusDe: (nivell) => getTipusOptions(nivell, true),
+  grupsDe: (nivell) => getGrupsPerNivell(nivell)
+}))
+// La mateixa llista per a les files amb els mateixos disponibles (veure getDisponiblesPerHora)
+const disponiblesDe = (fila) => getDisponiblesPerHora(fila.hora, fila.tipus, fila.grups, fila.aula)
+const etiquetaVigilantDe = (fila) =>
+  fila.vigilant ? getVigilantLabel(fila.hora, fila.vigilant, fila.tipus, fila.grups, fila.aula) : ''
+// Les aules de la configuració i les que ja surten a les files (p.ex. «ENLLAÇ»)
+const aulesDelFiltre = computed(() =>
+  [...new Set([...aules.value, ...vigilancies.value.map(v => v.aula)].filter(Boolean))]
+    .sort((a, b) => collator.value.compare(a, b))
+)
+const idsTitularsHoraLliure = computed(() => new Set(titularsHoraLliure.value.map(item => String(item.vigilancia_id))))
 
 // Mètodes
 const getGrupsPerNivell = (nivell) => {
@@ -774,8 +699,16 @@ const carregarDisponibles = async (hora, force = false, tipus = null, grups = nu
   }
 }
 
-const carregarDisponiblesPerLlista = async (llistaVigilancies = []) => {
-  if (!llistaVigilancies.length) return
+// `substitueix`: la memòria es refà sencera amb la resposta (en recarregar el
+// dia); si no, s'hi afegeixen les claus noves. `alhora`: el que s'ha d'aplicar
+// en el mateix moment que els disponibles (el llistat nou), perquè la taula es
+// pinti un sol cop.
+const carregarDisponiblesPerLlista = async (llistaVigilancies = [], { substitueix = false, alhora = null } = {}) => {
+  if (!llistaVigilancies.length) {
+    alhora?.()
+    if (substitueix) disponiblesPerHora.value = {}
+    return
+  }
 
   const queriesMap = new Map()
   const addQuery = (hora, tipus = null, grups = null, aula = null) => {
@@ -805,14 +738,17 @@ const carregarDisponiblesPerLlista = async (llistaVigilancies = []) => {
   }
 
   const queries = Array.from(queriesMap.values())
-  if (!queries.length) return
+  if (!queries.length) {
+    alhora?.()
+    return
+  }
 
   try {
     const response = await axios.post(`/api/vigilancies/${dataISO.value}/disponibles-batch`, {
       queries
     })
     const results = response.data?.results || {}
-    const novaCache = { ...disponiblesPerHora.value }
+    const novaCache = substitueix ? {} : { ...disponiblesPerHora.value }
 
     for (const [key, value] of Object.entries(results)) {
       const disponibles = Array.isArray(value) ? value : []
@@ -822,9 +758,12 @@ const carregarDisponiblesPerLlista = async (llistaVigilancies = []) => {
         novaCache[horaKey] = disponibles
       }
     }
+    alhora?.()
     disponiblesPerHora.value = novaCache
   } catch (err) {
     console.error('Error en batch de disponibles, fallback a crides individuals:', err)
+    alhora?.()
+    if (substitueix) disponiblesPerHora.value = {}
     const tasques = queries.map((query) => () =>
       carregarDisponibles(query.hora, false, query.tipus, query.grups, query.aula)
     )
@@ -849,13 +788,22 @@ const refrescarDisponiblesHora = async (hora) => {
   await carregarDisponiblesPerLlista(vigilanciesHora)
 }
 
+// Les opcions ordenades de cada llista de disponibles, calculades un sol cop:
+// la mateixa llista per a totes les files que la fan servir. Així, quan es
+// recarreguen els disponibles d'una hora, les files de les altres hores reben
+// la mateixa llista i no es tornen a pintar.
+const opcionsOrdenades = new WeakMap()
+const SENSE_DISPONIBLES = []
+
 const getDisponiblesPerHora = (hora, tipus = null, grups = null, aula = null) => {
   // Retornar disponibles amb tipus, grups i aula per detectar titulars
   const horaNorm = String(hora || '').trim()
   const cacheKey = getDisponiblesCacheKey(horaNorm, tipus, grups, aula)
 
   // Buscar primer amb la clau específica (amb titular), sinó la genèrica
-  const disponibles = disponiblesPerHora.value[cacheKey] || disponiblesPerHora.value[horaNorm] || []
+  const disponibles = disponiblesPerHora.value[cacheKey] || disponiblesPerHora.value[horaNorm] || SENSE_DISPONIBLES
+  const desades = opcionsOrdenades.get(disponibles)
+  if (desades && desades.idioma === locale.value) return desades.opcions
 
   const ordenats = [...disponibles].sort((a, b) => {
     const ordreA = Number.isFinite(Number(a.ordre_tipus)) ? Number(a.ordre_tipus) : 999
@@ -872,7 +820,7 @@ const getDisponiblesPerHora = (hora, tipus = null, grups = null, aula = null) =>
   })
 
   // AFEGIR opció buida al principi (estil Softcatalà: "Seleccioneu")
-  return [
+  const opcions = [
     {
       value: '',
       label: t('vigilancies.placeholders.supervisorSelect'),
@@ -885,6 +833,8 @@ const getDisponiblesPerHora = (hora, tipus = null, grups = null, aula = null) =>
     },
     ...ordenats
   ]
+  opcionsOrdenades.set(disponibles, { idioma: locale.value, opcions })
+  return opcions
 }
 
 const getVigilantLabel = (hora, vigilantValue, tipus = null, grups = null, aula = null) => {
@@ -915,17 +865,17 @@ const carregarConfig = async () => {
 const carregarVigilancies = async () => {
   loading.value = true
   error.value = null
-
-  // Netejar cache de disponibles (per recalcular amb les noves assignacions)
-  disponiblesPerHora.value = {}
   seleccionades.value = []
+  oblidaAjudes()
 
   try {
-    const response = await axios.get(`/api/vigilancies/${dataISO.value}`)
-    vigilancies.value = response.data
+    const llista = await apiVigilancies.llista(dataISO.value)
 
-    // Precarregar disponibles deduplicant claus i en paral·lel limitat
-    await carregarDisponiblesPerLlista(vigilancies.value)
+    // Disponibles de totes les files, recalculats amb les noves assignacions.
+    // La memòria se substitueix en arribar la resposta (buidar-la abans feia
+    // parpellejar els noms dels vigilants), i el llistat es posa en el mateix
+    // moment: la taula es pinta un sol cop.
+    await carregarDisponiblesPerLlista(llista, { substitueix: true, alhora: () => { vigilancies.value = llista } })
   } catch (err) {
     console.error('Error carregant vigilàncies:', err)
     error.value = t('vigilancies.errors.load')
@@ -965,7 +915,21 @@ const executarOverwrite = async () => {
   }
 }
 
-const actualitzarVigilancia = async (vigilancia) => {
+// Només el llistat (l'ordre i els updated_at nous), sense recalcular els disponibles
+const recarregaLlistat = async () => {
+  vigilancies.value = await apiVigilancies.llista(dataISO.value)
+}
+
+// Un camp d'una fila de la taula: es canvia i es desa
+const canviaCamp = async (fila, camp, valor) => {
+  const horaAbans = fila.hora
+  fila[camp] = valor
+  await actualitzarVigilancia(fila, { horaAbans })
+}
+
+// `horaAbans`: si la fila canvia d'hora, va al final del bloc de l'hora nova
+// (ho fa el backend), es ressalta i la pantalla s'hi desplaça
+const actualitzarVigilancia = async (vigilancia, { horaAbans = vigilancia.hora } = {}) => {
   const esPlaceholder = (value, fallback) =>
     !value || value.startsWith('--') || value === fallback
 
@@ -990,8 +954,16 @@ const actualitzarVigilancia = async (vigilancia) => {
       vigilancia.updated_at = response.data.updated_at
     }
 
-    // Recarregar disponibles de l'hora afectada per mantenir consistència de candidats
-    await refrescarDisponiblesHora(vigilancia.hora)
+    oblidaAjudes()
+    if (horaAbans !== vigilancia.hora) {
+      await recarregaLlistat()
+      await refrescarDisponiblesHora(horaAbans)
+      await refrescarDisponiblesHora(vigilancia.hora)
+      ressalta(vigilancia.id)
+    } else {
+      // Disponibles de l'hora afectada, perquè els candidats siguin coherents
+      await refrescarDisponiblesHora(vigilancia.hora)
+    }
 
     // Actualitzar recompte de substitucions (assignar vigilant amb classe en genera)
     await carregarSubstitucionsCount()
@@ -1049,7 +1021,7 @@ const confirmarEliminar = (vigilancia) => {
 const confirmarEliminarSeleccionades = () => {
   const count = seleccionades.value.length
   confirm.require({
-    message: t('vigilancies.confirm.deleteSelectedMessage', { count }),
+    message: t('vigilancies.confirm.deleteSelectedMessage', { count }, count),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('vigilancies.actions.deleteSelected', { count }),
@@ -1072,7 +1044,7 @@ const confirmarEliminarSeleccionades = () => {
         toast.add({
           severity: 'success',
           summary: t('common.deleted'),
-          detail: t('vigilancies.messages.deletedSelected', { count: llistaAEliminar.length }),
+          detail: t('vigilancies.messages.deletedSelected', { count: llistaAEliminar.length }, llistaAEliminar.length),
           life: 3000
         })
       } else {
@@ -1120,67 +1092,71 @@ const eliminarVigilancia = async (vigilancia) => {
   }
 }
 
-const getRowClass = (data) => {
-  // Afegir classe per separar hores
-  const index = vigilanciesFiltrades.value.indexOf(data)
-  if (index === 0) return 'primera-hora'
-
-  const horaAnterior = vigilanciesFiltrades.value[index - 1]?.hora
-  const horaActual = data.hora
-
-  return horaAnterior !== horaActual ? 'hora-separador' : ''
-}
-
-const afegirNovaVigilancia = async () => {
-  // Afegeix una vigilància buida (des del botó toolbar)
+// Posa com a vigilant, només en aquella fila, un titular que tenia l'hora lliure
+const posaTitularHoraLliure = async (item) => {
+  const vigilancia = vigilancies.value.find(v => String(v.id) === String(item.vigilancia_id))
+  posantTitular.value = item.vigilancia_id
   try {
-    const esPlaceholder = (value, fallback) =>
-      !value || value.startsWith('--') || value === fallback
-
-    // Si hi ha vigilàncies, agafar valors de la darrera; si no, valors per defecte
-    let darreraVigilancia = null
-    if (vigilanciesFiltrades.value.length > 0) {
-      darreraVigilancia = vigilanciesFiltrades.value[vigilanciesFiltrades.value.length - 1]
-    }
-
-    const novaVig = {
-      hora: darreraVigilancia?.hora || (hores.value.length > 0 ? hores.value[0] : '08:00'),
-      nivell: darreraVigilancia?.nivell || null,
-      tipus: darreraVigilancia?.tipus || '',
-      grups: '',
-      aula: '',
-      vigilant: '',
-      comentaris: ''
-    }
-    const payload = {
-      ...novaVig,
-      nivell: esPlaceholder(novaVig.nivell, t('vigilancies.placeholders.level')) ? '' : (novaVig.nivell || ''),
-      tipus: esPlaceholder(novaVig.tipus, t('vigilancies.placeholders.type')) ? '' : (novaVig.tipus || '')
-    }
-
-    await axios.post(`/api/vigilancies/${dataISO.value}`, payload)
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.created'),
-      detail: t('vigilancies.messages.added'),
-      life: 2000
+    await axios.put(`/api/vigilancies/${dataISO.value}/${item.vigilancia_id}`, {
+      vigilant: item.titular,
+      updated_at: vigilancia?.updated_at
     })
-
+    titularsHoraLliure.value = titularsHoraLliure.value.filter(x => x.vigilancia_id !== item.vigilancia_id)
+    toast.add({ severity: 'success', summary: t('vigilancies.freeHourOwners.assigned'), detail: `${item.titular} · ${item.hora} · ${item.grups}`, life: 3000 })
     await carregarVigilancies()
   } catch (err) {
-    console.error('Error creant vigilància:', err)
+    console.error('Error posant el titular:', err)
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: t('vigilancies.errors.create'),
-      life: 3000
+      detail: err.response?.status === 409 ? t('vigilancies.freeHourOwners.conflict') : (err.response?.data?.detail || t('vigilancies.errors.assignOwners')),
+      life: 5000
     })
+    await carregarVigilancies()
+  } finally {
+    posantTitular.value = null
   }
 }
 
+// «Nova vigilància»: el formulari, amb l'hora, el nivell i el tipus de la darrera fila
+const mostrarFormulariNova = ref(false)
+const creantVigilancia = ref(false)
+const propostaNova = ref({})
+
+const afegirNovaVigilancia = () => {
+  const darrera = vigilanciesFiltrades.value[vigilanciesFiltrades.value.length - 1]
+  propostaNova.value = {
+    hora: darrera?.hora || hores.value[0] || '',
+    nivell: darrera?.nivell || '',
+    tipus: darrera?.tipus || ''
+  }
+  mostrarFormulariNova.value = true
+}
+
+// Els disponibles d'una consulta del formulari (hora i examen), amb l'opció buida
+const disponiblesDelFormulari = async ({ hora, tipus, grups, aula }) => {
+  await carregarDisponibles(hora, false, tipus, grups, aula)
+  return getDisponiblesPerHora(hora, tipus, grups, aula)
+}
+
+const creaVigilancia = async (fila) => {
+  creantVigilancia.value = true
+  try {
+    const nova = await apiVigilancies.crea(dataISO.value, fila)
+    mostrarFormulariNova.value = false
+    toast.add({ severity: 'success', summary: t('common.created'), detail: t('vigilancies.messages.added'), life: 2000 })
+    await carregarVigilancies()
+    if (nova?.id) ressalta(nova.id)
+  } catch (err) {
+    console.error('Error creant vigilància:', err)
+    toast.add({ severity: 'error', summary: t('common.error'), detail: t('vigilancies.errors.create'), life: 3000 })
+  } finally {
+    creantVigilancia.value = false
+  }
+}
+
+// El «+» de cada fila: una còpia just a sota («Nova vigilància» la posa al final del bloc)
 const afegirVigilanciaDesprés = async (vigilancia) => {
-  // Crear nova vigilància amb els mateixos valors que l'actual
   try {
     const esPlaceholder = (value, fallback) =>
       !value || value.startsWith('--') || value === fallback
@@ -1197,10 +1173,12 @@ const afegirVigilanciaDesprés = async (vigilancia) => {
     const payload = {
       ...novaVig,
       nivell: esPlaceholder(novaVig.nivell, t('vigilancies.placeholders.level')) ? '' : (novaVig.nivell || ''),
-      tipus: esPlaceholder(novaVig.tipus, t('vigilancies.placeholders.type')) ? '' : (novaVig.tipus || '')
+      tipus: esPlaceholder(novaVig.tipus, t('vigilancies.placeholders.type')) ? '' : (novaVig.tipus || ''),
+      despres_de: String(vigilancia.id)
     }
 
-    await axios.post(`/api/vigilancies/${dataISO.value}`, payload)
+    // La còpia va just a sota de la fila que copia (`despres_de`) i es ressalta
+    const nova = await apiVigilancies.crea(dataISO.value, payload)
 
     toast.add({
       severity: 'success',
@@ -1210,6 +1188,7 @@ const afegirVigilanciaDesprés = async (vigilancia) => {
     })
 
     await carregarVigilancies()
+    if (nova?.id) ressalta(nova.id)
   } catch (err) {
     console.error('Error creant vigilància:', err)
     toast.add({
@@ -1221,6 +1200,29 @@ const afegirVigilanciaDesprés = async (vigilancia) => {
   }
 }
 
+// Nou ordre de les files d'una hora (arrossegant o amb ↑/↓). Es mostra de
+// seguida; si el servidor no l'accepta (la taula ha canviat), es recarrega.
+const mouFiles = async (hora, ids) => {
+  const posicio = new Map(ids.map((id, i) => [String(id), i]))
+  const deLhora = vigilancies.value.filter(v => v.hora === hora)
+    .sort((a, b) => posicio.get(String(a.id)) - posicio.get(String(b.id)))
+  let k = 0
+  vigilancies.value = vigilancies.value.map(v => (v.hora === hora ? deLhora[k++] : v))
+  try {
+    await apiVigilancies.desaOrdre(dataISO.value, hora, ids)
+    await recarregaLlistat() // desar l'ordre canvia els updated_at
+  } catch (err) {
+    console.error('Error desant l\'ordre:', err)
+    toast.add({
+      severity: err.response?.status === 409 ? 'warn' : 'error',
+      summary: err.response?.status === 409 ? t('common.warning') : t('common.error'),
+      detail: err.response?.status === 409 ? t('vigilancies.messages.orderChanged') : t('vigilancies.errors.order'),
+      life: 4000
+    })
+    await carregarVigilancies()
+  }
+}
+
 // Mètodes d'assignació automàtica
 
 const assignarTitulars = async () => {
@@ -1228,6 +1230,8 @@ const assignarTitulars = async () => {
 
   try {
     const response = await axios.post(`/api/vigilancies/${dataISO.value}/assign/titulars`)
+    titularsHoraLliure.value = response.data.titulars_hora_lliure || []
+    vigilanciesSenseTitular.value = response.data.vigilancies_sense_titular || []
 
     toast.add({
       severity: 'success',
@@ -1268,7 +1272,7 @@ const assignarPendents = async () => {
       toast.add({
         severity: 'success',
         summary: t('vigilancies.messages.assignedFreeTitle'),
-        detail: t('vigilancies.messages.assignedFreeDetail', { count: assignats }),
+        detail: t('vigilancies.messages.assignedFreeDetail', { count: assignats }, assignats),
         life: 4000
       })
     }
@@ -1281,7 +1285,7 @@ const assignarPendents = async () => {
         message: t('vigilancies.confirm.assignAvailableMessage', { assigned: assignats, pending: pendents }),
         header: t('vigilancies.confirm.assignAvailableTitle'),
         icon: 'pi pi-question-circle',
-        acceptLabel: t('vigilancies.confirm.assignAvailableAccept', { count: pendents }),
+        acceptLabel: t('vigilancies.confirm.assignAvailableAccept', { count: pendents }, pendents),
         rejectLabel: t('vigilancies.confirm.assignAvailableReject'),
         accept: async () => {
           // FASE 2: Assignar disponibles
@@ -1366,7 +1370,26 @@ const confirmarNetejar = () => {
   })
 }
 
+// «Ordena» desa l'ordre automàtic: si hi havia retocs fets a mà, ho demana abans
 const ordenarPerHora = async () => {
+  let manual = false
+  try {
+    manual = await apiVigilancies.teOrdreManual(dataISO.value)
+  } catch (err) {
+    console.error('Error consultant l\'ordre:', err)
+  }
+  if (!manual) return ordena()
+  confirm.require({
+    header: t('vigilancies.confirm.sortManualTitle'),
+    message: t('vigilancies.confirm.sortManualMessage'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('vigilancies.actions.sort'),
+    rejectLabel: t('common.cancel'),
+    accept: ordena
+  })
+}
+
+const ordena = async () => {
   ordenant.value = true
 
   try {
@@ -1379,7 +1402,10 @@ const ordenarPerHora = async () => {
       life: 3000
     })
 
-    await carregarVigilancies()
+    // Ordenar no canvia qui està disponible ni les substitucions: només cal
+    // el llistat (amb l'ordre i els updated_at nous)
+    const llistat = await axios.get(`/api/vigilancies/${dataISO.value}`)
+    vigilancies.value = llistat.data
   } catch (err) {
     console.error('Error ordenant vigilàncies:', err)
     toast.add({
@@ -1394,27 +1420,18 @@ const ordenarPerHora = async () => {
 }
 
 // Funcions PDF
-const aplicarPreferenciesPdf = (prefs, target, keys) => {
-  if (!prefs) return
-  keys.forEach((key) => {
-    if (prefs[key] !== undefined) {
-      target.value[key] = prefs[key]
-    }
-  })
-}
-
 const carregarPreferenciesPdf = async () => {
   try {
     const response = await axios.get('/api/pdf/preferences', { _silent: true })
-    aplicarPreferenciesPdf(
-      response.data?.vigilancies,
+    aplicaPreferencies(
       pdfConfig,
-      ['showComments', 'showHours', 'compress', 'includeSubstitucions']
+      response.data?.vigilancies,
+      ['format', 'midaLletra', 'showComments', 'showHours', 'compress', 'includeSubstitucions']
     )
-    aplicarPreferenciesPdf(
-      response.data?.vigilancies_interval,
+    aplicaPreferencies(
       intervalConfig,
-      ['includeWeekends', 'includeEmptyDays', 'showComments', 'showHours', 'compress', 'includeSubstitucions']
+      response.data?.vigilancies_interval,
+      ['format', 'midaLletra', 'diaPerPagina', 'includeWeekends', 'includeEmptyDays', 'showComments', 'showHours', 'compress', 'includeSubstitucions']
     )
   } catch (error) {
     console.error('Error carregant preferències PDF:', error)
@@ -1426,6 +1443,8 @@ const desarPreferenciesPdf = async (tipus) => {
     if (tipus === 'vigilancies') {
       await axios.put('/api/pdf/preferences', {
         vigilancies: {
+          format: pdfConfig.value.format,
+          midaLletra: pdfConfig.value.midaLletra,
           showComments: pdfConfig.value.showComments,
           showHours: pdfConfig.value.showHours,
           compress: pdfConfig.value.compress,
@@ -1437,6 +1456,9 @@ const desarPreferenciesPdf = async (tipus) => {
     if (tipus === 'interval') {
       await axios.put('/api/pdf/preferences', {
         vigilancies_interval: {
+          format: intervalConfig.value.format,
+          midaLletra: intervalConfig.value.midaLletra,
+          diaPerPagina: intervalConfig.value.diaPerPagina,
           includeWeekends: intervalConfig.value.includeWeekends,
           includeEmptyDays: intervalConfig.value.includeEmptyDays,
           showComments: intervalConfig.value.showComments,
@@ -1509,10 +1531,8 @@ const _baixarPDFVigilancies = async () => {
   try {
     const nivellsParam = pdfConfig.value.nivells.join(',')
     const params = new URLSearchParams({
+      ...parametresComuns(pdfConfig.value),
       nivells: nivellsParam,
-      show_comments: pdfConfig.value.showComments,
-      show_hours: pdfConfig.value.showHours,
-      compress: pdfConfig.value.compress,
       include_substitucions: pdfConfig.value.includeSubstitucions
     })
 
@@ -1598,11 +1618,10 @@ const generarPDFInterval = async () => {
       data_inici: dataInici,
       data_final: dataFinal,
       nivells: nivellsParam,
+      ...parametresComuns(intervalConfig.value),
       include_weekends: intervalConfig.value.includeWeekends,
       include_empty_days: intervalConfig.value.includeEmptyDays,
-      show_comments: intervalConfig.value.showComments,
-      show_hours: intervalConfig.value.showHours,
-      compress: intervalConfig.value.compress,
+      dia_per_pagina: intervalConfig.value.diaPerPagina,
       include_substitucions: intervalConfig.value.includeSubstitucions
     })
 
@@ -1649,6 +1668,8 @@ const generarPDFInterval = async () => {
 
 // Watch per canvis de data
 watch(dataTreball, async () => {
+  titularsHoraLliure.value = []
+  vigilanciesSenseTitular.value = []
   await carregarConfig()   // professors i hores de l'horari vigent aquell dia
   await carregarVigilancies()
 })
@@ -1832,40 +1853,6 @@ onMounted(async () => {
 }
 
 
-.empty-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: #6b7280;
-}
-
-.empty-state i {
-  margin-bottom: 1rem;
-}
-
-.empty-state p {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-}
-
-/* Taula */
-.vigilancies-table {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  overflow: hidden;
-}
-
-/* Forçar table-layout fixed per evitar recàlcul d'amplades */
-:deep(.vigilancies-table .p-datatable-table) {
-  table-layout: fixed !important;
-  width: 100% !important;
-  border-collapse: collapse !important;
-}
-
-:deep(.vigilancies-table .p-datatable-wrapper) {
-  padding-bottom: 2.2rem;
-}
-
 /* Mida fixa per tots els dropdowns i inputs */
 :deep(.p-inputtext-sm),
 :deep(.p-dropdown),
@@ -1930,15 +1917,6 @@ onMounted(async () => {
   .stat-card {
     flex: 1 1 140px;
   }
-
-  :deep(.p-datatable-wrapper) {
-    padding-bottom: 1.5rem;
-  }
-
-  :deep(.p-datatable .p-datatable-thead > tr > th),
-  :deep(.p-datatable .p-datatable-tbody > tr > td) {
-    padding: 0.65rem 0.5rem;
-  }
 }
 
 @media (max-width: 520px) {
@@ -1984,172 +1962,15 @@ onMounted(async () => {
   padding: 0.4rem 0.6rem !important;
 }
 
-/* Centrar contingut verticalment i evitar overflow (EXCEPTE per row actions) */
-:deep(.vigilancies-table .p-datatable-tbody > tr > td) {
-  vertical-align: middle;
-  padding: 0.4rem 0.5rem;
-  overflow: visible !important; /* Canviat a visible per permetre botons fora */
-  position: static;
+/* Titulars amb l'hora lliure: l'avís i les seves files, fins que es decideix */
+.titulars-hora-lliure ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
 }
 
-:deep(.vigilancies-table .p-datatable-tbody > tr) {
-  position: relative;
-}
-
-:deep(.vigilancies-table .p-datatable-thead > tr > th) {
-  overflow: hidden !important;
-  padding: 0.35rem 0.5rem !important;
-}
-
-/* Forçar amplades de columnes */
-/* Checkbox selecció - 2.5rem */
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(1)),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(1)) {
-  width: 2.5rem !important;
-  min-width: 2.5rem !important;
-  max-width: 2.5rem !important;
-  padding: 0.35rem 0.3rem !important;
-  text-align: center !important;
-}
-
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(1)) {
-  display: table-cell !important;
-  justify-content: center !important;
-}
-
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(1) .p-checkbox) {
-  display: block !important;
-  margin: 0 auto !important;
-}
-
-/* Hora - 75px */
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(2)),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(2)) {
-  width: 75px !important;
-  min-width: 75px !important;
-  max-width: 75px !important;
-  padding: 0.35rem 0.3rem !important;
-}
-
-/* Tag blau d'hora que ocupi tot l'ample */
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(2) .p-dropdown) {
-  width: 100% !important;
-}
-
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(2) .p-dropdown .p-dropdown-label) {
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-:deep(.hora-dropdown.p-dropdown) {
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  border: none !important;
-  background: transparent !important;
-  padding: 0 !important;
-  width: 100% !important;
-}
-
-:deep(.hora-dropdown .p-dropdown-label) {
-  display: flex !important;
-  align-items: center !important;
-  padding: 0 !important;
-}
-
-:deep(.hora-dropdown .p-dropdown-trigger) {
-  background: transparent !important;
-  border: none !important;
-  width: 1.5rem !important;
-  min-width: 1.5rem !important;
-  padding: 0 !important;
-  margin-left: 0 !important;
-}
-
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(2) .p-tag) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 !important;
-  width: 100% !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-}
-
-/* Nivell - 90px */
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(3)),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(3)) {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
-}
-
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(3) .p-dropdown) {
-  width: 100% !important;
-}
-
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(4) .p-dropdown) {
-  width: 100% !important;
-}
-
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(5) .p-dropdown),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(6) .p-dropdown),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(7) .p-dropdown) {
-  width: 100% !important;
-}
-
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(8) .p-inputtext) {
-  width: 100% !important;
-}
-
-/* Tipus - 110px */
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(4)),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(4)) {
-  width: 110px !important;
-  min-width: 110px !important;
-  max-width: 110px !important;
-}
-
-/* Grups - 90px */
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(5)),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(5)) {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
-}
-
-/* Aula - 90px */
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(6)),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(6)) {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
-}
-
-/* Vigilant - 240px */
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(7)),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(7)) {
-  width: 240px !important;
-  min-width: 240px !important;
-  max-width: 240px !important;
-}
-
-/* Comentaris - 240px */
-:deep(.vigilancies-table .p-datatable-thead > tr > th:nth-child(8)),
-:deep(.vigilancies-table .p-datatable-tbody > tr > td:nth-child(8)) {
-  width: 240px !important;
-  min-width: 240px !important;
-  max-width: 240px !important;
-}
-
-/* Separadors d'hora */
-:deep(.hora-separador) {
-  border-top: 2px solid #e5e7eb !important;
-}
-
-:deep(.primera-hora) {
-  /* Sense border a la primera fila */
+/* Amb un filtre posat no es pot canviar l'ordre de les files */
+.avis-ordre-filtres {
+  margin: 0 0 0.75rem;
 }
 
 /* Diàleg */
@@ -2162,75 +1983,6 @@ onMounted(async () => {
   margin-bottom: 0.5rem;
   font-weight: 500;
   color: #374151;
-}
-
-/* Professor option amb colors */
-.professor-option {
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-left: 3px solid rgba(0, 0, 0, 0.1);
-}
-
-.professor-option:hover {
-  filter: brightness(0.95);
-}
-
-/* Cell wrapper relative per posicionament */
-.cell-wrapper-relative {
-  position: static;
-  width: 100%;
-}
-
-/* Row hover actions - apareixen a baix de la fila, centrats i discrets */
-.row-hover-actions {
-  position: absolute !important;
-  bottom: -1.1rem !important; /* A sota de la fila (una mica més amunt) */
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  display: flex !important;
-  gap: 0.4rem !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transition: opacity 0.2s ease !important;
-  z-index: 100 !important;
-  background: white !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-  padding: 0.2rem !important;
-  border-radius: 20px !important;
-  border: 1px solid #e5e7eb !important;
-}
-
-.row-hover-actions .action-btn {
-  width: auto !important;
-  height: 1.25rem !important;
-  padding: 0 0.5rem !important;
-  min-width: 0 !important;
-  border-radius: 6px !important;
-  font-size: 0.7rem !important;
-}
-
-.row-hover-actions .subtle-action {
-  background: #f8fafc !important;
-  border: 1px solid #e5e7eb !important;
-  color: #6b7280 !important;
-  box-shadow: none !important;
-}
-
-.row-hover-actions .subtle-action:hover {
-  background: #eef2f7 !important;
-  border-color: #d1d5db !important;
-}
-
-.row-hover-actions .action-btn .p-button-icon {
-  font-size: 0.5rem !important;
-  opacity: 0.55;
-  margin-right: 0.25rem;
-}
-
-/* Mostrar botons quan passa el ratolí per la fila */
-:deep(tr:hover .row-hover-actions) {
-  opacity: 0.6 !important;
-  pointer-events: auto !important;
 }
 
 /* Responsive */

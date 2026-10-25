@@ -154,7 +154,7 @@
       </p>
 
       <div class="toolbar" style="margin-bottom: 0.5rem;">
-        <Tag severity="info" :value="$t('config.priorities.noSubstCount', { count: noSubstituir.length })" />
+        <Tag severity="info" :value="$t('config.priorities.noSubstCount', { count: noSubstituir.length }, noSubstituir.length)" />
         <Button
           :label="$t('common.add')"
           icon="pi pi-plus"
@@ -620,7 +620,7 @@ const afegirCategoriaDialog = () => {
   toast.add({
     severity: 'success',
     summary: t('common.added'),
-    detail: t('config.priorities.categoryAdded', { count: categories.length }),
+    detail: t('config.priorities.categoryAdded', { count: categories.length }, categories.length),
     life: 3000
   })
 
@@ -638,7 +638,7 @@ const eliminarCategoria = () => {
     message: t('config.priorities.deleteCategoryConfirm', {
       index: idx + 1,
       count: categoria.categories.length
-    }),
+    }, categoria.categories.length),
     header: t('common.confirmation'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),

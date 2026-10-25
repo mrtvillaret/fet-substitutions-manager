@@ -23,6 +23,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from export.pdf.dies import dies_capcalera
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
 
@@ -220,7 +221,7 @@ def _kpi_cards(stats: dict) -> list:
         [
             card(total_abs, _("Absències"), C_ORANGE),
             card(total_serv, _("Serveis"), C_BLUE),
-            card(total_baixa, _("Baixes"), C_RED),
+            card(total_baixa, _("Absències cobertes"), C_RED),
             card(total_subs, _("Substitucions"), C_TEAL),
             card(f"{cobertura:.0f}%", _("Cobertura"), C_GREEN),
             card(dies_actius, _("Dies amb incid."), C_NAVY),
@@ -849,7 +850,7 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
     # Claus canòniques neutres d'idioma (índex del dia, 0=dilluns) — coincideixen
     # amb les guardades a informes.py. La traducció es fa només a l'etiqueta mostrada.
     dies_ordre = list(range(5))
-    dies_curt = [_("Dll"), _("Dmt"), _("Dmc"), _("Djo"), _("Div")]
+    dies_curt = dies_capcalera()
 
     # Usar ordre del XML si disponible, sinó ordenar cronològicament amb no-hora al final
     def _sort_key_hora(h):

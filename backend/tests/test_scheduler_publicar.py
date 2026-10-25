@@ -20,7 +20,7 @@ from database import get_data_db_session
 from models import ConfiguracioExamen, Grup, GrupAlliberat, Nivell
 from rate_limit import limiter
 from repositories import ConfiguracioRepository
-from routes import scheduler, substitucions, vigilancies
+from routes import scheduler, substitucions
 from routes.scheduler_service import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DURADA_EXAMEN_KEY,
@@ -28,8 +28,9 @@ from routes.scheduler_service import (
     SCHEDULER_DURADES_GRUPS_KEY,
     SCHEDULER_NIVELLS_KEY,
 )
+from vigilancies.router import router as vigilancies_router
 
-APP = crea_app(scheduler.router, vigilancies.router, substitucions.router, absencia_coberta_router)
+APP = crea_app(scheduler.router, vigilancies_router, substitucions.router, absencia_coberta_router)
 URL = "/api/scheduler/publicar"
 DATA = "2026-04-20"  # dilluns
 SETMANES = [{"Dilluns": DATA}]

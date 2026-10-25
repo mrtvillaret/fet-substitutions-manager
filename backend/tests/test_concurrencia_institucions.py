@@ -27,7 +27,8 @@ from auth.dependencies import get_current_user
 from database import get_data_db_session, get_data_dir_for_institucio
 from prioritats.repositories import NoSubstituirRepository
 from repositories import ConfiguracioRepository
-from routes import settings, vigilancies
+from routes import settings
+from vigilancies.router import router as vigilancies_router
 
 PETICIONS = 400
 FILS = 16
@@ -77,7 +78,7 @@ def servidor():
     port = _port_lliure()
     srv = uvicorn.Server(
         uvicorn.Config(
-            crea_app(vigilancies.router, settings.router, _textos), host="127.0.0.1", port=port, log_level="error"
+            crea_app(vigilancies_router, settings.router, _textos), host="127.0.0.1", port=port, log_level="error"
         )
     )
     fil = threading.Thread(target=srv.run, daemon=True)

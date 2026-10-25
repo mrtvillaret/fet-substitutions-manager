@@ -13,12 +13,21 @@ opcionalment, els titulars com a vigilants.
 import logging
 from dataclasses import dataclass, field
 
-from helpers import assign_phase1_titulars
 from models import Grup, GrupAlliberat, Nivell, Substitucio, Vigilancia
-from repositories import ConfiguracioExamenRepository, VigilanciaRepository, parse_date
+from repositories import parse_date
 from scheduler_engine.core.constraints import detectar_nivell_grup
 from serveis.dia import Dia
 from utils.hores import normalitzar_hora
+from vigilancies.assignacio import titulars_de
+from vigilancies.repositories import VigilanciaRepository
+from vigilancies.services import (
+    calcula_assignacio,
+    completa_ordre,
+    files_configuracio,
+    ordena_automaticament,
+    taules_de_grups,
+    te_ordre_manual,
+)
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +99,16 @@ class PublicacioExamens:
             for s in slot.get("sessions_simultanees", [])
             if s.get("curs")
         }
+        manual = te_ordre_manual(VigilanciaRepository.del_dia(self.db, data_iso))
         self._sincronitza_vigilancies(dia_info, data, data_iso, nivells_dia)
+        self.db.flush()
+        # Un dia sense ordre fet a mà surt ordenat automàticament; si n'hi
+        # havia, les files noves van al final del bloc de la seva hora
+        vigs = VigilanciaRepository.del_dia(self.db, data_iso)
+        if manual:
+            completa_ordre(vigs)
+        else:
+            ordena_automaticament(vigs)
         self._allibera_grups(data, data_iso)
         self.db.flush()
 
@@ -240,13 +258,17 @@ class PublicacioExamens:
         absents = Dia.de_text(data_iso, institucio).horari.absents_coberts
         if not absents:
             return
+        config = files_configuracio(db)
+        _, abreviatures, nivells = taules_de_grups(db)
         for v in vigilancies:
             if v.get("vigilant"):
                 continue
-            titular = ConfiguracioExamenRepository.buscar_titular(
-                db, v.get("tipus", ""), v.get("grups", ""), v.get("aula", "")
+            possibles, _ = titulars_de(
+                config, v.get("tipus", ""), v.get("grups", ""), v.get("aula", ""), abreviatures, nivells
             )
-            if titular in absents:
+            # Si tots els titulars possibles hi són (n'hi pot haver diversos)
+            if possibles and possibles <= absents:
+                titular = ", ".join(sorted(possibles))
                 self.resum.avisos.append(
                     {
                         "codi": "titular_amb_absencia_coberta",
@@ -277,21 +299,17 @@ class PublicacioExamens:
             if not vigilancies:
                 continue
             try:
-                core = Dia.de_text(data_iso, institucio).vigilancia_core(db)
-                vigilants = {}
-                for v in vigilancies:
-                    hora = v.get("hora", "")
-                    vigilants.setdefault(hora, set())
-                    if v.get("vigilant"):
-                        vigilants[hora].add(v["vigilant"])
-                assign_phase1_titulars(vigilancies, core, vigilants, db)
+                # L'assignació sencera de cada hora (com «Assigna titulars»):
+                # se'n desen només els titulars de les files publicades
+                calcul = calcula_assignacio(db, Dia.de_text(data_iso, institucio), data_iso, amb_guardia=False)
+                publicades = {str(v.get("db_id") or v.get("id")) for v in vigilancies}
                 self._avisa_titulars_absents(db, vigilancies, institucio, data_iso)
-                for v in vigilancies:
-                    db_id = v.get("db_id") or v.get("id")
-                    if v.get("vigilant") and db_id:
-                        vig = db.query(Vigilancia).filter(Vigilancia.id == int(db_id)).first()
-                        if vig and not vig.vigilant:
-                            vig.vigilant = v["vigilant"]
-                            self.resum.titulars += 1
+                for vig_id, professor in calcul["vigilants"].items():
+                    if vig_id not in publicades or professor not in calcul["titulars"].get(vig_id, ()):
+                        continue
+                    vig = db.query(Vigilancia).filter(Vigilancia.id == int(vig_id)).first()
+                    if vig and not vig.vigilant:
+                        vig.vigilant = professor
+                        self.resum.titulars += 1
             except Exception as e:
                 self.resum.errors.append(f"Auto-assignació {data_iso}: {str(e)}")

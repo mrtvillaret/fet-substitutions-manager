@@ -110,7 +110,7 @@
                 v-tooltip.top="{ value: pinnedNomsList, escape: false }"
               >
                 <i class="pi pi-lock"></i>
-                {{ t('scheduler.editable.pinCount', { count: pinnedNoms.size }) }}
+                {{ t('scheduler.editable.pinCount', { count: pinnedNoms.size }, pinnedNoms.size) }}
               </span>
               <Button
                 @click="onClearPins?.()"

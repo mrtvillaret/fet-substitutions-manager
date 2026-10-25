@@ -9,10 +9,7 @@ Funcions de negoci per:
 Extret del GUI per separació de responsabilitats.
 """
 
-import random
-from typing import List, Tuple
-
-from config.constants import ORDRE_PRIORITATS, PRIORITATS
+from config.constants import ORDRE_PRIORITATS
 
 try:
     from i18n_setup import translate as _
@@ -20,42 +17,6 @@ except ImportError:
 
     def _(text):
         return text
-
-
-def escollir_aleatoriament_amb_pesos(candidats: List[Tuple[str, str, str]]) -> Tuple[str, str, str]:
-    """Escull aleatòriament segons pesos d'activitat (PRIORITATS)
-
-    Args:
-        candidats: Llista de tuples (professor, tipus_activitat, detall)
-
-    Returns:
-        Tuple (professor, tipus, detall) escollit segons pes
-        o ("", "", "") si no hi ha candidats
-
-    Example:
-        >>> candidats = [("Prof_A", "Guàrdia", ""), ("Prof_B", "LIBRE", "")]
-        >>> escollir_aleatoriament_amb_pesos(candidats)
-        ('Prof_A', 'Guàrdia', '')  # Més probable si Guàrdia té més pes
-    """
-    if not candidats:
-        return ("", "", "")
-
-    if len(candidats) == 1:
-        return candidats[0]
-
-    # Crea llista ponderada: cada candidat apareix N vegades segons el seu pes
-    llista_ponderada = []
-    for prof, tipus, detall in candidats:
-        pes = PRIORITATS.get(tipus, 1)  # Pes per defecte = 1
-        # Afegeix candidat 'pes' vegades a la llista
-        for _ in range(pes):
-            llista_ponderada.append((prof, tipus, detall))
-
-    # Escull aleatòriament de la llista ponderada
-    if not llista_ponderada:
-        return ("", "", "")  # Protecció si tots els pesos són 0
-
-    return random.choice(llista_ponderada)
 
 
 def get_categoria_prioritat(tipus_activitat: str) -> int:

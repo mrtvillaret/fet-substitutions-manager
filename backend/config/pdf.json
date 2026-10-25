@@ -40,42 +40,51 @@
       "description": "Blanc i negre amb contrast òptim i línies suaus",
       "substitutions_header_bg": "#e6e6e6",
       "substitutions_header_text": "#111111",
-      "vigilances_header_bg": "#f0f0f0",
-      "vigilances_header_text": "#111111",
       "content_bg": "#ffffff",
       "grid_color": "#9e9e9e",
       "grid_width": 0.25,
       "use_header_line": true,
       "conflict_color": "#000000",
-      "hour_color": "#000000"
+      "hour_color": "#000000",
+      "hour_bg": "#eeeeee",
+      "hour_line_color": "#000000",
+      "hour_line_width": 1.5,
+      "person_color": "#000000",
+      "vigilances_row_bg": "#f2f2f2"
     },
     "color_ink_saver": {
       "name": "Color Alta Llegibilitat",
       "description": "Color suau amb alt contrast i estalvi de tinta",
       "substitutions_header_bg": "#e8f2ff",
       "substitutions_header_text": "#0f2b46",
-      "vigilances_header_bg": "#eaf7ef",
-      "vigilances_header_text": "#1f3d2d",
       "content_bg": "#ffffff",
       "grid_color": "#c9d1d9",
       "grid_width": 0.3,
       "use_header_line": false,
       "conflict_color": "#a80000",
-      "hour_color": "#1f4b99"
+      "hour_color": "#1f4b99",
+      "hour_bg": "#eef3fa",
+      "hour_line_color": "#0f2b46",
+      "hour_line_width": 1.5,
+      "person_color": "#0f2b46",
+      "vigilances_row_bg": "#fcf3d4"
     },
     "screen": {
       "name": "Pantalla/Digital",
       "description": "Optimitzat per visualització digital i pantalla",
       "substitutions_header_bg": "#2c3e50",
       "substitutions_header_text": "#ffffff",
-      "vigilances_header_bg": "#17a2b8",
-      "vigilances_header_text": "#ffffff",
-      "content_bg": "#f8f9fa",
-      "grid_color": "#dee2e6",
-      "grid_width": 0.5,
+      "content_bg": "#ffffff",
+      "grid_color": "#808080",
+      "grid_width": 0.6,
       "use_header_line": false,
       "conflict_color": "#c0392b",
-      "hour_color": "#c0392b"
+      "hour_color": "#c0392b",
+      "hour_bg": "#e9ecef",
+      "hour_line_color": "#000000",
+      "hour_line_width": 1.5,
+      "person_color": "#2c3e50",
+      "vigilances_row_bg": "#fcf3d4"
     }
   }
 }

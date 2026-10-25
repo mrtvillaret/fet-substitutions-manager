@@ -14,9 +14,10 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
-from routes import grups, substitucions, vigilancies
+from routes import grups, substitucions
+from vigilancies.router import router as vigilancies_router
 
-APP = crea_app(substitucions.router, grups.router, vigilancies.router)
+APP = crea_app(substitucions.router, grups.router, vigilancies_router)
 DATA = "2026-10-19"
 HORA = "10:00"
 

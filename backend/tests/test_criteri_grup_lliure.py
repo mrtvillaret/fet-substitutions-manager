@@ -28,11 +28,12 @@ from rate_limit import limiter
 from repositories import (
     GrupsAlliberatsRepository,
     SubstitucioRepository,
-    VigilanciaRepository,
 )
-from routes import pdf, substitucions, vigilancies
+from routes import pdf, substitucions
+from vigilancies.repositories import VigilanciaRepository
+from vigilancies.router import router as vigilancies_router
 
-APP = crea_app(vigilancies.router, substitucions.router, pdf.router)
+APP = crea_app(vigilancies_router, substitucions.router, pdf.router)
 DATA = "2026-04-20"  # dilluns
 HORA = "10:00"
 PROFESSOR = "Prof 26"
@@ -79,6 +80,7 @@ def _examen(centre, grups, vigilant=""):
                 "nivell": "2-BAT",
             },
         )
+        db.commit()
 
 
 def _prof_26_substitut(client, centre):

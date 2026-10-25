@@ -69,13 +69,13 @@
       <DataTable
         :value="substitucionsFiltrades"
         :loading="loading"
-        stripedRows
         :paginator="true"
         :rows="20"
         :rowsPerPageOptions="[10, 20, 50]"
         responsiveLayout="scroll"
         :rowClass="getRowClass"
-        class="substitucions-table"
+        class="substitucions-table taula-dades"
+        @row-click="tocaFilaSubstitucio"
       >
         <template #empty>
           <div class="empty-state">
@@ -87,16 +87,7 @@
 
         <Column field="hora" :header="$t('common.hour')" style="width: 110px;">
           <template #body="slotProps">
-            <Tag
-              :value="slotProps.data.hora"
-              :style="{
-                backgroundColor: 'var(--primary-color)',
-                color: 'white',
-                fontSize: '0.95rem',
-                fontWeight: '600',
-                padding: '0.4rem 0.8rem'
-              }"
-            />
+            <span class="taula-hora">{{ slotProps.data.hora }}</span>
           </template>
         </Column>
 
@@ -114,25 +105,7 @@
 
         <Column field="grup" :header="$t('common.group')" :sortable="true" style="width: 140px;">
           <template #body="slotProps">
-            <div class="cell-wrapper-relative">
-              <span style="font-weight: 500; color: #6c757d;">{{ slotProps.data.grup }}</span>
-              <div class="row-hover-actions">
-                <Button
-                  icon="pi pi-pencil"
-                  :label="$t('common.edit')"
-                  class="p-button-secondary p-button-sm action-btn subtle-action"
-                  @click.stop="editarAbsenciesProfessor(slotProps.data)"
-                  v-tooltip.top="$t('substitutions.actions.manageAbsences')"
-                />
-                <Button
-                  icon="pi pi-trash"
-                  :label="$t('common.delete')"
-                  class="p-button-secondary p-button-sm action-btn subtle-action"
-                  @click.stop="confirmarEliminarAbsenciesProf(slotProps.data.professor_absent)"
-                  v-tooltip.top="$t('substitutions.actions.deleteRow')"
-                />
-              </div>
-            </div>
+            <span style="font-weight: 500; color: #6c757d;">{{ slotProps.data.grup }}</span>
           </template>
         </Column>
 
@@ -154,7 +127,7 @@
               </template>
               <template #option="slotProps">
                 <div
-                  class="disponible-option"
+                  class="disponible-option opcio-acolorida"
                   :style="{ backgroundColor: slotProps.option.color }"
                 >
                   {{ slotProps.option.label }}
@@ -200,7 +173,31 @@
           </template>
         </Column>
 
+        <!-- Accions de fila: les mateixes que a Vigilàncies (taules.css, .taula-accio) -->
+        <Column style="width: 5rem;" headerClass="taula-accions" bodyClass="taula-accions">
+          <template #body="slotProps">
+            <span class="substitucions-accions">
+              <button
+                type="button"
+                class="taula-accio"
+                :title="$t('substitutions.actions.manageAbsences')"
+                :aria-label="$t('substitutions.actions.manageAbsences')"
+                @click.stop="editarAbsenciesProfessor(slotProps.data)"
+              ><i class="pi pi-pencil" aria-hidden="true"></i></button>
+              <button
+                type="button"
+                class="taula-accio"
+                :title="$t('substitutions.actions.deleteRow')"
+                :aria-label="$t('substitutions.actions.deleteRow')"
+                @click.stop="confirmarEliminarAbsenciesProf(slotProps.data.professor_absent)"
+              ><i class="pi pi-trash" aria-hidden="true"></i></button>
+            </span>
+          </template>
+        </Column>
+
       </DataTable>
+      <!-- Pantalles tàctils: les accions de la fila tocada -->
+      <AccionsFila :element="filaActiva?.element" :x="filaActiva?.x" :accions="accionsFilaActiva" @tanca="tancaAccionsFila" />
     </div>
 
     <!-- Bottom Sheet per gestionar absències -->
@@ -264,7 +261,7 @@
                 v-model="dataFinalRang" :min="dataISO" />
             </div>
             <div v-if="modeRang && datesDelRang.length > 1" class="bs-rang-resum">
-              {{ $t('substitutions.range.summary', { count: datesDelRang.length }) }}
+              {{ $t('substitutions.range.summary', { count: datesDelRang.length }, datesDelRang.length) }}
             </div>
           </div>
 
@@ -403,7 +400,7 @@
         </div>
 
         <p style="font-weight: 600; margin-top: 1rem;">
-          {{ $t('substitutions.dialogs.pdfValidation.totalIssues', { count: totalIssuesFiltrats }) }}
+          {{ $t('substitutions.dialogs.pdfValidation.totalIssues', { count: totalIssuesFiltrats }, totalIssuesFiltrats) }}
         </p>
 
         <Message severity="warn" style="margin-top: 1rem;">
@@ -443,84 +440,22 @@
       :style="{ width: '500px' }"
     >
       <div class="p-fluid">
-        <div class="field">
-          <label>{{ $t('substitutions.dialogs.pdf.includeContent') }}</label>
-          <div class="flex flex-column gap-3">
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.includeSubstitutions" inputId="includeSubstitutions" :binary="true" />
-              <label for="includeSubstitutions" class="ml-2">{{ $t('substitutions.dialogs.pdf.substitutions') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.includeVigilancies" inputId="includeVigilancies" :binary="true" />
-              <label for="includeVigilancies" class="ml-2">{{ $t('substitutions.dialogs.pdf.vigilancies') }}</label>
-            </div>
-          </div>
-        </div>
-
-        <div class="field mt-3">
-          <label>{{ $t('substitutions.dialogs.pdf.format') }}</label>
-          <div class="flex flex-column gap-2">
-            <div class="flex align-items-center">
-              <RadioButton v-model="pdfConfig.format" inputId="formatHores" value="hores" />
-              <label for="formatHores" class="ml-2">{{ $t('substitutions.dialogs.pdf.formatHours') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <RadioButton v-model="pdfConfig.format" inputId="formatDia" value="dia" />
-              <label for="formatDia" class="ml-2">{{ $t('substitutions.dialogs.pdf.formatDay') }}</label>
-            </div>
-          </div>
-        </div>
-
-        <div class="field mt-3">
-          <label>{{ $t('substitutions.dialogs.pdf.fontSize') }}</label>
-          <div class="flex flex-wrap gap-3">
-            <div v-for="mida in midesLletra" :key="mida.valor" class="flex align-items-center">
-              <RadioButton
-                v-model="pdfConfig.midaLletra"
-                :inputId="`midaLletra${mida.valor}`"
-                :value="mida.valor"
-                :disabled="pdfConfig.format !== 'dia'"
-              />
-              <label :for="`midaLletra${mida.valor}`" class="ml-2">{{ $t(mida.etiqueta) }}</label>
-            </div>
-          </div>
-          <small v-if="pdfConfig.format !== 'dia'" class="text-color-secondary">{{ $t('substitutions.dialogs.pdf.fontSizeOnlyDay') }}</small>
-        </div>
-
-        <div class="field mt-3">
-          <label>{{ $t('substitutions.dialogs.pdf.options') }}</label>
-          <div class="flex flex-column gap-3">
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.showComments" inputId="showCommentsSubs" :binary="true" />
-              <label for="showCommentsSubs" class="ml-2">{{ $t('substitutions.dialogs.pdf.showComments') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.showHours" inputId="showHoursSubs" :binary="true" :disabled="pdfConfig.format === 'dia'" />
-              <label for="showHoursSubs" class="ml-2">{{ $t('substitutions.dialogs.pdf.showHours') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.showConflicts" inputId="showConflictsSubs" :binary="true" />
-              <label for="showConflictsSubs" class="ml-2">{{ $t('substitutions.dialogs.pdf.showConflicts') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox v-model="pdfConfig.compress" inputId="compressSubs" :binary="true" :disabled="pdfConfig.format === 'dia'" />
-              <label for="compressSubs" class="ml-2">{{ $t('substitutions.dialogs.pdf.compress') }}</label>
-            </div>
-            <div class="flex align-items-center">
-              <Checkbox
-                v-model="pdfConfig.blankRows"
-                inputId="blankRowsSubs"
-                :binary="true"
-                :disabled="!pdfConfig.includeSubstitutions"
-              />
-              <label
-                for="blankRowsSubs"
-                class="ml-2"
-                v-tooltip.top="$t('substitutions.dialogs.pdf.blankRowsHint')"
-              >{{ $t('substitutions.dialogs.pdf.blankRows') }}</label>
-            </div>
-          </div>
-        </div>
+<PdfOpcionsComunes
+          v-model:config="pdfConfig"
+          prefix="subs"
+          amb-conflictes
+          titol-contingut="substitutions.dialogs.pdf.includeContent"
+          :contingut="[
+            { clau: 'includeSubstitutions', etiqueta: 'substitutions.dialogs.pdf.substitutions' },
+            { clau: 'includeVigilancies', etiqueta: 'substitutions.dialogs.pdf.vigilancies' }
+          ]"
+          :opcions-propies="[{
+            clau: 'blankRows',
+            etiqueta: 'substitutions.dialogs.pdf.blankRows',
+            ajuda: 'substitutions.dialogs.pdf.blankRowsHint',
+            amagada: !pdfConfig.includeSubstitutions
+          }]"
+        />
 
         <Message v-if="!pdfConfig.includeSubstitutions && !pdfConfig.includeVigilancies" severity="warn" class="mt-3">
           {{ $t('substitutions.dialogs.pdf.selectAtLeastOne') }}
@@ -556,12 +491,12 @@ import { dataIso } from '../dates'
 
 // Components PrimeVue
 import DataTable from 'primevue/datatable'
+import PdfOpcionsComunes from '../components/PdfOpcionsComunes.vue'
+import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
-import Checkbox from 'primevue/checkbox'
-import RadioButton from 'primevue/radiobutton'
 import Tag from 'primevue/tag'
 import Badge from 'primevue/badge'
 import Dialog from 'primevue/dialog'
@@ -571,6 +506,8 @@ import { useToast } from 'primevue/usetoast'
 import { avisaSubstitutsTrets } from '../substitutsTrets'
 import { useConfirm } from 'primevue/useconfirm'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
+import AccionsFila from '../components/AccionsFila.vue'
+import { useFilaTactil } from '../composables/useFilaTactil'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -638,11 +575,6 @@ const totalIssuesFiltrats = computed(() => {
   return conflicts.length + warningsFiltrats.value.length
 })
 // Mida de la lletra de la taula del dia (routes/pdf.py, MIDES_LLETRA)
-const midesLletra = [
-  { valor: 1, etiqueta: 'substitutions.dialogs.pdf.fontNormal' },
-  { valor: 1.2, etiqueta: 'substitutions.dialogs.pdf.fontLarge' },
-  { valor: 1.35, etiqueta: 'substitutions.dialogs.pdf.fontLarger' }
-]
 const pdfConfig = ref({
   includeSubstitutions: true,
   includeVigilancies: true,
@@ -652,7 +584,7 @@ const pdfConfig = ref({
   compress: false,
   blankRows: false,
   format: 'hores',
-  midaLletra: 1
+  midaLletra: midaPerDefecte('hores')
 })
 
 // Computed
@@ -1429,7 +1361,7 @@ const afegirAbsenciaImmediata = async () => {
         toast.add({
           severity: 'info',
           summary: t('substitutions.messages.vigilanciesUnassignedTitle'),
-          detail: t('substitutions.messages.vigilanciesUnassignedDetail', { count: resposta.data.vigilancies_desassignades }),
+          detail: t('substitutions.messages.vigilanciesUnassignedDetail', { count: resposta.data.vigilancies_desassignades }, resposta.data.vigilancies_desassignades),
           life: 6000
         })
       }
@@ -1475,25 +1407,45 @@ const afegirAbsenciaImmediata = async () => {
 }
 
 const getRowClass = (data) => {
-  // Afegir classe 'hora-separador' a la primera fila de cada hora
+  // Separador (taules.css) a la primera fila de cada hora, llevat de la primera;
+  // en pantalles tàctils, la fila tocada ressaltada
+  const activa = esFilaActiva(data) ? 'taula-fila--activa' : ''
   const index = substitucionsFiltrades.value.indexOf(data)
-  if (index === 0) return 'primera-hora'
+  if (index === 0) return activa
 
   const horaAnterior = substitucionsFiltrades.value[index - 1]?.hora
   const horaActual = data.hora
 
-  return horaAnterior !== horaActual ? 'hora-separador' : ''
+  return [horaAnterior !== horaActual ? 'taula-separador-hora' : '', activa].join(' ').trim()
 }
+
+// Pantalles tàctils: en tocar una fila (no un camp) surten les seves accions
+// (useFilaTactil, AccionsFila); a l'ordinador, en passar-hi el ratolí
+const { activa: filaActiva, tocaFila, tanca: tancaAccionsFila, esActiva: esFilaActiva } = useFilaTactil()
+const tocaFilaSubstitucio = ({ originalEvent, data }) => tocaFila(originalEvent, data)
+const accionsFilaActiva = computed(() => {
+  const substitucio = filaActiva.value?.clau
+  if (!substitucio) return []
+  return [
+    {
+      clau: 'edita',
+      icona: 'pi-pencil',
+      etiqueta: t('substitutions.actions.manageAbsences'),
+      fer: () => editarAbsenciesProfessor(substitucio)
+    },
+    {
+      clau: 'esborra',
+      icona: 'pi-trash',
+      perill: true,
+      etiqueta: t('substitutions.actions.deleteRow'),
+      fer: () => confirmarEliminarAbsenciesProf(substitucio.professor_absent)
+    }
+  ]
+})
 
 // PDF Functions
 const aplicarPreferenciesPdf = (prefs) => {
-  if (!prefs) return
-  const keys = ['includeSubstitutions', 'includeVigilancies', 'showComments', 'showHours', 'showConflicts', 'compress', 'blankRows', 'format', 'midaLletra']
-  keys.forEach((key) => {
-    if (prefs[key] !== undefined) {
-      pdfConfig.value[key] = prefs[key]
-    }
-  })
+  aplicaPreferencies(pdfConfig, prefs, ['includeSubstitutions', 'includeVigilancies', 'showComments', 'showHours', 'showConflicts', 'compress', 'blankRows', 'format', 'midaLletra'])
 }
 
 const carregarPreferenciesPdf = async () => {
@@ -1582,15 +1534,11 @@ const generarPDFAmbOpcions = async () => {
   try {
     // Generar PDF
     const params = new URLSearchParams({
+      ...parametresComuns(pdfConfig.value),
       include_substitutions: pdfConfig.value.includeSubstitutions,
       include_vigilancies: pdfConfig.value.includeVigilancies,
-      show_comments: pdfConfig.value.showComments,
-      show_hours: pdfConfig.value.showHours,
       show_conflicts: pdfConfig.value.showConflicts,
-      compress: pdfConfig.value.compress,
-      blank_rows: pdfConfig.value.blankRows,
-      format: pdfConfig.value.format,
-      mida_lletra: pdfConfig.value.midaLletra
+      blank_rows: pdfConfig.value.blankRows
     })
 
     const url = `/api/pdf/complete/${dataISO.value}?${params.toString()}`
@@ -1667,7 +1615,7 @@ const reassignarProblematics = async () => {
         toast.add({
           severity: 'success',
           summary: t('substitutions.messages.reassignSubstitutionsTitle'),
-          detail: t('substitutions.messages.reassignSubstitutionsDetail', { count: respSubs.data.cleared }),
+          detail: t('substitutions.messages.reassignSubstitutionsDetail', { count: respSubs.data.cleared }, respSubs.data.cleared),
           life: 6000
         })
       }
@@ -1831,11 +1779,9 @@ onMounted(async () => {
   gap: 1rem;
 }
 
+/* La taula fa de targeta ella mateixa (taules.css, .taula-dades), com a Vigilàncies */
 .content-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  padding: 1.5rem;
+  margin-top: 0.5rem;
 }
 
 .date-selector {
@@ -1909,25 +1855,7 @@ onMounted(async () => {
   color: #999;
 }
 
-/* Millores generals de la taula */
-:deep(.p-datatable) {
-  font-size: 0.95rem;
-}
-
-:deep(.p-datatable .p-datatable-thead > tr > th) {
-  background: #f8f9fa;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 0.9rem;
-  padding: 1rem 0.75rem;
-  border-bottom: 2px solid #dee2e6;
-}
-
-:deep(.p-datatable .p-datatable-tbody > tr > td) {
-  padding: 1rem 0.75rem;
-  vertical-align: middle;
-}
-
+/* L'aspecte de la taula (capçalera, files, hora, accions), a taules.css */
 :deep(.p-dropdown) {
   width: 100%;
   font-size: 0.925rem;
@@ -1944,86 +1872,6 @@ onMounted(async () => {
 }
 
 
-/* Accions flotants a la fila (estil vigilàncies) */
-.cell-wrapper-relative {
-  position: static;
-  width: 100%;
-}
-
-.row-hover-actions {
-  position: absolute !important;
-  bottom: -1.1rem !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  display: flex !important;
-  gap: 0.4rem !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transition: opacity 0.2s ease !important;
-  z-index: 100 !important;
-  background: white !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-  padding: 0.2rem !important;
-  border-radius: 20px !important;
-  border: 1px solid #e5e7eb !important;
-}
-
-.row-hover-actions .action-btn {
-  width: auto !important;
-  height: 1.25rem !important;
-  padding: 0 0.5rem !important;
-  min-width: 0 !important;
-  border-radius: 6px !important;
-  font-size: 0.7rem !important;
-}
-
-.row-hover-actions .action-btn .p-button-icon {
-  font-size: 0.5rem !important;
-  opacity: 0.55;
-  margin-right: 0.25rem;
-}
-
-.row-hover-actions .subtle-action {
-  background: #f8fafc !important;
-  border: 1px solid #e5e7eb !important;
-  color: #6b7280 !important;
-  box-shadow: none !important;
-}
-
-.row-hover-actions .subtle-action:hover {
-  background: #eef2f7 !important;
-  border-color: #d1d5db !important;
-}
-
-:deep(tr:hover .row-hover-actions) {
-  opacity: 0.6 !important;
-  pointer-events: auto !important;
-}
-
-
-
-
-/* Separadors entre hores */
-:deep(.hora-separador td) {
-  border-top: 3px solid #667eea !important;
-  padding-top: 1rem !important;
-}
-
-:deep(.primera-hora td) {
-  border-top: none !important;
-}
-
-/* Millora visual de files */
-:deep(.p-datatable .p-datatable-tbody > tr) {
-  transition: all 0.2s;
-}
-
-:deep(.p-datatable .p-datatable-tbody > tr:hover) {
-  background: #f0f4ff !important;
-  transform: scale(1.01);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
-}
-
 :deep(.substitucions-table .p-inputtext) {
   height: 2.2rem !important;
   min-height: 2.2rem !important;
@@ -2032,8 +1880,8 @@ onMounted(async () => {
   font-size: 0.9rem !important;
 }
 
-:deep(.substitucions-table .p-datatable-wrapper) {
-  padding-bottom: 2.2rem;
+.substitucions-accions {
+  white-space: nowrap;
 }
 
 /* Formulari Nova Substitució */
@@ -2160,17 +2008,6 @@ onMounted(async () => {
     flex: 1 1 140px;
   }
 
-  .content-card {
-    padding: 0.9rem;
-  }
-
-  :deep(.p-datatable .p-datatable-thead > tr > th) {
-    padding: 0.65rem 0.5rem;
-  }
-
-  :deep(.p-datatable .p-datatable-tbody > tr > td) {
-    padding: 0.65rem 0.5rem;
-  }
 }
 
 @media (max-width: 520px) {

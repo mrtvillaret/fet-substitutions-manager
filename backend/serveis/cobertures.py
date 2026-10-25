@@ -13,10 +13,10 @@ from models import Substitucio
 from repositories import (
     GrupsAlliberatsRepository,
     SubstitucioRepository,
-    VigilanciaRepository,
     parse_date,
 )
 from serveis.vigilancia_absent import crear_vigilancia_absent
+from vigilancies.repositories import VigilanciaRepository
 
 
 def allibera_substitucions_en_conflicte(data: str, db, hores: set | None = None) -> int:

@@ -89,3 +89,31 @@ def entra(client, username, password=CONTRASENYA):
     resp = client.post("/api/login", json={"username": username, "password": password})
     assert resp.status_code == 200, resp.text
     return client
+
+
+def streams_pdf(contingut: bytes) -> list:
+    """Les ordres de dibuix d'un PDF de reportlab (streams descomprimits), en
+    text: per comprovar colors, lletres i posicions sense cap llibreria."""
+    import base64
+    import re
+    import zlib
+
+    sortida = []
+    for m in re.finditer(rb"<<(.*?)>>\s*stream\r?\n(.*?)endstream", contingut, re.S):
+        dades, filtres = m.group(2), m.group(1)
+        try:
+            if b"ASCII85Decode" in filtres:
+                dades = base64.a85decode(dades.strip(), adobe=True)
+            if b"FlateDecode" in filtres:
+                dades = zlib.decompress(dades)
+        except (ValueError, zlib.error):
+            continue
+        sortida.append(dades.decode("latin-1"))
+    return sortida
+
+
+def text_pdf(contingut: bytes) -> list:
+    """Els textos dibuixats en un PDF de reportlab (operadors Tj), en ordre."""
+    import re
+
+    return [t for s in streams_pdf(contingut) for t in re.findall(r"\((.*?)(?<!\\)\)\s*Tj", s)]

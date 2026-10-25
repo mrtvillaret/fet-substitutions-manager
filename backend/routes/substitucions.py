@@ -26,7 +26,6 @@ from repositories import (
     CursRepository,
     GrupsAlliberatsRepository,
     SubstitucioRepository,
-    VigilanciaRepository,
 )
 from routes.parametres import DataISO, data_iso
 from schemas import (
@@ -44,6 +43,7 @@ from serveis.vigilancia_absent import (
     es_vigilancia_absent,
     sincronitzar_vigilancies_absents,
 )
+from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 

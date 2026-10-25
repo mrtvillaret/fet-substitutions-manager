@@ -1,0 +1,32 @@
+/* Llistes d'opcions compactes per a tots els desplegables (Dropdown, MultiSelect,
+   AutoComplete, Listbox). El tema hi posa 0.75rem 1.25rem per opció: amb el
+   reinici per sota del tema (veure capes.css), les llistes quedaven massa
+   esponjades. */
+.p-dropdown-panel .p-dropdown-items,
+.p-multiselect-panel .p-multiselect-items,
+.p-autocomplete-panel .p-autocomplete-items,
+.p-listbox .p-listbox-list {
+  padding: 0.25rem 0;
+}
+
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item,
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item-group,
+.p-dropdown-panel .p-dropdown-items .p-dropdown-empty-message,
+.p-multiselect-panel .p-multiselect-items .p-multiselect-item,
+.p-multiselect-panel .p-multiselect-items .p-multiselect-item-group,
+.p-multiselect-panel .p-multiselect-items .p-multiselect-empty-message,
+.p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item,
+.p-listbox .p-listbox-list .p-listbox-item {
+  padding: 0.4rem 0.75rem;
+}
+
+.p-dropdown-panel .p-dropdown-header,
+.p-multiselect-panel .p-multiselect-header {
+  padding: 0.5rem 0.75rem;
+}
+
+/* Les opcions acolorides (vigilant, substitut) porten el seu propi espai i
+   fons: l'opció no n'hi afegeix, com abans */
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item:has(> .opcio-acolorida) {
+  padding: 0;
+}

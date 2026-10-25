@@ -215,13 +215,13 @@
       "abbrevAdded": "Abreviatura añadida correctamente",
       "abbrevUpdated": "Abreviatura actualizada correctamente",
       "abbrevDeleted": "Abreviatura eliminada correctamente",
-      "detectedCount": "Se han detectado {count} grupos del XML",
+      "detectedCount": "Se ha detectado {count} grupo del XML | Se han detectado {count} grupos del XML",
       "groupsLabel": "Grupos del centro",
       "hideHint": "Se muestran todos los grupos del horario. Haz clic en los que NO quieras ver en «grupos sin clase» (por ejemplo, primaria o infantil) para ocultarlos. Los ocultos quedan tachados.",
       "xmlContext": "Configurando sobre el horario vigente el {data}",
       "xmlVersion": "versión del {versio}",
       "showAllBtn": "Mostrarlos todos",
-      "hiddenCount": "{n} ocultos",
+      "hiddenCount": "{n} oculto | {n} ocultos",
       "saveHidden": "Guardar",
       "hiddenSaved": "Grupos ocultos guardados",
       "hiddenSaveError": "No se han podido guardar los grupos ocultos"
@@ -275,7 +275,7 @@
       "freeableHint": "Actividades sin grupo (p.ej. Refuerzo, un equipo docente) que aparecen como filas en «Grupos y profesores liberados». Liberar una libera a los profesores que la hacen a esa hora, un día o a partir de un día.",
       "freeableDefault": "liberada hasta que tenga alumnos",
       "freeableDefaultHint": "Si está marcado (p.ej. Refuerzo), quien hace la actividad está liberado sin marcar nada; en «Grupos y profesores liberados» se marcan las franjas que ya tienen alumnos.",
-      "noSubstCount": "{count} asignaturas",
+      "noSubstCount": "{count} asignatura | {count} asignaturas",
       "generateAllDaysPDF": "📄 Generar PDF de Todos los Días",
       "pdfGenerated": "PDF generado correctamente",
       "startDate": "Desde el día",
@@ -290,8 +290,8 @@
       "categoryPlaceholder": "Ej: Refuerzo, liberado",
       "subjectsCommaHint": "Separa múltiples asignaturas con comas",
       "addSubjectTitle": "Asignaturas de la categoría {index}",
-      "categoryAdded": "Categoría añadida con {count} asignaturas",
-      "deleteCategoryConfirm": "¿Eliminar categoría {index} con {count} asignaturas?",
+      "categoryAdded": "Categoría añadida con {count} asignatura | Categoría añadida con {count} asignaturas",
+      "deleteCategoryConfirm": "¿Eliminar categoría {index} con {count} asignatura? | ¿Eliminar categoría {index} con {count} asignaturas?",
       "categoryDeleted": "Categoría eliminada",
       "subjectDuplicate": "\"{subject}\" ya existe en la categoría {index}",
       "subjectAdded": "\"{subject}\" añadida a la categoría {index}",
@@ -427,10 +427,10 @@
       "resultErrors": "Con errores: {errors}",
       "errorSummary": "Error",
       "successSummary": "Purga completada",
-      "successDetail": "{n} registros borrados",
+      "successDetail": "{n} registro borrado | {n} registros borrados",
       "warnXmlActive": "La versión de XML iniciada el {start} es la ACTIVA (cubre el presente). Se mantiene bloqueada: borrarla dejaría la app sin horario.",
       "warnXmlExtends": "La versión de XML {start} → {end} se extiende fuera del intervalo. Se mantiene bloqueada para no afectar fechas de fuera.",
-      "warnPdfsManual": "{n} PDF (informes de dirección/profesorado) no tienen fecha en el nombre y NO se borrarán automáticamente; revísalos manualmente.",
+      "warnPdfsManual": "{n} PDF (informes de dirección/profesorado) no tiene fecha en el nombre y NO se borrará automáticamente; revísalo manualmente. | {n} PDF (informes de dirección/profesorado) no tienen fecha en el nombre y NO se borrarán automáticamente; revísalos manualmente.",
       "anonTitle": "Renombrar profesor",
       "anonDescription": "Renombra un profesor que ya no está en el horario (inactivo) para quitar su identidad de los registros históricos, conservando los recuentos. Cubre el derecho de supresión.",
       "anonSelect": "Profesor a anonimizar",
@@ -441,7 +441,7 @@
       "anonConfirmHeader": "Confirmar renombrado",
       "anonConfirmMessage": "Se renombrará «{old}» a «{new}» en todos los registros. ¿Continuar?",
       "anonSuccessSummary": "Profesor renombrado",
-      "anonSuccessDetail": "{n} registros actualizados",
+      "anonSuccessDetail": "{n} registro actualizado | {n} registros actualizados",
       "anonAccept": "Sí, renombrar",
       "course": "Curso",
       "coursePlaceholder": "Elige un curso para rellenar las fechas",
@@ -449,7 +449,7 @@
       "plannerLast": "Último horario del planificador ({start} → {end})",
       "warnAbsenceExtends": "La ausencia cubierta de {prof} ({start} → {end}) se extiende fuera del intervalo y se borrará entera.",
       "warnPlannerExtends": "El último horario del planificador ({start} → {end}) se extiende fuera del intervalo y se borrará entero.",
-      "resultPlanner": "Planificador: {n} fechas quitadas.",
+      "resultPlanner": "Planificador: {n} fecha quitada. | Planificador: {n} fechas quitadas.",
       "resultPlannerLast": "También se ha borrado el último horario guardado."
     }
   },
@@ -532,7 +532,7 @@
     "range": {
       "onlyToday": "Solo hoy",
       "until": "Hasta el",
-      "summary": "{count} días lectivos",
+      "summary": "{count} día lectivo | {count} días lectivos",
       "daysRegistered": "días registrados para {teacher}"
     },
     "dialogs": {
@@ -564,7 +564,7 @@
         "critical": "🚨 CRÍTICOS:",
         "warnings": "⚠️ AVISOS:",
         "appliedChanges": "🔄 CAMBIOS APLICADOS:",
-        "totalIssues": "Total: {count} problemas detectados",
+        "totalIssues": "Total: {count} problema detectado | Total: {count} problemas detectados",
         "continueQuestion": "🔍 ¿Quieres continuar con la exportación del PDF?",
         "reassign": "Reasignar"
       },
@@ -573,24 +573,11 @@
         "includeContent": "Contenido a incluir",
         "substitutions": "Sustituciones",
         "vigilancies": "Vigilancias",
-        "format": "Formato",
-        "formatHours": "Por horas (una sección para cada hora)",
-        "formatDay": "Tabla del día (una tabla, con las vigilancias dentro de cada hora)",
-        "options": "Opciones de exportación",
-        "showComments": "Mostrar observaciones",
-        "showHours": "Mostrar columna horas",
-        "showConflicts": "Mostrar conflictos y avisos",
-        "compress": "Compresión automática",
         "blankRows": "Dejar espacio para escribir a mano",
         "blankRowsHint": "Muestra las horas en las que puede haber sustituciones (clase con grupos visibles o actividades que no están en «No sustituir») con filas en blanco, para añadir alguna a mano después de imprimir.",
         "selectAtLeastOne": "⚠️ Debes seleccionar al menos un tipo de contenido (sustituciones o vigilancias)",
         "selectAtLeastOneShort": "Debes seleccionar al menos un tipo de contenido",
-        "generate": "Generar PDF",
-        "fontSize": "Tamaño de letra",
-        "fontNormal": "Normal",
-        "fontLarge": "Grande",
-        "fontLarger": "Muy grande",
-        "fontSizeOnlyDay": "Solo para el formato «Tabla del día»"
+        "generate": "Generar PDF"
       }
     },
     "confirm": {
@@ -611,11 +598,11 @@
       "allAbsencesDeleted": "Todas las ausencias de {teacher} eliminadas",
       "absencesSaved": "Ausencias de {teacher} actualizadas",
       "vigilanciesUnassignedTitle": "Vigilancias añadidas a sustituciones",
-      "vigilanciesUnassignedDetail": "Se han creado {count} sustitución(es) de tipo VIGILANCIA para cubrir las vigilancias del profesor ausente.",
+      "vigilanciesUnassignedDetail": "Se ha creado {count} sustitución de tipo VIGILANCIA para cubrir las vigilancias del profesor ausente. | Se han creado {count} sustituciones de tipo VIGILANCIA para cubrir las vigilancias del profesor ausente.",
       "pdfGeneratedTitle": "PDF generado",
       "pdfGeneratedDetail": "Se ha descargado el PDF completo para {date}",
       "reassignSubstitutionsTitle": "Sustituciones reasignadas",
-      "reassignSubstitutionsDetail": "Se han revisado {count} sustituciones problemáticas",
+      "reassignSubstitutionsDetail": "Se ha revisado {count} sustitución problemática | Se han revisado {count} sustituciones problemáticas",
       "reassignDoneTitle": "Reasignación hecha",
       "reassignDoneDetail": "Todavía hay incidencias. Revisa la lista.",
       "substituteMoved": "{name} se ha movido aquí; la sustitución de {absent} ha quedado pendiente"
@@ -654,7 +641,7 @@
       "affinities": "🧭 Afinidades"
     },
     "levels": {
-      "count": "{count} niveles",
+      "count": "{count} nivel | {count} niveles",
       "empty": "No hay niveles configurados",
       "hint": "Los niveles determinan la estructura organizativa (1-ESO, 2-ESO, 1-BACH, etc.)",
       "addTitle": "➕ Añadir nivel",
@@ -687,7 +674,7 @@
       "deleteConfirmMessage": "¿Quieres eliminar la asignatura \"{name}\"?"
     },
     "rooms": {
-      "count": "{count} aulas",
+      "count": "{count} aula | {count} aulas",
       "empty": "No hay aulas configuradas",
       "addTitle": "➕ Añadir aula",
       "codeLabel": "Código del aula",
@@ -712,18 +699,19 @@
       "deleteConfirmMessage": "¿Quieres eliminar esta asignación?",
       "deleteFiltered": "Borrar filtradas",
       "deleteAll": "Borrar todo",
-      "deleteFilteredConfirmMessage": "¿Quieres eliminar las {count} asignaciones que muestra el filtro actual?",
-      "deleteAllConfirmMessage": "¿Quieres eliminar TODAS las {count} asignaciones? Esta acción no se puede deshacer.",
+      "deleteFilteredConfirmMessage": "¿Quieres eliminar la asignación que muestra el filtro actual? | ¿Quieres eliminar las {count} asignaciones que muestra el filtro actual?",
+      "deleteAllConfirmMessage": "¿Quieres eliminar la única asignación? Esta acción no se puede deshacer. | ¿Quieres eliminar TODAS las {count} asignaciones? Esta acción no se puede deshacer.",
       "obsolete": {
-        "text": "Hay {count} asignaciones con un grupo o un titular que ya no están en el horario vigente (probablemente de un curso anterior):",
+        "text": "Hay {count} asignación con un grupo o un titular que ya no está en el horario vigente (probablemente de un curso anterior): | Hay {count} asignaciones con un grupo o un titular que ya no están en el horario vigente (probablemente de un curso anterior):",
         "reason": {
           "grup": "el grupo ya no está",
           "titular": "el titular ya no está"
         },
         "remove": "Quitarlas",
-        "confirm": "Se quitarán {count} asignaciones que ya no corresponden al horario vigente. Las vigilancias y sustituciones hechas no se tocan.",
-        "removed": "Se han quitado {count} asignaciones"
-      }
+        "confirm": "Se quitará {count} asignación que ya no corresponde al horario vigente. Las vigilancias y sustituciones hechas no se tocan. | Se quitarán {count} asignaciones que ya no corresponden al horario vigente. Las vigilancias y sustituciones hechas no se tocan.",
+        "removed": "Se ha quitado {count} asignación | Se han quitado {count} asignaciones"
+      },
+      "filterRoom": "Filtrar por aula:"
     },
     "import": {
       "tabIntro": "Importa la configuración de exámenes (niveles, grupos, asignaturas, aulas y quién hace cada cosa) a partir del horario activo, o desde un CSV exportado antes.",
@@ -735,13 +723,13 @@
       "helpText": "Se proponen asignaciones según quién imparte cada asignatura a cada grupo en el horario activo. Revisa y edita antes de confirmar; solo se importarán las filas marcadas.",
       "selectedCount": "{selected} seleccionadas de {total} propuestas",
       "filteredCount": "{count} con el filtro actual",
-      "levelsSelected": "{count} niveles",
-      "subjectsSelected": "{count} asignaturas",
+      "levelsSelected": "{count} nivel | {count} niveles",
+      "subjectsSelected": "{count} asignatura | {count} asignaturas",
       "status": "Estado",
       "alreadyExists": "Ya existe",
       "newProposal": "Nueva",
       "previouslyDismissed": "Descartada anteriormente",
-      "confirmButton": "Importar {count} seleccionadas",
+      "confirmButton": "Importar {count} seleccionada | Importar {count} seleccionadas",
       "errorPreview": "No se han podido generar las propuestas de importación",
       "errorApply": "No se ha podido completar la importación",
       "exportCsv": "Exportar CSV",
@@ -756,7 +744,7 @@
       "confirmImport": "Confirmar la importación",
       "doneBrief": "Se han importado {nivells} niveles, {grups} grupos, {assignatures} asignaturas, {aules} aulas y {assignacions} asignaciones.",
       "summaryTitle": "✅ Resumen de la importación",
-      "alreadyExistedCount": "{count} asignaciones ya existían y no se han duplicado."
+      "alreadyExistedCount": "{count} asignación ya existía y no se ha duplicado. | {count} asignaciones ya existían y no se han duplicado."
     },
     "affinities": {
       "title": "Orden de proximidad por prefijo de grupo",
@@ -803,12 +791,21 @@
       "exportPdfHint": "Genera PDF de vigilancias del día",
       "exportInterval": "PDF intervalo",
       "exportIntervalHint": "Genera PDF de intervalo de fechas",
-      "addRow": "Añadir vigilancia"
+      "duplicateRow": "Duplica la vigilancia"
     },
     "filters": {
       "level": "Filtrar por nivel",
       "hour": "Filtrar por hora",
-      "status": "Estado"
+      "status": "Estado",
+      "room": "Filtrar por aula",
+      "levelAll": "Nivel: todos",
+      "levelValue": "Nivel: {valor}",
+      "hourAll": "Hora: todas",
+      "hourValue": "Hora: {valor}",
+      "statusAll": "Estado: todos",
+      "statusValue": "Estado: {valor}",
+      "roomAll": "Aula: todas",
+      "roomValue": "Aula: {valor}"
     },
     "stats": {
       "assigned": "Asignadas",
@@ -836,11 +833,6 @@
       "levelsLabel": "Niveles a incluir *",
       "levelsPlaceholder": "Selecciona niveles",
       "levelsHint": "Selecciona los niveles a incluir en el PDF",
-      "options": "Opciones",
-      "showComments": "Mostrar columna observaciones",
-      "showHours": "Mostrar columna horas",
-      "showHoursShort": "Mostrar horas",
-      "compress": "Compresión automática",
       "generatePdf": "Generar PDF",
       "intervalTitle": "📅 Exportar PDF intervalo",
       "startDateLabel": "Fecha inicio *",
@@ -855,22 +847,24 @@
       "deleteMessage": "¿Quieres eliminar la vigilancia de las {hour}?",
       "assignAvailableMessage": "📋 Se han asignado {assigned} profesores liberados.\n\nTodavía quedan {pending} vigilancias pendientes.\n\n¿Quieres asignar también profesores disponibles (guardia, libres, etc.)?",
       "assignAvailableTitle": "¿Asignar disponibles?",
-      "assignAvailableAccept": "✅ Sí, asignar {count} disponibles",
+      "assignAvailableAccept": "✅ Sí, asignar {count} disponible | ✅ Sí, asignar {count} disponibles",
       "assignAvailableReject": "❌ No, dejar pendientes",
       "clearMessage": "🗑️ ¿Quieres limpiar todas las asignaciones de vigilantes?\n\nSolo se eliminarán los profesores asignados, manteniendo asignaturas y aulas.",
       "clearTitle": "Confirmar limpieza",
       "clearAccept": "Sí, limpiar",
-      "deleteSelectedMessage": "¿Quieres eliminar las {count} vigilancias seleccionadas?"
+      "deleteSelectedMessage": "¿Quieres eliminar la vigilancia seleccionada? | ¿Quieres eliminar las {count} vigilancias seleccionadas?",
+      "sortManualTitle": "¿Ordenar las vigilancias?",
+      "sortManualMessage": "Se perderán los cambios de orden hechos a mano. ¿Quieres ordenar igualmente?"
     },
     "messages": {
       "updated": "Vigilancia actualizada correctamente",
       "added": "Vigilancia añadida correctamente",
       "deleted": "Vigilancia eliminada correctamente",
-      "deletedSelected": "{count} vigilancias eliminadas correctamente",
+      "deletedSelected": "{count} vigilancia eliminada correctamente | {count} vigilancias eliminadas correctamente",
       "deletedSelectedPartial": "{ok} vigilancias eliminadas, {errors} errores",
       "assignOwnersTitle": "Asignación completada",
       "assignedFreeTitle": "Liberados asignados",
-      "assignedFreeDetail": "✅ Se han asignado {count} profesores liberados",
+      "assignedFreeDetail": "✅ Se ha asignado {count} profesor liberado | ✅ Se han asignado {count} profesores liberados",
       "availableAssignedTitle": "Disponibles asignados",
       "allAssignedTitle": "Todo asignado",
       "allAssignedDetail": "🎉 ¡Todas las vigilancias están asignadas!",
@@ -879,7 +873,8 @@
       "pdfGeneratedTitle": "PDF generado",
       "pdfGeneratedDetail": "El PDF se ha descargado correctamente",
       "pdfIntervalTitle": "PDF generado",
-      "pdfIntervalDetail": "El PDF de intervalo se ha descargado correctamente"
+      "pdfIntervalDetail": "El PDF de intervalo se ha descargado correctamente",
+      "orderChanged": "Las filas de esta hora habían cambiado: se han vuelto a cargar."
     },
     "errors": {
       "load": "Error al cargar las vigilancias",
@@ -898,7 +893,40 @@
       "levelsRequired": "Debes seleccionar al menos un nivel",
       "dateFormatTitle": "Error de formato",
       "dateFormat": "Las fechas seleccionadas no son válidas",
-      "generatePdfInterval": "No se ha podido generar el PDF de intervalo"
+      "generatePdfInterval": "No se ha podido generar el PDF de intervalo",
+      "order": "No se ha podido guardar el orden de las filas"
+    },
+    "freeHourOwners": {
+      "title": "1 titular no se ha asignado porque tenía la hora libre. Decide si lo pones en su fila: | {count} titulares no se han asignado porque tenían la hora libre. Decide si los pones en su fila:",
+      "assign": "Ponerlo",
+      "assigned": "Titular asignado",
+      "conflict": "Alguien ha modificado esta vigilancia: se ha vuelto a cargar."
+    },
+    "withoutOwner": {
+      "title": "1 vigilancia no tiene un titular definido en la configuración de exámenes: | {count} vigilancias no tienen un titular definido en la configuración de exámenes:",
+      "cap_fila_grup": "ninguna fila para el grupo",
+      "diversos_titulars": "varios titulares posibles: configura el aula de cada profesor para que quede definido (se ha asignado igualmente)",
+      "openConfig": "Abrir la configuración de exámenes"
+    },
+    "table": {
+      "selectAll": "Selecciona todas las vigilancias",
+      "selectBlock": "Selecciona las vigilancias de las {hora}",
+      "selectRow": "Selecciona la vigilancia de las {hora}",
+      "rowsInBlock": "{count} vigilancia | {count} vigilancias",
+      "dragHandle": "Arrastra para cambiar el orden dentro de la hora",
+      "moveUp": "Sube la fila",
+      "moveDown": "Baja la fila",
+      "orderDisabledByFilter": "Con un filtro puesto no se puede cambiar el orden de las filas. Quita los filtros para arrastrarlas."
+    },
+    "help": {
+      "title": "Qué tiene {nom} a esta hora",
+      "loading": "Cargando...",
+      "error": "No se ha podido cargar la ayuda.",
+      "invigilationsDay": "{count} vigilancia este día | {count} vigilancias este día"
+    },
+    "form": {
+      "title": "Nueva vigilancia",
+      "optional": "opcional"
     }
   },
   "help": {
@@ -1134,8 +1162,8 @@
       "daysWithVigs": "Días con vigilancias",
       "perTeacher": "Detalle por profesor",
       "perTeacherHint": "Haz clic en un profesor para ver el detalle por días",
-      "substitutionsDetail": "{count} sustituciones ({percent}%)",
-      "vigilanciesDetail": "{count} asignadas ({percent}%)",
+      "substitutionsDetail": "{count} sustitución ({percent}%) | {count} sustituciones ({percent}%)",
+      "vigilanciesDetail": "{count} asignada ({percent}%) | {count} asignadas ({percent}%)",
       "topAbsences": "Top 5 ausencias",
       "topSubstitutions": "Top 5 sustituciones"
     },
@@ -1344,7 +1372,7 @@
       "levelConflictsDetected": "Conflictos de nivel detectados",
       "pinAll": "Fijar todo",
       "unpinAll": "Desfijar todo",
-      "pinCount": "{count} fijado/s",
+      "pinCount": "{count} fijado | {count} fijados",
       "pin": "Fijar",
       "unpin": "Desfijar",
       "actions": {
@@ -1503,7 +1531,7 @@
       },
       "messages": {
         "configSaved": "Configuración guardada",
-        "vigilanciesPublished": "Publicadas {count} vigilancias",
+        "vigilanciesPublished": "Publicada {count} vigilancia | Publicadas {count} vigilancias",
         "scheduleUpdated": "Horario actualizado",
         "localChangesApplied": "Los cambios se han aplicado localmente",
         "notViable": "No viable",
@@ -1512,7 +1540,7 @@
       "staleSubjects": {
         "text": "Hay restricciones con asignaturas que ya no están en la configuración de exámenes (de un curso anterior o de antes de cambiar el nombre de un nivel) y no se aplican a ningún examen:",
         "remove": "Quitarlas de las restricciones",
-        "removed": "Se han quitado {count} asignaturas de las restricciones"
+        "removed": "Se ha quitado {count} asignatura de las restricciones | Se han quitado {count} asignaturas de las restricciones"
       },
       "previousCourse": "Las fechas elegidas son del curso {cursos}, anterior al actual ({actual}). El planificador usa la configuración de exámenes del curso actual y no se podrá publicar. Las vigilancias de cursos anteriores se consultan en Vigilancias.",
       "lastResult": "Este es el último horario generado o modificado ({data}). Si has cambiado la configuración o las fechas, vuelve a generar.",
@@ -1824,5 +1852,20 @@
         "optionalName": "Nombre (opcional)"
       }
     }
+  },
+  "pdfOptions": {
+    "format": "Formato",
+    "formatHours": "Por horas (una sección para cada hora)",
+    "formatDay": "Tabla del día (una sola tabla, con la hora en la primera columna)",
+    "fontSize": "Tamaño de letra",
+    "fontNormal": "Normal",
+    "fontLarge": "Grande",
+    "fontLarger": "Muy grande",
+    "options": "Opciones de exportación",
+    "showComments": "Mostrar observaciones",
+    "showHours": "Mostrar columna horas (solo por horas)",
+    "compress": "Compresión automática",
+    "showConflicts": "Mostrar conflictos y avisos",
+    "dayPerPage": "Cada día en una página nueva"
   }
 }

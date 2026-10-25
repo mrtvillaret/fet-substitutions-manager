@@ -303,7 +303,8 @@ const settings = ref({
   institucio_display_name: '',
   data_dir: '',
   no_substituir: [],
-  logo_path: ''
+  logo_path: '',
+  te_logo: false
 })
 
 // La instància de demostració és pública i compartida: qualsevol pot entrar-hi
@@ -397,7 +398,12 @@ const carregarSettings = async () => {
     if (!settings.value.institucio_display_name) {
       settings.value.institucio_display_name = settings.value.institucio || ''
     }
-    await carregarLogo()
+    // Sense logo no es demana: no en tenir és normal, no un error (404)
+    if (settings.value.te_logo) {
+      await carregarLogo()
+    } else {
+      logoUrl.value = ''
+    }
     logoNom.value = settings.value.logo_path ? settings.value.logo_path.split('/').pop() : ''
     idiomes.value = idiomesResp.data.idiomes
     // Ordre XML + nom cru (per veure els espais). Fallback a la llista plana
@@ -536,6 +542,7 @@ const pujarLogo = async (event) => {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     settings.value.logo_path = response.data.path
+    settings.value.te_logo = true
     logoNom.value = response.data.filename
     await carregarLogo()
     actualitzarSnapshot()

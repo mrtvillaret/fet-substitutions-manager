@@ -258,29 +258,37 @@ async def upload_logo(file: UploadFile = File(...), current_user=Depends(require
     }
 
 
-@router.get("/logo")
-async def get_logo(current_user=Depends(require_admin)):
-    """
-    Retorna el logo configurat de la institució
-    """
-    data_dir = get_data_dir_for_institucio(current_user.institucio)
-    logo_path = None
-    try:
-        from repositories import ConfiguracioRepository
-
-        with get_data_db_session(current_user.institucio) as db:
-            logo_path = ConfiguracioRepository.get(db, "logo_path")
-    except Exception:
-        logo_path = None
-
+def cami_logo(institucio: str, logo_configurat: Optional[str]) -> Optional[str]:
+    """El fitxer del logo del centre, o None si no en té: el desat a la
+    configuració (logo_path) o, si no n'hi ha cap, un logo.png/.jpg de la
+    carpeta de dades."""
+    logo_path = logo_configurat
     if not logo_path:
+        data_dir = get_data_dir_for_institucio(institucio)
         for ext in (".png", ".jpg", ".jpeg"):
             candidate = data_dir / f"logo{ext}"
             if candidate.exists():
                 logo_path = str(candidate)
                 break
+    return logo_path if logo_path and os.path.exists(logo_path) else None
 
-    if not logo_path or not os.path.exists(logo_path):
+
+@router.get("/logo")
+async def get_logo(current_user=Depends(require_admin)):
+    """
+    Retorna el logo configurat de la institució
+    """
+    logo_configurat = None
+    try:
+        from repositories import ConfiguracioRepository
+
+        with get_data_db_session(current_user.institucio) as db:
+            logo_configurat = ConfiguracioRepository.get(db, "logo_path")
+    except Exception:
+        logo_configurat = None
+
+    logo_path = cami_logo(current_user.institucio, logo_configurat)
+    if not logo_path:
         raise HTTPException(status_code=404, detail="Logo no trobat")
 
     media_type = "image/png"

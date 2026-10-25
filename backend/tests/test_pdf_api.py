@@ -12,9 +12,10 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
-from routes import informes, pdf, substitucions, vigilancies
+from routes import informes, pdf, substitucions
+from vigilancies.router import router as vigilancies_router
 
-APP = crea_app(vigilancies.router, substitucions.router, pdf.router, informes.router)
+APP = crea_app(vigilancies_router, substitucions.router, pdf.router, informes.router)
 DATA = "2026-04-20"  # dilluns
 TEXT_PERILLÓS = "Aula <font"  # etiqueta sense tancar
 IMATGE = "<img src='/etc/hostname' width='9' height='9'/>"
@@ -36,8 +37,12 @@ def _limiter_net():
 
 
 @pytest.fixture
-def client():
-    centre = nova_institucio(amb_xml=True)
+def centre():
+    return nova_institucio(amb_xml=True)
+
+
+@pytest.fixture
+def client(centre):
     nom = f"admin_{uuid.uuid4().hex[:8]}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
@@ -137,7 +142,28 @@ def test_format_dia_una_taula_amb_substitucions_i_vigilancies(client):
     text = _text_dia(client)
     assert "Hora 11:30" not in text  # sense títols per hora
     assert "Prof 15" in text and "Física" in text and "Prof 21" in text
-    assert "Files en gris" in text  # llegenda de les vigilàncies
+    assert "Absent / Curs" in text and "Substitut / Vigilant" in text  # una sola capçalera
+    assert "Les files en cursiva amb fons de color" in text  # nota de les vigilàncies
+
+
+@pytest.mark.parametrize(
+    "idioma, etiquetes",
+    [
+        ("es", ["Ausente / Curso", "Grupo / Aula", "Sustituto / Vigilante", "vigilancias de examen"]),
+        ("en", ["Absent / Course", "Group / Classroom", "Substitute / Invigilator", "exam invigilations"]),
+        ("it", ["Assente / Anno", "Gruppo / Aula", "Supplente / Sorvegliante", "sorveglianze d"]),
+    ],
+)
+def test_la_capcalera_combinada_i_la_nota_es_tradueixen(client, centre, idioma, etiquetes):
+    from database import get_data_db_session
+    from repositories import ConfiguracioRepository
+
+    with get_data_db_session(centre) as db:
+        ConfiguracioRepository.set(db, "idioma", idioma)
+        db.commit()
+    text = " ".join(_text_dia(client).split())
+    for etiqueta in etiquetes:
+        assert etiqueta in text, (etiqueta, text[:400])
 
 
 def test_format_dia_amb_espai_a_ma_mostra_les_hores_detectades(client):
@@ -152,12 +178,13 @@ def test_format_desconegut_dona_400(client):
     assert client.get(f"/api/pdf/complete/{DATA}", params={"format": "x"}).status_code == 400
 
 
-def test_format_dia_sense_espai_a_ma_tambe_mostra_les_hores_amb_classe(client):
-    # Les hores sense ningú surten igualment (amb una fila en blanc)
+def test_format_dia_sense_espai_a_ma_nomes_mostra_les_hores_amb_files(client):
+    # Abans hi sortien totes les hores amb classe, amb una fila en blanc (i una
+    # hora buida quan les seves absències no es mostraven)
     linies = [linia.strip() for linia in _text_dia(client).splitlines()]
-    for hora in ("08:00", "09:00", "12:30", "15:00", "16:00"):
-        assert hora in linies
-    assert "17:00" not in linies and "PATI" not in linies
+    assert "10:00" in linies and "11:30" in linies
+    for hora in ("08:00", "09:00", "12:30", "15:00", "16:00", "17:00", "PATI"):
+        assert hora not in linies
 
 
 def test_format_dia_amb_lletra_mes_gran(client):

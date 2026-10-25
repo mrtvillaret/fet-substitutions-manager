@@ -47,9 +47,9 @@ from routes import (
     scheduler,
     settings,
     substitucions,
-    vigilancies,
 )
 from usuaris.router import router as usuaris_router
+from vigilancies.router import router as vigilancies_router
 
 log = logging.getLogger(__name__)
 access_logger = logging.getLogger("uvicorn.error")
@@ -166,7 +166,7 @@ app.include_router(config_examens.router, dependencies=[Depends(require_admin)])
 app.include_router(grups.router, dependencies=[Depends(get_current_user)])
 app.include_router(grups_amagats.router, dependencies=[Depends(require_admin)])
 app.include_router(pdf.router, dependencies=[Depends(get_current_user)])
-app.include_router(vigilancies.router, dependencies=[Depends(get_current_user)])
+app.include_router(vigilancies_router, dependencies=[Depends(get_current_user)])
 app.include_router(substitucions.router, dependencies=[Depends(get_current_user)])
 app.include_router(settings.router, dependencies=[Depends(require_admin)])
 app.include_router(estadistiques.router, dependencies=[Depends(require_admin)])

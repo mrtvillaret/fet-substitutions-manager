@@ -24,6 +24,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from export.pdf.dies import dies_capcalera
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
 from utils.hores import normalitzar_hora as _normalitzar_hora
@@ -45,7 +46,6 @@ MARGIN = 1.5 * cm
 CONTENT_W = PAGE_W - 2 * MARGIN
 
 DIES_ORDRE = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
-DIES_CURT = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
 
 
 def _text(valor) -> str:
@@ -334,10 +334,10 @@ def _grid_horari(absencies: list, subs_fetes: list, hores_xml: list) -> list:
         )
     ] + [
         Paragraph(
-            _(d)[:3],
+            d,
             _s("dh", fontName="Helvetica-Bold", fontSize=8, textColor=C_WHITE, alignment=TA_CENTER, leading=10),
         )
-        for d in DIES_ORDRE
+        for d in dies_capcalera()  # abans _(dia)[:3]: «Dimarts» i «Dimecres» sortien tots dos «Dim»
     ]
 
     rows = [header_data]

@@ -57,7 +57,6 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     # la recàrrega ha d'omplir els mateixos objectes, no crear-ne de nous.
     import core.absencies
     import core.vigilancia_assignacio
-    import helpers
     import routes.disponibles
     import routes.settings
 
@@ -67,8 +66,7 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
 
     carrega_prioritats(db_session)
 
-    for modul in (helpers, core.vigilancia_assignacio):
-        assert modul.PRIORITATS == {"Guàrdia": 4}, modul.__name__
+    assert dict(constants.PRIORITATS) == {"Guàrdia": 4}  # ja cap mòdul no la importa en carregar-se
     for modul in (core.vigilancia_assignacio, routes.disponibles):
         assert modul.ORDRE_PRIORITATS == [["Guàrdia"]], modul.__name__
     for modul in (core.absencies, routes.settings):

@@ -21,6 +21,7 @@ from dependencies import get_db
 from models import XMLVersion
 from noms import NomNet
 from repositories import ConfiguracioRepository, XMLVersionRepository
+from routes.files import cami_logo
 from routes.parametres import data_iso
 from serveis.dia import Dia
 
@@ -69,6 +70,7 @@ async def get_settings(db: Session = Depends(get_db)):
         "data_inici_estadistiques": config_db.get("data_inici_estadistiques"),
         "data_final_estadistiques": config_db.get("data_final_estadistiques"),
         "logo_path": config_db.get("logo_path"),
+        "te_logo": cami_logo(institucio, config_db.get("logo_path")) is not None,
         "institucio_display_name": display_name,
         # Configuració per institució (SQLite)
         "ultim_professor_subs": ultim_professor_subs,

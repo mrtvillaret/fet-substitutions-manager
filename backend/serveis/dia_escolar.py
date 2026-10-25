@@ -14,8 +14,8 @@ from helpers import get_horari
 from repositories import (
     GrupsAlliberatsRepository,
     SubstitucioRepository,
-    VigilanciaRepository,
 )
+from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 

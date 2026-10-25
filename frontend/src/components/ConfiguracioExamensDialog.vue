@@ -66,7 +66,7 @@
           <div class="tab-content">
             <div class="toolbar">
               <div class="toolbar-left">
-                <Tag severity="info" :value="$t('examConfig.levels.count', { count: nivells.length })" />
+                <Tag severity="info" :value="$t('examConfig.levels.count', { count: nivells.length }, nivells.length)" />
               </div>
               <div class="toolbar-right">
                 <Button
@@ -221,7 +221,7 @@
           <div class="tab-content">
             <div class="toolbar">
               <div class="toolbar-left">
-                <Tag severity="info" :value="$t('examConfig.rooms.count', { count: aules.length })" />
+                <Tag severity="info" :value="$t('examConfig.rooms.count', { count: aules.length }, aules.length)" />
               </div>
               <Button
                 :label="$t('common.add')"
@@ -266,7 +266,7 @@
           <div class="tab-content-table">
             <!-- Assignacions amb grups o titulars que ja no són a l'horari (curs anterior) -->
             <Message v-if="assignacionsObsoletes.length" severity="warn" :closable="false" class="mb-3">
-              <div>{{ $t('examConfig.assignments.obsolete.text', { count: assignacionsObsoletes.length }) }}</div>
+              <div>{{ $t('examConfig.assignments.obsolete.text', { count: assignacionsObsoletes.length }, assignacionsObsoletes.length) }}</div>
               <ul class="my-2">
                 <li v-for="a in assignacionsObsoletes.slice(0, 10)" :key="a.id">
                   {{ a.assignatura }} – {{ a.grup }}<span v-if="a.titular"> ({{ a.titular }})</span>:
@@ -296,6 +296,17 @@
                   :placeholder="$t('common.all')"
                   @change="filtrarAssignacions"
                   class="filtre-dropdown"
+                />
+              </div>
+              <!-- Per aula: amb «ENLLAÇ» es veu de seguida qui fa d'enllaç -->
+              <div class="filtre-group">
+                <label>{{ $t('examConfig.assignments.filterRoom') }}</label>
+                <FiltreAula
+                  v-model="filtreAulaAssignacions"
+                  :aules="aulesDelFiltre"
+                  :etiqueta-totes="$t('common.all')"
+                  class="filtre-dropdown"
+                  @change="filtrarAssignacions"
                 />
               </div>
               <div class="toolbar-right">
@@ -632,7 +643,7 @@
             v-model="filtreNivellImport"
             :options="nivellsImport"
             :placeholder="$t('examConfig.assignments.filterLevel')"
-            :selectedItemsLabel="$t('examConfig.import.levelsSelected', { count: filtreNivellImport.length })"
+            :selectedItemsLabel="$t('examConfig.import.levelsSelected', { count: filtreNivellImport.length }, filtreNivellImport.length)"
             :maxSelectedLabels="2"
             display="chip"
             class="filtre-dropdown"
@@ -641,7 +652,7 @@
             v-model="filtreAssignaturaImport"
             :options="assignaturesImport"
             :placeholder="$t('examConfig.assignments.filterSubject')"
-            :selectedItemsLabel="$t('examConfig.import.subjectsSelected', { count: filtreAssignaturaImport.length })"
+            :selectedItemsLabel="$t('examConfig.import.subjectsSelected', { count: filtreAssignaturaImport.length }, filtreAssignaturaImport.length)"
             :maxSelectedLabels="2"
             display="chip"
             :filter="true"
@@ -725,7 +736,7 @@
           <div>
             <Button :label="$t('common.cancel')" @click="mostrarDialegImport = false" class="p-button-text" />
             <Button
-              :label="$t('examConfig.import.confirmButton', { count: propostesSeleccionades.length })"
+              :label="$t('examConfig.import.confirmButton', { count: propostesSeleccionades.length }, propostesSeleccionades.length)"
               icon="pi pi-check"
               @click="previsualitzarImportacio"
               class="p-button-success"
@@ -779,7 +790,7 @@
         </template>
 
         <p v-if="resumPrevi.ja_existien">
-          {{ $t('examConfig.import.alreadyExistedCount', { count: resumPrevi.ja_existien }) }}
+          {{ $t('examConfig.import.alreadyExistedCount', { count: resumPrevi.ja_existien }, resumPrevi.ja_existien) }}
         </p>
 
         <Message
@@ -823,7 +834,7 @@
           assignacions: resumFinal.assignacions_creades.length,
         }) }}</p>
         <p v-if="resumFinal.ja_existien">
-          {{ $t('examConfig.import.alreadyExistedCount', { count: resumFinal.ja_existien }) }}
+          {{ $t('examConfig.import.alreadyExistedCount', { count: resumFinal.ja_existien }, resumFinal.ja_existien) }}
         </p>
         <Message
           v-if="resumFinal.avisos && resumFinal.avisos.length"
@@ -879,6 +890,7 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Message from 'primevue/message'
 import Checkbox from 'primevue/checkbox'
+import FiltreAula from './vigilancies/FiltreAula.vue'
 
 const toast = useToast()
 const { t } = useI18n()
@@ -990,6 +1002,11 @@ const assignacionsFiltrades = ref([])
 const allLabel = computed(() => t('common.all'))
 const filtreNivellAssignacions = ref(allLabel.value)
 const filtreAssignaturaAssignacions = ref(allLabel.value)
+const filtreAulaAssignacions = ref(allLabel.value)
+// Les aules de la llista i les que ja surten a les assignacions
+const aulesDelFiltre = computed(() =>
+  [...new Set([...aules.value, ...assignacions.value.map(a => a.aula)].filter(Boolean))].sort((a, b) => a.localeCompare(b))
+)
 const totesAssignatures = ref([])
 const totsGrups = ref([])
 const assignaturesUniques = ref([])
@@ -1003,6 +1020,9 @@ watch(allLabel, (newVal, oldVal) => {
   }
   if (filtreAssignaturaAssignacions.value === oldVal) {
     filtreAssignaturaAssignacions.value = newVal
+  }
+  if (filtreAulaAssignacions.value === oldVal) {
+    filtreAulaAssignacions.value = newVal
   }
 })
 
@@ -1370,7 +1390,7 @@ const carregarAssignacionsObsoletes = async () => {
 }
 const treureAssignacionsObsoletes = () => {
   confirm.require({
-    message: t('examConfig.assignments.obsolete.confirm', { count: assignacionsObsoletes.value.length }),
+    message: t('examConfig.assignments.obsolete.confirm', { count: assignacionsObsoletes.value.length }, assignacionsObsoletes.value.length),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
@@ -1379,7 +1399,7 @@ const treureAssignacionsObsoletes = () => {
       try {
         const ids = assignacionsObsoletes.value.map(a => a.id)
         const { data } = await axios.delete('/api/config/assignacions', { data: { ids } })
-        toast.add({ severity: 'success', summary: t('examConfig.assignments.obsolete.removed', { count: data.eliminades }), life: 3000 })
+        toast.add({ severity: 'success', summary: t('examConfig.assignments.obsolete.removed', { count: data.eliminades }, data.eliminades), life: 3000 })
         await carregarAssignacions()
       } catch {
         toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 })
@@ -1419,6 +1439,11 @@ const filtrarAssignacions = () => {
   // Filtrar per assignatura
   if (filtreAssignaturaAssignacions.value && filtreAssignaturaAssignacions.value !== allLabel.value) {
     filtrades = filtrades.filter(a => a.assignatura === filtreAssignaturaAssignacions.value)
+  }
+
+  // Filtrar per aula
+  if (filtreAulaAssignacions.value && filtreAulaAssignacions.value !== allLabel.value) {
+    filtrades = filtrades.filter(a => a.aula === filtreAulaAssignacions.value)
   }
 
   assignacionsFiltrades.value = filtrades
@@ -1548,7 +1573,7 @@ const eliminarAssignacionsFiltrades = () => {
   if (assignacionsFiltrades.value.length === 0) return
 
   confirm.require({
-    message: t('examConfig.assignments.deleteFilteredConfirmMessage', { count: assignacionsFiltrades.value.length }),
+    message: t('examConfig.assignments.deleteFilteredConfirmMessage', { count: assignacionsFiltrades.value.length }, assignacionsFiltrades.value.length),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
@@ -1571,7 +1596,7 @@ const eliminarTotesAssignacions = () => {
   if (assignacions.value.length === 0) return
 
   confirm.require({
-    message: t('examConfig.assignments.deleteAllConfirmMessage', { count: assignacions.value.length }),
+    message: t('examConfig.assignments.deleteAllConfirmMessage', { count: assignacions.value.length }, assignacions.value.length),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),

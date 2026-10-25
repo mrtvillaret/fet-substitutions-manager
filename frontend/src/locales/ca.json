@@ -215,13 +215,13 @@
       "abbrevAdded": "Abreviatura afegida correctament",
       "abbrevUpdated": "Abreviatura actualitzada correctament",
       "abbrevDeleted": "Abreviatura eliminada correctament",
-      "detectedCount": "S'han detectat {count} grups de l'XML",
+      "detectedCount": "S'ha detectat {count} grup de l'XML | S'han detectat {count} grups de l'XML",
       "groupsLabel": "Grups del centre",
       "hideHint": "Es mostren tots els grups de l'horari. Clica els que NO vulguis veure a «grups sense classe» (per exemple, primària o infantil) per amagar-los. Els amagats queden ratllats.",
       "xmlContext": "Configurant sobre l'horari vigent el {data}",
       "xmlVersion": "versió del {versio}",
       "showAllBtn": "Mostra'ls tots",
-      "hiddenCount": "{n} amagats",
+      "hiddenCount": "{n} amagat | {n} amagats",
       "saveHidden": "Desa",
       "hiddenSaved": "Grups amagats desats",
       "hiddenSaveError": "No s'han pogut desar els grups amagats"
@@ -275,7 +275,7 @@
       "freeableHint": "Activitats sense grup (p.ex. Reforç, un equip docent) que surten com a files a «Grups i professors alliberats». Alliberar-ne una allibera els professors que la fan a aquella hora, un dia o a partir d'un dia.",
       "freeableDefault": "alliberada fins que tingui alumnes",
       "freeableDefaultHint": "Si està marcat (p.ex. Reforç), qui fa l'activitat està alliberat sense marcar res; a «Grups i professors alliberats» es marquen les franges que ja tenen alumnes.",
-      "noSubstCount": "{count} assignatures",
+      "noSubstCount": "{count} assignatura | {count} assignatures",
       "saveAll": "💾 Desa Totes les Prioritats",
       "addNoSubstTitle": "Assignatures a no substituir",
       "selectSubjectXml": "Selecciona assignatura de l'XML",
@@ -286,8 +286,8 @@
       "categoryPlaceholder": "Ex: Reforç, alliberat",
       "subjectsCommaHint": "Separa múltiples assignatures amb comes",
       "addSubjectTitle": "Assignatures de la categoria {index}",
-      "categoryAdded": "Categoria afegida amb {count} assignatures",
-      "deleteCategoryConfirm": "Elimina categoria {index} amb {count} assignatures?",
+      "categoryAdded": "Categoria afegida amb {count} assignatura | Categoria afegida amb {count} assignatures",
+      "deleteCategoryConfirm": "Elimina categoria {index} amb {count} assignatura? | Elimina categoria {index} amb {count} assignatures?",
       "categoryDeleted": "Categoria eliminada",
       "subjectDuplicate": "\"{subject}\" ja existeix a la categoria {index}",
       "subjectAdded": "\"{subject}\" afegida a categoria {index}",
@@ -430,10 +430,10 @@
       "resultErrors": "Amb errors: {errors}",
       "errorSummary": "Error",
       "successSummary": "Purga completada",
-      "successDetail": "{n} registres esborrats",
+      "successDetail": "{n} registre esborrat | {n} registres esborrats",
       "warnXmlActive": "La versió d'XML iniciada el {start} és l'ACTIVA (cobreix el present). Es manté bloquejada: esborrar-la deixaria l'app sense horari.",
       "warnXmlExtends": "La versió d'XML {start} → {end} s'estén fora de l'interval. Es manté bloquejada per no afectar dates de fora.",
-      "warnPdfsManual": "{n} PDF (informes de direcció/professorat) no tenen data al nom i NO s'esborraran automàticament; revisa'ls manualment.",
+      "warnPdfsManual": "{n} PDF (informes de direcció/professorat) no té data al nom i NO s'esborrarà automàticament; revisa'l manualment. | {n} PDF (informes de direcció/professorat) no tenen data al nom i NO s'esborraran automàticament; revisa'ls manualment.",
       "anonTitle": "Reanomenar professor",
       "anonDescription": "Reanomena un professor que ja no és a l'horari (inactiu) per treure'n la identitat dels registres històrics, conservant els recomptes. Cobreix el dret de supressió.",
       "anonSelect": "Professor a anonimitzar",
@@ -444,7 +444,7 @@
       "anonConfirmHeader": "Confirmar reanomenament",
       "anonConfirmMessage": "Es reanomenarà «{old}» a «{new}» a tots els registres. Vols continuar?",
       "anonSuccessSummary": "Professor reanomenat",
-      "anonSuccessDetail": "{n} registres actualitzats",
+      "anonSuccessDetail": "{n} registre actualitzat | {n} registres actualitzats",
       "anonAccept": "Sí, reanomena",
       "course": "Curs",
       "coursePlaceholder": "Tria un curs per omplir les dates",
@@ -452,7 +452,7 @@
       "plannerLast": "Últim horari del planificador ({start} → {end})",
       "warnAbsenceExtends": "L'absència coberta de {prof} ({start} → {end}) s'estén fora de l'interval i s'esborrarà sencera.",
       "warnPlannerExtends": "L'últim horari del planificador ({start} → {end}) s'estén fora de l'interval i s'esborrarà sencer.",
-      "resultPlanner": "Planificador: {n} dates tretes.",
+      "resultPlanner": "Planificador: {n} data treta. | Planificador: {n} dates tretes.",
       "resultPlannerLast": "També s'ha esborrat l'últim horari desat."
     }
   },
@@ -535,7 +535,7 @@
     "range": {
       "onlyToday": "Només avui",
       "until": "Fins al",
-      "summary": "{count} dies lectius",
+      "summary": "{count} dia lectiu | {count} dies lectius",
       "daysRegistered": "dies registrats per {teacher}"
     },
     "dialogs": {
@@ -567,7 +567,7 @@
         "critical": "🚨 CRÍTICS:",
         "warnings": "⚠️ AVISOS:",
         "appliedChanges": "🔄 CANVIS APLICATS:",
-        "totalIssues": "Total: {count} problemes detectats",
+        "totalIssues": "Total: {count} problema detectat | Total: {count} problemes detectats",
         "continueQuestion": "🔍 Vols continuar amb l'exportació del PDF?",
         "reassign": "Reassigna"
       },
@@ -576,24 +576,11 @@
         "includeContent": "Contingut a incloure",
         "substitutions": "Substitucions",
         "vigilancies": "Vigilàncies",
-        "format": "Format",
-        "formatHours": "Per hores (una secció per a cada hora)",
-        "formatDay": "Taula del dia (una taula, amb les vigilàncies dins de cada hora)",
-        "options": "Opcions d'exportació",
-        "showComments": "Mostra observacions",
-        "showHours": "Mostra columna hores",
-        "showConflicts": "Mostra conflictes i avisos",
-        "compress": "Compressió automàtica",
         "blankRows": "Deixa espai per escriure a mà",
         "blankRowsHint": "Mostra les hores on hi pot haver substitucions (classe amb grups visibles o activitats que no són a «No substituir») amb files en blanc, per afegir-ne a mà després d'imprimir.",
         "selectAtLeastOne": "⚠️ Has de seleccionar almenys un tipus de contingut (substitucions o vigilàncies)",
         "selectAtLeastOneShort": "Has de seleccionar almenys un tipus de contingut",
-        "generate": "Genera PDF",
-        "fontSize": "Mida de la lletra",
-        "fontNormal": "Normal",
-        "fontLarge": "Gran",
-        "fontLarger": "Molt gran",
-        "fontSizeOnlyDay": "Només per al format «Taula del dia»"
+        "generate": "Genera PDF"
       }
     },
     "confirm": {
@@ -614,11 +601,11 @@
       "allAbsencesDeleted": "Totes les absències de {teacher} eliminades",
       "absencesSaved": "Absències de {teacher} actualitzades",
       "vigilanciesUnassignedTitle": "Vigilàncies afegides a substitucions",
-      "vigilanciesUnassignedDetail": "S'han creat {count} substitució(ns) de tipus VIGILÀNCIA per cobrir les vigilàncies del professor absent.",
+      "vigilanciesUnassignedDetail": "S'ha creat {count} substitució de tipus VIGILÀNCIA per cobrir les vigilàncies del professor absent. | S'han creat {count} substitucions de tipus VIGILÀNCIA per cobrir les vigilàncies del professor absent.",
       "pdfGeneratedTitle": "PDF generat",
       "pdfGeneratedDetail": "S'ha descarregat el PDF complet per {date}",
       "reassignSubstitutionsTitle": "Substitucions reassignades",
-      "reassignSubstitutionsDetail": "S'han revisat {count} substitucions problemàtiques",
+      "reassignSubstitutionsDetail": "S'ha revisat {count} substitució problemàtica | S'han revisat {count} substitucions problemàtiques",
       "reassignDoneTitle": "Reassignació feta",
       "reassignDoneDetail": "Encara hi ha incidències. Revisa la llista.",
       "substituteMoved": "{name} s'ha mogut aquí; la substitució de {absent} ha quedat pendent"
@@ -657,7 +644,7 @@
       "affinities": "🧭 Afinitats"
     },
     "levels": {
-      "count": "{count} nivells",
+      "count": "{count} nivell | {count} nivells",
       "empty": "No hi ha nivells configurats",
       "hint": "Els nivells determinen l'estructura organitzativa (1-ESO, 2-ESO, 1-BATX, etc.)",
       "addTitle": "➕ Afegeix Nivell",
@@ -690,7 +677,7 @@
       "deleteConfirmMessage": "Vols eliminar l'assignatura \"{name}\"?"
     },
     "rooms": {
-      "count": "{count} aules",
+      "count": "{count} aula | {count} aules",
       "empty": "No hi ha aules configurades",
       "addTitle": "➕ Afegeix Aula",
       "codeLabel": "Codi de l'aula",
@@ -715,18 +702,19 @@
       "deleteConfirmMessage": "Vols eliminar aquesta assignació?",
       "deleteFiltered": "Esborra els filtrats",
       "deleteAll": "Esborra-ho tot",
-      "deleteFilteredConfirmMessage": "Vols eliminar les {count} assignacions que es mostren amb el filtre actual?",
-      "deleteAllConfirmMessage": "Vols eliminar TOTES les {count} assignacions? Aquesta acció no es pot desfer.",
+      "deleteFilteredConfirmMessage": "Vols eliminar l'assignació que es mostra amb el filtre actual? | Vols eliminar les {count} assignacions que es mostren amb el filtre actual?",
+      "deleteAllConfirmMessage": "Vols eliminar l'única assignació? Aquesta acció no es pot desfer. | Vols eliminar TOTES les {count} assignacions? Aquesta acció no es pot desfer.",
       "obsolete": {
-        "text": "Hi ha {count} assignacions amb un grup o un titular que ja no són a l'horari vigent (probablement d'un curs anterior):",
+        "text": "Hi ha {count} assignació amb un grup o un titular que ja no és a l'horari vigent (probablement d'un curs anterior): | Hi ha {count} assignacions amb un grup o un titular que ja no són a l'horari vigent (probablement d'un curs anterior):",
         "reason": {
           "grup": "el grup ja no hi és",
           "titular": "el titular ja no hi és"
         },
         "remove": "Treure-les",
-        "confirm": "Es treuran {count} assignacions que ja no corresponen a l'horari vigent. Les vigilàncies i substitucions fetes no es toquen.",
-        "removed": "S'han tret {count} assignacions"
-      }
+        "confirm": "Es traurà {count} assignació que ja no correspon a l'horari vigent. Les vigilàncies i substitucions fetes no es toquen. | Es treuran {count} assignacions que ja no corresponen a l'horari vigent. Les vigilàncies i substitucions fetes no es toquen.",
+        "removed": "S'ha tret {count} assignació | S'han tret {count} assignacions"
+      },
+      "filterRoom": "Filtra per aula:"
     },
     "import": {
       "tabIntro": "Importa la configuració d'exàmens (nivells, grups, assignatures, aules i qui fa cada cosa) a partir de l'horari actiu, o des d'un CSV exportat abans.",
@@ -738,13 +726,13 @@
       "helpText": "Es proposen assignacions a partir de qui imparteix cada matèria a cada grup segons l'horari actiu. Revisa i edita abans de confirmar; només s'importaran les files marcades.",
       "selectedCount": "{selected} seleccionades de {total} propostes",
       "filteredCount": "{count} amb el filtre actual",
-      "levelsSelected": "{count} nivells",
-      "subjectsSelected": "{count} assignatures",
+      "levelsSelected": "{count} nivell | {count} nivells",
+      "subjectsSelected": "{count} assignatura | {count} assignatures",
       "status": "Estat",
       "alreadyExists": "Ja existeix",
       "newProposal": "Nova",
       "previouslyDismissed": "Descartada anteriorment",
-      "confirmButton": "Importa {count} seleccionades",
+      "confirmButton": "Importa {count} seleccionada | Importa {count} seleccionades",
       "errorPreview": "No s'han pogut generar les propostes d'importació",
       "errorApply": "No s'ha pogut completar la importació",
       "exportCsv": "Exporta CSV",
@@ -759,7 +747,7 @@
       "confirmImport": "Confirma la importació",
       "doneBrief": "S'han importat {nivells} nivells, {grups} grups, {assignatures} assignatures, {aules} aules i {assignacions} assignacions.",
       "summaryTitle": "✅ Resum de la importació",
-      "alreadyExistedCount": "{count} assignacions ja existien i no s'han duplicat."
+      "alreadyExistedCount": "{count} assignació ja existia i no s'ha duplicat. | {count} assignacions ja existien i no s'han duplicat."
     },
     "affinities": {
       "title": "Ordre de proximitat per prefix de grup",
@@ -806,12 +794,21 @@
       "exportPdfHint": "Genera PDF de vigilàncies del dia",
       "exportInterval": "PDF interval",
       "exportIntervalHint": "Genera PDF d'interval de dates",
-      "addRow": "Afegeix vigilància"
+      "duplicateRow": "Duplica la vigilància"
     },
     "filters": {
       "level": "Filtra per nivell",
       "hour": "Filtra per hora",
-      "status": "Estat"
+      "status": "Estat",
+      "room": "Filtra per aula",
+      "levelAll": "Nivell: tots",
+      "levelValue": "Nivell: {valor}",
+      "hourAll": "Hora: totes",
+      "hourValue": "Hora: {valor}",
+      "statusAll": "Estat: tots",
+      "statusValue": "Estat: {valor}",
+      "roomAll": "Aula: totes",
+      "roomValue": "Aula: {valor}"
     },
     "stats": {
       "assigned": "Assignades",
@@ -839,11 +836,6 @@
       "levelsLabel": "Nivells a incloure *",
       "levelsPlaceholder": "Selecciona nivells",
       "levelsHint": "Selecciona els nivells a incloure al PDF",
-      "options": "Opcions",
-      "showComments": "Mostra columna observacions",
-      "showHours": "Mostra columna hores",
-      "showHoursShort": "Mostra hores",
-      "compress": "Compressió automàtica",
       "generatePdf": "Genera PDF",
       "intervalTitle": "📅 Exporta PDF interval",
       "startDateLabel": "Data inici *",
@@ -858,22 +850,24 @@
       "deleteMessage": "Vols eliminar la vigilància de les {hour}?",
       "assignAvailableMessage": "📋 S'han assignat {assigned} professors alliberats.\n\nEncara queden {pending} vigilàncies pendents.\n\nVols assignar també professors disponibles (guàrdia, lliures, etc.)?",
       "assignAvailableTitle": "Assignar disponibles?",
-      "assignAvailableAccept": "✅ Sí, assignar {count} disponibles",
+      "assignAvailableAccept": "✅ Sí, assignar {count} disponible | ✅ Sí, assignar {count} disponibles",
       "assignAvailableReject": "❌ No, deixar pendents",
       "clearMessage": "🗑️ Vols netejar totes les assignacions de vigilants?\n\nAixò només eliminarà els professors assignats, mantenint les assignatures i aules.",
       "clearTitle": "Confirmar neteja",
       "clearAccept": "Sí, netejar",
-      "deleteSelectedMessage": "Vols eliminar les {count} vigilàncies seleccionades?"
+      "deleteSelectedMessage": "Vols eliminar la vigilància seleccionada? | Vols eliminar les {count} vigilàncies seleccionades?",
+      "sortManualTitle": "Ordenar les vigilàncies?",
+      "sortManualMessage": "Es perdran els canvis d'ordre fets a mà. Vols ordenar igualment?"
     },
     "messages": {
       "updated": "Vigilància actualitzada correctament",
       "added": "Vigilància afegida correctament",
       "deleted": "Vigilància eliminada correctament",
-      "deletedSelected": "{count} vigilàncies eliminades correctament",
+      "deletedSelected": "{count} vigilància eliminada correctament | {count} vigilàncies eliminades correctament",
       "deletedSelectedPartial": "{ok} vigilàncies eliminades, {errors} errors",
       "assignOwnersTitle": "Assignació completada",
       "assignedFreeTitle": "Alliberats assignats",
-      "assignedFreeDetail": "✅ S'han assignat {count} professors alliberats",
+      "assignedFreeDetail": "✅ S'ha assignat {count} professor alliberat | ✅ S'han assignat {count} professors alliberats",
       "availableAssignedTitle": "Disponibles assignats",
       "allAssignedTitle": "Tot assignat",
       "allAssignedDetail": "🎉 Totes les vigilàncies estan assignades!",
@@ -882,7 +876,8 @@
       "pdfGeneratedTitle": "PDF generat",
       "pdfGeneratedDetail": "El PDF s'ha descarregat correctament",
       "pdfIntervalTitle": "PDF generat",
-      "pdfIntervalDetail": "El PDF d'interval s'ha descarregat correctament"
+      "pdfIntervalDetail": "El PDF d'interval s'ha descarregat correctament",
+      "orderChanged": "Les files d'aquesta hora havien canviat: s'han tornat a carregar."
     },
     "errors": {
       "load": "Error en carregar les vigilàncies",
@@ -901,7 +896,40 @@
       "levelsRequired": "Has de seleccionar almenys un nivell",
       "dateFormatTitle": "Error de format",
       "dateFormat": "Les dates seleccionades no són vàlides",
-      "generatePdfInterval": "No s'ha pogut generar el PDF d'interval"
+      "generatePdfInterval": "No s'ha pogut generar el PDF d'interval",
+      "order": "No s'ha pogut desar l'ordre de les files"
+    },
+    "freeHourOwners": {
+      "title": "1 titular no s'ha assignat perquè tenia l'hora lliure. Decideix si el poses a la seva fila: | {count} titulars no s'han assignat perquè tenien l'hora lliure. Decideix si els poses a la seva fila:",
+      "assign": "Posa'l",
+      "assigned": "Titular posat",
+      "conflict": "Algú ha modificat aquesta vigilància: s'ha tornat a carregar."
+    },
+    "withoutOwner": {
+      "title": "1 vigilància no té un titular definit a la configuració d'exàmens: | {count} vigilàncies no tenen un titular definit a la configuració d'exàmens:",
+      "cap_fila_grup": "cap fila per al grup",
+      "diversos_titulars": "diversos titulars possibles: configura l'aula de cada professor perquè quedi definit (s'ha assignat igualment)",
+      "openConfig": "Obre la configuració d'exàmens"
+    },
+    "table": {
+      "selectAll": "Selecciona totes les vigilàncies",
+      "selectBlock": "Selecciona les vigilàncies de les {hora}",
+      "selectRow": "Selecciona la vigilància de les {hora}",
+      "rowsInBlock": "{count} vigilància | {count} vigilàncies",
+      "dragHandle": "Arrossega per canviar l'ordre dins de l'hora",
+      "moveUp": "Puja la fila",
+      "moveDown": "Baixa la fila",
+      "orderDisabledByFilter": "Amb un filtre posat no es pot canviar l'ordre de les files. Treu els filtres per arrossegar-les."
+    },
+    "help": {
+      "title": "Què té {nom} a aquesta hora",
+      "loading": "Carregant...",
+      "error": "No s'ha pogut carregar l'ajuda.",
+      "invigilationsDay": "{count} vigilància aquest dia | {count} vigilàncies aquest dia"
+    },
+    "form": {
+      "title": "Nova vigilància",
+      "optional": "opcional"
     }
   },
   "help": {
@@ -1137,8 +1165,8 @@
       "daysWithVigs": "Dies amb vigilàncies",
       "perTeacher": "Detall per professor",
       "perTeacherHint": "Fes clic en un professor per veure el detall per dies",
-      "substitutionsDetail": "{count} substitucions ({percent}%)",
-      "vigilanciesDetail": "{count} assignades ({percent}%)",
+      "substitutionsDetail": "{count} substitució ({percent}%) | {count} substitucions ({percent}%)",
+      "vigilanciesDetail": "{count} assignada ({percent}%) | {count} assignades ({percent}%)",
       "topAbsences": "Top 5 absències",
       "topSubstitutions": "Top 5 substitucions"
     },
@@ -1347,7 +1375,7 @@
       "levelConflictsDetected": "Conflictes de nivell detectats",
       "pinAll": "Fixar tot",
       "unpinAll": "Desfixar tot",
-      "pinCount": "{count} fixat/s",
+      "pinCount": "{count} fixat | {count} fixats",
       "pin": "Fixar",
       "unpin": "Desfixar",
       "actions": {
@@ -1506,7 +1534,7 @@
       },
       "messages": {
         "configSaved": "Configuració desada",
-        "vigilanciesPublished": "Publicades {count} vigilàncies",
+        "vigilanciesPublished": "Publicada {count} vigilància | Publicades {count} vigilàncies",
         "scheduleUpdated": "Horari actualitzat",
         "localChangesApplied": "Els canvis s'han aplicat localment",
         "notViable": "No viable",
@@ -1515,7 +1543,7 @@
       "staleSubjects": {
         "text": "Hi ha restriccions amb assignatures que ja no són a la configuració d'exàmens (d'un curs anterior o d'abans de canviar el nom d'un nivell) i no s'apliquen a cap examen:",
         "remove": "Treure-les de les restriccions",
-        "removed": "S'han tret {count} assignatures de les restriccions"
+        "removed": "S'ha tret {count} assignatura de les restriccions | S'han tret {count} assignatures de les restriccions"
       },
       "previousCourse": "Les dates triades són del curs {cursos}, anterior a l'actual ({actual}). El planificador fa servir la configuració d'exàmens del curs actual, i no es podrà publicar. Les vigilàncies de cursos anteriors es consulten a Vigilàncies.",
       "lastResult": "Aquest és l'últim horari generat o modificat ({data}). Si has canviat la configuració o les dates, torna a generar.",
@@ -1828,5 +1856,20 @@
         "optionalName": "Nom (opcional)"
       }
     }
+  },
+  "pdfOptions": {
+    "format": "Format",
+    "formatHours": "Per hores (una secció per a cada hora)",
+    "formatDay": "Taula del dia (una sola taula, amb l'hora a la primera columna)",
+    "fontSize": "Mida de la lletra",
+    "fontNormal": "Normal",
+    "fontLarge": "Gran",
+    "fontLarger": "Molt gran",
+    "options": "Opcions d'exportació",
+    "showComments": "Mostra observacions",
+    "showHours": "Mostra columna hores (només per hores)",
+    "compress": "Compressió automàtica",
+    "showConflicts": "Mostra conflictes i avisos",
+    "dayPerPage": "Cada dia en una pàgina nova"
   }
 }

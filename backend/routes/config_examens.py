@@ -15,11 +15,7 @@ from sqlalchemy.orm import Session
 
 from auth.dependencies import require_admin
 from dependencies import dia_de_la_planificacio, get_db
-from helpers import (
-    MissingXmlError,
-    get_vigilancies_afinitats,
-    save_vigilancies_afinitats,
-)
+from helpers import MissingXmlError
 from noms import NomNet, neteja_noms, nom_net
 from repositories import (
     AbreviaturaGrupRepository,
@@ -29,6 +25,7 @@ from repositories import (
 )
 from schemas import RenameNivellRequest, RenameRequest
 from serveis.dia import Dia
+from vigilancies.assignacio import get_vigilancies_afinitats, save_vigilancies_afinitats
 
 router = APIRouter(prefix="/api/config", tags=["Configuració Exàmens"])
 

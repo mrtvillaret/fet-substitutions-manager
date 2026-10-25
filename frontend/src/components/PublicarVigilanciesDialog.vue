@@ -339,4 +339,35 @@ const anarAVigilancies = () => {
 .publicar-resultat {
   min-height: 120px;
 }
+
+/* L'aplicació no carrega PrimeFlex: les seves classes (flex, gap-2, mb-3...)
+   no fan res i el contingut quedava enganxat. Provisional, fins a la fase 3:
+   només les classes que es fan servir en aquest diàleg. */
+.flex { display: flex; }
+.flex-column { flex-direction: column; }
+.align-items-center { align-items: center; }
+.justify-content-center { justify-content: center; }
+.justify-content-between { justify-content: space-between; }
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.m-0 { margin: 0; }
+.mt-0 { margin-top: 0; }
+.mt-2 { margin-top: 0.5rem; }
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.p-2 { padding: 0.5rem; }
+.p-4 { padding: 1.5rem; }
+.pl-3 { padding-left: 1.25rem; }
+.border-round { border-radius: 6px; }
+.font-semibold { font-weight: 600; }
+.text-sm { font-size: 0.875rem; }
+.text-lg { font-size: 1.125rem; }
+.text-color-secondary { color: var(--text-color-secondary, #6b7280); }
+.text-red-500 { color: #ef4444; }
+.text-red-600 { color: #dc2626; }
+.text-orange-500 { color: #f97316; }
+.text-orange-600 { color: #ea580c; }
+.w-full { width: 100%; }
 </style>

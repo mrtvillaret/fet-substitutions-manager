@@ -29,7 +29,7 @@
         <div class="working-toolbar">
           <Button :label="$t('config.groups.showAllBtn')" @click="mostrarTots" text size="small" />
           <span v-if="grupsAmagats.length" class="working-count">
-            {{ $t('config.groups.hiddenCount', { n: grupsAmagats.length }) }}
+            {{ $t('config.groups.hiddenCount', { n: grupsAmagats.length }, grupsAmagats.length) }}
           </span>
         </div>
         <div class="grups-detectats">
@@ -228,7 +228,7 @@ const detectarGrupsXML = async (silent = false) => {
       toast.add({
         severity: 'success',
         summary: t('common.detected'),
-        detail: t('config.groups.detectedCount', { count: response.data.total_raw }),
+        detail: t('config.groups.detectedCount', { count: response.data.total_raw }, response.data.total_raw),
         life: 3000
       })
     }

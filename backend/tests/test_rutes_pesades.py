@@ -9,7 +9,7 @@ import inspect
 
 import pytest
 
-from routes import informes, pdf, scheduler, vigilancies
+from routes import informes, pdf, scheduler
 
 RUTES_PESADES = [
     (pdf, "validar_abans_pdf"),
@@ -17,8 +17,6 @@ RUTES_PESADES = [
     (pdf, "generar_pdf_interval"),
     (pdf, "generar_pdf_vigilancies"),
     (pdf, "generar_pdf_disponibles_tots_dies"),
-    (vigilancies, "generar_pdf_vigilancies_alias"),
-    (vigilancies, "generar_pdf_interval_alias"),
     (informes, "informe_direccio"),
     (informes, "informe_professor"),
     (scheduler, "scheduler_generate"),

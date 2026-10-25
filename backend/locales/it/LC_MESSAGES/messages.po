@@ -21,12 +21,8 @@ msgstr ""
 
 #: config/constants.py:34
 #, python-brace-format
-msgid ""
-"❌ No es troba el fitxer de prioritats: {fitxer_prioritats}\n"
-"   Cada institució ha de tenir el seu fitxer prioritats_substitucions.json"
-msgstr ""
-"❌ File delle priorità non trovato: {fitxer_prioritats}\n"
-"   Ogni istituto deve avere il proprio file prioritats_substitucions.json"
+msgid "❌ No es troba el fitxer de prioritats: {fitxer_prioritats}\n   Cada institució ha de tenir el seu fitxer prioritats_substitucions.json"
+msgstr "❌ File delle priorità non trovato: {fitxer_prioritats}\n   Ogni istituto deve avere il proprio file prioritats_substitucions.json"
 
 #: config/constants.py:45
 #, python-brace-format
@@ -74,7 +70,7 @@ msgstr "Campo obbligatorio mancante: {}"
 msgid "Invalid hour format: {}"
 msgstr "Formato ora non valido: {}"
 
-#: core/absencies.py:34 core/substitucions.py:109
+#: core/absencies.py:44 core/substitucions.py:99
 msgid "   🔄 Convertit dia ISO a nom XML: '{}'"
 msgstr "   🔄 Giorno ISO convertito in nome XML: '{}'"
 
@@ -114,23 +110,23 @@ msgstr "⚠️ Errore nell'ottenere i disponibili per {} a {}: {}"
 msgid "⚠️ Error comptant canvis: {}"
 msgstr "⚠️ Errore nel conteggio delle modifiche: {}"
 
-#: core/substitucions.py:122
+#: core/substitucions.py:112
 msgid "   📌 hores carregades de l'XML: {}"
 msgstr "   📌 ore caricate dall'XML: {}"
 
-#: core/substitucions.py:140
+#: core/substitucions.py:124
 msgid "   📋 get_substitucions_necessaries retorna {} substitucions"
 msgstr "   📋 get_substitucions_necessaries restituisce {} sostituzioni"
 
-#: core/substitucions.py:189
+#: core/substitucions.py:229
 msgid "🔵 assignar_substitucions() END: retorna {} substitucions"
 msgstr "🔵 assignar_substitucions() FINE: restituisce {} sostituzioni"
 
-#: core/substitucions.py:248
+#: core/substitucions.py:327
 msgid "   🟡 _assignar_substitucions_per_hora(): dia='{}', hora='{}', {} subs"
 msgstr "   🟡 _assignar_substitucions_per_hora(): giorno='{}', ora='{}', {} sost."
 
-#: core/substitucions.py:257
+#: core/substitucions.py:340
 msgid "      📊 {} candidats trobats per hora {}"
 msgstr "      📊 {} candidati trovati per l'ora {}"
 
@@ -150,7 +146,7 @@ msgstr "⚠️ Errore nell'ottenere le coppie docente-supplente: {}"
 msgid "⚠️ Error obtenint substituts anteriors: {}"
 msgstr "⚠️ Errore nell'ottenere i supplenti precedenti: {}"
 
-#: core/horari.py:56
+#: horari_web.py:141
 #, python-brace-format
 msgid "Aplicat límit de professor: fins '{professor}' ({count} professors)"
 msgstr ""
@@ -160,12 +156,12 @@ msgstr ""
 msgid "Professor límit '{professor}' no trobat, carregant tots"
 msgstr ""
 
-#: core/horari.py:61
+#: horari_web.py:151
 #, python-brace-format
 msgid "Sense límit de professor o '{professor}' no trobat"
 msgstr ""
 
-#: core/horari.py:126
+#: horari_web.py:221
 #, python-brace-format
 msgid "Horari carregat: {prof_count} professors, {grup_count} grups"
 msgstr ""
@@ -189,39 +185,39 @@ msgstr ""
 msgid "Error carregant horari: {error}"
 msgstr ""
 
-#: core/horari.py:241
+#: horari_web.py:298
 msgid "Dissabte"
 msgstr ""
 
-#: core/horari.py:241
+#: horari_web.py:298
 msgid "Diumenge"
 msgstr ""
 
-#: core/horari.py:242
+#: horari_web.py:299
 msgid "Sábado"
 msgstr ""
 
-#: core/horari.py:242
+#: horari_web.py:299
 msgid "Domingo"
 msgstr ""
 
-#: core/horari.py:243
+#: horari_web.py:300
 msgid "Saturday"
 msgstr ""
 
-#: core/horari.py:243
+#: horari_web.py:300
 msgid "Sunday"
 msgstr ""
 
-#: core/horari.py:244
+#: horari_web.py:301
 msgid "Samedi"
 msgstr ""
 
-#: core/horari.py:244
+#: horari_web.py:301
 msgid "Dimanche"
 msgstr ""
 
-#: core/horari.py:254
+#: horari_web.py:311
 #, python-brace-format
 msgid "Índex de dia invàlid: {index} (rang vàlid: 0-6)"
 msgstr ""
@@ -285,11 +281,11 @@ msgstr "🔄 Cache dei congedi invalidata"
 msgid "⚠️ Error comprovant baixa de {professor}: {e}"
 msgstr "⚠️ Errore nel controllo del congedo di {professor}: {e}"
 
-#: core/alliberats.py:70 core/alliberats.py:85
+#: core/alliberats.py:111 core/alliberats.py:126
 msgid "{detall} - VIGILÀNCIA"
 msgstr "{detall} - VIGILANZA"
 
-#: core/alliberats.py:71 core/alliberats.py:86
+#: core/alliberats.py:112 core/alliberats.py:127
 msgid "vigilància"
 msgstr "vigilanza"
 
@@ -298,12 +294,12 @@ msgstr "vigilanza"
 msgid "{detall} - {num_subs} subs"
 msgstr "{detall} - {num_subs} sost."
 
-#: core/alliberats.py:172
+#: core/alliberats.py:156
 #, python-brace-format
 msgid "tenia {assignatura} - {grup}"
 msgstr "aveva {assignatura} - {grup}"
 
-#: core/alliberats.py:174
+#: core/alliberats.py:160
 #, python-brace-format
 msgid "Grup {grup}"
 msgstr "Gruppo {grup}"
@@ -336,144 +332,135 @@ msgstr "Errore di connessione con Google Sheets"
 msgid "Error: {error}"
 msgstr "Errore: {error}"
 
-#: export/pdf/engine.py:238 export/pdf/engine.py:250
+#: export/pdf/engine.py:239 export/pdf/engine.py:251
 msgid "SUBSTITUCIONS"
 msgstr "SOSTITUZIONI"
 
-#: export/pdf/engine.py:240 export/pdf/engine.py:242 export/pdf/engine.py:252
+#: export/pdf/engine.py:241 export/pdf/engine.py:243 export/pdf/engine.py:253
 msgid "VIGILÀNCIES"
-msgstr "VIGILANZE"
+msgstr "SORVEGLIANZE"
 
-#: export/pdf/engine.py:244 export/pdf/engine.py:248
+#: export/pdf/engine.py:245 export/pdf/engine.py:249
 msgid "SUBSTITUCIONS I VIGILÀNCIES"
-msgstr "SOSTITUZIONI E VIGILANZE"
+msgstr "SOSTITUZIONI E SORVEGLIANZE"
 
-#: export/pdf/engine.py:254
+#: export/pdf/engine.py:255
 msgid "DOCUMENT BUIT"
 msgstr "DOCUMENTO VUOTO"
 
-#: export/pdf/engine.py:316
+#: export/pdf/taula.py:363
 #, python-brace-format
 msgid "Hora {hora}"
 msgstr "Ora {hora}"
 
-#: export/pdf/engine.py:347
+#: export/pdf/engine.py:326
 msgid "RESUM: {num} substitucions"
 msgstr "RIEPILOGO: {num} sostituzioni"
 
-#: export/pdf/engine.py:349
+#: export/pdf/engine.py:328
 #, python-brace-format
 msgid "RESUM: {num} vigilàncies"
-msgstr "RIEPILOGO: {num} vigilanze"
+msgstr "RIEPILOGO: {num} sorveglianze"
 
-#: export/pdf/engine.py:351 export/pdf/engine.py:355
+#: export/pdf/engine.py:330 export/pdf/engine.py:335
 #, python-brace-format
 msgid "RESUM: {subs} substitucions, {vig} vigilàncies"
-msgstr "RIEPILOGO: {subs} sostituzioni, {vig} vigilanze"
+msgstr "RIEPILOGO: {subs} sostituzioni, {vig} sorveglianze"
 
-#: export/pdf/engine.py:364
+#: export/pdf/engine.py:346
 msgid "<b>CONFLICTES DETECTATS:</b>"
 msgstr "<b>CONFLITTI RILEVATI:</b>"
 
-#: export/pdf/engine.py:374
+#: export/pdf/engine.py:356
 #, python-brace-format
 msgid "Generat el {data} a les {hora}"
 msgstr "Generato il {data} alle {hora}"
 
-#: export/pdf/engine.py:581 export/pdf.py:55 export/pdf.py:168
-#: gui/widgets.py:497
+#: export/pdf/taula.py:116
 msgid "Absent"
 msgstr "Assente"
 
-#: export/pdf/engine.py:581 export/pdf/engine.py:706 export/pdf.py:55
-#: export/pdf.py:168 gui/widgets.py:497 gui/editor_configuracio_examens.py:210
-#: gui/estadistiques_dialog.py:1109
+#: export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492 export/pdf/taula.py:118 export/pdf/taula.py:130
 msgid "Assignatura"
 msgstr "Materia"
 
-#: export/pdf/engine.py:581 export/pdf.py:55 export/pdf.py:168
-#: gui/widgets.py:497 gui/editor_configuracio_examens.py:265
-#: gui/estadistiques_dialog.py:1109
+#: export/pdf/informe_direccio.py:747 export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492 export/pdf/taula.py:117
 msgid "Grup"
 msgstr "Gruppo"
 
-#: export/pdf/engine.py:581 export/pdf.py:55 export/pdf.py:168
-#: gui/widgets.py:497 gui/estadistiques_dialog.py:1109
+#: export/pdf/informe_professors.py:413 export/pdf/taula.py:119
 msgid "Substitut"
 msgstr "Supplente"
 
-#: export/pdf/engine.py:581 export/pdf/engine.py:706
+#: export/pdf/taula.py:120 export/pdf/taula.py:132
 msgid "Observacions"
 msgstr "Osservazioni"
 
-#: export/pdf/engine.py:706
+#: export/pdf/taula.py:128
 msgid "Curs"
 msgstr "Anno"
 
-#: export/pdf/engine.py:706 gui/vigilancia_ui_components.py:48
-#: gui/editor_configuracio_examens.py:308
+#: export/pdf/taula.py:129
 msgid "Aula"
 msgstr "Aula"
 
-#: export/pdf/engine.py:706 gui/vigilancia_ui_components.py:48
+#: export/pdf/taula.py:131
 msgid "Vigilant"
 msgstr "Sorvegliante"
 
-#: export/pdf/engine.py:844
+#: export/pdf/engine.py:722
 #, python-brace-format
 msgid "⚠️ {hora}: Substitut {substitut} {absence_text}"
 msgstr "⚠️ {hora}: Supplente {substitut} {absence_text}"
 
-#: export/pdf/engine.py:849
+#: export/pdf/engine.py:730
 #, python-brace-format
 msgid "🕐 {hora}: Substitut {substitut} duplicat"
 msgstr "🕐 {hora}: Supplente {substitut} duplicato"
 
-#: export/pdf/engine.py:860
+#: export/pdf/engine.py:742
 #, python-brace-format
 msgid "❌ {hora}: {professor} - {assignatura} sense substitut assignat"
 msgstr "❌ {hora}: {professor} - {assignatura} senza supplente assegnato"
 
-#: export/pdf/engine.py:873
+#: export/pdf/engine.py:756
 #, python-brace-format
 msgid "⚠️ {hora}: Vigilant {vigilant} {absence_text}"
 msgstr "⚠️ {hora}: Sorvegliante {vigilant} {absence_text}"
 
-#: export/pdf/engine.py:878
+#: export/pdf/engine.py:764
 #, python-brace-format
 msgid "🕐 {hora}: Vigilant {vigilant} duplicat"
 msgstr "🕐 {hora}: Sorvegliante {vigilant} duplicato"
 
-#: export/pdf/engine.py:886
+#: export/pdf/engine.py:772 serveis/validacions_pdf.py:52
 #, python-brace-format
 msgid "🏫 {hora}: Aula {aula} duplicada"
 msgstr "🏫 {hora}: Aula {aula} duplicata"
 
-#: export/pdf/engine.py:895
+#: export/pdf/engine.py:783 serveis/validacions_pdf.py:31
 #, python-brace-format
 msgid "❌ {hora}: {tipus} sense vigilant assignat"
 msgstr "❌ {hora}: {tipus} senza sorvegliante assegnato"
 
-#: export/pdf/engine.py:898
+#: export/pdf/engine.py:787
 #, python-brace-format
 msgid "❌ {hora}: Assignatura {tipus} sense vigilant assignat"
 msgstr "❌ {hora}: Materia {tipus} senza sorvegliante assegnato"
 
-#: export/pdf/engine.py:905
+#: export/pdf/engine.py:795 serveis/validacions_pdf.py:33
 #, python-brace-format
 msgid "🏫 {hora}: {tipus} sense aula assignada"
 msgstr "🏫 {hora}: {tipus} senza aula assegnata"
 
-#: export/pdf/engine.py:908
+#: export/pdf/engine.py:799
 #, python-brace-format
 msgid "🏫 {hora}: Assignatura {tipus} sense aula assignada"
 msgstr "🏫 {hora}: Materia {tipus} senza aula assegnata"
 
-#: export/pdf/engine.py:939
+#: export/pdf/engine.py:829
 #, python-brace-format
-msgid ""
-"🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | "
-"Assignatures: {assignatures})"
+msgid "🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | Assignatures: {assignatures})"
 msgstr "🔄 {hora}: {professor} ha {num} sostituzioni (Supplenti: {substituts} | Materie: {assignatures})"
 
 #: export/pdf/engine.py:991
@@ -492,46 +479,28 @@ msgstr "Docenti disponibili con priorità maggiore"
 
 #: export/pdf/combined_exporter.py:103
 #, python-brace-format
-msgid ""
-"📋 PDF Complet per {data}\n"
-"\n"
-msgstr ""
-"📋 PDF completo per {data}\n"
-"\n"
-""
+msgid "📋 PDF Complet per {data}\n\n"
+msgstr "📋 PDF completo per {data}\n\n"
 
-#: export/pdf/combined_exporter.py:106 export/pdf/combined_exporter.py:141
-#: export/pdf/combined_exporter.py:189
+#: export/pdf/combined_exporter.py:106 export/pdf/combined_exporter.py:141 export/pdf/combined_exporter.py:189
 #, python-brace-format
 msgid "📝 Substitucions: {assignades} assignades de {totals}\n"
-msgstr ""
-"📝 Sostituzioni: {assignades} assegnate su {totals}\n"
-""
+msgstr "📝 Sostituzioni: {assignades} assegnate su {totals}\n"
 
-#: export/pdf/combined_exporter.py:109 export/pdf/combined_exporter.py:149
-#: export/pdf/combined_exporter.py:192
+#: export/pdf/combined_exporter.py:109 export/pdf/combined_exporter.py:149 export/pdf/combined_exporter.py:192
 #, python-brace-format
 msgid "👁️ Vigilàncies: {assignades} assignades de {totals}\n"
-msgstr ""
-"👁️ Vigilanze: {assignades} assegnate su {totals}\n"
-""
+msgstr "👁️ Vigilanze: {assignades} assegnate su {totals}\n"
 
 #: export/pdf/combined_exporter.py:138
 #, python-brace-format
-msgid ""
-"📋 PDF per {data}\n"
-"\n"
-msgstr ""
-"📋 PDF per {data}\n"
-"\n"
-""
+msgid "📋 PDF per {data}\n\n"
+msgstr "📋 PDF per {data}\n\n"
 
 #: export/pdf/combined_exporter.py:146
 #, python-brace-format
 msgid "👁️ Vigilàncies ({nivells}): {assignades} assignades de {totals}\n"
-msgstr ""
-"👁️ Vigilanze ({nivells}): {assignades} assegnate su {totals}\n"
-""
+msgstr "👁️ Vigilanze ({nivells}): {assignades} assegnate su {totals}\n"
 
 #: export/pdf/combined_exporter.py:153
 msgid "Generant PDF complet..."
@@ -539,15 +508,8 @@ msgstr "Generazione del PDF completo..."
 
 #: export/pdf/combined_exporter.py:187
 #, python-brace-format
-msgid ""
-"✅ PDF creat i obert correctament!\n"
-"\n"
-"📄 Fitxer: {filename}\n"
-msgstr ""
-"✅ PDF creato e aperto correttamente!\n"
-"\n"
-"📄 File: {filename}\n"
-""
+msgid "✅ PDF creat i obert correctament!\n\n📄 Fitxer: {filename}\n"
+msgstr "✅ PDF creato e aperto correttamente!\n\n📄 File: {filename}\n"
 
 #: export/pdf/combined_exporter.py:196
 msgid "PDF generat"
@@ -558,19 +520,7 @@ msgstr "PDF generato"
 msgid "✅ PDF creat: {filename}"
 msgstr "✅ PDF creato: {filename}"
 
-#: export/pdf/combined_exporter.py:200 export/pdf/combined_exporter.py:204
-#: export/pdf/dialogs.py:186 export/pdf_interval.py:104
-#: export/pdf_interval.py:109 gui/llistat_substituts_dialog.py:121
-#: gui/llistat_substituts_dialog.py:229 gui/llistat_substituts_dialog.py:387
-#: gui/llistat_substituts_dialog.py:415 gui/configuracio_dialog.py:730
-#: gui/configuracio_dialog.py:881 gui/configuracio_dialog.py:1272
-#: gui/configuracio_dialog.py:1364 gui/configuracio_dialog.py:1514
-#: gui/configuracio_dialog.py:1643 gui/configuracio_dialog.py:1647
-#: gui/estadistiques_dialog.py:401 gui/estadistiques_dialog.py:877
-#: gui/estadistiques_dialog.py:888 gui/estadistiques_dialog.py:1235
-#: gui/estadistiques_dialog.py:1335 gui/main_window.py:59
-#: gui/main_window.py:465 gui/main_window.py:515 gui/main_window.py:520
-#: gui/main_window.py:1190
+#: export/pdf/combined_exporter.py:200 export/pdf/combined_exporter.py:204 export/pdf/dialogs.py:186 export/pdf_interval.py:104 export/pdf_interval.py:109 gui/llistat_substituts_dialog.py:121 gui/llistat_substituts_dialog.py:229 gui/llistat_substituts_dialog.py:387 gui/llistat_substituts_dialog.py:415 gui/configuracio_dialog.py:730 gui/configuracio_dialog.py:881 gui/configuracio_dialog.py:1272 gui/configuracio_dialog.py:1364 gui/configuracio_dialog.py:1514 gui/configuracio_dialog.py:1643 gui/configuracio_dialog.py:1647 gui/estadistiques_dialog.py:401 gui/estadistiques_dialog.py:877 gui/estadistiques_dialog.py:888 gui/estadistiques_dialog.py:1235 gui/estadistiques_dialog.py:1335 gui/main_window.py:59 gui/main_window.py:465 gui/main_window.py:515 gui/main_window.py:520 gui/main_window.py:1190
 msgid "Error"
 msgstr "Errore"
 
@@ -591,13 +541,8 @@ msgid "❌ Error d'exportació"
 msgstr "❌ Errore di esportazione"
 
 #: export/pdf/combined_exporter.py:239
-msgid ""
-"S'han detectat conflictes:\n"
-"\n"
-msgstr ""
-"Sono stati rilevati conflitti:\n"
-"\n"
-""
+msgid "S'han detectat conflictes:\n\n"
+msgstr "Sono stati rilevati conflitti:\n\n"
 
 #: export/pdf/combined_exporter.py:260
 msgid "Conflictes detectats"
@@ -667,13 +612,11 @@ msgstr "Devi selezionare almeno un'opzione per generare il PDF."
 msgid "<b>Substitucions de Professors</b>"
 msgstr "<b>Sostituzioni dei Docenti</b>"
 
-#: export/pdf.py:55 export/pdf.py:168 gui/widgets.py:497
-#: gui/vigilancia_ui_components.py:48 gui/estadistiques_dialog.py:1109
+#: export/pdf/informe_direccio.py:878 export/pdf/informe_professors.py:332 export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492 export/pdf/taula.py:115 export/pdf/taula.py:127
 msgid "Hora"
 msgstr "Ora"
 
-#: export/pdf.py:55 export/pdf.py:168 gui/widgets.py:497
-#: gui/vigilancia_ui_components.py:48
+#: export/pdf.py:55 export/pdf.py:168 gui/widgets.py:497 gui/vigilancia_ui_components.py:48
 msgid "Comentaris"
 msgstr "Commenti"
 
@@ -683,9 +626,7 @@ msgstr "Non ci sono sostituzioni per questo giorno."
 
 #: export/pdf.py:131
 #, python-brace-format
-msgid ""
-"<b>Resum:</b> {total} substitucions totals | {assignades} assignades | "
-"{pendents} pendents"
+msgid "<b>Resum:</b> {total} substitucions totals | {assignades} assignades | {pendents} pendents"
 msgstr "<b>Riepilogo:</b> {total} sostituzioni totali | {assignades} assegnate | {pendents} in sospeso"
 
 #: export/pdf.py:163
@@ -703,12 +644,8 @@ msgstr "Assegnate: {assignades} | In sospeso: {pendents}"
 
 #: export/pdf.py:197
 #, python-brace-format
-msgid ""
-"\n"
-"Generat: {timestamp}"
-msgstr ""
-"\n"
-"Generato: {timestamp}"
+msgid "\nGenerat: {timestamp}"
+msgstr "\nGenerato: {timestamp}"
 
 #: export/pdf_interval.py:52
 msgid "Atenció"
@@ -732,20 +669,8 @@ msgstr "PDF dell'Intervallo Generato"
 
 #: export/pdf_interval.py:90
 #, python-brace-format
-msgid ""
-"✅ PDF generat correctament:\n"
-"\n"
-"📅 Període: {data_inici_cat} - {data_final_cat}\n"
-"🎓 Nivells: {nivells}\n"
-"📊 {total_vigilancies} vigilàncies en {dies_amb_vigilancies} dies\n"
-"📄 Fitxer: {filename}"
-msgstr ""
-"✅ PDF generato correttamente:\n"
-"\n"
-"📅 Periodo: {data_inici_cat} - {data_final_cat}\n"
-"🎓 Livelli: {nivells}\n"
-"📊 {total_vigilancies} vigilanze in {dies_amb_vigilancies} giorni\n"
-"📄 File: {filename}"
+msgid "✅ PDF generat correctament:\n\n📅 Període: {data_inici_cat} - {data_final_cat}\n🎓 Nivells: {nivells}\n📊 {total_vigilancies} vigilàncies en {dies_amb_vigilancies} dies\n📄 Fitxer: {filename}"
+msgstr "✅ PDF generato correttamente:\n\n📅 Periodo: {data_inici_cat} - {data_final_cat}\n🎓 Livelli: {nivells}\n📊 {total_vigilancies} vigilanze in {dies_amb_vigilancies} giorni\n📄 File: {filename}"
 
 #: export/pdf_interval.py:104
 msgid "No s'ha pogut exportar el PDF d'interval"
@@ -755,2165 +680,127 @@ msgstr "Impossibile esportare il PDF dell'intervallo"
 msgid "Error generant PDF d'interval: {e}"
 msgstr "Errore nella generazione del PDF dell'intervallo: {e}"
 
-#: gui/widgets.py:45
-msgid "Professors absents:"
-msgstr ""
-
-#: gui/widgets.py:49
-msgid "Selecciona professors:"
-msgstr ""
-
-#: gui/widgets.py:50
-msgid "Hores d'absència (desmarca les hores que SÍ hi seran):"
-msgstr ""
-
-#: gui/widgets.py:64 gui/dialogs.py:89 gui/grups_widget.py:92
-#: gui/editor_configuracio_examens.py:384
-#: gui/editor_configuracio_examens.py:960
-#: gui/editor_configuracio_examens.py:986
-msgid "Tots"
-msgstr ""
-
-#: gui/widgets.py:65 gui/dialogs.py:94 gui/grups_widget.py:97
-msgid "Cap"
-msgstr ""
-
-#: gui/widgets.py:66
-msgid "📋 Ocupats"
-msgstr ""
-
-#: gui/widgets.py:92 gui/widgets.py:108 gui/configuracio_dialog.py:531
-#: gui/estadistiques_dialog.py:163
-msgid "Professor"
-msgstr ""
-
-#: gui/widgets.py:92 gui/widgets.py:108
+#: export/pdf/informe_professors.py:388 export/pdf/informe_professors.py:467
 msgid "Servei"
-msgstr ""
+msgstr "Servizio"
 
-#: gui/widgets.py:442
-#, python-brace-format
-msgid "Fes clic per veure {num} professors ocupats"
-msgstr ""
-
-#: gui/widgets.py:445
-msgid "Cap professor ocupat amb altres activitats"
-msgstr ""
-
-#: gui/widgets.py:450
-msgid "Professors ocupats"
-msgstr ""
-
-#: gui/widgets.py:450
-msgid "Cap professor està ocupat amb altres activitats."
-msgstr ""
-
-#: gui/widgets.py:455
-msgid "📋 Professors ocupats amb altres activitats"
-msgstr ""
-
-#: gui/widgets.py:461
-#, python-brace-format
-msgid "📋 Professors ocupats ({num}):"
-msgstr ""
-
-#: gui/widgets.py:473 gui/configuracio_dialog.py:87
-#: gui/estadistiques_dialog.py:128 gui/estadistiques_dialog.py:953
-#: gui/estadistiques_dialog.py:1131 gui/main_window.py:1796
-msgid "Tancar"
-msgstr ""
-
-#: gui/widgets.py:493
-msgid "Substitucions:"
-msgstr ""
-
-#: gui/widgets.py:563
-#, python-brace-format
-msgid "--- {hora} ---"
-msgstr ""
-
-#: gui/widgets.py:619
-msgid "-- selecciona substitut --"
-msgstr ""
-
-#: gui/widgets.py:903
-#, python-brace-format
-msgid ""
-"⚠️ El professor {substitut} NO està disponible a aquesta hora "
-"({hora_actual}).\n"
-"\n"
-msgstr ""
-
-#: gui/widgets.py:906
-msgid "❌ Motiu: Està absent."
-msgstr ""
-
-#: gui/widgets.py:908
-msgid "👁️ Motiu: Està ocupat amb una vigilància."
-msgstr ""
-
-#: gui/widgets.py:910
-msgid "🔄 Motiu: Ja està assignat com a substitut."
-msgstr ""
-
-#: gui/widgets.py:912
-#, python-brace-format
-msgid "Motiu: {conflicte}"
-msgstr ""
-
-#: gui/widgets.py:914
-msgid ""
-"\n"
-"\n"
-"Consulta la finestra de Vigilàncies per més detalls."
-msgstr ""
-
-#: gui/widgets.py:916
-msgid "Professor no disponible"
-msgstr ""
-
-#: gui/dialogs.py:29
-msgid "🏫 Grups sense classe per hora"
-msgstr ""
-
-#: gui/dialogs.py:36
-msgid ""
-"Selecciona grups i hores específiques.\n"
-"💡 Clica el nom del grup per marcar/desmarcar totes les hores."
-msgstr ""
-
-#: gui/dialogs.py:48 gui/grups_widget.py:44 gui/grups_widget.py:120
-msgid "Grup/Classe"
-msgstr ""
-
-#: gui/dialogs.py:90 gui/grups_widget.py:93
-msgid "Marca tots els grups i totes les hores"
-msgstr ""
-
-#: gui/dialogs.py:95 gui/grups_widget.py:98
-msgid "Desmarca tot"
-msgstr ""
-
-#: gui/dialogs.py:99 gui/grups_widget.py:102
-msgid "ESO"
-msgstr ""
-
-#: gui/dialogs.py:100 gui/grups_widget.py:103
-msgid "Marca tots els grups d'ESO (totes les hores)"
-msgstr ""
-
-#: gui/dialogs.py:104 gui/grups_widget.py:107
-msgid "Batx"
-msgstr ""
-
-#: gui/dialogs.py:105 gui/grups_widget.py:108
-msgid "Marca tots els grups de Batxillerat (totes les hores)"
-msgstr ""
-
-#: gui/dialogs.py:223
-msgid "📅 PDF Interval de Dies"
-msgstr ""
-
-#: gui/dialogs.py:231
-msgid "Configura l'interval de dies i opcions per al PDF de vigilàncies:"
-msgstr ""
-
-#: gui/dialogs.py:236
-msgid "📅 Interval de Dates"
-msgstr ""
-
-#: gui/dialogs.py:241 gui/configuracio_dialog.py:1249
-#: gui/configuracio_dialog.py:1341 gui/estadistiques_dialog.py:1074
-msgid "Data inici:"
-msgstr ""
-
-#: gui/dialogs.py:249 gui/configuracio_dialog.py:1255
-#: gui/configuracio_dialog.py:1347 gui/estadistiques_dialog.py:1080
-msgid "Data final:"
-msgstr ""
-
-#: gui/dialogs.py:259
-msgid "🎓 Nivells de Vigilància"
-msgstr ""
-
-#: gui/dialogs.py:293
-msgid "⚙️ Opcions Generals"
-msgstr ""
-
-#: gui/dialogs.py:298
-msgid "📅 Caps de setmana"
-msgstr ""
-
-#: gui/dialogs.py:299
-msgid "Inclou dissabtes i diumenges a l'interval"
-msgstr ""
-
-#: gui/dialogs.py:302
-msgid "📋 Dies buits"
-msgstr ""
-
-#: gui/dialogs.py:303
-msgid "Mostra dies que no tenen vigilàncies programades"
-msgstr ""
-
-#: gui/dialogs.py:307
-msgid "🗜️ Compressió PDF"
-msgstr ""
-
-#: gui/dialogs.py:309
-msgid "Redueix espaiat per estalviar pàgines"
-msgstr ""
-
-#: gui/dialogs.py:321
-msgid "📅 Aquesta setmana"
-msgstr ""
-
-#: gui/dialogs.py:325
-msgid "📅 Pròxima setmana"
-msgstr ""
-
-#: gui/grups_widget.py:32
-msgid ""
-"Selecciona grups i hores específiques on NO tenen classe.\n"
-"💡 Clica el nom del grup per marcar/desmarcar totes les hores."
-msgstr ""
-
-#: gui/sync_dialog.py:38
-msgid "🔄 Sincronització Google Sheets"
-msgstr ""
-
-#: gui/sync_dialog.py:54
-msgid "🔄 Sincronització amb Google Sheets"
-msgstr ""
-
-#: gui/sync_dialog.py:60
-msgid "📊 Estat Actual"
-msgstr ""
-
-#: gui/sync_dialog.py:63
-msgid "Calculant..."
-msgstr ""
-
-#: gui/sync_dialog.py:64
-msgid "Dades locals:"
-msgstr ""
-
-#: gui/sync_dialog.py:66
-msgid "Detectant..."
-msgstr ""
-
-#: gui/sync_dialog.py:67
-msgid "Direcció recomanada:"
-msgstr ""
-
-#: gui/sync_dialog.py:74
-msgid "🔧 Accions de sincronització"
-msgstr ""
-
-#: gui/sync_dialog.py:78
-msgid "🧭 Detectar direcció"
-msgstr ""
-
-#: gui/sync_dialog.py:79
-msgid "Comprova si cal pujar, baixar o fer resolució mixta"
-msgstr ""
-
-#: gui/sync_dialog.py:85
-msgid "🔀 Resoldre amb Meld (mixta)"
-msgstr ""
-
-#: gui/sync_dialog.py:86
-msgid "Obre Meld per fer merge entre el JSON local i el temporal de Sheets"
-msgstr ""
-
-#: gui/sync_dialog.py:92
-msgid "⬆️ Pujar tot (Local → Sheets)"
-msgstr ""
-
-#: gui/sync_dialog.py:93
-msgid "Força pujar TOT el contingut local a Google Sheets"
-msgstr ""
-
-#: gui/sync_dialog.py:97
-msgid "⬇️ Baixar tot (Sheets → Local)"
-msgstr ""
-
-#: gui/sync_dialog.py:98
-msgid "Força baixar TOT el contingut de Google Sheets a local"
-msgstr ""
-
-#: gui/sync_dialog.py:113
-msgid "📝 Registre"
-msgstr ""
-
-#: gui/sync_dialog.py:139
-msgid "⚠️ Error detectant estat."
-msgstr ""
-
-#: gui/sync_dialog.py:140
-#, python-brace-format
-msgid "❌ Error actualitzant estat: {error}"
-msgstr ""
-
-#: gui/sync_dialog.py:156
-#, python-brace-format
-msgid "{total} substitucions en {dies} dies"
-msgstr ""
-
-#: gui/sync_dialog.py:161
-msgid ""
-"✅ Local i Sheets estan sincronitzats (iguals) - Pots forçar qualsevol "
-"direcció."
-msgstr ""
-
-#: gui/sync_dialog.py:162
-msgid ""
-"⬆️ Recomanat: PUJAR canvis locals a Sheets (però pots triar qualsevol opció)."
-msgstr ""
-
-#: gui/sync_dialog.py:163
-msgid ""
-"⬇️ Recomanat: BAIXAR canvis de Sheets al local (però pots triar qualsevol "
-"opció)."
-msgstr ""
-
-#: gui/sync_dialog.py:164
-msgid "🔀 Recomanat: Resolució mixta amb Meld (però pots forçar una direcció)."
-msgstr ""
-
-#: gui/sync_dialog.py:165
-msgid "⚠️ Error de connexió - Revisa Google Sheets."
-msgstr ""
-
-#: gui/sync_dialog.py:170
-#, python-brace-format
-msgid "ℹ️ Direcció detectada: {direction}"
-msgstr ""
-
-#: gui/sync_dialog.py:172
-msgid ""
-"💡 Recorda: pots triar qualsevol opció independentment de la recomanació"
-msgstr ""
-
-#: gui/sync_dialog.py:219 gui/sync_dialog.py:244
-msgid "Confirmació"
-msgstr ""
-
-#: gui/sync_dialog.py:219
-msgid ""
-"Això PUJARÀ TOT el contingut local a Google Sheets (substituint el que hi "
-"hagi). Vols continuar?"
-msgstr ""
-
-#: gui/sync_dialog.py:227
-msgid "Pujant dades locals a Sheets…"
-msgstr ""
-
-#: gui/sync_dialog.py:231
-#, python-brace-format
-msgid "❌ Error pujant a Sheets: {error}"
-msgstr ""
-
-#: gui/sync_dialog.py:236 gui/sync_dialog.py:261
-msgid "Èxit"
-msgstr ""
-
-#: gui/sync_dialog.py:236
-msgid "✅ Dades pujades a Sheets correctament."
-msgstr ""
-
-#: gui/sync_dialog.py:239 gui/sync_dialog.py:264
-msgid "Avís"
-msgstr ""
-
-#: gui/sync_dialog.py:239
-msgid "⚠️ No s'han pogut pujar les dades a Sheets."
-msgstr ""
-
-#: gui/sync_dialog.py:244
-msgid ""
-"Això BAIXARÀ TOT des de Google Sheets i sobreescriurà el fitxer local. Vols "
-"continuar?"
-msgstr ""
-
-#: gui/sync_dialog.py:252
-msgid "Baixant dades de Sheets a local…"
-msgstr ""
-
-#: gui/sync_dialog.py:256
-#, python-brace-format
-msgid "❌ Error baixant de Sheets: {error}"
-msgstr ""
-
-#: gui/sync_dialog.py:261
-msgid "✅ Dades baixades de Sheets i desades localment."
-msgstr ""
-
-#: gui/sync_dialog.py:264
-msgid "⚠️ No s'han pogut baixar les dades de Sheets."
-msgstr ""
-
-#: gui/sync_dialog.py:276
-msgid "Obrint Meld i preparant dades…"
-msgstr ""
-
-#: gui/sync_dialog.py:280
-#, python-brace-format
-msgid "❌ Error en resolució mixta: {error}"
-msgstr ""
-
-#: gui/sync_dialog.py:285
-msgid "Resolució mixta"
-msgstr ""
-
-#: gui/sync_dialog.py:285
-msgid ""
-"✅ Resolució completada amb èxit!\n"
-"Canvis aplicats i sincronitzats."
-msgstr ""
-
-#: gui/sync_dialog.py:291
-msgid "Error de connexió"
-msgstr ""
-
-#: gui/sync_dialog.py:291
-msgid ""
-"❌ No s'ha pogut connectar a Google Sheets.\n"
-"Revisa la connexió a internet i les credencials."
-msgstr ""
-
-#: gui/sync_dialog.py:294
-msgid "Sense canvis"
-msgstr ""
-
-#: gui/sync_dialog.py:294
-msgid ""
-"ℹ️ No s'han detectat canvis en Meld.\n"
-"Els fitxers NO s'han sincronitzat.\n"
-"\n"
-"Si has fet canvis, assegura't de desar els fitxers abans de tancar Meld."
-msgstr ""
-
-#: gui/sync_dialog.py:305
-msgid "⏳ {msg}"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:48 gui/estadistiques_dialog.py:1109
+#: export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492
 msgid "Tipus"
-msgstr ""
+msgstr "Tipo"
 
-#: gui/vigilancia_ui_components.py:48 gui/editor_configuracio_examens.py:138
+#: export/pdf/informe_direccio.py:675
 msgid "Grups"
-msgstr ""
+msgstr "Gruppi"
 
-#: gui/vigilancia_ui_components.py:140 gui/vigilancia_ui_components.py:142
+#: export/pdf/engine.py:783 export/pdf/engine.py:795
 msgid "VIGILÀNCIA"
-msgstr ""
+msgstr "SORVEGLIANZA"
 
-#: gui/vigilancia_ui_components.py:140
-msgid "EXAMEN"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:186
-msgid "Aula 1"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:186
-msgid "Aula 2"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:209
-msgid "🗑️"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:211
-msgid "Elimina aquesta fila de vigilància"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:231
-msgid "🎯 Assignar Titulars"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:232
-msgid "Assigna automàticament els titulars alliberats/disponibles"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:234
-msgid "🎯 Assignacions Pendents"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:235
-msgid "Assigna vigilàncies pendents amb proximitat de nivells educatius"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:237
-msgid "📊 Ordenar per Files"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:238
-msgid "Ordena les vigilàncies per hora i assigna titulars"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:240
-msgid "🗑️ Netejar Assignacions"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:241
-msgid "Neteja totes les assignacions de vigilants"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:251 gui/vigilancia_ui_components.py:280
-msgid "📄 Generar PDF"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:252 gui/vigilancia_ui_components.py:281
-msgid "Genera PDF amb les vigilàncies assignades"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:268
-msgid "🎯 Assignar Titulars (Tot)"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:269
-msgid ""
-"Assigna automàticament els titulars alliberats/disponibles a tots els nivells"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:271
-msgid "🎯 Assignacions Pendents (Tot)"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:272
-msgid ""
-"Assigna vigilàncies pendents amb categories i ponderacions a tots els nivells"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:274
-msgid "📊 Ordenar (Tot)"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:275
-msgid "Ordena les vigilàncies per hora a tots els nivells"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:277
-msgid "🗑️ Netejar (Tot)"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:278
-msgid "Neteja totes les assignacions de vigilants de tots els nivells"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:283
-msgid "📅 PDF Interval"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:284
-msgid "Genera PDF per un interval de dies"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:308
-msgid "🎯 Titulars Nivell"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:309
-msgid "Assigna titulars alliberats/disponibles només d'aquest nivell"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:311
-msgid "🎯 Pendents Nivell"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:312
-msgid "Assigna vigilàncies pendents només d'aquest nivell"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:314
-msgid "📊 Ordenar"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:315
-msgid "Ordena només aquest nivell"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:317 gui/configuracio_dialog.py:657
-msgid "🗑️ Netejar"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:318
-msgid "Neteja només aquest nivell"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:320
-msgid "📄 PDF Nivell"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:321
-msgid "Genera PDF només d'aquest nivell"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:343
-msgid "Data: No seleccionada"
-msgstr ""
-
-#: gui/vigilancia_ui_components.py:367
-msgid "🛡️ Gestió de Vigilàncies d'Exàmens"
-msgstr ""
-
-#: gui/vigilancia_unificada.py:204
-#, python-brace-format
-msgid "➕ Afegeix vigilància {nivell}"
-msgstr ""
-
-#: gui/institucio_dialog.py:22
-msgid "Selecciona Institució"
-msgstr ""
-
-#: gui/institucio_dialog.py:28
-msgid "Selecciona la institució amb la qual vols treballar:"
-msgstr ""
-
-#: gui/institucio_dialog.py:52
-msgid "Cancel·la"
-msgstr ""
-
-#: gui/institucio_dialog.py:56
-msgid "Obrir"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:29
+#: routes/pdf.py:709
 msgid "📋 Llistat de Professors Substituts"
-msgstr ""
+msgstr "📋 Elenco dei Docenti Supplenti"
 
-#: gui/llistat_substituts_dialog.py:52
-msgid "Dia de la setmana:"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:64 gui/configuracio_dialog.py:653
-msgid "🔄 Actualitzar"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:68
-msgid "📄 Exportar PDF"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:70
-msgid "Exporta PDF del dia seleccionat"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:73
-msgid "📄📅 Tots els PDFs"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:75
-msgid "Genera PDFs individuals per tots els dies"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:78
-msgid "📖 PDF Combinat"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:80
-msgid "Genera un PDF amb tots els dies"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:83
-msgid "📊 Categories"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:85
-msgid "Mostra les categories i ponderacions"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:101 gui/llistat_substituts_dialog.py:561
-msgid "❌ Tancar"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:121
-msgid "Error generant llistat: {e}"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:214
-msgid "Desa llistat substituts"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:216 gui/llistat_substituts_dialog.py:403
-msgid "PDF Files (*.pdf)"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:224
-msgid "PDF creat"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:225
-msgid ""
-"✅ Llistat exportat correctament:\n"
-"{file_path}"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:229
-msgid "Error creant PDF: {e}"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:384
-msgid "PDFs generats"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:384
-msgid "✅ {num_pdfs} PDFs generats a exports/llistat_substituts/"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:387
-msgid "Error generant PDFs: {e}"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:401
-msgid "Desa llistat substituts combinat"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:410
-msgid "PDF combinat creat"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:411
-#, python-brace-format
-msgid ""
-"✅ Llistat setmanal exportat:\n"
-"{file_path}"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:415
-msgid "Error creant PDF combinat: {e}"
-msgstr ""
-
-#: gui/llistat_substituts_dialog.py:526
-msgid "📊 Categories i Ponderacions"
-msgstr ""
-
-#: gui/ui_helpers.py:47
-msgid "-- selecciona vigilant --"
-msgstr ""
-
-#: gui/ui_helpers.py:80
-msgid "Disponibilitat: {disponibilitat}"
-msgstr ""
-
-#: gui/ui_helpers.py:93
-msgid "Professor no trobat en llista actual"
-msgstr ""
-
-#: gui/configuracio_dialog.py:40
-msgid "Configuració del Sistema"
-msgstr ""
-
-#: gui/configuracio_dialog.py:55
-msgid "⚙️ Configuració del Sistema"
-msgstr ""
-
-#: gui/configuracio_dialog.py:64
-msgid "🔧 Sistema i Aparença"
-msgstr ""
-
-#: gui/configuracio_dialog.py:68
-msgid "👥 Grups i Dades"
-msgstr ""
-
-#: gui/configuracio_dialog.py:72
-msgid "🎯 Prioritats"
-msgstr ""
-
-#: gui/configuracio_dialog.py:76
-msgid "🏥 Professors de Baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:80
-msgid "ℹ️ Info i Debug"
-msgstr ""
-
-#: gui/configuracio_dialog.py:106
-msgid "🎨 Aparença i Temes"
-msgstr ""
-
-#: gui/configuracio_dialog.py:134
-msgid "Tema actual:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:154
-msgid "Idioma:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:173
-msgid "Perfil PDF:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:180
-msgid "Mode compacte (marges i fonts reduïts)"
-msgstr ""
-
-#: gui/configuracio_dialog.py:183
-msgid "Compactació:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:186
-msgid "💡 El sistema detecta automàticament quan cal aplicar compressió"
-msgstr ""
-
-#: gui/configuracio_dialog.py:206
-msgid "Descripció:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:208
-msgid "Sistema de temes no disponible"
-msgstr ""
-
-#: gui/configuracio_dialog.py:213
-msgid "⚙️ Configuració Principal"
-msgstr ""
-
-#: gui/configuracio_dialog.py:227
-msgid "📁"
-msgstr ""
-
-#: gui/configuracio_dialog.py:229
-msgid "Navegar i seleccionar fitxer XML d'horaris"
-msgstr ""
-
-#: gui/configuracio_dialog.py:232
-msgid "Fitxer XML horaris:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:235
-msgid "Últim professor (límit):"
-msgstr ""
-
-#: gui/configuracio_dialog.py:237
-msgid "Data inici estadístiques:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:239
-msgid "Directori exports:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:242
-msgid "💾 Desar Configuració"
-msgstr ""
-
-#: gui/configuracio_dialog.py:253
-msgid "ℹ️ Informació de Configuració"
-msgstr ""
-
-#: gui/configuracio_dialog.py:302
-msgid "📚 Gestió d'Abreviatures de Grups"
-msgstr ""
-
-#: gui/configuracio_dialog.py:316
-msgid "🔍 Detectar Grups del XML"
-msgstr ""
-
-#: gui/configuracio_dialog.py:321
-msgid "💾 Desar Abreviatures"
-msgstr ""
-
-#: gui/configuracio_dialog.py:326
-msgid "🔄 Recarregar"
-msgstr ""
-
-#: gui/configuracio_dialog.py:348
-msgid "🔧 Accions del Sistema"
-msgstr ""
-
-#: gui/configuracio_dialog.py:351
-msgid "📋 Llistat Substituts"
-msgstr ""
-
-#: gui/configuracio_dialog.py:353
-msgid "Visualitza professors substituts per cada dia i hora"
-msgstr ""
-
-#: gui/configuracio_dialog.py:356
-msgid "🔄 Sincronitzar amb Google Sheets"
-msgstr ""
-
-#: gui/configuracio_dialog.py:358
-msgid "Baixa dades de Google Sheets per actualitzar estadístiques"
-msgstr ""
-
-#: gui/configuracio_dialog.py:361
-msgid "🔄 Reset Estadístiques"
-msgstr ""
-
-#: gui/configuracio_dialog.py:378
-msgid ""
-"Configura l'ordre i pesos de les categories de prioritat per assignar "
-"substitucions.\n"
-"Ordre menor = més prioritat. Pes més alt = més probabilitat dins la "
-"categoria."
-msgstr ""
-
-#: gui/configuracio_dialog.py:389
-msgid "📋 Ordre de Categories de Prioritat"
-msgstr ""
-
-#: gui/configuracio_dialog.py:394
-msgid "⬆️ Pujar"
-msgstr ""
-
-#: gui/configuracio_dialog.py:399
-msgid "⬇️ Baixar"
-msgstr ""
-
-#: gui/configuracio_dialog.py:404
-msgid "➕ Afegir Categoria"
-msgstr ""
-
-#: gui/configuracio_dialog.py:408
-msgid "🗑️ Eliminar"
-msgstr ""
-
-#: gui/configuracio_dialog.py:419
-msgid "Ordre"
-msgstr ""
-
-#: gui/configuracio_dialog.py:419
-msgid "Categories (separades per comes)"
-msgstr ""
-
-#: gui/configuracio_dialog.py:429
-msgid "⚖️ Pesos d'Aleatorietat per Categoria"
-msgstr ""
-
-#: gui/configuracio_dialog.py:432
-msgid ""
-"Pes més alt = més probabilitat. Exemple: pes 3 = triple de possibilitats que "
-"pes 1"
-msgstr ""
-
-#: gui/configuracio_dialog.py:452
-msgid "🚫 Activitats No Substituibles"
-msgstr ""
-
-#: gui/configuracio_dialog.py:462
-msgid "➕ Afegir"
-msgstr ""
-
-#: gui/configuracio_dialog.py:466
-msgid "🗑️ Eliminar seleccionat"
-msgstr ""
-
-#: gui/configuracio_dialog.py:509
-msgid ""
-"Professors temporalment de baixa: NO substitueixen i NO són substituïts.\n"
-"Configura el període de baixa per cada professor amb dates d'inici i final."
-msgstr ""
-
-#: gui/configuracio_dialog.py:517
-msgid "👤 Llistat de Professors de Baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:522
-msgid "➕ Afegir Professor de Baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:531
-msgid "Data Inici"
-msgstr ""
-
-#: gui/configuracio_dialog.py:531
-msgid "Data Final"
-msgstr ""
-
-#: gui/configuracio_dialog.py:531
-msgid "Accions"
-msgstr ""
-
-#: gui/configuracio_dialog.py:544
-msgid "ℹ️ Com funcionen les baixes"
-msgstr ""
-
-#: gui/configuracio_dialog.py:565
-msgid "💾 Desar Baixes"
-msgstr ""
-
-#: gui/configuracio_dialog.py:606 gui/estadistiques_dialog.py:85
-#: gui/estadistiques_dialog.py:102
-msgid "📊 Estadístiques del Sistema"
-msgstr ""
-
-#: gui/configuracio_dialog.py:609
-msgid "Carregant estadístiques..."
-msgstr ""
-
-#: gui/configuracio_dialog.py:619
-msgid "ℹ️ Quant a l'Aplicació"
-msgstr ""
-
-#: gui/configuracio_dialog.py:648
-msgid "🐛 Informació de Debug"
-msgstr ""
-
-#: gui/configuracio_dialog.py:718 gui/configuracio_dialog.py:755
-#: gui/configuracio_dialog.py:918 gui/configuracio_dialog.py:1065
-#: gui/configuracio_dialog.py:1096 gui/configuracio_dialog.py:1116
-#: gui/configuracio_dialog.py:1148
-msgid "(Buit)"
-msgstr ""
-
-#: gui/configuracio_dialog.py:730
-msgid "Error carregant prioritats: {error}"
-msgstr ""
-
-#: gui/configuracio_dialog.py:745
-msgid "Categoria"
-msgstr ""
-
-#: gui/configuracio_dialog.py:765
-msgid "pes"
-msgstr ""
-
-#: gui/configuracio_dialog.py:781
-msgid ""
-"\"alliberat\" s'assigna automàticament als professors dels grups sense classe"
-msgstr ""
-
-#: gui/configuracio_dialog.py:786
-msgid "Afegir assignatura a categoria"
-msgstr ""
-
-#: gui/configuracio_dialog.py:819 gui/configuracio_dialog.py:1290
-msgid "Editar període de baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:825 gui/configuracio_dialog.py:1296
-msgid "Eliminar aquesta baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:872 gui/configuracio_dialog.py:960
-#: gui/configuracio_dialog.py:1498
-msgid "Desat correctament"
-msgstr ""
-
-#: gui/configuracio_dialog.py:873
-msgid "S'han desat"
-msgstr ""
-
-#: gui/configuracio_dialog.py:873
-msgid "professors de baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:881
-msgid "Error desant baixes"
-msgstr ""
-
-#: gui/configuracio_dialog.py:961
-#, python-brace-format
-msgid ""
-"Prioritats desades:\n"
-"• {num_cat} categories\n"
-"• {num_pesos} pesos\n"
-"• {num_excl} exclusions\n"
-"• {num_baixa} professors de baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1045 gui/configuracio_dialog.py:1104
-msgid "Selecció"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1045
-msgid "Selecciona una categoria primer"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1049 gui/configuracio_dialog.py:1189
-#: gui/configuracio_dialog.py:1382
-msgid "Confirmar"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1050
-msgid "Segur que vols eliminar aquesta categoria?"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1064 gui/configuracio_dialog.py:1115
-msgid "alliberat"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1080
-msgid "Afegir Activitat No Substituïble"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1081
-msgid "Selecciona l'activitat (o introdueix-ne una de nova):"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1089
-msgid "Afegir Activitat"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1090
-msgid "Introdueix el nom de l'activitat/assignatura:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1104
-msgid "Selecciona una activitat primer"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1132 gui/configuracio_dialog.py:1142
-msgid "Afegir Assignatura/Categoria"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1133
-msgid "Selecciona la categoria o assignatura (o introdueix-ne una de nova):"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1143
-msgid "Introdueix el nom de la categoria o assignatura:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1183
-msgid "Duplicat"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1183
-msgid "Aquesta assignatura ja existeix a la categoria"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1190
-msgid "Segur que vols eliminar '{assignatura}' d'aquesta categoria?"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1232
-msgid "Afegir Professor de Baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1243 gui/configuracio_dialog.py:1335
-msgid "Professor:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1272 gui/configuracio_dialog.py:1364
-msgid "El nom del professor no pot estar buit"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1323
-msgid "Editar Baixa"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1383
-msgid "Segur que vols eliminar la baixa de {professor}?"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1408
-msgid "Sense grups"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1408
-msgid "No s'han detectat grups a l'XML"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1447
-msgid "Grups detectats"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1448
-msgid "S'han detectat {num} grups del XML"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1475 gui/estadistiques_dialog.py:867
-#: gui/estadistiques_dialog.py:1199 gui/estadistiques_dialog.py:1302
-msgid "Sense dades"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1475
-msgid "No hi ha abreviatures per desar"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1499
-#, python-brace-format
-msgid ""
-"S'han desat {num} abreviatures a {filename}\n"
-"\n"
-"Les abreviatures s'han afegit a la secció 'abreviatures'."
-msgstr ""
-
-#: gui/configuracio_dialog.py:1514
-msgid "Error desant abreviatures: {error}"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1595
-msgid "Reinici necessari"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1596
-msgid ""
-"⚠️ Has canviat la configuració del sistema.\n"
-"\n"
-"Per aplicar els canvis correctament, necessites reiniciar l'aplicació.\n"
-"\n"
-"Desa tota la feina abans de tancar!"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1601
-msgid "Configuració"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1601
-msgid "Configuració desada correctament!"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1608 gui/configuracio_dialog.py:1631
-#: gui/configuracio_dialog.py:1640 gui/main_window.py:475
-#: gui/main_window.py:498 gui/main_window.py:511
-msgid "Sincronització"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1609 gui/main_window.py:476
-msgid "🔄 Com vols sincronitzar?"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1610 gui/main_window.py:477
-msgid "Escull el tipus de sincronització amb Google Sheets:"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1612 gui/main_window.py:479
-msgid "⚡ Sincronització ràpida"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1613 gui/main_window.py:480
-msgid "🔧 Sincronització avançada"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1614 gui/main_window.py:481
-#: utils/unsaved_changes.py:235
+#: gui/configuracio_dialog.py:1614 gui/main_window.py:481 utils/unsaved_changes.py:235
 msgid "❌ Cancel·lar"
 msgstr "❌ Annulla"
-
-#: gui/configuracio_dialog.py:1631 gui/main_window.py:498
-msgid "❌ Storage no té capacitats de Google Sheets."
-msgstr ""
-
-#: gui/configuracio_dialog.py:1640 gui/main_window.py:511
-msgid "✅ Dades sincronitzades correctament!"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1643
-msgid "❌ Error durant la sincronització amb Google Sheets."
-msgstr ""
-
-#: gui/configuracio_dialog.py:1648
-msgid "❌ Error de sincronització: {error}"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1663 gui/configuracio_dialog.py:1666
-msgid "Reset"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1663
-msgid "Segur que vols eliminar totes les estadístiques?"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1666
-msgid "Funcionalitat en desenvolupament"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1700
-msgid "Idioma canviat"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1701
-msgid ""
-"L'idioma s'ha canviat correctament.\n"
-"\n"
-"Alguns textos es mostraran en el nou idioma immediatament,\n"
-"però per veure tots els canvis reinicia l'aplicació."
-msgstr ""
-
-#: gui/configuracio_dialog.py:1836 gui/main_window.py:544
-#: gui/main_window.py:567 gui/main_window.py:1864
-msgid "Horari no carregat"
-msgstr ""
-
-#: gui/configuracio_dialog.py:1836 gui/main_window.py:1864
-msgid ""
-"L'horari no s'ha pogut carregar. No es pot mostrar el llistat de substituts."
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:40
-msgid "🛠️ Editor de Configuració d'Exàmens"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:110
-msgid "A punt per editar la configuració d'exàmens"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:121
-msgid "Gestió de dades"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:134
-msgid "Assignatures"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:142
-msgid "Aules"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:146
-msgid "Professors"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:151
-msgid "🔄 Recarrega"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:156
-msgid "💾 Desa-ho tot"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:160
-msgid "📄 Exporta el PDF"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:162
-msgid "Exporta les assignacions a PDF"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:197
-#: gui/editor_configuracio_examens.py:252
-msgid "Nivell:"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:219
-msgid "➕ Afegeix assignatura"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:223
-#: gui/editor_configuracio_examens.py:278
-#: gui/editor_configuracio_examens.py:321
-msgid "❌ Elimina"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:229
-#: gui/editor_configuracio_examens.py:284
-#: gui/editor_configuracio_examens.py:327
-#: gui/editor_configuracio_examens.py:406
-msgid "▲"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:231
-msgid "Mou l'assignatura amunt"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:235
-#: gui/editor_configuracio_examens.py:290
-#: gui/editor_configuracio_examens.py:333
-#: gui/editor_configuracio_examens.py:412
-msgid "▼"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:237
-msgid "Mou l'assignatura avall"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:274
-msgid "➕ Afegeix grup"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:286
-msgid "Mou el grup amunt"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:292
-msgid "Mou el grup avall"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:317
-msgid "➕ Afegeix aula"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:329
-msgid "Mou l'aula amunt"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:335
-msgid "Mou l'aula avall"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:349
-msgid "Professors carregats del fitxer XML (només lectura)"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:361
-msgid "Fitxer XML: No carregat"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:372
-msgid "Assignacions professor-titular"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:382
-msgid "Filtra - Nivell:"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:389
-msgid "Assignatura:"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:391
-#: gui/editor_configuracio_examens.py:725
-#: gui/editor_configuracio_examens.py:971
-#: gui/editor_configuracio_examens.py:984
-msgid "Totes"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:401
-msgid "➕ Nova assignació"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:408
-msgid "Mou l'assignació seleccionada amunt"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:414
-msgid "Mou l'assignació seleccionada avall"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:421
-#: gui/editor_configuracio_examens.py:1292
-msgid "🔒 Desbloqueja l'edició"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:523
-#, python-brace-format
-msgid "Fitxer XML: {path} ({num} professors)"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:528
-msgid "Error: no s'han trobat professors a l'XML"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:535
-#, python-brace-format
-msgid "Error carregant l'XML: {error}"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1293
-msgid "🔒 Assignacions bloquejades - Fes clic per desbloquejar"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1296
-msgid "🔓 Bloqueja l'edició"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1297
-msgid "🔓 Assignacions desbloquejades - Edició habilitada"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1309
-#: gui/editor_configuracio_examens.py:1348
-msgid "🔓"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1310
-#: gui/editor_configuracio_examens.py:1349
-msgid "Desbloqueja aquesta fila"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1311
-#, python-brace-format
-msgid "Fila {num} bloquejada"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1317
-#: gui/editor_configuracio_examens.py:1345
-msgid "🔒"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1318
-#: gui/editor_configuracio_examens.py:1346
-msgid "Bloqueja aquesta fila"
-msgstr ""
-
-#: gui/editor_configuracio_examens.py:1319
-#, python-brace-format
-msgid "Fila {num} desbloquejada"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:111 gui/main_window.py:181
-msgid "📊 Estadístiques"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:115
-msgid "📈 Temporals"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:119
-msgid "📚 Classes"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:139
-msgid "Substitucions totals: 0"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:140
-msgid "Absències totals: 0"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:141
-msgid "Mitjana per professor: 0"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:142
-msgid "Substitucions Pati (GP): 0"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:143
-msgid "Vigilàncies Pati (VP): 0"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:151
-msgid "📊 Ràtio S/A: Substitucions ÷ Absències (ideal ≥ 1.0)"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:157
-msgid "🎯 Puntuació: S×1 + SP×0.5 - A×1 - AP×0.5 + AA×0 (Altres Abs neutres)"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:163
-msgid "Rang"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:164
-msgid "Abs Normals"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:164
-msgid "Abs Pati (VP)"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:164
-msgid "Altres Abs"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:164
-msgid "Total Abs"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:165
-msgid "Subs Normals"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:165
-msgid "Subs Pati (GP)"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:165
-msgid "Total Subs"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:166
-msgid "Ràtio S/A"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:166
-msgid "Puntuació"
-msgstr ""
 
 #: gui/estadistiques_dialog.py:198 gui/estadistiques_dialog.py:353 main.py:141
 msgid "Carregant..."
 msgstr "Caricamento..."
 
-#: gui/estadistiques_dialog.py:219
-msgid "📊 Exportar CSV"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:223
-msgid "🔢 Ordre Original"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:235
-msgid "📅 ANÀLISI TEMPORAL"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:244
-msgid "⏰ Resum per Franges"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:246
-msgid ""
-"Analitza distribució detallada de substitucions per dia/hora amb tipus de "
-"substitut"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:253 gui/estadistiques_dialog.py:324
-msgid " "
-msgstr ""
-
-#: gui/estadistiques_dialog.py:259
-msgid "📊 DISTRIBUCIÓ PER DIA DE LA SETMANA"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:265
-msgid "Carregant anàlisi per dies..."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:277
-msgid "🕐 DISTRIBUCIÓ PER HORA"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:283
-msgid "Carregant anàlisi per hores..."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:306
-msgid "📚 ESTADÍSTIQUES PER CLASSE"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:315
-msgid "🔍 Anàlisi Detallat per Classe"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:317
-msgid "Consulta substitucions d'una classe entre dues dates amb exportació CSV"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:330
-msgid "Classe"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:330
-msgid "Total Substitucions"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:330
-msgid "Assignatura més afectada"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:331
-msgid "Professor més absent"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:331
-msgid "Hores"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:347
-msgid "🐛 DEBUG - Informació tècnica"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:399 gui/estadistiques_dialog.py:1332
-msgid "Exportació"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:399
-msgid ""
-"Estadístiques exportades a:\n"
-"{fitxer}"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:401
-msgid ""
-"Error exportant el fitxer:\n"
-"{error}"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:657
-msgid "Error: No hi ha horari carregat."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:665
-msgid "No hi ha fitxer de substitucions."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:701
-msgid "No hi ha dades de substitucions."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:868
-msgid ""
-"No hi ha dades suficients per generar el resum per franges.\n"
-"\n"
-"Assegura't que hi ha substitucions desades al sistema."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:878
-msgid "Error generant resum per franges: {error}"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:889
-msgid "Error obrint diàleg substitucions per classe: {error}"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:908
-msgid "⏰ Resum per Franges - Distribució de Substitucions"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:917
-msgid "⏰ Resum per Franges Horàries"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:922
-msgid ""
-"Selecciona dia i hora per veure com es distribueixen les substitucions:\n"
-"1 substitució, 2 substitucions, etc. amb el tipus de cada professor."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:931
-msgid "Dia:"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:936
-msgid "Hora:"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1043 gui/estadistiques_dialog.py:1051
-msgid "📚 Substitucions per Classe"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1056
-msgid ""
-"Consulta totes les substitucions d'una o diverses classes entre dues dates.\n"
-"Fes clic sobre cada classe que vulguis seleccionar (es marquen en blau)."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1063
-msgid "Paràmetres de cerca"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1085
-msgid "Classes/Grups (selecció múltiple):"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1098
-msgid "🔍 Calcular"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1103
-msgid "Resultats"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1109
+#: export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492
 msgid "Data"
-msgstr ""
+msgstr "Data"
 
-#: gui/estadistiques_dialog.py:1109
-msgid "Professor Absent"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1117
-msgid "Selecciona paràmetres i prem 'Calcular'"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1127
-msgid "💾 Exportar CSV"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1161
-msgid "No hi ha grups disponibles"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1172 gui/estadistiques_dialog.py:1180
-msgid "Selecció invàlida"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1172
-msgid "Si us plau, selecciona almenys una classe."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1180
-msgid "Si us plau, selecciona classes vàlides."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1188
-msgid "Dates invàlides"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1188
-msgid "La data d'inici ha de ser anterior a la data final."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1199
-msgid "No hi ha dades de substitucions al sistema."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1235
-msgid "Error calculant substitucions: {error}"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1302
-msgid "No hi ha dades per exportar. Calcula primer les substitucions."
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1332
-msgid ""
-"Dades exportades a:\n"
-"{fitxer}"
-msgstr ""
-
-#: gui/estadistiques_dialog.py:1335
-msgid "Error exportant CSV: {error}"
-msgstr ""
-
-#: gui/main_window.py:54
-#, python-brace-format
-msgid "✅ {msg}"
-msgstr ""
-
-#: gui/main_window.py:58 gui/main_window.py:59
-#, python-brace-format
-msgid "❌ {error}: {details}"
-msgstr ""
-
-#: gui/main_window.py:70
-msgid "📚 Gestió de Substitucions - Amb Vigilàncies"
-msgstr ""
-
-#: gui/main_window.py:117
-msgid "📚 Gestió de Substitucions"
-msgstr ""
-
-#: gui/main_window.py:145
-msgid "📅 Data:"
-msgstr ""
-
-#: gui/main_window.py:154
-msgid "◀ Anterior"
-msgstr ""
-
-#: gui/main_window.py:156
-msgid "Dia anterior"
-msgstr ""
-
-#: gui/main_window.py:159
-msgid "📅 Avui"
-msgstr ""
-
-#: gui/main_window.py:161
-msgid "Tornar a avui"
-msgstr ""
-
-#: gui/main_window.py:164
-msgid "Següent ▶"
-msgstr ""
-
-#: gui/main_window.py:166
-msgid "Dia següent"
-msgstr ""
-
-#: gui/main_window.py:171
-msgid "⚙️ Config. Exàmens"
-msgstr ""
-
-#: gui/main_window.py:173
-msgid "Editor de configuració d'exàmens"
-msgstr ""
-
-#: gui/main_window.py:176
-msgid "⚙️ Configuració"
-msgstr ""
-
-#: gui/main_window.py:178
-msgid "Configuració general de l'aplicació"
-msgstr ""
-
-#: gui/main_window.py:183
-msgid "Estadístiques globals de substitucions"
-msgstr ""
-
-#: gui/main_window.py:186
-msgid "❓ Ajuda"
-msgstr ""
-
-#: gui/main_window.py:188
-msgid "Obre el manual ràpid d'ús"
-msgstr ""
-
-#: gui/main_window.py:198
-msgid "🔄 Gen. Substitucions"
-msgstr ""
-
-#: gui/main_window.py:200
-msgid "Regenera totes les substitucions des de zero"
-msgstr ""
-
-#: gui/main_window.py:203
-msgid "💾📋 Desa i PDF"
-msgstr ""
-
-#: gui/main_window.py:205
-msgid "Desa les dades i exporta PDF combinat"
-msgstr ""
-
-#: gui/main_window.py:239
-msgid "💾 Desar Grups"
-msgstr ""
-
-#: gui/main_window.py:240
-msgid "Desa la configuració de grups sense classe"
-msgstr ""
-
-#: gui/main_window.py:264
-msgid "Llest"
-msgstr ""
-
-#: gui/main_window.py:265 gui/main_window.py:936 gui/main_window.py:945
-msgid "Grups sense classe: cap"
-msgstr ""
-
-#: gui/main_window.py:293
-msgid "📝 Substitucions"
-msgstr ""
-
-#: gui/main_window.py:294
-msgid "🏫 Grups"
-msgstr ""
-
-#: gui/main_window.py:326
-#, python-brace-format
-msgid "Horari carregat: {num} professors"
-msgstr ""
-
-#: gui/main_window.py:330
-msgid "Error carregant horari"
-msgstr ""
-
-#: gui/main_window.py:331
-msgid ""
-"No s'ha pogut carregar l'horari: {}\n"
-"\n"
-"Pots accedir a '⚙️ Configuració' per arreglar el problema."
-msgstr ""
-
-#: gui/main_window.py:333
-msgid "❌ Error carregant horari - Revisa la configuració"
-msgstr ""
-
-#: gui/main_window.py:465
-msgid "Error obrint l'editor de configuració: {error}"
-msgstr ""
-
-#: gui/main_window.py:503
-msgid "🔄 Sincronitzant..."
-msgstr ""
-
-#: gui/main_window.py:513
-msgid "✅ Sincronització completada"
-msgstr ""
-
-#: gui/main_window.py:515
-msgid "❌ No s'han pogut sincronitzar les dades."
-msgstr ""
-
-#: gui/main_window.py:517 gui/main_window.py:521
-msgid "❌ Error de sincronització"
-msgstr ""
-
-#: gui/main_window.py:520
-msgid "❌ Error: {error}"
-msgstr ""
-
-#: gui/main_window.py:545
-msgid ""
-"L'horari no s'ha pogut carregar. Possiblement hi ha un error de "
-"configuració.\n"
-"\n"
-"Vols obrir la configuració per arreglar-ho?"
-msgstr ""
-
-#: gui/main_window.py:568
-msgid ""
-"L'horari no s'ha pogut carregar.\n"
-"\n"
-"Vols obrir igualment les estadístiques?"
-msgstr ""
-
-#: gui/main_window.py:774
-#, python-brace-format
-msgid "Data: {data}"
-msgstr ""
-
-#: gui/main_window.py:828
-#, python-brace-format
-msgid "Dia nou: {data} - Selecciona els professors absents"
-msgstr ""
-
-#: gui/main_window.py:830
-#, python-brace-format
-msgid "📄 Dades carregades de substitucions desades per a {data}"
-msgstr ""
-
-#: gui/main_window.py:894
-msgid "Dia buit desat"
-msgstr ""
-
-#: gui/main_window.py:895
-#, python-brace-format
-msgid ""
-"✅ Dia sense absents desat correctament!\n"
-"\n"
-"📅 Data: {data}\n"
-"📋 Les dades anteriors d'aquest dia han estat netejades.{sync_info}"
-msgstr ""
-
-#: gui/main_window.py:901
-msgid "Error desant dia buit"
-msgstr ""
-
-#: gui/main_window.py:902
-#, python-brace-format
-msgid ""
-"❌ Error desant el dia buit\n"
-"\n"
-"📅 Data: {data}\n"
-"Comprova la connectivitat i torna-ho a intentar"
-msgstr ""
-
-#: gui/main_window.py:958
-#, python-brace-format
-msgid "Grups sense classe: {num_grups} grups en {num_hores} hores"
-msgstr ""
-
-#: gui/main_window.py:1138
-#, python-brace-format
-msgid " (⚠️ {num} canvis respecte substitucions desades)"
-msgstr ""
-
-#: gui/main_window.py:1140
-#, python-brace-format
-msgid " (preservades {num})"
-msgstr ""
-
-#: gui/main_window.py:1142
-#, python-brace-format
-msgid "✅ Generades {num} substitucions{vigilancies}{extra}"
-msgstr ""
-
-#: gui/main_window.py:1158
-msgid "Generant substitucions..."
-msgstr ""
-
-#: gui/main_window.py:1189
-msgid "❌ Error generant substitucions"
-msgstr ""
-
-#: gui/main_window.py:1190
-msgid "Error generant substitucions: {error}"
-msgstr ""
-
-#: gui/main_window.py:1198
-msgid "Substitució modificada manualment"
-msgstr ""
-
-#: gui/main_window.py:1237
-#, python-brace-format
-msgid "💾 Grups desats: {num_grups} grups en {num_hores} hores"
-msgstr ""
-
-#: gui/main_window.py:1244
-msgid "❌ Error desant grups: {error}"
-msgstr ""
-
-#: gui/main_window.py:1255
-msgid "🔄 Substitucions actualitzades per canvis vigilàncies"
-msgstr ""
-
-#: gui/main_window.py:1754
-msgid "❓ Manual Ràpid d'Ús"
-msgstr ""
-
-#: gui/main_window.py:1787
-msgid "🚀 Manual Ràpid"
-msgstr ""
-
-#: gui/main_window.py:1788
-msgid "📚 Manual Complet"
-msgstr ""
-
-#: utils/exception_chain.py:64
+#: utils/exception_chain.py:67
 msgid "operació desconeguda"
 msgstr "operazione sconosciuta"
 
-#: utils/exception_chain.py:65
+#: utils/exception_chain.py:68
 msgid "Error inesperat"
 msgstr "Errore imprevisto"
 
-#: utils/exception_chain.py:66
+#: utils/exception_chain.py:69
 msgid "Excepció no gestionada"
 msgstr "Eccezione non gestita"
 
-#: utils/exception_chain.py:87
+#: utils/exception_chain.py:90
 msgid "Error en {}"
 msgstr "Errore in {}"
 
-#: utils/exception_chain.py:138 utils/exception_chain.py:145
+#: utils/exception_chain.py:148 utils/exception_chain.py:154
 msgid "accés a fitxer"
 msgstr "accesso al file"
 
-#: utils/exception_chain.py:139
+#: utils/exception_chain.py:149
 msgid "Fitxer no trobat. Comprova que el fitxer existeix."
 msgstr "File non trovato. Verifica che il file esista."
 
-#: utils/exception_chain.py:146
+#: utils/exception_chain.py:154
 msgid "Permisos insuficients per accedir al fitxer."
 msgstr "Permessi insufficienti per accedere al file."
 
-#: utils/exception_chain.py:153
+#: utils/exception_chain.py:159
 msgid "processament de dades"
 msgstr "elaborazione dati"
 
-#: utils/exception_chain.py:154
+#: utils/exception_chain.py:159
 msgid "Error en format de dades. Comprova l'entrada."
 msgstr "Errore nel formato dei dati. Verifica l'input."
 
-#: utils/exception_chain.py:161
+#: utils/exception_chain.py:164
 msgid "connexió externa"
 msgstr "connessione esterna"
 
-#: utils/exception_chain.py:162
+#: utils/exception_chain.py:164
 msgid "Error de connexió. Comprova la connectivitat."
 msgstr "Errore di connessione. Verifica la connettività."
 
-#: utils/exception_chain.py:176
+#: utils/exception_chain.py:179
 msgid "descodificació JSON"
 msgstr "decodifica JSON"
 
-#: utils/exception_chain.py:177
+#: utils/exception_chain.py:180
 msgid "Format de fitxer corrupte. Regenera el fitxer."
 msgstr "Formato del file corrotto. Rigenera il file."
 
-#: utils/exception_chain.py:184
+#: utils/exception_chain.py:186
 msgid "accés a dades"
 msgstr "accesso ai dati"
 
-#: utils/exception_chain.py:185
+#: utils/exception_chain.py:186
 msgid "Dada no trobada. Comprova la configuració."
 msgstr "Dato non trovato. Verifica la configurazione."
 
-#: utils/exception_chain.py:192
+#: utils/exception_chain.py:191
 msgid "tipus de dades"
 msgstr "tipo di dati"
 
-#: utils/exception_chain.py:193
+#: utils/exception_chain.py:191
 msgid "Error en tipus de dada. Comprova l'entrada."
 msgstr "Errore nel tipo di dato. Verifica l'input."
 
-#: utils/exception_chain.py:206
+#: utils/exception_chain.py:203
 msgid "accés a llista"
 msgstr "accesso alla lista"
 
-#: utils/exception_chain.py:207
+#: utils/exception_chain.py:203
 msgid "Índex fora de rang. Comprova les dades."
 msgstr "Indice fuori intervallo. Verifica i dati."
 
-#: utils/exception_chain.py:214
+#: utils/exception_chain.py:208
 msgid "accés a propietat"
 msgstr "accesso alla proprietà"
 
-#: utils/exception_chain.py:215
+#: utils/exception_chain.py:208
 msgid "Propietat no trobada. Comprova l'objecte."
 msgstr "Proprietà non trovata. Verifica l'oggetto."
 
-#: utils/exception_chain.py:222
+#: utils/exception_chain.py:213
 msgid "càlcul matemàtic"
 msgstr "calcolo matematico"
 
-#: utils/exception_chain.py:223
+#: utils/exception_chain.py:213
 msgid "Divisió per zero. Comprova els valors."
 msgstr "Divisione per zero. Verifica i valori."
 
@@ -2931,97 +818,66 @@ msgstr "⚠️ Modifiche non salvate nel giorno {}"
 
 #: utils/unsaved_changes.py:123 utils/unsaved_changes.py:185
 msgid "🆕 NOVES SUBSTITUCIONS:\n"
-msgstr ""
-"🆕 NUOVE SOSTITUZIONI:\n"
-""
+msgstr "🆕 NUOVE SOSTITUZIONI:\n"
 
-#: utils/unsaved_changes.py:125 utils/unsaved_changes.py:135
-#: utils/unsaved_changes.py:187 utils/unsaved_changes.py:197
+#: utils/unsaved_changes.py:125 utils/unsaved_changes.py:135 utils/unsaved_changes.py:187 utils/unsaved_changes.py:197
 #, python-brace-format
 msgid "  • {hora} - {absent} ({assignatura}, {grup}) → {substitut}\n"
-msgstr ""
-"  • {hora} - {absent} ({assignatura}, {grup}) → {substitut}\n"
-""
+msgstr "  • {hora} - {absent} ({assignatura}, {grup}) → {substitut}\n"
 
-#: utils/unsaved_changes.py:129 utils/unsaved_changes.py:139
-#: utils/unsaved_changes.py:191 utils/unsaved_changes.py:201
+#: utils/unsaved_changes.py:129 utils/unsaved_changes.py:139 utils/unsaved_changes.py:191 utils/unsaved_changes.py:201
 #, python-brace-format
 msgid "    💬 Comentari: {comentaris}\n"
-msgstr ""
-"    💬 Commento: {comentaris}\n"
-""
+msgstr "    💬 Commento: {comentaris}\n"
 
 #: utils/unsaved_changes.py:133 utils/unsaved_changes.py:195
 msgid "🗑️ SUBSTITUCIONS ELIMINADES:\n"
-msgstr ""
-"🗑️ SOSTITUZIONI ELIMINATE:\n"
-""
+msgstr "🗑️ SOSTITUZIONI ELIMINATE:\n"
 
 #: utils/unsaved_changes.py:143 utils/unsaved_changes.py:205
 msgid "✏️ SUBSTITUCIONS MODIFICADES:\n"
-msgstr ""
-"✏️ SOSTITUZIONI MODIFICATE:\n"
-""
+msgstr "✏️ SOSTITUZIONI MODIFICATE:\n"
 
 #: utils/unsaved_changes.py:145 utils/unsaved_changes.py:207
 #, python-brace-format
 msgid "  • {hora} - {absent} ({assignatura}, {grup})\n"
-msgstr ""
-"  • {hora} - {absent} ({assignatura}, {grup})\n"
-""
+msgstr "  • {hora} - {absent} ({assignatura}, {grup})\n"
 
 #: utils/unsaved_changes.py:150 utils/unsaved_changes.py:212
 #, python-brace-format
 msgid "    Substitut: {anterior} → {actual}\n"
-msgstr ""
-"    Supplente: {anterior} → {actual}\n"
-""
+msgstr "    Supplente: {anterior} → {actual}\n"
 
-#: utils/unsaved_changes.py:151 utils/unsaved_changes.py:152
-#: utils/unsaved_changes.py:157 utils/unsaved_changes.py:158
-#: utils/unsaved_changes.py:213 utils/unsaved_changes.py:214
-#: utils/unsaved_changes.py:219 utils/unsaved_changes.py:220
+#: utils/unsaved_changes.py:151 utils/unsaved_changes.py:152 utils/unsaved_changes.py:157 utils/unsaved_changes.py:158 utils/unsaved_changes.py:213 utils/unsaved_changes.py:214 utils/unsaved_changes.py:219 utils/unsaved_changes.py:220
 msgid "(buit)"
 msgstr "(vuoto)"
 
 #: utils/unsaved_changes.py:156 utils/unsaved_changes.py:218
 #, python-brace-format
 msgid "    💬 Comentari: {anterior} → {actual}\n"
-msgstr ""
-"    💬 Commento: {anterior} → {actual}\n"
-""
+msgstr "    💬 Commento: {anterior} → {actual}\n"
 
 #: utils/unsaved_changes.py:166
 msgid "🆕 NOVES ABSÈNCIES:\n"
-msgstr ""
-"🆕 NUOVE ASSENZE:\n"
-""
+msgstr "🆕 NUOVE ASSENZE:\n"
 
 #: utils/unsaved_changes.py:168 utils/unsaved_changes.py:174
 #, python-brace-format
 msgid "  • {absent}\n"
-msgstr ""
-"  • {absent}\n"
-""
+msgstr "  • {absent}\n"
 
 #: utils/unsaved_changes.py:172
 msgid "🗑️ ABSÈNCIES ELIMINADES:\n"
-msgstr ""
-"🗑️ ASSENZE ELIMINATE:\n"
-""
+msgstr "🗑️ ASSENZE ELIMINATE:\n"
 
 #: utils/unsaved_changes.py:178
 msgid "🔄 CANVIS DE TIPUS D'ABSÈNCIA:\n"
-msgstr ""
-"🔄 MODIFICHE DEL TIPO DI ASSENZA:\n"
-""
+msgstr "🔄 MODIFICHE DEL TIPO DI ASSENZA:\n"
 
 #: utils/unsaved_changes.py:180
 #, python-brace-format
 msgid "  • {canvi}\n"
-msgstr ""
-"  • {canvi}\n"
-""
+msgstr "  • {canvi}\n"
 
 #: utils/unsaved_changes.py:225
 msgid "No s'han detectat canvis."
@@ -3131,18 +987,312 @@ msgstr "   Crea almeno una cartella in data/ (es. data/demo/)"
 msgid "❌ Selecció cancel·lada per l'usuari"
 msgstr "❌ Selezione annullata dall'utente"
 
-#: export/pdf/engine.py
+#: export/pdf/engine.py:694
 msgid "absent"
 msgstr "assente"
 
-#: export/pdf/engine.py
+#: export/pdf/engine.py:693
 msgid "absent (servei)"
 msgstr "assente (servizio)"
 
+#: serveis/validacions_pdf.py:202
 #, python-brace-format
 msgid "🔄 {hora}: {vigilant} té una absència coberta però és assignat com a vigilant"
 msgstr "🔄 {hora}: {vigilant} ha un'assenza coperta ma è assegnato come sorvegliante"
 
+#: serveis/validacions_pdf.py:217
 #, python-brace-format
 msgid "🔄 {hora}: {substitut} té una absència coberta però és assignat com a substitut"
 msgstr "🔄 {hora}: {substitut} ha un'assenza coperta ma è assegnato come supplente"
+
+#: export/pdf/taula.py:138
+msgid "Les files en cursiva amb fons de color són vigilàncies d'examen."
+msgstr "Le righe in corsivo con sfondo colorato sono sorveglianze d'esame."
+
+#: export/pdf/informe_direccio.py:380
+msgid "Abs"
+msgstr "Ass"
+
+#: export/pdf/informe_professors.py:387 export/pdf/informe_professors.py:466
+msgid "Absència"
+msgstr "Assenza"
+
+#: export/pdf/informe_direccio.py:222 export/pdf/informe_direccio.py:255 export/pdf/informe_direccio.py:675 export/pdf/informe_professors.py:245
+msgid "Absències"
+msgstr "Assenze"
+
+#: export/pdf/informe_professors.py:280
+msgid "Absències (triangle sup)"
+msgstr "Assenze (triangolo sup.)"
+
+#: export/pdf/informe_direccio.py:224
+msgid "Absències cobertes"
+msgstr "Assenze coperte"
+
+#: export/pdf/informe_professors.py:396 export/pdf/informe_professors.py:408
+msgid "Absències pròpies"
+msgstr "Assenze proprie"
+
+#: export/pdf/informe_direccio.py:509
+msgid "Absències reals"
+msgstr "Assenze effettive"
+
+#: export/pdf/engine.py:101
+msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
+msgstr "Avviso: impossibile caricare la sillabazione: {error}"
+
+#: export/pdf/informe_direccio.py:982
+msgid "Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) i <font color='#16a085'>▶ substitucions cobertes (%)</font>"
+msgstr "Ogni cella mostra: <b>assenze totali</b> (sfondo: intensità = più assenze) e <font color='#16a085'>▶ sostituzioni coperte (%)</font>"
+
+#: export/pdf/informe_professors.py:399
+msgid "Cap absència registrada."
+msgstr "Nessuna assenza registrata."
+
+#: export/pdf/informe_professors.py:315
+msgid "Cap dada disponible."
+msgstr "Nessun dato disponibile."
+
+#: export/pdf/informe_professors.py:478
+msgid "Cap substitució feta."
+msgstr "Nessuna sostituzione fatta."
+
+#: export/pdf/informe_direccio.py:675 export/pdf/informe_professors.py:247
+msgid "Cobertes"
+msgstr "Coperte"
+
+#: export/pdf/informe_direccio.py:226 export/pdf/informe_direccio.py:255 export/pdf/informe_direccio.py:675
+msgid "Cobertura"
+msgstr "Copertura"
+
+#: export/pdf/dies.py:10
+msgid "Dc."
+msgstr "Mer."
+
+#: export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492
+msgid "Dia"
+msgstr "Giorno"
+
+#: export/pdf/informe_direccio.py:227
+msgid "Dies amb incid."
+msgstr "Giorni con incid."
+
+#: export/pdf/informe_direccio.py:848
+msgid "Distribució per dia de la setmana i hora"
+msgstr "Distribuzione per giorno della settimana e ora"
+
+#: export/pdf/informe_professors.py:275
+msgid "Distribució per dia i hora"
+msgstr "Distribuzione per giorno e ora"
+
+#: export/pdf/dies.py:10
+msgid "Dj."
+msgstr "Gio."
+
+#: export/pdf/dies.py:10
+msgid "Dl."
+msgstr "Lun."
+
+#: export/pdf/dies.py:10
+msgid "Dt."
+msgstr "Mar."
+
+#: export/pdf/dies.py:10
+msgid "Dv."
+msgstr "Ven."
+
+#: export/pdf/informe_direccio.py:732
+msgid "Evolució d'absències per grup i mes"
+msgstr "Andamento delle assenze per gruppo e mese"
+
+#: export/pdf/informe_direccio.py:354
+msgid "Evolució d'absències per professor i mes"
+msgstr "Andamento delle assenze per docente e mese"
+
+#: export/pdf/informe_direccio.py:521
+msgid "Evolució de substitucions fetes per professor i mes"
+msgstr "Andamento delle sostituzioni fatte per docente e mese"
+
+#: export/pdf/informe_direccio.py:253
+msgid "Evolució mensual"
+msgstr "Andamento mensile"
+
+#: export/pdf/informe_direccio.py:134 export/pdf/informe_professors.py:167
+msgid "Generat"
+msgstr "Generato"
+
+#: export/pdf/informe_direccio.py:661
+msgid "Impacte per grup i nivell"
+msgstr "Impatto per gruppo e livello"
+
+#: export/pdf/informe_direccio.py:1023 export/pdf/informe_direccio.py:130
+msgid "Informe de Substitucions"
+msgstr "Rapporto delle Sostituzioni"
+
+#: export/pdf/informe_direccio.py:1080
+msgid "Informe generat el {timestamp} · {nom_centre}"
+msgstr "Rapporto generato il {timestamp} · {nom_centre}"
+
+#: export/pdf/informe_professors.py:165 export/pdf/informe_professors.py:572
+msgid "Informe individual de substitucions"
+msgstr "Rapporto individuale delle sostituzioni"
+
+#: export/pdf/informe_direccio.py:841
+msgid "Intensitat de color: proporció d'absències respecte al màxim del curs"
+msgstr "Intensità del colore: proporzione delle assenze rispetto al massimo dell'anno"
+
+#: export/pdf/informe_direccio.py:511 export/pdf/informe_direccio.py:632
+msgid "Intensitat de color: proporció respecte al màxim del curs"
+msgstr "Intensità del colore: proporzione rispetto al massimo dell'anno"
+
+#: export/pdf/informe_professors.py:283
+msgid "Intensitat: proporció respecte al màxim del curs"
+msgstr "Intensità: proporzione rispetto al massimo dell'anno"
+
+#: export/pdf/informe_direccio.py:255
+msgid "Mes"
+msgstr "Mese"
+
+#: export/pdf/informe_direccio.py:751
+msgid "Niv."
+msgstr "Liv."
+
+#: export/pdf/informe_direccio.py:675
+msgid "Nivell"
+msgstr "Livello"
+
+#: export/pdf/informe_professors.py:427
+msgid "Pendent"
+msgstr "In sospeso"
+
+#: export/pdf/informe_direccio.py:675 export/pdf/informe_professors.py:248
+msgid "Pendents"
+msgstr "In sospeso"
+
+#: export/pdf/informe_direccio.py:133 export/pdf/informe_professors.py:166
+msgid "Període"
+msgstr "Periodo"
+
+#: export/pdf/informe_professors.py:492
+msgid "Professor absent"
+msgstr "Docente assente"
+
+#: export/pdf/informe_direccio.py:368 export/pdf/informe_direccio.py:541
+msgid "Professor/a"
+msgstr "Docente"
+
+#: export/pdf/informe_direccio.py:669
+msgid "Resum per nivell"
+msgstr "Riepilogo per livello"
+
+#: export/pdf/informe_direccio.py:384
+msgid "Serv"
+msgstr "Serv"
+
+#: export/pdf/informe_direccio.py:223 export/pdf/informe_direccio.py:255 export/pdf/informe_professors.py:246
+msgid "Serveis"
+msgstr "Servizi"
+
+#: export/pdf/informe_direccio.py:510
+msgid "Serveis / comissions"
+msgstr "Servizi / commissioni"
+
+#: export/pdf/informe_professors.py:249
+msgid "Subs. fetes"
+msgstr "Sost. fatte"
+
+#: export/pdf/informe_direccio.py:225 export/pdf/informe_direccio.py:255
+msgid "Substitucions"
+msgstr "Sostituzioni"
+
+#: export/pdf/informe_professors.py:475 export/pdf/informe_professors.py:487
+msgid "Substitucions fetes"
+msgstr "Sostituzioni fatte"
+
+#: export/pdf/informe_professors.py:282
+msgid "Substitucions fetes (triangle inf)"
+msgstr "Sostituzioni fatte (triangolo inf.)"
+
+#: export/pdf/informe_direccio.py:277 export/pdf/informe_direccio.py:696 export/pdf/informe_direccio.py:920
+msgid "TOTAL"
+msgstr "TOTALE"
+
+#: export/pdf/informe_direccio.py:763
+msgid "Tot."
+msgstr "Tot."
+
+#: export/pdf/informe_direccio.py:553
+msgid "Total"
+msgstr "Totale"
+
+#: export/pdf/informe_direccio.py:255
+msgid "Total incid."
+msgstr "Totale incid."
+
+#: export/pdf/informe_professors.py:389 export/pdf/informe_professors.py:468
+msgid "Vig. absent"
+msgstr "Sorv. assente"
+
+#: routes/pdf.py:168
+msgid "• {time}: {prof} ({type_disp}) disponible en lloc de {sub} ({type_curr})"
+msgstr "• {time}: {prof} ({type_disp}) disponibile al posto di {sub} ({type_curr})"
+
+#: serveis/validacions_pdf.py:126
+msgid "ℹ️ {hora}: Vigilant {vigilant} absent (cobert per {substitut})"
+msgstr "ℹ️ {hora}: Sorvegliante {vigilant} assente (coperto da {substitut})"
+
+#: export/pdf/engine.py:429
+msgid "⚠️ AVÍS: Hi ha professors de major prioritat disponibles:"
+msgstr "⚠️ AVVISO: Ci sono docenti con priorità più alta disponibili:"
+
+#: serveis/validacions_pdf.py:231
+msgid "⚠️ {hora}: Substitut {substitut} té classe ({assignatura_sub}, {grup_sub})"
+msgstr "⚠️ {hora}: Supplente {substitut} ha lezione ({assignatura_sub}, {grup_sub})"
+
+#: serveis/validacions_pdf.py:110 serveis/validacions_pdf.py:132
+msgid "⚠️ {hora}: Vigilant {vigilant} absent sense cobertura"
+msgstr "⚠️ {hora}: Sorvegliante {vigilant} assente senza copertura"
+
+#: serveis/validacions_pdf.py:145
+msgid "⚠️ {hora}: Vigilant {vigilant} té classe ({assignatura}, {grup})"
+msgstr "⚠️ {hora}: Sorvegliante {vigilant} ha lezione ({assignatura}, {grup})"
+
+#: serveis/validacions_pdf.py:175
+msgid "⚠️ {hora}: {professor} és vigilant i substitut alhora"
+msgstr "⚠️ {hora}: {professor} è sorvegliante e supplente allo stesso tempo"
+
+#: export/pdf/engine.py:370
+msgid "❌ Error en generar PDF: {error}"
+msgstr "❌ Errore nella generazione del PDF: {error}"
+
+#: serveis/validacions_pdf.py:225
+msgid "❌ {hora}: Substitut {substitut} està absent!"
+msgstr "❌ {hora}: Il supplente {substitut} è assente!"
+
+#: serveis/validacions_pdf.py:188
+msgid "❌ {hora}: {prof_absent} ({assignatura}, {grup}) sense substitut"
+msgstr "❌ {hora}: {prof_absent} ({assignatura}, {grup}) senza supplente"
+
+#: serveis/validacions_pdf.py:85
+msgid "❌ {hora}: {prof} - VIGILÀNCIA sense substitut assignat"
+msgstr "❌ {hora}: {prof} - SORVEGLIANZA senza supplente assegnato"
+
+#: serveis/validacions_pdf.py:161
+msgid "🔄 {hora}: {substitut} assignat {count} vegades com a substitut"
+msgstr "🔄 {hora}: {substitut} assegnato {count} volte come supplente"
+
+#: serveis/validacions_pdf.py:43
+msgid "🔄 {hora}: {vigilant} assignat {count} vegades com a vigilant"
+msgstr "🔄 {hora}: {vigilant} assegnato {count} volte come sorvegliante"
+
+#: export/pdf/engine.py:516
+msgid "🕐 HORA {hora}:"
+msgstr "🕐 ORA {hora}:"
+
+#: export/pdf/engine.py:651
+msgid "🕐 {professor} → arriba abans a {hora} (primera hora: {primera})"
+msgstr "🕐 {professor} → arriva prima alle {hora} (prima ora: {primera})"
+
+#: export/pdf/engine.py:657
+msgid "🕐 {professor} → queda més estona a {hora} (última hora: {ultima})"
+msgstr "🕐 {professor} → resta più a lungo alle {hora} (ultima ora: {ultima})"

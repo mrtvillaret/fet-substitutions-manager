@@ -69,7 +69,7 @@
                   <div class="stat-value">{{ resum.substitucions.total }}</div>
                   <div class="stat-label">{{ $t('stats.summary.totalAbsences') }}</div>
                   <div class="stat-detail">
-                    {{ $t('stats.summary.substitutionsDetail', { count: resum.substitucions.assignades, percent: resum.substitucions.percentatge_assignat }) }}
+                    {{ $t('stats.summary.substitutionsDetail', { count: resum.substitucions.assignades, percent: resum.substitucions.percentatge_assignat }, resum.substitucions.assignades) }}
                   </div>
                 </div>
               </div>
@@ -80,7 +80,7 @@
                   <div class="stat-value">{{ resum.vigilancies.total }}</div>
                   <div class="stat-label">{{ $t('stats.summary.totalVigilancies') }}</div>
                   <div class="stat-detail">
-                    {{ $t('stats.summary.vigilanciesDetail', { count: resum.vigilancies.assignades, percent: resum.vigilancies.percentatge_assignat }) }}
+                    {{ $t('stats.summary.vigilanciesDetail', { count: resum.vigilancies.assignades, percent: resum.vigilancies.percentatge_assignat }, resum.vigilancies.assignades) }}
                   </div>
                 </div>
               </div>

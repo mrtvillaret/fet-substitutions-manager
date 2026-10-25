@@ -6,10 +6,15 @@ import ConfirmationService from 'primevue/confirmationservice'
 import Tooltip from 'primevue/tooltip'
 import i18n, { primeLocales } from './i18n'
 
-// Estils de PrimeVue
+// Estils de PrimeVue (abans, l'ordre de les capes: el reinici, per sota del tema)
+import './capes.css'
 import 'primevue/resources/themes/lara-light-blue/theme.css'
 import 'primevue/resources/primevue.min.css'
 import 'primeicons/primeicons.css'
+// Aspecte comú de les taules de dades (Substitucions i Vigilàncies)
+import './taules.css'
+// Llistes d'opcions compactes per a tots els desplegables
+import './desplegables.css'
 
 import App from './App.vue'
 

@@ -31,12 +31,13 @@ from repositories import (
     ConfiguracioRepository,
     GrupsAlliberatsRepository,
     SubstitucioRepository,
-    VigilanciaRepository,
 )
 from routes.parametres import DataISO, data_iso
 from serveis.dia import Dia
 from serveis.prioritat import MillorsSubstituts
 from serveis.validacions_pdf import valida_dia
+from vigilancies.repositories import VigilanciaRepository
+from vigilancies.services import en_ordre
 
 log = logging.getLogger(__name__)
 
@@ -144,6 +145,14 @@ def validar_abans_pdf(
 ):
     """Conflictes i avisos d'un dia abans de generar el PDF (serveis/validacions_pdf.py)."""
     data_iso(data)
+    return _validacions(db, data, current_user.institucio, dia_peticio)
+
+
+def _validacions(db: Session, data: str, institucio: str, dia_peticio: Dia) -> dict:
+    """La validació de la ruta de validacions i del PDF complet (que la fa
+    abans de generar-lo). Una funció normal: una ruta no n'ha de cridar una
+    altra, perquè els seus Depends no s'hi resolen (abans el PDF complet
+    passava sense el Dia i en perdia els avisos de prioritat)."""
 
     def avisos_prioritat(dia, vigilancies_per_hora):
         try:
@@ -169,12 +178,26 @@ def validar_abans_pdf(
             log.warning("No s'han pogut comprovar els substituts de més prioritat", exc_info=True)
             return []
 
-    return valida_dia(db, data, current_user.institucio, avisos_prioritat)
+    return valida_dia(db, data, institucio, avisos_prioritat)
 
 
 # Les rutes que generen PDF són síncrones: FastAPI les atén en un fil a part i
 # el backend continua responent la resta de peticions mentre es generen.
 MIDES_LLETRA = (1.0, 1.2, 1.35)
+
+
+def _format_i_mida(exporter, format: str, mida_lletra: Optional[float]) -> None:
+    """El format (taula del dia o una secció per hora) i la mida de la lletra,
+    els mateixos per a tots els PDF. Sense mida: ×1,2 per hores (la lletra
+    d'abans d'aquest format) i ×1 per a la taula del dia."""
+    if format not in ("hores", "dia"):
+        raise HTTPException(status_code=400, detail="Format de PDF desconegut")
+    if mida_lletra is None:
+        mida_lletra = 1.0 if format == "dia" else 1.2
+    if mida_lletra not in MIDES_LLETRA:
+        raise HTTPException(status_code=400, detail="Mida de lletra desconeguda")
+    exporter.format_dia = format == "dia"
+    exporter.mida_lletra = mida_lletra
 
 
 @router.get("/complete/{data}")
@@ -188,7 +211,7 @@ def generar_pdf_complet(
     show_conflicts: bool = True,
     blank_rows: bool = False,
     format: str = "hores",  # "hores" (una secció per hora) o "dia" (una taula per al dia)
-    mida_lletra: float = 1.0,  # taula del dia: lletra normal (1), gran (1.2) o molt gran (1.35)
+    mida_lletra: Optional[float] = None,  # normal (1), gran (1.2) o molt gran (1.35); sense: veure _format_i_mida
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -257,6 +280,7 @@ def generar_pdf_complet(
         # Flatten: combinar totes les vigilàncies de tots els nivells
         for nivell_vigs in vigilancies_dict.values():
             vigilancies_list.extend(nivell_vigs)
+        vigilancies_list = en_ordre(vigilancies_list)  # l'ordre de la pantalla dins de cada hora
 
     # Determinar tipus de PDF
     if include_substitutions and include_vigilancies:
@@ -284,13 +308,8 @@ def generar_pdf_complet(
     # Configurar opcions via atributs
     exporter.show_comments_column = show_comments
     exporter.show_hours_column = show_hours
-    if format not in ("hores", "dia"):
-        raise HTTPException(status_code=400, detail="Format de PDF desconegut")
+    _format_i_mida(exporter, format, mida_lletra)
     exporter.espai_a_ma = blank_rows and include_substitutions
-    exporter.format_dia = format == "dia"
-    if mida_lletra not in MIDES_LLETRA:
-        raise HTTPException(status_code=400, detail="Mida de lletra desconeguda")
-    exporter.mida_lletra = mida_lletra
     if exporter.espai_a_ma or exporter.format_dia:
         from prioritats.repositories import NoSubstituirRepository
 
@@ -301,7 +320,7 @@ def generar_pdf_complet(
         exporter._auto_compression_active = True
 
     # Obtenir conflictes i avisos
-    validacio_response = validar_abans_pdf(data, db, current_user)
+    validacio_response = _validacions(db, data, current_user.institucio, dia)
     all_issues = []
     if show_conflicts:
         all_issues = (validacio_response.get("conflicts") or []) + (validacio_response.get("warnings") or [])
@@ -347,6 +366,9 @@ def generar_pdf_interval(
     show_comments: bool = True,
     show_hours: bool = False,
     include_substitucions: bool = False,
+    format: str = "hores",  # dins de cada dia: "hores" (una secció per hora) o "dia" (una taula)
+    mida_lletra: Optional[float] = None,
+    dia_per_pagina: bool = False,  # cada dia en una pàgina nova
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -423,7 +445,7 @@ def generar_pdf_interval(
                     {"_dia_interval": date_ctx.full_format, "_data_iso": data_str, "_empty_day": True}
                 )
         if day_vigilancies:
-            interval_vigilancies.extend(day_vigilancies)
+            interval_vigilancies.extend(en_ordre(day_vigilancies))  # l'ordre de la pantalla dins de cada hora
 
         if include_substitucions:
             subs_raw = SubstitucioRepository.get_by_date(db, data_str)
@@ -461,6 +483,8 @@ def generar_pdf_interval(
     exporter.show_hours_column = show_hours
     if compress:
         exporter._auto_compression_active = True
+    _format_i_mida(exporter, format, mida_lletra)
+    exporter.dia_per_pagina = dia_per_pagina
 
     # Cridar exportar() una sola vegada amb tipus especial "vigilancies_interval"
     filename = exporter.exportar(
@@ -492,6 +516,8 @@ def generar_pdf_vigilancies(
     show_comments: bool = True,
     show_hours: bool = False,
     include_substitucions: bool = False,
+    format: str = "hores",  # "hores" (una secció per hora) o "dia" (una taula per al dia)
+    mida_lletra: Optional[float] = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -522,6 +548,7 @@ def generar_pdf_vigilancies(
     for nivell, vigs in vigilancies_dict.items():
         if nivell in nivells_list:
             vigilancies_list.extend(vigs)
+    vigilancies_list = en_ordre(vigilancies_list)  # l'ordre de la pantalla dins de cada hora
 
     # Inicialitzar exporter amb hores
     horari_mgr = dia.horari
@@ -536,6 +563,7 @@ def generar_pdf_vigilancies(
     exporter.show_hours_column = show_hours
     if compress:
         exporter._auto_compression_active = True
+    _format_i_mida(exporter, format, mida_lletra)
 
     # Carregar substitucions de vigilància si cal
     subs_pdf = []
@@ -695,8 +723,8 @@ def generar_pdf_disponibles_tots_dies(
             from repositories import (
                 GrupsAlliberatsRepository,
                 SubstitucioRepository,
-                VigilanciaRepository,
             )
+            from vigilancies.repositories import VigilanciaRepository
 
             substitucions_data = SubstitucioRepository.get_by_date(db, dia_iso)
 

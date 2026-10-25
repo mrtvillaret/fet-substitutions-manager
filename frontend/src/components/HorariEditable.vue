@@ -29,7 +29,7 @@
           :disabled="fixatsCount === 0"
         />
         <span v-if="fixatsCount > 0" class="pin-badge">
-          {{ t('scheduler.editable.pinCount', { count: fixatsCount }) }}
+          {{ t('scheduler.editable.pinCount', { count: fixatsCount }, fixatsCount) }}
         </span>
         <Button
           v-if="haCanvis"

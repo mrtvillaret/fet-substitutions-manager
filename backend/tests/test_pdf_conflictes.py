@@ -7,6 +7,7 @@ com a «absent (servei)». El tipus surt de les seves pròpies files de substitu
 import pytest
 
 from export.pdf.engine import PDFCompletExporter
+from export.pdf.taula import taula_del_dia
 
 
 def _conflictes(tmp_path, tipus):
@@ -64,6 +65,47 @@ def test_la_taula_del_dia_fa_servir_la_mida_de_lletra(tmp_path, mida, cos, marge
             "vigilancies": [],
         }
     }
-    taula = exporter._crear_taula_dia(dades, espai_a_ma=False)[0]
+    taula = taula_del_dia(exporter, dades, espai_a_ma=False, combinada=True)[0]
     assert taula._cellvalues[1][1].style.fontSize == pytest.approx(cos)  # cel·la «Absent»
     assert taula._cellStyles[1][1].topPadding == marge
+
+
+def test_a_la_llista_de_conflictes_l_hora_surt_un_sol_cop(tmp_path):
+    # L'hora ja és al títol del grup («HORA 09:00:»): les línies no la repeteixen
+    exporter = PDFCompletExporter(hores=["09:00"], export_dir=str(tmp_path))
+    taula = exporter._crear_taula_conflictes(["• 09:00: Prof 12 té dues substitucions", "09:00: Prof 3 és absent"])
+    textos = [str(fila[0].text) for fila in taula._cellvalues]
+    assert sum("09:00" in t for t in textos) == 1, textos
+    assert any("Prof 12 té dues substitucions" in t for t in textos)
+    assert any(t.startswith("Prof 3 és absent") for t in textos), textos
+
+
+# ------------------------------------------------ vigilàncies sense vigilant o sense aula
+
+
+@pytest.fixture
+def castella():
+    import i18n_setup
+
+    i18n_setup.setup_translation("es")
+    yield
+    i18n_setup.setup_translation("ca")
+
+
+def test_el_nom_de_l_assignatura_no_es_tradueix_als_conflictes(tmp_path, castella):
+    # «Dilluns» té traducció al castellà («Lunes»), però aquí és el nom d'una
+    # assignatura (una dada del centre): ha de sortir tal com és
+    exporter = PDFCompletExporter(hores=["10:00"], export_dir=str(tmp_path))
+    vigilancies = [{"hora": "10:00", "tipus": "Dilluns", "vigilant": "", "aula": ""}]
+    conflictes = exporter._validar_conflictes_complets([], vigilancies, absents={})
+    assert any("Dilluns" in c and "vigilant" in c for c in conflictes), conflictes
+    assert any("Dilluns" in c and "aula" in c for c in conflictes), conflictes
+    assert not any("Lunes" in c for c in conflictes), conflictes
+
+
+def test_el_valor_fix_vigilancia_si_que_es_tradueix(tmp_path, castella):
+    exporter = PDFCompletExporter(hores=["10:00"], export_dir=str(tmp_path))
+    vigilancies = [{"hora": "10:00", "tipus": "VIGILÀNCIA", "vigilant": "", "aula": ""}]
+    conflictes = exporter._validar_conflictes_complets([], vigilancies, absents={})
+    assert sum("VIGILANCIA" in c for c in conflictes) == 2, conflictes
+    assert not any("VIGILÀNCIA" in c for c in conflictes), conflictes

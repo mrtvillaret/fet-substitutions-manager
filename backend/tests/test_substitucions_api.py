@@ -33,10 +33,10 @@ from rate_limit import limiter
 from repositories import (
     GrupsAlliberatsRepository,
     SubstitucioRepository,
-    VigilanciaRepository,
 )
 from routes import substitucions
 from serveis.dia import Dia
+from vigilancies.repositories import VigilanciaRepository
 
 APP = crea_app(substitucions.router)
 DATA = "2026-04-20"  # dilluns
@@ -319,6 +319,7 @@ def test_no_es_pot_assignar_qui_vigila_un_examen_a_aquella_hora(client, centre):
                 "nivell": "2-BAT",
             },
         )
+        db.commit()
     _marca_absencia(client, hores=["10:00"])
     resp = _assigna(client, "10:00", "Prof 21")
     assert resp.status_code == 400
@@ -476,6 +477,7 @@ def _vigilancia_del_grup_de_prof_1(centre):
                 "nivell": grup.rsplit("-", 1)[0],
             },
         )
+        db.commit()
     return grup
 
 

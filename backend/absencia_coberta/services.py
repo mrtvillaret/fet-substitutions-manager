@@ -19,10 +19,11 @@ from absencia_coberta.repositories import AbsenciaCobertaRepository
 from errors_domini import NoTrobat
 from models import Substitucio, Vigilancia
 from noms import nom_net
-from repositories import SubstitucioRepository, VigilanciaRepository, parse_date
+from repositories import SubstitucioRepository, parse_date
 from serveis.absencies import desa_absencies
 from serveis.cobertures import refresca_cobertures
 from serveis.dia_escolar import treu_substituts_no_valids
+from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ def aplica_absencia_coberta(db, professor: str, data_inici: str, data_final: str
                     canvis["vigilancies_buidades"].append(
                         {"data": d, "hora": vig.get("hora", ""), "tipus": vig.get("tipus", "")}
                     )
+        db.commit()  # el repositori de vigilàncies no en fa
         for hora in sorted(hores_vigilancia):
             refresca_cobertures(d, hora, db)
 

@@ -3,10 +3,12 @@ Configuració de bases de dades SQLite amb SQLAlchemy
 - auth.db global per usuaris
 - gestor.db per institució
 """
+
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict
+import logging
 import os
 import re
 
@@ -15,6 +17,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
 
 from models import Base, User
+
+log = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 # DATA_DIR apunta a la carpeta data/ a l'arrel del projecte (dos nivells amunt)
@@ -25,10 +29,7 @@ DATA_BASE_DIR = Path(os.getenv("DATA_DIR", PROJECT_DATA_ROOT))
 
 def _create_engine(db_path: Path):
     engine = create_engine(
-        f"sqlite:///{db_path}",
-        connect_args={"check_same_thread": False},
-        poolclass=NullPool,
-        echo=False
+        f"sqlite:///{db_path}", connect_args={"check_same_thread": False}, poolclass=NullPool, echo=False
     )
 
     @event.listens_for(engine, "connect")
@@ -110,6 +111,34 @@ def _ensure_substitucions_aula_column(engine):
         pass
 
 
+def _ensure_vigilancies_ordre_column(engine):
+    """La columna ordre de vigilancies (posició dins de la seva hora). Les files
+    que no en tenen (les d'abans de la columna) prenen l'ordre que es veia a la
+    pantalla: per nivell i, dins del nivell, per id; si la seva hora ja té
+    files amb ordre, van al final."""
+    try:
+        with engine.begin() as conn:
+            columns = {col[1] for col in conn.exec_driver_sql("PRAGMA table_info(vigilancies);").fetchall()}
+            if not columns:
+                return
+            if "ordre" not in columns:
+                conn.exec_driver_sql("ALTER TABLE vigilancies ADD COLUMN ordre INTEGER")
+            sense = conn.exec_driver_sql(
+                "SELECT id, data, hora, nivell FROM vigilancies WHERE ordre IS NULL ORDER BY data, hora, nivell, id"
+            ).fetchall()
+            seguent = {}
+            for vig_id, data, hora, _nivell in sense:
+                if (data, hora) not in seguent:
+                    maxim = conn.exec_driver_sql(
+                        "SELECT MAX(ordre) FROM vigilancies WHERE data = ? AND hora = ?", (data, hora)
+                    ).scalar()
+                    seguent[(data, hora)] = 0 if maxim is None else maxim + 1
+                conn.exec_driver_sql("UPDATE vigilancies SET ordre = ? WHERE id = ?", (seguent[(data, hora)], vig_id))
+                seguent[(data, hora)] += 1
+    except Exception:
+        log.warning("No s'ha pogut afegir o omplir la columna ordre de vigilancies", exc_info=True)
+
+
 @lru_cache(maxsize=None)
 def get_engine_for_institucio(institucio: str):
     data_dir = get_data_dir_for_institucio(institucio)
@@ -118,6 +147,7 @@ def get_engine_for_institucio(institucio: str):
     engine = _create_engine(db_path)
     create_data_tables(engine)
     _ensure_substitucions_aula_column(engine)
+    _ensure_vigilancies_ordre_column(engine)
     return engine
 
 
