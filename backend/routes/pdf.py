@@ -298,8 +298,8 @@ def generar_pdf_complet(
 
     if include_substitutions and substitucions_data:
         _omplir_aula_substitucions(substitucions_data, horari_mgr, date_obj)
-        # Dins de cada hora, el mateix ordre fix que la llista de substitucions
-        substitucions_data.sort(key=SubstitucioRepository.clau_ordre)
+        # El mateix ordre que la llista de substitucions de la pantalla
+        substitucions_data = SubstitucioRepository.ordena(substitucions_data, horari_mgr.hores)
 
     # Directori temporal per petició: el PDF no es desa al servidor.
     export_dir = Path(tempfile.mkdtemp())

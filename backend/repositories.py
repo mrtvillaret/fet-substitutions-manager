@@ -4,7 +4,6 @@ Encapsula tota la lògica d'accés a dades
 """
 
 import logging
-import re
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -12,6 +11,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
+
+from ordre_curs import clau_curs, natural
 
 log = logging.getLogger(__name__)
 
@@ -59,26 +60,54 @@ except ImportError:
 class SubstitucioRepository:
     """Operacions CRUD per substitucions"""
 
-    # Ordre per mostrar-les dins de cada hora: per professor absent (les files
-    # d'un mateix professor, juntes: absència, cobertura de vigilància...) i,
-    # al final, les encadenades (darrere de la substitució que les provoca).
-    # No s'aplica a get_by_date: el motor reparteix els substituts en l'ordre
-    # en què li arriben.
+    # L'ordre per mostrar-les (la pantalla i el PDF): per hores i, dins de cada
+    # hora, per curs (ordre_curs.clau_curs: etapa, número, grup) i professor absent; les
+    # files d'un mateix professor i grup, juntes (absència, cobertura de
+    # vigilància...). Cada encadenada, just a sota de la substitució que la
+    # provoca (la del seu professor com a substitut): s'entén millor. No
+    # s'aplica a get_by_date: el motor reparteix els substituts en l'ordre en
+    # què li arriben.
     _ORDRE_TIPUS = {"VIGILANCIA_ABSENT": 1, "VIGILANCIA": 2}
 
     @staticmethod
-    def clau_ordre(sub: Dict):
-        # Ordre natural: «Prof 2» abans de «Prof 10»
-        def natural(text):
-            return [(0, int(t), "") if t.isdigit() else (1, 0, t.lower()) for t in re.split(r"(\d+)", text or "") if t]
+    def ordena(files: list, hores: list, valor=lambda fila, camp: fila.get(camp)) -> list:
+        """Les files en l'ordre per mostrar-les. `hores`: l'ordre de l'horari
+        (una hora que no hi és, al final). `valor(fila, camp)`: per a files que
+        no són diccionaris (p.ex. models de Pydantic)."""
 
-        tipus = (sub.get("tipus_absencia") or "").upper()
-        return (
-            tipus == "ENCADENADA",
-            natural(sub.get("professor_absent")),
-            SubstitucioRepository._ORDRE_TIPUS.get(tipus, 0),
-            natural(sub.get("assignatura")),
-        )
+        def tipus(fila):
+            return (valor(fila, "tipus_absencia") or "").upper()
+
+        def clau(fila):
+            return (
+                clau_curs(valor(fila, "grup")),
+                natural(valor(fila, "professor_absent")),
+                SubstitucioRepository._ORDRE_TIPUS.get(tipus(fila), 0),
+                natural(valor(fila, "assignatura")),
+            )
+
+        posicio = {hora: i for i, hora in enumerate(hores)}
+        per_hora = {}
+        for fila in files:
+            per_hora.setdefault(valor(fila, "hora"), []).append(fila)
+
+        ordenades = []
+        for hora in sorted(per_hora, key=lambda h: (posicio.get(h, len(posicio)), h or "")):
+            files_hora = per_hora[hora]
+            encadenades = sorted(
+                (f for f in files_hora if tipus(f) == "ENCADENADA"),
+                key=lambda f: natural(valor(f, "professor_absent")),
+            )
+            pendents = list(encadenades)
+            for fila in sorted((f for f in files_hora if tipus(f) != "ENCADENADA"), key=clau):
+                ordenades.append(fila)
+                substitut = (valor(fila, "substitut") or "").strip()
+                for encadenada in [e for e in pendents if substitut and valor(e, "professor_absent") == substitut]:
+                    ordenades.append(encadenada)
+                    pendents.remove(encadenada)
+            # Sense la substitució que la provoca (no hauria de passar): al final de l'hora
+            ordenades.extend(pendents)
+        return ordenades
 
     @staticmethod
     def get_by_date(db: Session, data: str) -> List[Dict]:

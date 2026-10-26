@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 # Evitem imports estàtics per no quedar-nos amb valors stale
 from core.alliberats import sense_classe
+from core.encadenades import activitat_encadenada
 
 log = logging.getLogger(__name__)
 
@@ -351,32 +352,17 @@ class GestorSubstitucions:
         # SUBSTITUCIONS ENCADENADES: Genera substitucions per disponibles que ara fan substitució
         substitucions_encadenades = []
         for sub in substitucions:
-            if sub.get("substitut") and sub.get("tipus_substitut"):
-                tipus_substitut = sub.get("tipus_substitut", "")
-
-                # Extreu el tipus real dels parèntesis: "disponible (Guàrdia-P)" → "Guàrdia-P"
-                import re
-
-                match = re.search(r"\(([^)]+)\)", tipus_substitut)
-                if match:
-                    tipus = match.group(1)
-                else:
-                    # Fallback per formats antics sense parèntesis
-                    tipus = tipus_substitut.split(" (")[0] if " (" in tipus_substitut else tipus_substitut
-
-                # Si el tipus està a PRIORITATS i NO està a NO_SUBST, genera substitució encadenada
-                from config import constants
-
-                if tipus in constants.PRIORITATS and tipus not in constants.NO_SUBST:
-                    substitucions_encadenades.append(
-                        {
-                            "professor_absent": sub["substitut"],
-                            "hora": hora,
-                            "assignatura": tipus,
-                            "grup": "",
-                            "tipus_absencia": "ENCADENADA",
-                        }
-                    )
+            activitat = activitat_encadenada(sub.get("tipus_substitut", "")) if sub.get("substitut") else None
+            if activitat:
+                substitucions_encadenades.append(
+                    {
+                        "professor_absent": sub["substitut"],
+                        "hora": hora,
+                        "assignatura": activitat,
+                        "grup": "",
+                        "tipus_absencia": "ENCADENADA",
+                    }
+                )
 
         # Processa substitucions encadenades (només 1 nivell de profunditat)
         for sub_encadenada in substitucions_encadenades:

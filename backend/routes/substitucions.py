@@ -11,7 +11,7 @@ Routes per gestió de substitucions:
 
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -37,6 +37,7 @@ from schemas import (
 from serveis.absencies import canvia_tipus_cobertures, desa_absencies
 from serveis.dia import Dia
 from serveis.dia_escolar import DiaEscolar, treu_substituts_no_valids
+from serveis.encadenades import reconcilia_encadenades
 from serveis.generacio import genera_substitucions_dia
 from serveis.prioritat import MillorsSubstituts, text_tipus_substitut
 from serveis.vigilancia_absent import (
@@ -212,12 +213,9 @@ async def get_substitucions(
                         )
                     )
 
-        # Ordenar per ordre de l'horari (no alfabètic) i, dins de cada hora, en
-        # un ordre fix: regenerar no ha de canviar les files de lloc
-        ordre_hores = {hora: idx for idx, hora in enumerate(horari.hores)}
-        result.sort(key=lambda x: (ordre_hores.get(x.hora, 999), SubstitucioRepository.clau_ordre(x.model_dump())))
-
-        return result
+        # L'ordre per mostrar-les, el mateix que el PDF (SubstitucioRepository.ordena):
+        # fix, regenerar no ha de canviar les files de lloc
+        return SubstitucioRepository.ordena(result, horari.hores, valor=getattr)
 
     except MissingXmlError as e:
         _raise_missing_xml(e)
@@ -489,12 +487,7 @@ async def update_substitucio(
                 disponibles = alliberats.get_tots_disponibles(dia_name, hora, grups_hora)
                 tipus_map = {prof: (tipus, detall) for prof, tipus, detall in disponibles}
 
-                tipus, detall = tipus_map.get(substitut_nou, ("", ""))
-                if tipus:
-                    if tipus == detall and tipus != "alliberat":
-                        tipus_substitut_nou = f"disponible ({tipus})"
-                    else:
-                        tipus_substitut_nou = f"{tipus} ({detall})"
+                tipus_substitut_nou = text_tipus_substitut(*tipus_map.get(substitut_nou, ("", "")))
             except Exception as e:
                 log.warning(f"⚠️ No s'ha pogut calcular tipus_substitut manual: {e}")
 
@@ -506,74 +499,16 @@ async def update_substitucio(
         updates["comentaris"] = update.comentaris
 
     updated_sub = SubstitucioRepository.update(db, int(substitucio_actual["id"]), updates)
+    # L'encadenada del substitut nou (pendent) i fora la de l'anterior
+    encadenades = reconcilia_encadenades(db, data)
 
     return {
         "success": True,
         "message": f"Substitut actualitzat a {update.substitut}",
         "updated_at": updated_sub.updated_at.isoformat() if updated_sub and updated_sub.updated_at else None,
         "alliberades": alliberades,
+        "encadenades": encadenades,  # {creades, esborrades}: si n'hi ha, la llista ha canviat
     }
-
-
-@router.delete("/{data}/{hora}/{professor}/{assignatura}/{grup}")
-async def eliminar_substitucio(
-    data: DataISO,
-    hora: str,
-    professor: NomNet,
-    assignatura: NomNet,
-    grup: str,
-    updated_at: Optional[str] = None,
-    force: bool = False,
-    db: Session = Depends(get_db),
-):
-    """
-    Elimina una substitució específica i actualitza absents si cal (SQLite)
-    """
-    try:
-        # Carregar substitucions de SQLite
-        substitucions_list = SubstitucioRepository.get_by_date(db, data)
-
-        if not substitucions_list:
-            raise HTTPException(status_code=404, detail="No hi ha substitucions per aquesta data")
-
-        # Buscar i eliminar substitució
-        trobada = False
-        for sub in substitucions_list:
-            # Eliminar si coincideix
-            if (
-                sub.get("hora") == hora
-                and sub.get("professor_absent") == professor
-                and sub.get("assignatura") == assignatura
-                and sub.get("grup") == grup
-            ):
-                if not force:
-                    if not updated_at:
-                        raise HTTPException(
-                            status_code=400, detail="Falta el paràmetre updated_at per comprovar conflictes"
-                        )
-                if not force and updated_at and sub.get("updated_at") and updated_at != sub.get("updated_at"):
-                    raise HTTPException(
-                        status_code=409,
-                        detail={
-                            "error": "conflict",
-                            "message": "Aquest registre ha estat modificat per un altre usuari",
-                            "current_data": sub,
-                        },
-                    )
-                # Eliminar de SQLite
-                SubstitucioRepository.delete(db, int(sub["id"]))
-                trobada = True
-                break
-
-        if not trobada:
-            raise HTTPException(status_code=404, detail=f"Substitució no trobada: {hora} - {professor}")
-
-        # Substitució eliminada només de SQLite (no cal JSON)
-
-        return {"success": True, "message": f"Substitució de {professor} eliminada correctament"}
-
-    except MissingXmlError as e:
-        _raise_missing_xml(e)
 
 
 @router.post("/{data}/nova")
@@ -744,6 +679,7 @@ async def reassignar_problematics(data: DataISO, db: Session = Depends(get_db), 
                         db, int(sub["id"]), {"substitut": prof, "tipus_substitut": text_tipus_substitut(tipus, detall)}
                     )
                     millors.canvia((sub.get("hora") or "").strip(), (sub.get("substitut") or "").strip(), prof)
+            reconcilia_encadenades(db, data)
             substitucions_despres = SubstitucioRepository.get_by_date(db, data)
         except Exception:
             log.warning("No s'ha pogut reassignar per prioritat", exc_info=True)

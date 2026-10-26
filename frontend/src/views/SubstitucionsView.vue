@@ -68,7 +68,6 @@
     <div class="content-card">
       <TaulaSubstitucions
         :files="substitucionsFiltrades"
-        :hores="horesDisponibles"
         :data="dataISO"
         :disponibles-de="disponiblesDe"
         :carregant="loading"
@@ -857,8 +856,15 @@ const desarSubstitut = async (substitucio, moure = false) => {
       return
     }
 
-    // Recarregar disponibles per actualitzar colors (alguns professors poden passar de disponible a "JA ASSIGNAT")
-    await carregarDisponiblesPerHores()
+    // S'ha creat o esborrat l'encadenada del substitut: la llista ha canviat (es
+    // torna a carregar, amb els disponibles). Si no, només els disponibles, per
+    // actualitzar els colors (algun pot passar a «JA ASSIGNAT»)
+    const encadenades = response.data?.encadenades
+    if (encadenades?.creades || encadenades?.esborrades) {
+      await carregarSubstitucions()
+    } else {
+      await carregarDisponiblesPerHores()
+    }
 
     toast.add({
       severity: 'success',

@@ -1,7 +1,8 @@
 <template>
-  <!-- Les substitucions del dia, agrupades per hores (com Vigilàncies). Dins de
-       cada hora, per curs (grup) i, si empaten, per professor absent. Sense
-       paginació ni ordenació per columnes. -->
+  <!-- Les substitucions del dia, agrupades per hores (com Vigilàncies), en
+       l'ordre de l'API, el mateix que el PDF (SubstitucioRepository.ordena):
+       per curs i professor absent, i cada encadenada sota la substitució que
+       la provoca. Sense paginació ni ordenació per columnes. -->
   <div class="taula-substitucions taula-dades" :class="{ 'taula-substitucions--carregant': carregant }" :aria-busy="carregant">
     <!-- Un sol gestor per a tota la taula: el toc d'una fila (pantalles tàctils) -->
     <table @click="tocaTaula">
@@ -69,7 +70,6 @@ import { useFilaTactil } from '../../composables/useFilaTactil'
 
 const props = defineProps({
   files: { type: Array, required: true }, // les substitucions que es veuen
-  hores: { type: Array, default: () => [] }, // l'ordre dels blocs (les hores de l'horari)
   data: { type: String, required: true },
   disponiblesDe: { type: Function, required: true }, // fila -> opcions del substitut
   carregant: { type: Boolean, default: false } // es recarrega: la taula es queda, difuminada
@@ -77,30 +77,19 @@ const props = defineProps({
 // canvi(fila, camp, valor) · edita(fila) · esborra(fila)
 const emit = defineEmits(['canvi', 'edita', 'esborra'])
 
-const { t, locale } = useI18n()
-const collator = computed(() => new Intl.Collator(locale.value || 'ca', { numeric: true, sensitivity: 'base' }))
+const { t } = useI18n()
 
 // La substitució no té id: l'hora, el professor absent i la classe la identifiquen
 const clauDe = (fila) => [fila.hora, fila.professor_absent, fila.assignatura, fila.grup].join('|')
 
-// Blocs per hora, en l'ordre de l'horari (una hora que no hi és, al final);
-// dins de cada hora, per curs (el grup comença pel nivell) i professor absent
+// Blocs per hora, en l'ordre en què arriben (el de l'API)
 const blocs = computed(() => {
   const perHora = new Map()
   for (const fila of props.files) {
     if (!perHora.has(fila.hora)) perHora.set(fila.hora, [])
     perHora.get(fila.hora).push({ fila, clau: clauDe(fila) })
   }
-  const posicio = (hora) => {
-    const i = props.hores.indexOf(hora)
-    return i === -1 ? Number.POSITIVE_INFINITY : i
-  }
-  const compara = (a, b) =>
-    collator.value.compare(a.fila.grup || '', b.fila.grup || '') ||
-    collator.value.compare(a.fila.professor_absent || '', b.fila.professor_absent || '')
-  return [...perHora.entries()]
-    .sort(([a], [b]) => posicio(a) - posicio(b) || String(a).localeCompare(String(b)))
-    .map(([hora, files]) => ({ hora, files: files.sort(compara) }))
+  return [...perHora.entries()].map(([hora, files]) => ({ hora, files }))
 })
 
 // Funcions fixes per a les files (una funció nova a cada repintat les faria

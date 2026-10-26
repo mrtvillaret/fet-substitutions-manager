@@ -129,8 +129,13 @@ def substituts_no_valids(db, data: str) -> list:
 
 def treu_substituts_no_valids(db, data: str) -> list:
     """Buida el substitut de les files de substituts_no_valids() i les retorna.
-    No n'hi posa cap altre: les files queden pendents."""
+    No n'hi posa cap altre: les files queden pendents. Les encadenades, d'acord
+    amb els substituts que queden (serveis/encadenades.py): hi passen tots els
+    canvis d'absències i d'alliberaments."""
+    from serveis.encadenades import reconcilia_encadenades
+
     trets = substituts_no_valids(db, data)
     for fila in trets:
         SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "", "tipus_substitut": ""})
+    reconcilia_encadenades(db, data)
     return trets

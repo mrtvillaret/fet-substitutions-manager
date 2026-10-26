@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from core.alliberats import sense_classe
 from errors_domini import Conflicte, NoTrobat, NoValid
+from ordre_curs import clau_curs
 from repositories import (
     ConfiguracioExamenRepository,
     GrupsAlliberatsRepository,
@@ -130,10 +131,11 @@ def llista(db: Session, data: str) -> list:
 
 
 def clau_automatica(vig) -> tuple:
-    """L'ordre automàtic dins d'una hora: nivell, grup, aula (i, si empaten,
-    l'ordre de creació). `vig`: una Vigilancia o el seu dict."""
+    """L'ordre automàtic dins d'una hora: per curs (ordre_curs.clau_curs: etapa,
+    número del nivell, grup; el mateix que Substitucions), aula i, si empaten,
+    l'ordre de creació. `vig`: una Vigilancia o el seu dict."""
     camp = (lambda k: vig.get(k)) if isinstance(vig, dict) else (lambda k: getattr(vig, k))
-    return (camp("nivell") or "", camp("grups") or "", camp("aula") or "", int(camp("id") or 0))
+    return (clau_curs(camp("grups"), camp("nivell")), camp("aula") or "", int(camp("id") or 0))
 
 
 def _per_hora(vigs) -> dict:

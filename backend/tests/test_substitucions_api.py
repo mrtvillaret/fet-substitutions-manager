@@ -341,39 +341,6 @@ def test_buidar_el_substitut_el_deixa_pendent(client):
     assert _sub(client, "10:00")["estat"] == "pendent"
 
 
-# --------------------------------------------------------------- esborrar
-
-
-def _esborra(client, hora, updated_at=None, **params):
-    s = _sub(client, hora)
-    url = f"{URL}/{hora}/{ABSENT}/{s['assignatura']}/{s['grup'] or ' '}"
-    if updated_at is None:
-        updated_at = s["updated_at"]
-    return client.delete(url, params={"updated_at": updated_at, **params})
-
-
-def test_esborrar_una_substitucio(client):
-    _marca_absencia(client, hores=["10:00", "11:30"])
-    s = _sub(client, "10:00")
-    resp = client.delete(f"{URL}/10:00/{ABSENT}/{s['assignatura']}/{s['grup']}", params={"updated_at": s["updated_at"]})
-    assert resp.status_code == 200
-    assert [x["hora"] for x in _subs(client, include_all=True)] == ["11:30"]
-
-
-def test_esborrar_demana_updated_at_i_detecta_conflictes(client):
-    _marca_absencia(client, hores=["10:00"])
-    ruta = f"{URL}/10:00/{ABSENT}/Anglès/3-ESO-A"
-    assert client.delete(ruta).status_code == 400
-    assert client.delete(ruta, params={"updated_at": "2000-01-01T00:00:00"}).status_code == 409
-    assert client.delete(ruta, params={"force": True}).status_code == 200
-
-
-def test_esborrar_una_substitucio_inexistent_dona_404(client):
-    assert client.delete(f"{URL}/10:00/{ABSENT}/Anglès/3-ESO-A", params={"force": True}).status_code == 404
-    _marca_absencia(client, hores=["10:00"])
-    assert client.delete(f"{URL}/10:00/{ABSENT}/Música/3-ESO-A", params={"force": True}).status_code == 404
-
-
 # ------------------------------------------------------------------- nova
 
 
@@ -564,12 +531,14 @@ def test_regenerar_tot_no_canvia_l_ordre_de_les_files(client):
         assert no_encadenades() == primer
 
 
-def test_dins_de_cada_hora_per_professor_i_encadenades_al_final(client):
+def test_dins_de_cada_hora_per_curs_i_l_encadenada_sota_la_seva_substitucio(client):
+    # 10:00: Prof 15 fa Anglès amb 3-ESO-A i Prof 1, E.F. amb 3-ESO-C
     _marca_absencia(client, hores=["10:00"])
     _marca_absencia(client, professor="Prof 1", hores=["10:00"])
     client.post(f"{URL}/generar")
-    files = [(p, t) for h, p, t in _ordre(client) if h == "10:00"]
-    absencies = [p for p, t in files if t == "ABSENCIA"]
-    assert absencies == ["Prof 1", "Prof 15"]  # ordre natural, no per id
-    tipus = [t for _, t in files]
-    assert tipus == sorted(tipus, key=lambda t: t == "ENCADENADA")
+    files = [s for s in _subs(client) if s["hora"] == "10:00"]
+    assert [s["professor_absent"] for s in files if s["tipus_absencia"] == "ABSENCIA"] == ["Prof 15", "Prof 1"]
+    # Cada encadenada, just a sota de la fila del seu professor com a substitut
+    for i, fila in enumerate(files):
+        if fila["tipus_absencia"] == "ENCADENADA":
+            assert files[i - 1]["substitut"] == fila["professor_absent"]

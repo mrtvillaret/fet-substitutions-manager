@@ -63,6 +63,7 @@ def test_assignacio_basica_amb_candidat_disponible(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00"])
@@ -96,6 +97,7 @@ def test_no_assigna_el_mateix_substitut_dues_vegades_a_la_mateixa_hora(monkeypat
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choice", lambda seq: seq[0])
 
@@ -160,6 +162,7 @@ def test_substitucio_encadenada_cobreix_el_professor_substitut(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", ["Guàrdia"])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
     monkeypatch.setattr(random, "choice", lambda seq: seq[0])
 
@@ -189,6 +192,7 @@ def test_no_genera_encadenada_si_lassignatura_esta_a_no_subst(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", {"Guàrdia"})
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
     monkeypatch.setattr(random, "choice", lambda seq: seq[0])
 
@@ -218,6 +222,7 @@ def test_absents_tipus_i_activitats_fallback_es_reenvien_al_gestor_dabsencies(mo
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     crides = {}
@@ -251,6 +256,7 @@ def test_conserva_el_substitut_anterior_si_encara_esta_disponible(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choice", lambda seq: seq[0])
 
@@ -292,6 +298,7 @@ def test_conserva_el_substitut_desat_encara_que_ja_no_surti_disponible(monkeypat
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choice", lambda seq: seq[0])
 
@@ -330,6 +337,7 @@ def test_conserva_seleccio_buida_anterior_encara_que_hi_hagi_candidat(monkeypatc
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00"])
@@ -369,6 +377,7 @@ def test_preserva_encadenada_del_json_quan_el_pare_torna_a_tenir_el_mateix_subst
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})  # buit: no es regenera en viu
 
     horari = FakeHorari(hores=["09:00"])
@@ -409,6 +418,7 @@ def test_encadenada_del_json_es_descarta_si_el_pare_ja_no_es_actiu(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00"])
@@ -446,6 +456,7 @@ def test_grups_sense_classe_com_a_dict_filtra_nomes_lhora_indicada(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00"])
@@ -469,6 +480,7 @@ def test_grups_sense_classe_com_a_set_antic_saplica_a_totes_les_hores(monkeypatc
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00", "10:00"])
@@ -502,6 +514,7 @@ def test_mes_absents_que_candidats_alguns_queden_pendents(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choice", lambda seq: seq[0])
 
@@ -533,6 +546,7 @@ def test_mateix_professor_absent_a_diverses_hores_es_resol_independentment(monke
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choice", lambda seq: seq[0])
 
@@ -594,6 +608,7 @@ def test_vigilant_sense_activitat_no_genera_substitucio():
 def test_vigilant_amb_activitat_de_prioritats_sense_grup_genera_substitucio(monkeypatch):
     monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
     monkeypatch.setattr(constants, "NO_SUBST", set())
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", ["Guàrdia"])  # prioritats.services
 
     horari = FakeHorari(hores=["09:00"])
     horari._activitats[("Dilluns", "09:00", "Prof_V")] = {"grup": "", "assignatura": "Guàrdia", "aula": ""}
@@ -610,6 +625,7 @@ def test_vigilant_amb_activitat_de_prioritats_sense_grup_genera_substitucio(monk
 def test_vigilant_amb_assignatura_a_no_subst_no_genera_substitucio(monkeypatch):
     monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
     monkeypatch.setattr(constants, "NO_SUBST", {"Guàrdia"})
+    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
 
     horari = FakeHorari(hores=["09:00"])
     horari._activitats[("Dilluns", "09:00", "Prof_V")] = {"grup": "", "assignatura": "Guàrdia", "aula": ""}

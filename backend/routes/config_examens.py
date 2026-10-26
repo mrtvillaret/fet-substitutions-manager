@@ -274,8 +274,11 @@ async def get_assignacions_obsoletes(
     planificador (el vigent a la primera data planificada; sense dates, avui):
     p.ex. d'un curs anterior. El nom de l'assignatura no es té en compte: es
     pot haver canviat a mà (p.ex. "1.1 Prof 7" per a una franja d'optatives).
+    Un grup dels nivells de la configuració d'exàmens també és vàlid, encara
+    que no sigui a l'XML (p.ex. «4-ESO-AB», d'un professor que fa d'enllaç de
+    dos grups): si es treu de la configuració, torna a sortir.
     Per treure-les: DELETE /assignacions amb els ids."""
-    from models import AbreviaturaGrup
+    from models import AbreviaturaGrup, Grup
 
     try:
         horari = dia.horari
@@ -284,6 +287,7 @@ async def get_assignacions_obsoletes(
 
     grups = set(horari.tots_grups) | set(horari.tots_grups_raw)
     grups |= {part.strip() for g in list(grups) for part in g.split(",")}
+    grups |= {codi for (codi,) in db.query(Grup.codi).all()}
     abreviatures = {
         a.abreviatura: [g.strip() for g in a.grups_originals.split(",")] for a in db.query(AbreviaturaGrup).all()
     }

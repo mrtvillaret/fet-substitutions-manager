@@ -335,3 +335,18 @@ def test_les_classes_d_un_titular_amb_una_absencia_coberta_es_proposen_a_la_impo
 
     despres = client.get("/api/config/importar-assignacions/preview").json()["propostes"]
     assert despres == abans
+
+
+def test_un_grup_de_la_configuracio_d_examens_no_es_d_un_curs_anterior(client):
+    # P.ex. un professor que fa d'enllaç de dos grups als exàmens: el grup
+    # («1-BAT-AB») no és a l'XML ni té abreviatura, però és a la configuració
+    assert client.post("/api/config/grups/1-BAT", json={"codi": "1-BAT-AB"}).status_code == 200
+    client.post(
+        "/api/config/assignacions", json={"assignatura": "Filosofia - Enllaç", "grup": "1-BAT-AB", "titular": "Prof 7"}
+    )
+    assert client.get("/api/config/assignacions-obsoletes").json()["assignacions"] == []
+
+    # Si es treu el grup de la configuració, l'assignació torna a sortir
+    assert client.delete("/api/config/grups/1-BAT-AB").status_code == 200
+    obsoletes = client.get("/api/config/assignacions-obsoletes").json()["assignacions"]
+    assert [(a["grup"], a["motius"]) for a in obsoletes] == [("1-BAT-AB", ["grup"])]
