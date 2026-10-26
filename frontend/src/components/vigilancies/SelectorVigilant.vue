@@ -1,15 +1,16 @@
 <template>
   <!-- El vigilant: el desplegable amb cerca i les opcions acolorides segons el
        que fa cada professor a l'hora (titular, alliberat, guàrdia, classe...).
-       El mateix a la taula i al formulari de «Nova vigilància». -->
+       El mateix a la taula i al formulari de «Nova vigilància», i per al
+       substitut a Substitucions. -->
   <CampDesplegable
     :modelValue="modelValue"
     :options="opcions"
     optionLabel="label"
     optionValue="value"
     filter
-    :placeholder="$t('vigilancies.placeholders.supervisor')"
-    :etiqueta="$t('vigilancies.columns.supervisor')"
+    :placeholder="placeholder || $t('vigilancies.placeholders.supervisor')"
+    :etiqueta="etiqueta || $t('vigilancies.columns.supervisor')"
     :aspecte="aspecte"
     :text="etiquetaValor"
     sense-titol
@@ -18,7 +19,7 @@
   >
     <template #valor>
       <span v-if="modelValue" class="selector-vigilant__nom">{{ etiquetaValor || modelValue }}</span>
-      <span v-else class="selector-vigilant__buit">{{ $t('vigilancies.placeholders.supervisor') }}</span>
+      <span v-else class="selector-vigilant__buit">{{ placeholder || $t('vigilancies.placeholders.supervisor') }}</span>
     </template>
     <template #option="{ option }">
       <div
@@ -39,7 +40,10 @@ defineProps({
   modelValue: { type: String, default: '' },
   opcions: { type: Array, default: () => [] }, // els disponibles de l'hora (amb l'opció buida)
   etiquetaValor: { type: String, default: '' }, // el text del vigilant triat
-  aspecte: { type: String, default: 'cella' }
+  aspecte: { type: String, default: 'cella' },
+  // El substitut (Substitucions) fa servir el mateix selector amb els seus textos
+  placeholder: { type: String, default: '' },
+  etiqueta: { type: String, default: '' }
 })
 const emit = defineEmits(['update:modelValue', 'change'])
 </script>

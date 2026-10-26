@@ -506,7 +506,7 @@
       "regenerateAllHint": "Regenera todas las sustituciones desde cero siguiendo el orden de prioridades",
       "savePdf": "Generar PDF",
       "savePdfHint": "Genera PDF completo del día (sustituciones + vigilancias)",
-      "deleteRow": "Eliminar esta hora",
+      "deleteAbsences": "Eliminar las ausencias de {professor}",
       "manageAbsences": "Gestionar ausencias del profesor",
       "addNew": "Nueva"
     },
@@ -627,6 +627,9 @@
       "absent": "está ausente",
       "baixa": "tiene una ausencia cubierta",
       "vigilancia": "vigila un examen"
+    },
+    "table": {
+      "rowsInBlock": "{count} sustitución | {count} sustituciones"
     }
   },
   "examConfig": {

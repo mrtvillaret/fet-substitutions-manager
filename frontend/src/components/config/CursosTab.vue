@@ -93,7 +93,7 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Calendar from 'primevue/calendar'
@@ -105,7 +105,7 @@ import { useCursos } from './useCursos.js'
 
 const toast = useToast()
 const { t } = useI18n()
-const confirm = useConfirm()
+const confirmaEsborrar = useConfirmaEsborrar()
 
 const emit = defineEmits(['cursos-canviats'])
 
@@ -172,11 +172,10 @@ const desarCurs = async () => {
 }
 
 const eliminarCurs = (curs) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('config.courses.deleteConfirm', { nom: curs.nom }),
     header: t('common.confirmation'),
     icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await axios.delete(`/api/cursos/${curs.id}`)

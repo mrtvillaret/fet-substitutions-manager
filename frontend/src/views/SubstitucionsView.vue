@@ -66,138 +66,16 @@
     </div>
 
     <div class="content-card">
-      <DataTable
-        :value="substitucionsFiltrades"
-        :loading="loading"
-        :paginator="true"
-        :rows="20"
-        :rowsPerPageOptions="[10, 20, 50]"
-        responsiveLayout="scroll"
-        :rowClass="getRowClass"
-        class="substitucions-table taula-dades"
-        @row-click="tocaFilaSubstitucio"
-      >
-        <template #empty>
-          <div class="empty-state">
-            <i class="pi pi-inbox" style="font-size: 3rem; color: #ccc;"></i>
-            <p>{{ $t('substitutions.empty.title') }}</p>
-            <small>{{ $t('substitutions.empty.hint') }}</small>
-          </div>
-        </template>
-
-        <Column field="hora" :header="$t('common.hour')" style="width: 110px;">
-          <template #body="slotProps">
-            <span class="taula-hora">{{ slotProps.data.hora }}</span>
-          </template>
-        </Column>
-
-        <Column field="professor_absent" :header="$t('substitutions.columns.absentTeacher')" :sortable="true" style="width: 220px;">
-          <template #body="slotProps">
-            <span style="font-weight: 500; color: #2c3e50;">{{ slotProps.data.professor_absent }}</span>
-          </template>
-        </Column>
-
-        <Column field="assignatura" :header="$t('common.subject')" :sortable="true" style="width: 200px;">
-          <template #body="slotProps">
-            <span style="color: #495057;">{{ slotProps.data.assignatura }}</span>
-          </template>
-        </Column>
-
-        <Column field="grup" :header="$t('common.group')" :sortable="true" style="width: 140px;">
-          <template #body="slotProps">
-            <span style="font-weight: 500; color: #6c757d;">{{ slotProps.data.grup }}</span>
-          </template>
-        </Column>
-
-        <Column field="substitut" :header="$t('substitutions.columns.substitute')" style="min-width: 250px;">
-          <template #body="rowProps">
-            <Dropdown
-              v-model="rowProps.data.substitut"
-              :options="formatDisponibles(rowProps.data.disponibles, rowProps.data.substitut)"
-              optionLabel="label"
-              optionValue="value"
-              :placeholder="$t('substitutions.columns.pickSubstitute')"
-              :filter="true"
-              @change="actualitzarSubstitut(rowProps.data)"
-              class="w-full"
-            >
-              <template #value="slotProps">
-                <span v-if="slotProps.value">{{ slotProps.value }}</span>
-                <span v-else class="p-placeholder">{{ $t('substitutions.columns.pickSubstitute') }}</span>
-              </template>
-              <template #option="slotProps">
-                <div
-                  class="disponible-option opcio-acolorida"
-                  :style="{ backgroundColor: slotProps.option.color }"
-                >
-                  {{ slotProps.option.label }}
-                </div>
-              </template>
-            </Dropdown>
-          </template>
-        </Column>
-
-        <Column field="comentaris" :header="$t('common.comments')" style="min-width: 200px;">
-          <template #body="slotProps">
-            <InputText
-              :id="'comentaris-' + slotProps.data.id"
-              v-model="slotProps.data.comentaris"
-              @change="actualitzarComentari(slotProps.data)"
-              class="p-inputtext-sm"
-              style="width: 100%;"
-              :placeholder="$t('common.commentsPlaceholder')"
-              autocomplete="new-password"
-              autocapitalize="off"
-              spellcheck="false"
-              data-lpignore="true"
-              data-form-type="other"
-              readonly
-              @focus="$event.target.removeAttribute('readonly')"
-            />
-          </template>
-        </Column>
-
-        <Column field="estat" :header="$t('common.status')" style="width: 180px;">
-          <template #body="slotProps">
-            <Tag
-              :value="slotProps.data.estat === 'assignada' ? $t('substitutions.status.assigned') : $t('substitutions.status.pending')"
-              :style="{
-                backgroundColor: slotProps.data.estat === 'assignada' ? '#d4edda' : '#fff3cd',
-                color: slotProps.data.estat === 'assignada' ? '#155724' : '#856404',
-                border: slotProps.data.estat === 'assignada' ? '1px solid #c3e6cb' : '1px solid #ffeaa7',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                padding: '0.35rem 0.7rem'
-              }"
-            />
-          </template>
-        </Column>
-
-        <!-- Accions de fila: les mateixes que a Vigilàncies (taules.css, .taula-accio) -->
-        <Column style="width: 5rem;" headerClass="taula-accions" bodyClass="taula-accions">
-          <template #body="slotProps">
-            <span class="substitucions-accions">
-              <button
-                type="button"
-                class="taula-accio"
-                :title="$t('substitutions.actions.manageAbsences')"
-                :aria-label="$t('substitutions.actions.manageAbsences')"
-                @click.stop="editarAbsenciesProfessor(slotProps.data)"
-              ><i class="pi pi-pencil" aria-hidden="true"></i></button>
-              <button
-                type="button"
-                class="taula-accio"
-                :title="$t('substitutions.actions.deleteRow')"
-                :aria-label="$t('substitutions.actions.deleteRow')"
-                @click.stop="confirmarEliminarAbsenciesProf(slotProps.data.professor_absent)"
-              ><i class="pi pi-trash" aria-hidden="true"></i></button>
-            </span>
-          </template>
-        </Column>
-
-      </DataTable>
-      <!-- Pantalles tàctils: les accions de la fila tocada -->
-      <AccionsFila :element="filaActiva?.element" :x="filaActiva?.x" :accions="accionsFilaActiva" @tanca="tancaAccionsFila" />
+      <TaulaSubstitucions
+        :files="substitucionsFiltrades"
+        :hores="horesDisponibles"
+        :data="dataISO"
+        :disponibles-de="disponiblesDe"
+        :carregant="loading"
+        @canvi="canviaCamp"
+        @edita="editarAbsenciesProfessor"
+        @esborra="esborraAbsenciesDeFila"
+      />
     </div>
 
     <!-- Bottom Sheet per gestionar absències -->
@@ -322,7 +200,7 @@
             >
               <span class="bs-card-prof">{{ grup.professor }}</span>
               <button class="bs-card-del" @click.stop="confirmarEliminarAbsenciesProf(grup.professor)"
-                :disabled="loading" :aria-label="$t('common.delete')">🗑</button>
+                :disabled="loading" :aria-label="$t('common.delete')"><i class="pi pi-trash" aria-hidden="true"></i></button>
             </div>
           </div>
         </div>
@@ -490,14 +368,10 @@ import { ambDataTreball, dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
 
 // Components PrimeVue
-import DataTable from 'primevue/datatable'
 import PdfOpcionsComunes from '../components/PdfOpcionsComunes.vue'
 import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions'
-import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
-import InputText from 'primevue/inputtext'
-import Tag from 'primevue/tag'
 import Badge from 'primevue/badge'
 import Dialog from 'primevue/dialog'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -505,12 +379,13 @@ import Message from 'primevue/message'
 import { useToast } from 'primevue/usetoast'
 import { avisaSubstitutsTrets } from '../substitutsTrets'
 import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
-import AccionsFila from '../components/AccionsFila.vue'
-import { useFilaTactil } from '../composables/useFilaTactil'
+import TaulaSubstitucions from '../components/substitucions/TaulaSubstitucions.vue'
 
 const toast = useToast()
 const confirm = useConfirm()
+const confirmaEsborrar = useConfirmaEsborrar()
 const { t, locale } = useI18n()
 const emit = defineEmits(['anar-vigilancies'])
 
@@ -1146,13 +1021,12 @@ const obrirDialogNou = () => {
 }
 
 const confirmarEliminarAbsenciesProf = (professorNom) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('substitutions.confirm.deleteAllAbsencesMessage', { teacher: professorNom }),
     header: t('substitutions.confirm.deleteAbsenceTitle'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: () => eliminarTotesAbsenciesProf(professorNom)
   })
 }
@@ -1406,42 +1280,27 @@ const afegirAbsenciaImmediata = async () => {
   }
 }
 
-const getRowClass = (data) => {
-  // Separador (taules.css) a la primera fila de cada hora, llevat de la primera;
-  // en pantalles tàctils, la fila tocada ressaltada
-  const activa = esFilaActiva(data) ? 'taula-fila--activa' : ''
-  const index = substitucionsFiltrades.value.indexOf(data)
-  if (index === 0) return activa
+// Les opcions del substitut de cada fila (una sola vegada per fila: la taula
+// no les ha de tornar a calcular a cada repintat)
+const opcionsPerFila = computed(() =>
+  new Map(substitucionsFiltrades.value.map(fila => [fila, formatDisponibles(fila.disponibles, fila.substitut)]))
+)
+const disponiblesDe = (fila) => opcionsPerFila.value.get(fila) || []
 
-  const horaAnterior = substitucionsFiltrades.value[index - 1]?.hora
-  const horaActual = data.hora
-
-  return [horaAnterior !== horaActual ? 'taula-separador-hora' : '', activa].join(' ').trim()
+// Un canvi a la taula (el substitut o les observacions)
+const canviaCamp = (fila, camp, valor) => {
+  if (camp === 'substitut') {
+    fila.substitut = valor
+    actualitzarSubstitut(fila)
+  } else if (camp === 'comentaris') {
+    fila.comentaris = valor
+    actualitzarComentari(fila)
+  }
 }
 
-// Pantalles tàctils: en tocar una fila (no un camp) surten les seves accions
-// (useFilaTactil, AccionsFila); a l'ordinador, en passar-hi el ratolí
-const { activa: filaActiva, tocaFila, tanca: tancaAccionsFila, esActiva: esFilaActiva } = useFilaTactil()
-const tocaFilaSubstitucio = ({ originalEvent, data }) => tocaFila(originalEvent, data)
-const accionsFilaActiva = computed(() => {
-  const substitucio = filaActiva.value?.clau
-  if (!substitucio) return []
-  return [
-    {
-      clau: 'edita',
-      icona: 'pi-pencil',
-      etiqueta: t('substitutions.actions.manageAbsences'),
-      fer: () => editarAbsenciesProfessor(substitucio)
-    },
-    {
-      clau: 'esborra',
-      icona: 'pi-trash',
-      perill: true,
-      etiqueta: t('substitutions.actions.deleteRow'),
-      fer: () => confirmarEliminarAbsenciesProf(substitucio.professor_absent)
-    }
-  ]
-})
+// Esborrar des de la fila: totes les absències d'aquell professor aquell dia
+// (una sola hora es treu a «Gestionar absències»)
+const esborraAbsenciesDeFila = (fila) => confirmarEliminarAbsenciesProf(fila.professor_absent)
 
 // PDF Functions
 const aplicarPreferenciesPdf = (prefs) => {
@@ -1840,22 +1699,7 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: #666;
-}
-
-.empty-state p {
-  margin: 1rem 0 0.5rem;
-  font-size: 1.1rem;
-}
-
-.empty-state small {
-  color: #999;
-}
-
-/* L'aspecte de la taula (capçalera, files, hora, accions), a taules.css */
+/* Els desplegables de la vista (la taula, a TaulaSubstitucions i taules.css) */
 :deep(.p-dropdown) {
   width: 100%;
   font-size: 0.925rem;
@@ -1871,18 +1715,6 @@ onMounted(async () => {
   font-size: 0.925rem;
 }
 
-
-:deep(.substitucions-table .p-inputtext) {
-  height: 2.2rem !important;
-  min-height: 2.2rem !important;
-  max-height: 2.2rem !important;
-  padding: 0.4rem 0.6rem !important;
-  font-size: 0.9rem !important;
-}
-
-.substitucions-accions {
-  white-space: nowrap;
-}
 
 /* Formulari Nova Substitució */
 .nova-substitucio-form {
@@ -1966,17 +1798,6 @@ onMounted(async () => {
   color: #856404;
   font-weight: 600;
   margin-left: 0.5rem;
-}
-
-/* Estils per disponibles amb colors */
-.disponible-option {
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.disponible-option:hover {
-  filter: brightness(0.95);
 }
 
 @media (max-width: 768px) {
@@ -2439,6 +2260,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   font-size: 0.85rem;
+  color: var(--color-perill);
   transition: all 0.12s;
   flex-shrink: 0;
 }

@@ -152,7 +152,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
@@ -164,7 +164,7 @@ import Checkbox from 'primevue/checkbox'
 
 const toast = useToast()
 const { t, locale } = useI18n()
-const confirm = useConfirm()
+const confirmaEsborrar = useConfirmaEsborrar()
 
 const props = defineProps({
   currentRole: {
@@ -358,13 +358,12 @@ const desarUsuari = async () => {
 }
 
 const desactivarUsuari = (user) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('config.users.deactivateConfirm', { username: user.username }),
     header: t('config.users.deactivateTitle'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('config.users.deactivateAction'),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await axios.delete(`/api/users/${user.id}`)
@@ -389,13 +388,12 @@ const desactivarUsuari = (user) => {
 }
 
 const eliminarUsuari = (user) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('config.users.deleteConfirm', { username: user.username }),
     header: t('config.users.deleteTitle'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await axios.delete(`/api/users/${user.id}/hard`)

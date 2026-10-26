@@ -405,6 +405,7 @@ import { ambDataTreball, dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
 import Message from 'primevue/message'
@@ -426,6 +427,7 @@ import { useOrdreFiles } from '../composables/useOrdreFiles'
 const emit = defineEmits(['anar-substitucions'])
 const toast = useToast()
 const confirm = useConfirm()
+const confirmaEsborrar = useConfirmaEsborrar()
 const { t, locale } = useI18n()
 
 // State
@@ -1006,7 +1008,7 @@ const actualitzarVigilancia = async (vigilancia, { horaAbans = vigilancia.hora }
 }
 
 const confirmarEliminar = (vigilancia) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('vigilancies.confirm.deleteMessage', { hour: vigilancia.hora }),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
@@ -1020,13 +1022,12 @@ const confirmarEliminar = (vigilancia) => {
 
 const confirmarEliminarSeleccionades = () => {
   const count = seleccionades.value.length
-  confirm.require({
+  confirmaEsborrar({
     message: t('vigilancies.confirm.deleteSelectedMessage', { count }, count),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('vigilancies.actions.deleteSelected', { count }),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: async () => {
       const llistaAEliminar = [...seleccionades.value]
       seleccionades.value = []
@@ -1338,13 +1339,12 @@ const assignarPendents = async () => {
 }
 
 const confirmarNetejar = () => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('vigilancies.confirm.clearMessage'),
     header: t('vigilancies.confirm.clearTitle'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('vigilancies.confirm.clearAccept'),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         const response = await axios.post(`/api/vigilancies/${dataISO.value}/clear`)

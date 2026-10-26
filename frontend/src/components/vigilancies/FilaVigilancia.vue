@@ -112,6 +112,7 @@
         class="fila-vigilancia__observacions"
         type="text"
         :value="fila.comentaris || ''"
+        :title="fila.comentaris || null"
         :placeholder="$t('common.commentsPlaceholder')"
         :aria-label="$t('common.comments')"
         @change="emit('canvi', fila, 'comentaris', $event.target.value)"
@@ -127,7 +128,7 @@
       ><i class="pi pi-clone" aria-hidden="true"></i></button>
       <button
         type="button"
-        class="taula-accio"
+        class="taula-accio taula-accio--perill"
         :title="$t('common.delete')"
         :aria-label="$t('common.delete')"
         @click="emit('esborra', fila)"

@@ -287,7 +287,9 @@ async def get_assignacions_obsoletes(
     abreviatures = {
         a.abreviatura: [g.strip() for g in a.grups_originals.split(",")] for a in db.query(AbreviaturaGrup).all()
     }
-    professors = set(horari.professors or [])
+    # Tots els de l'XML: l'horari del dia no té els que tenen una absència
+    # coberta, i la seva assignació continua sent d'aquest curs
+    professors = set(horari.tots_professors)
 
     def grup_existeix(grup: str) -> bool:
         if grup in grups:
@@ -488,8 +490,9 @@ async def importar_assignacions_preview(
     try:
         from exam_import import generar_propostes, nivells_amb_substitucions
 
-        horari = dia.horari
-        propostes = generar_propostes(horari)
+        # Amb tothom: les classes d'un titular amb una absència coberta aquell
+        # dia també són del curs
+        propostes = generar_propostes(dia.horari_amb_tothom)
 
         # Descarta nivells que no s'usen mai a substitucions/vigilàncies
         # (Infantil/Primària a un IES, per exemple) perquè no s'omplin de

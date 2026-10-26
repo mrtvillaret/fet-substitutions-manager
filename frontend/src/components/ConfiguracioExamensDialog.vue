@@ -274,7 +274,7 @@
                 </li>
                 <li v-if="assignacionsObsoletes.length > 10">…</li>
               </ul>
-              <Button :label="$t('examConfig.assignments.obsolete.remove')" icon="pi pi-trash" size="small" severity="warning" @click="treureAssignacionsObsoletes" />
+              <Button :label="$t('examConfig.assignments.obsolete.remove')" icon="pi pi-trash" size="small" severity="danger" @click="treureAssignacionsObsoletes" />
             </Message>
             <!-- Filtres -->
             <div class="filtres-assignacions">
@@ -878,6 +878,7 @@ import { ruta } from '../basePath'
 import { dataAmbAny } from '../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
 import Dialog from 'primevue/dialog'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
@@ -895,6 +896,7 @@ import FiltreAula from './vigilancies/FiltreAula.vue'
 const toast = useToast()
 const { t } = useI18n()
 const confirm = useConfirm()
+const confirmaEsborrar = useConfirmaEsborrar()
 
 // Selecció múltiple per a taules de revisió d'importació: clic normal
 // alterna una fila, Maj+clic selecciona el rang des de l'última clicada, i
@@ -1086,13 +1088,12 @@ const afegirNivell = async () => {
 }
 
 const eliminarNivell = async (codi) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('examConfig.levels.deleteConfirmMessage', { code: codi }),
     header: t('common.confirmation'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await axios.delete(`/api/config/nivells/${codi}`)
@@ -1150,7 +1151,7 @@ const afegirAssignatura = async () => {
 }
 
 const eliminarAssignatura = async (nom) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('examConfig.subjects.deleteConfirmMessage', { name: nom }),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
@@ -1223,7 +1224,7 @@ const afegirGrup = async () => {
 }
 
 const eliminarGrup = async (codi) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('examConfig.groups.deleteConfirmMessage', { code: codi }),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
@@ -1294,7 +1295,7 @@ const afegirAula = async () => {
 }
 
 const eliminarAula = async (codi) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('examConfig.rooms.deleteConfirmMessage', { code: codi }),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
@@ -1389,7 +1390,7 @@ const carregarAssignacionsObsoletes = async () => {
   }
 }
 const treureAssignacionsObsoletes = () => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('examConfig.assignments.obsolete.confirm', { count: assignacionsObsoletes.value.length }, assignacionsObsoletes.value.length),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
@@ -1536,7 +1537,7 @@ const eliminarAssignacio = async (id) => {
     return
   }
 
-  confirm.require({
+  confirmaEsborrar({
     message: t('examConfig.assignments.deleteConfirmMessage'),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
@@ -1572,7 +1573,7 @@ const eliminarAssignacio = async (id) => {
 const eliminarAssignacionsFiltrades = () => {
   if (assignacionsFiltrades.value.length === 0) return
 
-  confirm.require({
+  confirmaEsborrar({
     message: t('examConfig.assignments.deleteFilteredConfirmMessage', { count: assignacionsFiltrades.value.length }, assignacionsFiltrades.value.length),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',
@@ -1595,7 +1596,7 @@ const eliminarAssignacionsFiltrades = () => {
 const eliminarTotesAssignacions = () => {
   if (assignacions.value.length === 0) return
 
-  confirm.require({
+  confirmaEsborrar({
     message: t('examConfig.assignments.deleteAllConfirmMessage', { count: assignacions.value.length }, assignacions.value.length),
     header: t('common.confirmDelete'),
     icon: 'pi pi-exclamation-triangle',

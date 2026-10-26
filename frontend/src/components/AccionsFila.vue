@@ -133,7 +133,7 @@ const fes = (accio) => {
 }
 
 .accions-fila__boto--perill {
-  color: #dc2626;
+  color: var(--color-perill); /* perill.css */
 }
 
 .accions-fila__boto:disabled {

@@ -35,6 +35,9 @@ class GestorHorariWeb:
         self.ultim_professor_subs = ultim_professor_subs
         self.horari = {}  # {dia: {hora: {professor: dades}}}
         self.professors = []
+        # Tots els professors de l'XML: sense el límit de l'«últim professor» i
+        # amb els que tenen una absència coberta (el dia no els treu d'aquí)
+        self.tots_professors = []
         self.grups = set()  # Grups visibles (tots menys els amagats; amb abreviatures)
         self.tots_grups = set()  # TOTS els grups detectats a l'XML (per al selector)
         self.tots_grups_raw = set()  # TOTS els grups detectats, versió RAW
@@ -108,6 +111,7 @@ class GestorHorariWeb:
             # Reinicialitza els atributs abans de carregar
             self.horari = {}
             self.professors = []
+            self.tots_professors = []
             self.grups = set()
             self.tots_grups = set()
             self.tots_grups_raw = set()
@@ -127,6 +131,7 @@ class GestorHorariWeb:
                 if not nom:
                     continue
                 tots_professors.append(nom)
+            self.tots_professors = tots_professors
 
             # Aplica límit de professor
             # Mateix nom net que els professors: el límit talla pel mateix lloc

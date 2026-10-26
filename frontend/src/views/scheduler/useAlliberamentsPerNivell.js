@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 
 export const useAlliberamentsPerNivell = ({
   t,
@@ -101,7 +101,7 @@ export const useAlliberamentsPerNivell = ({
     alliberamentsPerNivell.value = updated
   }
 
-  const confirm = useConfirm()
+  const confirmaEsborrar = useConfirmaEsborrar()
   const onDatesChange = (nivell, newDates) => {
     const oldDates = alliberamentsPerNivell.value[nivell]?.dates || []
     const removedDates = oldDates.filter((oldDate) => !newDates.some((newDate) => isSameDay(oldDate, newDate)))
@@ -114,7 +114,7 @@ export const useAlliberamentsPerNivell = ({
 
     if (datesAmbConfig.length > 0) {
       const dateStr = formatDateLocal(datesAmbConfig[0])
-      confirm.require({
+      confirmaEsborrar({
         message: t('scheduler.steps.config.confirm.deleteSavedConfigMessage', { day: formatDataCurta(dateStr) }),
         header: t('common.confirmation'),
         icon: 'pi pi-exclamation-triangle',
@@ -271,7 +271,7 @@ export const useAlliberamentsPerNivell = ({
     { label: `🟩🟦 ${t('scheduler.steps.config.menu.releasedAndStart')}`, icon: 'pi pi-check-square', command: () => accioFilaTotAmbInici() },
     { label: `✖ ${t('scheduler.steps.config.menu.clearRow')}`, icon: 'pi pi-times', command: () => accioFilaNetejar() },
     { separator: true },
-    { label: `❌ ${t('scheduler.steps.config.menu.deleteDay')}`, icon: 'pi pi-trash', command: () => accioFilaEliminar() }
+    { label: `❌ ${t('scheduler.steps.config.menu.deleteDay')}`, icon: 'pi pi-trash', class: 'menu-perill', command: () => accioFilaEliminar() }
   ]))
 
   const menuColumnaItems = computed(() => ([

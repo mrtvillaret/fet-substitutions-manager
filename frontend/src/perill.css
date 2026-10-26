@@ -1,0 +1,26 @@
+/* Els botons que esborren, en vermell a tota l'aplicació. Els de PrimeVue,
+   amb p-button-danger (les confirmacions, amb useConfirmaEsborrar); els propis
+   (de fila, la barra del mòbil, els menús), amb aquestes classes. El vermell,
+   el mateix que el del tema (p-button-danger). */
+:root {
+  --color-perill: #ef4444;
+  --color-perill-fosc: #dc2626;
+  --color-perill-fons: #fef2f2;
+}
+
+/* Botó de fila (taules.css, .taula-accio) */
+.taula-accio.taula-accio--perill {
+  color: var(--color-perill);
+}
+
+.taula-accio.taula-accio--perill:hover {
+  background: var(--color-perill-fons);
+  border-color: #fecaca;
+  color: var(--color-perill-fosc);
+}
+
+/* Opció d'un menú de PrimeVue: { ..., class: 'menu-perill' } */
+.p-menuitem.menu-perill .p-menuitem-text,
+.p-menuitem.menu-perill .p-menuitem-icon {
+  color: var(--color-perill);
+}

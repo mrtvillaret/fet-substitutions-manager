@@ -21,9 +21,9 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from absencia_coberta.router import router as absencia_coberta_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import grups, substitucions
+from routes import grups, settings, substitucions
 
-APP = crea_app(grups.router, substitucions.router, prioritats_router, absencia_coberta_router)
+APP = crea_app(grups.router, substitucions.router, prioritats_router, absencia_coberta_router, settings.router)
 DILLUNS = ["2026-04-13", "2026-04-20", "2026-04-27", "2026-05-04"]
 
 
@@ -113,6 +113,25 @@ def test_les_activitats_es_configuren_a_prioritats(client):
     assert "Reforç" in cos["disponibles"]
     _configura_reforc(client)
     assert client.get("/api/prioritats/activitats-alliberables").json()["activitats"] == ["Reforç"]
+
+
+def test_les_activitats_per_triar_inclouen_les_d_un_professor_amb_una_absencia_coberta(client):
+    # És configuració, no un dia: «E.E.» només la fa Prof 32
+    resp = client.post(
+        "/api/absencies-cobertes", json={"professor": "Prof 32", "data_inici": DILLUNS[1], "data_final": DILLUNS[1]}
+    )
+    assert resp.status_code == 200, resp.text
+    cos = client.get("/api/prioritats/activitats-alliberables", params={"data": DILLUNS[1]}).json()
+    assert "E.E." in cos["disponibles"]
+
+
+def test_les_activitats_per_triar_son_les_dels_professors_fins_a_l_ultim(client):
+    # Prof 32 va després de Prof 31 a l'XML: amb el límit, «E.E.» no hi és
+    resp = client.put("/api/settings", json={"ultim_professor_subs": "Prof 31"})
+    assert resp.status_code == 200, resp.text
+    cos = client.get("/api/prioritats/activitats-alliberables", params={"data": DILLUNS[1]}).json()
+    assert "E.E." not in cos["disponibles"]
+    assert "Reforç" in cos["disponibles"]
 
 
 def test_una_activitat_configurada_surt_a_la_taula_amb_qui_la_fa(client):

@@ -259,7 +259,7 @@ import axios from 'axios'
 import { ambDataTreball } from '../../dataTreball'
 import { dataAmbAny, dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Calendar from 'primevue/calendar'
@@ -272,7 +272,7 @@ import { setLocale } from '../../i18n'
 
 const toast = useToast()
 const { t } = useI18n()
-const confirm = useConfirm()
+const confirmaEsborrar = useConfirmaEsborrar()
 
 const props = defineProps({
   currentRole: {
@@ -500,13 +500,12 @@ const desarXmlVersion = async (version) => {
 }
 
 const eliminarXmlVersion = async (version) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('config.confirm.deleteXmlMessage', { path: version.path }),
     header: t('config.confirm.deleteXmlTitle'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await axios.delete(`/api/settings/xml-versions/${version.id}`)

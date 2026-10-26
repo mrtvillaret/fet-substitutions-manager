@@ -15,6 +15,7 @@ import 'primeicons/primeicons.css'
 import './taules.css'
 // Llistes d'opcions compactes per a tots els desplegables
 import './desplegables.css'
+import './perill.css'
 
 import App from './App.vue'
 

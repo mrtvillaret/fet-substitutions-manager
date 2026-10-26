@@ -46,6 +46,13 @@ class Dia:
         """L'horari vigent aquest dia (MissingXmlError si no n'hi ha cap)."""
         return get_horari(self.institucio, data_iso=self.iso)
 
+    @property
+    def horari_amb_tothom(self):
+        """L'horari vigent aquest dia amb tothom, també els que hi tenen una
+        absència coberta (Dia.horari ja no els té): per a la configuració del
+        curs (p.ex. els exàmens), no per decidir qui hi és aquell dia."""
+        return getattr(self.horari, "sencer", self.horari)
+
     def gestors(self):
         """(substitucions, horari, alliberats, absències) d'aquest dia: nous a
         cada crida, perquè cada petició hi fixa el seu estat."""

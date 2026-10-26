@@ -13,7 +13,10 @@ from suport_planificador import (
     configura,
 )
 
+from database import get_data_db_session
+from helpers import invalidar_horari
 from rate_limit import limiter
+from repositories import ConfiguracioRepository
 
 
 @pytest.fixture(autouse=True)
@@ -293,3 +296,42 @@ def test_es_detecten_les_assignacions_amb_grups_o_titulars_que_ja_no_son_a_l_hor
     assert resp.json()["eliminades"] == 2
     assert client.get("/api/config/assignacions-obsoletes").json()["assignacions"] == []
     assert len(client.get("/api/config/assignacions").json()["assignacions"]) == 8
+
+
+def test_un_titular_amb_una_absencia_coberta_no_es_d_un_curs_anterior(client):
+    # L'horari del dia ja no el té (fora de tot), però és a l'XML: la seva
+    # assignació continua sent d'aquest curs
+    configura(client)
+    resp = client.post(
+        "/api/absencies-cobertes", json={"professor": "Prof 7", "data_inici": DATES[0], "data_final": DATES[-1]}
+    )
+    assert resp.status_code == 200, resp.text
+    client.post("/api/config/assignacions", json={"assignatura": "Filosofia", "grup": "1-BAT-A", "titular": "Prof 7"})
+
+    assert client.get("/api/config/assignacions-obsoletes").json()["assignacions"] == []
+
+
+def test_un_titular_despres_de_l_ultim_professor_no_es_d_un_curs_anterior(centre):
+    # El límit de l'«últim professor» (els que fan substitucions) no treu
+    # ningú de l'XML: el desplegable del titular els ofereix tots
+    institucio, client = centre
+    with get_data_db_session(institucio) as db:
+        ConfiguracioRepository.set(db, "ultim_professor_subs", "Prof 3")
+    invalidar_horari(institucio)
+    client.post("/api/config/assignacions", json={"assignatura": "Filosofia", "grup": "1-BAT-A", "titular": "Prof 7"})
+
+    assert client.get("/api/config/assignacions-obsoletes").json()["assignacions"] == []
+
+
+def test_les_classes_d_un_titular_amb_una_absencia_coberta_es_proposen_a_la_importacio(client):
+    # La configuració d'exàmens és del curs: el titular hi continua sent
+    configura(client)
+    abans = client.get("/api/config/importar-assignacions/preview").json()["propostes"]
+    titular = next(p["titular"] for p in abans if p["titular"])
+    resp = client.post(
+        "/api/absencies-cobertes", json={"professor": titular, "data_inici": DATES[0], "data_final": DATES[-1]}
+    )
+    assert resp.status_code == 200, resp.text
+
+    despres = client.get("/api/config/importar-assignacions/preview").json()["propostes"]
+    assert despres == abans

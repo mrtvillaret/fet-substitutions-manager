@@ -40,4 +40,23 @@ export default [
     files: ['src/views/SchedulerView.vue'],
     rules: { 'no-unused-vars': 'off' },
   },
+  {
+    // El botó d'acceptar de les confirmacions d'esborrar, sempre vermell i
+    // des d'un sol lloc: useConfirmaEsborrar (composables/useConfirmaEsborrar.js).
+    files: ['src/**/*.{js,vue}'],
+    ignores: ['src/composables/useConfirmaEsborrar.js'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "Property[key.name='acceptClass']",
+          message: "Les confirmacions d'esborrar, amb useConfirmaEsborrar: el botó ja hi surt vermell.",
+        },
+        {
+          selector: "CallExpression[callee.property.name='require'] Property[key.name='acceptLabel'] Literal[value='common.delete']",
+          message: "Una confirmació amb «Elimina» s'ha de fer amb useConfirmaEsborrar, perquè el botó surti vermell.",
+        },
+      ],
+    },
+  },
 ]

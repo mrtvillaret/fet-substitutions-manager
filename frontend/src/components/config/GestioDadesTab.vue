@@ -161,10 +161,12 @@ import InputText from 'primevue/inputtext'
 import Divider from 'primevue/divider'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 
 const { t } = useI18n()
 const toast = useToast()
 const confirm = useConfirm()
+const confirmaEsborrar = useConfirmaEsborrar()
 
 // --- Anonimitzar professor ---
 const professors = ref([])
@@ -193,6 +195,8 @@ function confirmarAnon() {
     header: t('config.dataManagement.anonConfirmHeader'),
     message: t('config.dataManagement.anonConfirmMessage', { old: profSeleccionat.value, new: nomNou.value.trim() }),
     icon: 'pi pi-exclamation-triangle',
+    // Anonimitzar no esborra: el botó, taronja
+    // eslint-disable-next-line no-restricted-syntax
     acceptClass: 'p-button-warning',
     acceptLabel: t('config.dataManagement.anonAccept'),
     rejectLabel: t('config.dataManagement.reject'),
@@ -314,14 +318,13 @@ async function analitzar() {
 function confirmarPurga() {
   const m = manifest.value
   const nXml = m.xml_versions.filter(v => !v.bloquejat).length
-  confirm.require({
+  confirmaEsborrar({
     header: t('config.dataManagement.confirmHeader'),
     message: t('config.dataManagement.confirmMessage', {
       bd: m.total_bd, pdf: m.pdfs_a_esborrar.length, xml: nXml,
       start: m.interval.inici, end: m.interval.final,
     }),
     icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
     acceptLabel: t('config.dataManagement.accept'),
     rejectLabel: t('config.dataManagement.reject'),
     accept: purgar,

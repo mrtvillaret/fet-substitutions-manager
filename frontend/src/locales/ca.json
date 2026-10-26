@@ -509,7 +509,7 @@
       "regenerateAllHint": "Regenera totes les substitucions des de zero seguint l'ordre de prioritats",
       "savePdf": "Genera PDF",
       "savePdfHint": "Genera PDF complet del dia (substitucions + vigilàncies)",
-      "deleteRow": "Elimina aquesta hora",
+      "deleteAbsences": "Elimina les absències de {professor}",
       "manageAbsences": "Gestiona absències del professor",
       "addNew": "Nova"
     },
@@ -630,6 +630,9 @@
       "absent": "és absent",
       "baixa": "té una absència coberta",
       "vigilancia": "vigila un examen"
+    },
+    "table": {
+      "rowsInBlock": "{count} substitució | {count} substitucions"
     }
   },
   "examConfig": {

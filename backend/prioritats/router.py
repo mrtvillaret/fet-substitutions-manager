@@ -81,7 +81,9 @@ async def get_activitats_alliberables(db: Session = Depends(get_db), dia_calenda
 
     disponibles = set()
     try:
-        horari = dia_calendari.horari
+        # És configuració, no un dia: els professors de l'XML fins a l'«últim
+        # professor», també els que tenen una absència coberta aquell dia
+        horari = dia_calendari.horari_amb_tothom
         for dia in horari.dies:
             for hora in horari.hores:
                 for professor in horari.professors:

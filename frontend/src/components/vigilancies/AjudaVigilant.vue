@@ -1,7 +1,9 @@
 <template>
-  <!-- Embolcalla el nom del vigilant: en passar-hi per damunt (o posar-hi el
-       focus) mostra el mateix text que la seva opció del desplegable (l'estat i
-       què fa a aquella hora) i, a sota, quantes vigilàncies porta aquell dia -->
+  <!-- Embolcalla el nom del vigilant (o del substitut): en passar-hi per damunt
+       (o posar-hi el focus) mostra el mateix text que la seva opció del
+       desplegable (l'estat i què fa a aquella hora) i, a sota, quantes
+       vigilàncies porta aquell dia. A les pantalles tàctils, no: tocar el nom
+       obre el desplegable, que ja ho mostra. -->
   <div
     ref="objectiu"
     class="ajuda-vigilant"
@@ -16,7 +18,7 @@
     <OverlayPanel v-if="usat" ref="panell" :aria-label="$t('vigilancies.help.title', { nom })">
       <div class="ajuda">
         <div class="ajuda__opcio" :style="{ backgroundColor: color || undefined }">{{ text || nom }}</div>
-        <div class="ajuda__dia">
+        <div v-if="recompteDia" class="ajuda__dia">
           <template v-if="carregant">{{ $t('vigilancies.help.loading') }}</template>
           <template v-else-if="error">{{ $t('vigilancies.help.error') }}</template>
           <template v-else-if="ajuda">
@@ -38,7 +40,8 @@ const props = defineProps({
   hora: { type: String, required: true },
   nom: { type: String, default: '' }, // sense vigilant no hi ha ajuda
   text: { type: String, default: '' }, // el text de la seva opció del desplegable
-  color: { type: String, default: '' } // el color de la seva opció
+  color: { type: String, default: '' }, // el color de la seva opció
+  recompteDia: { type: Boolean, default: true } // amb les vigilàncies del dia (les demana)
 })
 
 const { carrega } = useAjudaVigilant()
@@ -50,9 +53,12 @@ const error = ref(false)
 const usat = ref(false)
 let temporitzador = null
 
+// Pantalles tàctils: tocar el nom obre el desplegable, i l'ajuda el tapava
+const tactil = window.matchMedia('(hover: none)')
+
 // Un petit retard: passar el ratolí per sobre de la taula no ha d'obrir-les totes
 const programa = (event) => {
-  if (!props.nom) return
+  if (!props.nom || tactil.matches) return
   clearTimeout(temporitzador)
   temporitzador = setTimeout(() => mostra(event), 350)
 }
@@ -64,6 +70,7 @@ const mostra = async (event) => {
     await nextTick()
   }
   panell.value?.show(event, objectiu.value)
+  if (!props.recompteDia) return
   carregant.value = true
   error.value = false
   try {

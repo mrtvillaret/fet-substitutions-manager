@@ -8,9 +8,11 @@ import uuid
 
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
+from absencia_coberta.router import router as absencia_coberta_router
 from routes import config_examens, scheduler
 
-APP = crea_app(scheduler.router, config_examens.router)
+# Amb les absències cobertes: treuen professors de l'horari del dia
+APP = crea_app(scheduler.router, config_examens.router, absencia_coberta_router)
 
 # Dilluns i dimarts de la setmana de l'horari d'exemple
 DATES = ["2026-04-20", "2026-04-21"]

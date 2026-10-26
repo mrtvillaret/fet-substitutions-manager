@@ -393,7 +393,7 @@ import axios from 'axios'
 import { ambDataTreball, dataTreball } from '../../dataTreball'
 import { dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 import Dialog from 'primevue/dialog'
 import MultiSelect from 'primevue/multiselect'
 import InputText from 'primevue/inputtext'
@@ -410,7 +410,7 @@ import Checkbox from 'primevue/checkbox'
 
 const toast = useToast()
 const { t, locale } = useI18n()
-const confirm = useConfirm()
+const confirmaEsborrar = useConfirmaEsborrar()
 
 
 // Data en format ISO (per l'endpoint) i text (per mostrar), + versió d'XML vigent
@@ -634,7 +634,7 @@ const eliminarCategoria = () => {
   const idx = categoriaSeleccionadaIndex.value
   const categoria = ordreCategories.value[idx]
 
-  confirm.require({
+  confirmaEsborrar({
     message: t('config.priorities.deleteCategoryConfirm', {
       index: idx + 1,
       count: categoria.categories.length
@@ -643,7 +643,6 @@ const eliminarCategoria = () => {
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: () => {
       ordreCategories.value.splice(idx, 1)
       categoriaSeleccionada.value = null
@@ -698,13 +697,12 @@ const desarAssignaturaCategoria = () => {
 }
 
 const eliminarAssignaturaCategoria = (assignatura, categoriaIdx) => {
-  confirm.require({
+  confirmaEsborrar({
     message: t('config.priorities.deleteSubjectConfirm', { subject: assignatura, index: categoriaIdx + 1 }),
     header: t('common.confirmation'),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
     rejectLabel: t('common.cancel'),
-    acceptClass: 'p-button-danger',
     accept: () => {
       const idx = ordreCategories.value[categoriaIdx].categories.indexOf(assignatura)
       if (idx !== -1) {

@@ -506,7 +506,7 @@
       "regenerateAllHint": "Regenerate all substitutions from scratch following priority order",
       "savePdf": "Generate PDF",
       "savePdfHint": "Generate a full day PDF (substitutions + supervisions)",
-      "deleteRow": "Delete this hour",
+      "deleteAbsences": "Delete {professor}'s absences",
       "manageAbsences": "Manage teacher absences",
       "addNew": "New"
     },
@@ -627,6 +627,9 @@
       "absent": "is absent",
       "baixa": "has a covered absence",
       "vigilancia": "is supervising an exam"
+    },
+    "table": {
+      "rowsInBlock": "{count} substitution | {count} substitutions"
     }
   },
   "examConfig": {
