@@ -7,10 +7,10 @@ absent. Després es treuen els substituts que ja no poden ser-ho.
 from datetime import datetime
 
 from helpers import get_gestors
-from repositories import SubstitucioRepository
-from serveis.cobertures import refresca_cobertures
-from serveis.dia_escolar import treu_substituts_no_valids
-from serveis.vigilancia_absent import sincronitzar_vigilancies_absents
+from substitucions.cobertures import refresca_cobertures
+from substitucions.domain import treu_substituts_no_valids
+from substitucions.repositories import SubstitucioRepository
+from substitucions.vigilancia_absent import sincronitzar_vigilancies_absents
 from vigilancies.repositories import VigilanciaRepository
 
 
@@ -28,7 +28,15 @@ def canvia_tipus_cobertures(db, data: str, professor: str, hores, de: str, a: st
 
 
 def desa_absencies(
-    db, data: str, professor: str, hores_absencia=None, hores_servei=None, gestors=None, dia_name: str = None
+    db,
+    data: str,
+    professor: str,
+    hores_absencia=None,
+    hores_servei=None,
+    gestors=None,
+    dia_name: str = None,
+    gestors_cobertures=None,
+    dia_escolar=None,
 ) -> dict:
     """Deixa el professor absent (ABSENCIA) i de servei (SERVEI) exactament a
     les hores donades; None vol dir que aquell tipus no es toca. `gestors`:
@@ -78,7 +86,7 @@ def desa_absencies(
                 SubstitucioRepository.delete(db, int(sub["id"]))
         if hores_vigilant:
             for hora_vigilant in hores_vigilant:
-                refresca_cobertures(data, hora_vigilant, db)
+                refresca_cobertures(data, hora_vigilant, db, gestors=gestors_cobertures)
 
         # Afegir hores noves d'aquest tipus
         if hores_a_afegir_tipus:
@@ -146,7 +154,7 @@ def desa_absencies(
     sincronitzar_vigilancies_absents(db, data, professor, subs_finals, totes_hores_noves)
 
     # Qui ara és absent no pot continuar fent de substitut a aquelles hores.
-    trets = [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data)]
+    trets = [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data, dia_escolar)]
 
     return {
         "substituts_trets": trets,

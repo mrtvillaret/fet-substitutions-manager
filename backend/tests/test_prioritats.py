@@ -4,18 +4,14 @@ Tests per al mòdul prioritats (prioritats/):
 - carrega_prioritats: reconstrueix ORDRE_PRIORITATS/PRIORITATS/
   CATEGORIES_ACTIVES/NO_SUBST/GENERA_ENCADENADES a
   config.constants llegint-les de la BD. Alimenta directament la lògica
-  d'assignació de core/substitucions.py i core/vigilancia_core.py — és la
+  d'assignació de substitucions/assignacio.py i core/vigilancia_core.py — és la
   peça de més risc real d'aquest mòdul, perquè si trenca, l'assignació
   automàtica es trenca en silenci sense que cap altre test ho detecti.
 
 - CRUD de no-substituir i «Desar tot» (categories i
   assignatures):
-  es criden les funcions dels endpoints directament amb asyncio.run (el
-  projecte no fa servir pytest-asyncio i cap d'aquestes funcions té `await`
-  real dins seu, només crides síncrones a SQLAlchemy).
+  es criden les funcions dels endpoints directament (són síncrones).
 """
-
-import asyncio
 
 import pytest
 
@@ -31,11 +27,6 @@ from prioritats.router import (
 )
 from prioritats.schemas import NoSubstituirRequest, PrioritatsRequest
 from prioritats.services import carrega_prioritats
-
-
-def run(coro):
-    return asyncio.run(coro)
-
 
 # ===================================================================
 # carrega_prioritats
@@ -140,8 +131,8 @@ def test_recarrega_categoria_sense_assignatures_dona_llista_buida_en_ordre(db_se
 
 
 def test_crud_no_substituir_creat_apareix_a_get(db_session):
-    run(create_no_substituir(NoSubstituirRequest(assignatura="Pati"), db_session))
-    resposta = run(get_no_substituir(db_session))
+    create_no_substituir(NoSubstituirRequest(assignatura="Pati"), db_session)
+    resposta = get_no_substituir(db_session)
     assert "Pati" in resposta["assignatures"]
 
 
@@ -149,7 +140,7 @@ def test_crud_no_substituir_string_buit_es_accepta(db_session):
     """El codi accepta explícitament un string buit com a valor vàlid
     (comentari 'Acceptar string buit' a create_no_substituir) — es
     caracteritza tal com és, per estrany que sembli."""
-    resultat = run(create_no_substituir(NoSubstituirRequest(assignatura=""), db_session))
+    resultat = create_no_substituir(NoSubstituirRequest(assignatura=""), db_session)
     assert resultat["success"] is True
 
 
@@ -157,12 +148,12 @@ def test_crud_no_substituir_sense_clau_assignatura_dona_400(db_session):
     """Sense assignatura, un NoValid (400 per l'API, errors_servidor.py);
     abans un except Exception genèric l'atrapava i la convertia en 500."""
     with pytest.raises(NoValid, match="Assignatura requerida"):
-        run(create_no_substituir(NoSubstituirRequest(), db_session))
+        create_no_substituir(NoSubstituirRequest(), db_session)
 
 
 def test_crud_no_substituir_delete_inexistent_dona_404(db_session):
     with pytest.raises(NoTrobat):
-        run(delete_no_substituir("No existeix enlloc", db_session))
+        delete_no_substituir("No existeix enlloc", db_session)
 
 
 # ===================================================================
@@ -181,10 +172,10 @@ def test_desar_tot_reemplaca_categories_existents(db_session):
         pesos={"Reforç-A": 1, "Guàrdia": 6, "Guàrdia-R": 3},
         categories_actives=[True, False],
     )
-    resultat = run(desar_totes_prioritats(payload, db_session))
+    resultat = desar_totes_prioritats(payload, db_session)
     assert resultat["success"] is True
 
-    categories = run(get_categories(db_session))["categories"]
+    categories = get_categories(db_session)["categories"]
     noms = [c["nom"] for c in categories]
     assert "Vella" not in noms
     assert len(categories) == 2
@@ -196,7 +187,7 @@ def test_desar_tot_recarrega_les_constants_globals(db_session):
         pesos={"Reforç-A": 1},
         categories_actives=[True],
     )
-    run(desar_totes_prioritats(payload, db_session))
+    desar_totes_prioritats(payload, db_session)
 
     # carrega_prioritats() s'ha cridat internament: les
     # constants globals han de reflectir el que s'acaba de desar.
@@ -210,9 +201,9 @@ def test_desar_tot_categoria_amb_una_sola_assignatura_pren_el_seu_nom(db_session
         pesos={"Sol": 1},
         categories_actives=[True],
     )
-    run(desar_totes_prioritats(payload, db_session))
+    desar_totes_prioritats(payload, db_session)
 
-    categories = run(get_categories(db_session))["categories"]
+    categories = get_categories(db_session)["categories"]
     assert categories[0]["nom"] == "Sol"
 
 
@@ -225,9 +216,9 @@ def test_desar_tot_categoria_amb_diverses_assignatures_concatena_les_dues_primer
         pesos={"Un": 1, "Dos": 1, "Tres": 1},
         categories_actives=[True],
     )
-    run(desar_totes_prioritats(payload, db_session))
+    desar_totes_prioritats(payload, db_session)
 
-    categories = run(get_categories(db_session))["categories"]
+    categories = get_categories(db_session)["categories"]
     assert categories[0]["nom"] == "Un, Dos"
 
 
@@ -239,9 +230,9 @@ def test_desar_tot_categoria_buida_a_ordre_categories_es_salta(db_session):
         pesos={"Real": 1},
         categories_actives=[True, True],
     )
-    run(desar_totes_prioritats(payload, db_session))
+    desar_totes_prioritats(payload, db_session)
 
-    categories = run(get_categories(db_session))["categories"]
+    categories = get_categories(db_session)["categories"]
     assert len(categories) == 1
     assert categories[0]["nom"] == "Real"
 

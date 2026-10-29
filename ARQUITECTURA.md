@@ -61,12 +61,15 @@
 │  ├── prioritats/         → categories i pesos, «No substituir» i │
 │  │                         la càrrega a memòria; de pas, les     │
 │  │                         activitats alliberables               │
-│  └── absencia_coberta/   → absències cobertes (abans «baixes»):  │
-│                            l'horari del dia ja no té l'absent    │
+│  ├── absencia_coberta/   → absències cobertes (abans «baixes»):  │
+│  │                         l'horari del dia ja no té l'absent    │
+│  ├── vigilancies/        → vigilàncies: assignació per hora,     │
+│  │                         ordre desat, ajuda del vigilant       │
+│  └── substitucions/      → absències, substitucions, encadenades,│
+│                            generació (assignacio.py), regles del │
+│                            dia (domain.py) i cobertures          │
 │                                                                  │
 │  CAPA DE ROUTES (/api/*) — estructura antiga, es va migrant      │
-│  ├── substitucions.py    → absències, substitucions, reassignar  │
-│  ├── vigilancies.py      → CRUD vigilàncies                      │
 │  ├── disponibles.py      → professors disponibles/forat          │
 │  ├── estadistiques.py    → recomptes i estadístiques             │
 │  ├── informes.py         → PDF informe direcció/professors       │
@@ -94,30 +97,18 @@
 │  ├── dia.py             ← Dia: una data d'un centre i el seu     │
 │  │                        horari XML (versió vigent aquell dia)  │
 │  ├── publicacio_examens.py ← publicar l'horari d'exàmens         │
-│  ├── dia_escolar.py     ← DiaEscolar: l'estat d'un dia llegit un │
-│  │                        cop; motius_substitut i                │
-│  │                        substituts_no_valids (regla única)     │
-│  ├── generacio.py       ← «Genera pendents» / «Regenera tot»     │
-│  ├── absencies.py       ← marcar o treure absències d'un dia     │
-│  ├── cobertures.py      ← files que cobreixen la classe d'un     │
-│  │                        vigilant i de vigilant absent          │
-│  ├── validacions_pdf.py ← conflictes i avisos abans del PDF      │
-│  ├── prioritat.py       ← hi ha un substitut de més prioritat?   │
-│  ├── baixes.py          ← què es treu en desar una baixa         │
-│  └── vigilancia_absent.py ← files de vigilant absent             │
+│  └── validacions_pdf.py ← conflictes i avisos abans del PDF      │
 │                                                                  │
 │  CAPA DE LÒGICA DE NEGOCI                                        │
 │  ├── horari_web.py                ← GestorHorariWeb (parser XML  │
 │  │                                  FET + abreviatures BD;       │
 │  │                                  singleton via helpers.       │
 │  │                                  get_horari())                │
-│  ├── core/substitucions.py        ← motor d'assignació automàtica│
 │  ├── core/alliberats.py           ← grups, professors i          │
 │  │                                  activitats alliberats;       │
 │  │                                  sense_classe (qui no té      │
 │  │                                  classe a una hora)           │
 │  ├── core/absencies.py            ← filtre absències reals       │
-│  ├── core/baixes.py               ← professors_de_baixa          │
 │  ├── core/vigilancia_core.py      ← lògica vigilàncies           │
 │  └── core/vigilancia_assignacio.py                               │
 │                                                                  │
@@ -249,7 +240,31 @@ d'usuaris de l'admin i el superadmin) i `prioritats/` (categories i pesos de
 prioritat, «No substituir» i la seva càrrega a memòria, `carrega_prioritats`;
 les rutes de les activitats alliberables hi són de pas fins que es migri el
 mòdul de grups) i `absencia_coberta/` (abans «baixes»: `/api/absencies-cobertes`,
-i el punt únic que treu l'absent de l'horari de cada data).
+i el punt únic que treu l'absent de l'horari de cada data), `vigilancies/` i
+`substitucions/` (absències, substitucions, encadenades i cobertures; el motor
+d'assignació és a `assignacio.py`, les regles del dia —`DiaEscolar`— a
+`domain.py`, i les consultes i la presentació del llistat a `_consultes.py`).
+
+### Transaccions de substitucions
+
+Cada acció de l'usuari que escriu substitucions és una sola transacció. Els
+mètodes de mutació de `substitucions/repositories.py` fan `flush()` per obtenir
+identificadors i detectar errors, però no fan `commit()`. El límit és al servei
+que orquestra l'operació: generar, desar absències, assignar a mà i reassignar
+confirmen només després d'actualitzar encadenades i cobertures.
+
+Els consumidors externs conserven el mateix contracte: els serveis de
+`vigilancies/` i `absencia_coberta/`, les rutes encara no migrades de
+`routes/grups.py` i la publicació de `routes/scheduler.py` reconcilien les
+substitucions abans del seu únic `commit()`. Una excepció desfà tant el canvi
+principal com els derivats; els errors interns arriben a la pantalla amb la
+referència de `errors_servidor.py`.
+
+«Reassigna» és l'única excepció deliberada: la reassignació bàsica forma part
+de la transacció principal, però la millora opcional segons les prioritats
+s'executa dins d'un savepoint (`db.begin_nested()`). Si aquesta millora falla,
+se'n desfan tots els canvis parcials, es conserva la base coherent i es retorna
+l'avís perquè l'usuari ho revisi.
 
 ## Desplegament
 
@@ -314,10 +329,10 @@ Les decisions de negoci viuen en un sol lloc i les fan servir totes les parts
 ## Generar les substitucions d'un dia
 
 ```
-routes/substitucions.py  POST /api/substitucions/{data}/generar
-  └── serveis/generacio.genera_substitucions_dia
+substitucions/router.py  POST /api/substitucions/{data}/generar
+  └── substitucions/generacio.genera_substitucions_dia
         ├── llegeix_estat        absències, alliberats i vigilants de la BD
-        ├── core/substitucions   GestorSubstitucions.assignar_substitucions
+        ├── substitucions/assignacio   GestorSubstitucions.assignar_substitucions
         ├── _esborra             tot (menys vigilant absent) o només pendents
         ├── _desa_files_motor    cobertures de vigilància, files noves
         ├── _desa_hores_sense_substitucio

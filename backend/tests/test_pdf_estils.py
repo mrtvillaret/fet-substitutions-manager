@@ -10,7 +10,8 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, streams_pdf, text_pdf
 
 from rate_limit import limiter
-from routes import pdf, substitucions
+from routes import pdf
+from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(pdf.router, substitucions.router, vigilancies_router)

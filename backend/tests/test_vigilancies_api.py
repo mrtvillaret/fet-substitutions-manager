@@ -22,7 +22,7 @@ from database import get_data_db_session
 from models import ConfiguracioExamen
 from rate_limit import limiter
 from repositories import GrupsAlliberatsRepository
-from routes import substitucions
+from substitucions import router as substitucions
 from vigilancies import services
 from vigilancies.router import router as vigilancies_router
 
@@ -249,6 +249,7 @@ def test_qui_passa_a_vigilant_deixa_la_substitucio_de_la_mateixa_hora(client):
 def test_disponibles_classifica_cada_professor_segons_el_que_fa(client, centre):
     with get_data_db_session(centre) as db:
         GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        db.commit()
     _absent(client, "Prof 28")
     disp = _disponibles(client)
     assert disp["Prof 15"]["estat"] == "ALLIBERAT"  # el seu grup no té classe
@@ -260,6 +261,7 @@ def test_disponibles_classifica_cada_professor_segons_el_que_fa(client, centre):
 def test_disponibles_ordena_primer_els_alliberats_i_despres_els_de_guardia(client, centre):
     with get_data_db_session(centre) as db:
         GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        db.commit()
     ordre = [d["value"] for d in client.get(f"{URL}/10:00/disponibles").json()]
     assert ordre[:4] == ["Prof 15", "Prof 21", "Prof 28", "Prof 3"]
 
@@ -311,6 +313,7 @@ def test_l_ajuda_diu_la_classe_i_les_vigilancies_de_l_hora_i_del_dia(client):
 def test_l_ajuda_fa_servir_la_mateixa_regla_que_els_disponibles(client, centre):
     with get_data_db_session(centre) as db:
         GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        db.commit()
     _absent(client, "Prof 28")
     disponibles = _disponibles(client)
     for nom, estat in (
@@ -400,6 +403,7 @@ def test_assignar_pendents_sense_disponibles_nomes_fa_servir_alliberats(client):
 def test_assignar_pendents_amb_alliberats(client, centre):
     with get_data_db_session(centre) as db:
         GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        db.commit()
     _crea(client)
     assert client.post(f"{URL}/assign/pendents").json()["assigned_count"] == 1
     assert _vigilants(client) == {"2-BAT-A": "Prof 15"}

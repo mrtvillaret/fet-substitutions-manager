@@ -25,11 +25,10 @@ from suport_api import (
 from database import get_data_db_session
 from horari_web import GestorHorariWeb
 from rate_limit import limiter
-from repositories import (
-    GrupsAlliberatsRepository,
-    SubstitucioRepository,
-)
-from routes import pdf, substitucions
+from repositories import GrupsAlliberatsRepository
+from routes import pdf
+from substitucions import router as substitucions
+from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 from vigilancies.router import router as vigilancies_router
 
@@ -63,6 +62,7 @@ def client(centre):
 def _sense_classe(centre, grups):
     with get_data_db_session(centre) as db:
         GrupsAlliberatsRepository.set_for_date(db, DATA, {HORA: grups})
+        db.commit()
 
 
 def _examen(centre, grups, vigilant=""):
@@ -92,6 +92,7 @@ def _prof_26_substitut(client, centre):
     with get_data_db_session(centre) as db:
         fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f["hora"] == HORA)
         SubstitucioRepository.update(db, int(fila["id"]), {"substitut": PROFESSOR})
+        db.commit()
 
 
 def _avisos(client):

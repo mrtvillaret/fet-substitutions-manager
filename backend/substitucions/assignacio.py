@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 # Evitem imports estàtics per no quedar-nos amb valors stale
 from core.alliberats import sense_classe
-from core.encadenades import activitat_encadenada
+from substitucions.encadenades import activitat_encadenada
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +62,7 @@ class GestorSubstitucions:
         self.grups_sense_classe_dict = {}
         self.substitucions_existents = {}
         self.omplir = True  # False: no es tria cap substitut nou
+        self.avisos = []
 
     def assignar_substitucions(
         self,
@@ -83,6 +84,7 @@ class GestorSubstitucions:
                 no s'assigna ningú sense que l'usuari ho demani)
         """
         self.omplir = omplir
+        self.avisos = []
         import logging
 
         logger = logging.getLogger(__name__)
@@ -306,6 +308,9 @@ class GestorSubstitucions:
 
         except Exception:
             log.warning("No s'han pogut generar les substitucions dels vigilants", exc_info=True)
+            self.avisos.append(
+                "No s'han pogut generar les cobertures de classe dels vigilants. Revisa les substitucions pendents."
+            )
             return []
 
     def _assignar_substitucions_per_hora(

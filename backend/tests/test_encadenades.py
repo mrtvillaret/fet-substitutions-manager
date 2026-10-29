@@ -21,7 +21,8 @@ from database import get_data_db_session
 from models import Substitucio
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import grups, substitucions
+from routes import grups
+from substitucions import router as substitucions
 
 APP = crea_app()
 APP.include_router(prioritats_router, dependencies=[Depends(require_admin)])  # com a main.py
@@ -228,7 +229,7 @@ def test_la_resposta_diu_si_han_canviat_les_encadenades(centre):
 
 def test_l_ordre_posa_cada_encadenada_sota_la_seva_substitucio():
     # El de la pantalla i el PDF (SubstitucioRepository.ordena)
-    from repositories import SubstitucioRepository
+    from substitucions.repositories import SubstitucioRepository
 
     def fila(hora, absent, grup, substitut="", tipus="ABSENCIA"):
         return {"hora": hora, "professor_absent": absent, "grup": grup, "substitut": substitut, "tipus_absencia": tipus}

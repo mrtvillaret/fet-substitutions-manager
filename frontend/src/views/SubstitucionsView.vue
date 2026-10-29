@@ -70,10 +70,12 @@
         :files="substitucionsFiltrades"
         :data="dataISO"
         :disponibles-de="disponiblesDe"
+        :ordre="ordreFiles"
         :carregant="loading"
         @canvi="canviaCamp"
         @edita="editarAbsenciesProfessor"
         @esborra="esborraAbsenciesDeFila"
+        @canvia-ordre="canviaOrdre"
       />
     </div>
 
@@ -570,12 +572,33 @@ const datesDelRang = computed(() => {
 })
 
 // Mètodes
+// L'ordre dins de cada hora ('curs' o 'professor'): el mateix a la pantalla i
+// al PDF (l'ordena el backend). Es recorda al navegador de cada usuari.
+const CLAU_ORDRE = 'substitucions_ordre'
+const llegeixOrdre = () => {
+  try {
+    return localStorage.getItem(CLAU_ORDRE) === 'professor' ? 'professor' : 'curs'
+  } catch {
+    return 'curs'
+  }
+}
+const ordreFiles = ref(llegeixOrdre())
+const canviaOrdre = (ordre) => {
+  ordreFiles.value = ordre
+  try {
+    localStorage.setItem(CLAU_ORDRE, ordre)
+  } catch {
+    // Sense el navegador per recordar-ho: només per a aquesta visita
+  }
+  carregarSubstitucions()
+}
+
 const carregarSubstitucions = async () => {
   loading.value = true
   try {
     // Carregar en paral·lel: substitucions (filtrades) i totes les absències
     const [responseFiltrades, responseTotes] = await Promise.all([
-      axios.get(`/api/substitucions/${dataISO.value}`),
+      axios.get(`/api/substitucions/${dataISO.value}`, { params: { ordre: ordreFiles.value } }),
       axios.get(`/api/substitucions/${dataISO.value}?include_all=true`)
     ])
 
@@ -732,6 +755,15 @@ const carregarHores = async () => {
   }
 }
 
+const mostrarAvisos = (avisos) => {
+  if (!Array.isArray(avisos) || avisos.length === 0) return
+  toast.add({
+    severity: 'warn',
+    summary: t('substitutions.messages.operationWarnings'),
+    detail: avisos.join('\n')
+  })
+}
+
 const mostrarResultatGeneracio = (data, summary = null) => {
   const { message, pendents, pendents_detall } = data
   const summaryText = summary ?? t('common.generated')
@@ -750,6 +782,7 @@ const mostrarResultatGeneracio = (data, summary = null) => {
       life: 12000
     })
   }
+  mostrarAvisos(data.avisos)
 }
 
 const generarPendents = async () => {
@@ -830,13 +863,14 @@ const desarSubstitut = async (substitucio, moure = false) => {
     const data = dataISO.value
     const response = await axios.put(
       `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
-      { substitut: substitucio.substitut, updated_at: substitucio.updated_at, moure },
+      { id: substitucio.id, substitut: substitucio.substitut, updated_at: substitucio.updated_at, moure },
       { _silent: true }
     )
 
     if (response.data?.updated_at) {
       substitucio.updated_at = response.data.updated_at
     }
+    mostrarAvisos(response.data?.avisos)
 
     // Actualitzar estat
     substitucio.estat = substitucio.substitut ? 'assignada' : 'pendent'
@@ -878,15 +912,17 @@ const desarSubstitut = async (substitucio, moure = false) => {
       const currentData = error.response.data.detail.current_data
       obrirDialogConflicte(async () => {
         const data = dataISO.value
-        await axios.put(
+        const response = await axios.put(
           `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
           {
+            id: substitucio.id,
             substitut: substitucio.substitut,
             updated_at: currentData.updated_at,
             force: true,
             moure
           }
         )
+        mostrarAvisos(response.data?.avisos)
         await carregarSubstitucions()
       })
       return
@@ -913,6 +949,7 @@ const actualitzarComentari = async (substitucio) => {
     const response = await axios.put(
       `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
       {
+        id: substitucio.id,
         substitut: substitucio.substitut,
         comentaris: substitucio.comentaris,
         updated_at: substitucio.updated_at
@@ -923,6 +960,7 @@ const actualitzarComentari = async (substitucio) => {
     if (response.data?.updated_at) {
       substitucio.updated_at = response.data.updated_at
     }
+    mostrarAvisos(response.data?.avisos)
 
     toast.add({
       severity: 'success',
@@ -936,15 +974,17 @@ const actualitzarComentari = async (substitucio) => {
       const currentData = error.response.data.detail.current_data
       obrirDialogConflicte(async () => {
         const data = dataISO.value
-        await axios.put(
+        const response = await axios.put(
           `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
           {
+            id: substitucio.id,
             substitut: substitucio.substitut,
             comentaris: substitucio.comentaris,
             updated_at: currentData.updated_at,
             force: true
           }
         )
+        mostrarAvisos(response.data?.avisos)
         await carregarSubstitucions()
       })
       return
@@ -1403,7 +1443,8 @@ const generarPDFAmbOpcions = async () => {
       include_substitutions: pdfConfig.value.includeSubstitutions,
       include_vigilancies: pdfConfig.value.includeVigilancies,
       show_conflicts: pdfConfig.value.showConflicts,
-      blank_rows: pdfConfig.value.blankRows
+      blank_rows: pdfConfig.value.blankRows,
+      ordre: ordreFiles.value // el mateix ordre que la pantalla
     })
 
     const url = `/api/pdf/complete/${dataISO.value}?${params.toString()}`
@@ -1465,6 +1506,7 @@ const reassignarProblematics = async () => {
     const canvis = []
     if (pdfConfig.value.includeSubstitutions) {
       const respSubs = await axios.post(`/api/substitucions/${dataISO.value}/reassign-problematics`)
+      mostrarAvisos(respSubs.data?.avisos)
       if (Array.isArray(respSubs?.data?.changes)) {
         respSubs.data.changes.forEach(change => {
           const meta = [change.professor_absent, change.assignatura, change.grup]

@@ -14,7 +14,8 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth.dependencies import get_current_user, require_admin
 from rate_limit import limiter
-from routes import estadistiques, pdf, substitucions
+from routes import estadistiques, pdf
+from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 
 ROUTES = Path(__file__).resolve().parent.parent / "routes"

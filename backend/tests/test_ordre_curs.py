@@ -8,7 +8,7 @@ i els PDF, que fan servir aquestes dues.
 import pytest
 
 from ordre_curs import clau_curs
-from repositories import SubstitucioRepository
+from substitucions.repositories import SubstitucioRepository
 from vigilancies.services import clau_automatica
 
 
@@ -63,3 +63,28 @@ def test_vigilancies_per_curs_aula_i_creacio():
         {"id": 5, "nivell": "", "grups": "1-BATX-A", "aula": ""},
     ]
     assert [v["id"] for v in sorted(vigs, key=clau_automatica)] == [5, 2, 4, 3, 1]
+
+
+@pytest.mark.parametrize(
+    "ordre, esperat",
+    [
+        ("curs", ["Prof 3", "Prof 7", "Prof 9", "Prof 2"]),  # 2-BATX-A, 1-ESO-A, 4-ESO-A
+        ("professor", ["Prof 2", "Prof 3", "Prof 7", "Prof 9"]),
+    ],
+)
+def test_tots_dos_ordres_amb_l_encadenada_sota_la_seva_substitucio(ordre, esperat):
+    # Prof 7 fa una guàrdia i substitueix Prof 3: la seva encadenada (pendent) va
+    # just a sota de la substitució de Prof 3, en tots dos ordres
+    files = [
+        {"hora": "10:00", "professor_absent": "Prof 9", "grup": "1-ESO-A"},
+        {"hora": "10:00", "professor_absent": "Prof 7", "grup": "", "tipus_absencia": "ENCADENADA"},
+        {"hora": "10:00", "professor_absent": "Prof 3", "grup": "2-BATX-A", "substitut": "Prof 7"},
+        {"hora": "10:00", "professor_absent": "Prof 2", "grup": "4-ESO-A"},
+    ]
+    ordenades = SubstitucioRepository.ordena(files, ["10:00"], ordre=ordre)
+    assert [f["professor_absent"] for f in ordenades] == esperat
+
+
+def test_un_ordre_desconegut_no_s_accepta():
+    with pytest.raises(ValueError):
+        SubstitucioRepository.ordena([], [], ordre="nom")

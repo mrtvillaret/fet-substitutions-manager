@@ -17,7 +17,8 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
-from routes import grups, substitucions
+from routes import grups
+from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(grups.router, substitucions.router, vigilancies_router)

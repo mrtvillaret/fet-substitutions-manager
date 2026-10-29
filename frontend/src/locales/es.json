@@ -605,6 +605,7 @@
       "reassignSubstitutionsDetail": "Se ha revisado {count} sustitución problemática | Se han revisado {count} sustituciones problemáticas",
       "reassignDoneTitle": "Reasignación hecha",
       "reassignDoneDetail": "Todavía hay incidencias. Revisa la lista.",
+      "operationWarnings": "La operación ha terminado con avisos",
       "substituteMoved": "{name} se ha movido aquí; la sustitución de {absent} ha quedado pendiente"
     },
     "senseCobertura": "Sin cobertura",
@@ -629,7 +630,9 @@
       "vigilancia": "vigila un examen"
     },
     "table": {
-      "rowsInBlock": "{count} sustitución | {count} sustituciones"
+      "rowsInBlock": "{count} sustitución | {count} sustituciones",
+      "sortByCourse": "Ordena por curso",
+      "sortByTeacher": "Ordena por profesor ausente"
     }
   },
   "examConfig": {

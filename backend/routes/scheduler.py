@@ -859,11 +859,12 @@ async def scheduler_publicar(payload: SchedulerPublicarRequest, current_user=Dep
         if dry_run or resum.errors:
             db.rollback()
         else:
-            db.commit()
-            from serveis.cobertures import refresca_cobertures
+            db.flush()
+            from substitucions.cobertures import refresca_cobertures
 
             for data_iso, hora in sorted(resum.hores_esborrades):
                 refresca_cobertures(data_iso, hora, db)
+            db.commit()
 
     return {
         "success": len(resum.errors) == 0,

@@ -1,5 +1,5 @@
 """
-serveis/prioritat.py: si per a un substitut assignat hi ha un disponible de
+substitucions/prioritat.py: si per a un substitut assignat hi ha un disponible de
 més prioritat, el PDF n'avisa i «Reassignar problemàtics» el canvia.
 
 Dilluns 20/04/2026 a les 10:00: Prof 15 fa Anglès (3-ESO-A), Prof 3 fa guàrdia,
@@ -14,7 +14,8 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
 
 from rate_limit import limiter
-from routes import grups, pdf, substitucions
+from routes import grups, pdf
+from substitucions import router as substitucions
 
 APP = crea_app(substitucions.router, grups.router, pdf.router)
 DATA = "2026-04-20"

@@ -18,7 +18,8 @@ from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import horari, substitucions
+from routes import horari
+from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(substitucions.router, vigilancies_router, prioritats_router, absencia_coberta_router)
@@ -152,9 +153,9 @@ def test_no_es_pot_marcar_absent_un_professor_de_baixa(client):
         f"/api/substitucions/{FUTUR}/absencies/Prof 15", json={"hores_absencia": ["10:00"], "updated_at_map": {}}
     )
     assert resp.status_code == 400 and "té una absència coberta" in resp.json()["detail"]
-    resp = client.post(
-        f"/api/substitucions/{FUTUR}/nova",
-        json={"professor": "Prof 15", "hores": ["10:00"], "tipus_absencia": "ABSENCIA"},
+    resp = client.put(
+        f"/api/substitucions/{FUTUR}/absencies/Prof 15",
+        json={"hores_absencia": ["10:00"], "updated_at_map": {}},
     )
     assert resp.status_code == 400 and "té una absència coberta" in resp.json()["detail"]
     assert not any(s["professor_absent"] == "Prof 15" for s in _files(client, FUTUR))
@@ -164,6 +165,21 @@ def test_no_es_pot_marcar_absent_un_professor_de_baixa(client):
         f"/api/substitucions/{FUTUR}/absencies/Prof 15", json={"hores_absencia": [], "updated_at_map": {}}
     )
     assert resp.status_code == 200, resp.text
+
+
+def test_no_es_pot_assignar_a_ma_un_substitut_amb_absencia_coberta(client):
+    _baixa(client, FUTUR, FUTUR)
+    _absencia(client, FUTUR, "Prof 15", ["10:00"])
+    fila = next(s for s in _files(client, FUTUR) if s["hora"] == "10:00" and s["professor_absent"] == "Prof 15")
+
+    resp = client.put(
+        f"/api/substitucions/{FUTUR}/10:00/Prof 15",
+        json={"substitut": "Prof 3", "updated_at": fila["updated_at"]},
+    )
+
+    assert resp.status_code == 400
+    assert resp.json() == {"detail": "❌ Prof 3 té una ABSÈNCIA COBERTA aquell dia!"}
+    assert _substitut_de_prof_15(client, FUTUR) == ""
 
 
 def test_la_llista_de_professors_dona_a_part_qui_te_una_absencia_coberta_aquell_dia(client):

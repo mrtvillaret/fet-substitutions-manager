@@ -1,8 +1,9 @@
 <template>
   <!-- Les substitucions del dia, agrupades per hores (com Vigilàncies), en
        l'ordre de l'API, el mateix que el PDF (SubstitucioRepository.ordena):
-       per curs i professor absent, i cada encadenada sota la substitució que
-       la provoca. Sense paginació ni ordenació per columnes. -->
+       dins de cada hora, per curs o per professor absent (es canvia a la
+       capçalera «Professor absent»), i cada encadenada sota la substitució
+       que la provoca. Sense paginació. -->
   <div class="taula-substitucions taula-dades" :class="{ 'taula-substitucions--carregant': carregant }" :aria-busy="carregant">
     <!-- Un sol gestor per a tota la taula: el toc d'una fila (pantalles tàctils) -->
     <table @click="tocaTaula">
@@ -19,9 +20,34 @@
       <thead>
         <tr>
           <th>{{ $t('common.hour') }}</th>
-          <th>{{ $t('substitutions.columns.absentTeacher') }}</th>
+          <th>
+            <!-- L'ordre dins de cada hora: cada capçalera ordena per ella mateixa -->
+            <button
+              type="button"
+              class="taula-substitucions__ordre"
+              :title="$t('substitutions.table.sortByTeacher')"
+              :aria-label="$t('substitutions.table.sortByTeacher')"
+              :aria-pressed="ordre === 'professor'"
+              @click="emit('canvia-ordre', 'professor')"
+            >
+              {{ $t('substitutions.columns.absentTeacher') }}
+              <i class="pi" :class="ordre === 'professor' ? 'pi-sort-alpha-down taula-substitucions__ordre--actiu' : 'pi-sort-alt'" aria-hidden="true"></i>
+            </button>
+          </th>
           <th>{{ $t('common.subject') }}</th>
-          <th>{{ $t('common.group') }}</th>
+          <th>
+            <button
+              type="button"
+              class="taula-substitucions__ordre"
+              :title="$t('substitutions.table.sortByCourse')"
+              :aria-label="$t('substitutions.table.sortByCourse')"
+              :aria-pressed="ordre === 'curs'"
+              @click="emit('canvia-ordre', 'curs')"
+            >
+              {{ $t('common.group') }}
+              <i class="pi" :class="ordre === 'curs' ? 'pi-sort-amount-down-alt taula-substitucions__ordre--actiu' : 'pi-sort-alt'" aria-hidden="true"></i>
+            </button>
+          </th>
           <th>{{ $t('substitutions.columns.substitute') }}</th>
           <th>{{ $t('common.comments') }}</th>
           <th>{{ $t('common.status') }}</th>
@@ -72,12 +98,14 @@ const props = defineProps({
   files: { type: Array, required: true }, // les substitucions que es veuen
   data: { type: String, required: true },
   disponiblesDe: { type: Function, required: true }, // fila -> opcions del substitut
+  ordre: { type: String, default: 'curs' }, // dins de cada hora: 'curs' o 'professor'
   carregant: { type: Boolean, default: false } // es recarrega: la taula es queda, difuminada
 })
-// canvi(fila, camp, valor) · edita(fila) · esborra(fila)
-const emit = defineEmits(['canvi', 'edita', 'esborra'])
+// canvi(fila, camp, valor) · edita(fila) · esborra(fila) · canvia-ordre(ordre)
+const emit = defineEmits(['canvi', 'edita', 'esborra', 'canvia-ordre'])
 
 const { t } = useI18n()
+
 
 // La substitució no té id: l'hora, el professor absent i la classe la identifiquen
 const clauDe = (fila) => [fila.hora, fila.professor_absent, fila.assignatura, fila.grup].join('|')
@@ -152,6 +180,31 @@ table {
 /* Pantalles tàctils: les accions surten en tocar la fila (AccionsFila) */
 @media (hover: none) {
   .col-accions { width: 0; }
+}
+
+/* La capçalera que canvia l'ordre: com el text de la capçalera, amb la icona */
+.taula-substitucions__ordre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.taula-substitucions__ordre .pi {
+  color: #9ca3af;
+  font-size: 0.8rem;
+}
+
+.taula-substitucions__ordre--actiu,
+.taula-substitucions__ordre .taula-substitucions__ordre--actiu {
+  color: var(--primary-color, #6366f1);
+  font-size: 0.8rem;
 }
 
 thead th {

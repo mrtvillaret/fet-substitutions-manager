@@ -1,5 +1,5 @@
 """
-Tests de core/substitucions.py: la lògica d'assignació automàtica de
+Tests de substitucions/assignacio.py: la lògica d'assignació automàtica de
 substituts (GestorSubstitucions i CandidateValidator). No toca cap base
 de dades ni sistema real — els tres col·laboradors (horari, alliberats,
 absencies) es simulen amb fakes lleugers perquè els tests siguin ràpids
@@ -16,7 +16,7 @@ que algun d'aquests comportaments no sigui ideal.
 import random
 
 from config import constants
-from core.substitucions import CandidateValidator, GestorSubstitucions
+from substitucions.assignacio import CandidateValidator, GestorSubstitucions
 
 
 class FakeHorari:
@@ -574,7 +574,7 @@ def test_mateix_professor_absent_a_diverses_hores_es_resol_independentment(monke
     assert per_hora["10:00"].get("substitut", "") == ""
 
 
-# ----- _generar_substitucions_vigilants (inclòs el silenci d'excepcions) -----
+# ----- _generar_substitucions_vigilants (inclòs l'avís d'excepcions) -----
 
 
 def test_vigilant_amb_classe_real_genera_substitucio_de_vigilancia():
@@ -642,10 +642,10 @@ class _HorariQueTrenca(FakeHorari):
         raise RuntimeError("error simulat d'horari")
 
 
-def test_generar_substitucions_vigilants_silencia_excepcions_internes():
+def test_generar_substitucions_vigilants_avisa_d_excepcions_internes(caplog):
     """Si `horari.get_activitat` peta, `_generar_substitucions_vigilants`
-    ho registra al log i retorna una llista buida: la generació de la resta
-    de substitucions no s'atura."""
+    ho registra amb traça, retorna una llista buida i deixa un avís: la
+    generació de la resta de substitucions no s'atura."""
     horari = _HorariQueTrenca(hores=["09:00"])
     gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
@@ -653,6 +653,13 @@ def test_generar_substitucions_vigilants_silencia_excepcions_internes():
     resultat = gestor._generar_substitucions_vigilants("Dilluns")
 
     assert resultat == []
+    assert gestor.avisos == [
+        "No s'han pogut generar les cobertures de classe dels vigilants. Revisa les substitucions pendents."
+    ]
+    assert any(
+        "No s'han pogut generar les substitucions dels vigilants" in record.getMessage() and record.exc_info
+        for record in caplog.records
+    )
 
 
 def test_cobertura_de_vigilant_nomes_mira_els_grups_sense_classe_de_la_seva_hora():

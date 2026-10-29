@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from core.absencies import GestorAbsencies
 from core.alliberats import GestorAlliberats
-from core.substitucions import GestorSubstitucions
 from core.vigilancia_core import VigilanciaCore
 from database import get_data_db_session, get_data_dir_for_institucio
 from horari_web import GestorHorariWeb  # Versió web que llegeix de SQLite
@@ -22,9 +21,10 @@ from repositories import (
     ConfiguracioRepository,
     GrupsAlliberatsRepository,
     ProfessorRepository,
-    SubstitucioRepository,
     XMLVersionRepository,
 )
+from substitucions.assignacio import GestorSubstitucions
+from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
@@ -170,7 +170,7 @@ def _del_dia(horari: GestorHorariWeb, institucio: str, data_iso: str) -> GestorH
         return sense_absents_coberts(horari, absents_coberts(db, data_iso))
 
 
-def get_gestors(institucio: str = None, *, data_iso: str):
+def get_gestors(institucio: str = None, *, data_iso: str, horari=None):
     """Retorna (substitucions, horari, alliberats, absencies) per a una petició.
 
     L'horari surt de la memòria cau (get_horari). Els altres tres gestors es
@@ -178,7 +178,7 @@ def get_gestors(institucio: str = None, *, data_iso: str):
     l'horari) i cada petició hi fixa el seu estat (data, vigilants, grups sense
     classe), que no s'ha de compartir amb cap altra."""
     institucio = institucio or _get_institucio_actual()
-    horari = get_horari(institucio, data_iso=data_iso)
+    horari = horari or get_horari(institucio, data_iso=data_iso)
     alliberats = GestorAlliberats(horari)
     absencies = GestorAbsencies(horari)
     substitucions_mgr = GestorSubstitucions(horari, alliberats, absencies)

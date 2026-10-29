@@ -1,6 +1,6 @@
 """
 Generació automàtica de les substitucions d'un dia: llegeix l'estat del dia de
-la BD, crida el motor (core/substitucions.py) i desa el que en surt.
+la BD, crida el motor (substitucions/assignacio.py) i desa el que en surt.
 
 Dos modes:
 - regenerar tot: s'esborren totes les files del dia (menys les de vigilant
@@ -14,14 +14,12 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from prioritats.repositories import NoSubstituirRepository
-from repositories import (
-    GrupsAlliberatsRepository,
-    SubstitucioRepository,
-)
-from serveis.vigilancia_absent import (
+from repositories import GrupsAlliberatsRepository
+from substitucions.repositories import SubstitucioRepository
+from substitucions.vigilancia_absent import (
     assignar_substituts_pendents as assignar_vigilancies_absents_pendents,
 )
-from serveis.vigilancia_absent import (
+from substitucions.vigilancia_absent import (
     es_vigilancia_absent,
 )
 from vigilancies.repositories import VigilanciaRepository
@@ -71,7 +69,7 @@ def llegeix_estat(db, data: str, horari) -> EstatDia:
             {
                 "assignatura": sub.get("assignatura", ""),
                 "grup": sub.get("grup", ""),
-                "aula": "",
+                "aula": sub.get("aula", ""),
             },
         )
 
@@ -206,7 +204,7 @@ def _desa_hores_sense_substitucio(db, estat: EstatDia, horari, files_motor: list
             )
 
 
-def _resum(db, estat: EstatDia, files_motor: list, regenerar_tot: bool) -> dict:
+def _resum(db, estat: EstatDia, files_motor: list, regenerar_tot: bool, avisos: list[str]) -> dict:
     """Assignades i pendents: les absències, segons el motor (sap quines calen);
     les cobertures de vigilància, segons la BD (totes les que tenen assignatura)."""
     assignades = sum(1 for s in files_motor if s.get("substitut", "").strip())
@@ -249,6 +247,7 @@ def _resum(db, estat: EstatDia, files_motor: list, regenerar_tot: bool) -> dict:
         "pendents": pendents,
         "pendents_detall": pendents_detall,
         "regenerar_tot": regenerar_tot,
+        "avisos": avisos,
     }
 
 
@@ -262,20 +261,17 @@ def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir
     # Les files amb substitut es conserven (només en mode pendents)
     desats = {} if regenerar_tot else {clau_fila(s): s for s in estat.files if s.get("substitut")}
 
-    files_motor = [
-        s
-        for s in substitucions_mgr.assignar_substitucions(
-            dia=estat.dia,
-            absents=estat.absents,
-            grups_sense_classe=estat.grups,
-            professors_ocupats_examens=_ocupats(estat),
-            substitucions_existents=desats,
-            absents_tipus=estat.absents_tipus,
-            activitats_fallback=estat.activitats_fallback,
-            omplir=omplir,
-        )
-        if not s.get("separador")
-    ]
+    resultat_motor = substitucions_mgr.assignar_substitucions(
+        dia=estat.dia,
+        absents=estat.absents,
+        grups_sense_classe=estat.grups,
+        professors_ocupats_examens=_ocupats(estat),
+        substitucions_existents=desats,
+        absents_tipus=estat.absents_tipus,
+        activitats_fallback=estat.activitats_fallback,
+        omplir=omplir,
+    )
+    files_motor = [s for s in resultat_motor if not s.get("separador")]
 
     _esborra(db, data, regenerar_tot)
     _desa_files_motor(db, data, files_motor, desats)
@@ -293,4 +289,4 @@ def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir
             grups_sense_classe=estat.grups,
         )
 
-    return _resum(db, estat, files_motor, regenerar_tot)
+    return _resum(db, estat, files_motor, regenerar_tot, list(getattr(substitucions_mgr, "avisos", [])))

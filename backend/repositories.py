@@ -12,8 +12,6 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
-from ordre_curs import clau_curs, natural
-
 log = logging.getLogger(__name__)
 
 
@@ -36,7 +34,6 @@ try:
         Grup,
         GrupAlliberat,
         Nivell,
-        Substitucio,
         XMLVersion,
     )
 except ImportError:
@@ -52,131 +49,8 @@ except ImportError:
         Grup,
         GrupAlliberat,
         Nivell,
-        Substitucio,
         XMLVersion,
     )
-
-
-class SubstitucioRepository:
-    """Operacions CRUD per substitucions"""
-
-    # L'ordre per mostrar-les (la pantalla i el PDF): per hores i, dins de cada
-    # hora, per curs (ordre_curs.clau_curs: etapa, número, grup) i professor absent; les
-    # files d'un mateix professor i grup, juntes (absència, cobertura de
-    # vigilància...). Cada encadenada, just a sota de la substitució que la
-    # provoca (la del seu professor com a substitut): s'entén millor. No
-    # s'aplica a get_by_date: el motor reparteix els substituts en l'ordre en
-    # què li arriben.
-    _ORDRE_TIPUS = {"VIGILANCIA_ABSENT": 1, "VIGILANCIA": 2}
-
-    @staticmethod
-    def ordena(files: list, hores: list, valor=lambda fila, camp: fila.get(camp)) -> list:
-        """Les files en l'ordre per mostrar-les. `hores`: l'ordre de l'horari
-        (una hora que no hi és, al final). `valor(fila, camp)`: per a files que
-        no són diccionaris (p.ex. models de Pydantic)."""
-
-        def tipus(fila):
-            return (valor(fila, "tipus_absencia") or "").upper()
-
-        def clau(fila):
-            return (
-                clau_curs(valor(fila, "grup")),
-                natural(valor(fila, "professor_absent")),
-                SubstitucioRepository._ORDRE_TIPUS.get(tipus(fila), 0),
-                natural(valor(fila, "assignatura")),
-            )
-
-        posicio = {hora: i for i, hora in enumerate(hores)}
-        per_hora = {}
-        for fila in files:
-            per_hora.setdefault(valor(fila, "hora"), []).append(fila)
-
-        ordenades = []
-        for hora in sorted(per_hora, key=lambda h: (posicio.get(h, len(posicio)), h or "")):
-            files_hora = per_hora[hora]
-            encadenades = sorted(
-                (f for f in files_hora if tipus(f) == "ENCADENADA"),
-                key=lambda f: natural(valor(f, "professor_absent")),
-            )
-            pendents = list(encadenades)
-            for fila in sorted((f for f in files_hora if tipus(f) != "ENCADENADA"), key=clau):
-                ordenades.append(fila)
-                substitut = (valor(fila, "substitut") or "").strip()
-                for encadenada in [e for e in pendents if substitut and valor(e, "professor_absent") == substitut]:
-                    ordenades.append(encadenada)
-                    pendents.remove(encadenada)
-            # Sense la substitució que la provoca (no hauria de passar): al final de l'hora
-            ordenades.extend(pendents)
-        return ordenades
-
-    @staticmethod
-    def get_by_date(db: Session, data: str) -> List[Dict]:
-        """Retorna totes les substitucions d'una data"""
-        subs = db.query(Substitucio).filter(Substitucio.data == parse_date(data)).all()
-
-        return [
-            {
-                "id": str(sub.id),
-                "data": str(sub.data),
-                "hora": sub.hora,
-                "professor_absent": sub.professor_absent,
-                "assignatura": sub.assignatura or "",
-                "grup": sub.grup or "",
-                "aula": sub.aula or "",
-                "substitut": sub.substitut or "",
-                "tipus_substitut": sub.tipus_substitut or "",
-                "tipus_absencia": sub.tipus_absencia or "",
-                "comentaris": sub.comentaris or "",
-                "updated_at": sub.updated_at.isoformat() if sub.updated_at else None,
-            }
-            for sub in subs
-        ]
-
-    @staticmethod
-    def create(db: Session, sub_data: Dict) -> Substitucio:
-        """Crea una nova substitució"""
-        sub = Substitucio(
-            data=parse_date(sub_data["data"]),
-            hora=sub_data["hora"],
-            professor_absent=sub_data["professor_absent"],
-            assignatura=sub_data.get("assignatura", ""),
-            grup=sub_data.get("grup", ""),
-            aula=sub_data.get("aula", ""),
-            substitut=sub_data.get("substitut", ""),
-            tipus_substitut=sub_data.get("tipus_substitut", ""),
-            tipus_absencia=sub_data.get("tipus_absencia", ""),
-            comentaris=sub_data.get("comentaris", ""),
-        )
-        db.add(sub)
-        db.commit()
-        db.refresh(sub)
-        return sub
-
-    @staticmethod
-    def update(db: Session, sub_id: int, updates: Dict) -> Optional[Substitucio]:
-        """Actualitza una substitució"""
-        sub = db.query(Substitucio).filter(Substitucio.id == sub_id).first()
-        if not sub:
-            return None
-
-        for key, value in updates.items():
-            if hasattr(sub, key):
-                setattr(sub, key, value)
-
-        db.commit()
-        db.refresh(sub)
-        return sub
-
-    @staticmethod
-    def delete(db: Session, sub_id: int) -> bool:
-        """Elimina una substitució"""
-        sub = db.query(Substitucio).filter(Substitucio.id == sub_id).first()
-        if not sub:
-            return False
-
-        db.delete(sub)
-        db.commit()
-        return True
 
 
 class ConfiguracioRepository:
@@ -444,7 +318,7 @@ class AlliberamentsPeriodeRepository:
                     alliberat=alliberat,
                 )
             )
-        db.commit()
+        db.flush()
 
     @staticmethod
     def esborra(db: Session, canvi_id: int) -> Optional[Dict]:
@@ -453,7 +327,7 @@ class AlliberamentsPeriodeRepository:
             return None
         info = {"dia_setmana": c.dia_setmana, "hora": c.hora, "des_de": c.des_de.isoformat()}
         db.delete(c)
-        db.commit()
+        db.flush()
         return info
 
 
@@ -569,7 +443,7 @@ class GrupsAlliberatsRepository:
                 ga = GrupAlliberat(data=parse_date(data), hora=hora, grups=grups)
                 db.add(ga)
 
-        db.commit()
+        db.flush()
 
 
 class MasterConfigRepository:

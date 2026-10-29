@@ -7,7 +7,6 @@ Routes per grups sense classe (grups alliberats), professors i activitats allibe
 """
 
 import json
-import logging
 from datetime import datetime
 from typing import Dict, List
 
@@ -33,10 +32,8 @@ from repositories import (
 )
 from routes.parametres import DataISO, data_iso
 from serveis.dia import Dia
-from serveis.dia_escolar import treu_substituts_no_valids
-from serveis.generacio import genera_substitucions_dia
-
-log = logging.getLogger(__name__)
+from substitucions.domain import treu_substituts_no_valids
+from substitucions.generacio import genera_substitucions_dia
 
 router = APIRouter(prefix="/api/grups", tags=["Grups Sense Classe"])
 
@@ -76,13 +73,9 @@ def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
     les cobertures de vigilància de les hores afectades. Retorna els substituts
     trets (substitucions.substituts_no_valids), amb la data."""
 
-    trets = []
-    try:
-        trets = [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data)]
-        # Les files que han quedat sense substitut queden pendents: no s'omplen soles.
-        genera_substitucions_dia(db, data, Dia.de_text(data).gestors(), regenerar_tot=False, omplir=False)
-    except Exception:
-        log.warning("No s'han pogut actualitzar les substitucions del dia", exc_info=True)
+    trets = [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data)]
+    # Les files que han quedat sense substitut queden pendents: no s'omplen soles.
+    genera_substitucions_dia(db, data, Dia.de_text(data).gestors(), regenerar_tot=False, omplir=False)
 
     # Reconciliar les cobertures de vigilància (Tipus B) de les hores afectades.
     # En alliberar un grup, un professor que abans "calia substituir" pot quedar alliberat
@@ -92,19 +85,15 @@ def _reconcilia_dia(data: str, hores_afectades: set, db: Session) -> list:
     # Reutilitzem la mateixa reconciliació que ja s'executa en crear/editar vigilàncies,
     # perquè el resultat NO depengui de l'ordre d'entrada de dades (abans calia editar
     # l'hora manualment perquè es netegés).
-    try:
-        from serveis.cobertures import refresca_cobertures
-        from vigilancies.repositories import VigilanciaRepository
+    from substitucions.cobertures import refresca_cobertures
+    from vigilancies.repositories import VigilanciaRepository
 
-        vig_dict = VigilanciaRepository.get_by_date(db, data)
-        hores_amb_vig = {
-            (v.get("hora") or "").strip() for vigs in vig_dict.values() for v in vigs if (v.get("hora") or "").strip()
-        }
-        for hora in hores_amb_vig | {h.strip() for h in hores_afectades if h and h.strip()}:
-            refresca_cobertures(data, hora, db)
-    except Exception as e:
-        log.warning(f"⚠️ Error reconciliant cobertures de vigilància: {e}")
-        # No fallar si falla la reconciliació
+    vig_dict = VigilanciaRepository.get_by_date(db, data)
+    hores_amb_vig = {
+        (v.get("hora") or "").strip() for vigs in vig_dict.values() for v in vigs if (v.get("hora") or "").strip()
+    }
+    for hora in hores_amb_vig | {h.strip() for h in hores_afectades if h and h.strip()}:
+        refresca_cobertures(data, hora, db)
     return trets
 
 
@@ -141,6 +130,7 @@ async def afegeix_canvi_periode(canvi: CanviPeriode, db: Session = Depends(get_d
         dia = horari.get_dia_name(num_dia)
     AlliberamentsPeriodeRepository.afegeix(db, canvi.tipus, clau, dia, hores, canvi.data, canvi.alliberat)
     trets = _reconcilia_dies_afectats(canvi.data, num_dia, set(hores), db)
+    db.commit()
     return {"success": True, "dia_setmana": dia, "substituts_trets": trets}
 
 
@@ -190,6 +180,7 @@ async def esborra_canvi_periode(canvi_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Canvi no trobat")
     data_obj = datetime.strptime(info["des_de"], "%Y-%m-%d")
     trets = _reconcilia_dies_afectats(info["des_de"], data_obj.weekday(), {info["hora"]}, db)
+    db.commit()
     return {"success": True, "substituts_trets": trets}
 
 
@@ -362,6 +353,7 @@ async def desar_grups_sense_classe(data: DataISO, payload: AlliberatsDia, db: Se
     hores_anteriors = set(GrupsAlliberatsRepository.get_dia_by_date(db, data).keys())
     GrupsAlliberatsRepository.set_for_date(db, data, grups_per_hora)
     trets = _reconcilia_dia(data, set(grups_per_hora) | hores_anteriors, db)
+    db.commit()
 
     return {
         "success": True,

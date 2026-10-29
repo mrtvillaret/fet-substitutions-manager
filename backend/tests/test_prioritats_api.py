@@ -13,7 +13,7 @@ from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user, require_admin
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import substitucions
+from substitucions import router as substitucions
 
 APP = crea_app()
 APP.include_router(prioritats_router, dependencies=[Depends(require_admin)])  # com a main.py

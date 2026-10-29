@@ -6,7 +6,7 @@ fan servir els avisos del PDF i «Reassignar problemàtics».
 
 from collections import defaultdict
 
-from serveis.dia_escolar import DiaEscolar
+from substitucions.domain import DiaEscolar
 
 
 def tipus_real(tipus_substitut: str) -> str:

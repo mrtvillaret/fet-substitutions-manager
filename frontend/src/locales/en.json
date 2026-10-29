@@ -605,6 +605,7 @@
       "reassignSubstitutionsDetail": "Reviewed {count} problematic substitution | Reviewed {count} problematic substitutions",
       "reassignDoneTitle": "Reassignment done",
       "reassignDoneDetail": "There are still issues. Review the list.",
+      "operationWarnings": "The operation completed with warnings",
       "substituteMoved": "{name} has been moved here; {absent}'s substitution is now pending"
     },
     "senseCobertura": "Not covered",
@@ -629,7 +630,9 @@
       "vigilancia": "is supervising an exam"
     },
     "table": {
-      "rowsInBlock": "{count} substitution | {count} substitutions"
+      "rowsInBlock": "{count} substitution | {count} substitutions",
+      "sortByCourse": "Sort by course",
+      "sortByTeacher": "Sort by absent teacher"
     }
   },
   "examConfig": {

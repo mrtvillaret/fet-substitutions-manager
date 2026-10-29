@@ -14,8 +14,9 @@ from absencia_coberta.router import router as absencia_coberta_router
 from database import get_data_db_session
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from repositories import SubstitucioRepository
-from routes import pdf, settings, substitucions
+from routes import pdf, settings
+from substitucions import router as substitucions
+from substitucions.repositories import SubstitucioRepository
 
 APP = crea_app(substitucions.router, pdf.router, prioritats_router, absencia_coberta_router, settings.router)
 _avui = date.today()
@@ -54,6 +55,7 @@ def test_una_baixa_nova_es_te_en_compte_de_seguida(client, centre):
     with get_data_db_session(centre) as db:
         fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f["hora"] == "10:00")
         SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "Prof 3"})
+        db.commit()
     assert not _avis_baixa(client)
 
     resp = client.post(

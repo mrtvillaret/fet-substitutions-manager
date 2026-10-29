@@ -46,8 +46,8 @@ from routes import (
     pdf,
     scheduler,
     settings,
-    substitucions,
 )
+from substitucions.router import router as substitucions_router
 from usuaris.router import router as usuaris_router
 from vigilancies.router import router as vigilancies_router
 
@@ -167,7 +167,7 @@ app.include_router(grups.router, dependencies=[Depends(get_current_user)])
 app.include_router(grups_amagats.router, dependencies=[Depends(require_admin)])
 app.include_router(pdf.router, dependencies=[Depends(get_current_user)])
 app.include_router(vigilancies_router, dependencies=[Depends(get_current_user)])
-app.include_router(substitucions.router, dependencies=[Depends(get_current_user)])
+app.include_router(substitucions_router, dependencies=[Depends(get_current_user)])
 app.include_router(settings.router, dependencies=[Depends(require_admin)])
 app.include_router(estadistiques.router, dependencies=[Depends(require_admin)])
 app.include_router(prioritats_router, dependencies=[Depends(require_admin)])

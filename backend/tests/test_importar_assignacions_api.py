@@ -18,9 +18,9 @@ from rate_limit import limiter
 from repositories import (
     ConfiguracioExamenRepository,
     MasterConfigRepository,
-    SubstitucioRepository,
 )
 from routes import config_examens
+from substitucions.repositories import SubstitucioRepository
 
 APP = crea_app(config_examens.router)
 URL = "/api/config/importar-assignacions"
@@ -123,6 +123,7 @@ def test_preview_nomes_proposa_nivells_amb_historic_de_substitucions(client, cen
                 "comentaris": "",
             },
         )
+        db.commit()
     preview = _preview(client)
     assert preview["nivells_valids"] == ["3-ESO"]
     assert {p["nivell"] for p in preview["propostes"]} == {"3-ESO"}

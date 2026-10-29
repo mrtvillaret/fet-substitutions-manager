@@ -12,7 +12,8 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from rate_limit import limiter
-from routes import informes, pdf, substitucions
+from routes import informes, pdf
+from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(vigilancies_router, substitucions.router, pdf.router, informes.router)
@@ -209,3 +210,33 @@ def test_el_pdf_de_disponibles_de_tots_els_dies_comenca_a_la_data_donada(client)
 def test_el_pdf_de_disponibles_amb_una_data_mal_escrita_dona_400(client):
     # Abans començava avui sense dir res
     assert client.post("/api/pdf/disponibles-tots-dies", json={"data_inici": "20/04/2026"}).status_code == 400
+
+
+# ------------------------------------------------ ordre de les substitucions
+
+
+@pytest.mark.parametrize(
+    "ordre, esperat",
+    [
+        # 10:00: Prof 15 fa Anglès amb 3-ESO-A i Prof 1, E.F. amb 3-ESO-C
+        (None, ["Prof 15", "Prof 1"]),  # sense ordre: per curs
+        ("curs", ["Prof 15", "Prof 1"]),
+        ("professor", ["Prof 1", "Prof 15"]),
+    ],
+)
+def test_el_pdf_segueix_l_ordre_triat_a_la_pantalla(client, ordre, esperat):
+    import re
+
+    for professor in ("Prof 15", "Prof 1"):
+        client.put(
+            f"/api/substitucions/{DATA}/absencies/{professor}", json={"hores_absencia": ["10:00"], "updated_at_map": {}}
+        )
+    resp = client.get(f"/api/pdf/complete/{DATA}", params={"ordre": ordre} if ordre else {})
+    assert resp.status_code == 200, resp.text[:300]
+    text = _text_pdf(resp.content)
+    posicions = {p: re.search(rf"{p}(?!\d)", text).start() for p in ("Prof 15", "Prof 1")}
+    assert sorted(posicions, key=posicions.get) == esperat
+
+
+def test_un_ordre_desconegut_dona_400(client):
+    assert client.get(f"/api/pdf/complete/{DATA}", params={"ordre": "nom"}).status_code == 400

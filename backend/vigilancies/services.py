@@ -2,7 +2,7 @@
 Vigilàncies d'examen d'un dia: configuració de la pantalla, crear, editar,
 esborrar, els professors disponibles per vigilar, l'assignació automàtica,
 netejar i ordenar. Cada canvi de vigilants refresca les cobertures de l'hora
-(serveis/cobertures.py): un vigilant que tenia classe deixa una substitució.
+(substitucions/cobertures.py): un vigilant que tenia classe deixa una substitució.
 """
 
 import random
@@ -18,10 +18,10 @@ from repositories import (
     ConfiguracioExamenRepository,
     GrupsAlliberatsRepository,
     MasterConfigRepository,
-    SubstitucioRepository,
 )
-from serveis.cobertures import refresca_cobertures
 from serveis.dia import Dia
+from substitucions.cobertures import refresca_cobertures
+from substitucions.repositories import SubstitucioRepository
 from vigilancies.assignacio import (
     Candidat,
     Fila,
@@ -790,10 +790,9 @@ def buida_vigilants(db: Session, data: str) -> int:
             hores_cleared.add(vig.hora)
         vig.vigilant = ""
 
-    db.commit()
-
     for hora in sorted(hores_cleared):
         refresca_cobertures(data, hora, db)
+    db.commit()
 
     return len(vigilancies)
 

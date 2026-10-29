@@ -11,10 +11,8 @@ from functools import cached_property
 
 from core.alliberats import sense_classe
 from helpers import get_horari
-from repositories import (
-    GrupsAlliberatsRepository,
-    SubstitucioRepository,
-)
+from repositories import GrupsAlliberatsRepository
+from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
@@ -23,7 +21,7 @@ TIPUS_ABSENCIA_REAL = ("ABSENCIA", "SERVEI")
 
 
 class DiaEscolar:
-    def __init__(self, db, data: str, institucio: str = None):
+    def __init__(self, db, data: str, institucio: str = None, horari=None):
         self.data = data
         self.institucio = institucio
         self.files = SubstitucioRepository.get_by_date(db, data)
@@ -46,8 +44,8 @@ class DiaEscolar:
             if hora and professor and sub.get("tipus_absencia") in TIPUS_ABSENCIA_REAL:
                 self.absents_per_hora[hora].add(professor)
 
-        self._horari = None
-        self._horari_carregat = False
+        self._horari = horari
+        self._horari_carregat = horari is not None
 
     @property
     def horari(self):
@@ -98,13 +96,13 @@ class DiaEscolar:
         return motius
 
 
-def substituts_no_valids(db, data: str) -> list:
+def substituts_no_valids(db, data: str, dia: DiaEscolar = None) -> list:
     """Les files d'un dia amb un substitut que ja no pot fer la substitució
     (DiaEscolar.motius_substitut: vigila un examen, té una absència coberta, és absent o
     hi té classe). Són canvis posteriors a l'assignació: des de la pantalla no
     es pot desar un substitut que no sigui vàlid. Cada element: {id, hora,
     professor_absent, assignatura, grup, substitut} més el primer motiu."""
-    dia = DiaEscolar(db, data)
+    dia = dia or DiaEscolar(db, data)
     resultat = []
     for sub in dia.files:
         hora = (sub.get("hora") or "").strip()
@@ -127,14 +125,14 @@ def substituts_no_valids(db, data: str) -> list:
     return resultat
 
 
-def treu_substituts_no_valids(db, data: str) -> list:
+def treu_substituts_no_valids(db, data: str, dia: DiaEscolar = None) -> list:
     """Buida el substitut de les files de substituts_no_valids() i les retorna.
     No n'hi posa cap altre: les files queden pendents. Les encadenades, d'acord
-    amb els substituts que queden (serveis/encadenades.py): hi passen tots els
+    amb els substituts que queden (substitucions/encadenades.py): hi passen tots els
     canvis d'absències i d'alliberaments."""
-    from serveis.encadenades import reconcilia_encadenades
+    from substitucions.encadenades import reconcilia_encadenades
 
-    trets = substituts_no_valids(db, data)
+    trets = substituts_no_valids(db, data, dia)
     for fila in trets:
         SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "", "tipus_substitut": ""})
     reconcilia_encadenades(db, data)

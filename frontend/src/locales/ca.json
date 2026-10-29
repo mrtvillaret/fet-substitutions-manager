@@ -608,6 +608,7 @@
       "reassignSubstitutionsDetail": "S'ha revisat {count} substitució problemàtica | S'han revisat {count} substitucions problemàtiques",
       "reassignDoneTitle": "Reassignació feta",
       "reassignDoneDetail": "Encara hi ha incidències. Revisa la llista.",
+      "operationWarnings": "L'operació ha acabat amb avisos",
       "substituteMoved": "{name} s'ha mogut aquí; la substitució de {absent} ha quedat pendent"
     },
     "senseCobertura": "Sense cobertura",
@@ -632,7 +633,9 @@
       "vigilancia": "vigila un examen"
     },
     "table": {
-      "rowsInBlock": "{count} substitució | {count} substitucions"
+      "rowsInBlock": "{count} substitució | {count} substitucions",
+      "sortByCourse": "Ordena per curs",
+      "sortByTeacher": "Ordena per professor absent"
     }
   },
   "examConfig": {

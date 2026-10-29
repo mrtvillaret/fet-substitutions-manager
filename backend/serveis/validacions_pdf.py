@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from core.alliberats import sense_classe
 from i18n_setup import translate
-from serveis.dia_escolar import DiaEscolar
+from substitucions.domain import DiaEscolar
 
 log = logging.getLogger(__name__)
 

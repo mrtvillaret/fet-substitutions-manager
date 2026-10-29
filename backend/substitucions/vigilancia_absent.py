@@ -15,7 +15,8 @@ teclat inclòs). Ara s'usa el camp tipus_absencia='VIGILANCIA_ABSENT' directamen
 from collections import defaultdict
 
 from config import constants
-from repositories import SubstitucioRepository
+from substitucions.assignacio import CandidateValidator
+from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 
 
@@ -130,14 +131,15 @@ def assignar_substituts_pendents(
             if p != prof_absent and p not in absents_set and p not in assignats_hora[hora] and p not in vigilants_hora:
                 candidats_per_cat[categoria_idx(tipus)].append((p, tipus, detall))
 
-        # Escollir primer candidat de la categoria activa amb prioritat més alta
+        # Escollir a l'atzar dins de la categoria activa amb prioritat més alta,
+        # igual que el motor normal de substitucions.
         best = None
         for cat_i in sorted(candidats_per_cat.keys()):
             if cat_i < len(constants.CATEGORIES_ACTIVES) and not constants.CATEGORIES_ACTIVES[cat_i]:
                 continue  # Categoria inactiva → saltar
             disponibles_cat = candidats_per_cat[cat_i]
             if disponibles_cat:
-                best, best_tipus, best_detall = disponibles_cat[0]
+                best, best_tipus, best_detall = CandidateValidator()._escollir_aleatoriament_amb_pesos(disponibles_cat)
                 break
 
         if not best:

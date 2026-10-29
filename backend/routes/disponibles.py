@@ -59,7 +59,7 @@ async def get_disponibles_dia(
         raise HTTPException(status_code=404, detail=f"Error carregant horari: {str(e)}") from e
 
     # Obtenir substitucions del dia
-    from repositories import SubstitucioRepository
+    from substitucions.repositories import SubstitucioRepository
 
     substitucions_data = SubstitucioRepository.get_by_date(db, data)
 

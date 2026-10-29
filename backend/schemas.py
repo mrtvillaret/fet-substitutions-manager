@@ -6,44 +6,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from noms import NomNet
-
-
-class SubstitucioResponse(BaseModel):
-    hora: str
-    professor_absent: str
-    assignatura: str
-    grup: str
-    aula: Optional[str] = None
-    substitut: Optional[str]
-    comentaris: Optional[str] = None
-    estat: str
-    tipus_absencia: Optional[str] = None
-    updated_at: Optional[str] = None
-
-
-class SubstitucioUpdate(BaseModel):
-    substitut: Optional[NomNet] = None
-    comentaris: Optional[str] = None
-    updated_at: Optional[str] = None
-    force: Optional[bool] = False
-    # Si el substitut ja fa una altra substitució a la mateixa hora: treure'l
-    # d'aquella (queda pendent) i posar-lo en aquesta
-    moure: Optional[bool] = False
-
-
-class NovaSubstitucioRequest(BaseModel):
-    professor: NomNet
-    hores: List[str]
-    tipus_absencia: str
-
-
-class ActualitzarAbsenciesRequest(BaseModel):
-    hores_absencia: Optional[List[str]] = None
-    hores_servei: Optional[List[str]] = None
-    updated_at_map: Optional[dict] = None
-    force: Optional[bool] = False
-
 
 class ConfigResponse(BaseModel):
     data_actual: str

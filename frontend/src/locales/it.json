@@ -608,6 +608,7 @@
       "reassignSubstitutionsDetail": "Rivista {count} sostituzione problematica | Riviste {count} sostituzioni problematiche",
       "reassignDoneTitle": "Riassegnazione completata",
       "reassignDoneDetail": "Ci sono ancora problemi. Rivedi l'elenco.",
+      "operationWarnings": "L'operazione è terminata con avvisi",
       "substituteMoved": "{name} è stato spostato qui; la supplenza di {absent} è in sospeso"
     },
     "senseCobertura": "Non coperta",
@@ -632,7 +633,9 @@
       "vigilancia": "sorveglia un esame"
     },
     "table": {
-      "rowsInBlock": "{count} supplenza | {count} supplenze"
+      "rowsInBlock": "{count} supplenza | {count} supplenze",
+      "sortByCourse": "Ordina per anno",
+      "sortByTeacher": "Ordina per docente assente"
     }
   },
   "examConfig": {

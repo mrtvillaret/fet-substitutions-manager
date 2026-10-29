@@ -30,12 +30,13 @@ from i18n_setup import translate
 from repositories import (
     ConfiguracioRepository,
     GrupsAlliberatsRepository,
-    SubstitucioRepository,
 )
 from routes.parametres import DataISO, data_iso
 from serveis.dia import Dia
-from serveis.prioritat import MillorsSubstituts
 from serveis.validacions_pdf import valida_dia
+from substitucions.prioritat import MillorsSubstituts
+from substitucions.repositories import SubstitucioRepository
+from substitucions.schemas import OrdreSubstitucions
 from vigilancies.repositories import VigilanciaRepository
 from vigilancies.services import en_ordre
 
@@ -212,6 +213,7 @@ def generar_pdf_complet(
     blank_rows: bool = False,
     format: str = "hores",  # "hores" (una secció per hora) o "dia" (una taula per al dia)
     mida_lletra: Optional[float] = None,  # normal (1), gran (1.2) o molt gran (1.35); sense: veure _format_i_mida
+    ordre: OrdreSubstitucions = "curs",  # les substitucions dins de cada hora, com a la pantalla
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -299,7 +301,7 @@ def generar_pdf_complet(
     if include_substitutions and substitucions_data:
         _omplir_aula_substitucions(substitucions_data, horari_mgr, date_obj)
         # El mateix ordre que la llista de substitucions de la pantalla
-        substitucions_data = SubstitucioRepository.ordena(substitucions_data, horari_mgr.hores)
+        substitucions_data = SubstitucioRepository.ordena(substitucions_data, horari_mgr.hores, ordre=ordre)
 
     # Directori temporal per petició: el PDF no es desa al servidor.
     export_dir = Path(tempfile.mkdtemp())
@@ -720,10 +722,8 @@ def generar_pdf_disponibles_tots_dies(
             ).gestors()
 
             # Obtenir substitucions del dia
-            from repositories import (
-                GrupsAlliberatsRepository,
-                SubstitucioRepository,
-            )
+            from repositories import GrupsAlliberatsRepository
+            from substitucions.repositories import SubstitucioRepository
             from vigilancies.repositories import VigilanciaRepository
 
             substitucions_data = SubstitucioRepository.get_by_date(db, dia_iso)

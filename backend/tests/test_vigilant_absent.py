@@ -14,6 +14,8 @@ Dilluns 20/04/2026 a les 10:00: Prof 15 fa Anglès amb 3-ESO-A; Prof 3, 21 i
 28 fan guàrdia.
 """
 
+import random
+
 from test_vigilancies_api import (  # noqa: F401  (fixtures)
     URL,
     URL_SUBS,
@@ -24,6 +26,9 @@ from test_vigilancies_api import (  # noqa: F401  (fixtures)
     centre,
     client,
 )
+
+from config import constants
+from substitucions import vigilancia_absent
 
 CLASSE = ("10:00", "Prof 15", "Anglès")
 
@@ -69,6 +74,53 @@ def _treu_absencia(client, professor="Prof 15"):
     assert resp.status_code == 200
 
 
+def test_vigilancia_absent_tria_a_l_atzar_dins_la_categoria(monkeypatch):
+    files = [
+        {
+            "id": 1,
+            "hora": "10:00",
+            "professor_absent": "Prof absent",
+            "substitut": "",
+            "tipus_absencia": "VIGILANCIA_ABSENT",
+        }
+    ]
+    actualitzacions = []
+
+    class Alliberats:
+        def get_tots_disponibles(self, dia, hora, grups):
+            return [
+                ("Primer candidat", "Guàrdia", "Guàrdia"),
+                ("Segon candidat", "Guàrdia", "Guàrdia"),
+            ]
+
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
+    monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
+    monkeypatch.setattr(vigilancia_absent.SubstitucioRepository, "get_by_date", lambda db, data: files)
+    monkeypatch.setattr(
+        vigilancia_absent.SubstitucioRepository,
+        "update",
+        lambda db, sub_id, canvis: actualitzacions.append(canvis),
+    )
+    monkeypatch.setattr(random, "choice", lambda candidats: candidats[-1])
+
+    assignades = vigilancia_absent.assignar_substituts_pendents(
+        object(),
+        "2026-04-20",
+        "Dilluns",
+        Alliberats(),
+        {"Prof absent": ["10:00"]},
+        {},
+    )
+
+    assert assignades == 1
+    assert actualitzacions == [
+        {
+            "substitut": "Segon candidat",
+            "tipus_substitut": "disponible (Guàrdia)",
+        }
+    ]
+
+
 # ------------------------------------------------ vigilant absent: estat
 
 
@@ -86,10 +138,11 @@ def test_absent_i_despres_vigilant(client):
     assert _vigilancia_absent_de(client, "Prof 15") == [""]
 
 
-def test_nova_substitucio_d_un_vigilant(client):
+def test_absencia_d_un_vigilant(client):
     _crea(client, "Prof 15")
-    resp = client.post(
-        f"{URL_SUBS}/nova", json={"professor": "Prof 15", "hores": ["10:00"], "tipus_absencia": "ABSENCIA"}
+    resp = client.put(
+        f"{URL_SUBS}/absencies/Prof 15",
+        json={"hores_absencia": ["10:00"], "updated_at_map": {}},
     )
     assert resp.status_code == 200
     assert _cobertures_classe(client) == [("ABSENCIA", "")]
@@ -178,15 +231,18 @@ def test_un_absent_que_no_vigila_continua_amb_la_seva_absencia(client):
     assert _vigilancia_absent_de(client, "Prof 15") == []
 
 
-def test_nova_substitucio_no_toca_la_cobertura_d_examen_d_altres_hores(client):
+def test_actualitzar_absencia_no_toca_la_cobertura_d_examen_d_altres_hores(client):
     # Prof 15 vigila a les 10:00 i a les 11:30 i ja és absent a les 11:30.
-    # Afegir-lo absent a les 10:00 per "nova" no pot esborrar la de les 11:30.
+    # Afegir-lo absent a les 10:00 no pot esborrar la de les 11:30.
     _crea(client, "Prof 15")
     _crea(client, "Prof 15", hora="11:30")
     _absent(client, "Prof 15", hores=("11:30",))
     assert [h for h, p, a, t, sub in _totes(client) if p == "Prof 15" and t == "VIGILANCIA_ABSENT"] == ["11:30"]
 
-    client.post(f"{URL_SUBS}/nova", json={"professor": "Prof 15", "hores": ["10:00"], "tipus_absencia": "ABSENCIA"})
+    client.put(
+        f"{URL_SUBS}/absencies/Prof 15",
+        json={"hores_absencia": ["10:00", "11:30"], "updated_at_map": {}},
+    )
     hores = sorted(h for h, p, a, t, sub in _totes(client) if p == "Prof 15" and t == "VIGILANCIA_ABSENT")
     assert hores == ["10:00", "11:30"]
 

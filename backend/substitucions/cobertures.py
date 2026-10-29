@@ -6,16 +6,10 @@ les vigilàncies, les absències o els alliberats.
 
 from datetime import datetime
 
-from sqlalchemy import and_
-
 from helpers import get_gestors
-from models import Substitucio
-from repositories import (
-    GrupsAlliberatsRepository,
-    SubstitucioRepository,
-    parse_date,
-)
-from serveis.vigilancia_absent import crear_vigilancia_absent
+from repositories import GrupsAlliberatsRepository
+from substitucions.repositories import SubstitucioRepository
+from substitucions.vigilancia_absent import crear_vigilancia_absent
 from vigilancies.repositories import VigilanciaRepository
 
 
@@ -48,7 +42,7 @@ def allibera_substitucions_en_conflicte(data: str, db, hores: set | None = None)
     return cleared
 
 
-def refresca_cobertures(data: str, hora: str, db) -> None:
+def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
     """Refresca substitucions derivades de vigilàncies per una hora concreta."""
     hora = (hora or "").strip()
     if not hora:
@@ -56,17 +50,7 @@ def refresca_cobertures(data: str, hora: str, db) -> None:
 
     # Carregar ÚNICAMENT Tipus B (VIGILANCIA): la cobertura de classe
     # Els Tipus A (VIGILANCIA_ABSENT: vigilant absent) es preserven sempre
-    existing_subs = (
-        db.query(Substitucio)
-        .filter(
-            and_(
-                Substitucio.data == parse_date(data),
-                Substitucio.hora == hora,
-                Substitucio.tipus_absencia == "VIGILANCIA",
-            )
-        )
-        .all()
-    )
+    existing_subs = SubstitucioRepository.get_by_date_hour_and_type(db, data, hora, "VIGILANCIA")
 
     # Restaurar substituts ja assignats als Tipus B
     existing_map = {}
@@ -82,49 +66,31 @@ def refresca_cobertures(data: str, hora: str, db) -> None:
         ids_cobertura = [s.id for s in existing_subs]
         # Sincronitza la sessió: sense això els objectes esborrats hi quedaven
         # i SQLite reaprofitava els seus IDs per a les substitucions noves.
-        db.query(Substitucio).filter(Substitucio.id.in_(ids_cobertura)).delete(synchronize_session="fetch")
-        db.commit()
+        SubstitucioRepository.delete_by_ids(db, ids_cobertura)
+        db.flush()
 
     # Professors absents a aquesta hora (ABSENCIA o SERVEI). La classe d'un
     # vigilant absent la cobreix la seva ABSENCIA, no una VIGILANCIA.
     absents_hora = {
         (s.professor_absent or "").strip()
-        for s in db.query(Substitucio)
-        .filter(
-            and_(
-                Substitucio.data == parse_date(data),
-                Substitucio.hora == hora,
-                Substitucio.tipus_absencia.notin_(["VIGILANCIA", "ENCADENADA", "VIGILANCIA_ABSENT"]),
-            )
-        )
-        .all()
+        for s in SubstitucioRepository.get_absences_by_date_and_hour(db, data, hora)
         if (s.professor_absent or "").strip()
     }
 
     vigilants = VigilanciaRepository.get_vigilants_per_hora(db, data, hora)
 
     # Eliminar Tipus A (VIGILANCIA_ABSENT) per professors que ja no son vigilants
-    tipus_a_hora = (
-        db.query(Substitucio)
-        .filter(
-            and_(
-                Substitucio.data == parse_date(data),
-                Substitucio.hora == hora,
-                Substitucio.tipus_absencia == "VIGILANCIA_ABSENT",
-            )
-        )
-        .all()
-    )
+    tipus_a_hora = SubstitucioRepository.get_by_date_hour_and_type(db, data, hora, "VIGILANCIA_ABSENT")
     for sub_a in tipus_a_hora:
         if (sub_a.professor_absent or "").strip() not in vigilants:
             db.delete(sub_a)
     if tipus_a_hora:
-        db.commit()
+        db.flush()
 
     if not vigilants:
         return
 
-    substitucions_mgr, horari, _, _ = get_gestors(data_iso=data)
+    substitucions_mgr, horari, _, _ = gestors or get_gestors(data_iso=data)
     date_obj = datetime.strptime(data, "%Y-%m-%d")
     dia_name = horari.get_dia_name(date_obj.weekday())
 
@@ -169,15 +135,7 @@ def refresca_cobertures(data: str, hora: str, db) -> None:
     # Crear Tipus A (VIGILANCIA_ABSENT) si un vigilant ja és absent a aquesta hora
     tipus_a_existents = {
         (s.professor_absent or "").strip()
-        for s in db.query(Substitucio)
-        .filter(
-            and_(
-                Substitucio.data == parse_date(data),
-                Substitucio.hora == hora,
-                Substitucio.tipus_absencia == "VIGILANCIA_ABSENT",
-            )
-        )
-        .all()
+        for s in SubstitucioRepository.get_by_date_hour_and_type(db, data, hora, "VIGILANCIA_ABSENT")
     }
     vigilancies_dia = VigilanciaRepository.get_by_date(db, data)
     for nivell_vigs in vigilancies_dia.values():

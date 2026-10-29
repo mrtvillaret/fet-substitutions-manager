@@ -27,7 +27,7 @@ from models import AbreviaturaGrup, CategoriaPrioritat, ConfiguracioExamen, Grup
 from prioritats.services import carrega_prioritats
 from rate_limit import limiter
 from repositories import GrupsAlliberatsRepository
-from routes import substitucions
+from substitucions import router as substitucions
 from vigilancies import services
 from vigilancies.assignacio import assignacio_optima, grups_de, save_vigilancies_afinitats, titular_de, titulars_de
 from vigilancies.router import router as vigilancies_router
