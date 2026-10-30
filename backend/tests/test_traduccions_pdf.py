@@ -18,17 +18,17 @@ from pathlib import Path
 
 import pytest
 
-from export.pdf.taula import NOTA_VIGILANCIES, SUBSTITUCIONS, VIGILANCIES
+from pdf.taula import NOTA_VIGILANCIES, SUBSTITUCIONS, VIGILANCIES
 
 BACKEND = Path(__file__).resolve().parent.parent
 LOCALES = BACKEND / "locales"
 LLENGUES = ("es", "en", "it")
-FITXERS_PDF = ("routes/pdf.py", "routes/informes.py", "serveis/validacions_pdf.py")
+FITXERS_PDF = ()
 FUNCIONS = {"_", "translate"}
 
 
 def _fitxers_pdf():
-    yield from sorted((BACKEND / "export").rglob("*.py"))
+    yield from sorted((BACKEND / "pdf").rglob("*.py"))
     for nom in FITXERS_PDF:
         yield BACKEND / nom
 

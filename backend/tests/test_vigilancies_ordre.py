@@ -22,9 +22,10 @@ from test_scheduler_publicar import _examen, _publica
 
 from database import _ensure_vigilancies_ordre_column, get_data_db_session
 from models import Vigilancia
+from pdf import router as pdf
 from rate_limit import limiter
 from repositories import parse_date
-from routes import pdf, scheduler
+from routes import scheduler
 from vigilancies.router import router as vigilancies_router
 from vigilancies.services import completa_ordre, ordena_automaticament, te_ordre_manual
 

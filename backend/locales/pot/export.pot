@@ -21,7 +21,7 @@ msgstr ""
 msgid "✅ S'ha obert el PDF amb xdg-open"
 msgstr ""
 
-#: export/base_pdf.py:133 export/pdf/engine.py:64
+#: export/base_pdf.py:133 pdf/engine.py:64
 #, python-brace-format
 msgid "⚠️ No s'ha pogut obrir automàticament: {error}"
 msgstr ""
@@ -105,30 +105,30 @@ msgstr ""
 msgid "<b>Substitucions de Professors</b>"
 msgstr ""
 
-#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:600
-#: export/pdf/engine.py:604 export/pdf/engine.py:618 export/pdf/engine.py:622
+#: export/pdf.py:55 export/pdf.py:168 pdf/engine.py:600
+#: pdf/engine.py:604 pdf/engine.py:618 pdf/engine.py:622
 msgid "Hora"
 msgstr ""
 
-#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:592
-#: export/pdf/engine.py:596 export/pdf/engine.py:600 export/pdf/engine.py:604
+#: export/pdf.py:55 export/pdf.py:168 pdf/engine.py:592
+#: pdf/engine.py:596 pdf/engine.py:600 pdf/engine.py:604
 msgid "Absent"
 msgstr ""
 
-#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:592
-#: export/pdf/engine.py:596 export/pdf/engine.py:600 export/pdf/engine.py:604
-#: export/pdf/engine.py:610 export/pdf/engine.py:614 export/pdf/engine.py:618
-#: export/pdf/engine.py:622
+#: export/pdf.py:55 export/pdf.py:168 pdf/engine.py:592
+#: pdf/engine.py:596 pdf/engine.py:600 pdf/engine.py:604
+#: pdf/engine.py:610 pdf/engine.py:614 pdf/engine.py:618
+#: pdf/engine.py:622
 msgid "Assignatura"
 msgstr ""
 
-#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:592
-#: export/pdf/engine.py:596 export/pdf/engine.py:600 export/pdf/engine.py:604
+#: export/pdf.py:55 export/pdf.py:168 pdf/engine.py:592
+#: pdf/engine.py:596 pdf/engine.py:600 pdf/engine.py:604
 msgid "Grup"
 msgstr ""
 
-#: export/pdf.py:55 export/pdf.py:168 export/pdf/engine.py:592
-#: export/pdf/engine.py:596 export/pdf/engine.py:600 export/pdf/engine.py:604
+#: export/pdf.py:55 export/pdf.py:168 pdf/engine.py:592
+#: pdf/engine.py:596 pdf/engine.py:600 pdf/engine.py:604
 msgid "Substitut"
 msgstr ""
 
@@ -432,172 +432,172 @@ msgstr ""
 msgid "Heu de seleccionar almenys una opció per a generar el PDF."
 msgstr ""
 
-#: export/pdf/engine.py:61
+#: pdf/engine.py:61
 #, python-brace-format
 msgid "📖 S'ha obert el PDF amb xdg-open: {filepath}"
 msgstr ""
 
-#: export/pdf/engine.py:65
+#: pdf/engine.py:65
 #, python-brace-format
 msgid "📁 Fitxer disponible a: {filepath}"
 msgstr ""
 
-#: export/pdf/engine.py:97
+#: pdf/engine.py:97
 #, python-brace-format
 msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
 msgstr ""
 
-#: export/pdf/engine.py:120
+#: pdf/engine.py:120
 msgid "📄 Compressió activada manualment per l'usuari"
 msgstr ""
 
-#: export/pdf/engine.py:122
+#: pdf/engine.py:122
 msgid "📄 PDF normal sense compressió"
 msgstr ""
 
-#: export/pdf/engine.py:244 export/pdf/engine.py:256
+#: pdf/engine.py:244 pdf/engine.py:256
 msgid "SUBSTITUCIONS"
 msgstr ""
 
-#: export/pdf/engine.py:246 export/pdf/engine.py:248 export/pdf/engine.py:258
+#: pdf/engine.py:246 pdf/engine.py:248 pdf/engine.py:258
 msgid "VIGILÀNCIES"
 msgstr ""
 
-#: export/pdf/engine.py:250 export/pdf/engine.py:254
+#: pdf/engine.py:250 pdf/engine.py:254
 msgid "SUBSTITUCIONS I VIGILÀNCIES"
 msgstr ""
 
-#: export/pdf/engine.py:260
+#: pdf/engine.py:260
 msgid "DOCUMENT BUIT"
 msgstr ""
 
-#: export/pdf/engine.py:329
+#: pdf/engine.py:329
 #, python-brace-format
 msgid "Hora {hora}"
 msgstr ""
 
-#: export/pdf/engine.py:360
+#: pdf/engine.py:360
 #, python-brace-format
 msgid "RESUM: {num} substitucions"
 msgstr ""
 
-#: export/pdf/engine.py:362
+#: pdf/engine.py:362
 #, python-brace-format
 msgid "RESUM: {num} vigilàncies"
 msgstr ""
 
-#: export/pdf/engine.py:364 export/pdf/engine.py:368
+#: pdf/engine.py:364 pdf/engine.py:368
 #, python-brace-format
 msgid "RESUM: {subs} substitucions, {vig} vigilàncies"
 msgstr ""
 
-#: export/pdf/engine.py:377
+#: pdf/engine.py:377
 msgid "<b>CONFLICTES DETECTATS:</b>"
 msgstr ""
 
-#: export/pdf/engine.py:387
+#: pdf/engine.py:387
 #, python-brace-format
 msgid "Generat el {data} a les {hora}"
 msgstr ""
 
-#: export/pdf/engine.py:397
+#: pdf/engine.py:397
 #, python-brace-format
 msgid "✅ S'ha generat el PDF combinat: {output_path}"
 msgstr ""
 
-#: export/pdf/engine.py:403
+#: pdf/engine.py:403
 #, python-brace-format
 msgid "❌ Error en generar PDF: {error}"
 msgstr ""
 
-#: export/pdf/engine.py:592 export/pdf/engine.py:600 export/pdf/engine.py:610
-#: export/pdf/engine.py:618
+#: pdf/engine.py:592 pdf/engine.py:600 pdf/engine.py:610
+#: pdf/engine.py:618
 msgid "Observacions"
 msgstr ""
 
-#: export/pdf/engine.py:610 export/pdf/engine.py:614 export/pdf/engine.py:618
-#: export/pdf/engine.py:622
+#: pdf/engine.py:610 pdf/engine.py:614 pdf/engine.py:618
+#: pdf/engine.py:622
 msgid "Curs"
 msgstr ""
 
-#: export/pdf/engine.py:610 export/pdf/engine.py:614 export/pdf/engine.py:618
-#: export/pdf/engine.py:622
+#: pdf/engine.py:610 pdf/engine.py:614 pdf/engine.py:618
+#: pdf/engine.py:622
 msgid "Aula"
 msgstr ""
 
-#: export/pdf/engine.py:610 export/pdf/engine.py:614 export/pdf/engine.py:618
-#: export/pdf/engine.py:622
+#: pdf/engine.py:610 pdf/engine.py:614 pdf/engine.py:618
+#: pdf/engine.py:622
 msgid "Vigilant"
 msgstr ""
 
-#: export/pdf/engine.py:655 export/pdf/engine.py:803
+#: pdf/engine.py:655 pdf/engine.py:803
 #, python-brace-format
 msgid "🔍 Compressió automàtica: fonts reduïdes a H:{header} B:{body}"
 msgstr ""
 
-#: export/pdf/engine.py:985
+#: pdf/engine.py:985
 #, python-brace-format
 msgid "⚠️ {hora}: Substitut {substitut} {absence_text}"
 msgstr ""
 
-#: export/pdf/engine.py:990
+#: pdf/engine.py:990
 #, python-brace-format
 msgid "🕐 {hora}: Substitut {substitut} duplicat"
 msgstr ""
 
-#: export/pdf/engine.py:1001
+#: pdf/engine.py:1001
 #, python-brace-format
 msgid "❌ {hora}: {professor} - {assignatura} sense substitut assignat"
 msgstr ""
 
-#: export/pdf/engine.py:1014
+#: pdf/engine.py:1014
 #, python-brace-format
 msgid "⚠️ {hora}: Vigilant {vigilant} {absence_text}"
 msgstr ""
 
-#: export/pdf/engine.py:1019
+#: pdf/engine.py:1019
 #, python-brace-format
 msgid "🕐 {hora}: Vigilant {vigilant} duplicat"
 msgstr ""
 
-#: export/pdf/engine.py:1027
+#: pdf/engine.py:1027
 #, python-brace-format
 msgid "🏫 {hora}: Aula {aula} duplicada"
 msgstr ""
 
-#: export/pdf/engine.py:1036
+#: pdf/engine.py:1036
 #, python-brace-format
 msgid "❌ {hora}: {tipus} sense vigilant assignat"
 msgstr ""
 
-#: export/pdf/engine.py:1039
+#: pdf/engine.py:1039
 #, python-brace-format
 msgid "❌ {hora}: Assignatura {tipus} sense vigilant assignat"
 msgstr ""
 
-#: export/pdf/engine.py:1046
+#: pdf/engine.py:1046
 #, python-brace-format
 msgid "🏫 {hora}: {tipus} sense aula assignada"
 msgstr ""
 
-#: export/pdf/engine.py:1049
+#: pdf/engine.py:1049
 #, python-brace-format
 msgid "🏫 {hora}: Assignatura {tipus} sense aula assignada"
 msgstr ""
 
-#: export/pdf/engine.py:1080
+#: pdf/engine.py:1080
 #, python-brace-format
 msgid ""
 "🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | "
 "Assignatures: {assignatures})"
 msgstr ""
 
-#: export/pdf/engine.py:1132
+#: pdf/engine.py:1132
 #, python-brace-format
 msgid "📅 {dia}"
 msgstr ""
 
-#: export/pdf/engine.py:1151
+#: pdf/engine.py:1151
 #, python-brace-format
 msgid "🕐 {hora}"
 msgstr ""

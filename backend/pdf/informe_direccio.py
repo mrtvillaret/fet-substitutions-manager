@@ -23,9 +23,9 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from export.pdf.dies import dies_capcalera
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
+from pdf.dies import dies_capcalera
 
 # Paleta de colors moderna
 C_NAVY = colors.HexColor("#1e3a5f")
@@ -384,6 +384,11 @@ def _taula_matriu_professors_mesos(
                 _("Serv"),
                 _s("ths", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9),
             ),
+            # Absències + serveis: el que decideix l'ordre de les files
+            Paragraph(
+                _("Total"),
+                _s("tht", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9),
+            ),
         ]
     )
 
@@ -459,13 +464,19 @@ def _taula_matriu_professors_mesos(
                 ),
             )
         )
+        row.append(
+            Paragraph(
+                str(p["total"]),
+                _s("ptt", fontName="Helvetica-Bold", fontSize=7.5, textColor=C_BLACK, alignment=TA_CENTER, leading=10),
+            )
+        )
         rows.append(row)
 
     n_mesos = len(mesos)
     nom_w = 3.8 * cm
     tot_w = 1.0 * cm
-    mes_w = (CONTENT_W - nom_w - 2 * tot_w) / n_mesos
-    col_w = [nom_w] + [mes_w] * n_mesos + [tot_w, tot_w]
+    mes_w = (CONTENT_W - nom_w - 3 * tot_w) / n_mesos
+    col_w = [nom_w] + [mes_w] * n_mesos + [tot_w, tot_w, tot_w]
 
     t = Table(rows, colWidths=col_w, hAlign="LEFT")
     st = TableStyle(
@@ -481,9 +492,9 @@ def _taula_matriu_professors_mesos(
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_GREY_BG]),
             # Columnes totals destacades
-            ("BACKGROUND", (-2, 0), (-1, 0), C_ORANGE),
-            ("BACKGROUND", (-2, 1), (-2, -1), colors.HexColor("#fff0e0")),
-            ("BACKGROUND", (-1, 1), (-1, -1), colors.HexColor("#e8f4fb")),
+            ("BACKGROUND", (-3, 0), (-1, 0), C_ORANGE),
+            ("BACKGROUND", (-3, 1), (-3, -1), colors.HexColor("#fff0e0")),
+            ("BACKGROUND", (-2, 1), (-2, -1), colors.HexColor("#e8f4fb")),
             ("LINEABOVE", (0, -1), (-1, -1), 0.5, C_GREY_MID),
         ]
     )
@@ -1001,8 +1012,10 @@ def generar_informe_pdf(
 ) -> str:
     """
     Genera l'informe de direcció en PDF.
-    `dades` ha de contenir: stats, per_mes, professors_absencies,
-    professors_substitucions, per_dia, per_hora, vigilancies
+    `dades` és el que retorna pdf/services.py:dades_direccio. Se'n fan servir:
+    stats, per_mes, professors_absencies, professors_substitucions, per_hora,
+    per_dia_hora, per_professor_mes_abs, per_professor_mes_serv,
+    per_substitut_mes, mesos_ordenats, hores_ordre i grups_data.
     """
     setup_translation(lang)
     export_path = Path(export_dir)

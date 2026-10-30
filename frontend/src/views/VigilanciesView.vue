@@ -403,6 +403,7 @@ import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { ambDataTreball, dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
+import { jaAvisat } from '../errorsApi'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
@@ -1505,12 +1506,15 @@ const generarPDF = async () => {
     await _baixarPDFVigilancies()
   } catch (err) {
     console.error('Error validant PDF:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
-      life: 5000
-    })
+    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
+    if (!jaAvisat(err)) {
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
+        life: 5000
+      })
+    }
     generantPDF.value = false
   }
 }
@@ -1560,12 +1564,15 @@ const _baixarPDFVigilancies = async () => {
     mostrarDialogPDF.value = false
   } catch (err) {
     console.error('Error generant PDF:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
-      life: 5000
-    })
+    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
+    if (!jaAvisat(err)) {
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
+        life: 5000
+      })
+    }
   } finally {
     generantPDF.value = false
   }
@@ -1655,12 +1662,15 @@ const generarPDFInterval = async () => {
     mostrarDialogInterval.value = false
   } catch (err) {
     console.error('Error generant PDF interval:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: err.response?.data?.detail || t('vigilancies.errors.generatePdfInterval'),
-      life: 5000
-    })
+    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
+    if (!jaAvisat(err)) {
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdfInterval'),
+        life: 5000
+      })
+    }
   } finally {
     generantPDFInterval.value = false
   }

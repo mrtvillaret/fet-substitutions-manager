@@ -392,6 +392,7 @@ import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { ambDataTreball, dataTreball } from '../../dataTreball'
 import { dataIso } from '../../dates'
+import { jaAvisat } from '../../errorsApi'
 import { useToast } from 'primevue/usetoast'
 import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 import Dialog from 'primevue/dialog'
@@ -875,12 +876,15 @@ const generarPDFDisponiblesTotsDies = async () => {
     })
   } catch (error) {
     console.error('Error generant PDF:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.generatePDF'),
-      life: 3000
-    })
+    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
+    if (!jaAvisat(error)) {
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: error.response?.data?.detail || t('config.errors.generatePDF'),
+        life: 3000
+      })
+    }
   } finally {
     generantPDFDisponibles.value = false
   }

@@ -16,11 +16,12 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
 
+from export.pdf_images import pdf_images
+from export.pdf_styles import PDFStyleFactory
+
 # import emoji
 from i18n_setup import translate as _
 
-from ..pdf_images import pdf_images
-from ..pdf_styles import PDFStyleFactory
 from .taula import SUBSTITUCIONS, VIGILANCIES, contingut_del_dia
 
 
@@ -41,25 +42,10 @@ class PDFConstants:
     TABLE_WIDTH = 16 * cm
     SPACER_NORMAL = 0.5 * cm
     SPACER_COMPACT = 0.2 * cm
-    SPACER_TINY = 0.01 * cm
-    SPACER_SMALL = 0.05 * cm
-    SPACER_MEDIUM = 0.1 * cm
-    SPACER_LARGE = 0.3 * cm
-
     # Margins
     MARGIN_NORMAL = 1 * cm
     MARGIN_COMPACT = 0.7 * cm
     MARGIN_COMPACT_SIDE = 0.8 * cm
-
-    # Font reductions
-    FONT_REDUCTION_DEFAULT = 0.85
-    MIN_FONT_HEADER = 8
-    MIN_FONT_BODY = 7
-    MIN_FONT_HOUR = 10
-
-    # Pagination thresholds
-    THRESHOLD_MIN = 0.75
-    THRESHOLD_MAX = 1.5
 
 
 log = logging.getLogger(__name__)
@@ -135,14 +121,7 @@ class PDFCompletExporter:
         """Obté colors del perfil actual - sempre actualitzat"""
         return PDFStyleFactory.get_current_profile_colors()
 
-    def _setup_document_config(
-        self,
-        tipus_pdf: str,
-        compact_mode: bool,
-        substitucions: List[Dict],
-        vigilancies: List[Dict],
-        conflictes: List[str],
-    ):
+    def _setup_document_config(self, tipus_pdf: str):
         """Setup document configuration"""
         self._pdf_type = tipus_pdf
         self.pdf_config = PDFStyleFactory._load_pdf_config()
@@ -274,7 +253,7 @@ class PDFCompletExporter:
                 else:
                     conflictes = self._validar_conflictes_complets(substitucions, vigilancies, absents)
 
-            self._setup_document_config(tipus_pdf, compact_mode, substitucions, vigilancies, conflictes)
+            self._setup_document_config(tipus_pdf)
 
             # Process data
             subs_reals = [s for s in substitucions if not s.get("separador")] if substitucions else []
@@ -302,7 +281,7 @@ class PDFCompletExporter:
                 story.extend(self._generar_contingut_interval_vigilancies(vigilancies_reals, subs_reals))
             else:
                 # El format triat (taula del dia o una secció per hora), amb els
-                # mateixos estils (export/pdf/taula.py)
+                # mateixos estils (pdf/taula.py)
                 dades_per_hora = self._organitzar_dades_per_hora(subs_reals, vigilancies_reals)
                 espai_a_ma = self.espai_a_ma and tipus_pdf != "vigilancies"
                 story.extend(
@@ -861,6 +840,7 @@ class PDFCompletExporter:
                     dia_iso_map[dia] = data_iso
 
         dies_ordenats = sorted(vigilancies_per_dia.keys(), key=lambda dia: dia_iso_map.get(dia, "9999-12-31"))
+        self._data_interval_per_titol = dia_iso_map
 
         return vigilancies_per_dia, dies_ordenats
 
@@ -868,6 +848,11 @@ class PDFCompletExporter:
         """Un dia de l'interval: el títol i, a sota, el format triat."""
         from reportlab.lib.styles import ParagraphStyle
         from reportlab.platypus import Paragraph
+
+        data_iso = getattr(self, "_data_interval_per_titol", {}).get(dia)
+        hores_per_data = getattr(self, "hores_per_data", {})
+        if data_iso in hores_per_data:
+            self.hores = hores_per_data[data_iso]
 
         comprimit = bool(getattr(self, "_auto_compression_active", False))
         dia_style = ParagraphStyle(

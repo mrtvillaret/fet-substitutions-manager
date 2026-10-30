@@ -1,13 +1,13 @@
 """
-Avisos de conflicte del PDF (export/pdf/engine.py): un substitut o vigilant que
+Avisos de conflicte del PDF (pdf/engine.py): un substitut o vigilant que
 és absent a aquella hora surt com a «absent» o, si l'absència és per servei,
 com a «absent (servei)». El tipus surt de les seves pròpies files de substitució.
 """
 
 import pytest
 
-from export.pdf.engine import PDFCompletExporter
-from export.pdf.taula import taula_del_dia
+from pdf.engine import PDFCompletExporter
+from pdf.taula import taula_del_dia
 
 
 def _conflictes(tmp_path, tipus):

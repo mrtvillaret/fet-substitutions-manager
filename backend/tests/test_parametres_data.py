@@ -13,8 +13,9 @@ from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth.dependencies import get_current_user, require_admin
+from pdf import router as pdf
 from rate_limit import limiter
-from routes import estadistiques, pdf
+from routes import estadistiques
 from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 
@@ -70,3 +71,24 @@ def client():
 def test_una_data_mal_escrita_o_impossible_dona_400(client, url):
     resp = client.get(url)
     assert resp.status_code == 400, (resp.status_code, resp.text[:200])
+
+
+@pytest.mark.parametrize(
+    "ruta, params",
+    [
+        ("/api/estadistiques/resum", {}),
+        ("/api/estadistiques/professors", {}),
+        ("/api/estadistiques/temporal", {}),
+        ("/api/estadistiques/classes", {}),
+        ("/api/estadistiques/classes/detall", {"grups": "1-ESO-A"}),
+        ("/api/estadistiques/taula", {}),
+        ("/api/estadistiques/professor/Prof 1", {}),
+        ("/api/estadistiques/franges", {"dia": "Dilluns", "hora": "08:00"}),
+    ],
+)
+def test_estadistiques_rebutgen_un_interval_invertit(client, ruta, params):
+    # Com els informes: abans responien buit i el PDF donava «error inesperat»
+    resp = client.get(ruta, params={"data_inici": "2026-04-21", "data_final": "2026-04-20", **params})
+
+    assert resp.status_code == 400, (resp.status_code, resp.text[:200])
+    assert resp.json()["detail"] == "La data inicial ha de ser anterior o igual a la final"

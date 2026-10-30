@@ -1,5 +1,8 @@
 # Arquitectura
 
+Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
+[`FUNCIONAMENT.md`](FUNCIONAMENT.md).
+
 ## Mapa de dependències
 
 ```
@@ -65,15 +68,16 @@
 │  │                         l'horari del dia ja no té l'absent    │
 │  ├── vigilancies/        → vigilàncies: assignació per hora,     │
 │  │                         ordre desat, ajuda del vigilant       │
-│  └── substitucions/      → absències, substitucions, encadenades,│
-│                            generació (assignacio.py), regles del │
-│                            dia (domain.py) i cobertures          │
+│  ├── substitucions/      → absències, substitucions, encadenades,│
+│  │                         generació (assignacio.py), regles del │
+│  │                         dia (domain.py) i cobertures          │
+│  └── pdf/                → PDF del dia, de vigilàncies, de       │
+│                            disponibles i informes (/api/pdf/*,   │
+│                            /api/informes/*); vegeu EXPORTACIÓ    │
 │                                                                  │
 │  CAPA DE ROUTES (/api/*) — estructura antiga, es va migrant      │
 │  ├── disponibles.py      → professors disponibles/forat          │
 │  ├── estadistiques.py    → recomptes i estadístiques             │
-│  ├── informes.py         → PDF informe direcció/professors       │
-│  ├── pdf.py              → PDF substitucions/vigilàncies/int.    │
 │  ├── horari.py           → consultes horari XML                  │
 │  ├── grups.py            → grups i professors alliberats per dia │
 │  │                         i per període                         │
@@ -96,8 +100,7 @@
 │  SERVEIS (serveis/): la lògica que criden les rutes              │
 │  ├── dia.py             ← Dia: una data d'un centre i el seu     │
 │  │                        horari XML (versió vigent aquell dia)  │
-│  ├── publicacio_examens.py ← publicar l'horari d'exàmens         │
-│  └── validacions_pdf.py ← conflictes i avisos abans del PDF      │
+│  └── publicacio_examens.py ← publicar l'horari d'exàmens         │
 │                                                                  │
 │  CAPA DE LÒGICA DE NEGOCI                                        │
 │  ├── horari_web.py                ← GestorHorariWeb (parser XML  │
@@ -135,10 +138,19 @@
 │  EXPORTACIÓ PDF                                                  │
 │  ├── export/pdf_styles.py         ← estils comuns                │
 │  ├── export/pdf_images.py         ← imatges embegudes            │
-│  └── export/pdf/                                                 │
+│  └── pdf/ (mòdul)                 ← rutes, casos d'ús, dibuix    │
+│        ├── router.py              ← rutes /api/pdf/*             │
+│        ├── informes.py            ← rutes /api/informes/*        │
+│        ├── generacio.py           ← dia, vigilàncies, interval   │
+│        ├── disponibles.py         ← professors disponibles       │
+│        ├── services.py            ← càlculs dels informes        │
+│        ├── repositories.py        ← preferències, consultes      │
+│        ├── domain.py              ← opcions, resultat, errors    │
+│        ├── validacions.py         ← conflictes i avisos          │
 │        ├── engine.py              ← motor principal              │
-│        ├── informe_direccio.py                                   │
-│        └── informe_professors.py                                 │
+│        ├── taula.py               ← model de la taula del dia    │
+│        ├── informe_direccio.py    ← dibuix informe direcció      │
+│        └── informe_professors.py  ← dibuix informe professor     │
 │                                                                  │
 │  INFRAESTRUCTURA                                                 │
 │  ├── config/settings.py   ← Config global (institucions)         │
@@ -184,7 +196,7 @@
 ```
 Navegador → Caddy → Nginx (frontend) → Vue component
                   → FastAPI (backend) → route → core/lògica → SQLite
-                                              → export/pdf → FileResponse
+                                              → pdf/ → FileResponse
 ```
 
 ## Estructura d'un mòdul del backend
@@ -243,7 +255,13 @@ mòdul de grups) i `absencia_coberta/` (abans «baixes»: `/api/absencies-cobert
 i el punt únic que treu l'absent de l'horari de cada data), `vigilancies/` i
 `substitucions/` (absències, substitucions, encadenades i cobertures; el motor
 d'assignació és a `assignacio.py`, les regles del dia —`DiaEscolar`— a
-`domain.py`, i les consultes i la presentació del llistat a `_consultes.py`).
+`domain.py`, i les consultes i la presentació del llistat a `_consultes.py`) i
+`pdf/` (`/api/pdf/*` i `/api/informes/*`: rutes primes a `router.py` i
+`informes.py`; els PDF del dia, de vigilàncies i de l'interval a
+`generacio.py` i el de disponibles a `disponibles.py`; els càlculs dels
+informes a `services.py` i les consultes a `repositories.py`; els
+renderitzadors amb ReportLab, a `engine.py`, `informe_direccio.py` i
+`informe_professors.py`).
 
 ### Transaccions de substitucions
 

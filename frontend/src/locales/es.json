@@ -1158,8 +1158,7 @@
         "tots": "Todos los profesores",
         "taules": "Incluir tablas de detalle",
         "btn": "Generar y descargar PDF"
-      },
-      "error": "No se ha podido generar el informe"
+      }
     },
     "summary": {
       "totalAbsences": "Ausencias totales",

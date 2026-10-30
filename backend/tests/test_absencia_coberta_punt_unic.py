@@ -15,11 +15,12 @@ BACKEND = Path(__file__).resolve().parent.parent
 PROHIBIT = re.compile(
     r"\b(AbsenciaCobertaRepository|absents_coberts_en|PROFESSORS_BAIXA|professors_de_baixa|esta_de_baixa|GestorBaixes)\b"
 )
-# La taula, fora del mòdul: el model, la migració dels noms i l'informe de
-# direcció (que en compta els registres)
+# La taula, fora del mòdul: el model i la migració dels noms
 TAULA = re.compile(r"\bprofessors_baixa\b")
-TAULA_PERMESA = {"models.py", "migracions/noms_nets.py", "routes/informes.py"}
-# (el model, AbsenciaCoberta, també el fa servir la purga de dades: gestio_dades.py)
+TAULA_PERMESA = {"models.py", "migracions/noms_nets.py"}
+# (el model, AbsenciaCoberta, també el fan servir la purga de dades,
+# gestio_dades.py, i l'informe de direcció, que en compta els registres:
+# pdf/repositories.py)
 
 
 def test_cap_codi_fora_del_modul_comprova_qui_te_una_absencia_coberta():

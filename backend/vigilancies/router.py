@@ -5,7 +5,7 @@ Rutes de /api/vigilancies (vigilàncies d'examen de cada dia):
 - Professors disponibles per vigilar (d'un en un i en bloc), i l'ajuda del vigilant
 - Assignació automàtica (titulars, pendents)
 - Netejar i ordenar
-(Els PDF de vigilàncies són a routes/pdf.py, /api/pdf/vigilancies/...)
+(Els PDF de vigilàncies són a pdf/router.py, /api/pdf/vigilancies/...)
 """
 
 from fastapi import APIRouter, Depends, HTTPException

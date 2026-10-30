@@ -49,3 +49,26 @@ def test_l_api_rep_els_noms_nets():
 
 def test_un_nom_que_no_es_text_continua_sent_un_422():
     assert TestClient(_app).post("/prova/Pares", json={"professor": 5}).status_code == 422
+
+
+def test_ordre_alfabetic_natural_i_en_catala():
+    from noms import ordre_alfabetic
+
+    # La mateixa llista que frontend/tests/ordreAlfabetic.test.js
+    noms = ["Prof 10", "prof 2", "Èric", "Prof 6", "Zoe", "Esteve", "Àlex", "Andreu", "Prof 1"]
+    noms += ["Mariana", "Mª Àngels", "Maria"]  # «ª» com «a», com Intl.Collator('ca')
+
+    assert sorted(noms, key=ordre_alfabetic) == [
+        "Àlex",
+        "Andreu",
+        "Èric",
+        "Esteve",
+        "Mª Àngels",
+        "Maria",
+        "Mariana",
+        "Prof 1",
+        "prof 2",
+        "Prof 6",
+        "Prof 10",
+        "Zoe",
+    ]

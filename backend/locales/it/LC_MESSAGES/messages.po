@@ -332,143 +332,143 @@ msgstr "Errore di connessione con Google Sheets"
 msgid "Error: {error}"
 msgstr "Errore: {error}"
 
-#: export/pdf/engine.py:239 export/pdf/engine.py:251
+#: pdf/engine.py:239 pdf/engine.py:251
 msgid "SUBSTITUCIONS"
 msgstr "SOSTITUZIONI"
 
-#: export/pdf/engine.py:241 export/pdf/engine.py:243 export/pdf/engine.py:253
+#: pdf/engine.py:241 pdf/engine.py:243 pdf/engine.py:253
 msgid "VIGILÀNCIES"
 msgstr "SORVEGLIANZE"
 
-#: export/pdf/engine.py:245 export/pdf/engine.py:249
+#: pdf/engine.py:245 pdf/engine.py:249
 msgid "SUBSTITUCIONS I VIGILÀNCIES"
 msgstr "SOSTITUZIONI E SORVEGLIANZE"
 
-#: export/pdf/engine.py:255
+#: pdf/engine.py:255
 msgid "DOCUMENT BUIT"
 msgstr "DOCUMENTO VUOTO"
 
-#: export/pdf/taula.py:363
+#: pdf/taula.py:363
 #, python-brace-format
 msgid "Hora {hora}"
 msgstr "Ora {hora}"
 
-#: export/pdf/engine.py:326
+#: pdf/engine.py:326
 msgid "RESUM: {num} substitucions"
 msgstr "RIEPILOGO: {num} sostituzioni"
 
-#: export/pdf/engine.py:328
+#: pdf/engine.py:328
 #, python-brace-format
 msgid "RESUM: {num} vigilàncies"
 msgstr "RIEPILOGO: {num} sorveglianze"
 
-#: export/pdf/engine.py:330 export/pdf/engine.py:335
+#: pdf/engine.py:330 pdf/engine.py:335
 #, python-brace-format
 msgid "RESUM: {subs} substitucions, {vig} vigilàncies"
 msgstr "RIEPILOGO: {subs} sostituzioni, {vig} sorveglianze"
 
-#: export/pdf/engine.py:346
+#: pdf/engine.py:346
 msgid "<b>CONFLICTES DETECTATS:</b>"
 msgstr "<b>CONFLITTI RILEVATI:</b>"
 
-#: export/pdf/engine.py:356
+#: pdf/engine.py:356
 #, python-brace-format
 msgid "Generat el {data} a les {hora}"
 msgstr "Generato il {data} alle {hora}"
 
-#: export/pdf/taula.py:116
+#: pdf/taula.py:116
 msgid "Absent"
 msgstr "Assente"
 
-#: export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492 export/pdf/taula.py:118 export/pdf/taula.py:130
+#: pdf/informe_professors.py:413 pdf/informe_professors.py:492 pdf/taula.py:118 pdf/taula.py:130
 msgid "Assignatura"
 msgstr "Materia"
 
-#: export/pdf/informe_direccio.py:747 export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492 export/pdf/taula.py:117
+#: pdf/informe_direccio.py:747 pdf/informe_professors.py:413 pdf/informe_professors.py:492 pdf/taula.py:117
 msgid "Grup"
 msgstr "Gruppo"
 
-#: export/pdf/informe_professors.py:413 export/pdf/taula.py:119
+#: pdf/informe_professors.py:413 pdf/taula.py:119
 msgid "Substitut"
 msgstr "Supplente"
 
-#: export/pdf/taula.py:120 export/pdf/taula.py:132
+#: pdf/taula.py:120 pdf/taula.py:132
 msgid "Observacions"
 msgstr "Osservazioni"
 
-#: export/pdf/taula.py:128
+#: pdf/taula.py:128
 msgid "Curs"
 msgstr "Anno"
 
-#: export/pdf/taula.py:129
+#: pdf/taula.py:129
 msgid "Aula"
 msgstr "Aula"
 
-#: export/pdf/taula.py:131
+#: pdf/taula.py:131
 msgid "Vigilant"
 msgstr "Sorvegliante"
 
-#: export/pdf/engine.py:722
+#: pdf/engine.py:722
 #, python-brace-format
 msgid "⚠️ {hora}: Substitut {substitut} {absence_text}"
 msgstr "⚠️ {hora}: Supplente {substitut} {absence_text}"
 
-#: export/pdf/engine.py:730
+#: pdf/engine.py:730
 #, python-brace-format
 msgid "🕐 {hora}: Substitut {substitut} duplicat"
 msgstr "🕐 {hora}: Supplente {substitut} duplicato"
 
-#: export/pdf/engine.py:742
+#: pdf/engine.py:742
 #, python-brace-format
 msgid "❌ {hora}: {professor} - {assignatura} sense substitut assignat"
 msgstr "❌ {hora}: {professor} - {assignatura} senza supplente assegnato"
 
-#: export/pdf/engine.py:756
+#: pdf/engine.py:756
 #, python-brace-format
 msgid "⚠️ {hora}: Vigilant {vigilant} {absence_text}"
 msgstr "⚠️ {hora}: Sorvegliante {vigilant} {absence_text}"
 
-#: export/pdf/engine.py:764
+#: pdf/engine.py:764
 #, python-brace-format
 msgid "🕐 {hora}: Vigilant {vigilant} duplicat"
 msgstr "🕐 {hora}: Sorvegliante {vigilant} duplicato"
 
-#: export/pdf/engine.py:772 serveis/validacions_pdf.py:52
+#: pdf/engine.py:772 pdf/validacions.py:52
 #, python-brace-format
 msgid "🏫 {hora}: Aula {aula} duplicada"
 msgstr "🏫 {hora}: Aula {aula} duplicata"
 
-#: export/pdf/engine.py:783 serveis/validacions_pdf.py:31
+#: pdf/engine.py:783 pdf/validacions.py:31
 #, python-brace-format
 msgid "❌ {hora}: {tipus} sense vigilant assignat"
 msgstr "❌ {hora}: {tipus} senza sorvegliante assegnato"
 
-#: export/pdf/engine.py:787
+#: pdf/engine.py:787
 #, python-brace-format
 msgid "❌ {hora}: Assignatura {tipus} sense vigilant assignat"
 msgstr "❌ {hora}: Materia {tipus} senza sorvegliante assegnato"
 
-#: export/pdf/engine.py:795 serveis/validacions_pdf.py:33
+#: pdf/engine.py:795 pdf/validacions.py:33
 #, python-brace-format
 msgid "🏫 {hora}: {tipus} sense aula assignada"
 msgstr "🏫 {hora}: {tipus} senza aula assegnata"
 
-#: export/pdf/engine.py:799
+#: pdf/engine.py:799
 #, python-brace-format
 msgid "🏫 {hora}: Assignatura {tipus} sense aula assignada"
 msgstr "🏫 {hora}: Materia {tipus} senza aula assegnata"
 
-#: export/pdf/engine.py:829
+#: pdf/engine.py:829
 #, python-brace-format
 msgid "🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | Assignatures: {assignatures})"
 msgstr "🔄 {hora}: {professor} ha {num} sostituzioni (Supplenti: {substituts} | Materie: {assignatures})"
 
-#: export/pdf/engine.py:991
+#: pdf/engine.py:991
 #, python-brace-format
 msgid "📅 {dia}"
 msgstr "📅 {dia}"
 
-#: export/pdf/engine.py:1010
+#: pdf/engine.py:1010
 #, python-brace-format
 msgid "🕐 {hora}"
 msgstr "🕐 {hora}"
@@ -612,7 +612,7 @@ msgstr "Devi selezionare almeno un'opzione per generare il PDF."
 msgid "<b>Substitucions de Professors</b>"
 msgstr "<b>Sostituzioni dei Docenti</b>"
 
-#: export/pdf/informe_direccio.py:878 export/pdf/informe_professors.py:332 export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492 export/pdf/taula.py:115 export/pdf/taula.py:127
+#: pdf/informe_direccio.py:878 pdf/informe_professors.py:332 pdf/informe_professors.py:413 pdf/informe_professors.py:492 pdf/taula.py:115 pdf/taula.py:127
 msgid "Hora"
 msgstr "Ora"
 
@@ -680,23 +680,23 @@ msgstr "Impossibile esportare il PDF dell'intervallo"
 msgid "Error generant PDF d'interval: {e}"
 msgstr "Errore nella generazione del PDF dell'intervallo: {e}"
 
-#: export/pdf/informe_professors.py:388 export/pdf/informe_professors.py:467
+#: pdf/informe_professors.py:388 pdf/informe_professors.py:467
 msgid "Servei"
 msgstr "Servizio"
 
-#: export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492
+#: pdf/informe_professors.py:413 pdf/informe_professors.py:492
 msgid "Tipus"
 msgstr "Tipo"
 
-#: export/pdf/informe_direccio.py:675
+#: pdf/informe_direccio.py:675
 msgid "Grups"
 msgstr "Gruppi"
 
-#: export/pdf/engine.py:783 export/pdf/engine.py:795
+#: pdf/engine.py:783 pdf/engine.py:795
 msgid "VIGILÀNCIA"
 msgstr "SORVEGLIANZA"
 
-#: routes/pdf.py:709
+#: pdf/router.py:709
 msgid "📋 Llistat de Professors Substituts"
 msgstr "📋 Elenco dei Docenti Supplenti"
 
@@ -708,7 +708,7 @@ msgstr "❌ Annulla"
 msgid "Carregant..."
 msgstr "Caricamento..."
 
-#: export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492
+#: pdf/informe_professors.py:413 pdf/informe_professors.py:492
 msgid "Data"
 msgstr "Data"
 
@@ -987,81 +987,81 @@ msgstr "   Crea almeno una cartella in data/ (es. data/demo/)"
 msgid "❌ Selecció cancel·lada per l'usuari"
 msgstr "❌ Selezione annullata dall'utente"
 
-#: export/pdf/engine.py:694
+#: pdf/engine.py:694
 msgid "absent"
 msgstr "assente"
 
-#: export/pdf/engine.py:693
+#: pdf/engine.py:693
 msgid "absent (servei)"
 msgstr "assente (servizio)"
 
-#: serveis/validacions_pdf.py:202
+#: pdf/validacions.py:202
 #, python-brace-format
 msgid "🔄 {hora}: {vigilant} té una absència coberta però és assignat com a vigilant"
 msgstr "🔄 {hora}: {vigilant} ha un'assenza coperta ma è assegnato come sorvegliante"
 
-#: serveis/validacions_pdf.py:217
+#: pdf/validacions.py:217
 #, python-brace-format
 msgid "🔄 {hora}: {substitut} té una absència coberta però és assignat com a substitut"
 msgstr "🔄 {hora}: {substitut} ha un'assenza coperta ma è assegnato come supplente"
 
-#: export/pdf/taula.py:138
+#: pdf/taula.py:138
 msgid "Les files en cursiva amb fons de color són vigilàncies d'examen."
 msgstr "Le righe in corsivo con sfondo colorato sono sorveglianze d'esame."
 
-#: export/pdf/informe_direccio.py:380
+#: pdf/informe_direccio.py:380
 msgid "Abs"
 msgstr "Ass"
 
-#: export/pdf/informe_professors.py:387 export/pdf/informe_professors.py:466
+#: pdf/informe_professors.py:387 pdf/informe_professors.py:466
 msgid "Absència"
 msgstr "Assenza"
 
-#: export/pdf/informe_direccio.py:222 export/pdf/informe_direccio.py:255 export/pdf/informe_direccio.py:675 export/pdf/informe_professors.py:245
+#: pdf/informe_direccio.py:222 pdf/informe_direccio.py:255 pdf/informe_direccio.py:675 pdf/informe_professors.py:245
 msgid "Absències"
 msgstr "Assenze"
 
-#: export/pdf/informe_professors.py:280
+#: pdf/informe_professors.py:280
 msgid "Absències (triangle sup)"
 msgstr "Assenze (triangolo sup.)"
 
-#: export/pdf/informe_direccio.py:224
+#: pdf/informe_direccio.py:224
 msgid "Absències cobertes"
 msgstr "Assenze coperte"
 
-#: export/pdf/informe_professors.py:396 export/pdf/informe_professors.py:408
+#: pdf/informe_professors.py:396 pdf/informe_professors.py:408
 msgid "Absències pròpies"
 msgstr "Assenze proprie"
 
-#: export/pdf/informe_direccio.py:509
+#: pdf/informe_direccio.py:509
 msgid "Absències reals"
 msgstr "Assenze effettive"
 
-#: export/pdf/engine.py:101
+#: pdf/engine.py:101
 msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
 msgstr "Avviso: impossibile caricare la sillabazione: {error}"
 
-#: export/pdf/informe_direccio.py:982
+#: pdf/informe_direccio.py:982
 msgid "Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) i <font color='#16a085'>▶ substitucions cobertes (%)</font>"
 msgstr "Ogni cella mostra: <b>assenze totali</b> (sfondo: intensità = più assenze) e <font color='#16a085'>▶ sostituzioni coperte (%)</font>"
 
-#: export/pdf/informe_professors.py:399
+#: pdf/informe_professors.py:399
 msgid "Cap absència registrada."
 msgstr "Nessuna assenza registrata."
 
-#: export/pdf/informe_professors.py:315
+#: pdf/informe_professors.py:315
 msgid "Cap dada disponible."
 msgstr "Nessun dato disponibile."
 
-#: export/pdf/informe_professors.py:478
+#: pdf/informe_professors.py:478
 msgid "Cap substitució feta."
 msgstr "Nessuna sostituzione fatta."
 
-#: export/pdf/informe_direccio.py:675 export/pdf/informe_professors.py:247
+#: pdf/informe_direccio.py:675 pdf/informe_professors.py:247
 msgid "Cobertes"
 msgstr "Coperte"
 
-#: export/pdf/informe_direccio.py:226 export/pdf/informe_direccio.py:255 export/pdf/informe_direccio.py:675
+#: pdf/informe_direccio.py:226 pdf/informe_direccio.py:255 pdf/informe_direccio.py:675
 msgid "Cobertura"
 msgstr "Copertura"
 
@@ -1069,19 +1069,19 @@ msgstr "Copertura"
 msgid "Dc."
 msgstr "Mer."
 
-#: export/pdf/informe_professors.py:413 export/pdf/informe_professors.py:492
+#: pdf/informe_professors.py:413 pdf/informe_professors.py:492
 msgid "Dia"
 msgstr "Giorno"
 
-#: export/pdf/informe_direccio.py:227
+#: pdf/informe_direccio.py:227
 msgid "Dies amb incid."
 msgstr "Giorni con incid."
 
-#: export/pdf/informe_direccio.py:848
+#: pdf/informe_direccio.py:848
 msgid "Distribució per dia de la setmana i hora"
 msgstr "Distribuzione per giorno della settimana e ora"
 
-#: export/pdf/informe_professors.py:275
+#: pdf/informe_professors.py:275
 msgid "Distribució per dia i hora"
 msgstr "Distribuzione per giorno e ora"
 
@@ -1101,198 +1101,198 @@ msgstr "Mar."
 msgid "Dv."
 msgstr "Ven."
 
-#: export/pdf/informe_direccio.py:732
+#: pdf/informe_direccio.py:732
 msgid "Evolució d'absències per grup i mes"
 msgstr "Andamento delle assenze per gruppo e mese"
 
-#: export/pdf/informe_direccio.py:354
+#: pdf/informe_direccio.py:354
 msgid "Evolució d'absències per professor i mes"
 msgstr "Andamento delle assenze per docente e mese"
 
-#: export/pdf/informe_direccio.py:521
+#: pdf/informe_direccio.py:521
 msgid "Evolució de substitucions fetes per professor i mes"
 msgstr "Andamento delle sostituzioni fatte per docente e mese"
 
-#: export/pdf/informe_direccio.py:253
+#: pdf/informe_direccio.py:253
 msgid "Evolució mensual"
 msgstr "Andamento mensile"
 
-#: export/pdf/informe_direccio.py:134 export/pdf/informe_professors.py:167
+#: pdf/informe_direccio.py:134 pdf/informe_professors.py:167
 msgid "Generat"
 msgstr "Generato"
 
-#: export/pdf/informe_direccio.py:661
+#: pdf/informe_direccio.py:661
 msgid "Impacte per grup i nivell"
 msgstr "Impatto per gruppo e livello"
 
-#: export/pdf/informe_direccio.py:1023 export/pdf/informe_direccio.py:130
+#: pdf/informe_direccio.py:1023 pdf/informe_direccio.py:130
 msgid "Informe de Substitucions"
 msgstr "Rapporto delle Sostituzioni"
 
-#: export/pdf/informe_direccio.py:1080
+#: pdf/informe_direccio.py:1080
 msgid "Informe generat el {timestamp} · {nom_centre}"
 msgstr "Rapporto generato il {timestamp} · {nom_centre}"
 
-#: export/pdf/informe_professors.py:165 export/pdf/informe_professors.py:572
+#: pdf/informe_professors.py:165 pdf/informe_professors.py:572
 msgid "Informe individual de substitucions"
 msgstr "Rapporto individuale delle sostituzioni"
 
-#: export/pdf/informe_direccio.py:841
+#: pdf/informe_direccio.py:841
 msgid "Intensitat de color: proporció d'absències respecte al màxim del curs"
 msgstr "Intensità del colore: proporzione delle assenze rispetto al massimo dell'anno"
 
-#: export/pdf/informe_direccio.py:511 export/pdf/informe_direccio.py:632
+#: pdf/informe_direccio.py:511 pdf/informe_direccio.py:632
 msgid "Intensitat de color: proporció respecte al màxim del curs"
 msgstr "Intensità del colore: proporzione rispetto al massimo dell'anno"
 
-#: export/pdf/informe_professors.py:283
+#: pdf/informe_professors.py:283
 msgid "Intensitat: proporció respecte al màxim del curs"
 msgstr "Intensità: proporzione rispetto al massimo dell'anno"
 
-#: export/pdf/informe_direccio.py:255
+#: pdf/informe_direccio.py:255
 msgid "Mes"
 msgstr "Mese"
 
-#: export/pdf/informe_direccio.py:751
+#: pdf/informe_direccio.py:751
 msgid "Niv."
 msgstr "Liv."
 
-#: export/pdf/informe_direccio.py:675
+#: pdf/informe_direccio.py:675
 msgid "Nivell"
 msgstr "Livello"
 
-#: export/pdf/informe_professors.py:427
+#: pdf/informe_professors.py:427
 msgid "Pendent"
 msgstr "In sospeso"
 
-#: export/pdf/informe_direccio.py:675 export/pdf/informe_professors.py:248
+#: pdf/informe_direccio.py:675 pdf/informe_professors.py:248
 msgid "Pendents"
 msgstr "In sospeso"
 
-#: export/pdf/informe_direccio.py:133 export/pdf/informe_professors.py:166
+#: pdf/informe_direccio.py:133 pdf/informe_professors.py:166
 msgid "Període"
 msgstr "Periodo"
 
-#: export/pdf/informe_professors.py:492
+#: pdf/informe_professors.py:492
 msgid "Professor absent"
 msgstr "Docente assente"
 
-#: export/pdf/informe_direccio.py:368 export/pdf/informe_direccio.py:541
+#: pdf/informe_direccio.py:368 pdf/informe_direccio.py:541
 msgid "Professor/a"
 msgstr "Docente"
 
-#: export/pdf/informe_direccio.py:669
+#: pdf/informe_direccio.py:669
 msgid "Resum per nivell"
 msgstr "Riepilogo per livello"
 
-#: export/pdf/informe_direccio.py:384
+#: pdf/informe_direccio.py:384
 msgid "Serv"
 msgstr "Serv"
 
-#: export/pdf/informe_direccio.py:223 export/pdf/informe_direccio.py:255 export/pdf/informe_professors.py:246
+#: pdf/informe_direccio.py:223 pdf/informe_direccio.py:255 pdf/informe_professors.py:246
 msgid "Serveis"
 msgstr "Servizi"
 
-#: export/pdf/informe_direccio.py:510
+#: pdf/informe_direccio.py:510
 msgid "Serveis / comissions"
 msgstr "Servizi / commissioni"
 
-#: export/pdf/informe_professors.py:249
+#: pdf/informe_professors.py:249
 msgid "Subs. fetes"
 msgstr "Sost. fatte"
 
-#: export/pdf/informe_direccio.py:225 export/pdf/informe_direccio.py:255
+#: pdf/informe_direccio.py:225 pdf/informe_direccio.py:255
 msgid "Substitucions"
 msgstr "Sostituzioni"
 
-#: export/pdf/informe_professors.py:475 export/pdf/informe_professors.py:487
+#: pdf/informe_professors.py:475 pdf/informe_professors.py:487
 msgid "Substitucions fetes"
 msgstr "Sostituzioni fatte"
 
-#: export/pdf/informe_professors.py:282
+#: pdf/informe_professors.py:282
 msgid "Substitucions fetes (triangle inf)"
 msgstr "Sostituzioni fatte (triangolo inf.)"
 
-#: export/pdf/informe_direccio.py:277 export/pdf/informe_direccio.py:696 export/pdf/informe_direccio.py:920
+#: pdf/informe_direccio.py:277 pdf/informe_direccio.py:696 pdf/informe_direccio.py:920
 msgid "TOTAL"
 msgstr "TOTALE"
 
-#: export/pdf/informe_direccio.py:763
+#: pdf/informe_direccio.py:763
 msgid "Tot."
 msgstr "Tot."
 
-#: export/pdf/informe_direccio.py:553
+#: pdf/informe_direccio.py:553
 msgid "Total"
 msgstr "Totale"
 
-#: export/pdf/informe_direccio.py:255
+#: pdf/informe_direccio.py:255
 msgid "Total incid."
 msgstr "Totale incid."
 
-#: export/pdf/informe_professors.py:389 export/pdf/informe_professors.py:468
+#: pdf/informe_professors.py:389 pdf/informe_professors.py:468
 msgid "Vig. absent"
 msgstr "Sorv. assente"
 
-#: routes/pdf.py:168
+#: pdf/router.py:168
 msgid "• {time}: {prof} ({type_disp}) disponible en lloc de {sub} ({type_curr})"
 msgstr "• {time}: {prof} ({type_disp}) disponibile al posto di {sub} ({type_curr})"
 
-#: serveis/validacions_pdf.py:126
+#: pdf/validacions.py:126
 msgid "ℹ️ {hora}: Vigilant {vigilant} absent (cobert per {substitut})"
 msgstr "ℹ️ {hora}: Sorvegliante {vigilant} assente (coperto da {substitut})"
 
-#: export/pdf/engine.py:429
+#: pdf/engine.py:429
 msgid "⚠️ AVÍS: Hi ha professors de major prioritat disponibles:"
 msgstr "⚠️ AVVISO: Ci sono docenti con priorità più alta disponibili:"
 
-#: serveis/validacions_pdf.py:231
+#: pdf/validacions.py:231
 msgid "⚠️ {hora}: Substitut {substitut} té classe ({assignatura_sub}, {grup_sub})"
 msgstr "⚠️ {hora}: Supplente {substitut} ha lezione ({assignatura_sub}, {grup_sub})"
 
-#: serveis/validacions_pdf.py:110 serveis/validacions_pdf.py:132
+#: pdf/validacions.py:110 pdf/validacions.py:132
 msgid "⚠️ {hora}: Vigilant {vigilant} absent sense cobertura"
 msgstr "⚠️ {hora}: Sorvegliante {vigilant} assente senza copertura"
 
-#: serveis/validacions_pdf.py:145
+#: pdf/validacions.py:145
 msgid "⚠️ {hora}: Vigilant {vigilant} té classe ({assignatura}, {grup})"
 msgstr "⚠️ {hora}: Sorvegliante {vigilant} ha lezione ({assignatura}, {grup})"
 
-#: serveis/validacions_pdf.py:175
+#: pdf/validacions.py:175
 msgid "⚠️ {hora}: {professor} és vigilant i substitut alhora"
 msgstr "⚠️ {hora}: {professor} è sorvegliante e supplente allo stesso tempo"
 
-#: export/pdf/engine.py:370
+#: pdf/engine.py:370
 msgid "❌ Error en generar PDF: {error}"
 msgstr "❌ Errore nella generazione del PDF: {error}"
 
-#: serveis/validacions_pdf.py:225
+#: pdf/validacions.py:225
 msgid "❌ {hora}: Substitut {substitut} està absent!"
 msgstr "❌ {hora}: Il supplente {substitut} è assente!"
 
-#: serveis/validacions_pdf.py:188
+#: pdf/validacions.py:188
 msgid "❌ {hora}: {prof_absent} ({assignatura}, {grup}) sense substitut"
 msgstr "❌ {hora}: {prof_absent} ({assignatura}, {grup}) senza supplente"
 
-#: serveis/validacions_pdf.py:85
+#: pdf/validacions.py:85
 msgid "❌ {hora}: {prof} - VIGILÀNCIA sense substitut assignat"
 msgstr "❌ {hora}: {prof} - SORVEGLIANZA senza supplente assegnato"
 
-#: serveis/validacions_pdf.py:161
+#: pdf/validacions.py:161
 msgid "🔄 {hora}: {substitut} assignat {count} vegades com a substitut"
 msgstr "🔄 {hora}: {substitut} assegnato {count} volte come supplente"
 
-#: serveis/validacions_pdf.py:43
+#: pdf/validacions.py:43
 msgid "🔄 {hora}: {vigilant} assignat {count} vegades com a vigilant"
 msgstr "🔄 {hora}: {vigilant} assegnato {count} volte come sorvegliante"
 
-#: export/pdf/engine.py:516
+#: pdf/engine.py:516
 msgid "🕐 HORA {hora}:"
 msgstr "🕐 ORA {hora}:"
 
-#: export/pdf/engine.py:651
+#: pdf/engine.py:651
 msgid "🕐 {professor} → arriba abans a {hora} (primera hora: {primera})"
 msgstr "🕐 {professor} → arriva prima alle {hora} (prima ora: {primera})"
 
-#: export/pdf/engine.py:657
+#: pdf/engine.py:657
 msgid "🕐 {professor} → queda més estona a {hora} (última hora: {ultima})"
 msgstr "🕐 {professor} → resta più a lungo alle {hora} (ultima ora: {ultima})"

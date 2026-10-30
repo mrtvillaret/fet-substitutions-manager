@@ -9,9 +9,13 @@ import inspect
 
 import pytest
 
-from routes import informes, pdf, scheduler
+from pdf import informes
+from pdf import router as pdf
+from routes import scheduler
 
 RUTES_PESADES = [
+    (pdf, "get_pdf_preferences"),  # (llegeixen la BD amb la sessió síncrona)
+    (pdf, "update_pdf_preferences"),
     (pdf, "validar_abans_pdf"),
     (pdf, "generar_pdf_complet"),
     (pdf, "generar_pdf_interval"),
@@ -19,6 +23,7 @@ RUTES_PESADES = [
     (pdf, "generar_pdf_disponibles_tots_dies"),
     (informes, "informe_direccio"),
     (informes, "informe_professor"),
+    (informes, "llista_professors"),
     (scheduler, "scheduler_generate"),
     (scheduler, "scheduler_analisi"),
     (scheduler, "scheduler_analisi_pdf"),

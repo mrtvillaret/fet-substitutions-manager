@@ -12,6 +12,8 @@ Els noms de professors, assignatures (activitats) i aules: una sola regla.
   part del nom; l'XML es desa tal com es puja i no es reescriu mai.
 """
 
+import re
+import unicodedata
 from typing import Annotated, Optional
 
 from pydantic import AfterValidator
@@ -22,6 +24,25 @@ def nom_net(valor: Optional[str]) -> Optional[str]:
     if valor is None:
         return None
     return valor.strip()
+
+
+def _sense_accents(text: str) -> str:
+    # NFKD i no NFD: també «ª» i «º» passen a «a» i «o», com a Intl.Collator('ca')
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+
+
+def ordre_alfabetic(nom: str) -> tuple:
+    """La clau per a les llistes que van per ordre alfabètic (no per la
+    posició a l'XML): natural («Prof 6» abans de «Prof 10») i com en català,
+    sense distingir majúscules i amb les lletres accentuades al lloc de la
+    lletra sense accent («Àlex» abans d'«Andreu»). Com Intl.Collator('ca',
+    {numeric: true}) al frontend. A igualtat, el nom tal com és."""
+    trossos = [
+        (0, int(t), "") if t.isdigit() else (1, 0, _sense_accents(t).casefold())
+        for t in re.split(r"(\d+)", nom or "")
+        if t
+    ]
+    return trossos, nom or ""
 
 
 def _nom_net_validador(valor):

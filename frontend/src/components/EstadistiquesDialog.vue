@@ -28,6 +28,7 @@
           <Calendar
             v-model="dataInici"
             dateFormat="yy-mm-dd"
+            :maxDate="dataFinal"
             :showIcon="true"
             :placeholder="$t('stats.period.datePlaceholder')"
           />
@@ -37,6 +38,7 @@
           <Calendar
             v-model="dataFinal"
             dateFormat="yy-mm-dd"
+            :minDate="dataInici"
             :showIcon="true"
             :placeholder="$t('stats.period.datePlaceholder')"
           />
@@ -544,6 +546,7 @@ import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
+import { ordenaAlfabeticament } from '../ordreAlfabetic'
 import { localizeBackendDayName } from '../views/scheduler/textUtils'
 import { useToast } from 'primevue/usetoast'
 import Dialog from 'primevue/dialog'
@@ -654,10 +657,7 @@ const aplicarRangCurs = (curs) => {
 
 const onCursTriat = () => {
   const curs = props.cursos.find(c => c.id === cursTriatId.value)
-  if (curs && aplicarRangCurs(curs)) {
-    carregarEstadistiques()
-    carregarInformeProfessors()
-  }
+  if (curs && aplicarRangCurs(curs)) carregarEstadistiques()
 }
 
 // Inicialitzar dates: el curs de la data de treball mana; si no n'hi ha, la BD o
@@ -876,9 +876,9 @@ const _descarregarPdf = async (url, params, nomFitxer, refLoading) => {
     link.click()
     URL.revokeObjectURL(link.href)
   } catch (error) {
+    // L'avís amb el missatge del backend (detail) el mostra l'interceptor
+    // d'App.vue, que també el llegeix del blob
     console.error('Error generant informe:', error)
-    toast.add({ severity: 'error', summary: t('common.error'),
-                detail: t('stats.informes.error'), life: 3000 })
   } finally {
     refLoading.value = false
   }
@@ -915,7 +915,11 @@ const carregarInformeProfessors = async () => {
       data_final: formatDate(dataFinal.value),
     }
     const resp = await axios.get('/api/informes/professors-llista', { params })
-    informeProfessorsOpcions.value = resp.data.professors || []
+    informeProfessorsOpcions.value = ordenaAlfabeticament(resp.data.professors || [])
+    // El professor triat potser no té res al nou interval
+    if (!informeProfessorsOpcions.value.includes(informeProfessorSeleccionat.value)) {
+      informeProfessorSeleccionat.value = null
+    }
   } catch (error) {
     console.error('Error carregant llista professors:', error)
   }
@@ -931,15 +935,17 @@ watch(() => props.visible, (newVal) => {
   }
 })
 
+// La llista de professors és la de l'interval: es refà quan canvien les dates
+watch([dataInici, dataFinal], ([inici, final]) => {
+  if (props.visible && inici && final) carregarInformeProfessors()
+})
+
 // Si canvia la data de treball (i per tant el seu curs) amb el diàleg obert,
 // reescopa les estadístiques al nou curs
 watch(() => props.curs?.id, (nou, antic) => {
   if (!props.visible || nou === antic || !nou) return
   cursTriatId.value = nou
-  if (aplicarRangCurs(props.curs)) {
-    carregarEstadistiques()
-    carregarInformeProfessors()
-  }
+  if (aplicarRangCurs(props.curs)) carregarEstadistiques()
 })
 </script>
 
@@ -989,13 +995,20 @@ watch(() => props.curs?.id, (nou, antic) => {
 
 .periode-selector {
   display: flex;
+  flex-wrap: wrap; /* a la pantalla estreta, els camps passen a la línia següent */
   gap: 1rem;
   align-items: flex-end;
   margin-bottom: 1.25rem;
 }
 
 .periode-selector .field {
-  flex: 1;
+  flex: 1 1 10rem; /* prou ample perquè es llegeixi la data sencera */
+  min-width: 10rem;
+}
+
+.periode-selector .field :deep(.p-calendar),
+.periode-selector .field :deep(.p-dropdown) {
+  width: 100%;
 }
 
 .periode-selector .field label {

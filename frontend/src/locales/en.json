@@ -1158,8 +1158,7 @@
         "tots": "All teachers",
         "taules": "Include detail tables",
         "btn": "Generate and download PDF"
-      },
-      "error": "Could not generate the report"
+      }
     },
     "summary": {
       "totalAbsences": "Total absences",

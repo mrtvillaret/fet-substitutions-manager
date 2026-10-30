@@ -13,6 +13,7 @@ from core.alliberats import sense_classe
 from dependencies import get_db
 from models import Substitucio, Vigilancia
 from noms import NomNet
+from pdf.services import valida_interval
 from prioritats.repositories import NoSubstituirRepository
 from repositories import GrupsAlliberatsRepository
 from routes.parametres import DataISO
@@ -28,6 +29,7 @@ def _default_date_range(data_inici: Optional[str], data_final: Optional[str]) ->
     if not data_inici:
         data_inici_date = datetime.now() - timedelta(days=30)
         data_inici = data_inici_date.strftime("%Y-%m-%d")
+    valida_interval(data_inici, data_final)  # 400, com els informes
     return data_inici, data_final
 
 

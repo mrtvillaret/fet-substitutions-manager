@@ -55,7 +55,7 @@ REDUCCIO_COMPRESSIO = 0.85
 
 
 def _text(valor) -> str:
-    from export.pdf.engine import _text as text_segur
+    from pdf.engine import _text as text_segur
 
     return text_segur(valor)
 

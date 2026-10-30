@@ -29,6 +29,8 @@ from config.auth import COOKIE_NAME, IS_DEVELOPMENT
 from database import create_auth_tables
 from errors_servidor import registra_gestors_errors
 from helpers import MissingXmlError
+from pdf import informes as informes_pdf
+from pdf.router import router as pdf_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limit_superat, limiter
 from routes import (
@@ -42,8 +44,6 @@ from routes import (
     grups,
     grups_amagats,
     horari,
-    informes,
-    pdf,
     scheduler,
     settings,
 )
@@ -165,7 +165,7 @@ app.include_router(auth_router)
 app.include_router(config_examens.router, dependencies=[Depends(require_admin)])
 app.include_router(grups.router, dependencies=[Depends(get_current_user)])
 app.include_router(grups_amagats.router, dependencies=[Depends(require_admin)])
-app.include_router(pdf.router, dependencies=[Depends(get_current_user)])
+app.include_router(pdf_router, dependencies=[Depends(get_current_user)])
 app.include_router(vigilancies_router, dependencies=[Depends(get_current_user)])
 app.include_router(substitucions_router, dependencies=[Depends(get_current_user)])
 app.include_router(settings.router, dependencies=[Depends(require_admin)])
@@ -177,7 +177,7 @@ app.include_router(files.router, dependencies=[Depends(require_admin)])
 app.include_router(usuaris_router, dependencies=[Depends(get_current_user)])
 app.include_router(disponibles.router, dependencies=[Depends(get_current_user)])
 app.include_router(scheduler.router, dependencies=[Depends(require_admin)])
-app.include_router(informes.router, dependencies=[Depends(require_admin)])
+app.include_router(informes_pdf.router, dependencies=[Depends(require_admin)])
 app.include_router(cursos.router, dependencies=[Depends(get_current_user)])
 app.include_router(dades.router, dependencies=[Depends(require_admin)])
 app.include_router(general.router, dependencies=[Depends(get_current_user)])

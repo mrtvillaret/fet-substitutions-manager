@@ -367,6 +367,7 @@ import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { ambDataTreball, dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
+import { jaAvisat } from '../errorsApi'
 
 // Components PrimeVue
 import PdfOpcionsComunes from '../components/PdfOpcionsComunes.vue'
@@ -1424,12 +1425,15 @@ const generarPDFComplet = async () => {
 
   } catch (error) {
     console.error('Error validant PDF:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: error.response?.data?.detail || t('substitutions.errors.validatePdf'),
-      life: 3000
-    })
+    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
+    if (!jaAvisat(error)) {
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: error.response?.data?.detail || t('substitutions.errors.validatePdf'),
+        life: 3000
+      })
+    }
     generantPDF.value = false
   }
 }
@@ -1479,12 +1483,15 @@ const generarPDFAmbOpcions = async () => {
     mostrarDialogValidacions.value = false
   } catch (error) {
     console.error('Error generant PDF:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: error.response?.data?.detail || t('substitutions.errors.generatePdf'),
-      life: 3000
-    })
+    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
+    if (!jaAvisat(error)) {
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: error.response?.data?.detail || t('substitutions.errors.generatePdf'),
+        life: 3000
+      })
+    }
   } finally {
     generantPDF.value = false
   }

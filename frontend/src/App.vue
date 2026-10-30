@@ -354,6 +354,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
 import { ambDataTreball, dataTreball } from './dataTreball'
 import { dataIso } from './dates'
+import { missatgeDError } from './errorsApi'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { BASE, ruta, esRutaLocal } from './basePath'
@@ -519,7 +520,7 @@ onMounted(async () => {
 
   axios.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
       const status = error?.response?.status
       if (status === 401) {
         // Si hi havia una sessió oberta, diu per què s'ha de tornar a entrar
@@ -532,14 +533,7 @@ onMounted(async () => {
         return Promise.reject(error)
       }
       if (!error.config?._silent) {
-        const detail = error.response?.data?.detail
-        // Els errors 5xx no porten detall (és al registre del servidor), només
-        // una referència per poder-lo trobar.
-        const ref = error.response?.data?.error_ref
-        const msg = typeof detail === 'string' ? detail
-          : !error.response ? t('app.errors.connection')
-          : status >= 500 ? t('app.errors.server') + (ref ? ` (ref. ${ref})` : '')
-          : t('app.errors.unexpected')
+        const msg = await missatgeDError(error, t)
         toast.add({ severity: 'error', summary: t('app.errors.title'), detail: msg, life: 5000 })
       }
       return Promise.reject(error)

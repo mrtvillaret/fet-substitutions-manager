@@ -12,9 +12,10 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from absencia_coberta.router import router as absencia_coberta_router
 from database import get_data_db_session
+from pdf import router as pdf
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import pdf, settings
+from routes import settings
 from substitucions import router as substitucions
 from substitucions.repositories import SubstitucioRepository
 

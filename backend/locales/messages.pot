@@ -1161,7 +1161,7 @@ msgstr ""
 
 #: gui/editor_configuracio_examens.py:210 gui/estadistiques_dialog.py:1119
 #: gui/estadistiques_dialog.py:1334 gui/widgets.py:503 export/pdf.py:55
-#: export/pdf.py:168 export/pdf/engine.py:581 export/pdf/engine.py:706
+#: export/pdf.py:168 pdf/engine.py:581 pdf/engine.py:706
 msgid "Assignatura"
 msgstr ""
 
@@ -1200,7 +1200,7 @@ msgstr ""
 
 #: gui/editor_configuracio_examens.py:265 gui/estadistiques_dialog.py:1119
 #: gui/estadistiques_dialog.py:1334 gui/widgets.py:503 export/pdf.py:55
-#: export/pdf.py:168 export/pdf/engine.py:581
+#: export/pdf.py:168 pdf/engine.py:581
 msgid "Grup"
 msgstr ""
 
@@ -1217,7 +1217,7 @@ msgid "Mou el grup avall"
 msgstr ""
 
 #: gui/editor_configuracio_examens.py:308 gui/vigilancia_ui_components.py:48
-#: export/pdf/engine.py:706
+#: pdf/engine.py:706
 msgid "Aula"
 msgstr ""
 
@@ -1877,7 +1877,7 @@ msgstr ""
 
 #: gui/estadistiques_dialog.py:1119 gui/estadistiques_dialog.py:1335
 #: gui/widgets.py:503 export/pdf.py:55 export/pdf.py:168
-#: export/pdf/engine.py:581
+#: pdf/engine.py:581
 msgid "Substitut"
 msgstr ""
 
@@ -3004,7 +3004,7 @@ msgstr ""
 msgid "Professor no trobat en llista actual"
 msgstr ""
 
-#: gui/vigilancia_ui_components.py:48 export/pdf/engine.py:706
+#: gui/vigilancia_ui_components.py:48 pdf/engine.py:706
 msgid "Vigilant"
 msgstr ""
 
@@ -3241,7 +3241,7 @@ msgid "Substitucions:"
 msgstr ""
 
 #: gui/widgets.py:503 export/pdf.py:55 export/pdf.py:168
-#: export/pdf/engine.py:581
+#: pdf/engine.py:581
 msgid "Absent"
 msgstr ""
 
@@ -3822,22 +3822,22 @@ msgstr ""
 msgid "🕐 {hora}: {vigilant} assignat múltiples vegades"
 msgstr ""
 
-#: gui/vigilancia/validator.py:66 export/pdf/engine.py:895
+#: gui/vigilancia/validator.py:66 pdf/engine.py:895
 #, python-brace-format
 msgid "❌ {hora}: {tipus} sense vigilant assignat"
 msgstr ""
 
-#: gui/vigilancia/validator.py:68 export/pdf/engine.py:898
+#: gui/vigilancia/validator.py:68 pdf/engine.py:898
 #, python-brace-format
 msgid "❌ {hora}: Assignatura {tipus} sense vigilant assignat"
 msgstr ""
 
-#: gui/vigilancia/validator.py:75 export/pdf/engine.py:905
+#: gui/vigilancia/validator.py:75 pdf/engine.py:905
 #, python-brace-format
 msgid "🏫 {hora}: {tipus} sense aula assignada"
 msgstr ""
 
-#: gui/vigilancia/validator.py:77 export/pdf/engine.py:908
+#: gui/vigilancia/validator.py:77 pdf/engine.py:908
 #, python-brace-format
 msgid "🏫 {hora}: Assignatura {tipus} sense aula assignada"
 msgstr ""
@@ -3847,7 +3847,7 @@ msgstr ""
 msgid "🔄 {hora}: {vigilant} assignat {count} vegades"
 msgstr ""
 
-#: gui/vigilancia/validator.py:123 export/pdf/engine.py:886
+#: gui/vigilancia/validator.py:123 pdf/engine.py:886
 #, python-brace-format
 msgid "🏫 {hora}: Aula {aula} duplicada"
 msgstr ""
@@ -3877,7 +3877,7 @@ msgstr ""
 msgid "✅ S'ha obert el PDF amb xdg-open"
 msgstr ""
 
-#: export/base_pdf.py:133 export/pdf/engine.py:64
+#: export/base_pdf.py:133 pdf/engine.py:64
 #, python-brace-format
 msgid "⚠️ No s'ha pogut obrir automàticament: {error}"
 msgstr ""
@@ -4188,137 +4188,137 @@ msgstr ""
 msgid "Heu de seleccionar almenys una opció per a generar el PDF."
 msgstr ""
 
-#: export/pdf/engine.py:61
+#: pdf/engine.py:61
 #, python-brace-format
 msgid "📖 S'ha obert el PDF amb xdg-open: {filepath}"
 msgstr ""
 
-#: export/pdf/engine.py:65
+#: pdf/engine.py:65
 #, python-brace-format
 msgid "📁 Fitxer disponible a: {filepath}"
 msgstr ""
 
-#: export/pdf/engine.py:95
+#: pdf/engine.py:95
 #, python-brace-format
 msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
 msgstr ""
 
-#: export/pdf/engine.py:114
+#: pdf/engine.py:114
 msgid "📄 Compressió activada manualment per l'usuari"
 msgstr ""
 
-#: export/pdf/engine.py:116
+#: pdf/engine.py:116
 msgid "📄 PDF normal sense compressió"
 msgstr ""
 
-#: export/pdf/engine.py:238 export/pdf/engine.py:250
+#: pdf/engine.py:238 pdf/engine.py:250
 msgid "SUBSTITUCIONS"
 msgstr ""
 
-#: export/pdf/engine.py:240 export/pdf/engine.py:242 export/pdf/engine.py:252
+#: pdf/engine.py:240 pdf/engine.py:242 pdf/engine.py:252
 msgid "VIGILÀNCIES"
 msgstr ""
 
-#: export/pdf/engine.py:244 export/pdf/engine.py:248
+#: pdf/engine.py:244 pdf/engine.py:248
 msgid "SUBSTITUCIONS I VIGILÀNCIES"
 msgstr ""
 
-#: export/pdf/engine.py:254
+#: pdf/engine.py:254
 msgid "DOCUMENT BUIT"
 msgstr ""
 
-#: export/pdf/engine.py:316
+#: pdf/engine.py:316
 #, python-brace-format
 msgid "Hora {hora}"
 msgstr ""
 
-#: export/pdf/engine.py:347
+#: pdf/engine.py:347
 #, python-brace-format
 msgid "RESUM: {num} substitucions"
 msgstr ""
 
-#: export/pdf/engine.py:349
+#: pdf/engine.py:349
 #, python-brace-format
 msgid "RESUM: {num} vigilàncies"
 msgstr ""
 
 #. Fallback: comportament antic
-#: export/pdf/engine.py:351 export/pdf/engine.py:355
+#: pdf/engine.py:351 pdf/engine.py:355
 #, python-brace-format
 msgid "RESUM: {subs} substitucions, {vig} vigilàncies"
 msgstr ""
 
 #. Salt de pàgina sempre per conflictes
-#: export/pdf/engine.py:364
+#: pdf/engine.py:364
 msgid "<b>CONFLICTES DETECTATS:</b>"
 msgstr ""
 
-#: export/pdf/engine.py:374
+#: pdf/engine.py:374
 #, python-brace-format
 msgid "Generat el {data} a les {hora}"
 msgstr ""
 
-#: export/pdf/engine.py:384
+#: pdf/engine.py:384
 #, python-brace-format
 msgid "✅ S'ha generat el PDF combinat: {output_path}"
 msgstr ""
 
-#: export/pdf/engine.py:390
+#: pdf/engine.py:390
 #, python-brace-format
 msgid "❌ Error en generar PDF: {error}"
 msgstr ""
 
-#: export/pdf/engine.py:555 export/pdf/engine.py:682
+#: pdf/engine.py:555 pdf/engine.py:682
 #, python-brace-format
 msgid "🔍 Compressió automàtica: fonts reduïdes a H:{header} B:{body}"
 msgstr ""
 
-#: export/pdf/engine.py:581 export/pdf/engine.py:706
+#: pdf/engine.py:581 pdf/engine.py:706
 msgid "Observacions"
 msgstr ""
 
-#: export/pdf/engine.py:706
+#: pdf/engine.py:706
 msgid "Curs"
 msgstr ""
 
-#: export/pdf/engine.py:844
+#: pdf/engine.py:844
 #, python-brace-format
 msgid "⚠️ {hora}: Substitut {substitut} {absence_text}"
 msgstr ""
 
-#: export/pdf/engine.py:849
+#: pdf/engine.py:849
 #, python-brace-format
 msgid "🕐 {hora}: Substitut {substitut} duplicat"
 msgstr ""
 
-#: export/pdf/engine.py:860
+#: pdf/engine.py:860
 #, python-brace-format
 msgid "❌ {hora}: {professor} - {assignatura} sense substitut assignat"
 msgstr ""
 
-#: export/pdf/engine.py:873
+#: pdf/engine.py:873
 #, python-brace-format
 msgid "⚠️ {hora}: Vigilant {vigilant} {absence_text}"
 msgstr ""
 
-#: export/pdf/engine.py:878
+#: pdf/engine.py:878
 #, python-brace-format
 msgid "🕐 {hora}: Vigilant {vigilant} duplicat"
 msgstr ""
 
-#: export/pdf/engine.py:939
+#: pdf/engine.py:939
 #, python-brace-format
 msgid ""
 "🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | "
 "Assignatures: {assignatures})"
 msgstr ""
 
-#: export/pdf/engine.py:991
+#: pdf/engine.py:991
 #, python-brace-format
 msgid "📅 {dia}"
 msgstr ""
 
-#: export/pdf/engine.py:1010
+#: pdf/engine.py:1010
 #, python-brace-format
 msgid "🕐 {hora}"
 msgstr ""

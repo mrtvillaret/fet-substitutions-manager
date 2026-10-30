@@ -1,6 +1,6 @@
 """
 Els PDF de substitucions i de vigilàncies fan servir els mateixos estils
-(export/pdf/taula.py): les vigilàncies es distingeixen pel títol quan van
+(pdf/taula.py): les vigilàncies es distingeixen pel títol quan van
 soles, i en gris i cursiva a la taula del dia, no per uns colors propis.
 """
 
@@ -9,8 +9,8 @@ import uuid
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, streams_pdf, text_pdf
 
+from pdf import router as pdf
 from rate_limit import limiter
-from routes import pdf
 from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 

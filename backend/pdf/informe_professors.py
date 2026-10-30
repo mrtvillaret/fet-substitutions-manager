@@ -24,9 +24,9 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from export.pdf.dies import dies_capcalera
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
+from pdf.dies import dies_capcalera
 from utils.hores import normalitzar_hora as _normalitzar_hora
 
 C_NAVY = colors.HexColor("#1e3a5f")
