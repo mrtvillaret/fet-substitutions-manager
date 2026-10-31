@@ -72,7 +72,7 @@ async def get_disponibles_dia(
             substituts_per_hora[hora].add(substitut)
 
     # Obtenir grups alliberats
-    from repositories import GrupsAlliberatsRepository
+    from grups.repositories import GrupsAlliberatsRepository
 
     grups_alliberats_data = GrupsAlliberatsRepository.get_by_date(db, data)
 

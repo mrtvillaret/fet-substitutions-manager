@@ -28,6 +28,9 @@ from auth.services import crea_usuaris_inicials
 from config.auth import COOKIE_NAME, IS_DEVELOPMENT
 from database import create_auth_tables
 from errors_servidor import registra_gestors_errors
+from estadistiques.router import router as estadistiques_router
+from grups.router import router as grups_router
+from grups.router import router_admin as grups_admin_router
 from helpers import MissingXmlError
 from pdf import informes as informes_pdf
 from pdf.router import router as pdf_router
@@ -38,11 +41,8 @@ from routes import (
     cursos,
     dades,
     disponibles,
-    estadistiques,
     files,
     general,
-    grups,
-    grups_amagats,
     horari,
     scheduler,
     settings,
@@ -163,13 +163,13 @@ app.add_middleware(
 # ===== Registre de routers modularitzats =====
 app.include_router(auth_router)
 app.include_router(config_examens.router, dependencies=[Depends(require_admin)])
-app.include_router(grups.router, dependencies=[Depends(get_current_user)])
-app.include_router(grups_amagats.router, dependencies=[Depends(require_admin)])
+app.include_router(grups_router, dependencies=[Depends(get_current_user)])
+app.include_router(grups_admin_router, dependencies=[Depends(require_admin)])
 app.include_router(pdf_router, dependencies=[Depends(get_current_user)])
 app.include_router(vigilancies_router, dependencies=[Depends(get_current_user)])
 app.include_router(substitucions_router, dependencies=[Depends(get_current_user)])
 app.include_router(settings.router, dependencies=[Depends(require_admin)])
-app.include_router(estadistiques.router, dependencies=[Depends(require_admin)])
+app.include_router(estadistiques_router, dependencies=[Depends(require_admin)])
 app.include_router(prioritats_router, dependencies=[Depends(require_admin)])
 app.include_router(absencia_coberta_router, dependencies=[Depends(require_admin)])
 app.include_router(horari.router, dependencies=[Depends(get_current_user)])

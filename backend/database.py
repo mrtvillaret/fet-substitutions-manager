@@ -187,13 +187,3 @@ def get_data_db_session(institucio: str):
         yield db
     finally:
         db.close()
-
-
-@contextmanager
-def get_db_session():
-    """Compatibilitat: sessió de dades segons institució global configurada."""
-    from config.settings import config
-
-    instit = config.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or "exemple"
-    with get_data_db_session(instit) as db:
-        yield db

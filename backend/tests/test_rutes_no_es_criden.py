@@ -25,7 +25,8 @@ def _rutes(arbre) -> set:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for dec in node.decorator_list:
                 f = dec.func if isinstance(dec, ast.Call) else dec
-                if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) and f.value.id == "router":
+                # router, i també router_admin (dos routers al mateix fitxer)
+                if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) and f.value.id.startswith("router"):
                     noms.add(node.name)
     return noms
 

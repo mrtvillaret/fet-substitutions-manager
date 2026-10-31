@@ -117,7 +117,16 @@ def _table_style_base(header_color=C_NAVY, row_alt=C_GREY_BG):
     )
 
 
-def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: str, logo_path: str = None) -> list:
+def _linia_hores(hores_triades) -> str:
+    """La línia de la capçalera amb les hores del filtre (si n'hi ha)."""
+    if not hores_triades:
+        return ""
+    return f"<br/><font size='9' color='#a8c8e8'>{_('Hores')}: {_text(', '.join(hores_triades))}</font>"
+
+
+def _header_block(
+    nom_centre: str, data_inici: str, data_final: str, timestamp: str, logo_path: str = None, hores_triades=None
+) -> list:
     """Bloc de capçalera amb fons fosc, logo opcional i nom del centre"""
 
     def fmt(d):
@@ -131,7 +140,8 @@ def _header_block(nom_centre: str, data_inici: str, data_final: str, timestamp: 
         Paragraph(
             f"<font size='13'><b>{_text(nom_centre)}</b></font><br/>"
             f"<font size='9' color='#a8c8e8'>{_('Període')}: {fmt(data_inici)} – {fmt(data_final)}"
-            f" &nbsp;|&nbsp; {_('Generat')}: {timestamp}</font>",
+            f" &nbsp;|&nbsp; {_('Generat')}: {timestamp}</font>"
+            f"{_linia_hores(hores_triades)}",
             STYLES["subtitle"],
         ),
     ]
@@ -222,7 +232,7 @@ def _kpi_cards(stats: dict) -> list:
             card(total_abs, _("Absències"), C_ORANGE),
             card(total_serv, _("Serveis"), C_BLUE),
             card(total_baixa, _("Absències cobertes"), C_RED),
-            card(total_subs, _("Substitucions"), C_TEAL),
+            card(total_subs, _("Amb substitut"), C_TEAL),
             card(f"{cobertura:.0f}%", _("Cobertura"), C_GREEN),
             card(dies_actius, _("Dies amb incid."), C_NAVY),
         ]
@@ -252,7 +262,7 @@ def _taula_evolucio_mensual(per_mes: list) -> list:
     """Taula d'evolució mensual"""
     elems = _section_title(_("Evolució mensual"))
 
-    headers = [_("Mes"), _("Absències"), _("Serveis"), _("Total incid."), _("Substitucions"), _("Cobertura")]
+    headers = [_("Mes"), _("Absències"), _("Serveis"), _("Total incid."), _("Amb substitut"), _("Cobertura")]
     rows = [headers]
     tot_abs = tot_serv = tot_subs = 0
     for m in per_mes:
@@ -530,6 +540,15 @@ def _taula_matriu_professors_mesos(
 def _taula_matriu_substitucions_mesos(per_substitut_mes: dict, mesos: list, professors_subs: list) -> list:
     """Matriu heatmap substituts × mesos"""
     elems = _section_title(_("Evolució de substitucions fetes per professor i mes"))
+    elems.append(
+        Paragraph(
+            _(
+                "Totes les hores amb substitut de la pantalla Substitucions, de qualsevol tipus. No és la cobertura de les absències."
+            ),
+            STYLES["note"],
+        )
+    )
+    elems.append(Spacer(1, 0.15 * cm))
 
     if not mesos or not per_substitut_mes:
         return elems
@@ -683,7 +702,7 @@ def _taula_grups_per_nivell(grups_data: dict) -> list:
     )
     elems.append(Spacer(1, 0.2 * cm))
 
-    headers_niv = [_("Nivell"), _("Grups"), _("Absències"), _("Cobertes"), _("Pendents"), _("Cobertura")]
+    headers_niv = [_("Nivell"), _("Grups"), _("Absències"), _("Amb substitut"), _("Pendents"), _("Cobertura")]
     rows_niv = [headers_niv]
     for niv in ordre:
         if niv not in per_nivell:
@@ -706,7 +725,7 @@ def _taula_grups_per_nivell(grups_data: dict) -> list:
     tot_pct = round(tot_cob / tot_abs * 100) if tot_abs else 0
     rows_niv.append([_("TOTAL"), "—", str(tot_abs), str(tot_cob), str(tot_pen), f"{tot_pct}%"])
 
-    col_niv = [3 * cm, 1.8 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm]
+    col_niv = [3 * cm, 1.8 * cm, 2.5 * cm, 3 * cm, 2.5 * cm, 2.5 * cm]
     t_niv = Table(rows_niv, colWidths=col_niv, hAlign="LEFT")
     st_niv = _table_style_base(C_NAVY)
     for col in range(1, 6):
@@ -992,7 +1011,7 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
         Paragraph(
             _(
                 "Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) "
-                "i <font color='#16a085'>▶ substitucions cobertes (%)</font>"
+                "i <font color='#16a085'>▶ amb substitut (%)</font>"
             ),
             STYLES["note"],
         )
@@ -1009,9 +1028,11 @@ def generar_informe_pdf(
     export_dir: str = "exports",
     logo_path: str = None,
     lang: str = "ca",
+    hores_triades: list = None,
 ) -> str:
     """
-    Genera l'informe de direcció en PDF.
+    Genera l'informe de direcció en PDF. Amb `hores_triades` (el filtre per
+    hores), la capçalera diu quines són.
     `dades` és el que retorna pdf/services.py:dades_direccio. Se'n fan servir:
     stats, per_mes, professors_absencies, professors_substitucions, per_hora,
     per_dia_hora, per_professor_mes_abs, per_professor_mes_serv,
@@ -1040,7 +1061,9 @@ def generar_informe_pdf(
     story = []
 
     # Capçalera
-    story += _header_block(nom_centre, data_inici, data_final, timestamp, logo_path=logo_path)
+    story += _header_block(
+        nom_centre, data_inici, data_final, timestamp, logo_path=logo_path, hores_triades=hores_triades
+    )
 
     # KPIs
     story += _kpi_cards(dades["stats"])

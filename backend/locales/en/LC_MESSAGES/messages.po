@@ -470,8 +470,8 @@ msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
 msgstr "Warning: word hyphenation could not be loaded: {error}"
 
 #: pdf/informe_direccio.py:982
-msgid "Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) i <font color='#16a085'>▶ substitucions cobertes (%)</font>"
-msgstr "Each cell shows: <b>total absences</b> (background: intensity = more absences) and <font color='#16a085'>▶ covered substitutions (%)</font>"
+msgid "Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) i <font color='#16a085'>▶ amb substitut (%)</font>"
+msgstr "Each cell shows: <b>total absences</b> (background: intensity = more absences) and <font color='#16a085'>▶ with substitute (%)</font>"
 
 #: pdf/informe_professors.py:399
 msgid "Cap absència registrada."
@@ -486,8 +486,8 @@ msgid "Cap substitució feta."
 msgstr "No substitutions done."
 
 #: pdf/informe_direccio.py:675 pdf/informe_professors.py:247
-msgid "Cobertes"
-msgstr "Covered"
+msgid "Amb substitut"
+msgstr "With substitute"
 
 #: pdf/informe_direccio.py:226 pdf/informe_direccio.py:255 pdf/informe_direccio.py:675
 msgid "Cobertura"
@@ -688,3 +688,19 @@ msgstr "🕐 {professor} → arrives earlier at {hora} (first hour: {primera})"
 #: pdf/engine.py:657
 msgid "🕐 {professor} → queda més estona a {hora} (última hora: {ultima})"
 msgstr "🕐 {professor} → stays longer until {hora} (last hour: {ultima})"
+
+#: pdf/informe_direccio.py pdf/informe_professors.py
+msgid "Totes les hores amb substitut de la pantalla Substitucions, de qualsevol tipus. No és la cobertura de les absències."
+msgstr "Every hour with a substitute on the Substitutions screen, of any type. This is not the coverage of absences."
+
+#: pdf/informe_professors.py
+msgid "Encadenada"
+msgstr "Chained"
+
+#: pdf/informe_professors.py
+msgid "Vigilància"
+msgstr "Invigilation"
+
+#: pdf/informe_direccio.py pdf/informe_professors.py
+msgid "Hores"
+msgstr "Hours"

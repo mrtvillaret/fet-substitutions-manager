@@ -3,18 +3,17 @@ Rutes de /api/prioritats:
 - Categories i assignatures de prioritat (llistar; es desen totes d'una
   vegada amb «Desar tot»)
 - Llista de no substituir
-- De pas, fins que es migri el mòdul de grups: les activitats alliberables.
-  (Les absències cobertes, abans «professors de baixa», són a absencia_coberta/.)
+(Les activitats alliberables són al mòdul grups/; les absències cobertes, abans
+«professors de baixa», a absencia_coberta/.)
 """
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from dependencies import dia_del_calendari, get_db
+from dependencies import get_db
 from noms import NomNet
 from prioritats import services
 from prioritats.schemas import (
-    ActivitatsAlliberables,
     AssignaturesPrioritatResponse,
     CategoriesResponse,
     CreacioResponse,
@@ -23,8 +22,6 @@ from prioritats.schemas import (
     NoSubstituirResponse,
     PrioritatsRequest,
 )
-from repositories import ConfiguracioRepository
-from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/prioritats", tags=["Prioritats i Professors"])
 
@@ -66,54 +63,6 @@ def delete_no_substituir(assignatura: NomNet, db: Session = Depends(get_db)):
     """Elimina una assignatura de no substituir"""
     services.treu_no_substituir(db, assignatura)
     return {"success": True, "message": "Assignatura eliminada de no substituir"}
-
-
-# ===== ACTIVITATS ALLIBERABLES =====
-
-
-@router.get("/activitats-alliberables")
-def get_activitats_alliberables(db: Session = Depends(get_db), dia_calendari: Dia = Depends(dia_del_calendari)):
-    """Activitats sense grup que es poden alliberar (surten com a files a la
-    taula de grups alliberats) i les que hi ha a l'horari vigent a `data` (o,
-    sense, avui) per triar-les."""
-    from helpers import MissingXmlError
-    from routes.grups import activitats_alliberables
-
-    disponibles = set()
-    try:
-        # És configuració, no un dia: els professors de l'XML fins a l'«últim
-        # professor», també els que tenen una absència coberta aquell dia
-        horari = dia_calendari.horari_amb_tothom
-        for dia in horari.dies:
-            for hora in horari.hores:
-                for professor in horari.professors:
-                    act = horari.get_activitat(dia, hora, professor) or {}
-                    if act.get("assignatura") and not act.get("grup"):
-                        disponibles.add(act["assignatura"])
-    except MissingXmlError:
-        pass
-    from repositories import GrupsAlliberatsRepository
-
-    return {
-        "activitats": activitats_alliberables(db),
-        "per_defecte": GrupsAlliberatsRepository.activitats_per_defecte(db),
-        "disponibles": sorted(disponibles),
-    }
-
-
-@router.put("/activitats-alliberables")
-def set_activitats_alliberables(dades: ActivitatsAlliberables, db: Session = Depends(get_db)):
-    import json
-
-    from routes.grups import CLAU_ACTIVITATS_ALLIBERABLES
-
-    activitats = sorted({a.strip() for a in dades.activitats if a and a.strip()})
-    per_defecte = sorted({a.strip() for a in dades.per_defecte if a and a.strip() in activitats})
-    ConfiguracioRepository.set(db, CLAU_ACTIVITATS_ALLIBERABLES, json.dumps(activitats, ensure_ascii=False), "json")
-    ConfiguracioRepository.set(
-        db, "activitats_alliberades_per_defecte", json.dumps(per_defecte, ensure_ascii=False), "json"
-    )
-    return {"success": True, "activitats": activitats, "per_defecte": per_defecte}
 
 
 # ===== DESAR TOTES LES PRIORITATS =====

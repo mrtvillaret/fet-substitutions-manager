@@ -297,6 +297,11 @@
             </template>
           </MultiSelect>
           <small class="field-hint">{{ $t('config.priorities.synthHint') }}</small>
+          <!-- Informatiu: no impedeix desar -->
+          <p v-if="avisAmbGrup.length" class="avis-amb-grup" role="status">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ $t('config.priorities.noSubstWithGroupWarning', { activitats: avisAmbGrup.join(', ') }, avisAmbGrup.length) }}
+          </p>
         </div>
       </div>
 
@@ -393,6 +398,7 @@ import axios from 'axios'
 import { ambDataTreball, dataTreball } from '../../dataTreball'
 import { dataIso } from '../../dates'
 import { jaAvisat } from '../../errorsApi'
+import { novesAmbGrup } from '../../noSubstituirAmbGrup'
 import { useToast } from 'primevue/usetoast'
 import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 import Dialog from 'primevue/dialog'
@@ -451,6 +457,8 @@ const desantPrioritats = ref(false)
 const mostrarDialogAfegirAssignatura = ref(false)
 const categoriaAfegirAssignaturaIdx = ref(null)
 const assignaturesDisponibles = ref([])
+// Les activitats que tenen grup a l'horari vigent (per a l'avís de «No substituir»)
+const assignaturesAmbGrup = ref([])
 
 // Opcions dels desplegables: assignatures de l'XML + les sintètiques
 // (alliberat…) + les que ja estan configurades (encara que vinguin d'un altre
@@ -479,6 +487,11 @@ const opcionsNoSubst = computed(() => {
   }))
 })
 const assignaturesSeleccionades = ref([])
+// Les que s'afegeixen a «No substituir» i tenen grup: avís informatiu
+const avisAmbGrup = computed(() =>
+  novesAmbGrup(novesNoSubstituir.value, noSubstituir.value, assignaturesAmbGrup.value)
+    .map(a => a === '' ? t('common.empty') : a)
+)
 
 // Activitats sense grup que es poden alliberar
 const activitatsAlliberables = ref([])
@@ -726,6 +739,7 @@ const carregarAssignaturesXML = async () => {
     assignaturesDisponibles.value = response.data.assignatures || []
     xmlDataInici.value = response.data.xml_data_inici || null
     teBuits.value = !!response.data.te_buits
+    assignaturesAmbGrup.value = response.data.amb_grup || []
   } catch (error) {
     console.error('Error carregant assignatures XML:', error)
   }
@@ -1061,6 +1075,24 @@ onMounted(() => {
 
 .xml-indicator i {
   color: #64748b;
+}
+
+.avis-amb-grup {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border-left: 3px solid #d97706;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.avis-amb-grup .pi {
+  margin-top: 0.15rem;
 }
 
 .field-hint {

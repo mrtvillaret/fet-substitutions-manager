@@ -26,10 +26,10 @@ from suport_api import (
 )
 
 from database import get_data_db_session
+from grups.repositories import GrupsAlliberatsRepository
 from horari_web import GestorHorariWeb
 from prioritats.repositories import NoSubstituirRepository
 from rate_limit import limiter
-from repositories import GrupsAlliberatsRepository
 from serveis.dia import Dia
 from substitucions import domain, services
 from substitucions import router as substitucions
@@ -176,6 +176,43 @@ def test_la_vista_per_defecte_amaga_activitats_que_no_se_substitueixen(client, c
     _marca_absencia(client)
     assert [s["hora"] for s in _subs(client)] == ["10:00", "11:30"]
     assert [s["hora"] for s in _subs(client, include_all=True)] == HORES_ABSENT
+
+
+def test_la_vista_per_defecte_amaga_les_activitats_de_no_substituir_encara_que_tinguin_grup(client, centre):
+    # FUNCIONAMENT.md, apartat 5: abans, la pantalla només ho mirava a les
+    # files sense grup (i el frontend ho tornava a filtrar pel seu compte)
+    activitat = HORARI.get_activitat("Dilluns", "10:00", ABSENT)
+    assert activitat["grup"]
+    with get_data_db_session(centre) as db:
+        NoSubstituirRepository.create(db, activitat["assignatura"])
+        db.commit()
+    _marca_absencia(client)
+    assert "10:00" not in [s["hora"] for s in _subs(client)]
+    assert "10:00" in [s["hora"] for s in _subs(client, include_all=True)]
+
+
+def test_la_vista_per_defecte_sempre_mostra_les_vigilancies_d_un_vigilant_absent(client, centre):
+    # No és una hora de l'horari del professor (l'assignatura «VIGILÀNCIA» n'és
+    # només l'etiqueta), i «No substituir» decideix quines hores de l'horari
+    # cal cobrir
+    from datetime import date
+
+    from models import Substitucio
+
+    with get_data_db_session(centre) as db:
+        NoSubstituirRepository.create(db, "VIGILÀNCIA")
+        db.add(
+            Substitucio(
+                data=date.fromisoformat(DATA),
+                hora="11:30",
+                professor_absent="Prof 3",
+                assignatura="VIGILÀNCIA",
+                grup="1-ESO-A",
+                tipus_absencia="VIGILANCIA_ABSENT",
+            )
+        )
+        db.commit()
+    assert [(s["hora"], s["tipus_absencia"]) for s in _subs(client)] == [("11:30", "VIGILANCIA_ABSENT")]
 
 
 def test_la_vista_per_defecte_amaga_grups_alliberats(client, centre):

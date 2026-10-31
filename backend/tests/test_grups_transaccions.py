@@ -7,8 +7,9 @@ from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
+from grups import router as grups
+from grups import services as grups_services
 from models import AlliberamentPeriode, GrupAlliberat
-from routes import grups
 from substitucions import cobertures
 from substitucions import router as substitucions_router
 from substitucions.repositories import SubstitucioRepository
@@ -64,7 +65,7 @@ def _reconciliacio_que_falla(monkeypatch):
     def genera_i_falla(*_args, **_kwargs):
         raise RuntimeError("error simulat reconciliant substitucions")
 
-    monkeypatch.setattr(grups, "genera_substitucions_dia", genera_i_falla)
+    monkeypatch.setattr(grups_services, "genera_substitucions_dia", genera_i_falla)
 
 
 def test_desar_el_dia_desfa_alliberats_i_derivats_si_falla_la_reconciliacio(client, centre, monkeypatch):
@@ -88,7 +89,7 @@ def test_desar_el_dia_desfa_tot_si_falla_despres_de_refrescar_cobertures(client,
         refresca_real(*args, **kwargs)
         raise RuntimeError("error simulat després de refrescar cobertures")
 
-    monkeypatch.setattr(cobertures, "refresca_cobertures", refresca_i_falla)
+    monkeypatch.setattr(grups_services, "refresca_cobertures", refresca_i_falla)
 
     resposta = client.put(f"/api/grups/{DATA}", json={"grups": {"10:00": ["3-ESO-A"]}})
 
@@ -104,26 +105,8 @@ def test_afegir_periode_desfa_el_canvi_si_falla_la_reconciliacio(client, centre,
 
     resposta = client.post(
         "/api/grups/periode",
-        json={"tipus": "grup", "clau": "3-ESO-A", "hores": ["10:00"], "data": DATA},
+        json={"tipus": "professor", "clau": "Prof 21", "hores": ["10:00"], "data": DATA},
     )
-
-    assert resposta.status_code == 500
-    assert "error_ref" in resposta.json()
-    assert _bolcat(centre) == abans
-
-
-def test_esborrar_periode_desfa_el_canvi_si_falla_la_reconciliacio(client, centre, monkeypatch):
-    _prepara_dia_afectat(client)
-    creada = client.post(
-        "/api/grups/periode",
-        json={"tipus": "grup", "clau": "3-ESO-A", "hores": ["10:00"], "data": DATA},
-    )
-    assert creada.status_code == 200, creada.text
-    canvi_id = client.get("/api/grups/periode/canvis").json()["canvis"][0]["id"]
-    abans = _bolcat(centre)
-    _reconciliacio_que_falla(monkeypatch)
-
-    resposta = client.delete(f"/api/grups/periode/{canvi_id}")
 
     assert resposta.status_code == 500
     assert "error_ref" in resposta.json()

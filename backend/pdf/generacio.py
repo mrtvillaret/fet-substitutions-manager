@@ -11,12 +11,12 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from core.alliberats import sense_classe
+from grups.repositories import GrupsAlliberatsRepository
 from i18n_setup import translate
 from pdf.domain import FormatPdfNoValid, IntervalNoValid, MidaPdfNoValida, OpcionsPdf, PdfGenerat, SenseVigilancies
 from pdf.engine import PDFCompletExporter
 from pdf.validacions import valida_dia
 from prioritats.repositories import NoSubstituirRepository
-from repositories import GrupsAlliberatsRepository
 from serveis.dia import Dia
 from substitucions.prioritat import MillorsSubstituts
 from substitucions.repositories import SubstitucioRepository

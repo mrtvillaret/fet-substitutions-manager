@@ -6,8 +6,8 @@ les vigilàncies, les absències o els alliberats.
 
 from datetime import datetime
 
+from grups.repositories import GrupsAlliberatsRepository
 from helpers import get_gestors
-from repositories import GrupsAlliberatsRepository
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import crear_vigilancia_absent
 from vigilancies.repositories import VigilanciaRepository

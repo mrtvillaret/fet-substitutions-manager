@@ -19,12 +19,15 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from absencia_coberta.router import router as absencia_coberta_router
+from grups import router as grups
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import grups, settings
+from routes import settings
 from substitucions import router as substitucions
 
-APP = crea_app(grups.router, substitucions.router, prioritats_router, absencia_coberta_router, settings.router)
+APP = crea_app(
+    grups.router, grups.router_admin, substitucions.router, prioritats_router, absencia_coberta_router, settings.router
+)
 DILLUNS = ["2026-04-13", "2026-04-20", "2026-04-27", "2026-05-04"]
 
 
@@ -78,26 +81,27 @@ def test_un_canvi_posterior_el_torna_a_l_estat_normal(client):
     assert not _alliberat(client, DILLUNS[3], "10:00", "Prof 26")
 
 
-def test_esborrar_el_canvi_el_desfa(client):
+def test_els_canvis_no_es_llisten_ni_s_esborren_per_l_api(client):
+    # La pantalla no ho fa servir (30/10/2026): un canvi es desfà amb un altre
+    # canvi posterior (test_un_canvi_posterior_el_torna_a_l_estat_normal)
     _canvi(client, "professor", "Prof 26", ["10:00"], DILLUNS[1])
-    canvi = client.get("/api/grups/periode/canvis", params={"tipus": "professor", "clau": "Prof 26"}).json()["canvis"]
-    assert [(c["dia_setmana"], c["hora"], c["des_de"], c["alliberat"]) for c in canvi] == [
-        ("Dilluns", "10:00", DILLUNS[1], True)
-    ]
-    assert client.delete(f"/api/grups/periode/{canvi[0]['id']}").status_code == 200
-    assert not _alliberat(client, DILLUNS[2], "10:00", "Prof 26")
+    assert client.get("/api/grups/periode/canvis").status_code == 404
+    assert client.delete("/api/grups/periode/1").status_code == 404
+    assert _alliberat(client, DILLUNS[2], "10:00", "Prof 26")
 
 
 # ------------------------------------------------------------------ grup
 
 
-def test_un_grup_alliberat_per_periode_no_genera_substitucions(client):
-    _canvi(client, "grup", "3-ESO-A", ["10:00"], DILLUNS[1])
-    client.put(
-        f"/api/substitucions/{DILLUNS[2]}/absencies/Prof 15", json={"hores_absencia": ["10:00"], "updated_at_map": {}}
+@pytest.mark.parametrize("tipus, clau", [("grup", "3-ESO-A"), ("activitat", "Reforç")])
+def test_nomes_hi_ha_canvis_per_periode_de_professors(client, tipus, clau):
+    # Decidit el 9/10/2026: cap canvi d'estat per període als grups ni a les
+    # classes; només els dels professors, per als reforços
+    resposta = client.post(
+        "/api/grups/periode", json={"tipus": tipus, "clau": clau, "hores": ["10:00"], "data": DILLUNS[1]}
     )
-    visibles = client.get(f"/api/substitucions/{DILLUNS[2]}").json()
-    assert ("10:00", "Prof 15") not in {(s["hora"], s["professor_absent"]) for s in visibles}
+    assert resposta.status_code == 400
+    assert resposta.json()["detail"] == "Tipus desconegut"
 
 
 # ------------------------------------------------------------------ activitats
@@ -152,16 +156,6 @@ def test_alliberar_una_activitat_un_dia_allibera_qui_la_fa(client):
     assert client.get(f"/api/grups/{DILLUNS[1]}").json()["activitats_seleccionades_per_hora"] == {"09:00": ["Reforç"]}
 
 
-def test_una_activitat_alliberada_per_periode_surt_marcada_aquell_dia(client):
-    _configura_reforc(client)
-    _canvi(client, "activitat", "Reforç", ["09:00"], DILLUNS[1])
-    assert _alliberat(client, DILLUNS[2], "09:00", "Prof 31")
-    periode = client.get(f"/api/grups/{DILLUNS[2]}").json()["periode"]
-    assert periode == {"09:00": [{"tipus": "activitat", "clau": "Reforç", "des_de": DILLUNS[1]}]}
-    # El que es marca el dia no inclou els períodes (es desen a part)
-    assert client.get(f"/api/grups/{DILLUNS[2]}").json()["activitats_seleccionades_per_hora"] == {}
-
-
 def test_un_professor_d_una_activitat_es_pot_alliberar_sol(client):
     _configura_reforc(client)
     _canvi(client, "professor", "Prof 18", ["09:00"], DILLUNS[1])
@@ -176,9 +170,9 @@ def test_un_professor_d_una_activitat_es_pot_alliberar_sol(client):
     "cos",
     [
         {"tipus": "altre", "clau": "x", "hores": ["10:00"], "data": "2026-04-20"},
-        {"tipus": "grup", "clau": "", "hores": ["10:00"], "data": "2026-04-20"},
-        {"tipus": "grup", "clau": "1-ESO-A", "hores": [], "data": "2026-04-20"},
-        {"tipus": "grup", "clau": "1-ESO-A", "hores": ["10:00"], "data": "20/04/2026"},
+        {"tipus": "professor", "clau": "", "hores": ["10:00"], "data": "2026-04-20"},
+        {"tipus": "professor", "clau": "Prof 26", "hores": [], "data": "2026-04-20"},
+        {"tipus": "professor", "clau": "Prof 26", "hores": ["10:00"], "data": "20/04/2026"},
     ],
 )
 def test_canvis_invalids_es_rebutgen(client, cos):
@@ -350,3 +344,20 @@ def test_ocupat_un_dia_guanya_a_un_canvi_d_estat_alliberat(client):
     assert _alliberat(client, DILLUNS[2], "09:00", "Prof 31")
     client.put(f"/api/grups/{DILLUNS[2]}", json={"ocupats": {"09:00": ["Prof 31"]}})
     assert not _alliberat(client, DILLUNS[2], "09:00", "Prof 31")
+
+
+def test_un_error_llegint_els_canvis_per_periode_no_es_calla():
+    # La taula es crea sempre en obrir la BD (database.create_data_tables):
+    # abans, qualsevol error es convertia en «cap canvi» i deixava professors
+    # sense alliberar sense que ningú se n'adonés
+    from grups.repositories import AlliberamentsPeriodeRepository
+
+    class SessioQueFalla:
+        def query(self, *_args, **_kwargs):
+            raise RuntimeError("error simulat llegint la BD")
+
+        def rollback(self):
+            pass
+
+    with pytest.raises(RuntimeError):
+        AlliberamentsPeriodeRepository.darrers(SessioQueFalla(), DILLUNS[1])

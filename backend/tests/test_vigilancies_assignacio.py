@@ -23,10 +23,10 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from config.context import fixa_institucio_peticio
 from database import get_data_db_session
+from grups.repositories import GrupsAlliberatsRepository
 from models import AbreviaturaGrup, CategoriaPrioritat, ConfiguracioExamen, Grup, Nivell
 from prioritats.services import carrega_prioritats
 from rate_limit import limiter
-from repositories import GrupsAlliberatsRepository
 from substitucions import router as substitucions
 from vigilancies import services
 from vigilancies.assignacio import assignacio_optima, grups_de, save_vigilancies_afinitats, titular_de, titulars_de

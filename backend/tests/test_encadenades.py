@@ -18,10 +18,10 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth.dependencies import get_current_user, require_admin
 from database import get_data_db_session
+from grups import router as grups
 from models import Substitucio
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import grups
 from substitucions import router as substitucions
 
 APP = crea_app()

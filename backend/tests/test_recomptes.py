@@ -1,11 +1,12 @@
 """
-Els càlculs dels informes (pdf/services.py), sense BD ni PDF: cada apartat
-de l'informe de direcció a partir d'una llista de substitucions.
+Els recomptes (recomptes/services.py), sense BD ni PDF: cada apartat a
+partir d'una llista de substitucions.
 """
 
-from pdf import services
+from pdf.services import MESOS
+from recomptes import services
 
-MESOS_CA = services.MESOS["ca"]
+MESOS_CA = MESOS["ca"]
 
 
 def _sub(data, tipus="ABSENCIA", absent="Prof 1", substitut="", grup="1-ESO-A", hora="08:00", assignatura="Català"):
@@ -20,30 +21,41 @@ def _sub(data, tipus="ABSENCIA", absent="Prof 1", substitut="", grup="1-ESO-A", 
     }
 
 
-def test_compten_les_absencies_i_els_serveis_que_s_havien_de_cobrir():
-    alliberats = {"2026-03-02": {"08:00": ["1-ESO-B", "professor:Prof 9"]}}
-    no_sub = {"Guàrdia"}
+def test_una_sola_regla_decideix_quines_files_es_veuen_a_substitucions():
+    # La fan servir la pantalla Substitucions i les absències i la cobertura
+    # (FUNCIONAMENT.md, apartat 5)
+    from substitucions.visibilitat import es_visible_a_substitucions
 
-    def real(**camps):
-        return services.es_substitucio_real(_sub("2026-03-02", **camps), no_sub, alliberats)
+    alliberats_hora = ["1-ESO-B", "professor:Prof 9"]
 
-    assert real()
-    assert real(tipus="SERVEI")
-    assert real(tipus="VIGILANCIA_ABSENT")
-    assert not real(tipus="ENCADENADA")
-    assert not real(tipus="VIGILANCIA")
-    assert not real(assignatura="Guàrdia")
-    assert not real(assignatura=" ")
-    assert not real(grup="1-ESO-B")  # el grup no tenia classe
-    assert not real(absent="Prof 9")  # el professor estava alliberat
-    assert real(hora="09:00", grup="1-ESO-B")
+    def visible(no_sub=frozenset({"Guàrdia", ""}), **camps):
+        return es_visible_a_substitucions(_sub("2026-03-02", **camps), no_sub, alliberats_hora)
+
+    assert visible()
+    assert visible(tipus="SERVEI")
+    assert visible(tipus="ENCADENADA")
+    assert visible(tipus="VIGILANCIA")
+    assert not visible(assignatura="Guàrdia")  # amb grup
+    assert not visible(assignatura="Guàrdia", grup="")  # i sense
+    assert not visible(assignatura=" Guàrdia ")  # el nom net
+    assert not visible(grup="1-ESO-B")  # el grup no tenia classe
+    assert not visible(absent="Prof 9")  # el professor estava alliberat
+    assert not visible(absent="Prof 9", grup="")  # també a les files sense grup
+    # Les hores sense activitat: el buit és un nom més de «No substituir»
+    assert not visible(assignatura="", grup="")
+    assert not visible(assignatura="  ", grup="")
+    assert visible(no_sub=frozenset({"Guàrdia"}), assignatura="", grup="")  # si el centre no el té, es veuen
+    # La vigilància d'un vigilant absent es veu sempre: no és una hora de
+    # l'horari, i «No substituir» decideix quines hores de l'horari cal cobrir
+    assert visible(tipus="VIGILANCIA_ABSENT", assignatura="VIGILÀNCIA", no_sub=frozenset({"VIGILÀNCIA"}))
+    assert visible(tipus="VIGILANCIA_ABSENT", absent="Prof 9")
 
 
 def test_els_informes_nomes_compten_absencies_i_serveis():
     tipus = ["ABSENCIA", "SERVEI", "VIGILANCIA_ABSENT", "VIGILANCIA", "ENCADENADA"]
     subs = [_sub("2026-03-02", tipus=t, substitut="Prof 5") for t in tipus]
 
-    assert [s["tipus_absencia"] for s in services.compta_als_informes(subs)] == ["ABSENCIA", "SERVEI"]
+    assert [s["tipus_absencia"] for s in services.absencies_i_serveis(subs)] == ["ABSENCIA", "SERVEI"]
 
 
 def test_resum():
@@ -91,7 +103,7 @@ def test_la_cobertura_de_cada_mes_es_com_la_global():
     assert marc["cobertura"] == 2 / 4 * 100 == services.resum(subs, total_baixes=0)["cobertura_pct"]
 
 
-def test_professors_de_mes_a_menys_i_els_empats_en_l_ordre_en_que_surten():
+def test_professors_de_mes_a_menys_i_els_empats_per_ordre_alfabetic():
     subs = [
         _sub("2026-03-02", absent="Prof 2", substitut="Prof 7"),
         _sub("2026-03-02", absent="Prof 1", tipus="SERVEI", substitut="Prof 8"),
@@ -149,3 +161,28 @@ def test_per_grup_i_nivell():
         "ALTRE": {"Març 2026": 1},
     }
     assert [g["nom"] for g in grups["grups_ordenats"]] == ["1-ESO-A", "1-ESO-B", "ALTRE"]
+
+
+def test_els_empats_dels_rankings_van_per_ordre_alfabetic_natural():
+    subs = [
+        _sub("2026-03-02", absent=a, substitut=f"Prof {n}") for a, n in (("Prof 10", 10), ("Prof 2", 7), ("Àlex", 2))
+    ]
+
+    assert [p["nom"] for p in services.professors_absencies(subs)] == ["Àlex", "Prof 2", "Prof 10"]
+    assert [p["nom"] for p in services.professors_substitucions(subs)] == ["Prof 2", "Prof 7", "Prof 10"]
+
+
+def test_el_desplegable_compta_cada_substitut_per_franja_de_la_setmana_i_en_total():
+    fetes = [
+        _sub("2026-03-02", substitut="Prof 5", hora="08:00"),  # dilluns
+        _sub("2026-03-09", substitut="Prof 5", hora=" 08:00 ", tipus="ENCADENADA"),  # dilluns
+        _sub("2026-03-10", substitut="Prof 5", hora="08:00"),  # dimarts
+        _sub("2026-03-02", substitut="Prof 6", hora="10:00", tipus="VIGILANCIA"),
+    ]
+
+    per_franja, total = services.fetes_per_substitut(fetes)
+
+    assert per_franja[("Prof 5", 0, "08:00")] == 2
+    assert per_franja[("Prof 5", 1, "08:00")] == 1
+    assert per_franja[("Prof 6", 0, "10:00")] == 1
+    assert total == {"Prof 5": 3, "Prof 6": 1}

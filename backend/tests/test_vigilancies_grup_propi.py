@@ -16,9 +16,9 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
+from grups.repositories import GrupsAlliberatsRepository
 from models import ConfiguracioExamen
 from rate_limit import limiter
-from repositories import GrupsAlliberatsRepository
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(vigilancies_router)

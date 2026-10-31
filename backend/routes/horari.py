@@ -135,6 +135,17 @@ async def detectar_assignatures(dia: Dia = Depends(dia_del_calendari)):
             for dades in hora_profs.values()
         )
 
+        # Les activitats que tenen grup en alguna hora: a Prioritats, posar-ne
+        # una a «No substituir» deixa aquell grup sense professor quan qui la
+        # fa falti (l'hora no surt a Substitucions), i la pantalla ho avisa
+        amb_grup = {
+            (dades.get("assignatura") or "").strip()
+            for dia_hores in horari.horari.values()
+            for hora_profs in dia_hores.values()
+            for dades in hora_profs.values()
+            if (dades.get("grup") or "").strip()
+        }
+
         # Versió d'XML carregada, per poder-la indicar a la configuració
         xml_data_inici = dia.versio_des_de
 
@@ -142,6 +153,7 @@ async def detectar_assignatures(dia: Dia = Depends(dia_del_calendari)):
             "assignatures": sorted(list(assignatures)),
             "total": len(assignatures),
             "te_buits": te_buits,
+            "amb_grup": sorted(amb_grup),
             "xml_data_inici": xml_data_inici,
         }
     except MissingXmlError:

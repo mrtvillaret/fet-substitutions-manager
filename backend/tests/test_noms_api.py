@@ -39,7 +39,6 @@ COSSOS_REVISATS = {
     ("POST", "/api/config/abreviatures"),
     ("PUT", "/api/config/abreviatures/{abreviatura_id}"),
     ("PUT", "/api/config/afinitats"),
-    ("PUT", "/api/grups-amagats"),
     ("POST", "/api/pdf/disponibles-tots-dies"),
     ("POST", "/api/files/upload-xml"),
     ("POST", "/api/files/upload-logo"),
@@ -65,9 +64,12 @@ def _routers():
     moduls = [f"routes.{p.stem}" for p in (BACKEND / "routes").glob("*.py") if p.stem != "__init__"]
     moduls += [f"{p.parent.name}.router" for p in BACKEND.glob("*/router.py")]
     for nom in sorted(moduls):
-        router = getattr(importlib.import_module(nom), "router", None)
-        if isinstance(router, APIRouter):
-            yield nom, router
+        modul = importlib.import_module(nom)
+        # router, i també router_admin (dos routers al mateix fitxer)
+        for atribut in ("router", "router_admin"):
+            router = getattr(modul, atribut, None)
+            if isinstance(router, APIRouter):
+                yield nom, router
 
 
 def _rutes():

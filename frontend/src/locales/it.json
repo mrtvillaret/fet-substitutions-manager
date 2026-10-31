@@ -270,6 +270,7 @@
       "addSubjectToCategory": "➕ Aggiungi materia alla categoria {index}",
       "noSubstTitle": "🚫 Attività non sostituibili",
       "noSubstHint": "Elenco di attività/materie che NON vengono sostituite automaticamente",
+      "noSubstWithGroupWarning": "{activitats} ha un gruppo nell'orario vigente: quando manca chi la svolge, il gruppo resterà senza docente, perché l'ora non comparirà in Sostituzioni. | {activitats} hanno un gruppo nell'orario vigente: quando manca chi le svolge, i gruppi resteranno senza docente, perché quelle ore non compariranno in Sostituzioni.",
       "noSubstEmptyHint": "Corrisponde alle ore dell'XML che non hanno nessuna attività",
       "freeableTitle": "Attività che si possono liberare",
       "freeableHint": "Attività senza gruppo (es. Recupero, un team docente) che compaiono come righe in «Gruppi e docenti liberi». Liberarne una libera i docenti che la svolgono a quell'ora, per un giorno o a partire da un giorno.",
@@ -1140,7 +1141,10 @@
       "datePlaceholder": "AAAA-MM-GG",
       "refresh": "Aggiorna",
       "course": "Anno scolastico",
-      "customRange": "Intervallo personalizzato"
+      "customRange": "Intervallo personalizzato",
+      "hours": "Ore",
+      "allHours": "Tutte",
+      "hoursSelected": "{n} ore"
     },
     "loading": "Caricamento statistiche...",
     "tabs": {
@@ -1164,51 +1168,54 @@
       }
     },
     "summary": {
-      "totalAbsences": "Assenze totali",
       "totalVigilancies": "Vigilanze totali",
-      "daysWithSubs": "Giorni con sostituzioni",
       "daysWithVigs": "Giorni con vigilanze",
       "perTeacher": "Dettaglio per docente",
       "perTeacherHint": "Clicca su un docente per vedere il dettaglio giorno per giorno",
-      "substitutionsDetail": "{count} sostituzione ({percent}%) | {count} sostituzioni ({percent}%)",
-      "vigilanciesDetail": "{count} assegnata ({percent}%) | {count} assegnate ({percent}%)",
       "topAbsences": "Top 5 assenze",
-      "topSubstitutions": "Top 5 sostituzioni"
+      "topSubstitutions": "Top 5 sostituzioni fatte",
+      "toCover": "Ore da coprire",
+      "toCoverBreakdown": "{absences} di assenza e {services} di servizio",
+      "coveredDetail": "{count} con supplente ({percent}%)",
+      "daysWithAbsences": "Giorni con assenze",
+      "doneHint": "Tutte le ore con supplente della schermata Sostituzioni, di qualsiasi tipo. Non è la copertura delle assenze.",
+      "balanceHint": "Bilancio = sostituzioni fatte − assenze (i servizi non si sottraggono)",
+      "vigilanciesCovered": "{count} coperta ({percent}%) | {count} coperte ({percent}%)",
+      "vigilanciesBreakdown": "Va il vigilante: {vigilant} · il supplente: {substitute} · scoperte: {uncovered}"
     },
     "columns": {
       "teacher": "Docente",
-      "absNormal": "Ass. normale",
-      "absBreak": "Ass. intervallo",
-      "absOther": "Altre ass.",
       "absTotal": "Ass. totali",
-      "subsNormal": "Sost. normale",
-      "subsBreak": "Sost. intervallo",
-      "subsTotal": "Sost. totali",
-      "ratio": "Rapporto S/A",
-      "score": "Punteggio"
+      "absences": "Assenze",
+      "services": "Servizi",
+      "subsDone": "Sost. fatte",
+      "balance": "Bilancio",
+      "vigsDone": "Vig. fatte"
     },
     "temporal": {
       "byDay": "Distribuzione per giorno",
       "byHour": "Distribuzione per ora",
-      "legendSubs": "Sostituzioni",
       "legendVigs": "Vigilanze",
-      "summaryBySlot": "Riepilogo per fascia"
+      "summaryBySlot": "Riepilogo per fascia",
+      "legendToCover": "Da coprire",
+      "legendCovered": "Con supplente"
     },
     "classes": {
       "detailButton": "Analisi dettagliata per classe",
       "columns": {
         "class": "Classe",
-        "totalSubs": "Sostituzioni totali",
         "topSubject": "Materia più coinvolta",
         "topTeacher": "Docente più assente",
-        "hours": "Ore"
+        "toCover": "Ore da coprire",
+        "covered": "Con supplente",
+        "coverage": "Copertura"
       },
       "detailTitle": "Analisi dettagliata per classe",
       "detailClasses": "Classi",
       "detailPlaceholder": "Seleziona classi...",
       "detailLoading": "Caricamento dettaglio...",
       "summary": {
-        "totalHours": "Ore totali: {count}",
+        "totalHours": "Ore da coprire: {count}",
         "topSubject": "Materia principale: {name} ({total})",
         "topTeacher": "Docente principale: {name} ({total})",
         "topSubstitute": "Supplente principale: {name} ({total})",
@@ -1221,9 +1228,9 @@
       "title": "Dettaglio per {name}",
       "loading": "Caricamento dettaglio...",
       "absencesTitle": "Assenze",
-      "substitutionsTitle": "Sostituzioni",
+      "substitutionsTitle": "Sostituzioni fatte",
       "emptyAbsences": "Nessuna assenza",
-      "emptySubs": "Nessuna sostituzione",
+      "emptySubs": "Nessuna sostituzione fatta",
       "columns": {
         "day": "Giorno",
         "date": "Data",
@@ -1233,7 +1240,15 @@
         "substitute": "Supplente",
         "absenceType": "Tipo",
         "absentTeacher": "Docente assente",
-        "substituteType": "Tipo di supplente"
+        "substituteType": "Tipo di supplente",
+        "rowType": "Tipo"
+      },
+      "types": {
+        "ABSENCIA": "Assenza",
+        "SERVEI": "Servizio",
+        "VIGILANCIA_ABSENT": "Vigilante assente",
+        "ENCADENADA": "Concatenata",
+        "VIGILANCIA": "Vigilanza"
       }
     },
     "slots": {

@@ -62,8 +62,11 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  │                         JWT i Depends de l'usuari i del rol   │
 │  ├── usuaris/            → gestió d'usuaris (admin i superadmin) │
 │  ├── prioritats/         → categories i pesos, «No substituir» i │
-│  │                         la càrrega a memòria; de pas, les     │
-│  │                         activitats alliberables               │
+│  │                         la càrrega a memòria                  │
+│  ├── grups/              → grups sense classe i professors i     │
+│  │                         activitats alliberats per dia i per   │
+│  │                         període, activitats alliberables i    │
+│  │                         grups amagats                         │
 │  ├── absencia_coberta/   → absències cobertes (abans «baixes»):  │
 │  │                         l'horari del dia ja no té l'absent    │
 │  ├── vigilancies/        → vigilàncies: assignació per hora,     │
@@ -71,17 +74,18 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  ├── substitucions/      → absències, substitucions, encadenades,│
 │  │                         generació (assignacio.py), regles del │
 │  │                         dia (domain.py) i cobertures          │
-│  └── pdf/                → PDF del dia, de vigilàncies, de       │
-│                            disponibles i informes (/api/pdf/*,   │
-│                            /api/informes/*); vegeu EXPORTACIÓ    │
+│  ├── pdf/                → PDF del dia, de vigilàncies, de       │
+│  │                         disponibles i informes (/api/pdf/*,   │
+│  │                         /api/informes/*); vegeu EXPORTACIÓ    │
+│  ├── recomptes/          → els recomptes, en un sol lloc: els    │
+│  │                         fan servir els informes i les         │
+│  │                         Estadístiques (FUNCIONAMENT.md)       │
+│  └── estadistiques/      → pantalla Estadístiques                │
+│                            (/api/estadistiques/*)                │
 │                                                                  │
 │  CAPA DE ROUTES (/api/*) — estructura antiga, es va migrant      │
 │  ├── disponibles.py      → professors disponibles/forat          │
-│  ├── estadistiques.py    → recomptes i estadístiques             │
 │  ├── horari.py           → consultes horari XML                  │
-│  ├── grups.py            → grups i professors alliberats per dia │
-│  │                         i per període                         │
-│  ├── grups_amagats.py    → grups que el centre no mostra         │
 │  ├── files.py            → upload XML horari                     │
 │  ├── cursos.py           → cursos acadèmics                      │
 │  ├── dades.py            → purga de dades antigues (RGPD)        │
@@ -143,7 +147,8 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │        ├── informes.py            ← rutes /api/informes/*        │
 │        ├── generacio.py           ← dia, vigilàncies, interval   │
 │        ├── disponibles.py         ← professors disponibles       │
-│        ├── services.py            ← càlculs dels informes        │
+│        ├── services.py            ← dades de cada informe (els   │
+│        │                            recomptes, a recomptes/)     │
 │        ├── repositories.py        ← preferències, consultes      │
 │        ├── domain.py              ← opcions, resultat, errors    │
 │        ├── validacions.py         ← conflictes i avisos          │
@@ -249,19 +254,49 @@ respostes no canvien.
 
 Mòduls migrats: `auth/` (entrar, sessió, perfil propi), `usuaris/` (gestió
 d'usuaris de l'admin i el superadmin) i `prioritats/` (categories i pesos de
-prioritat, «No substituir» i la seva càrrega a memòria, `carrega_prioritats`;
-les rutes de les activitats alliberables hi són de pas fins que es migri el
-mòdul de grups) i `absencia_coberta/` (abans «baixes»: `/api/absencies-cobertes`,
+prioritat, «No substituir» i la seva càrrega a memòria, `carrega_prioritats`),
+`grups/` (dos routers: `router`, `/api/grups/*`, per a qualsevol usuari, la
+gestió de cada dia; `router_admin`, només admins, amb les URL de sempre:
+`/api/grups-amagats` i `/api/prioritats/activitats-alliberables`; la
+reconciliació de substitucions i cobertures després de cada canvi, a
+`services.py`) i `absencia_coberta/` (abans «baixes»: `/api/absencies-cobertes`,
 i el punt únic que treu l'absent de l'horari de cada data), `vigilancies/` i
 `substitucions/` (absències, substitucions, encadenades i cobertures; el motor
 d'assignació és a `assignacio.py`, les regles del dia —`DiaEscolar`— a
 `domain.py`, i les consultes i la presentació del llistat a `_consultes.py`) i
 `pdf/` (`/api/pdf/*` i `/api/informes/*`: rutes primes a `router.py` i
 `informes.py`; els PDF del dia, de vigilàncies i de l'interval a
-`generacio.py` i el de disponibles a `disponibles.py`; els càlculs dels
-informes a `services.py` i les consultes a `repositories.py`; els
+`generacio.py` i el de disponibles a `disponibles.py`; les dades de cada
+informe a `services.py` i les consultes a `repositories.py`; els
 renderitzadors amb ReportLab, a `engine.py`, `informe_direccio.py` i
-`informe_professors.py`).
+`informe_professors.py`), `recomptes/` i `estadistiques/`.
+
+### Recomptes en un sol lloc
+
+Què compta cada xifra és a `FUNCIONAMENT.md` (apartats 5 i 6). El càlcul és a
+`recomptes/services.py`, i el fan servir els dos informes PDF
+(`pdf/services.py`), la pantalla Estadístiques (`estadistiques/services.py`) i
+el «(n/total)» del desplegable de substituts (`substitucions/_consultes.py`,
+amb `fetes_del_curs_per_substitut`):
+- `substitucions_reals`: les files que es veuen a la pantalla Substitucions,
+  amb la mateixa regla que la pantalla (`substitucions/visibilitat.py:
+  es_visible_a_substitucions`), de tots els tipus; amb `hores`, només les
+  d'aquestes franges (el filtre per hores d'Estadístiques).
+- `absencies_i_serveis` (absències i cobertura) i `substitucions_fetes`
+  (totes les files amb substitut, sense filtres i amb una consulta directa:
+  la feina de cada professor).
+- Un apartat per funció: `cobertura`, `resum`, `per_mes`,
+  `professors_absencies`, `professors_substitucions`, `balanc_per_professor`,
+  `per_dia_i_hora`, `per_grup`, `per_grup_i_nivell`, `dades_professors`,
+  `vigilancies_per_resultat`; els empats dels rànquings, per ordre alfabètic
+  natural (`per_comptador`).
+- `franges_de_l_horari`: les franges de les versions de l'XML vigents a
+  l'interval (unió pel nom).
+
+Dos tests guardians (`tests/test_recomptes_un_sol_lloc.py`): la web i els
+informes donen el mateix per al mateix interval, i ni `estadistiques/` ni
+`pdf/services.py` i `pdf/informes.py` no compten pel seu compte (models de
+substitucions, filtres o tipus de fila).
 
 ### Transaccions de substitucions
 
@@ -272,8 +307,7 @@ que orquestra l'operació: generar, desar absències, assignar a mà i reassigna
 confirmen només després d'actualitzar encadenades i cobertures.
 
 Els consumidors externs conserven el mateix contracte: els serveis de
-`vigilancies/` i `absencia_coberta/`, les rutes encara no migrades de
-`routes/grups.py` i la publicació de `routes/scheduler.py` reconcilien les
+`vigilancies/`, `absencia_coberta/` i `grups/`, i la publicació de `routes/scheduler.py` reconcilien les
 substitucions abans del seu únic `commit()`. Una excepció desfà tant el canvi
 principal com els derivats; els errors interns arriben a la pantalla amb la
 referència de `errors_servidor.py`.

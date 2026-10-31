@@ -7,11 +7,6 @@ from pydantic import BaseModel
 from noms import NomNet
 
 
-class ActivitatsAlliberables(BaseModel):
-    activitats: List[NomNet]
-    per_defecte: List[NomNet] = []  # alliberades fins que tenen alumnes (p.ex. Reforç)
-
-
 class PrioritatsRequest(BaseModel):
     """Totes les prioritats d'una vegada («Desar tot»)"""
 

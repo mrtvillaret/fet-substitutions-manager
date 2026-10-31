@@ -270,6 +270,7 @@
       "addSubjectToCategory": "➕ Afegeix assignatura a categoria {index}",
       "noSubstTitle": "🚫 Activitats No Substituibles",
       "noSubstHint": "Llista d'activitats/assignatures que NO es substitueixen automàticament",
+      "noSubstWithGroupWarning": "{activitats} té grup a l'horari vigent: quan falti qui la fa, el grup quedarà sense professor, perquè l'hora no sortirà a Substitucions. | {activitats} tenen grup a l'horari vigent: quan falti qui les fa, els grups quedaran sense professor, perquè aquelles hores no sortiran a Substitucions.",
       "noSubstEmptyHint": "Coincideix amb les hores de l'XML que no tenen cap activitat",
       "freeableTitle": "Activitats que es poden alliberar",
       "freeableHint": "Activitats sense grup (p.ex. Reforç, un equip docent) que surten com a files a «Grups i professors alliberats». Alliberar-ne una allibera els professors que la fan a aquella hora, un dia o a partir d'un dia.",
@@ -1140,7 +1141,10 @@
       "datePlaceholder": "AAAA-MM-DD",
       "refresh": "Actualitza",
       "course": "Curs",
-      "customRange": "Rang personalitzat"
+      "customRange": "Rang personalitzat",
+      "hours": "Hores",
+      "allHours": "Totes",
+      "hoursSelected": "{n} hores"
     },
     "loading": "Carregant estadístiques...",
     "tabs": {
@@ -1164,51 +1168,54 @@
       }
     },
     "summary": {
-      "totalAbsences": "Absències totals",
       "totalVigilancies": "Vigilàncies totals",
-      "daysWithSubs": "Dies amb substitucions",
       "daysWithVigs": "Dies amb vigilàncies",
       "perTeacher": "Detall per professor",
       "perTeacherHint": "Fes clic en un professor per veure el detall per dies",
-      "substitutionsDetail": "{count} substitució ({percent}%) | {count} substitucions ({percent}%)",
-      "vigilanciesDetail": "{count} assignada ({percent}%) | {count} assignades ({percent}%)",
       "topAbsences": "Top 5 absències",
-      "topSubstitutions": "Top 5 substitucions"
+      "topSubstitutions": "Top 5 substitucions fetes",
+      "toCover": "Hores a cobrir",
+      "toCoverBreakdown": "{absences} d'absència i {services} de servei",
+      "coveredDetail": "{count} amb substitut ({percent}%)",
+      "daysWithAbsences": "Dies amb absències",
+      "doneHint": "Totes les hores amb substitut de la pantalla Substitucions, de qualsevol tipus. No és la cobertura de les absències.",
+      "balanceHint": "Balanç = substitucions fetes − absències (els serveis no resten)",
+      "vigilanciesCovered": "{count} coberta ({percent}%) | {count} cobertes ({percent}%)",
+      "vigilanciesBreakdown": "Hi va el vigilant: {vigilant} · el substitut: {substitute} · descobertes: {uncovered}"
     },
     "columns": {
       "teacher": "Professor",
-      "absNormal": "Abs. normals",
-      "absBreak": "Abs. pati",
-      "absOther": "Altres abs.",
       "absTotal": "Total abs.",
-      "subsNormal": "Subs. normals",
-      "subsBreak": "Subs. pati",
-      "subsTotal": "Total subs.",
-      "ratio": "Ràtio S/A",
-      "score": "Puntuació"
+      "absences": "Absències",
+      "services": "Serveis",
+      "subsDone": "Subs. fetes",
+      "balance": "Balanç",
+      "vigsDone": "Vig. fetes"
     },
     "temporal": {
       "byDay": "Distribució per dia",
       "byHour": "Distribució per hora",
-      "legendSubs": "Substitucions",
       "legendVigs": "Vigilàncies",
-      "summaryBySlot": "Resum per franges"
+      "summaryBySlot": "Resum per franges",
+      "legendToCover": "A cobrir",
+      "legendCovered": "Amb substitut"
     },
     "classes": {
       "detailButton": "Anàlisi detallada per classe",
       "columns": {
         "class": "Classe",
-        "totalSubs": "Total substitucions",
         "topSubject": "Assignatura més afectada",
         "topTeacher": "Professor més absent",
-        "hours": "Hores"
+        "toCover": "Hores a cobrir",
+        "covered": "Amb substitut",
+        "coverage": "Cobertura"
       },
       "detailTitle": "Anàlisi detallada per classe",
       "detailClasses": "Classes",
       "detailPlaceholder": "Selecciona classes...",
       "detailLoading": "Carregant detall...",
       "summary": {
-        "totalHours": "Total hores: {count}",
+        "totalHours": "Hores a cobrir: {count}",
         "topSubject": "Assignatura top: {name} ({total})",
         "topTeacher": "Professor top: {name} ({total})",
         "topSubstitute": "Substitut top: {name} ({total})",
@@ -1221,9 +1228,9 @@
       "title": "Detall de {name}",
       "loading": "Carregant detall...",
       "absencesTitle": "Absències",
-      "substitutionsTitle": "Substitucions",
+      "substitutionsTitle": "Substitucions fetes",
       "emptyAbsences": "Sense absències",
-      "emptySubs": "Sense substitucions",
+      "emptySubs": "Sense substitucions fetes",
       "columns": {
         "day": "Dia",
         "date": "Data",
@@ -1233,7 +1240,15 @@
         "substitute": "Substitut",
         "absenceType": "Tipus",
         "absentTeacher": "Professor absent",
-        "substituteType": "Tipus substitut"
+        "substituteType": "Tipus substitut",
+        "rowType": "Tipus"
+      },
+      "types": {
+        "ABSENCIA": "Absència",
+        "SERVEI": "Servei",
+        "VIGILANCIA_ABSENT": "Vigilant absent",
+        "ENCADENADA": "Encadenada",
+        "VIGILANCIA": "Vigilància"
       }
     },
     "slots": {

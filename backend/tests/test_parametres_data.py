@@ -13,13 +13,17 @@ from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth.dependencies import get_current_user, require_admin
+from estadistiques.router import router as estadistiques_router
 from pdf import router as pdf
 from rate_limit import limiter
-from routes import estadistiques
 from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 
-ROUTES = Path(__file__).resolve().parent.parent / "routes"
+BACKEND = Path(__file__).resolve().parent.parent
+# Les rutes antigues (routes/) i les dels mòduls (<mòdul>/router.py, pdf/informes.py)
+FITXERS_DE_RUTES = sorted(
+    [*(BACKEND / "routes").glob("*.py"), *BACKEND.glob("*/router.py"), BACKEND / "pdf" / "informes.py"]
+)
 NOMS_DATA = {"data", "data_inici", "data_final", "data_fi"}
 
 APP = crea_app()
@@ -27,14 +31,14 @@ for _router, _dep in (
     (substitucions.router, get_current_user),
     (vigilancies_router, get_current_user),
     (pdf.router, get_current_user),
-    (estadistiques.router, require_admin),
+    (estadistiques_router, require_admin),
 ):
     APP.include_router(_router, dependencies=[Depends(_dep)])  # com a main.py
 
 
 def test_cap_parametre_de_data_d_una_ruta_es_text_sense_validar():
     sense_validar = []
-    for fitxer in sorted(ROUTES.glob("*.py")):
+    for fitxer in FITXERS_DE_RUTES:
         for fn in ast.walk(ast.parse(fitxer.read_text(encoding="utf-8"))):
             if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)) and any(
                 getattr(getattr(d, "func", None), "attr", "") in ("get", "post", "put", "delete")
@@ -46,7 +50,7 @@ def test_cap_parametre_de_data_d_una_ruta_es_text_sense_validar():
                         and arg.annotation is not None
                         and ast.unparse(arg.annotation) in ("str", "Optional[str]")
                     ):
-                        sense_validar.append(f"{fitxer.name}:{fn.lineno} {fn.name}({arg.arg})")
+                        sense_validar.append(f"{fitxer.relative_to(BACKEND)}:{fn.lineno} {fn.name}({arg.arg})")
     assert sense_validar == []
 
 

@@ -389,13 +389,13 @@ def test_els_informes_llegeixen_les_substitucions_per_data(centre):
 
     from database import get_data_db_session
     from models import Substitucio
-    from pdf.repositories import InformesRepository
+    from recomptes.repositories import RecomptesRepository
 
     with get_data_db_session(centre) as db:
         for dia, professor in ((date(2026, 3, 3), "Prof 2"), (date(2026, 3, 2), "Prof 1")):
             db.add(Substitucio(data=dia, hora="08:00", professor_absent=professor, tipus_absencia="ABSENCIA"))
         db.commit()
-        files = InformesRepository.substitucions_entre(db, "2026-03-01", "2026-03-31")
+        files = RecomptesRepository.substitucions_entre(db, "2026-03-01", "2026-03-31")
 
     assert [(f["data"], f["professor_absent"]) for f in files] == [("2026-03-02", "Prof 1"), ("2026-03-03", "Prof 2")]
 
@@ -430,10 +430,11 @@ def test_l_informe_d_un_professor_nomes_inclou_aquell_professor(centre):
         assert noms(None) == ["Prof 1", "Prof 10", "Prof 15"]
 
 
-def test_l_informe_de_direccio_nomes_compta_absencies_i_serveis(centre):
-    # Una vigilància de vigilant absent es pot resoldre reassignant-la (sense
-    # substitució) o posant-hi substitut: no compta, com les encadenades i les
-    # vigilàncies (FUNCIONAMENT.md, apartat 6)
+def test_l_informe_de_direccio_absencies_i_cobertura_de_absencies_i_serveis_i_fetes_de_tots_els_tipus(centre):
+    # Absències i cobertura: només absències i serveis (una vigilància de
+    # vigilant absent es pot resoldre reassignant-la, sense substitució).
+    # Substitucions fetes: totes les files amb substitut, la feina de cada
+    # professor (FUNCIONAMENT.md, apartat 6)
     from datetime import date
 
     from database import get_data_db_session
@@ -471,11 +472,17 @@ def test_l_informe_de_direccio_nomes_compta_absencies_i_serveis(centre):
     assert set(dades["per_hora"]) == {"08:00", "09:00"}
     assert "per_dia" not in dades  # (no el dibuixa ningú)
     assert sum(v["absencies"] for v in dades["per_dia_hora"].values()) == 2
-    assert [p["nom"] for p in dades["professors_substitucions"]] == ["Prof 5"]
+    assert [p["nom"] for p in dades["professors_substitucions"]] == ["Prof 5", "Prof 6", "Prof 7", "Prof 9"]
+    assert {p: sum(mesos.values()) for p, mesos in dades["per_substitut_mes"].items()} == {
+        "Prof 5": 1,
+        "Prof 6": 1,
+        "Prof 7": 1,
+        "Prof 9": 1,
+    }
     assert [(g["absencies"], g["cobertes"]) for g in dades["grups_data"]["grups_ordenats"]] == [(2, 1)]
 
 
-def test_l_informe_per_professor_nomes_compta_absencies_i_serveis(centre):
+def test_l_informe_per_professor_absencies_i_serveis_i_fetes_de_tots_els_tipus(centre):
     # El mateix criteri que l'informe de direcció (FUNCIONAMENT.md, apartat 6)
     from datetime import date
 
@@ -504,9 +511,10 @@ def test_l_informe_per_professor_nomes_compta_absencies_i_serveis(centre):
         db.commit()
         dades = {p["nom"]: p for p in services.dades_professors(db, DATA, DATA)}
 
-    assert set(dades) == {"Prof 1", "Prof 5"}
+    assert set(dades) == {"Prof 1", "Prof 5", "Prof 6", "Prof 7"}
     assert [s["tipus_absencia"] for s in dades["Prof 1"]["absencies"]] == ["ABSENCIA"]
-    assert [s["hora"] for s in dades["Prof 5"]["substitucions_fetes"]] == ["08:00"]
+    assert [s["hora"] for s in dades["Prof 5"]["substitucions_fetes"]] == ["08:00", "11:30"]
+    assert [s["tipus_absencia"] for s in dades["Prof 7"]["substitucions_fetes"]] == ["ENCADENADA"]
 
 
 def test_l_informe_per_professor_va_per_ordre_alfabetic_natural(centre):
@@ -543,4 +551,70 @@ def test_l_informe_d_un_professor_sense_res_a_l_interval_ho_diu(client):
     assert resposta.status_code == 404
     assert resposta.json()["detail"] == (
         "Prof Sense Res no té absències ni substitucions fetes entre el 20/04/2026 i el 20/04/2026"
+    )
+
+
+def _absencies_a_les_08_i_a_les_10(centre):
+    """Prof 1 falta a les 08:00 (i el cobreix Prof 3) i Prof 2, a les 10:00."""
+    from datetime import date
+
+    from database import get_data_db_session
+    from models import Substitucio
+
+    with get_data_db_session(centre) as db:
+        for hora, absent, substitut in (("08:00", "Prof 1", "Prof 3"), ("10:00", "Prof 2", "")):
+            db.add(
+                Substitucio(
+                    data=date.fromisoformat(DATA),
+                    hora=hora,
+                    professor_absent=absent,
+                    assignatura="Català",
+                    grup="1-ESO-A",
+                    substitut=substitut,
+                    tipus_absencia="ABSENCIA",
+                )
+            )
+        db.commit()
+
+
+def test_els_informes_apliquen_el_filtre_per_hores_i_la_capcalera_el_diu(client, centre):
+    _absencies_a_les_08_i_a_les_10(centre)
+    interval = {"data_inici": DATA, "data_final": DATA}
+
+    # Com les envia la pantalla (axios): hores[]=...
+    llista = client.get("/api/informes/professors-llista", params={**interval, "hores[]": ["08:00"]})
+    assert llista.json()["professors"] == ["Prof 1", "Prof 3"]
+
+    direccio = client.get("/api/informes/direccio", params={**interval, "hores": ["8:00"]})
+    assert direccio.status_code == 200, direccio.text
+    text = _text_pdf(direccio.content)
+    assert "Hores: 08:00" in text
+    assert "Prof 2" not in text
+
+    professor = client.get("/api/informes/professor", params={**interval, "hores": ["08:00"]})
+    assert professor.status_code == 200, professor.text
+    text = _text_pdf(professor.content)
+    assert "Hores: 08:00" in text
+    assert "Prof 2" not in text
+
+
+def test_sense_hores_triades_la_capcalera_no_en_parla(client, centre):
+    _absencies_a_les_08_i_a_les_10(centre)
+
+    direccio = client.get("/api/informes/direccio", params={"data_inici": DATA, "data_final": DATA})
+
+    assert "Hores:" not in _text_pdf(direccio.content)
+
+
+def test_un_professor_sense_res_a_les_hores_triades_ho_diu(client, centre):
+    _absencies_a_les_08_i_a_les_10(centre)
+
+    resposta = client.get(
+        "/api/informes/professor",
+        params={"data_inici": DATA, "data_final": DATA, "professor": "Prof 2", "hores": ["08:00", "PATI"]},
+    )
+
+    assert resposta.status_code == 404
+    assert resposta.json()["detail"] == (
+        "Prof 2 no té absències ni substitucions fetes entre el 20/04/2026 i el 20/04/2026 a les hores triades"
     )

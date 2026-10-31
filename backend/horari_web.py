@@ -25,13 +25,16 @@ class GestorHorariWeb:
     # (absencia_coberta.services.sense_absents_coberts); el de l'XML, cap
     absents_coberts = frozenset()
 
-    def __init__(self, xml_path: str, ultim_professor_subs: Optional[str] = None):
+    def __init__(self, xml_path: str, ultim_professor_subs: Optional[str] = None, institucio: Optional[str] = None):
         """
         Args:
             xml_path: Path al fitxer XML de FET
             ultim_professor_subs: Últim professor a considerar (límit). Si None, carrega tots.
+            institucio: el centre de qui són els grups amagats i les abreviatures
+                (de la seva BD). Sense, no se n'aplica cap (només l'XML).
         """
         self.xml_path = xml_path
+        self.institucio = institucio
         self.ultim_professor_subs = ultim_professor_subs
         self.horari = {}  # {dia: {hora: {professor: dades}}}
         self.professors = []
@@ -52,11 +55,14 @@ class GestorHorariWeb:
         if self._grups_amagats is not None:
             return self._grups_amagats
 
-        from database import get_db_session
-        from repositories import GrupsAmagatsRepository
+        from database import get_data_db_session
+        from grups.repositories import GrupsAmagatsRepository
 
+        if not self.institucio:
+            self._grups_amagats = set()
+            return self._grups_amagats
         try:
-            with get_db_session() as db:
+            with get_data_db_session(self.institucio) as db:
                 self._grups_amagats = set(GrupsAmagatsRepository.get_all(db))
                 return self._grups_amagats
         except Exception as e:
@@ -69,11 +75,14 @@ class GestorHorariWeb:
         if self._abreviatures_cache is not None:
             return self._abreviatures_cache
 
-        from database import get_db_session
+        from database import get_data_db_session
         from repositories import AbreviaturaGrupRepository
 
+        if not self.institucio:
+            self._abreviatures_cache = {}
+            return self._abreviatures_cache
         try:
-            with get_db_session() as db:
+            with get_data_db_session(self.institucio) as db:
                 abreviatures_list = AbreviaturaGrupRepository.get_all(db)
                 # Convertir a diccionari {grups_originals: abreviatura}
                 self._abreviatures_cache = {item["grups_originals"]: item["abreviatura"] for item in abreviatures_list}

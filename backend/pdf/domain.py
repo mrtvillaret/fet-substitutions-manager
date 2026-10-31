@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 from errors_domini import NoTrobat, NoValid
+from recomptes.domain import IntervalNoValid  # noqa: F401  (també és dels PDF)
 
 FormatPdf = Literal["hores", "dia"]
 MidesLletra = Literal[1.0, 1.2, 1.35]
@@ -37,10 +38,6 @@ class FormatPdfNoValid(NoValid):
 
 
 class MidaPdfNoValida(NoValid):
-    pass
-
-
-class IntervalNoValid(NoValid):
     pass
 
 

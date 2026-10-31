@@ -402,7 +402,6 @@ const professors = ref([])
 // del desplegable, sense que es puguin triar, perquè qui els busqui els trobi
 const absenciesCobertes = ref([])  // [{ professor, data_final }]
 const horesDisponibles = ref([])
-const noSubstituir = ref([])
 const xmlMissingNotified = ref(false)
 const loading = ref(false)
 const mostrarDialogGestio = ref(false)
@@ -607,12 +606,9 @@ const carregarSubstitucions = async () => {
     totesAbsencies.value = responseTotes.data
     await carregarVigilanciesCount()
 
-    // Filtrar activitats que no necessiten substitució
-    substitucionsFiltrades.value = substitucions.value.filter(sub => {
-      // Si assignatura és buida o és al llistat de no_substituir, no mostrar
-      const assignatura = sub.assignatura || ''
-      return !noSubstituir.value.includes(assignatura)
-    })
+    // Quines files es veuen ho decideix el backend, amb la mateixa regla que
+    // les absències d'Estadístiques (substitucions/visibilitat.py)
+    substitucionsFiltrades.value = substitucions.value
 
     // Carregar disponibles per cada hora
     await carregarDisponiblesPerHores()
@@ -710,16 +706,6 @@ const carregarProfessors = async () => {
     absenciesCobertes.value = response.data.absencies_cobertes || []
   } catch (error) {
     console.error('Error carregant professors:', error)
-  }
-}
-
-const carregarNoSubstituir = async () => {
-  try {
-    const response = await axios.get('/api/config/no-substituir')
-    noSubstituir.value = response.data.no_substituir
-    console.log('📋 Activitats que no necessiten substitució:', noSubstituir.value)
-  } catch (error) {
-    console.error('Error carregant no_substituir:', error)
   }
 }
 
@@ -1609,7 +1595,6 @@ onBeforeUnmount(() => {
 })
 
 onMounted(async () => {
-  await carregarNoSubstituir()
   await carregarHores()
   await carregarProfessors()
   await carregarSubstitucions()

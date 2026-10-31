@@ -15,14 +15,9 @@ from core.absencies import GestorAbsencies
 from core.alliberats import GestorAlliberats
 from core.vigilancia_core import VigilanciaCore
 from database import get_data_db_session, get_data_dir_for_institucio
+from grups.repositories import GrupsAlliberatsRepository
 from horari_web import GestorHorariWeb  # Versió web que llegeix de SQLite
-from repositories import (
-    ConfiguracioExamenRepository,
-    ConfiguracioRepository,
-    GrupsAlliberatsRepository,
-    ProfessorRepository,
-    XMLVersionRepository,
-)
+from repositories import ConfiguracioExamenRepository, ConfiguracioRepository, ProfessorRepository, XMLVersionRepository
 from substitucions.assignacio import GestorSubstitucions
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
@@ -143,7 +138,7 @@ def get_horari(institucio: str = None, *, data_iso: str) -> GestorHorariWeb:
             ultim_professor_subs = None  # Sense límit
 
     # Obtenir path XML (SQLite per institució)
-    horari = GestorHorariWeb(xml_path, ultim_professor_subs)
+    horari = GestorHorariWeb(xml_path, ultim_professor_subs, institucio)
     _horari[key] = horari
 
     # Qui és actiu o inactiu ho decideix l'horari d'avui

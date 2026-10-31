@@ -10,8 +10,8 @@ from datetime import datetime
 from functools import cached_property
 
 from core.alliberats import sense_classe
+from grups.repositories import GrupsAlliberatsRepository
 from helpers import get_horari
-from repositories import GrupsAlliberatsRepository
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 

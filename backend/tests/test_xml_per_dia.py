@@ -12,13 +12,20 @@ from suport_api import client_per, crea_app, crea_usuari, entra
 from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from auth.dependencies import get_current_user
+from grups.router import router_admin as grups_admin_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
 from routes import general, horari
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app()
-for _router in (general.router, horari.router, prioritats_router, vigilancies_router):  # com a main.py
+for _router in (
+    general.router,
+    horari.router,
+    prioritats_router,
+    grups_admin_router,
+    vigilancies_router,
+):  # com a main.py
     APP.include_router(_router, dependencies=[Depends(get_current_user)])
 ABANS, DESPRES = dia(1).isoformat(), dia(10).isoformat()
 

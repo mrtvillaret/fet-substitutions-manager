@@ -850,7 +850,7 @@ async def get_abreviatures(db: Session = Depends(get_db)):
 
 
 @router.post("/abreviatures")
-async def create_abreviatura(abreviatura: Dict, db: Session = Depends(get_db)):
+async def create_abreviatura(abreviatura: Dict, db: Session = Depends(get_db), current_user=Depends(require_admin)):
     """Crea una nova abreviatura"""
     grups_originals = abreviatura.get("grups_originals")
     abreviatura_text = abreviatura.get("abreviatura")
@@ -860,10 +860,13 @@ async def create_abreviatura(abreviatura: Dict, db: Session = Depends(get_db)):
 
     abreviatura_id = AbreviaturaGrupRepository.create(db, grups_originals, abreviatura_text)
 
-    # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures
+    # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures,
+    # i les del planificador d'aquest centre
     from helpers import invalidar_horari
+    from utils.grups_utils import invalidar_cache_abreviatures
 
     invalidar_horari()
+    invalidar_cache_abreviatures(current_user.institucio)
 
     return {
         "success": True,
@@ -873,7 +876,9 @@ async def create_abreviatura(abreviatura: Dict, db: Session = Depends(get_db)):
 
 
 @router.put("/abreviatures/{abreviatura_id}")
-async def update_abreviatura(abreviatura_id: int, abreviatura: Dict, db: Session = Depends(get_db)):
+async def update_abreviatura(
+    abreviatura_id: int, abreviatura: Dict, db: Session = Depends(get_db), current_user=Depends(require_admin)
+):
     """Actualitza una abreviatura existent"""
     grups_originals = abreviatura.get("grups_originals")
     abreviatura_text = abreviatura.get("abreviatura")
@@ -882,25 +887,31 @@ async def update_abreviatura(abreviatura_id: int, abreviatura: Dict, db: Session
     if not success:
         raise HTTPException(status_code=404, detail="Abreviatura no trobada")
 
-    # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures
+    # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures,
+    # i les del planificador d'aquest centre
     from helpers import invalidar_horari
+    from utils.grups_utils import invalidar_cache_abreviatures
 
     invalidar_horari()
+    invalidar_cache_abreviatures(current_user.institucio)
 
     return {"success": True, "message": "Abreviatura actualitzada"}
 
 
 @router.delete("/abreviatures/{abreviatura_id}")
-async def delete_abreviatura(abreviatura_id: int, db: Session = Depends(get_db)):
+async def delete_abreviatura(abreviatura_id: int, db: Session = Depends(get_db), current_user=Depends(require_admin)):
     """Elimina una abreviatura"""
     success = AbreviaturaGrupRepository.delete(db, abreviatura_id)
     if not success:
         raise HTTPException(status_code=404, detail="Abreviatura no trobada")
 
-    # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures
+    # Invalidar tot l'horari per forçar recàrrega amb les noves abreviatures,
+    # i les del planificador d'aquest centre
     from helpers import invalidar_horari
+    from utils.grups_utils import invalidar_cache_abreviatures
 
     invalidar_horari()
+    invalidar_cache_abreviatures(current_user.institucio)
 
     return {"success": True, "message": "Abreviatura eliminada"}
 

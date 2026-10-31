@@ -19,7 +19,8 @@ from pdf import services
 from pdf.domain import SenseProfessors
 from pdf.informe_direccio import generar_informe_pdf
 from pdf.informe_professors import generar_informe_professors_pdf
-from routes.parametres import DataISO
+from recomptes.services import valida_interval
+from routes.parametres import DataISO, HoresTriades
 
 router = APIRouter(prefix="/api/informes", tags=["informes"])
 
@@ -35,19 +36,30 @@ def _fitxer_temporal(pdf_path: str, temp_dir: str, filename: str) -> FileRespons
     )
 
 
+def _hores_dels_informes(db: Session, institucio: str, data_inici: str, data_final: str, hores) -> tuple:
+    """(les hores de les taules, les triades): amb el filtre per hores, les
+    triades en l'ordre de l'horari; sense, les de l'horari de l'inici del
+    període, i cap de triada."""
+    if hores:
+        triades = services.hores_triades_en_ordre(db, institucio, data_inici, data_final, hores)
+        return triades, triades
+    return services.hores_xml(institucio, data_inici), None
+
+
 @router.get("/direccio")
 def informe_direccio(
+    hores: HoresTriades,
     data_inici: DataISO = Query(...),
     data_final: DataISO = Query(...),
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    services.valida_interval(data_inici, data_final)
+    valida_interval(data_inici, data_final)
     institucio = current_user.institucio
     nom_centre = services.nom_centre(db, institucio)
     lang = services.idioma(db)
-    hores_xml = services.hores_xml(institucio, data_inici)  # l'horari de l'inici del període
-    dades = services.dades_direccio(db, data_inici, data_final, hores_xml, lang)
+    hores_xml, triades = _hores_dels_informes(db, institucio, data_inici, data_final, hores)
+    dades = services.dades_direccio(db, data_inici, data_final, hores_xml, lang, hores)
     temp_dir = tempfile.mkdtemp()
     logo_path = get_data_dir_for_institucio(institucio) / "logo.png"
     pdf_path = generar_informe_pdf(
@@ -58,6 +70,7 @@ def informe_direccio(
         export_dir=temp_dir,
         logo_path=str(logo_path) if logo_path.exists() else None,
         lang=lang,
+        hores_triades=triades,
     )
     return _fitxer_temporal(pdf_path, temp_dir, f"informe_direccio_{data_inici}_{data_final}.pdf")
 
@@ -70,6 +83,7 @@ def _dma(data: str) -> str:
 
 @router.get("/professor")
 def informe_professor(
+    hores: HoresTriades,
     data_inici: DataISO = Query(...),
     data_final: DataISO = Query(...),
     professor: NomNet = None,
@@ -77,15 +91,17 @@ def informe_professor(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    services.valida_interval(data_inici, data_final)
+    valida_interval(data_inici, data_final)
     institucio = current_user.institucio
     nom_centre = services.nom_centre(db, institucio)
     lang = services.idioma(db)
-    hores_xml = services.hores_xml(institucio, data_inici)  # l'horari de l'inici del període
-    professors_data = services.dades_professors(db, data_inici, data_final, professor)
+    hores_xml, triades = _hores_dels_informes(db, institucio, data_inici, data_final, hores)
+    professors_data = services.dades_professors(db, data_inici, data_final, professor, hores)
     if not professors_data:
         # Només hi surt qui té absències o substitucions fetes a l'interval
         periode = f"entre el {_dma(data_inici)} i el {_dma(data_final)}"
+        if hores:
+            periode += " a les hores triades"
         if professor:
             missatge = f"{professor} no té absències ni substitucions fetes {periode}"
         else:
@@ -102,6 +118,7 @@ def informe_professor(
         mostrar_taules=mostrar_taules,
         export_dir=temp_dir,
         lang=lang,
+        hores_triades=triades,
     )
     nom_fitxer = (
         f"informe_{professor}_{data_inici}_{data_final}.pdf"
@@ -113,11 +130,12 @@ def informe_professor(
 
 @router.get("/professors-llista")
 def llista_professors(
+    hores: HoresTriades,
     data_inici: DataISO = Query(...),
     data_final: DataISO = Query(...),
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Retorna la llista de professors amb activitat al període"""
-    services.valida_interval(data_inici, data_final)
-    return {"professors": services.professors_amb_activitat(db, data_inici, data_final)}
+    valida_interval(data_inici, data_final)
+    return {"professors": services.professors_amb_activitat(db, data_inici, data_final, hores)}

@@ -13,8 +13,8 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
+from grups.repositories import GrupsAlliberatsRepository
 from prioritats.repositories import NoSubstituirRepository
-from repositories import GrupsAlliberatsRepository
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import (
     assignar_substituts_pendents as assignar_vigilancies_absents_pendents,

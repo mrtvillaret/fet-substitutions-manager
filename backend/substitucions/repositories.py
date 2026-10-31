@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from models import Substitucio
 from ordre_curs import clau_curs, natural
-from repositories import CursRepository, parse_date
+from repositories import parse_date
 
 
 class SubstitucioRepository:
@@ -91,27 +91,6 @@ class SubstitucioRepository:
             }
             for sub in subs
         ]
-
-    @staticmethod
-    def get_for_statistics(db: Session, data: str = None) -> List[Substitucio]:
-        """Retorna les substitucions assignades del curs de ``data``.
-
-        Sense curs definit, o sense data, conserva l'històric complet.
-        """
-        query = db.query(Substitucio).filter(
-            Substitucio.substitut.isnot(None),
-            Substitucio.substitut != "",
-            Substitucio.professor_absent.isnot(None),
-            Substitucio.professor_absent != "",
-        )
-
-        curs = CursRepository.get_for_date(db, data) if data else None
-        if curs:
-            query = query.filter(Substitucio.data >= curs.data_inici)
-            if curs.data_fi:
-                query = query.filter(Substitucio.data <= curs.data_fi)
-
-        return query.all()
 
     @staticmethod
     def get_by_date_hour_and_type(db: Session, data: str, hora: str, tipus_absencia: str) -> List[Substitucio]:

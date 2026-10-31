@@ -6,7 +6,6 @@ des de SQLite per institució i proporciona funcions per aplicar-les.
 """
 
 import logging
-import os
 from typing import Dict, Optional
 
 import i18n_setup
@@ -21,9 +20,10 @@ _abreviatures_cache: Dict[str, Dict[str, str]] = {}
 
 
 def _get_institucio_actual() -> str:
-    from config.settings import config
+    """El centre de la petició en curs (fora d'una petició, el per defecte)."""
+    from helpers import _get_institucio_actual as institucio_actual
 
-    return config.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or "exemple"
+    return institucio_actual()
 
 
 def normalitzar_llista_grups(grups_string: str) -> str:
@@ -90,15 +90,17 @@ def get_abreviatures_cached() -> Dict[str, str]:
     return _abreviatures_cache[instit]
 
 
-def invalidar_cache_abreviatures():
+def invalidar_cache_abreviatures(institucio: Optional[str] = None):
     """
-    Invalida el cache d'abreviatures.
-
-    Cridar aquesta funció quan es canviï d'institució o quan s'actualitzi
-    la BD per forçar una nova lectura.
+    Invalida el cache d'abreviatures: el d'un centre (quan en canvia les
+    abreviatures) o, sense centre, el de tots (quan canvia el centre per
+    defecte).
     """
     global _abreviatures_cache
-    _abreviatures_cache = {}
+    if institucio:
+        _abreviatures_cache.pop(institucio, None)
+    else:
+        _abreviatures_cache = {}
 
 
 def obtenir_abreviatura(grups_string: str, abreviatures: Optional[Dict[str, str]] = None) -> str:

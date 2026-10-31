@@ -4,14 +4,14 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from core.alliberats import sense_classe
+from grups.repositories import GrupsAlliberatsRepository
 from prioritats.repositories import NoSubstituirRepository
-from repositories import GrupsAlliberatsRepository
+from recomptes.services import fetes_del_curs_per_substitut
 from routes.parametres import data_iso
 from serveis.dia import Dia
 from substitucions.repositories import SubstitucioRepository
 from substitucions.schemas import SubstitucioResponse
-from substitucions.vigilancia_absent import es_vigilancia_absent
+from substitucions.visibilitat import es_visible_a_substitucions
 from vigilancies.repositories import VigilanciaRepository
 
 
@@ -36,24 +36,10 @@ def llista_substitucions(
             result.append(_resposta_substitucio(sub))
     else:
         grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
-        no_substituir = NoSubstituirRepository.get_all(db)
+        no_substituir = set(NoSubstituirRepository.get_all(db))
 
         for sub in substitucions_list:
-            grup = sub.get("grup", "")
-            hora = sub.get("hora", "")
-            assignatura = sub.get("assignatura", "")
-            professor = sub.get("professor_absent") or sub.get("professor", "")
-
-            if es_vigilancia_absent(sub):
-                mostrar = True
-            elif grup and grup.strip():
-                mostrar = not sense_classe(professor, grup, grups_sense_classe.get(hora, []))
-            else:
-                mostrar = assignatura not in no_substituir and not sense_classe(
-                    professor, "", grups_sense_classe.get(hora, [])
-                )
-
-            if mostrar:
+            if es_visible_a_substitucions(sub, no_substituir, grups_sense_classe.get(sub.get("hora", ""), [])):
                 result.append(_resposta_substitucio(sub))
 
     return SubstitucioRepository.ordena(result, horari.hores, valor=getattr, ordre=ordre)
@@ -99,37 +85,6 @@ def hores_professor(db: Session, dia: Dia, data: str, professor: str) -> dict:
     return {"hores_amb_classe": hores_amb_classe, "hores_al_centre": hores_al_centre}
 
 
-def _calcula_estadistiques(db: Session, horari, data: str | None = None) -> dict:
-    """Compta les substitucions del curs de `data`, per professor i franja."""
-    estadistiques = {}
-    for sub in SubstitucioRepository.get_for_statistics(db, data):
-        substitut = (sub.substitut or "").strip()
-        hora = (sub.hora or "").strip()
-        professor_absent = (sub.professor_absent or "").strip()
-        if not substitut or not hora or not professor_absent or not sub.data:
-            continue
-
-        try:
-            weekday_idx = sub.data.weekday()
-        except AttributeError:
-            continue
-
-        if horari:
-            try:
-                dia_name = horari.get_dia_name(weekday_idx)
-            except Exception:
-                dia_name = f"Dia_{weekday_idx}"
-        else:
-            dia_name = f"Dia_{weekday_idx}"
-
-        key_substitut_dia = f"{substitut}|{dia_name}|{hora}"
-        estadistiques[key_substitut_dia] = estadistiques.get(key_substitut_dia, 0) + 1
-        key_substitut_total = f"{substitut}|TOTAL"
-        estadistiques[key_substitut_total] = estadistiques.get(key_substitut_total, 0) + 1
-
-    return estadistiques
-
-
 def disponibles(db: Session, dia: Dia, data: str, hora: str) -> dict:
     """Professors disponibles i ocupats, amb prioritat, estat i estadístiques."""
     from config.constants import ORDRE_PRIORITATS, get_professor_emoji
@@ -150,10 +105,13 @@ def disponibles(db: Session, dia: Dia, data: str, hora: str) -> dict:
 
     _, horari, alliberats, _ = dia.gestors()
     absents_coberts = horari.absents_coberts
-    dia_name = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+    dia_setmana = datetime.strptime(data, "%Y-%m-%d").weekday()
+    dia_name = horari.get_dia_name(dia_setmana)
     grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
     disponibles_hora = alliberats.get_tots_disponibles(dia_name, hora, set(grups_sense_classe.get(hora, [])))
-    estadistiques = _calcula_estadistiques(db, horari, data)
+    # El «(n/total)» de cada professor: les seves substitucions fetes del curs
+    # a aquesta franja de la setmana i en total, comptades a recomptes/
+    fetes_per_franja, fetes_total = fetes_del_curs_per_substitut(db, data)
 
     def categoria(tipus_activitat: str) -> int:
         for i, categoria_prioritat in enumerate(ORDRE_PRIORITATS):
@@ -179,8 +137,8 @@ def disponibles(db: Session, dia: Dia, data: str, hora: str) -> dict:
         categoria_professor = categoria(tipus)
         color, status = color_i_estat(professor, tipus)
         emoji = get_professor_emoji(tipus)
-        num_guardies_dia_hora = estadistiques.get(f"{professor}|{dia_name}|{hora}", 0)
-        num_guardies_total = estadistiques.get(f"{professor}|TOTAL", 0)
+        num_guardies_dia_hora = fetes_per_franja[(professor, dia_setmana, hora.strip())]
+        num_guardies_total = fetes_total[professor]
         stats_text = f" ({num_guardies_dia_hora}/{num_guardies_total})"
 
         es_absent = professor in professors_absents

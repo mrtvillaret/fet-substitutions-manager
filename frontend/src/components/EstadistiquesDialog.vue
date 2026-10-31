@@ -43,6 +43,18 @@
             :placeholder="$t('stats.period.datePlaceholder')"
           />
         </div>
+        <div class="field">
+          <label for="estadistiques-hores">{{ $t('stats.period.hours') }}</label>
+          <MultiSelect
+            v-model="horesTriades"
+            inputId="estadistiques-hores"
+            :options="frangesHorari"
+            :placeholder="$t('stats.period.allHours')"
+            :maxSelectedLabels="3"
+            :selectedItemsLabel="$t('stats.period.hoursSelected', { n: '{0}' })"
+            @hide="recarregaSiCanviaElFiltre"
+          />
+        </div>
         <Button
           :label="`🔍 ${$t('stats.period.refresh')}`"
           @click="carregarEstadistiques"
@@ -68,10 +80,13 @@
               <div class="stat-card primary">
                 <div class="stat-icon">📋</div>
                 <div class="stat-content">
-                  <div class="stat-value">{{ resum.substitucions.total }}</div>
-                  <div class="stat-label">{{ $t('stats.summary.totalAbsences') }}</div>
+                  <div class="stat-value">{{ resum.cobertura.a_cobrir }}</div>
+                  <div class="stat-label">{{ $t('stats.summary.toCover') }}</div>
                   <div class="stat-detail">
-                    {{ $t('stats.summary.substitutionsDetail', { count: resum.substitucions.assignades, percent: resum.substitucions.percentatge_assignat }, resum.substitucions.assignades) }}
+                    {{ $t('stats.summary.toCoverBreakdown', { absences: resum.cobertura.absencies, services: resum.cobertura.serveis }) }}
+                  </div>
+                  <div class="stat-detail">
+                    {{ $t('stats.summary.coveredDetail', { count: resum.cobertura.cobertes, percent: resum.cobertura.percentatge }, resum.cobertura.cobertes) }}
                   </div>
                 </div>
               </div>
@@ -82,7 +97,10 @@
                   <div class="stat-value">{{ resum.vigilancies.total }}</div>
                   <div class="stat-label">{{ $t('stats.summary.totalVigilancies') }}</div>
                   <div class="stat-detail">
-                    {{ $t('stats.summary.vigilanciesDetail', { count: resum.vigilancies.assignades, percent: resum.vigilancies.percentatge_assignat }, resum.vigilancies.assignades) }}
+                    {{ $t('stats.summary.vigilanciesCovered', { count: resum.vigilancies.cobertes, percent: resum.vigilancies.percentatge }, resum.vigilancies.cobertes) }}
+                  </div>
+                  <div class="stat-detail">
+                    {{ $t('stats.summary.vigilanciesBreakdown', { vigilant: resum.vigilancies.vigilant, substitute: resum.vigilancies.substitut, uncovered: resum.vigilancies.descobertes }) }}
                   </div>
                 </div>
               </div>
@@ -90,8 +108,8 @@
               <div class="stat-card info">
                 <div class="stat-icon">📅</div>
                 <div class="stat-content">
-                  <div class="stat-value">{{ resum.activitat.dies_amb_substitucions }}</div>
-                  <div class="stat-label">{{ $t('stats.summary.daysWithSubs') }}</div>
+                  <div class="stat-value">{{ resum.activitat.dies_amb_absencies }}</div>
+                  <div class="stat-label">{{ $t('stats.summary.daysWithAbsences') }}</div>
                 </div>
               </div>
 
@@ -107,7 +125,10 @@
             <div class="professors-section">
               <div class="section-header">
                 <h3>👥 {{ $t('stats.summary.perTeacher') }}</h3>
-                <small>{{ $t('stats.summary.perTeacherHint') }}</small>
+                <div class="section-header__hints">
+                  <small>{{ $t('stats.summary.perTeacherHint') }}</small>
+                  <small>{{ $t('stats.summary.balanceHint') }}</small>
+                </div>
               </div>
               <DataTable
                 :value="professorsResum.professors"
@@ -120,15 +141,12 @@
                 @row-click="onProfessorRowClick"
               >
                 <Column field="professor" :header="$t('stats.columns.teacher')" :sortable="true" />
-                <Column field="abs_normals" :header="$t('stats.columns.absNormal')" :sortable="true" />
-                <Column field="abs_pati" :header="$t('stats.columns.absBreak')" :sortable="true" />
-                <Column field="abs_altres" :header="$t('stats.columns.absOther')" :sortable="true" />
-                <Column field="total_abs" :header="$t('stats.columns.absTotal')" :sortable="true" />
-                <Column field="subs_normals" :header="$t('stats.columns.subsNormal')" :sortable="true" />
-                <Column field="subs_pati" :header="$t('stats.columns.subsBreak')" :sortable="true" />
-                <Column field="total_subs" :header="$t('stats.columns.subsTotal')" :sortable="true" />
-                <Column field="ratio_text" :header="$t('stats.columns.ratio')" :sortable="true" />
-                <Column field="puntuacio" :header="$t('stats.columns.score')" :sortable="true" />
+                <Column field="absencies" :header="$t('stats.columns.absences')" :sortable="true" />
+                <Column field="serveis" :header="$t('stats.columns.services')" :sortable="true" />
+                <Column field="total_absencies" :header="$t('stats.columns.absTotal')" :sortable="true" />
+                <Column field="substitucions_fetes" :header="$t('stats.columns.subsDone')" :sortable="true" />
+                <Column field="vigilancies_fetes" :header="$t('stats.columns.vigsDone')" :sortable="true" />
+                <Column field="balanc" :header="$t('stats.columns.balance')" :sortable="true" />
                 <template #empty>
                   <div class="empty-list">{{ $t('common.noData') }}</div>
                 </template>
@@ -156,6 +174,7 @@
 
               <div class="top-list">
                 <h3>🔄 {{ $t('stats.summary.topSubstitutions') }}</h3>
+                <small class="top-list__hint">{{ $t('stats.summary.doneHint') }}</small>
                 <div v-if="topSubstituts.length > 0" class="bar-list">
                   <div v-for="(prof, idx) in topSubstituts" :key="prof.professor" class="bar-row">
                     <span class="rank">{{ idx + 1 }}</span>
@@ -176,7 +195,8 @@
               <div class="temporal-card">
                 <h3>📅 {{ $t('stats.temporal.byDay') }}</h3>
                 <div class="temporal-legend">
-                  <span class="legend-subs">{{ $t('stats.temporal.legendSubs') }}</span>
+                  <span class="legend-to-cover">{{ $t('stats.temporal.legendToCover') }}</span>
+                  <span class="legend-subs">{{ $t('stats.temporal.legendCovered') }}</span>
                   <span class="legend-vigs">{{ $t('stats.temporal.legendVigs') }}</span>
                 </div>
                 <div v-if="temporalStats.dies.length > 0" class="temporal-list">
@@ -185,11 +205,12 @@
                     <div class="temporal-bar">
                       <div
                         class="temporal-bar-fill"
-                        :style="{ width: formatPercent(dia.substitucions, temporalStats.totals.substitucions) }"
+                        :style="{ width: formatPercent(dia.a_cobrir, temporalStats.totals.a_cobrir) }"
                       ></div>
                     </div>
                     <div class="temporal-values">
-                      <span class="subs">{{ dia.substitucions }}</span>
+                      <span class="to-cover">{{ dia.a_cobrir }}</span>
+                      <span class="subs">{{ dia.cobertes }}</span>
                       <span class="vigs">{{ dia.vigilancies }}</span>
                     </div>
                   </div>
@@ -200,7 +221,8 @@
               <div class="temporal-card">
                 <h3>🕐 {{ $t('stats.temporal.byHour') }}</h3>
                 <div class="temporal-legend">
-                  <span class="legend-subs">{{ $t('stats.temporal.legendSubs') }}</span>
+                  <span class="legend-to-cover">{{ $t('stats.temporal.legendToCover') }}</span>
+                  <span class="legend-subs">{{ $t('stats.temporal.legendCovered') }}</span>
                   <span class="legend-vigs">{{ $t('stats.temporal.legendVigs') }}</span>
                 </div>
                 <div v-if="temporalStats.hores.length > 0" class="temporal-list">
@@ -209,11 +231,12 @@
                     <div class="temporal-bar">
                       <div
                         class="temporal-bar-fill"
-                        :style="{ width: formatPercent(hora.substitucions, temporalStats.totals.substitucions) }"
+                        :style="{ width: formatPercent(hora.a_cobrir, temporalStats.totals.a_cobrir) }"
                       ></div>
                     </div>
                     <div class="temporal-values">
-                      <span class="subs">{{ hora.substitucions }}</span>
+                      <span class="to-cover">{{ hora.a_cobrir }}</span>
+                      <span class="subs">{{ hora.cobertes }}</span>
                       <span class="vigs">{{ hora.vigilancies }}</span>
                     </div>
                   </div>
@@ -251,10 +274,13 @@
               @row-click="onClasseRowClick"
             >
               <Column field="grup" :header="$t('stats.classes.columns.class')" :sortable="true" />
-              <Column field="total_subs" :header="$t('stats.classes.columns.totalSubs')" :sortable="true" />
+              <Column field="a_cobrir" :header="$t('stats.classes.columns.toCover')" :sortable="true" />
+              <Column field="cobertes" :header="$t('stats.classes.columns.covered')" :sortable="true" />
+              <Column field="percentatge" :header="$t('stats.classes.columns.coverage')" :sortable="true">
+                <template #body="{ data }">{{ data.percentatge }}%</template>
+              </Column>
               <Column field="assignatura_top" :header="$t('stats.classes.columns.topSubject')" />
               <Column field="professor_top" :header="$t('stats.classes.columns.topTeacher')" />
-              <Column field="hores" :header="$t('stats.classes.columns.hours')" :sortable="true" />
               <template #empty>
                 <div class="empty-list">{{ $t('common.noData') }}</div>
               </template>
@@ -263,7 +289,6 @@
 
           <TabPanel :header="`📄 ${$t('stats.tabs.informes')}`">
             <div class="informes-container">
-
               <!-- Informe de direcció -->
               <div class="informe-bloc">
                 <div class="informe-bloc__titol">
@@ -356,7 +381,9 @@
           <Column field="grup" :header="$t('stats.detail.columns.group')" />
           <Column field="assignatura" :header="$t('stats.detail.columns.subject')" />
           <Column field="substitut" :header="$t('stats.detail.columns.substitute')" />
-          <Column field="tipus_absencia" :header="$t('stats.detail.columns.absenceType')" />
+          <Column field="tipus_absencia" :header="$t('stats.detail.columns.absenceType')">
+            <template #body="{ data }">{{ nomTipusFila(data.tipus_absencia) }}</template>
+          </Column>
           <template #empty>
             <div class="empty-list">{{ $t('stats.detail.emptyAbsences') }}</div>
           </template>
@@ -382,6 +409,9 @@
           <Column field="professor_absent" :header="$t('stats.detail.columns.absentTeacher')" />
           <Column field="grup" :header="$t('stats.detail.columns.group')" />
           <Column field="assignatura" :header="$t('stats.detail.columns.subject')" />
+          <Column field="tipus_absencia" :header="$t('stats.detail.columns.rowType')">
+            <template #body="{ data }">{{ nomTipusFila(data.tipus_absencia) }}</template>
+          </Column>
           <Column field="tipus_substitut" :header="$t('stats.detail.columns.substituteType')" />
           <template #empty>
             <div class="empty-list">{{ $t('stats.detail.emptySubs') }}</div>
@@ -562,7 +592,7 @@ import Dropdown from 'primevue/dropdown'
 import MultiSelect from 'primevue/multiselect'
 
 const toast = useToast()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 const props = defineProps({
   visible: {
@@ -589,8 +619,7 @@ const dataFinal = ref(null)
 const resum = ref(null)
 const professorsStats = ref({
   professors_absents: [],
-  top_substituts: [],
-  top_vigilants: []
+  top_substituts: []
 })
 const temporalStats = ref(null)
 const classesStats = ref({ classes: [] })
@@ -615,6 +644,10 @@ const informeProfessorSeleccionat = ref(null)
 const informeMostrarTaules = ref(false)
 const informeProfessorsOpcions = ref([])
 
+// Filtre per hores: les franges de l'horari de l'interval i les triades
+const frangesHorari = ref([])
+const horesTriades = ref([])
+
 const diesDisponibles = computed(() => (temporalStats.value?.dies || []).map((d) => d.dia))
 // El backend anomena els dies en català; a la pantalla, en l'idioma triat
 const diesOpcions = computed(() => diesDisponibles.value.map((d) => ({ label: localizeBackendDayName(d, t), value: d })))
@@ -624,13 +657,13 @@ const topAbsents = computed(() => (professorsStats.value.professors_absents || [
 const topSubstituts = computed(() => (professorsStats.value.top_substituts || []).slice(0, 5))
 const topAbsentsMax = computed(() => Math.max(0, ...topAbsents.value.map(p => p.total || 0)))
 const topSubstitutsMax = computed(() => Math.max(0, ...topSubstituts.value.map(p => p.total || 0)))
-const classesDisponibles = computed(() => {
-  const options = (classesStats.value?.classes || []).map((c) => ({
-    label: c.grup,
-    value: c.grup
+// Per ordre alfabètic natural («1-ESO-B» abans de «1-ESO-C», «2-BAT» abans de «10-...»)
+const classesDisponibles = computed(() =>
+  ordenaAlfabeticament((classesStats.value?.classes || []).map((c) => c.grup)).map((grup) => ({
+    label: grup,
+    value: grup
   }))
-  return options.sort((a, b) => a.label.localeCompare(b.label, locale.value || 'ca'))
-})
+)
 
 // Curs triat al selector del diàleg (null = rang personalitzat)
 const cursTriatId = ref(null)
@@ -692,15 +725,32 @@ const inicialitzarDates = async () => {
 
 const formatDate = dataIso
 
+// El període i el filtre per hores de tots els recomptes (sense hores triades, totes)
+const paramsDelFiltre = () => ({
+  data_inici: formatDate(dataInici.value),
+  data_final: formatDate(dataFinal.value),
+  ...(horesTriades.value.length ? { hores: horesTriades.value } : {})
+})
+
+// Les hores amb què s'han carregat les estadístiques: en tancar el selector,
+// només es recarrega si han canviat (també la llista de professors dels
+// informes, que fan servir el mateix filtre)
+let horesCarregades = []
+const recarregaSiCanviaElFiltre = () => {
+  const ara = [...horesTriades.value].sort()
+  if (ara.join('|') !== [...horesCarregades].sort().join('|')) {
+    carregarEstadistiques()
+    carregarInformeProfessors()
+  }
+}
+
 const carregarEstadistiques = async () => {
   loading.value = true
   try {
-    const params = {
-      data_inici: formatDate(dataInici.value),
-      data_final: formatDate(dataFinal.value)
-    }
+    const params = paramsDelFiltre()
+    horesCarregades = [...horesTriades.value]
 
-    // Guardar dates a la BD per institució
+    // Guardar dates a la BD per institució (les hores, no)
     await axios.put('/api/settings', {
       data_inici_estadistiques: params.data_inici,
       data_final_estadistiques: params.data_final
@@ -731,6 +781,9 @@ const carregarEstadistiques = async () => {
     loading.value = false
   }
 }
+
+// El tipus de fila de substitució (ABSENCIA, SERVEI...), en l'idioma triat
+const nomTipusFila = (tipus) => (tipus ? t(`stats.detail.types.${tipus}`) : '')
 
 const formatPercent = (value, total) => {
   if (!total || total <= 0) return '0%'
@@ -767,8 +820,7 @@ const carregarFranges = async () => {
   frangesLoading.value = true
   try {
     const params = {
-      data_inici: formatDate(dataInici.value),
-      data_final: formatDate(dataFinal.value),
+      ...paramsDelFiltre(),
       dia: frangesDia.value,
       hora: frangesHora.value
     }
@@ -793,10 +845,7 @@ const onProfessorRowClick = async (event) => {
   detailLoading.value = true
   professorDetailVisible.value = true
   try {
-    const params = {
-      data_inici: formatDate(dataInici.value),
-      data_final: formatDate(dataFinal.value)
-    }
+    const params = paramsDelFiltre()
     const resp = await axios.get(`/api/estadistiques/professor/${encodeURIComponent(prof)}`, { params })
     professorDetail.value = resp.data
   } catch (error) {
@@ -842,8 +891,7 @@ const carregarDetallClasses = async () => {
   classesDetailLoading.value = true
   try {
     const params = {
-      data_inici: formatDate(dataInici.value),
-      data_final: formatDate(dataFinal.value),
+      ...paramsDelFiltre(),
       grups: classesSeleccionades.value
     }
     const resp = await axios.get('/api/estadistiques/classes/detall', { params })
@@ -885,18 +933,14 @@ const _descarregarPdf = async (url, params, nomFitxer, refLoading) => {
 }
 
 const generarInformeDireccio = async () => {
-  const params = {
-    data_inici: formatDate(dataInici.value),
-    data_final: formatDate(dataFinal.value),
-  }
+  const params = paramsDelFiltre()
   const nom = `informe_direccio_${params.data_inici}_${params.data_final}.pdf`
   await _descarregarPdf('/api/informes/direccio', params, nom, generantDireccio)
 }
 
 const generarInformeProfessor = async () => {
   const params = {
-    data_inici: formatDate(dataInici.value),
-    data_final: formatDate(dataFinal.value),
+    ...paramsDelFiltre(),
     mostrar_taules: informeMostrarTaules.value,
   }
   if (informeProfessorSeleccionat.value) {
@@ -910,11 +954,7 @@ const generarInformeProfessor = async () => {
 
 const carregarInformeProfessors = async () => {
   try {
-    const params = {
-      data_inici: formatDate(dataInici.value),
-      data_final: formatDate(dataFinal.value),
-    }
-    const resp = await axios.get('/api/informes/professors-llista', { params })
+    const resp = await axios.get('/api/informes/professors-llista', { params: paramsDelFiltre() })
     informeProfessorsOpcions.value = ordenaAlfabeticament(resp.data.professors || [])
     // El professor triat potser no té res al nou interval
     if (!informeProfessorsOpcions.value.includes(informeProfessorSeleccionat.value)) {
@@ -925,19 +965,41 @@ const carregarInformeProfessors = async () => {
   }
 }
 
+// Les franges de l'horari de l'interval, per al filtre per hores. Si una
+// hora triada ja no hi és (un altre horari), es treu del filtre.
+const carregarFrangesHorari = async () => {
+  try {
+    const params = {
+      data_inici: formatDate(dataInici.value),
+      data_final: formatDate(dataFinal.value)
+    }
+    const resp = await axios.get('/api/estadistiques/hores', { params })
+    frangesHorari.value = resp.data.hores || []
+    horesTriades.value = horesTriades.value.filter((h) => frangesHorari.value.includes(h))
+  } catch (error) {
+    console.error('Error carregant les franges de l\'horari:', error)
+  }
+}
+
 // Carregar quan s'obre el diàleg
 watch(() => props.visible, (newVal) => {
   if (newVal) {
-    inicialitzarDates().then(() => {
+    inicialitzarDates().then(async () => {
+      await carregarFrangesHorari()
       carregarEstadistiques()
       carregarInformeProfessors()
     })
   }
 })
 
-// La llista de professors és la de l'interval: es refà quan canvien les dates
-watch([dataInici, dataFinal], ([inici, final]) => {
-  if (props.visible && inici && final) carregarInformeProfessors()
+// La llista de professors i les franges són les de l'interval: es refan
+// quan canvien les dates (la llista, després de treure del filtre les hores
+// que ja no hi són)
+watch([dataInici, dataFinal], async ([inici, final]) => {
+  if (props.visible && inici && final) {
+    await carregarFrangesHorari()
+    carregarInformeProfessors()
+  }
 })
 
 // Si canvia la data de treball (i per tant el seu curs) amb el diàleg obert,
@@ -1007,7 +1069,8 @@ watch(() => props.curs?.id, (nou, antic) => {
 }
 
 .periode-selector .field :deep(.p-calendar),
-.periode-selector .field :deep(.p-dropdown) {
+.periode-selector .field :deep(.p-dropdown),
+.periode-selector .field :deep(.p-multiselect) {
   width: 100%;
 }
 
@@ -1244,6 +1307,13 @@ watch(() => props.curs?.id, (nou, antic) => {
   color: #1f2937;
 }
 
+.top-list__hint {
+  display: block;
+  margin: -0.35rem 0 0.6rem;
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
 .temporal-legend {
   display: flex;
   gap: 0.75rem;
@@ -1253,8 +1323,13 @@ watch(() => props.curs?.id, (nou, antic) => {
   margin: -0.35rem 0 0.75rem;
 }
 
-.temporal-legend .legend-subs {
+/* La barra és la de les hores a cobrir */
+.temporal-legend .legend-to-cover {
   color: #4f46e5;
+}
+
+.temporal-legend .legend-subs {
+  color: #059669;
 }
 
 .temporal-legend .legend-vigs {
@@ -1269,7 +1344,7 @@ watch(() => props.curs?.id, (nou, antic) => {
 
 .temporal-row {
   display: grid;
-  grid-template-columns: 90px 1fr 70px;
+  grid-template-columns: 90px 1fr 100px;
   gap: 0.6rem;
   align-items: center;
 }
@@ -1300,9 +1375,13 @@ watch(() => props.curs?.id, (nou, antic) => {
   font-size: 0.85rem;
 }
 
-.temporal-values .subs {
+.temporal-values .to-cover {
   font-weight: 600;
   color: #4f46e5;
+}
+
+.temporal-values .subs {
+  color: #059669;
 }
 
 .temporal-values .vigs {
@@ -1346,6 +1425,27 @@ watch(() => props.curs?.id, (nou, antic) => {
   color: #6b7280;
 }
 
+.section-header__hints {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* A la pantalla estreta, les ajudes sota el títol (si no, el títol fa tres línies) */
+@media (max-width: 600px) {
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .section-header__hints {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
 .professors-table {
   border-radius: 12px;
   overflow: hidden;
@@ -1382,9 +1482,10 @@ watch(() => props.curs?.id, (nou, antic) => {
   font-weight: 600;
 }
 
+/* Els totals: total d'absències, substitucions fetes i balanç */
+:deep(.professors-table .p-datatable-tbody > tr > td:nth-child(4)),
 :deep(.professors-table .p-datatable-tbody > tr > td:nth-child(5)),
-:deep(.professors-table .p-datatable-tbody > tr > td:nth-child(8)),
-:deep(.professors-table .p-datatable-tbody > tr > td:nth-child(10)) {
+:deep(.professors-table .p-datatable-tbody > tr > td:nth-child(7)) {
   font-weight: 700;
   color: #111827;
 }

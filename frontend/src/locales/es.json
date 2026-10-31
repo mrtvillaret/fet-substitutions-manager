@@ -270,6 +270,7 @@
       "addSubjectToCategory": "➕ Añadir asignatura a categoría {index}",
       "noSubstTitle": "🚫 Actividades no sustituibles",
       "noSubstHint": "Lista de actividades/asignaturas que NO se sustituyen automáticamente",
+      "noSubstWithGroupWarning": "{activitats} tiene grupo en el horario vigente: cuando falte quien la imparte, el grupo se quedará sin profesor, porque la hora no saldrá en Sustituciones. | {activitats} tienen grupo en el horario vigente: cuando falte quien las imparte, los grupos se quedarán sin profesor, porque esas horas no saldrán en Sustituciones.",
       "noSubstEmptyHint": "Coincide con las horas del XML que no tienen ninguna actividad",
       "freeableTitle": "Actividades que se pueden liberar",
       "freeableHint": "Actividades sin grupo (p.ej. Refuerzo, un equipo docente) que aparecen como filas en «Grupos y profesores liberados». Liberar una libera a los profesores que la hacen a esa hora, un día o a partir de un día.",
@@ -1137,7 +1138,10 @@
       "datePlaceholder": "AAAA-MM-DD",
       "refresh": "Actualizar",
       "course": "Curso",
-      "customRange": "Rango personalizado"
+      "customRange": "Rango personalizado",
+      "hours": "Horas",
+      "allHours": "Todas",
+      "hoursSelected": "{n} horas"
     },
     "loading": "Cargando estadísticas...",
     "tabs": {
@@ -1161,51 +1165,54 @@
       }
     },
     "summary": {
-      "totalAbsences": "Ausencias totales",
       "totalVigilancies": "Vigilancias totales",
-      "daysWithSubs": "Días con sustituciones",
       "daysWithVigs": "Días con vigilancias",
       "perTeacher": "Detalle por profesor",
       "perTeacherHint": "Haz clic en un profesor para ver el detalle por días",
-      "substitutionsDetail": "{count} sustitución ({percent}%) | {count} sustituciones ({percent}%)",
-      "vigilanciesDetail": "{count} asignada ({percent}%) | {count} asignadas ({percent}%)",
       "topAbsences": "Top 5 ausencias",
-      "topSubstitutions": "Top 5 sustituciones"
+      "topSubstitutions": "Top 5 sustituciones hechas",
+      "toCover": "Horas a cubrir",
+      "toCoverBreakdown": "{absences} de ausencia y {services} de servicio",
+      "coveredDetail": "{count} con sustituto ({percent}%)",
+      "daysWithAbsences": "Días con ausencias",
+      "doneHint": "Todas las horas con sustituto de la pantalla Sustituciones, de cualquier tipo. No es la cobertura de las ausencias.",
+      "balanceHint": "Balance = sustituciones hechas − ausencias (los servicios no restan)",
+      "vigilanciesCovered": "{count} cubierta ({percent}%) | {count} cubiertas ({percent}%)",
+      "vigilanciesBreakdown": "Va el vigilante: {vigilant} · el sustituto: {substitute} · descubiertas: {uncovered}"
     },
     "columns": {
       "teacher": "Profesor",
-      "absNormal": "Aus. normales",
-      "absBreak": "Aus. patio",
-      "absOther": "Otras aus.",
       "absTotal": "Total aus.",
-      "subsNormal": "Subs. normales",
-      "subsBreak": "Subs. patio",
-      "subsTotal": "Total subs.",
-      "ratio": "Ratio S/A",
-      "score": "Puntuación"
+      "absences": "Ausencias",
+      "services": "Servicios",
+      "subsDone": "Sust. hechas",
+      "balance": "Balance",
+      "vigsDone": "Vig. hechas"
     },
     "temporal": {
       "byDay": "Distribución por día",
       "byHour": "Distribución por hora",
-      "legendSubs": "Sustituciones",
       "legendVigs": "Vigilancias",
-      "summaryBySlot": "Resumen por franjas"
+      "summaryBySlot": "Resumen por franjas",
+      "legendToCover": "A cubrir",
+      "legendCovered": "Con sustituto"
     },
     "classes": {
       "detailButton": "Análisis detallado por clase",
       "columns": {
         "class": "Clase",
-        "totalSubs": "Total sustituciones",
         "topSubject": "Asignatura más afectada",
         "topTeacher": "Profesor más ausente",
-        "hours": "Horas"
+        "toCover": "Horas a cubrir",
+        "covered": "Con sustituto",
+        "coverage": "Cobertura"
       },
       "detailTitle": "Análisis detallado por clase",
       "detailClasses": "Clases",
       "detailPlaceholder": "Selecciona clases...",
       "detailLoading": "Cargando detalle...",
       "summary": {
-        "totalHours": "Total horas: {count}",
+        "totalHours": "Horas a cubrir: {count}",
         "topSubject": "Asignatura top: {name} ({total})",
         "topTeacher": "Profesor top: {name} ({total})",
         "topSubstitute": "Sustituto top: {name} ({total})",
@@ -1218,9 +1225,9 @@
       "title": "Detalle de {name}",
       "loading": "Cargando detalle...",
       "absencesTitle": "Ausencias",
-      "substitutionsTitle": "Sustituciones",
+      "substitutionsTitle": "Sustituciones hechas",
       "emptyAbsences": "Sin ausencias",
-      "emptySubs": "Sin sustituciones",
+      "emptySubs": "Sin sustituciones hechas",
       "columns": {
         "day": "Día",
         "date": "Fecha",
@@ -1230,7 +1237,15 @@
         "substitute": "Sustituto",
         "absenceType": "Tipo",
         "absentTeacher": "Profesor ausente",
-        "substituteType": "Tipo sustituto"
+        "substituteType": "Tipo sustituto",
+        "rowType": "Tipo"
+      },
+      "types": {
+        "ABSENCIA": "Ausencia",
+        "SERVEI": "Servicio",
+        "VIGILANCIA_ABSENT": "Vigilante ausente",
+        "ENCADENADA": "Encadenada",
+        "VIGILANCIA": "Vigilancia"
       }
     },
     "slots": {

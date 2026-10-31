@@ -13,12 +13,9 @@ from sqlalchemy.orm import Session
 
 from core.alliberats import sense_classe
 from errors_domini import Conflicte, NoTrobat, NoValid
+from grups.repositories import GrupsAlliberatsRepository
 from ordre_curs import clau_curs
-from repositories import (
-    ConfiguracioExamenRepository,
-    GrupsAlliberatsRepository,
-    MasterConfigRepository,
-)
+from repositories import ConfiguracioExamenRepository, MasterConfigRepository
 from serveis.dia import Dia
 from substitucions.cobertures import refresca_cobertures
 from substitucions.repositories import SubstitucioRepository

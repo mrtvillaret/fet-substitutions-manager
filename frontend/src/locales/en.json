@@ -270,6 +270,7 @@
       "addSubjectToCategory": "➕ Add subject to category {index}",
       "noSubstTitle": "🚫 Non-substitutable activities",
       "noSubstHint": "List of activities/subjects that are NOT substituted automatically",
+      "noSubstWithGroupWarning": "{activitats} has a group in the current timetable: when the teacher is absent, the group will be left without a teacher, because the hour will not appear in Substitutions. | {activitats} have a group in the current timetable: when the teachers are absent, the groups will be left without a teacher, because those hours will not appear in Substitutions.",
       "noSubstEmptyHint": "Matches the hours in the XML that have no activity",
       "freeableTitle": "Activities that can be freed",
       "freeableHint": "Activities without a group (e.g. Support, a teaching team) shown as rows in “Freed groups and teachers”. Freeing one frees the teachers doing it at that hour, for one day or from a day onwards.",
@@ -1137,7 +1138,10 @@
       "datePlaceholder": "YYYY-MM-DD",
       "refresh": "Refresh",
       "course": "Academic year",
-      "customRange": "Custom range"
+      "customRange": "Custom range",
+      "hours": "Hours",
+      "allHours": "All",
+      "hoursSelected": "{n} hours"
     },
     "loading": "Loading statistics...",
     "tabs": {
@@ -1161,51 +1165,54 @@
       }
     },
     "summary": {
-      "totalAbsences": "Total absences",
       "totalVigilancies": "Total supervisions",
-      "daysWithSubs": "Days with substitutions",
       "daysWithVigs": "Days with supervisions",
       "perTeacher": "Detail by teacher",
       "perTeacherHint": "Click a teacher to see the day-by-day detail",
-      "substitutionsDetail": "{count} substitution ({percent}%) | {count} substitutions ({percent}%)",
-      "vigilanciesDetail": "{count} assigned ({percent}%) | {count} assigned ({percent}%)",
       "topAbsences": "Top 5 absences",
-      "topSubstitutions": "Top 5 substitutions"
+      "topSubstitutions": "Top 5 substitutions done",
+      "toCover": "Hours to cover",
+      "toCoverBreakdown": "{absences} absence, {services} service",
+      "coveredDetail": "{count} with a substitute ({percent}%)",
+      "daysWithAbsences": "Days with absences",
+      "doneHint": "Every hour with a substitute on the Substitutions screen, of any type. This is not the coverage of absences.",
+      "balanceHint": "Balance = substitutions done − absences (services are not subtracted)",
+      "vigilanciesCovered": "{count} covered ({percent}%) | {count} covered ({percent}%)",
+      "vigilanciesBreakdown": "Supervisor present: {vigilant} · substitute: {substitute} · uncovered: {uncovered}"
     },
     "columns": {
       "teacher": "Teacher",
-      "absNormal": "Abs. normal",
-      "absBreak": "Abs. break",
-      "absOther": "Other abs.",
       "absTotal": "Total abs.",
-      "subsNormal": "Subs. normal",
-      "subsBreak": "Subs. break",
-      "subsTotal": "Total subs.",
-      "ratio": "S/A ratio",
-      "score": "Score"
+      "absences": "Absences",
+      "services": "Services",
+      "subsDone": "Subs. done",
+      "balance": "Balance",
+      "vigsDone": "Superv. done"
     },
     "temporal": {
       "byDay": "Distribution by day",
       "byHour": "Distribution by hour",
-      "legendSubs": "Substitutions",
       "legendVigs": "Supervisions",
-      "summaryBySlot": "Slot summary"
+      "summaryBySlot": "Slot summary",
+      "legendToCover": "To cover",
+      "legendCovered": "With substitute"
     },
     "classes": {
       "detailButton": "Detailed analysis by class",
       "columns": {
         "class": "Class",
-        "totalSubs": "Total substitutions",
         "topSubject": "Most affected subject",
         "topTeacher": "Most absent teacher",
-        "hours": "Hours"
+        "toCover": "Hours to cover",
+        "covered": "With substitute",
+        "coverage": "Coverage"
       },
       "detailTitle": "Detailed analysis by class",
       "detailClasses": "Classes",
       "detailPlaceholder": "Select classes...",
       "detailLoading": "Loading detail...",
       "summary": {
-        "totalHours": "Total hours: {count}",
+        "totalHours": "Hours to cover: {count}",
         "topSubject": "Top subject: {name} ({total})",
         "topTeacher": "Top teacher: {name} ({total})",
         "topSubstitute": "Top substitute: {name} ({total})",
@@ -1218,9 +1225,9 @@
       "title": "Detail for {name}",
       "loading": "Loading detail...",
       "absencesTitle": "Absences",
-      "substitutionsTitle": "Substitutions",
+      "substitutionsTitle": "Substitutions done",
       "emptyAbsences": "No absences",
-      "emptySubs": "No substitutions",
+      "emptySubs": "No substitutions done",
       "columns": {
         "day": "Day",
         "date": "Date",
@@ -1230,7 +1237,15 @@
         "substitute": "Substitute",
         "absenceType": "Type",
         "absentTeacher": "Absent teacher",
-        "substituteType": "Substitute type"
+        "substituteType": "Substitute type",
+        "rowType": "Type"
+      },
+      "types": {
+        "ABSENCIA": "Absence",
+        "SERVEI": "Service",
+        "VIGILANCIA_ABSENT": "Absent supervisor",
+        "ENCADENADA": "Chained",
+        "VIGILANCIA": "Supervision"
       }
     },
     "slots": {

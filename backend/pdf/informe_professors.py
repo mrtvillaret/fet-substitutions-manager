@@ -154,7 +154,12 @@ class DiagonalCell(Flowable):
             c.drawRightString(w - 2, 2, str(vs))
 
 
-def _capçalera_professor(nom: str, periode: str, timestamp: str) -> list:
+def _capçalera_professor(nom: str, periode: str, timestamp: str, hores_triades=None) -> list:
+    hores = (
+        f"<br/><font size='9' color='#a8c8e8'>{_('Hores')}: {_text(', '.join(hores_triades))}</font>"
+        if hores_triades
+        else ""
+    )
     data = [
         [
             Paragraph(
@@ -164,7 +169,7 @@ def _capçalera_professor(nom: str, periode: str, timestamp: str) -> list:
             Paragraph(
                 f"{_('Informe individual de substitucions')}<br/>"
                 f"<font size='9' color='#a8c8e8'>{_('Període')}: {periode}"
-                f" &nbsp;|&nbsp; {_('Generat')}: {timestamp}</font>",
+                f" &nbsp;|&nbsp; {_('Generat')}: {timestamp}</font>{hores}",
                 _s(
                     "ps",
                     fontName="Helvetica",
@@ -244,7 +249,7 @@ def _kpi_professor(abs_count, serv_count, cobertes, pendents, subs_fetes) -> lis
         [
             card(abs_count, _("Absències"), C_ORANGE),
             card(serv_count, _("Serveis"), C_PURPLE),
-            card(cobertes, _("Cobertes"), C_GREEN),
+            card(cobertes, _("Amb substitut"), C_GREEN),
             card(pendents, _("Pendents"), C_RED),
             card(subs_fetes, _("Subs. fetes"), C_TEAL),
         ]
@@ -462,10 +467,13 @@ def _taula_absencies(absencies: list) -> list:
 
 
 def _taula_substitucions_fetes(subs: list) -> list:
+    # Totes les files amb substitut, de qualsevol tipus (FUNCIONAMENT.md, apartat 6)
     TIPUS_LABELS = {
         "ABSENCIA": (_("Absència"), C_ORANGE),
         "SERVEI": (_("Servei"), C_PURPLE),
         "VIGILANCIA_ABSENT": (_("Vig. absent"), colors.HexColor("#2980b9")),
+        "ENCADENADA": (_("Encadenada"), colors.HexColor("#7f8c8d")),
+        "VIGILANCIA": (_("Vigilància"), colors.HexColor("#b7950b")),
     }
 
     if not subs:
@@ -485,6 +493,12 @@ def _taula_substitucions_fetes(subs: list) -> list:
         HRFlowable(width=CONTENT_W, thickness=0.5, color=C_GREY_MID, spaceAfter=4),
         Paragraph(
             _("Substitucions fetes"), _s("s2", fontName="Helvetica-Bold", fontSize=11, textColor=C_TEAL, leading=16)
+        ),
+        Paragraph(
+            _(
+                "Totes les hores amb substitut de la pantalla Substitucions, de qualsevol tipus. No és la cobertura de les absències."
+            ),
+            _s("n2", fontName="Helvetica-Oblique", fontSize=8, textColor=C_GREY_TXT, leading=12),
         ),
         Spacer(1, 0.2 * cm),
     ]
@@ -545,7 +559,10 @@ def generar_informe_professors_pdf(
     mostrar_taules: bool = False,
     export_dir: str = "exports",
     lang: str = "ca",
+    hores_triades: list = None,
 ) -> str:
+    """Amb `hores_triades` (el filtre per hores), la capçalera de cada
+    professor diu quines són."""
     setup_translation(lang)
     export_path = Path(export_dir)
     export_path.mkdir(parents=True, exist_ok=True)
@@ -587,7 +604,7 @@ def generar_informe_professors_pdf(
         cobertes = [a for a in absencies if (a.get("substitut") or "").strip()]
         pendents = [a for a in absencies if not (a.get("substitut") or "").strip()]
 
-        story += _capçalera_professor(nom, periode, timestamp)
+        story += _capçalera_professor(nom, periode, timestamp, hores_triades)
         story += _kpi_professor(
             abs_count=len(abs_normals),
             serv_count=len(serveis),
