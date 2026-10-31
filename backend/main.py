@@ -25,28 +25,24 @@ from auth.dependencies import get_current_user, require_admin
 from auth.router import router as auth_router
 from auth.security import decode_access_token, registra_renovacio_sessio
 from auth.services import crea_usuaris_inicials
+from centres.router import router as centres_router
 from config.auth import COOKIE_NAME, IS_DEVELOPMENT
+from configuracio.router import router as configuracio_router
+from cursos.router import router as cursos_router
+from dades.router import router as dades_router
 from database import create_auth_tables
 from errors_servidor import registra_gestors_errors
 from estadistiques.router import router as estadistiques_router
 from grups.router import router as grups_router
 from grups.router import router_admin as grups_admin_router
 from helpers import MissingXmlError
+from horari.router import router as horari_router
+from horari.router import router_admin as horari_admin_router
 from pdf import informes as informes_pdf
 from pdf.router import router as pdf_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limit_superat, limiter
-from routes import (
-    config_examens,
-    cursos,
-    dades,
-    disponibles,
-    files,
-    general,
-    horari,
-    scheduler,
-    settings,
-)
+from routes import config_examens, scheduler
 from substitucions.router import router as substitucions_router
 from usuaris.router import router as usuaris_router
 from vigilancies.router import router as vigilancies_router
@@ -168,19 +164,18 @@ app.include_router(grups_admin_router, dependencies=[Depends(require_admin)])
 app.include_router(pdf_router, dependencies=[Depends(get_current_user)])
 app.include_router(vigilancies_router, dependencies=[Depends(get_current_user)])
 app.include_router(substitucions_router, dependencies=[Depends(get_current_user)])
-app.include_router(settings.router, dependencies=[Depends(require_admin)])
+app.include_router(configuracio_router, dependencies=[Depends(require_admin)])
+app.include_router(centres_router, dependencies=[Depends(require_admin)])
+app.include_router(horari_admin_router, dependencies=[Depends(require_admin)])
 app.include_router(estadistiques_router, dependencies=[Depends(require_admin)])
 app.include_router(prioritats_router, dependencies=[Depends(require_admin)])
 app.include_router(absencia_coberta_router, dependencies=[Depends(require_admin)])
-app.include_router(horari.router, dependencies=[Depends(get_current_user)])
-app.include_router(files.router, dependencies=[Depends(require_admin)])
+app.include_router(horari_router, dependencies=[Depends(get_current_user)])
 app.include_router(usuaris_router, dependencies=[Depends(get_current_user)])
-app.include_router(disponibles.router, dependencies=[Depends(get_current_user)])
 app.include_router(scheduler.router, dependencies=[Depends(require_admin)])
 app.include_router(informes_pdf.router, dependencies=[Depends(require_admin)])
-app.include_router(cursos.router, dependencies=[Depends(get_current_user)])
-app.include_router(dades.router, dependencies=[Depends(require_admin)])
-app.include_router(general.router, dependencies=[Depends(get_current_user)])
+app.include_router(cursos_router, dependencies=[Depends(get_current_user)])
+app.include_router(dades_router, dependencies=[Depends(require_admin)])
 
 
 # ===== Endpoints generals (no modularitzats) =====

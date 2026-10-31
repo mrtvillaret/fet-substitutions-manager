@@ -13,14 +13,13 @@ from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from auth.dependencies import get_current_user
 from grups.router import router_admin as grups_admin_router
+from horari import router as horari
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import general, horari
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app()
 for _router in (
-    general.router,
     horari.router,
     prioritats_router,
     grups_admin_router,

@@ -36,7 +36,7 @@ def test_cap_lector_no_llegeix_un_nom_de_l_xml_sense_nom_net():
         for n, linia in enumerate(fitxer.read_text(encoding="utf-8").splitlines(), 1):
             for element in re.findall(r"([\w\[\]0-9]+)\.get\(\"name\"", linia):
                 lloc = f"{fitxer.relative_to(BACKEND)}:{n}"
-                # nom_cru: el nom tal com és a l'XML, a propòsit (routes/horari.py, per
+                # nom_cru: el nom tal com és a l'XML, a propòsit (horari/router.py, per
                 # sagnar el selector de l'últim professor); no fa d'identitat
                 if element in NOMS and "nom_net(" not in linia and "nom_cru" not in linia:
                     errors.append(f"{lloc}: {element} sense nom_net")

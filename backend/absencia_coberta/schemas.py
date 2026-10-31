@@ -5,7 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from noms import NomNet
-from routes.parametres import DataISO
+from parametres import DataISO
 
 
 class AbsenciaCobertaRequest(BaseModel):

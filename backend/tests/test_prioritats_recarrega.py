@@ -8,18 +8,29 @@ import uuid
 from datetime import date, timedelta
 
 import pytest
+from fastapi import APIRouter, Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from absencia_coberta.router import router as absencia_coberta_router
+from auth.dependencies import get_current_user
+from config import constants
 from database import get_data_db_session
 from pdf import router as pdf
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import settings
 from substitucions import router as substitucions
 from substitucions.repositories import SubstitucioRepository
 
-APP = crea_app(substitucions.router, pdf.router, prioritats_router, absencia_coberta_router, settings.router)
+# Ruta de prova: la llista «No substituir» que té a memòria la petició
+_no_substituir = APIRouter()
+
+
+@_no_substituir.get("/api/prova/no-substituir")
+def no_substituir_a_memoria(_usuari=Depends(get_current_user)):
+    return sorted(constants.NO_SUBST)
+
+
+APP = crea_app(substitucions.router, pdf.router, prioritats_router, absencia_coberta_router, _no_substituir)
 _avui = date.today()
 # Un dilluns passat: la baixa no hi treu res (absencia_coberta/services.py), però s'hi ha de veure.
 DATA = (_avui - timedelta(days=_avui.weekday() + 7)).isoformat()
@@ -85,9 +96,9 @@ def test_una_baixa_nova_es_te_en_compte_de_seguida(client, centre):
 
 def test_no_substituir_es_te_en_compte_de_seguida(client):
     def no_substituir():
-        resp = client.get("/api/settings")
+        resp = client.get("/api/prova/no-substituir")
         assert resp.status_code == 200, resp.text
-        return resp.json()["no_substituir"]
+        return resp.json()
 
     assert "Pares" not in no_substituir()
     assert client.post("/api/prioritats/no-substituir", json={"assignatura": "Pares"}).status_code == 200

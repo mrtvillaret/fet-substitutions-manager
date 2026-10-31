@@ -9,6 +9,7 @@ import uuid
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
+from configuracio import router as configuracio
 from database import (
     get_data_db_session,
     get_data_dir_for_institucio,
@@ -17,9 +18,8 @@ from database import (
 from helpers import avui, get_xml_path_for_date
 from rate_limit import limiter
 from repositories import ConfiguracioRepository
-from routes import settings
 
-APP = crea_app(settings.router)
+APP = crea_app(configuracio.router)
 
 
 @pytest.fixture(autouse=True)

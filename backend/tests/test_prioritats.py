@@ -48,8 +48,7 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     # la recàrrega ha d'omplir els mateixos objectes, no crear-ne de nous.
     import core.absencies
     import core.vigilancia_assignacio
-    import routes.disponibles
-    import routes.settings
+    import pdf.disponibles
 
     cat = CategoriaPrioritatRepository.create(db_session, "Guàrdies", ordre=0, activa=True)
     AssignaturaPrioritatRepository.create(db_session, "Guàrdia", cat, pes=4)
@@ -58,10 +57,9 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     carrega_prioritats(db_session)
 
     assert dict(constants.PRIORITATS) == {"Guàrdia": 4}  # ja cap mòdul no la importa en carregar-se
-    for modul in (core.vigilancia_assignacio, routes.disponibles):
+    for modul in (core.vigilancia_assignacio, pdf.disponibles):
         assert modul.ORDRE_PRIORITATS == [["Guàrdia"]], modul.__name__
-    for modul in (core.absencies, routes.settings):
-        assert modul.NO_SUBST == {"Reunió"}, modul.__name__
+    assert core.absencies.NO_SUBST == {"Reunió"}
 
 
 def test_recarrega_construeix_ordre_i_pesos(db_session):

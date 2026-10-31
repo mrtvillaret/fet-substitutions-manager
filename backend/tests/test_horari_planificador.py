@@ -13,13 +13,14 @@ from suport_api import client_per, crea_app, crea_usuari, entra
 from suport_xml import amb_horari_futur, dia, fixa_avui, professor_que_plega
 
 from auth.dependencies import get_current_user, require_admin
+from horari import router as horari
 from rate_limit import limiter
-from routes import config_examens, general, scheduler, scheduler_config
+from routes import config_examens, scheduler, scheduler_config
 
 APP = crea_app()
 APP.include_router(scheduler.router, dependencies=[Depends(require_admin)])  # com a main.py
 APP.include_router(config_examens.router, dependencies=[Depends(require_admin)])
-APP.include_router(general.router, dependencies=[Depends(get_current_user)])
+APP.include_router(horari.router, dependencies=[Depends(get_current_user)])
 FUTUR = [dia(10).isoformat(), dia(11).isoformat()]
 
 

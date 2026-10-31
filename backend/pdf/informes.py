@@ -15,12 +15,12 @@ from auth.dependencies import require_admin
 from database import get_data_dir_for_institucio
 from dependencies import get_db
 from noms import NomNet
+from parametres import DataISO, HoresTriades
 from pdf import services
 from pdf.domain import SenseProfessors
 from pdf.informe_direccio import generar_informe_pdf
 from pdf.informe_professors import generar_informe_professors_pdf
 from recomptes.services import valida_interval
-from routes.parametres import DataISO, HoresTriades
 
 router = APIRouter(prefix="/api/informes", tags=["informes"])
 

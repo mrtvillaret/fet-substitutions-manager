@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from dependencies import dia_de_la_peticio, get_db
 from helpers import MissingXmlError
 from noms import NomNet
-from routes.parametres import DataISO
+from parametres import DataISO
 from serveis.dia import Dia
 from substitucions import services
 from substitucions.schemas import (

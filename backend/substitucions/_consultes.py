@@ -5,9 +5,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from grups.repositories import GrupsAlliberatsRepository
+from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from recomptes.services import fetes_del_curs_per_substitut
-from routes.parametres import data_iso
 from serveis.dia import Dia
 from substitucions.repositories import SubstitucioRepository
 from substitucions.schemas import SubstitucioResponse

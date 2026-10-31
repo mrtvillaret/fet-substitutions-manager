@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
 from noms import NomNet
-from routes.parametres import DataISO
+from parametres import DataISO
 from serveis.dia import Dia
 from vigilancies import services
 from vigilancies.schemas import (

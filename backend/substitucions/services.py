@@ -9,8 +9,8 @@ from absencia_coberta.services import absencia_coberta_de, missatge_absencia_cob
 from core.alliberats import sense_classe
 from errors_domini import Conflicte, ErrorDeDomini, NoTrobat, NoValid
 from grups.repositories import GrupsAlliberatsRepository
+from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
-from routes.parametres import data_iso
 from serveis.dia import Dia
 from substitucions import _consultes
 from substitucions.absencies import desa_absencies

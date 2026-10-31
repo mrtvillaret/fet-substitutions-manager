@@ -14,7 +14,7 @@ from fastapi import Depends
 
 from auth.dependencies import get_current_user
 from database import get_data_db
-from routes.parametres import DataISO
+from parametres import DataISO
 from serveis.dia import Dia
 
 

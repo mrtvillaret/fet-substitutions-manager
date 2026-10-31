@@ -8,8 +8,8 @@ from suport_xml import amb_horari_futur, amb_versions, dia, professor_que_plega
 
 from database import get_data_db_session
 from helpers import avui, get_horari, get_xml_path_for_date
+from horari.repositories import XMLVersionRepository
 from models import Professor
-from repositories import XMLVersionRepository
 
 
 @pytest.fixture

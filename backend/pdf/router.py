@@ -22,11 +22,11 @@ from starlette.background import BackgroundTask
 
 from auth.dependencies import get_current_user
 from dependencies import dia_de_la_peticio, get_db
+from parametres import DataISO, data_iso
 from pdf import disponibles, generacio
 from pdf.domain import OpcionsPdf
 from pdf.repositories import PreferenciesPdfRepository
 from pdf.schemas import PDFPreferencesRequest
-from routes.parametres import DataISO, data_iso
 from serveis.dia import Dia
 from substitucions.schemas import OrdreSubstitucions
 

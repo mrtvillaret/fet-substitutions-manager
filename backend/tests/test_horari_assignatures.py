@@ -11,8 +11,8 @@ from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth.dependencies import get_current_user
+from horari import router as horari
 from rate_limit import limiter
-from routes import horari
 
 APP = crea_app()
 APP.include_router(horari.router, dependencies=[Depends(get_current_user)])

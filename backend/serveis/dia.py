@@ -19,7 +19,7 @@ from helpers import (
     get_vigilancia_core,
     get_xml_path_for_date,
 )
-from repositories import XMLVersionRepository
+from horari.repositories import XMLVersionRepository
 
 
 @dataclass(frozen=True)

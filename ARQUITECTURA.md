@@ -80,18 +80,22 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  ├── recomptes/          → els recomptes, en un sol lloc: els    │
 │  │                         fan servir els informes i les         │
 │  │                         Estadístiques (FUNCIONAMENT.md)       │
-│  └── estadistiques/      → pantalla Estadístiques                │
-│                            (/api/estadistiques/*)                │
+│  ├── estadistiques/      → pantalla Estadístiques                │
+│  │                         (/api/estadistiques/*)                │
+│  ├── configuracio/       → configuració del centre               │
+│  │                         (/api/settings, idiomes) i el logo    │
+│  ├── centres/            → centres (superadmin):                 │
+│  │                         /api/settings/institucions            │
+│  ├── horari/             → l'horari vigent (/api/horari/*,       │
+│  │                         /api/config, /api/professors,         │
+│  │                         /api/hores), pujada i versions de     │
+│  │                         l'XML                                 │
+│  ├── cursos/             → cursos acadèmics                      │
+│  └── dades/              → governança de dades (RGPD): purga i   │
+│                            reanomenar professors inactius        │
 │                                                                  │
 │  CAPA DE ROUTES (/api/*) — estructura antiga, es va migrant      │
-│  ├── disponibles.py      → professors disponibles/forat          │
-│  ├── horari.py           → consultes horari XML                  │
-│  ├── files.py            → upload XML horari                     │
-│  ├── cursos.py           → cursos acadèmics                      │
-│  ├── dades.py            → purga de dades antigues (RGPD)        │
-│  ├── settings.py         → configuració del centre               │
 │  ├── config_examens.py   → config assignatures/aules examens     │
-│  ├── parametres.py       → DataISO: validació de les dates       │
 │  └── scheduler.py        → planificador exàmens (orquestra)      │
 │        ├── scheduler_config.py     ← ConfigPlanificador, durades │
 │        ├── scheduler_planificacio.py ← prepara_planificacio      │
@@ -173,6 +177,8 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  │                           amb una referència; l'usuari només  │
 │  │                           rep la referència                   │
 │  ├── noms.py              ← la regla dels noms: nom_net, NomNet  │
+│  ├── parametres.py        ← DataISO, HoresTriades: paràmetres    │
+│  │                           comuns de les rutes                 │
 │  ├── errors_domini.py     ← errors de les regles (NoTrobat,      │
 │  │                           NoPermes, NoValid, Conflicte)       │
 │  └── utils/                                                      │

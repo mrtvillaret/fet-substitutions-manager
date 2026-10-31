@@ -301,8 +301,6 @@ const settings = ref({
   xml_horari_path: '',
   ultim_professor_subs: '',
   institucio_display_name: '',
-  data_dir: '',
-  no_substituir: [],
   logo_path: '',
   te_logo: false
 })

@@ -5,11 +5,11 @@ Encapsula tota la lògica d'accés a dades
 
 import logging
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
@@ -29,10 +29,8 @@ try:
         Assignatura,
         Aula,
         Configuracio,
-        Curs,
         Grup,
         Nivell,
-        XMLVersion,
     )
 except ImportError:
     # When running as script, add current dir to path to find local models
@@ -42,10 +40,8 @@ except ImportError:
         Assignatura,
         Aula,
         Configuracio,
-        Curs,
         Grup,
         Nivell,
-        XMLVersion,
     )
 
 
@@ -72,7 +68,13 @@ class ConfiguracioRepository:
 
     @staticmethod
     def set(db: Session, clau: str, valor: str, tipus: str = "string", descripcio: str = ""):
-        """Estableix un valor de configuració"""
+        """Estableix un valor de configuració i en fa commit."""
+        ConfiguracioRepository.desa(db, clau, valor, tipus=tipus, descripcio=descripcio)
+        db.commit()
+
+    @staticmethod
+    def desa(db: Session, clau: str, valor: str, tipus: str = "string", descripcio: str = ""):
+        """Com set, però sense commit: per desar diversos valors d'un cop."""
         config = db.query(Configuracio).filter(Configuracio.clau == clau).first()
 
         if config:
@@ -83,155 +85,7 @@ class ConfiguracioRepository:
         else:
             config = Configuracio(clau=clau, valor=valor, tipus=tipus, descripcio=descripcio)
             db.add(config)
-
-        db.commit()
-
-
-class XMLVersionRepository:
-    """Gestió d'històric d'XMLs per data"""
-
-    @staticmethod
-    def list_all(db: Session) -> List[XMLVersion]:
-        return db.query(XMLVersion).order_by(XMLVersion.data_inici).all()
-
-    @staticmethod
-    def get_current(db: Session) -> Optional[XMLVersion]:
-        return db.query(XMLVersion).filter(XMLVersion.data_fi.is_(None)).order_by(XMLVersion.data_inici.desc()).first()
-
-    @staticmethod
-    def vigent(db: Session, data: str = None) -> Optional[XMLVersion]:
-        """La versió vigent a `data` (per defecte avui). Si aquell dia no en
-        cobreix cap: la primera que comenci després (p. ex. només s'ha pujat
-        l'horari d'un curs que encara no ha començat) o, si no, la darrera."""
-        data = data or date.today().isoformat()
-        versio = XMLVersionRepository.get_for_date(db, data)
-        if versio:
-            return versio
-        data_obj = parse_date(data)
-        return (
-            db.query(XMLVersion).filter(XMLVersion.data_inici > data_obj).order_by(XMLVersion.data_inici).first()
-            or db.query(XMLVersion).order_by(XMLVersion.data_inici.desc()).first()
-        )
-
-    @staticmethod
-    def get_for_date(db: Session, data: str) -> Optional[XMLVersion]:
-        data_obj = parse_date(data)
-        return (
-            db.query(XMLVersion)
-            .filter(
-                and_(
-                    XMLVersion.data_inici <= data_obj, or_(XMLVersion.data_fi.is_(None), XMLVersion.data_fi >= data_obj)
-                )
-            )
-            .order_by(XMLVersion.data_inici.desc())
-            .first()
-        )
-
-    @staticmethod
-    def create(db: Session, path: str, data_inici: date, hash_contingut: str = None) -> XMLVersion:
-        """Una versió nova (la data de fi la posa encadena(); el commit, qui crida)."""
-        nova = XMLVersion(path=path, data_inici=data_inici, hash_contingut=hash_contingut)
-        db.add(nova)
         db.flush()
-        db.refresh(nova)
-        return nova
-
-    @staticmethod
-    def encadena(db: Session) -> None:
-        """Recalcula la data de fi de totes les versions (el dia abans que
-        comenci la següent; l'última, oberta), com els cursos: només es tria
-        quan comença cada versió, i així no hi pot haver forats ni solapaments.
-        També posa el punter xml_horari_path a la versió vigent avui. No fa
-        commit: va amb el canvi que l'ha fet necessari."""
-        db.flush()  # els canvis pendents (p. ex. una versió esborrada) primer
-        versions = db.query(XMLVersion).order_by(XMLVersion.data_inici.asc()).all()
-        for i, versio in enumerate(versions):
-            seguent = versions[i + 1] if i + 1 < len(versions) else None
-            nova_fi = (seguent.data_inici - timedelta(days=1)) if seguent else None
-            if versio.data_fi != nova_fi:
-                versio.data_fi = nova_fi
-        db.flush()
-        vigent = XMLVersionRepository.vigent(db)
-        punter = db.query(Configuracio).filter(Configuracio.clau == "xml_horari_path").first()
-        valor = vigent.path if vigent else ""
-        if punter:
-            punter.valor = valor
-        elif valor:
-            db.add(
-                Configuracio(
-                    clau="xml_horari_path", valor=valor, tipus="string", descripcio="Path del fitxer XML de FET"
-                )
-            )
-
-
-class CursRepository:
-    """Cursos acadèmics: seqüència CONTÍGUA de períodes (mateix patró que xml_versions).
-
-    Només es defineix `data_inici`. `data_fi` es deriva sempre: el curs acaba el dia
-    abans que comenci el següent, i l'últim queda obert (`data_fi = NULL`). Així tota
-    data pertany exactament a un curs i no cal cap flag d'"actiu".
-    """
-
-    @staticmethod
-    def _rechain(db: Session) -> None:
-        """Recalcula data_fi de tots els cursos perquè la seqüència sigui contígua."""
-        cursos = db.query(Curs).order_by(Curs.data_inici.asc()).all()
-        for i, curs in enumerate(cursos):
-            seguent = cursos[i + 1] if i + 1 < len(cursos) else None
-            nova_fi = (seguent.data_inici - timedelta(days=1)) if seguent else None
-            if curs.data_fi != nova_fi:
-                curs.data_fi = nova_fi
-        db.commit()
-
-    @staticmethod
-    def list_all(db: Session) -> List[Curs]:
-        return db.query(Curs).order_by(Curs.data_inici.desc()).all()
-
-    @staticmethod
-    def get(db: Session, curs_id: int) -> Optional[Curs]:
-        return db.query(Curs).filter(Curs.id == curs_id).first()
-
-    @staticmethod
-    def get_for_date(db: Session, data: str) -> Optional[Curs]:
-        """Curs al qual pertany una data. Cap si la data és anterior al primer curs."""
-        data_obj = parse_date(data)
-        return (
-            db.query(Curs)
-            .filter(and_(Curs.data_inici <= data_obj, or_(Curs.data_fi.is_(None), Curs.data_fi >= data_obj)))
-            .order_by(Curs.data_inici.desc())
-            .first()
-        )
-
-    @staticmethod
-    def create(db: Session, nom: str, data_inici: date) -> Curs:
-        nou = Curs(nom=nom, data_inici=data_inici, data_fi=None)
-        db.add(nou)
-        db.commit()
-        CursRepository._rechain(db)
-        db.refresh(nou)
-        return nou
-
-    @staticmethod
-    def update(db: Session, curs_id: int, nom: str, data_inici: date) -> Optional[Curs]:
-        curs = db.query(Curs).filter(Curs.id == curs_id).first()
-        if not curs:
-            return None
-        curs.nom = nom
-        curs.data_inici = data_inici
-        db.commit()
-        CursRepository._rechain(db)
-        db.refresh(curs)
-        return curs
-
-    @staticmethod
-    def delete(db: Session, curs_id: int) -> bool:
-        curs = db.query(Curs).filter(Curs.id == curs_id).first()
-        if not curs:
-            return False
-        db.delete(curs)
-        db.commit()
-        CursRepository._rechain(db)
-        return True
 
 
 class MasterConfigRepository:

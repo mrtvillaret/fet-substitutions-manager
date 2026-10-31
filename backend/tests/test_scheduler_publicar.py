@@ -434,12 +434,13 @@ def test_una_absencia_coberta_desada_despres_de_publicar_treu_les_vigilancies_fu
 def amb_cursos(centre):
     from datetime import date, timedelta
 
-    from repositories import CursRepository
+    from cursos.repositories import CursRepository
 
     avui = date.today()
     with get_data_db_session(centre) as db:
         CursRepository.create(db, "Curs anterior", avui - timedelta(days=400))
         CursRepository.create(db, "Curs actual", avui - timedelta(days=30))
+        db.commit()
     return avui
 
 

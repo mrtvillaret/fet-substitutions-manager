@@ -17,6 +17,7 @@ Per seguretat es fa en dos passos:
 """
 
 import json
+import logging
 import os
 import re
 from datetime import date, datetime
@@ -24,6 +25,14 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
+
+from dades.repositories import ProfessorsRepository, PurgaRepository
+from database import get_data_dir_for_institucio, get_export_dir_for_institucio
+from errors_domini import NoValid
+from horari.repositories import XMLVersionRepository
+from repositories import ConfiguracioRepository
+
+log = logging.getLogger(__name__)
 
 # Nom persistit dels PDF operatius: {YYMMDD}_{tipus}_{YYMMDD}_{HHMMSS}.pdf
 # La primera data és la del CONTINGUT (el dia al qual es refereix el document).
@@ -47,10 +56,7 @@ def _pdf_content_date(filename: str) -> Optional[date]:
 
 def llista_professors_db(db: Session) -> List[Dict]:
     """Professors de la BD (històric) amb el flag actiu, ordenats: actius primer."""
-    from models import Professor
-
-    profs = db.query(Professor).order_by(Professor.actiu.desc(), Professor.nom).all()
-    return [{"nom": p.nom, "actiu": bool(p.actiu)} for p in profs]
+    return [{"nom": p.nom, "actiu": bool(p.actiu)} for p in ProfessorsRepository.llista(db)]
 
 
 def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> Dict[str, int]:
@@ -64,51 +70,28 @@ def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> Dict[str,
     Conserva els registres (i la càrrega de treball dels altres professors
     implicats); només substitueix la identitat.
     """
-    from models import (
-        AbsenciaCoberta,
-        ExamCostProfessor,
-        Professor,
-        Substitucio,
-        Vigilancia,
-    )
-
     nom_actual = (nom_actual or "").strip()
     nom_nou = (nom_nou or "").strip()
 
     if not nom_actual or not nom_nou:
-        raise ValueError("Cal indicar el nom actual i el nom nou.")
+        raise NoValid("Cal indicar el nom actual i el nom nou.", codi="noms_buits")
     if nom_actual == nom_nou:
-        raise ValueError("El nom nou ha de ser diferent de l'actual.")
+        raise NoValid("El nom nou ha de ser diferent de l'actual.", codi="mateix_nom")
 
-    prof = db.query(Professor).filter(Professor.nom == nom_actual).first()
+    prof = ProfessorsRepository.get_by_nom(db, nom_actual)
     if not prof:
-        raise ValueError(f"No existeix cap professor amb el nom «{nom_actual}».")
+        raise NoValid(f"No existeix cap professor amb el nom «{nom_actual}».", codi="professor_inexistent")
     if prof.actiu:
-        raise ValueError(
+        raise NoValid(
             "Només es poden reanomenar professors inactius (que ja no són a "
             "l'horari actual). Per canviar el nom d'un professor actiu, "
-            "modifica'l a FET i reimporta l'XML."
+            "modifica'l a FET i reimporta l'XML.",
+            codi="professor_actiu",
         )
-    if db.query(Professor).filter(Professor.nom == nom_nou).first():
-        raise ValueError(f"Ja existeix un professor amb el nom «{nom_nou}».")
+    if ProfessorsRepository.get_by_nom(db, nom_nou):
+        raise NoValid(f"Ja existeix un professor amb el nom «{nom_nou}».", codi="nom_existent")
 
-    counts = {
-        "substitucions_absent": db.query(Substitucio)
-        .filter(Substitucio.professor_absent == nom_actual)
-        .update({Substitucio.professor_absent: nom_nou}, synchronize_session=False),
-        "substitucions_substitut": db.query(Substitucio)
-        .filter(Substitucio.substitut == nom_actual)
-        .update({Substitucio.substitut: nom_nou}, synchronize_session=False),
-        "vigilancies": db.query(Vigilancia)
-        .filter(Vigilancia.vigilant == nom_actual)
-        .update({Vigilancia.vigilant: nom_nou}, synchronize_session=False),
-        "baixes": db.query(AbsenciaCoberta)
-        .filter(AbsenciaCoberta.professor == nom_actual)
-        .update({AbsenciaCoberta.professor: nom_nou}, synchronize_session=False),
-        "costos_examens": db.query(ExamCostProfessor)
-        .filter(ExamCostProfessor.professor == nom_actual)
-        .update({ExamCostProfessor.professor: nom_nou}, synchronize_session=False),
-    }
+    counts = ProfessorsRepository.reanomena_registres(db, nom_actual, nom_nou)
     prof.nom = nom_nou
     counts["professor"] = 1
     db.commit()
@@ -120,8 +103,6 @@ CLAU_ULTIM_HORARI = "scheduler_ultim_resultat"
 
 
 def _json_config(db: Session, clau: str):
-    from repositories import ConfiguracioRepository
-
     try:
         return json.loads(ConfiguracioRepository.get(db, clau) or "null")
     except ValueError:
@@ -170,41 +151,17 @@ def analitzar_purga(db: Session, institucio: Optional[str], data_inici: date, da
     MANIFEST (només lectura) de tot el que eliminaria una purga de l'interval
     [data_inici, data_final] (inclòs). No esborra res.
     """
-    from models import (
-        AbsenciaCoberta,
-        GrupAlliberat,
-        Substitucio,
-        Vigilancia,
-        XMLVersion,
-    )
-
     if data_inici > data_final:
-        raise ValueError("La data d'inici no pot ser posterior a la data final.")
+        raise NoValid("La data d'inici no pot ser posterior a la data final.", codi="interval_invertit")
 
-    # --- Registres de BD (per columna 'data') ---
-    bd = {
-        "substitucions": db.query(Substitucio)
-        .filter(Substitucio.data >= data_inici, Substitucio.data <= data_final)
-        .count(),
-        "vigilancies": db.query(Vigilancia)
-        .filter(Vigilancia.data >= data_inici, Vigilancia.data <= data_final)
-        .count(),
-        "grups_alliberats": db.query(GrupAlliberat)
-        .filter(GrupAlliberat.data >= data_inici, GrupAlliberat.data <= data_final)
-        .count(),
-        # Baixes: se solapen amb l'interval (toquen alguna data del rang)
-        "baixes": db.query(AbsenciaCoberta)
-        .filter(AbsenciaCoberta.data_inici <= data_final, AbsenciaCoberta.data_final >= data_inici)
-        .count(),
-    }
+    # --- Registres de BD (per columna 'data'; absències cobertes que se solapen) ---
+    bd = PurgaRepository.compta(db, data_inici, data_final)
 
     # --- PDF exportats ---
     pdfs_a_esborrar: List[Dict] = []
     pdfs_revisio_manual: List[str] = []
     export_dir = None
     try:
-        from database import get_export_dir_for_institucio
-
         export_dir = get_export_dir_for_institucio(institucio) if institucio else None
     except Exception:
         export_dir = None
@@ -224,7 +181,7 @@ def analitzar_purga(db: Session, institucio: Optional[str], data_inici: date, da
     # Es retornen dades estructurades (flags); la presentació dels avisos la fa
     # el frontend a partir d'aquests flags (i18n).
     xml_versions: List[Dict] = []
-    for v in db.query(XMLVersion).order_by(XMLVersion.data_inici).all():
+    for v in XMLVersionRepository.list_all(db):
         v_fi = v.data_fi  # None = versió oberta/activa
         solapa = (v.data_inici <= data_final) and (v_fi is None or v_fi >= data_inici)
         if not solapa:
@@ -255,9 +212,7 @@ def analitzar_purga(db: Session, institucio: Optional[str], data_inici: date, da
             "data_final": b.data_final.isoformat(),
             "s_esten_fora": b.data_inici < data_inici or b.data_final > data_final,
         }
-        for b in db.query(AbsenciaCoberta)
-        .filter(AbsenciaCoberta.data_inici <= data_final, AbsenciaCoberta.data_final >= data_inici)
-        .order_by(AbsenciaCoberta.data_inici)
+        for b in PurgaRepository.absencies_cobertes(db, data_inici, data_final)
     ]
 
     total_bd = sum(bd.values())
@@ -273,9 +228,12 @@ def analitzar_purga(db: Session, institucio: Optional[str], data_inici: date, da
     }
 
 
-def executar_purga(db: Session, institucio: Optional[str], data_inici: date, data_final: date) -> Dict:
+def executar_purga(
+    db: Session, institucio: Optional[str], data_inici: date, data_final: date, confirmar: bool = False
+) -> Dict:
     """
-    Executa la purga de l'interval [data_inici, data_final] (inclòs).
+    Executa la purga de l'interval [data_inici, data_final] (inclòs). És
+    irreversible: cal `confirmar`.
 
     Esborra:
     - Registres de BD: substitucions, vigilàncies i grups alliberats amb data
@@ -290,33 +248,15 @@ def executar_purga(db: Session, institucio: Optional[str], data_inici: date, dat
 
     Retorna un informe del que s'ha esborrat realment.
     """
-    from models import (
-        AbsenciaCoberta,
-        GrupAlliberat,
-        Substitucio,
-        Vigilancia,
-        XMLVersion,
-    )
+    if not confirmar:
+        raise NoValid("Cal confirmar l'operació (confirmar=true). És irreversible.", codi="purga_sense_confirmar")
 
     # El manifest és la font de veritat: es recalcula al servidor, no es fia del
     # client, i determina quins PDF i quines versions d'XML es toquen.
     manifest = analitzar_purga(db, institucio, data_inici, data_final)
 
     # --- Registres de BD ---
-    bd_esborrat = {
-        "substitucions": db.query(Substitucio)
-        .filter(Substitucio.data >= data_inici, Substitucio.data <= data_final)
-        .delete(synchronize_session=False),
-        "vigilancies": db.query(Vigilancia)
-        .filter(Vigilancia.data >= data_inici, Vigilancia.data <= data_final)
-        .delete(synchronize_session=False),
-        "grups_alliberats": db.query(GrupAlliberat)
-        .filter(GrupAlliberat.data >= data_inici, GrupAlliberat.data <= data_final)
-        .delete(synchronize_session=False),
-        "baixes": db.query(AbsenciaCoberta)
-        .filter(AbsenciaCoberta.data_inici <= data_final, AbsenciaCoberta.data_final >= data_inici)
-        .delete(synchronize_session=False),
-    }
+    bd_esborrat = PurgaRepository.esborra(db, data_inici, data_final)
 
     errors: List[str] = []
 
@@ -324,21 +264,25 @@ def executar_purga(db: Session, institucio: Optional[str], data_inici: date, dat
     data_dir = None
     export_dir = None
     try:
-        from database import get_data_dir_for_institucio, get_export_dir_for_institucio
-
         if institucio:
             data_dir = get_data_dir_for_institucio(institucio)
             export_dir = get_export_dir_for_institucio(institucio)
-    except Exception as e:
-        errors.append(f"No s'han pogut resoldre les carpetes de la institució: {e}")
+    except Exception:
+        # A la resposta, només el missatge; el detall (pot portar camins del servidor), al registre
+        log.warning("Purga: no s'han pogut resoldre les carpetes del centre", exc_info=True)
+        errors.append("No s'han pogut resoldre les carpetes de la institució")
+
+    # Els fitxers s'esborren després del commit: si la BD fallés, les versions
+    # i els fitxers hi serien tots dos
+    fitxers_xml: List[tuple] = []  # (camí, path de la versió)
 
     ids_esborrar = [v["id"] for v in manifest["xml_versions"] if not v["bloquejat"]]
     xml_esborrats: List[Dict] = []
     if ids_esborrar:
         # Paths que es conserven (per no esborrar un fitxer compartit amb una
         # versió que es manté).
-        paths_conservats = {p.path for p in db.query(XMLVersion).filter(~XMLVersion.id.in_(ids_esborrar)).all()}
-        for v in db.query(XMLVersion).filter(XMLVersion.id.in_(ids_esborrar)).all():
+        paths_conservats = PurgaRepository.paths_xml_excepte(db, ids_esborrar)
+        for v in PurgaRepository.versions_xml(db, ids_esborrar):
             if data_dir is not None and v.path and v.path not in paths_conservats:
                 carpeta = data_dir.resolve()
                 fpath = (carpeta / v.path).resolve()
@@ -346,11 +290,7 @@ def executar_purga(db: Session, institucio: Optional[str], data_inici: date, dat
                     # Només els fitxers del centre (com a helpers._resolve_xml_path)
                     errors.append(f"XML {v.path}: fora de la carpeta del centre, no s'esborra")
                 else:
-                    try:
-                        if fpath.exists():
-                            fpath.unlink()
-                    except OSError as e:
-                        errors.append(f"XML {v.path}: {e}")
+                    fitxers_xml.append((fpath, v.path))
             xml_esborrats.append(
                 {
                     "id": v.id,
@@ -360,9 +300,29 @@ def executar_purga(db: Session, institucio: Optional[str], data_inici: date, dat
             )
             db.delete(v)
         # Les que queden s'encadenen de nou: sense forats on hi havia les esborrades
-        from repositories import XMLVersionRepository
-
         XMLVersionRepository.encadena(db)
+
+    # --- Planificador d'exàmens ---
+    planificador = manifest["planificador"]
+    if planificador["dates_seleccionades"]:
+        queden = [
+            d.isoformat()
+            for d in _dates_iso(_json_config(db, CLAU_DATES_PLANIFICADOR))
+            if not data_inici <= d <= data_final
+        ]
+        PurgaRepository.canvia_configuracio(db, CLAU_DATES_PLANIFICADOR, json.dumps(queden))
+    if planificador["ultim_horari"]:
+        PurgaRepository.esborra_configuracio(db, CLAU_ULTIM_HORARI)
+
+    db.commit()
+
+    for fpath, path in fitxers_xml:
+        try:
+            if fpath.exists():
+                fpath.unlink()
+        except OSError:
+            log.warning("Purga: no s'ha pogut esborrar un XML", exc_info=True)
+            errors.append(f"XML {path}: no s'ha pogut esborrar")
 
     # --- PDF datats dins l'interval ---
     pdfs_esborrats: List[str] = []
@@ -373,27 +333,9 @@ def executar_purga(db: Session, institucio: Optional[str], data_inici: date, dat
                 if fpath.exists():
                     fpath.unlink()
                 pdfs_esborrats.append(item["fitxer"])
-            except OSError as e:
-                errors.append(f"PDF {item['fitxer']}: {e}")
-
-    # --- Planificador d'exàmens ---
-    # (sense ConfiguracioRepository.set, que fa commit: tot va en el commit final)
-    from models import Configuracio
-
-    planificador = manifest["planificador"]
-    if planificador["dates_seleccionades"]:
-        queden = [
-            d.isoformat()
-            for d in _dates_iso(_json_config(db, CLAU_DATES_PLANIFICADOR))
-            if not data_inici <= d <= data_final
-        ]
-        db.query(Configuracio).filter(Configuracio.clau == CLAU_DATES_PLANIFICADOR).update(
-            {Configuracio.valor: json.dumps(queden)}, synchronize_session=False
-        )
-    if planificador["ultim_horari"]:
-        db.query(Configuracio).filter(Configuracio.clau == CLAU_ULTIM_HORARI).delete(synchronize_session=False)
-
-    db.commit()
+            except OSError:
+                log.warning("Purga: no s'ha pogut esborrar un PDF", exc_info=True)
+                errors.append(f"PDF {item['fitxer']}: no s'ha pogut esborrar")
 
     return {
         "interval": manifest["interval"],

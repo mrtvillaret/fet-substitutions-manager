@@ -19,14 +19,19 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from absencia_coberta.router import router as absencia_coberta_router
+from configuracio import router as configuracio
 from grups import router as grups
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import settings
 from substitucions import router as substitucions
 
 APP = crea_app(
-    grups.router, grups.router_admin, substitucions.router, prioritats_router, absencia_coberta_router, settings.router
+    grups.router,
+    grups.router_admin,
+    substitucions.router,
+    prioritats_router,
+    absencia_coberta_router,
+    configuracio.router,
 )
 DILLUNS = ["2026-04-13", "2026-04-20", "2026-04-27", "2026-05-04"]
 

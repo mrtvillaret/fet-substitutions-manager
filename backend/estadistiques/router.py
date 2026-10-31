@@ -20,7 +20,7 @@ from estadistiques.schemas import (
     TemporalResponse,
 )
 from noms import NomNet
-from routes.parametres import DataISO, HoresTriades
+from parametres import DataISO, HoresTriades
 
 router = APIRouter(prefix="/api/estadistiques", tags=["Estadístiques"])
 

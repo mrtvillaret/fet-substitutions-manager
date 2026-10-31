@@ -8,18 +8,18 @@ import uuid
 
 import pytest
 from fastapi import Depends
-from suport_api import client_per, crea_app, crea_usuari, entra
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_xml import amb_versions, dia
 
 from auth.dependencies import require_admin
-from database import get_data_db_session
+from database import get_data_db_session, get_data_dir_for_institucio
+from horari import router as horari
 from models import XMLVersion
 from rate_limit import limiter
 from repositories import ConfiguracioRepository
-from routes import settings
 
 APP = crea_app()
-APP.include_router(settings.router, dependencies=[Depends(require_admin)])  # com a main.py
+APP.include_router(horari.router_admin, dependencies=[Depends(require_admin)])  # com a main.py
 URL = "/api/settings/xml-versions"
 
 
@@ -103,3 +103,28 @@ def test_el_punter_es_la_versio_vigent_avui(centre):
     client = _client(centre)
     client.put(f"{URL}/{_id(centre, 'futur.xml')}", json={"data_inici": dia(-1).isoformat()})
     assert _punter(centre) == "futur.xml"
+
+
+def test_esborrar_una_versio_n_esborra_el_fitxer(centre):
+    # Abans el fitxer es quedava a la carpeta (des de la web no es podia recuperar)
+    carpeta = get_data_dir_for_institucio(centre)
+    assert _client(centre).delete(f"{URL}/{_id(centre, 'futur.xml')}").status_code == 200
+    assert not (carpeta / "futur.xml").exists()
+    assert (carpeta / "actual.xml").exists()
+
+
+def test_no_esborra_un_fitxer_que_fa_servir_una_altra_versio():
+    centre = amb_versions(("actual.xml", dia(-30), dia(-1)), ("actual.xml", dia(0), None))
+    with get_data_db_session(centre) as db:
+        primera = db.query(XMLVersion).order_by(XMLVersion.data_inici).first().id
+    assert _client(centre).delete(f"{URL}/{primera}").status_code == 200
+    assert (get_data_dir_for_institucio(centre) / "actual.xml").exists()
+
+
+def test_no_esborra_res_de_fora_de_la_carpeta_del_centre(centre):
+    altre = nova_institucio(amb_xml=True)
+    with get_data_db_session(centre) as db:
+        db.query(XMLVersion).filter(XMLVersion.path == "futur.xml").update({"path": f"../{altre}/teachers.xml"})
+        db.commit()
+    assert _client(centre).delete(f"{URL}/{_id(centre, f'../{altre}/teachers.xml')}").status_code == 200
+    assert (get_data_dir_for_institucio(altre) / "teachers.xml").exists()

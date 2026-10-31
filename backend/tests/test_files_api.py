@@ -1,5 +1,5 @@
 """
-Tests de la pujada de l'horari XML (routes/files.py, upload-xml): versionat,
+Tests de la pujada de l'horari XML (horari/router.py, upload-xml): versionat,
 i que el nom que envia el navegador no permet escriure fora de la carpeta de
 la institució ni trepitjar l'XML vigent abans de desar-lo a l'històric.
 """
@@ -18,11 +18,12 @@ from suport_api import (
 )
 
 from database import DATA_BASE_DIR, get_data_db_session, get_data_dir_for_institucio
+from horari import router as horari
+from horari.repositories import XMLVersionRepository
 from rate_limit import limiter
-from repositories import ConfiguracioRepository, XMLVersionRepository
-from routes import files
+from repositories import ConfiguracioRepository
 
-APP = crea_app(files.router)
+APP = crea_app(horari.router_admin)
 URL = "/api/files/upload-xml"
 XML = XML_EXEMPLE.read_bytes()
 
@@ -188,3 +189,34 @@ def test_l_xml_es_desa_tal_com_es_puja_amb_els_espais_dels_noms(client, centre):
     assert amb_espais != XML
     cos = _puja(client, contingut=amb_espais).json()
     assert (get_data_dir_for_institucio(centre) / cos["path"]).read_bytes() == amb_espais
+
+
+def test_dues_pujades_en_el_mateix_segon_no_es_trepitgen(client, centre, monkeypatch):
+    # El nom del fitxer de l'històric porta el segon: la segona pujada
+    # sobreescrivia el de la primera, que quedava amb un contingut que no era el seu
+    import hashlib
+    from datetime import datetime
+
+    from horari import services
+
+    class _SempreElMateixSegon(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 31, 12, 0, 0)
+
+    monkeypatch.setattr(services, "datetime", _SempreElMateixSegon)
+    avui = date.today()
+    assert _puja(client, data_inici=(avui + timedelta(days=10)).isoformat()).status_code == 200
+    assert (
+        _puja(
+            client, contingut=XML + b"\n<!-- un altre -->\n", data_inici=(avui + timedelta(days=20)).isoformat()
+        ).status_code
+        == 200
+    )
+
+    carpeta = get_data_dir_for_institucio(centre)
+    with get_data_db_session(centre) as db:
+        versions = XMLVersionRepository.list_all(db)
+        assert len({v.path for v in versions}) == len(versions)
+        for v in versions:
+            assert hashlib.sha256((carpeta / v.path).read_bytes()).hexdigest() == v.hash_contingut

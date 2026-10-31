@@ -22,8 +22,8 @@ from core.alliberats import (
 from grups.domain import ActivitatNoConfigurada, PeriodeNoValid
 from grups.repositories import AlliberamentsPeriodeRepository, GrupsAlliberatsRepository, GrupsAmagatsRepository
 from helpers import MissingXmlError, invalidar_horari
+from parametres import data_iso
 from repositories import ConfiguracioRepository
-from routes.parametres import data_iso
 from serveis.dia import Dia
 from substitucions.cobertures import refresca_cobertures
 from substitucions.domain import treu_substituts_no_valids

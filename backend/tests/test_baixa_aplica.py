@@ -16,9 +16,9 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user
+from horari import router as horari
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
-from routes import horari
 from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 

@@ -7,14 +7,6 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
-class ConfigResponse(BaseModel):
-    data_actual: str
-    horari_carregat: bool
-    num_professors: int
-    num_hores: int
-    xml_missing: Optional[bool] = False
-
-
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str

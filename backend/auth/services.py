@@ -64,6 +64,10 @@ def autentica(db: Session, username: str, contrasenya: str) -> Optional[User]:
     correcta = verify_password(contrasenya, user.password_hash if user else hash_fictici())
     if not user or not user.active or not correcta:
         return None
+    # D'un centre desactivat no hi entra ningú (els usuaris continuen actius:
+    # en reactivar-lo, tot torna a ser com abans). El superadmin sí, com sempre.
+    if user.role != Rol.SUPER_ADMIN and not config.is_institucio_activa(user.institucio):
+        return None
     return user
 
 

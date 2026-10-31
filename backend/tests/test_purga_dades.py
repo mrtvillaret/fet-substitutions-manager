@@ -6,20 +6,23 @@ de l'interval ni de cap altre centre.
 
 import uuid
 from datetime import date
+from pathlib import Path
 
 import pytest
 from fastapi import Depends
+from fastapi.testclient import TestClient
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from auth.dependencies import require_admin
+from dades import router as dades
 from database import (
     get_data_db_session,
     get_data_dir_for_institucio,
     get_export_dir_for_institucio,
 )
+from horari.repositories import XMLVersionRepository
 from models import AbsenciaCoberta, GrupAlliberat, Substitucio, Vigilancia, XMLVersion
 from rate_limit import limiter
-from routes import dades
 
 APP = crea_app()
 APP.include_router(dades.router, dependencies=[Depends(require_admin)])  # com a main.py
@@ -267,3 +270,52 @@ def test_un_ultim_horari_de_fora_de_l_interval_es_conserva(admin, centre):
     assert informe["planificador"] == {"dates_tretes": 0, "ultim_horari_esborrat": False}
     dates, ultim = _config_planificador(centre)
     assert dates == ["2026-04-20"] and ultim is not None
+
+
+def test_si_falla_abans_del_commit_no_s_esborra_cap_fitxer(centre, monkeypatch):
+    # Abans, els fitxers s'esborraven abans del commit: si la BD fallava, les
+    # versions i les files hi eren, però els fitxers ja no
+    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    crea_usuari(nom, centre, "admin")
+    client = entra(TestClient(APP, base_url="https://testserver", raise_server_exceptions=False), nom)
+
+    def falla(_db):
+        raise RuntimeError("error simulat abans del commit")
+
+    monkeypatch.setattr(XMLVersionRepository, "encadena", falla)
+
+    assert client.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).status_code == 500
+    assert _queda(centre) == INTACTE
+    assert (get_data_dir_for_institucio(centre) / "dins.xml").exists()
+    assert len(list(get_export_dir_for_institucio(centre).iterdir())) == 3
+
+
+def test_els_errors_no_porten_el_text_de_l_excepcio(admin, centre, monkeypatch, caplog):
+    # Abans hi anava str(e), que pot portar camins del servidor
+    from dades import services
+
+    def carpeta_que_falla(_institucio):
+        raise OSError("/ruta/secreta/del/servidor")
+
+    monkeypatch.setattr(services, "get_export_dir_for_institucio", carpeta_que_falla)
+
+    informe = admin.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).json()
+
+    assert informe["errors"] == ["No s'han pogut resoldre les carpetes de la institució"]
+    assert "/ruta/secreta" in caplog.text  # el detall, al registre
+
+
+def test_un_fitxer_que_no_es_pot_esborrar_no_diu_el_cami(admin, centre, monkeypatch, caplog):
+    def unlink_que_falla(self, *args, **kwargs):
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(Path, "unlink", unlink_que_falla)
+
+    informe = admin.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).json()
+
+    assert informe["errors"] == [
+        "XML dins.xml: no s'ha pogut esborrar",
+        "PDF 260315_substitucions_260315_101010.pdf: no s'ha pogut esborrar",
+    ]
+    assert not any(str(get_data_dir_for_institucio(centre)) in e for e in informe["errors"])
+    assert "Permission denied" in caplog.text

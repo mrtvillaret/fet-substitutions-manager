@@ -10,9 +10,7 @@ import ast
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[1]
-# Pendent de decidir (treure-la o arreglar-la): GET /api/disponibles/{data}/resum
-# crida get_disponibles_dia sense el Dia (respon 404) i no la fa servir res.
-PERMESES = {"get_disponibles_dia"}
+PERMESES = set()
 
 
 def _fitxers():

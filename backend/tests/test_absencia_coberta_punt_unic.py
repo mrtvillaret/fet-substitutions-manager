@@ -19,7 +19,7 @@ PROHIBIT = re.compile(
 TAULA = re.compile(r"\bprofessors_baixa\b")
 TAULA_PERMESA = {"models.py", "migracions/noms_nets.py"}
 # (el model, AbsenciaCoberta, també el fan servir la purga de dades,
-# gestio_dades.py, i l'informe de direcció, que en compta els registres:
+# dades/services.py, i l'informe de direcció, que en compta els registres:
 # pdf/repositories.py)
 
 

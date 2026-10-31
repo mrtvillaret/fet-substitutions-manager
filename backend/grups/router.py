@@ -33,7 +33,7 @@ from grups.schemas import (
     ReforcResponse,
 )
 from noms import NomNet
-from routes.parametres import DataISO
+from parametres import DataISO
 from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/grups", tags=["Grups Sense Classe"])

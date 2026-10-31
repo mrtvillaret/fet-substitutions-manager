@@ -24,10 +24,10 @@ from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_ins
 
 import i18n_setup
 from auth.dependencies import get_current_user
+from config import constants
 from database import get_data_db_session, get_data_dir_for_institucio
 from prioritats.repositories import NoSubstituirRepository
 from repositories import ConfiguracioRepository
-from routes import settings
 from vigilancies.router import router as vigilancies_router
 
 PETICIONS = 400
@@ -35,6 +35,11 @@ FILS = 16
 
 # Ruta de prova que retorna textos traduïts pel backend
 _textos = APIRouter()
+
+
+@_textos.get("/api/prova/no-substituir")
+def no_substituir(_usuari=Depends(get_current_user)):
+    return {"no_substituir": sorted(constants.NO_SUBST), "institucio": _usuari.institucio}
 
 
 @_textos.get("/api/prova/textos")
@@ -77,9 +82,7 @@ def servidor():
 
     port = _port_lliure()
     srv = uvicorn.Server(
-        uvicorn.Config(
-            crea_app(vigilancies_router, settings.router, _textos), host="127.0.0.1", port=port, log_level="error"
-        )
+        uvicorn.Config(crea_app(vigilancies_router, _textos), host="127.0.0.1", port=port, log_level="error")
     )
     fil = threading.Thread(target=srv.run, daemon=True)
     fil.start()
@@ -123,7 +126,7 @@ def test_les_prioritats_no_es_barregen_entre_institucions(servidor):
     port, a, b, galetes = servidor
 
     def una(inst):
-        estat, cos, _ = _peticio(port, "GET", "/api/settings", galeta=galetes[inst])
+        estat, cos, _ = _peticio(port, "GET", "/api/prova/no-substituir", galeta=galetes[inst])
         assert estat == 200
         dades = json.loads(cos)
         esperat = ["Reunió A"] if inst == a else ["Reunió B"]

@@ -7,11 +7,11 @@ from dataclasses import dataclass
 from datetime import date
 
 from database import get_data_db_session
+from horari.repositories import XMLVersionRepository
 from prioritats.repositories import NoSubstituirRepository
 from repositories import (
     ConfiguracioExamenRepository,
     ConfiguracioRepository,
-    XMLVersionRepository,
 )
 from routes.scheduler_helpers import (
     _build_slots_valids_from_alliberaments,

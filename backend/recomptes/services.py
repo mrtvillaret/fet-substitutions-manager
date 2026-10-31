@@ -16,14 +16,15 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
+from cursos.repositories import CursRepository
 from grups.repositories import GrupsAlliberatsRepository
 from helpers import MissingXmlError
+from horari.repositories import XMLVersionRepository
 from noms import ordre_alfabetic
+from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from recomptes.domain import IntervalNoValid
 from recomptes.repositories import RecomptesRepository
-from repositories import CursRepository, XMLVersionRepository
-from routes.parametres import data_iso
 from serveis.dia import Dia
 from substitucions.visibilitat import es_visible_a_substitucions
 from utils.hores import normalitzar_hora

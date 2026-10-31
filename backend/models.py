@@ -215,7 +215,7 @@ class Curs(Base):
     Només es defineix `data_inici`; `data_fi` la manté el sistema (= inici del curs
     següent − 1 dia), i l'últim curs queda obert (`data_fi = NULL`). Així tota data
     pertany exactament a un curs i no cal cap flag d'"actiu": el curs d'una data es
-    resol amb `CursRepository.get_for_date()`, igual que la versió d'XML.
+    resol amb `CursRepository.get_for_date()` (cursos/repositories.py), igual que la versió d'XML.
     """
 
     __tablename__ = "cursos"
