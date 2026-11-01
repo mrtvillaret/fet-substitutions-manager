@@ -6,13 +6,11 @@ generar, analitzar i recalcular el cost: es llegeix d'un sol lloc.
 from dataclasses import dataclass
 from datetime import date
 
+from configuracio_examens.repositories import ConfiguracioExamenRepository
 from database import get_data_db_session
 from horari.repositories import XMLVersionRepository
 from prioritats.repositories import NoSubstituirRepository
-from repositories import (
-    ConfiguracioExamenRepository,
-    ConfiguracioRepository,
-)
+from repositories import ConfiguracioRepository
 from routes.scheduler_helpers import (
     _build_slots_valids_from_alliberaments,
     _build_slots_valids_iso_from_alliberaments,

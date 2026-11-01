@@ -11,6 +11,7 @@ from typing import Dict, Optional
 
 from sqlalchemy.orm import Session
 
+from configuracio_examens.repositories import ConfiguracioExamenRepository
 from core.absencies import GestorAbsencies
 from core.alliberats import GestorAlliberats
 from core.vigilancia_core import VigilanciaCore
@@ -18,7 +19,7 @@ from database import get_data_db_session, get_data_dir_for_institucio
 from grups.repositories import GrupsAlliberatsRepository
 from horari.repositories import XMLVersionRepository
 from horari_web import GestorHorariWeb  # Versió web que llegeix de SQLite
-from repositories import ConfiguracioExamenRepository, ConfiguracioRepository, ProfessorRepository
+from repositories import ConfiguracioRepository, ProfessorRepository
 from substitucions.assignacio import GestorSubstitucions
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository

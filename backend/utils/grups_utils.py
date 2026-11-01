@@ -60,7 +60,7 @@ def carregar_abreviatures_grups() -> Dict[str, str]:
         Retorna diccionari buit si no hi ha abreviatures o error.
     """
     from database import get_data_db_session
-    from repositories import AbreviaturaGrupRepository
+    from grups.repositories import AbreviaturaGrupRepository
 
     instit = _get_institucio_actual()
     try:

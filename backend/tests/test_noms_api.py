@@ -31,14 +31,6 @@ ES_NOM = re.compile(
 # per un: o no porten noms, o els netegen en entrar (noms.neteja_noms / nom_net)
 COSSOS_REVISATS = {
     # sense noms (grups, nivells, abreviatures, ids, configuració)
-    ("POST", "/api/config/nivells"),
-    ("PUT", "/api/config/nivells/ordre"),
-    ("POST", "/api/config/grups/{nivell}"),
-    ("PUT", "/api/config/grups/{nivell}/ordre"),
-    ("DELETE", "/api/config/assignacions"),
-    ("POST", "/api/config/abreviatures"),
-    ("PUT", "/api/config/abreviatures/{abreviatura_id}"),
-    ("PUT", "/api/config/afinitats"),
     ("POST", "/api/pdf/disponibles-tots-dies"),
     ("POST", "/api/files/upload-xml"),
     ("POST", "/api/files/upload-logo"),
@@ -47,16 +39,18 @@ COSSOS_REVISATS = {
     ("PUT", "/api/scheduler/config"),
     ("PUT", "/api/scheduler/costos-professors/{professor}"),
     # netegen els noms en entrar
-    ("POST", "/api/config/assignatures/{nivell}"),
-    ("PUT", "/api/config/assignatures/{nivell}/ordre"),
-    ("POST", "/api/config/aules"),
-    ("POST", "/api/config/assignacions"),
-    ("PUT", "/api/config/assignacions/{assignacio_id}"),
-    ("POST", "/api/config/importar-assignacions/dry-run"),
-    ("POST", "/api/config/importar-assignacions"),
     ("POST", "/api/config/importar-assignacions-csv/dry-run"),
     ("POST", "/api/config/importar-assignacions-csv"),
     ("PUT", "/api/scheduler/costos-professors"),
+}
+
+
+# Camps que són noms però que no es diuen com ES_NOM (nou_nom també el fa
+# servir el canvi de nom d'un grup, que no és un nom de la regla)
+CAMPS_DE_NOM = {
+    ("POST", "/api/config/assignatures/{nivell}", "nom"),
+    ("PUT", "/api/config/assignatures/{nivell}/{nom}", "nou_nom"),
+    ("PUT", "/api/config/aules/{codi}", "nou_nom"),
 }
 
 
@@ -106,11 +100,25 @@ def test_tot_nom_que_arriba_per_l_api_es_nom_net():
             tipus = cos.field_info.annotation
             if isinstance(tipus, type) and issubclass(tipus, BaseModel):
                 for nom, camp in _camps(tipus):
-                    if ES_NOM.match(nom.split(".")[-1]) and not _es_nom_net(camp):
+                    es_nom = ES_NOM.match(nom.split(".")[-1]) or (metode, ruta.path, nom) in CAMPS_DE_NOM
+                    if es_nom and not _es_nom_net(camp):
                         errors.append(f"{lloc}: camp {nom} de {tipus.__name__}")
             elif (metode, ruta.path) not in COSSOS_REVISATS:
                 errors.append(f"{lloc}: cos sense model ({cos.name}): porta noms? revisar i afegir a COSSOS_REVISATS")
     assert errors == []
+
+
+def test_els_camps_de_nom_tenen_model():
+    # Un cos sense model (un dict) no es pot revisar: els de CAMPS_DE_NOM, amb model
+    rutes = {(metode, ruta.path): ruta for _, metode, ruta in _rutes()}
+    for metode, path, camp in CAMPS_DE_NOM:
+        cossos = rutes[(metode, path)].dependant.body_params
+        assert any(
+            isinstance(c.field_info.annotation, type)
+            and issubclass(c.field_info.annotation, BaseModel)
+            and camp in c.field_info.annotation.model_fields
+            for c in cossos
+        ), (metode, path, camp)
 
 
 # ----------------------------------------------- de debò, per una petició

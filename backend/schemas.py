@@ -12,14 +12,6 @@ class TokenResponse(BaseModel):
     token_type: str
 
 
-class RenameRequest(BaseModel):
-    nou_nom: str
-
-
-class RenameNivellRequest(BaseModel):
-    nou_codi: str
-
-
 class SchedulerGenerateRequest(BaseModel):
     data_inici: str
     data_final: Optional[str] = None

@@ -19,8 +19,14 @@ from core.alliberats import (
     ocupats_de,
     professors_de,
 )
+from errors_domini import Conflicte, NoTrobat, NoValid
 from grups.domain import ActivitatNoConfigurada, PeriodeNoValid
-from grups.repositories import AlliberamentsPeriodeRepository, GrupsAlliberatsRepository, GrupsAmagatsRepository
+from grups.repositories import (
+    AbreviaturaGrupRepository,
+    AlliberamentsPeriodeRepository,
+    GrupsAlliberatsRepository,
+    GrupsAmagatsRepository,
+)
 from helpers import MissingXmlError, invalidar_horari
 from parametres import data_iso
 from repositories import ConfiguracioRepository
@@ -28,6 +34,7 @@ from serveis.dia import Dia
 from substitucions.cobertures import refresca_cobertures
 from substitucions.domain import treu_substituts_no_valids
 from substitucions.generacio import genera_substitucions_dia
+from utils.grups_utils import invalidar_cache_abreviatures
 from vigilancies.repositories import VigilanciaRepository
 
 # Activitats sense grup que es poden alliberar (p.ex. Reforç, un equip docent):
@@ -348,3 +355,53 @@ def desa_activitats_alliberables(db: Session, activitats: List[str], per_defecte
     ConfiguracioRepository.set(db, CLAU_ACTIVITATS_ALLIBERABLES, json.dumps(activitats, ensure_ascii=False), "json")
     ConfiguracioRepository.set(db, CLAU_ACTIVITATS_PER_DEFECTE, json.dumps(per_defecte, ensure_ascii=False), "json")
     return {"activitats": activitats, "per_defecte": per_defecte}
+
+
+# ---------------------------------------------------------------- abreviatures
+
+
+def abreviatures(db: Session) -> List[Dict]:
+    return AbreviaturaGrupRepository.get_all(db)
+
+
+def _abreviatures_canviades(institucio: str) -> None:
+    # L'horari (i les abreviatures del planificador) d'aquest centre es tornen
+    # a llegir amb les noves abreviatures; els dels altres centres, no cal
+    invalidar_horari(institucio)
+    invalidar_cache_abreviatures(institucio)
+
+
+def _comprova_que_no_es_repeteix(db: Session, grups_originals, abreviatura, excepte: int = None) -> None:
+    # Una sola abreviatura per a cada llista de grups (restricció de la BD), i
+    # un sol text per a cada abreviatura (si no, representaria dues llistes)
+    if grups_originals is not None:
+        existent = AbreviaturaGrupRepository.id_per_grups(db, grups_originals)
+        if existent is not None and existent != excepte:
+            raise Conflicte("Ja hi ha una abreviatura per a aquests grups", codi="abreviatura_repetida")
+    if abreviatura is not None:
+        existent = AbreviaturaGrupRepository.id_per_abreviatura(db, abreviatura)
+        if existent is not None and existent != excepte:
+            raise Conflicte("Ja hi ha una abreviatura amb aquest text", codi="abreviatura_text_repetit")
+
+
+def crea_abreviatura(db: Session, institucio: str, grups_originals, abreviatura) -> int:
+    if not grups_originals or not abreviatura:
+        raise NoValid("Grups originals i abreviatura són obligatoris", codi="abreviatura_incompleta")
+    _comprova_que_no_es_repeteix(db, grups_originals, abreviatura)
+    abreviatura_id = AbreviaturaGrupRepository.create(db, grups_originals, abreviatura)
+    _abreviatures_canviades(institucio)
+    return abreviatura_id
+
+
+def edita_abreviatura(db: Session, institucio: str, abreviatura_id: int, grups_originals, abreviatura) -> None:
+    """Els camps que no hi són (None) es mantenen."""
+    _comprova_que_no_es_repeteix(db, grups_originals, abreviatura, excepte=abreviatura_id)
+    if not AbreviaturaGrupRepository.update(db, abreviatura_id, grups_originals, abreviatura):
+        raise NoTrobat("Abreviatura no trobada", codi="abreviatura_no_trobada")
+    _abreviatures_canviades(institucio)
+
+
+def esborra_abreviatura(db: Session, institucio: str, abreviatura_id: int) -> None:
+    if not AbreviaturaGrupRepository.delete(db, abreviatura_id):
+        raise NoTrobat("Abreviatura no trobada", codi="abreviatura_no_trobada")
+    _abreviatures_canviades(institucio)

@@ -86,13 +86,8 @@
                 class="item-card"
               >
                 <span class="item-name">{{ nivell }}</span>
+                <!-- Un nivell no s'edita: el codi és la clau del planificador -->
                 <div class="item-actions">
-                  <Button
-                    icon="pi pi-pencil"
-                    @click="prepararRenomNivell(nivell)"
-                    class="p-button-rounded p-button-text p-button-warning p-button-sm"
-                    v-tooltip.top="$t('common.edit')"
-                  />
                   <Button
                     icon="pi pi-trash"
                     @click="eliminarNivell(nivell)"
@@ -592,6 +587,38 @@
       </template>
     </Dialog>
 
+    <!-- Esborrar un nivell o un grup que fan servir assignacions -->
+    <Dialog
+      :visible="!!esborrantAmbAssignacions"
+      @update:visible="(v) => { if (!v) esborrantAmbAssignacions = null }"
+      :header="esborrantAmbAssignacions ? $t(ELIMINAR[esborrantAmbAssignacions.tipus].capcalera) : ''"
+      :modal="true"
+      :style="{ width: '460px' }"
+      :breakpoints="{ '520px': '94vw' }"
+    >
+      <div v-if="esborrantAmbAssignacions" class="esborrar-assignacions">
+        <p>{{ $t(ELIMINAR[esborrantAmbAssignacions.tipus].confirma, { code: esborrantAmbAssignacions.codi }) }}</p>
+        <p class="esborrar-assignacions__pregunta">
+          {{ $t(ELIMINAR[esborrantAmbAssignacions.tipus].pregunta, { count: esborrantAmbAssignacions.quantes }, esborrantAmbAssignacions.quantes) }}
+        </p>
+      </div>
+      <template #footer>
+        <div v-if="esborrantAmbAssignacions" class="esborrar-assignacions__botons">
+          <Button :label="$t('common.cancel')" class="p-button-text" @click="esborrantAmbAssignacions = null" />
+          <Button
+            :label="$t('examConfig.deleteAssignments.keep', { count: esborrantAmbAssignacions.quantes }, esborrantAmbAssignacions.quantes)"
+            class="p-button-secondary"
+            @click="esborra(esborrantAmbAssignacions.tipus, esborrantAmbAssignacions.codi, false)"
+          />
+          <Button
+            :label="$t('examConfig.deleteAssignments.deleteToo', { count: esborrantAmbAssignacions.quantes }, esborrantAmbAssignacions.quantes)"
+            class="p-button-danger"
+            @click="esborra(esborrantAmbAssignacions.tipus, esborrantAmbAssignacions.codi, true)"
+          />
+        </div>
+      </template>
+    </Dialog>
+
     <!-- Diàleg reanomenar item -->
     <Dialog
       v-model:visible="mostrarDialogRenomItem"
@@ -974,7 +1001,7 @@ const xmlMissingNotified = ref(false)
 // Edició i Renom
 const itemEditant = ref(null)
 const mostrarDialogRenomItem = ref(false)
-const renomTipus = ref('') // 'nivell', 'assignatura', 'grup', 'aula'
+const renomTipus = ref('') // 'assignatura', 'grup', 'aula' (un nivell no s'edita)
 const renomValor = ref('')
 
 // Nivells
@@ -1087,37 +1114,82 @@ const afegirNivell = async () => {
   }
 }
 
-const eliminarNivell = async (codi) => {
+// Esborrar un nivell o un grup: si hi ha assignacions que el fan servir, un
+// diàleg pregunta si s'esborren també (el backend ho fa en la mateixa
+// operació); si no, es queden i tornen a servir si es torna a crear
+const ELIMINAR = {
+  nivell: {
+    url: (codi) => `/api/config/nivells/${encodeURIComponent(codi)}`,
+    capcalera: 'common.confirmation',
+    confirma: 'examConfig.levels.deleteConfirmMessage',
+    pregunta: 'examConfig.levels.usedByAssignments',
+    esborrat: 'examConfig.levels.deleted',
+    error: 'examConfig.errors.deleteLevel',
+    recarrega: () => carregarNivells()
+  },
+  grup: {
+    url: (codi) => `/api/config/grups/${encodeURIComponent(codi)}`,
+    capcalera: 'common.confirmDelete',
+    confirma: 'examConfig.groups.deleteConfirmMessage',
+    pregunta: 'examConfig.groups.usedByAssignments',
+    esborrat: 'examConfig.groups.deleted',
+    error: 'examConfig.errors.deleteGroup',
+    recarrega: () => carregarGrups()
+  }
+}
+const esborrantAmbAssignacions = ref(null) // { tipus, codi, quantes }
+
+const eliminarAmbAssignacions = async (tipus, codi) => {
+  const e = ELIMINAR[tipus]
+  let quantes = 0
+  try {
+    quantes = (await axios.get(`${e.url(codi)}/assignacions`)).data.assignacions
+  } catch (error) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t(e.error), life: 3000 })
+    return
+  }
+  if (quantes) {
+    esborrantAmbAssignacions.value = { tipus, codi, quantes }
+    return
+  }
   confirmaEsborrar({
-    message: t('examConfig.levels.deleteConfirmMessage', { code: codi }),
-    header: t('common.confirmation'),
+    message: t(e.confirma, { code: codi }),
+    header: t(e.capcalera),
     icon: 'pi pi-exclamation-triangle',
     acceptLabel: t('common.delete'),
     rejectLabel: t('common.cancel'),
-    accept: async () => {
-      try {
-        await axios.delete(`/api/config/nivells/${codi}`)
-
-        toast.add({
-          severity: 'success',
-          summary: t('common.deleted'),
-          detail: t('examConfig.levels.deleted'),
-          life: 2000
-        })
-
-        await carregarNivells()
-      } catch (error) {
-        console.error('Error eliminant nivell:', error)
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: error.response?.data?.detail || t('examConfig.errors.deleteLevel'),
-          life: 3000
-        })
-      }
-    }
+    accept: () => esborra(tipus, codi, false)
   })
 }
+
+const esborra = async (tipus, codi, ambAssignacions) => {
+  const e = ELIMINAR[tipus]
+  esborrantAmbAssignacions.value = null
+  try {
+    const { data } = await axios.delete(e.url(codi), { params: { amb_assignacions: ambAssignacions } })
+    toast.add({ severity: 'success', summary: t('common.deleted'), detail: t(e.esborrat), life: 2000 })
+    if (data.assignacions_esborrades) await carregarAssignacions()
+    else avisaAssignacionsQueHoFanServir(data.assignacions)
+    await e.recarrega()
+  } catch (error) {
+    console.error(`Error eliminant ${tipus}:`, error)
+    toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t(e.error), life: 3000 })
+  }
+}
+
+// En esborrar un nivell, un grup o una aula, les assignacions que el fan servir
+// no es toquen: el backend diu quantes n'hi ha
+const avisaAssignacionsQueHoFanServir = (quantes) => {
+  if (!quantes) return
+  toast.add({
+    severity: 'warn',
+    summary: t('common.warning'),
+    detail: t('examConfig.stillUsedByAssignments', { count: quantes }, quantes),
+    life: 6000
+  })
+}
+
+const eliminarNivell = (codi) => eliminarAmbAssignacions('nivell', codi)
 
 // ===== FUNCIONS ASSIGNATURES =====
 
@@ -1223,37 +1295,7 @@ const afegirGrup = async () => {
   }
 }
 
-const eliminarGrup = async (codi) => {
-  confirmaEsborrar({
-    message: t('examConfig.groups.deleteConfirmMessage', { code: codi }),
-    header: t('common.confirmDelete'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('common.delete'),
-    rejectLabel: t('common.cancel'),
-    accept: async () => {
-      try {
-        await axios.delete(`/api/config/grups/${encodeURIComponent(codi)}`)
-
-        toast.add({
-          severity: 'success',
-          summary: t('common.deleted'),
-          detail: t('examConfig.groups.deleted'),
-          life: 2000
-        })
-
-        await carregarGrups()
-      } catch (error) {
-        console.error('Error eliminant grup:', error)
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: t('examConfig.errors.deleteGroup'),
-          life: 3000
-        })
-      }
-    }
-  })
-}
+const eliminarGrup = (codi) => eliminarAmbAssignacions('grup', codi)
 
 const carregarAules = async () => {
   try {
@@ -1303,7 +1345,7 @@ const eliminarAula = async (codi) => {
     rejectLabel: t('common.cancel'),
     accept: async () => {
       try {
-        await axios.delete(`/api/config/aules/${encodeURIComponent(codi)}`)
+        const { data } = await axios.delete(`/api/config/aules/${encodeURIComponent(codi)}`)
 
         toast.add({
           severity: 'success',
@@ -1312,6 +1354,7 @@ const eliminarAula = async (codi) => {
           life: 2000
         })
 
+        avisaAssignacionsQueHoFanServir(data.assignacions)
         await carregarAules()
       } catch (error) {
         console.error('Error eliminant aula:', error)
@@ -1849,13 +1892,6 @@ const desarAfinitats = async () => {
 
 // ===== FUNCIONS REANOMENAR ITEM (PROPAGACIÓ) =====
 
-const prepararRenomNivell = (codi) => {
-  itemEditant.value = codi
-  renomValor.value = codi
-  renomTipus.value = 'nivell'
-  mostrarDialogRenomItem.value = true
-}
-
 const prepararRenomAssignatura = (nom) => {
   itemEditant.value = nom
   renomValor.value = nom
@@ -1890,10 +1926,7 @@ const reanomenarItem = async () => {
     let url = ''
     let payload = {}
 
-    if (renomTipus.value === 'nivell') {
-      url = `/api/config/nivells/${antic}`
-      payload = { nou_codi: nou }
-    } else if (renomTipus.value === 'assignatura') {
+    if (renomTipus.value === 'assignatura') {
       url = `/api/config/assignatures/${nivellSeleccionat.value}/${encodeURIComponent(antic)}`
       payload = { nou_nom: nou }
     } else if (renomTipus.value === 'grup') {
@@ -1925,8 +1958,7 @@ const reanomenarItem = async () => {
     })
 
     // Recarregar la llista específica
-    if (renomTipus.value === 'nivell') await carregarNivells()
-    else if (renomTipus.value === 'assignatura') await carregarAssignatures()
+    if (renomTipus.value === 'assignatura') await carregarAssignatures()
     else if (renomTipus.value === 'grup') await carregarGrups()
     else if (renomTipus.value === 'aula') await carregarAules()
 
@@ -1980,6 +2012,19 @@ watch(() => props.visible, (newVal) => {
 </script>
 
 <style scoped>
+.esborrar-assignacions p {
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+.esborrar-assignacions__pregunta {
+  font-weight: 600;
+}
+.esborrar-assignacions__botons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
 .resum-avis-sobreescriu {
   display: flex;
   align-items: center;

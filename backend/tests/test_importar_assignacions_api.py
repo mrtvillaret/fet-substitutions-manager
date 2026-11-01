@@ -1,6 +1,6 @@
 """
 Tests de les rutes d'importar assignacions d'exàmens des de l'horari XML
-(routes/config_examens.py: importar-assignacions/preview, /dry-run i la
+(configuracio_examens/router.py: importar-assignacions/preview, /dry-run i la
 importació real). El càlcul del resum previ en si ja es prova a
 test_import_dry_run.py; aquí es prova el recorregut per l'API.
 
@@ -13,13 +13,10 @@ import uuid
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
+from configuracio_examens import router as config_examens
+from configuracio_examens.repositories import ConfiguracioExamenRepository, MasterConfigRepository
 from database import get_data_db_session
 from rate_limit import limiter
-from repositories import (
-    ConfiguracioExamenRepository,
-    MasterConfigRepository,
-)
-from routes import config_examens
 from substitucions.repositories import SubstitucioRepository
 
 APP = crea_app(config_examens.router)

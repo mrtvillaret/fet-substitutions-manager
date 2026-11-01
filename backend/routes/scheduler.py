@@ -14,16 +14,13 @@ from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from auth.dependencies import require_admin
+from configuracio_examens.repositories import ConfiguracioExamenRepository, MasterConfigRepository
 from cursos.repositories import CursRepository
 from database import get_data_db_session
 from models import AbreviaturaGrup, ExamCostProfessor, ExamRestriccio, Grup, Nivell
 from noms import NomNet, nom_net
 from parametres import data_iso
-from repositories import (
-    ConfiguracioExamenRepository,
-    ConfiguracioRepository,
-    MasterConfigRepository,
-)
+from repositories import ConfiguracioRepository
 from routes.scheduler_analysis_helpers import (
     _afegir_recompte_nivells,
     _diagnosticar_incompatibilitats,

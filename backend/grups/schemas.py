@@ -117,3 +117,36 @@ class ActivitatsAlliberablesDesadesResponse(BaseModel):
     success: bool
     activitats: List[str]
     per_defecte: List[str]
+
+
+class Abreviatura(BaseModel):
+    id: int
+    grups_originals: str
+    abreviatura: str
+
+
+class AbreviaturesResponse(BaseModel):
+    abreviatures: List[Abreviatura]
+
+
+class AbreviaturaCreadaResponse(BaseModel):
+    success: bool
+    id: int
+    message: str
+
+
+class AbreviaturaDesadaResponse(BaseModel):
+    success: bool
+    message: str
+
+
+class NovaAbreviaturaRequest(BaseModel):
+    grups_originals: str  # p. ex. "1-BAT-A,1-BAT-B"
+    abreviatura: str  # p. ex. "1-BAT-AB"
+
+
+class EdicioAbreviaturaRequest(BaseModel):
+    """Els camps que no hi són es mantenen."""
+
+    grups_originals: Optional[str] = None
+    abreviatura: Optional[str] = None

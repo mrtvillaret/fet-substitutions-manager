@@ -659,7 +659,8 @@
       "codePlaceholder": "es. 3-BACH, CFGM, ecc.",
       "added": "Livello aggiunto correttamente",
       "deleted": "Livello eliminato correttamente",
-      "deleteConfirmMessage": "Vuoi eliminare il livello \"{code}\"? Verranno rimosse anche le sue materie e i suoi gruppi."
+      "deleteConfirmMessage": "Vuoi eliminare il livello \"{code}\"? Verranno rimosse anche le sue materie e i suoi gruppi.",
+      "usedByAssignments": "C'è 1 assegnazione che usa questo livello. Vuoi eliminare anche quella? | Ci sono {count} assegnazioni che usano questo livello. Vuoi eliminare anche quelle?"
     },
     "groups": {
       "selectLevel": "Seleziona livello",
@@ -670,7 +671,8 @@
       "codePlaceholder": "es. 1-ESO-A",
       "added": "Gruppo aggiunto correttamente",
       "deleted": "Gruppo eliminato correttamente",
-      "deleteConfirmMessage": "Vuoi eliminare il gruppo \"{code}\"?"
+      "deleteConfirmMessage": "Vuoi eliminare il gruppo \"{code}\"?",
+      "usedByAssignments": "C'è 1 assegnazione che usa questo gruppo. Vuoi eliminare anche quella? | Ci sono {count} assegnazioni che usano questo gruppo. Vuoi eliminare anche quelle?"
     },
     "subjects": {
       "selectLevel": "Seleziona livello",
@@ -779,6 +781,11 @@
       "updateAssignment": "Impossibile aggiornare",
       "deleteAssignment": "Impossibile eliminare l'assegnazione",
       "saveAffinities": "Impossibile salvare le affinità"
+    },
+    "stillUsedByAssignments": "1 assegnazione della configurazione degli esami lo usa ancora; resta com'era. | {count} assegnazioni della configurazione degli esami lo usano ancora; restano com'erano.",
+    "deleteAssignments": {
+      "keep": "No, lasciala | No, lasciale",
+      "deleteToo": "Sì, eliminala | Sì, eliminale"
     }
   },
   "vigilancies": {

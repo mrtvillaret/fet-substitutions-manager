@@ -76,7 +76,7 @@ class GestorHorariWeb:
             return self._abreviatures_cache
 
         from database import get_data_db_session
-        from repositories import AbreviaturaGrupRepository
+        from grups.repositories import AbreviaturaGrupRepository
 
         if not self.institucio:
             self._abreviatures_cache = {}

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from configuracio_examens.repositories import MasterConfigRepository
 from pdf.repositories import InformesRepository
 from recomptes.services import (
     ALTRES,
@@ -28,7 +29,7 @@ from recomptes.services import (
     substitucions_fetes,
     substitucions_reals,
 )
-from repositories import ConfiguracioRepository, MasterConfigRepository
+from repositories import ConfiguracioRepository
 from serveis.dia import Dia
 from utils.hores import normalitzar_hora
 

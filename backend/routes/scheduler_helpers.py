@@ -3,7 +3,7 @@
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-from repositories import MasterConfigRepository
+from configuracio_examens.repositories import MasterConfigRepository
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from utils.hores import normalitzar_hora as _normalitzar_hora
 

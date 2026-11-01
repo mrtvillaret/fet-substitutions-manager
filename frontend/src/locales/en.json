@@ -656,7 +656,8 @@
       "codePlaceholder": "e.g. 3-BACH, CFGM, etc.",
       "added": "Level added successfully",
       "deleted": "Level deleted successfully",
-      "deleteConfirmMessage": "Do you want to delete level \"{code}\"? This will also remove its subjects and groups."
+      "deleteConfirmMessage": "Do you want to delete level \"{code}\"? This will also remove its subjects and groups.",
+      "usedByAssignments": "1 assignment uses this level. Do you want to delete it too? | {count} assignments use this level. Do you want to delete them too?"
     },
     "groups": {
       "selectLevel": "Select level",
@@ -667,7 +668,8 @@
       "codePlaceholder": "e.g. 1-ESO-A",
       "added": "Group added successfully",
       "deleted": "Group deleted successfully",
-      "deleteConfirmMessage": "Do you want to delete group \"{code}\"?"
+      "deleteConfirmMessage": "Do you want to delete group \"{code}\"?",
+      "usedByAssignments": "1 assignment uses this group. Do you want to delete it too? | {count} assignments use this group. Do you want to delete them too?"
     },
     "subjects": {
       "selectLevel": "Select level",
@@ -776,6 +778,11 @@
       "updateAssignment": "Could not update",
       "deleteAssignment": "Could not delete assignment",
       "saveAffinities": "Could not save affinities"
+    },
+    "stillUsedByAssignments": "1 exam assignment still uses it; it has been kept as it was. | {count} exam assignments still use it; they have been kept as they were.",
+    "deleteAssignments": {
+      "keep": "No, keep it | No, keep them",
+      "deleteToo": "Yes, delete it too | Yes, delete them too"
     }
   },
   "vigilancies": {

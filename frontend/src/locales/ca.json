@@ -659,7 +659,8 @@
       "codePlaceholder": "Ex: 3-BATX, CFGM, etc.",
       "added": "Nivell afegit correctament",
       "deleted": "Nivell eliminat correctament",
-      "deleteConfirmMessage": "Vols eliminar el nivell \"{code}\"? Això eliminarà també totes les seves assignatures i grups."
+      "deleteConfirmMessage": "Vols eliminar el nivell \"{code}\"? Això eliminarà també totes les seves assignatures i grups.",
+      "usedByAssignments": "Hi ha 1 assignació que fa servir aquest nivell. La vols esborrar també? | Hi ha {count} assignacions que fan servir aquest nivell. Les vols esborrar també?"
     },
     "groups": {
       "selectLevel": "Selecciona nivell",
@@ -670,7 +671,8 @@
       "codePlaceholder": "Ex: 1-ESO-A",
       "added": "Grup afegit correctament",
       "deleted": "Grup eliminat correctament",
-      "deleteConfirmMessage": "Vols eliminar el grup \"{code}\"?"
+      "deleteConfirmMessage": "Vols eliminar el grup \"{code}\"?",
+      "usedByAssignments": "Hi ha 1 assignació que fa servir aquest grup. La vols esborrar també? | Hi ha {count} assignacions que fan servir aquest grup. Les vols esborrar també?"
     },
     "subjects": {
       "selectLevel": "Selecciona nivell",
@@ -779,6 +781,11 @@
       "updateAssignment": "No s'ha pogut actualitzar",
       "deleteAssignment": "No s'ha pogut eliminar l'assignació",
       "saveAffinities": "No s'han pogut desar les afinitats"
+    },
+    "stillUsedByAssignments": "1 assignació de la configuració d'exàmens el fa servir; es manté tal com era. | {count} assignacions de la configuració d'exàmens el fan servir; es mantenen tal com eren.",
+    "deleteAssignments": {
+      "keep": "No, deixa-la | No, deixa-les",
+      "deleteToo": "Sí, esborra-la també | Sí, esborra-les també"
     }
   },
   "vigilancies": {

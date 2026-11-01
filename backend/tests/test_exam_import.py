@@ -1,9 +1,9 @@
 """
-Tests de exam_import.py: deducció de nivell i generació de propostes
+Tests de configuracio_examens/propostes.py: deducció de nivell i generació de propostes
 d'assignacions a partir d'un horari ja carregat.
 """
 
-from exam_import import deriva_nivell, generar_propostes
+from configuracio_examens.propostes import deriva_nivell, generar_propostes
 
 
 class HorariFals:

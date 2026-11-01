@@ -127,3 +127,27 @@ class AjudaVigilantResponse(BaseModel):
     substitucions: List[SubstitucioHora]
     vigilancies_hora: List[VigilanciaHora]
     vigilancies_dia: int
+
+
+class Afinitat(BaseModel):
+    base: str  # un nivell
+    ordre: List[str]  # els nivells més propers, per ordre
+
+
+class AfinitatsResponse(BaseModel):
+    afinitats: List[Afinitat]
+
+
+class AfinitatsDesadesResponse(BaseModel):
+    success: bool
+    afinitats: List[Afinitat]
+    message: str
+
+
+class AfinitatRequest(BaseModel):
+    base: str
+    ordre: List[str] = []
+
+
+class AfinitatsRequest(BaseModel):
+    afinitats: List[AfinitatRequest] = []

@@ -11,11 +11,11 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from configuracio_examens.repositories import ConfiguracioExamenRepository, MasterConfigRepository
 from core.alliberats import sense_classe
 from errors_domini import Conflicte, NoTrobat, NoValid
 from grups.repositories import GrupsAlliberatsRepository
 from ordre_curs import clau_curs
-from repositories import ConfiguracioExamenRepository, MasterConfigRepository
 from serveis.dia import Dia
 from substitucions.cobertures import refresca_cobertures
 from substitucions.repositories import SubstitucioRepository
@@ -26,6 +26,7 @@ from vigilancies.assignacio import (
     es_enllac,
     get_vigilancies_afinitats,
     grups_de,
+    save_vigilancies_afinitats,
     titulars_de,
 )
 from vigilancies.repositories import VigilanciaRepository
@@ -831,3 +832,17 @@ def desa_ordre(db: Session, data: str, hora: str, ids: list) -> None:
     for posicio, i in enumerate(ids):
         del_dia[i].ordre = posicio
     db.commit()
+
+
+# ---------------------------------------------------------------- afinitats
+
+
+def afinitats(db: Session) -> list:
+    """Les afinitats entre nivells, per a l'assignació de vigilants."""
+    return get_vigilancies_afinitats(db)
+
+
+def desa_afinitats(db: Session, afinitats: list) -> list:
+    """Format: [{base, ordre:[...]}] (el valida l'esquema); retorna les desades
+    (normalitzades)."""
+    return save_vigilancies_afinitats(db, afinitats)

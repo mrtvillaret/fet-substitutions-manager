@@ -66,11 +66,12 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  ├── grups/              → grups sense classe i professors i     │
 │  │                         activitats alliberats per dia i per   │
 │  │                         període, activitats alliberables i    │
-│  │                         grups amagats                         │
+│  │                         grups amagats i abreviatures de grups │
 │  ├── absencia_coberta/   → absències cobertes (abans «baixes»):  │
 │  │                         l'horari del dia ja no té l'absent    │
 │  ├── vigilancies/        → vigilàncies: assignació per hora,     │
-│  │                         ordre desat, ajuda del vigilant       │
+│  │                         ordre desat, ajuda del vigilant i     │
+│  │                         afinitats entre nivells               │
 │  ├── substitucions/      → absències, substitucions, encadenades,│
 │  │                         generació (assignacio.py), regles del │
 │  │                         dia (domain.py) i cobertures          │
@@ -90,12 +91,14 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  │                         /api/config, /api/professors,         │
 │  │                         /api/hores), pujada i versions de     │
 │  │                         l'XML                                 │
+│  ├── configuracio_examens/ → nivells, assignatures, grups,       │
+│  │                         aules, titulars, importació i         │
+│  │                         exportació (/api/config/*)            │
 │  ├── cursos/             → cursos acadèmics                      │
 │  └── dades/              → governança de dades (RGPD): purga i   │
 │                            reanomenar professors inactius        │
 │                                                                  │
 │  CAPA DE ROUTES (/api/*) — estructura antiga, es va migrant      │
-│  ├── config_examens.py   → config assignatures/aules examens     │
 │  └── scheduler.py        → planificador exàmens (orquestra)      │
 │        ├── scheduler_config.py     ← ConfigPlanificador, durades │
 │        ├── scheduler_planificacio.py ← prepara_planificacio      │

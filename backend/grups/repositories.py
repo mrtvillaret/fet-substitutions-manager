@@ -237,3 +237,91 @@ class GrupsAmagatsRepository:
                 db.add(GrupAmagat(grup=grup))
         db.flush()
         return len(vistos)
+
+
+class AbreviaturaGrupRepository:
+    """Repositori per gestionar abreviatures de grups"""
+
+    @staticmethod
+    def get_all(db: Session) -> List[Dict]:
+        """Retorna totes les abreviatures"""
+        from models import AbreviaturaGrup
+
+        abreviatures = db.query(AbreviaturaGrup).all()
+
+        return [{"id": a.id, "grups_originals": a.grups_originals, "abreviatura": a.abreviatura} for a in abreviatures]
+
+    @staticmethod
+    def id_per_grups(db: Session, grups_originals: str):
+        """L'id de l'abreviatura d'aquests grups, o None."""
+        from models import AbreviaturaGrup
+
+        fila = db.query(AbreviaturaGrup.id).filter(AbreviaturaGrup.grups_originals == grups_originals).first()
+        return fila[0] if fila else None
+
+    @staticmethod
+    def id_per_abreviatura(db: Session, abreviatura: str):
+        """L'id de l'abreviatura amb aquest text, o None."""
+        from models import AbreviaturaGrup
+
+        fila = db.query(AbreviaturaGrup.id).filter(AbreviaturaGrup.abreviatura == abreviatura).first()
+        return fila[0] if fila else None
+
+    @staticmethod
+    def create(db: Session, grups_originals: str, abreviatura: str) -> int:
+        """Crea una nova abreviatura"""
+        from models import AbreviaturaGrup
+
+        nova_abrev = AbreviaturaGrup(grups_originals=grups_originals, abreviatura=abreviatura)
+
+        db.add(nova_abrev)
+        db.commit()
+        db.refresh(nova_abrev)
+
+        return nova_abrev.id
+
+    @staticmethod
+    def update(db: Session, abreviatura_id: int, grups_originals: str = None, abreviatura: str = None) -> bool:
+        """Actualitza una abreviatura"""
+        from models import AbreviaturaGrup
+
+        abrev = db.query(AbreviaturaGrup).filter(AbreviaturaGrup.id == abreviatura_id).first()
+
+        if not abrev:
+            return False
+
+        if grups_originals is not None:
+            abrev.grups_originals = grups_originals
+        if abreviatura is not None:
+            abrev.abreviatura = abreviatura
+
+        db.commit()
+        return True
+
+    @staticmethod
+    def delete(db: Session, abreviatura_id: int) -> bool:
+        """Elimina una abreviatura"""
+        from models import AbreviaturaGrup
+
+        abrev = db.query(AbreviaturaGrup).filter(AbreviaturaGrup.id == abreviatura_id).first()
+
+        if not abrev:
+            return False
+
+        db.delete(abrev)
+        db.commit()
+        return True
+
+    @staticmethod
+    def delete_all(db: Session) -> int:
+        """Elimina totes les abreviatures"""
+        from models import AbreviaturaGrup
+
+        count = db.query(AbreviaturaGrup).delete()
+        db.commit()
+        return count
+
+
+# ===========================
+# PROFESSORS DE BAIXA
+# ===========================

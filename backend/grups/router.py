@@ -11,14 +11,20 @@ Rutes del mòdul de grups: només HTTP; la lògica, a services.py.
 - /api/grups-amagats: els grups que el centre amaga
 - /api/prioritats/activitats-alliberables: les activitats sense grup que es
   poden alliberar
+- /api/config/abreviatures: les abreviatures de grups (p. ex. «1-BAT-AB» per
+  «1-BAT-A,1-BAT-B»)
 """
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from auth.dependencies import require_admin
 from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
 from grups import services
 from grups.schemas import (
+    AbreviaturaCreadaResponse,
+    AbreviaturaDesadaResponse,
+    AbreviaturesResponse,
     ActivitatsAlliberables,
     ActivitatsAlliberablesDesadesResponse,
     ActivitatsAlliberablesResponse,
@@ -27,9 +33,11 @@ from grups.schemas import (
     CanviPeriodeResponse,
     DiaDesatResponse,
     DiaResponse,
+    EdicioAbreviaturaRequest,
     GrupsAmagatsDesatsResponse,
     GrupsAmagatsRequest,
     GrupsAmagatsResponse,
+    NovaAbreviaturaRequest,
     ReforcResponse,
 )
 from noms import NomNet
@@ -129,3 +137,52 @@ def get_activitats_alliberables(db: Session = Depends(get_db), dia_calendari: Di
 )
 def set_activitats_alliberables(dades: ActivitatsAlliberables, db: Session = Depends(get_db)):
     return {"success": True, **services.desa_activitats_alliberables(db, dades.activitats, dades.per_defecte)}
+
+
+# Abreviatures de grups (configuració d'exàmens; les URL de sempre)
+
+
+@router_admin.get("/api/config/abreviatures", tags=["Configuració Exàmens"], response_model=AbreviaturesResponse)
+def get_abreviatures(db: Session = Depends(get_db)):
+    """Retorna totes les abreviatures de grups"""
+    return {"abreviatures": services.abreviatures(db)}
+
+
+@router_admin.post("/api/config/abreviatures", tags=["Configuració Exàmens"], response_model=AbreviaturaCreadaResponse)
+def create_abreviatura(
+    abreviatura: NovaAbreviaturaRequest, db: Session = Depends(get_db), current_user=Depends(require_admin)
+):
+    """Crea una nova abreviatura"""
+    grups_originals = abreviatura.grups_originals
+    abreviatura_text = abreviatura.abreviatura
+    abreviatura_id = services.crea_abreviatura(db, current_user.institucio, grups_originals, abreviatura_text)
+    return {
+        "success": True,
+        "id": abreviatura_id,
+        "message": f"Abreviatura creada: {grups_originals} → {abreviatura_text}",
+    }
+
+
+@router_admin.put(
+    "/api/config/abreviatures/{abreviatura_id}", tags=["Configuració Exàmens"], response_model=AbreviaturaDesadaResponse
+)
+def update_abreviatura(
+    abreviatura_id: int,
+    abreviatura: EdicioAbreviaturaRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    """Actualitza una abreviatura existent"""
+    services.edita_abreviatura(
+        db, current_user.institucio, abreviatura_id, abreviatura.grups_originals, abreviatura.abreviatura
+    )
+    return {"success": True, "message": "Abreviatura actualitzada"}
+
+
+@router_admin.delete(
+    "/api/config/abreviatures/{abreviatura_id}", tags=["Configuració Exàmens"], response_model=AbreviaturaDesadaResponse
+)
+def delete_abreviatura(abreviatura_id: int, db: Session = Depends(get_db), current_user=Depends(require_admin)):
+    """Elimina una abreviatura"""
+    services.esborra_abreviatura(db, current_user.institucio, abreviatura_id)
+    return {"success": True, "message": "Abreviatura eliminada"}

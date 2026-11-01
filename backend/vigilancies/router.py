@@ -17,6 +17,9 @@ from parametres import DataISO
 from serveis.dia import Dia
 from vigilancies import services
 from vigilancies.schemas import (
+    AfinitatsDesadesResponse,
+    AfinitatsRequest,
+    AfinitatsResponse,
     AjudaVigilantResponse,
     AssignacioResponse,
     AssignacioTitularsResponse,
@@ -28,6 +31,8 @@ from vigilancies.schemas import (
 )
 
 router = APIRouter(prefix="/api/vigilancies", tags=["Vigilàncies"])
+# Configuració, només admins: les afinitats entre nivells (/api/config/afinitats)
+router_admin = APIRouter()
 
 
 def _conflicte(exc: services.ConflicteVigilancia) -> HTTPException:
@@ -179,3 +184,16 @@ def ordenar_per_hora(data: DataISO, db: Session = Depends(get_db)):
     404 si el dia no té vigilàncies."""
     sorted_count = services.ordena(db, data)
     return {"success": True, "sorted_count": sorted_count, "message": "✅ Vigilàncies ordenades per hora"}
+
+
+@router_admin.get("/api/config/afinitats", tags=["Configuració Exàmens"], response_model=AfinitatsResponse)
+def get_afinitats(db: Session = Depends(get_db)):
+    """Retorna la configuració d'afinitats per autoassignació de vigilàncies."""
+    return {"afinitats": services.afinitats(db)}
+
+
+@router_admin.put("/api/config/afinitats", tags=["Configuració Exàmens"], response_model=AfinitatsDesadesResponse)
+def update_afinitats(payload: AfinitatsRequest, db: Session = Depends(get_db)):
+    """Desa la configuració d'afinitats (format: [{base, ordre:[...]}])."""
+    normalized = services.desa_afinitats(db, [a.model_dump() for a in payload.afinitats])
+    return {"success": True, "afinitats": normalized, "message": "Afinitats desades correctament"}

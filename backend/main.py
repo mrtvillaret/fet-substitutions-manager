@@ -28,6 +28,7 @@ from auth.services import crea_usuaris_inicials
 from centres.router import router as centres_router
 from config.auth import COOKIE_NAME, IS_DEVELOPMENT
 from configuracio.router import router as configuracio_router
+from configuracio_examens.router import router as config_examens_router
 from cursos.router import router as cursos_router
 from dades.router import router as dades_router
 from database import create_auth_tables
@@ -42,10 +43,11 @@ from pdf import informes as informes_pdf
 from pdf.router import router as pdf_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limit_superat, limiter
-from routes import config_examens, scheduler
+from routes import scheduler
 from substitucions.router import router as substitucions_router
 from usuaris.router import router as usuaris_router
 from vigilancies.router import router as vigilancies_router
+from vigilancies.router import router_admin as vigilancies_admin_router
 
 log = logging.getLogger(__name__)
 access_logger = logging.getLogger("uvicorn.error")
@@ -158,11 +160,12 @@ app.add_middleware(
 
 # ===== Registre de routers modularitzats =====
 app.include_router(auth_router)
-app.include_router(config_examens.router, dependencies=[Depends(require_admin)])
+app.include_router(config_examens_router, dependencies=[Depends(require_admin)])
 app.include_router(grups_router, dependencies=[Depends(get_current_user)])
 app.include_router(grups_admin_router, dependencies=[Depends(require_admin)])
 app.include_router(pdf_router, dependencies=[Depends(get_current_user)])
 app.include_router(vigilancies_router, dependencies=[Depends(get_current_user)])
+app.include_router(vigilancies_admin_router, dependencies=[Depends(require_admin)])
 app.include_router(substitucions_router, dependencies=[Depends(get_current_user)])
 app.include_router(configuracio_router, dependencies=[Depends(require_admin)])
 app.include_router(centres_router, dependencies=[Depends(require_admin)])
