@@ -506,7 +506,8 @@
       "savePdfHint": "Generate a full day PDF (substitutions + supervisions)",
       "deleteAbsences": "Delete {professor}'s absences",
       "manageAbsences": "Manage teacher absences",
-      "addNew": "New"
+      "addNew": "New",
+      "retry": "Try again"
     },
     "stats": {
       "substitutionsLabel": "substitutions",
@@ -609,6 +610,7 @@
     "senseCobertura": "Not covered",
     "pendentsSenseCobertura": "{n} not covered",
     "errors": {
+      "loadAvailable": "Substitutions and available substitutes could not be loaded.",
       "generatePending": "Could not generate pending substitutions",
       "regenerateAll": "Could not regenerate substitutions",
       "updateSubstitute": "Could not update substitute",

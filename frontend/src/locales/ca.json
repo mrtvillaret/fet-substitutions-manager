@@ -509,7 +509,8 @@
       "savePdfHint": "Genera PDF complet del dia (substitucions + vigilàncies)",
       "deleteAbsences": "Elimina les absències de {professor}",
       "manageAbsences": "Gestiona absències del professor",
-      "addNew": "Nova"
+      "addNew": "Nova",
+      "retry": "Torna-ho a provar"
     },
     "stats": {
       "substitutionsLabel": "substitucions",
@@ -612,6 +613,7 @@
     "senseCobertura": "Sense cobertura",
     "pendentsSenseCobertura": "{n} sense cobertura",
     "errors": {
+      "loadAvailable": "No s'han pogut carregar les substitucions i els substituts disponibles.",
       "generatePending": "No s'han pogut generar les substitucions pendents",
       "regenerateAll": "No s'han pogut regenerar les substitucions",
       "updateSubstitute": "No s'ha pogut actualitzar el substitut",

@@ -66,6 +66,17 @@
     </div>
 
     <div class="content-card">
+      <Message v-if="errorCarregaSubstitucions" severity="error" :closable="false" class="error-carrega">
+        <div class="error-carrega-contingut">
+          <span>{{ $t('substitutions.errors.loadAvailable') }}</span>
+          <Button
+            :label="$t('substitutions.actions.retry')"
+            icon="pi pi-refresh"
+            size="small"
+            @click="carregarSubstitucions"
+          />
+        </div>
+      </Message>
       <TaulaSubstitucions
         :files="substitucionsFiltrades"
         :data="dataISO"
@@ -368,6 +379,7 @@ import axios from 'axios'
 import { ambDataTreball, dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
 import { jaAvisat } from '../errorsApi'
+import { disponiblesEnBloc } from '../api/substitucions'
 
 // Components PrimeVue
 import PdfOpcionsComunes from '../components/PdfOpcionsComunes.vue'
@@ -404,6 +416,8 @@ const absenciesCobertes = ref([])  // [{ professor, data_final }]
 const horesDisponibles = ref([])
 const xmlMissingNotified = ref(false)
 const loading = ref(false)
+const errorCarregaSubstitucions = ref(false)
+let idCarregaSubstitucions = 0
 const mostrarDialogGestio = ref(false)
 const closeBtnRef = ref(null)
 watch(mostrarDialogGestio, (val) => {
@@ -594,41 +608,46 @@ const canviaOrdre = (ordre) => {
 }
 
 const carregarSubstitucions = async () => {
+  const idCarrega = ++idCarregaSubstitucions
+  const data = dataISO.value
   loading.value = true
+  errorCarregaSubstitucions.value = false
+  // La taula d'abans es queda (difuminada i sense accions) fins que arriben
+  // totes les dades: es substitueix de cop, sense parpelleig ni perdre el
+  // desplaçament al mòbil
   try {
-    // Carregar en paral·lel: substitucions (filtrades) i totes les absències
-    const [responseFiltrades, responseTotes] = await Promise.all([
-      axios.get(`/api/substitucions/${dataISO.value}`, { params: { ordre: ordreFiles.value } }),
-      axios.get(`/api/substitucions/${dataISO.value}?include_all=true`)
+    const [responseFiltrades, responseTotes, recompteVigilancies] = await Promise.all([
+      axios.get(`/api/substitucions/${data}`, { params: { ordre: ordreFiles.value }, _silent: true }),
+      axios.get(`/api/substitucions/${data}?include_all=true`, { _silent: true }),
+      obtenirVigilanciesCount(data)
     ])
+    if (idCarrega !== idCarregaSubstitucions) return
 
-    substitucions.value = responseFiltrades.data
+    const files = responseFiltrades.data
+    const hores = [...new Set(files.map(substitucio => substitucio.hora))]
+    const disponiblesPerHora = await disponiblesEnBloc(data, hores)
+    if (idCarrega !== idCarregaSubstitucions) return
+
+    // Publicació atòmica: cap fila no es veu fins que totes les hores tenen
+    // els disponibles. Quines files es veuen ja ho ha decidit el backend.
+    const filesAmbDisponibles = files.map(substitucio => ({
+      ...substitucio,
+      disponibles: disponiblesPerHora[substitucio.hora]?.disponibles || []
+    }))
+    substitucions.value = filesAmbDisponibles
+    substitucionsFiltrades.value = filesAmbDisponibles
     totesAbsencies.value = responseTotes.data
-    await carregarVigilanciesCount()
-
-    // Quines files es veuen ho decideix el backend, amb la mateixa regla que
-    // les absències d'Estadístiques (substitucions/visibilitat.py)
-    substitucionsFiltrades.value = substitucions.value
-
-    // Carregar disponibles per cada hora
-    await carregarDisponiblesPerHores()
+    vigilanciesCount.value = recompteVigilancies
   } catch (error) {
+    if (idCarrega !== idCarregaSubstitucions) return
     console.error('Error carregant substitucions:', error)
-    if (error.response?.data?.xml_missing && !xmlMissingNotified.value) {
-      toast.add({
-        severity: 'warn',
-        summary: t('common.warning'),
-        detail: t('common.xmlMissing'),
-        life: 4000
-      })
-      xmlMissingNotified.value = true
-    }
     substitucions.value = []
     substitucionsFiltrades.value = []
     totesAbsencies.value = []
     vigilanciesCount.value = 0
+    errorCarregaSubstitucions.value = true
   } finally {
-    loading.value = false
+    if (idCarrega === idCarregaSubstitucions) loading.value = false
   }
 }
 
@@ -651,37 +670,13 @@ const carregarTotesAbsencies = async () => {
   }
 }
 
-const carregarDisponiblesPerHores = async () => {
-  const data = dataISO.value
-
-  // Obtenir hores úniques
-  const horesUniques = [...new Set(substitucionsFiltrades.value.map(s => s.hora))]
-
-  // Carregar disponibles per cada hora
-  for (const hora of horesUniques) {
-    try {
-      const response = await axios.get(`/api/substitucions/${data}/${hora}/disponibles`)
-      const disponibles = response.data.disponibles || []
-
-      // Afegir disponibles a cada substitució d'aquesta hora
-      substitucionsFiltrades.value.forEach(sub => {
-        if (sub.hora === hora) {
-          sub.disponibles = disponibles
-        }
-      })
-    } catch (error) {
-      console.error(`Error carregant disponibles per hora ${hora}:`, error)
-    }
-  }
-}
-
-const carregarVigilanciesCount = async () => {
+const obtenirVigilanciesCount = async (data) => {
   try {
-    const response = await axios.get(`/api/vigilancies/${dataISO.value}`)
-    vigilanciesCount.value = Array.isArray(response.data) ? response.data.length : 0
+    const response = await axios.get(`/api/vigilancies/${data}`)
+    return Array.isArray(response.data) ? response.data.length : 0
   } catch (error) {
     console.error('Error carregant vigilàncies:', error)
-    vigilanciesCount.value = 0
+    return 0
   }
 }
 
@@ -884,7 +879,7 @@ const desarSubstitut = async (substitucio, moure = false) => {
     if (encadenades?.creades || encadenades?.esborrades) {
       await carregarSubstitucions()
     } else {
-      await carregarDisponiblesPerHores()
+      await carregarSubstitucions()
     }
 
     toast.add({
@@ -1603,6 +1598,18 @@ onMounted(async () => {
 
 <style scoped>
 .substitucions-view {
+  width: 100%;
+}
+
+.error-carrega {
+  margin-bottom: 1rem;
+}
+
+.error-carrega-contingut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   width: 100%;
 }
 

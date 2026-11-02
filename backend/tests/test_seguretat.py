@@ -488,6 +488,14 @@ INVENTARI = dict(
             "/api/substitucions/{data}/{hora}/disponibles",
             f"/api/substitucions/{DATA}/09:00/disponibles",
         ),
+        _r(
+            CENTRE,
+            USER,
+            "POST",
+            "/api/substitucions/{data}/disponibles-batch",
+            f"/api/substitucions/{DATA}/disponibles-batch",
+            json={"hores": ["09:00", "10:00"]},
+        ),
         # ---------------------------------------------------- configuració
         _r(CENTRE, ADMIN, "GET", "/api/settings"),
         _r(CENTRE, ADMIN, "PUT", "/api/settings", json={"data_inici_estadistiques": "2026-09-01"}, escriu="a"),

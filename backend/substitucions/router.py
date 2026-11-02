@@ -23,6 +23,8 @@ from substitucions.schemas import (
     ActualitzacioAbsenciesResponse,
     ActualitzacioSubstitutResponse,
     ActualitzarAbsenciesRequest,
+    DisponiblesEnBlocRequest,
+    DisponiblesEnBlocResponse,
     DisponiblesResponse,
     GeneracioSubstitucionsResponse,
     HoresProfessorResponse,
@@ -190,5 +192,19 @@ def get_disponibles(
     """
     try:
         return services.disponibles(db, dia, data, hora)
+    except MissingXmlError as exc:
+        _raise_missing_xml(exc)
+
+
+@router.post("/{data}/disponibles-batch", response_model=DisponiblesEnBlocResponse)
+def get_disponibles_batch(
+    data: DataISO,
+    payload: DisponiblesEnBlocRequest,
+    db: Session = Depends(get_db),
+    dia: Dia = Depends(dia_de_la_peticio),
+):
+    """Retorna els disponibles de totes les hores en una sola operació."""
+    try:
+        return {"results": services.disponibles_en_bloc(db, dia, data, payload.hores)}
     except MissingXmlError as exc:
         _raise_missing_xml(exc)

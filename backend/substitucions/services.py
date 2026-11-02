@@ -39,6 +39,7 @@ class ConflicteSubstitucions(Conflicte):
 llista_substitucions = _consultes.llista_substitucions
 hores_professor = _consultes.hores_professor
 disponibles = _consultes.disponibles
+disponibles_en_bloc = _consultes.disponibles_en_bloc
 
 
 def genera_substitucions(

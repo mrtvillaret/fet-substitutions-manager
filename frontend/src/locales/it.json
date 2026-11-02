@@ -509,7 +509,8 @@
       "savePdfHint": "Genera un PDF completo della giornata (sostituzioni + vigilanze)",
       "deleteAbsences": "Elimina le assenze di {professor}",
       "manageAbsences": "Gestisci assenze docenti",
-      "addNew": "Nuovo"
+      "addNew": "Nuovo",
+      "retry": "Riprova"
     },
     "stats": {
       "substitutionsLabel": "sostituzioni",
@@ -612,6 +613,7 @@
     "senseCobertura": "Non coperta",
     "pendentsSenseCobertura": "{n} non coperte",
     "errors": {
+      "loadAvailable": "Impossibile caricare le sostituzioni e i supplenti disponibili.",
       "generatePending": "Impossibile generare le sostituzioni in sospeso",
       "regenerateAll": "Impossibile rigenerare le sostituzioni",
       "updateSubstitute": "Impossibile aggiornare il supplente",

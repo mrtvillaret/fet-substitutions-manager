@@ -1,6 +1,6 @@
 """Schemas d'entrada i de sortida de les rutes de substitucions."""
 
-from typing import Annotated, List, Optional
+from typing import Annotated, Dict, List, Optional
 
 from fastapi import HTTPException
 from pydantic import AfterValidator, BaseModel, Field
@@ -158,3 +158,11 @@ class ProfessorDisponibleResponse(BaseModel):
 
 class DisponiblesResponse(BaseModel):
     disponibles: List[ProfessorDisponibleResponse]
+
+
+class DisponiblesEnBlocRequest(BaseModel):
+    hores: List[str]
+
+
+class DisponiblesEnBlocResponse(BaseModel):
+    results: Dict[str, DisponiblesResponse]

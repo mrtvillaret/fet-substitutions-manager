@@ -506,7 +506,8 @@
       "savePdfHint": "Genera PDF completo del día (sustituciones + vigilancias)",
       "deleteAbsences": "Eliminar las ausencias de {professor}",
       "manageAbsences": "Gestionar ausencias del profesor",
-      "addNew": "Nueva"
+      "addNew": "Nueva",
+      "retry": "Volver a intentarlo"
     },
     "stats": {
       "substitutionsLabel": "sustituciones",
@@ -609,6 +610,7 @@
     "senseCobertura": "Sin cobertura",
     "pendentsSenseCobertura": "{n} sin cobertura",
     "errors": {
+      "loadAvailable": "No se han podido cargar las sustituciones y los sustitutos disponibles.",
       "generatePending": "No se han podido generar las sustituciones pendientes",
       "regenerateAll": "No se han podido regenerar las sustituciones",
       "updateSubstitute": "No se ha podido actualizar el sustituto",

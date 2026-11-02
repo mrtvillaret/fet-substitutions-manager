@@ -448,6 +448,25 @@ def test_disponibles_marca_qui_ja_esta_assignat_o_absent(client):
     assert not any(_te_classe_amb_grup(p, "10:00") for p in per_prof)
 
 
+@pytest.mark.parametrize(
+    "data, hores",
+    [
+        ("2026-04-20", ["08:00", "10:00", "11:30"]),
+        ("2026-04-21", ["09:00", "12:30", "16:00"]),
+    ],
+)
+def test_disponibles_en_bloc_son_identics_als_de_cada_hora(client, data, hores):
+    resposta = client.post(f"/api/substitucions/{data}/disponibles-batch", json={"hores": hores})
+    assert resposta.status_code == 200, resposta.text
+
+    resultats = resposta.json()["results"]
+    assert list(resultats) == hores
+    for hora in hores:
+        individual = client.get(f"/api/substitucions/{data}/{hora}/disponibles")
+        assert individual.status_code == 200, individual.text
+        assert resultats[hora] == individual.json()
+
+
 # ------------------------------------------------- reassignar problemàtics
 
 
