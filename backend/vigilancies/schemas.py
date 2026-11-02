@@ -1,6 +1,6 @@
 """Schemas d'entrada i de sortida de les rutes de vigilàncies."""
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -151,3 +151,101 @@ class AfinitatRequest(BaseModel):
 
 class AfinitatsRequest(BaseModel):
     afinitats: List[AfinitatRequest] = []
+
+
+# ----------------------------------------------------------------- respostes
+
+
+class ConfigVigilanciesResponse(BaseModel):
+    """Nivells, grups, aules i assignatures de la configuració d'exàmens;
+    professors i hores de l'horari del dia; tipus d'examen ja usats."""
+
+    nivells: List[str]
+    professors: List[str]
+    hores: List[str]
+    grups_per_nivell: Dict[str, List[str]]
+    aules: List[str]
+    tipus_examens: List[str]
+    tipus_per_nivell: Dict[str, List[str]]
+
+
+class ProfessorDisponible(BaseModel):
+    """Un professor del desplegable de vigilants, amb el que fa a l'hora.
+    `ordre_tipus`: 0 titular, 1 alliberat, 2 disponible, 3 classe, 4 lliure,
+    5 absent, 6 de baixa."""
+
+    value: str  # el nom
+    label: str
+    emoji: str
+    estat: str
+    info: str
+    ordre_tipus: int
+    categoria: int
+    color: str
+    ja_assignat: bool
+    es_titular: bool
+
+
+class DisponiblesEnBlocResponse(BaseModel):
+    """{clau de la consulta («hora» o «hora|tipus|grups|aula»): professors}"""
+
+    results: Dict[str, List[ProfessorDisponible]]
+
+
+class VigilanciaDelDia(BaseModel):
+    id: str
+    db_id: int
+    hora: str
+    tipus: str
+    grups: str
+    aula: str
+    vigilant: str
+    comentaris: str
+    nivell: str
+    ordre: Optional[int]
+    updated_at: Optional[str]
+
+
+class VigilanciaCreada(BaseModel):
+    id: str
+    hora: str
+    tipus: str
+    grups: str
+    aula: str
+    vigilant: str
+    comentaris: str
+    nivell: str
+    updated_at: Optional[str]
+
+
+class VigilanciaCreadaResponse(BaseModel):
+    success: bool
+    message: str
+    vigilancia: VigilanciaCreada
+
+
+class VigilanciaEditadaResponse(BaseModel):
+    success: bool
+    message: str
+    updated_at: Optional[str]
+
+
+class MissatgeResponse(BaseModel):
+    success: bool
+    message: str
+
+
+class SuccessResponse(BaseModel):
+    success: bool
+
+
+class NetejaResponse(BaseModel):
+    success: bool
+    cleared_count: int
+    message: str
+
+
+class OrdenacioResponse(BaseModel):
+    success: bool
+    sorted_count: int
+    message: str

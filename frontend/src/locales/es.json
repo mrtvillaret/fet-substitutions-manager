@@ -370,12 +370,9 @@
       "inactive": "Inactiva",
       "deactivate": "Desactivar",
       "activate": "Activar",
-      "delete": "Eliminar",
       "deactivateTitle": "Desactivar institución",
       "activateTitle": "Activar institución",
-      "deleteTitle": "Eliminar institución",
       "deactivateMessage": "Se desactivará {slug}. Escribe {confirm} para confirmar.",
-      "deleteMessage": "Se eliminará definitivamente {slug}. Escribe {confirm} para confirmar.",
       "confirmLabel": "Confirmación",
       "confirmMismatch": "La confirmación no coincide.",
       "saved": "Institución guardada.",
@@ -916,6 +913,7 @@
       "assigned": "Titular asignado",
       "conflict": "Alguien ha modificado esta vigilancia: se ha vuelto a cargar."
     },
+    "noLevels": "No hay ningún nivel configurado. Un administrador puede crearlos en la configuración de exámenes (pestaña Niveles); mientras tanto, los PDF incluyen todas las vigilancias.",
     "withoutOwner": {
       "title": "1 vigilancia no tiene un titular definido en la configuración de exámenes: | {count} vigilancias no tienen un titular definido en la configuración de exámenes:",
       "cap_fila_grup": "ninguna fila para el grupo",
@@ -1856,7 +1854,8 @@
       "incompatibilities": {
         "title": "Incompatibilidades detectadas",
         "defaultMessage": "No es posible colocar todos los exámenes",
-        "undetermined": "No se han podido determinar las incompatibilidades."
+        "undetermined": "No se han podido determinar las incompatibilidades.",
+        "explanationUnavailable": "No se ha podido preparar la explicación de por qué no es viable (error interno, ref {ref})."
       },
       "daysHours": {
         "typeLabel": "Modo",

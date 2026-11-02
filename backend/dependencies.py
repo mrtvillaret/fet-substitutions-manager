@@ -31,7 +31,7 @@ def dia_del_calendari(data: Optional[DataISO] = None, current_user=Depends(get_c
 
 
 def dia_de_la_planificacio(current_user=Depends(get_current_user)) -> Dia:
-    from routes.scheduler_config import data_referencia
+    from planificador.config import data_referencia
 
     return Dia.de_text(data_referencia(current_user.institucio), current_user.institucio)
 

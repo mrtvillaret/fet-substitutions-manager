@@ -370,12 +370,9 @@
       "inactive": "Inactive",
       "deactivate": "Deactivate",
       "activate": "Activate",
-      "delete": "Delete",
       "deactivateTitle": "Deactivate institution",
       "activateTitle": "Activate institution",
-      "deleteTitle": "Delete institution",
       "deactivateMessage": "This will deactivate {slug}. Type {confirm} to confirm.",
-      "deleteMessage": "This will permanently delete {slug}. Type {confirm} to confirm.",
       "confirmLabel": "Confirmation",
       "confirmMismatch": "Confirmation does not match.",
       "saved": "Institution saved.",
@@ -916,6 +913,7 @@
       "assigned": "Owner assigned",
       "conflict": "Someone changed this supervision: it has been reloaded."
     },
+    "noLevels": "No levels are configured. An administrator can create them in the exam settings (Levels tab); meanwhile, the PDFs include all invigilations.",
     "withoutOwner": {
       "title": "1 supervision has no owner defined in the exam settings: | {count} supervisions have no owner defined in the exam settings:",
       "cap_fila_grup": "no row for the group",
@@ -1856,7 +1854,8 @@
       "incompatibilities": {
         "title": "Detected incompatibilities",
         "defaultMessage": "It is not possible to place all exams",
-        "undetermined": "Could not determine incompatibilities."
+        "undetermined": "Could not determine incompatibilities.",
+        "explanationUnavailable": "Could not prepare the explanation of why it is not feasible (internal error, ref {ref})."
       },
       "daysHours": {
         "typeLabel": "Mode",

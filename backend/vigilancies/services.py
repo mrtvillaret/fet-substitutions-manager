@@ -85,13 +85,10 @@ def config(db: Session, dia: Dia) -> dict:
     master_config = MasterConfigRepository.get_master_config(db)
 
     nivells_data = master_config.get("nivells", {})
+    # Només els configurats (cap, si no n'hi ha: la pantalla ho diu)
     nivells = list(nivells_data.keys())
     grups_per_nivell = {nivell: dades.get("grups", []) for nivell, dades in nivells_data.items()}
     aules = master_config.get("aules", [])
-
-    # Si no hi ha nivells, usar defaults
-    if not nivells:
-        nivells = ["GENERAL", "1-ESO", "2-ESO", "3-ESO", "4-ESO", "1-BATX", "2-BATX"]
 
     tipus_examens_list = VigilanciaRepository.get_unique_tipus(db)
 

@@ -20,6 +20,7 @@ from pdf import services
 from pdf.domain import SenseProfessors
 from pdf.informe_direccio import generar_informe_pdf
 from pdf.informe_professors import generar_informe_professors_pdf
+from pdf.schemas import ProfessorsLlistaResponse
 from recomptes.services import valida_interval
 
 router = APIRouter(prefix="/api/informes", tags=["informes"])
@@ -128,7 +129,7 @@ def informe_professor(
     return _fitxer_temporal(pdf_path, temp_dir, nom_fitxer)
 
 
-@router.get("/professors-llista")
+@router.get("/professors-llista", response_model=ProfessorsLlistaResponse)
 def llista_professors(
     hores: HoresTriades,
     data_inici: DataISO = Query(...),

@@ -12,20 +12,20 @@ import json
 import os
 import tempfile
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
-from fastapi import HTTPException
-
-from routes.scheduler_config import (
+from errors_domini import NoValid
+from planificador.alliberaments import (
+    _hores_lectives_des_de_xml,
+    extreure_hores_examen_des_alliberaments,
+)
+from planificador.config import (
     ConfigPlanificador,
     aplica_restriccions_derivades,
     carrega_config,
 )
-from routes.scheduler_helpers import (
-    _hores_lectives_des_de_xml,
-    extreure_hores_examen_des_alliberaments,
-)
-from routes.scheduler_service import _dies_entre_dates
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.defaults import DIES_SETMANA
 from serveis.dia import Dia
 
 
@@ -85,15 +85,38 @@ class Planificacio:
                 pass
 
 
+def xml_del_dia(dia: Dia) -> str:
+    """El fitxer de l'horari (XML) vigent un dia; si no n'hi ha, NoValid."""
+    if not dia.xml_path or not os.path.exists(dia.xml_path):
+        raise NoValid(
+            f"No hi ha cap horari (XML) per al {dia.data:%d/%m/%Y}",
+            codi="planificacio_sense_xml",
+            params={"data": dia.iso},
+        )
+    return dia.xml_path
+
+
+def _dies_entre_dates(data_inici: str, data_final: str) -> list[str]:
+    """Els dies de la setmana entre les dues dates (AAAA-MM-DD), sense repetir."""
+    inici = datetime.strptime(data_inici, "%Y-%m-%d").date()
+    final = datetime.strptime(data_final, "%Y-%m-%d").date()
+    dies = []
+    actual = inici
+    while actual <= final:
+        dia_nom = DIES_SETMANA[actual.weekday()]
+        if dia_nom not in dies:
+            dies.append(dia_nom)
+        actual += timedelta(days=1)
+    return dies
+
+
 def prepara_planificacio(payload, institucio: str, dates_de_la_peticio: bool = True) -> Planificacio:
     """`payload`: SchedulerGenerateRequest. Sense `dates_de_la_peticio` (anàlisi),
     les dates són les desades a la configuració, no les de la petició."""
     cfg = carrega_config(institucio)
     hores_examen, hores_per_nivell = extreure_hores_examen_des_alliberaments(cfg.alliberaments)
 
-    xml_path = Dia.de_text(payload.data_inici, institucio).xml_path
-    if not xml_path or not os.path.exists(xml_path):
-        raise HTTPException(status_code=400, detail="XML missing")
+    xml_path = xml_del_dia(Dia.de_text(payload.data_inici, institucio))
 
     dies = payload.dies_utilitzar or _dies_entre_dates(payload.data_inici, payload.data_final or payload.data_inici)
     nivells = cfg.nivells_actius(payload.nivells_actius)

@@ -20,7 +20,7 @@ from suport_planificador import (
 from test_concurrencia_institucions import _peticio, _port_lliure
 
 from configuracio_examens import router as config_examens
-from routes import scheduler
+from planificador import router as scheduler
 
 
 @pytest.fixture(scope="module")

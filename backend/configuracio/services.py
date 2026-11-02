@@ -95,18 +95,6 @@ def desa_configuracio(db: Session, canvis: SettingsUpdate, current_user: UsuariA
             changed.append(f"{text} → {valor}")
     db.commit()
 
-    # Recarregar configuració d'institució si s'ha modificat
-    if any(
-        s is not None
-        for s in [
-            canvis.idioma,
-            canvis.data_inici_estadistiques,
-            canvis.data_final_estadistiques,
-            canvis.ultim_professor_subs,
-        ]
-    ):
-        config.load_institucio()
-
     # El límit de professors canvia l'horari
     if canvis.ultim_professor_subs is not None:
         invalidar_horari(current_user.institucio)  # només la del centre que desa

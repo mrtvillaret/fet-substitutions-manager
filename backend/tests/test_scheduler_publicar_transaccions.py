@@ -9,7 +9,7 @@ from suport_api import crea_app, crea_usuari, entra, nova_institucio
 from absencia_coberta.router import router as absencia_coberta_router
 from database import get_data_db_session
 from models import GrupAlliberat, Vigilancia
-from routes import scheduler
+from planificador import router as scheduler
 from substitucions import cobertures
 from substitucions import router as substitucions_router
 from substitucions.repositories import SubstitucioRepository

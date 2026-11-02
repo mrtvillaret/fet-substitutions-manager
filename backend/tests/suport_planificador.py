@@ -11,7 +11,7 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from absencia_coberta.router import router as absencia_coberta_router
 from configuracio_examens import router as config_examens
 from grups.router import router_admin as grups_admin_router
-from routes import scheduler
+from planificador import router as scheduler
 
 # Amb les absències cobertes: treuen professors de l'horari del dia
 APP = crea_app(scheduler.router, config_examens.router, grups_admin_router, absencia_coberta_router)

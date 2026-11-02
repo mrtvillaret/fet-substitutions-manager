@@ -1,5 +1,5 @@
 """
-API del planificador d'exàmens (routes/scheduler.py).
+API del planificador d'exàmens (planificador/router.py).
 
 La configuració desada (nivells seleccionats i alliberaments per nivell) pot
 ser d'un horari anterior: si els nivells han canviat de nom o ja no hi són,
@@ -15,10 +15,10 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
 from models import Nivell
+from planificador import router as scheduler
+from planificador.repositories import SCHEDULER_ALLIBERAMENTS_KEY, SCHEDULER_NIVELLS_KEY
 from rate_limit import limiter
 from repositories import ConfiguracioRepository
-from routes import scheduler
-from routes.scheduler_service import SCHEDULER_ALLIBERAMENTS_KEY, SCHEDULER_NIVELLS_KEY
 
 APP = crea_app(scheduler.router)
 URL = "/api/scheduler/config"

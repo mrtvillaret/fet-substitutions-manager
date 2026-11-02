@@ -199,6 +199,19 @@ class GrupsAlliberatsRepository:
         return result
 
     @staticmethod
+    def files_del_dia(db: Session, data: str) -> List[GrupAlliberat]:
+        """Els grups marcats aquell dia (sense els dels períodes)."""
+        return db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).all()
+
+    @staticmethod
+    def esborra_del_dia(db: Session, data: str) -> None:
+        db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).delete(synchronize_session=False)
+
+    @staticmethod
+    def afegeix(db: Session, data: str, hora: str, grup: str) -> None:
+        db.add(GrupAlliberat(data=parse_date(data), hora=hora, grups=grup))
+
+    @staticmethod
     def set_for_date(db: Session, data: str, grups_per_hora: Dict[str, List[str]]):
         """Estableix grups alliberats per una data (substitueix existents)"""
         # Eliminar existents

@@ -373,12 +373,9 @@
       "inactive": "Inactiva",
       "deactivate": "Desactiva",
       "activate": "Activa",
-      "delete": "Elimina",
       "deactivateTitle": "Desactivar institució",
       "activateTitle": "Activar institució",
-      "deleteTitle": "Eliminar institució",
       "deactivateMessage": "Es desactivarà {slug}. Escriu {confirm} per confirmar.",
-      "deleteMessage": "S'eliminarà definitivament {slug}. Escriu {confirm} per confirmar.",
       "confirmLabel": "Confirmació",
       "confirmMismatch": "La confirmació no coincideix.",
       "saved": "Institució desada.",
@@ -919,6 +916,7 @@
       "assigned": "Titular posat",
       "conflict": "Algú ha modificat aquesta vigilància: s'ha tornat a carregar."
     },
+    "noLevels": "No hi ha cap nivell configurat. Un administrador els pot crear a la configuració d'exàmens (pestanya Nivells); mentrestant, els PDF inclouen totes les vigilàncies.",
     "withoutOwner": {
       "title": "1 vigilància no té un titular definit a la configuració d'exàmens: | {count} vigilàncies no tenen un titular definit a la configuració d'exàmens:",
       "cap_fila_grup": "cap fila per al grup",
@@ -1860,7 +1858,8 @@
       "incompatibilities": {
         "title": "Incompatibilitats detectades",
         "defaultMessage": "No és possible col·locar tots els exàmens",
-        "undetermined": "No s'han pogut determinar les incompatibilitats."
+        "undetermined": "No s'han pogut determinar les incompatibilitats.",
+        "explanationUnavailable": "No s'ha pogut preparar l'explicació de per què no és viable (error intern, ref {ref})."
       },
       "daysHours": {
         "typeLabel": "Mode",

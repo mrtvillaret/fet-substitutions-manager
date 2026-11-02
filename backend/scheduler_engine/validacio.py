@@ -1,7 +1,7 @@
 """
 Validació post-generació d'horaris d'exàmens.
 Detecta conflictes, violations de restriccions i genera logs d'incidències.
-Extret de routes/scheduler.py per millorar mantenibilitat i testabilitat.
+Extret de l'antic routes/scheduler.py (ara planificador/) per millorar mantenibilitat i testabilitat.
 """
 
 from typing import Dict, List, Optional, Set

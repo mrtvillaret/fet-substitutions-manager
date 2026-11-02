@@ -72,8 +72,7 @@ def autentica(db: Session, username: str, contrasenya: str) -> Optional[User]:
 
 
 def perfil(current_user: UsuariActual) -> dict:
-    # De la BD de la institució de l'usuari: config.institucio_data és de la
-    # institució amb què va arrencar el servidor, no necessàriament la seva.
+    # De la BD de la institució de l'usuari, no de la del centre per defecte del servidor
     with get_data_db_session(current_user.institucio) as data_db:
         idioma = ConfiguracioRepository.get(data_db, "idioma") or "ca"
         display_name = ConfiguracioRepository.nom_visible_institucio(data_db, current_user.institucio)
@@ -139,6 +138,8 @@ def crea_usuaris_inicials() -> None:
     - ADMIN_PASSWORD_RECUPERACIO, si està definida: el superadmin es crea o es
       reactiva amb aquesta contrasenya (_recupera_superadmin). Sense, mai no se
       li sobreescriu la contrasenya.
+    - Avisa al registre si hi ha usuaris actius de centres que no existeixen
+      (una sessió d'un centre que no existeix rep un 409 a tot).
     """
     with get_auth_db_session() as db:
         if UserRepository.count(db) == 0:
@@ -146,6 +147,18 @@ def crea_usuaris_inicials() -> None:
         if ADMIN_PASSWORD_RECUPERACIO:
             _recupera_superadmin(db, ADMIN_PASSWORD_RECUPERACIO)
         db.commit()
+        _avisa_usuaris_sense_centre(db)
+
+
+def _avisa_usuaris_sense_centre(db: Session) -> None:
+    # Només nombres: el registre no ha de tenir noms d'usuaris ni de centres
+    sense_centre = [u for u in UserRepository.list_all(db) if u.active and not config.institucio_existeix(u.institucio)]
+    if sense_centre:
+        log.warning(
+            "Usuaris actius de centres que no existeixen: %d usuaris, %d centres",
+            len(sense_centre),
+            len({u.institucio for u in sense_centre}),
+        )
 
 
 def _crea_usuaris_d_instal_lacio_nova(db: Session) -> None:
@@ -165,6 +178,10 @@ def _crea_usuaris_d_instal_lacio_nova(db: Session) -> None:
     # Els usuaris de mostra són opcionals: sense contrasenya definida, no es creen
     inicials += [u for u in DEFAULT_USERS if u["password"]]
     for usuari in inicials:
+        # El centre, també: cap centre no es crea sol en la primera petició
+        if not config.institucio_existeix(usuari["institucio"]):
+            with get_data_db_session(usuari["institucio"]):
+                pass
         UserRepository.create(
             db=db,
             username=usuari["username"],

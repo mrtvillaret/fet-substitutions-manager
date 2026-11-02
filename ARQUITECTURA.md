@@ -95,23 +95,30 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  │                         aules, titulars, importació i         │
 │  │                         exportació (/api/config/*)            │
 │  ├── cursos/             → cursos acadèmics                      │
-│  └── dades/              → governança de dades (RGPD): purga i   │
-│                            reanomenar professors inactius        │
-│                                                                  │
-│  CAPA DE ROUTES (/api/*) — estructura antiga, es va migrant      │
-│  └── scheduler.py        → planificador exàmens (orquestra)      │
-│        ├── scheduler_config.py     ← ConfigPlanificador, durades │
-│        ├── scheduler_planificacio.py ← prepara_planificacio      │
-│        │                             (generar i analitzar)       │
-│        ├── scheduler_cost.py       ← recàlcul del cost           │
-│        ├── scheduler_service.py    ← CRUD config scheduler       │
-│        ├── scheduler_helpers.py    ← helpers intermedis          │
-│        └── scheduler_analysis_helpers.py                         │
+│  ├── dades/              → governança de dades (RGPD): purga i   │
+│  │                         reanomenar professors inactius        │
+│  └── planificador/       → planificador d'exàmens                │
+│                            (/api/scheduler/*, només admins)      │
+│        ├── services.py      ← configuració, dates, restriccions, │
+│        │                      fixats, costos, últim horari i     │
+│        │                      avís de curs anterior              │
+│        ├── config.py        ← ConfigPlanificador, durades        │
+│        ├── planificacio.py  ← prepara_planificacio (generar i    │
+│        │                      analitzar) i l'XML de la data      │
+│        ├── generacio.py     ← generar i analitzar amb el motor   │
+│        ├── diagnostic.py    ← per què no és viable               │
+│        ├── cost.py          ← recàlcul del cost d'un horari      │
+│        │                      editat                             │
+│        ├── publicacio.py    ← publicar com a vigilàncies         │
+│        ├── restriccions.py  ← llegir i desar les restriccions    │
+│        ├── alliberaments.py ← hores marcades, dates i franges    │
+│        ├── examens.py       ← «Assignatura (nivell)»             │
+│        └── repositories.py  ← claus de configuració, restriccions│
+│                               i costos                           │
 │                                                                  │
 │  SERVEIS (serveis/): la lògica que criden les rutes              │
-│  ├── dia.py             ← Dia: una data d'un centre i el seu     │
-│  │                        horari XML (versió vigent aquell dia)  │
-│  └── publicacio_examens.py ← publicar l'horari d'exàmens         │
+│  └── dia.py             ← Dia: una data d'un centre i el seu     │
+│                           horari XML (versió vigent aquell dia)  │
 │                                                                  │
 │  CAPA DE LÒGICA DE NEGOCI                                        │
 │  ├── horari_web.py                ← GestorHorariWeb (parser XML  │
@@ -316,7 +323,7 @@ que orquestra l'operació: generar, desar absències, assignar a mà i reassigna
 confirmen només després d'actualitzar encadenades i cobertures.
 
 Els consumidors externs conserven el mateix contracte: els serveis de
-`vigilancies/`, `absencia_coberta/` i `grups/`, i la publicació de `routes/scheduler.py` reconcilien les
+`vigilancies/`, `absencia_coberta/` i `grups/`, i la publicació del planificador (`planificador/publicacio.py`) reconcilien les
 substitucions abans del seu únic `commit()`. Una excepció desfà tant el canvi
 principal com els derivats; els errors interns arriben a la pantalla amb la
 referència de `errors_servidor.py`.
@@ -367,8 +374,13 @@ Les decisions de negoci viuen en un sol lloc i les fan servir totes les parts
   treure el rol, canviar de centre) pot deixar un centre sense cap admin
   actiu, i ningú no es pot desactivar ni esborrar a si mateix. Els usuaris
   inicials només es creen en una instal·lació nova (`auth/services.py:
-  crea_usuaris_inicials`); el superadmin es recupera amb
-  `ADMIN_PASSWORD_RECUPERACIO`.
+  crea_usuaris_inicials`, que en crea també el centre); el superadmin es
+  recupera amb `ADMIN_PASSWORD_RECUPERACIO`.
+- **Centres** — `centres/`: des de la web es creen, es reanomenen i
+  s'activen o es desactiven (els usuaris no es toquen). Cap centre no es crea
+  sol: una sessió d'un centre que no existeix rep un 409 (`get_current_user`),
+  llevat de «sortir» i «canviar de centre». L'esborrat definitiu, només al
+  servidor i amb còpia: `scripts/esborra_centre.py`.
 - **Absència coberta** (abans «baixa») — `absencia_coberta/`: l'absent té les
   classes cobertes a l'XML. Durant el període, l'horari de cada data ja no el
   té (`sense_absents_coberts`, cridat des de `helpers.get_horari`, per on passa

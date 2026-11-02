@@ -91,15 +91,10 @@ def nivells_amb_substitucions(db) -> Set[str]:
     """Nivells que realment s'utilitzen al centre (apareixen a l'històric de
     substitucions/vigilàncies), per descartar Infantil/Primària o altres
     etapes que l'XML conté però que no fan servir aquest mòdul."""
-    from models import Substitucio, Vigilancia
+    from substitucions.repositories import SubstitucioRepository
+    from vigilancies.repositories import VigilanciaRepository
 
-    grups_historics = set()
-
-    for (grup,) in db.query(Substitucio.grup).filter(Substitucio.grup.isnot(None), Substitucio.grup != "").distinct():
-        grups_historics.add(grup)
-
-    for (grups,) in db.query(Vigilancia.grups).filter(Vigilancia.grups.isnot(None), Vigilancia.grups != "").distinct():
-        grups_historics.add(grups)
+    grups_historics = SubstitucioRepository.grups_usats(db) | VigilanciaRepository.grups_usats(db)
 
     nivells = set()
     for combinat in grups_historics:

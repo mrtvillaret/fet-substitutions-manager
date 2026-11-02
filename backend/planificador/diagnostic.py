@@ -1,21 +1,12 @@
-"""Helpers d'analisi i report pel scheduler."""
+"""Per què un horari d'exàmens no és viable: el precheck de restriccions que
+no es poden complir, el diagnòstic d'incompatibilitats, les sessions que han
+quedat sense col·locar i el recompte per nivell."""
 
-import html
-import logging
 from collections import defaultdict
 
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import (
-    ListFlowable,
-    ListItem,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-)
-
-log = logging.getLogger(__name__)
+from scheduler_engine.core.constraints import es_slot_valid_per_nivell, viola_restriccio_dia_hora_fixos
+from scheduler_engine.core.date_mapping import DIES_CAT
+from scheduler_engine.core.diagnostic import InfeasibilityDiagnostic, construir_dies_efectius
 
 
 def _diagnosticar_incompatibilitats(
@@ -29,43 +20,29 @@ def _diagnosticar_incompatibilitats(
     """
     Calcula incompatibilitats quan l'horari no és viable.
     Retorna missatges breus per mostrar en un popup.
-    Usa InfeasibilityDiagnostic (no analitzar_tots_slots).
+    Usa InfeasibilityDiagnostic (no analitzar_tots_slots). Si falla, l'error
+    arriba a qui el crida (generacio.py, que ho diu a la resposta).
     """
-    try:
-        from scheduler_engine.core.diagnostic import (
-            InfeasibilityDiagnostic,
-            construir_dies_efectius,
-        )
-
-        hores_examen = list(getattr(gen, "hores_examen", []) or [])
-        if not hores_examen or not dies_utilitzar:
-            return []
-
-        dies_efectius = construir_dies_efectius(dies_utilitzar, dia_a_data_iso)
-        if not dies_efectius:
-            return []
-
-        items_gen = []
-        try:
-            slots_est = max(1, len(dies_efectius) * max(1, len(hores_examen)))
-            items_gen = gen.preparar_particio_nivells(slots_disponibles=slots_est) or []
-        except Exception:
-            log.warning("No s'ha pogut preparar la partició per nivells", exc_info=True)
-
-        if not items_gen:
-            return []
-
-        diag = InfeasibilityDiagnostic(
-            restriccions=restriccions,
-            dies_efectius=dies_efectius,
-            hores_examen=hores_examen,
-            nivells_actius=nivells_actius or [],
-        )
-        return diag.run(items_gen)
-
-    except Exception:
-        log.warning("No s'ha pogut fer el diagnòstic", exc_info=True)
+    hores_examen = list(getattr(gen, "hores_examen", []) or [])
+    if not hores_examen or not dies_utilitzar:
         return []
+
+    dies_efectius = construir_dies_efectius(dies_utilitzar, dia_a_data_iso)
+    if not dies_efectius:
+        return []
+
+    slots_est = max(1, len(dies_efectius) * max(1, len(hores_examen)))
+    items_gen = gen.preparar_particio_nivells(slots_disponibles=slots_est) or []
+    if not items_gen:
+        return []
+
+    diag = InfeasibilityDiagnostic(
+        restriccions=restriccions,
+        dies_efectius=dies_efectius,
+        hores_examen=hores_examen,
+        nivells_actius=nivells_actius or [],
+    )
+    return diag.run(items_gen)
 
 
 def _identificar_sessions_no_collocades(horari: dict, gen) -> list[str]:
@@ -182,18 +159,9 @@ def _precheck_incompatibilitats_deterministes(
       1) Capacitat per nivell (items <= slots físics disponibles)
       2) Cada ítem té almenys un slot possible
       3) Per nivell, unió de slots possibles >= nombre d'items
+    Si falla, l'error arriba a qui el crida (generacio.py genera igualment).
     """
     from datetime import datetime as _dt
-
-    try:
-        from scheduler_engine.core.constraints import (
-            es_slot_valid_per_nivell,
-            viola_restriccio_dia_hora_fixos,
-        )
-        from scheduler_engine.core.date_mapping import DIES_CAT
-    except Exception:
-        log.warning("No s'han pogut carregar les restriccions per a l'anàlisi", exc_info=True)
-        return []
 
     hores_examen = list(getattr(gen, "hores_examen", []) or [])
     if not dies_utilitzar or not hores_examen:
@@ -212,11 +180,7 @@ def _precheck_incompatibilitats_deterministes(
         dies_efectius = [(d, d) for d in dies_utilitzar]
 
     slots_disponibles = len(dies_efectius) * len(hores_examen)
-    items = []
-    try:
-        items = gen.preparar_particio_nivells(slots_disponibles=max(1, slots_disponibles)) or []
-    except Exception:
-        items = []
+    items = gen.preparar_particio_nivells(slots_disponibles=max(1, slots_disponibles)) or []
 
     if not items:
         sessions_per_nivell = getattr(gen, "sessions_per_nivell", {}) or {}
@@ -237,10 +201,7 @@ def _precheck_incompatibilitats_deterministes(
     def _hores_ocupades(hora: str, nivell: str | None) -> list[str]:
         getter = getattr(gen, "_get_hores_ocupades", None)
         if callable(getter):
-            try:
-                return getter(hora, nivell)
-            except Exception:
-                log.warning("No s'ha pogut consultar la disponibilitat", exc_info=True)
+            return getter(hora, nivell)
         totes_hores = list(getattr(gen, "totes_hores", []) or [])
         durada = int(gen.get_durada_per_nivell(nivell) or 1)
         if hora not in totes_hores:
@@ -377,174 +338,3 @@ def _afegir_recompte_nivells(horari: dict, sessions_per_nivell: dict) -> None:
         logs = metadata.setdefault("logs", [])
         for nivell, pendents, total in incomplets:
             logs.append(f"⚠️ NIVELL INCOMPLET: {nivell} ({total - pendents}/{total})")
-
-
-def _format_report_lines(tab: str, text: str) -> list[tuple[str, bool, int]]:
-    lines = []
-    raw_lines = [linia.rstrip().replace("■", "") for linia in (text or "").splitlines()]
-
-    def add(line: str, bold: bool = False, indent: int = 0):
-        if line is None:
-            return
-        lines.append((line, bold, indent))
-
-    if tab == "per_slots":
-        for raw in raw_lines:
-            line = raw.strip()
-            if not line or line.startswith("="):
-                continue
-            if line.startswith("📅"):
-                add(line, True, 0)
-                continue
-            if line.startswith("⏰"):
-                add(line, True, 6)
-                continue
-            if (
-                line.endswith(":")
-                and not line.startswith("✅")
-                and not line.startswith("🟡")
-                and not line.startswith("🔶")
-            ):
-                add(line, True, 12)
-                continue
-            if line.startswith("✅") or line.startswith("🟡") or line.startswith("🔶"):
-                label, _, items = line.partition(":")
-                add(f"{label}:", True, 18)
-                for item in [i.strip() for i in items.split(",") if i.strip()]:
-                    add(f"- {item}", False, 26)
-                continue
-            add(line, False, 12)
-        return lines
-
-    if tab == "per_sessio":
-        for raw in raw_lines:
-            line = raw.strip()
-            if not line or line.startswith("="):
-                continue
-            if line.startswith("📝"):
-                add(line, True, 0)
-                continue
-            if line.startswith("👥"):
-                add(line, False, 10)
-                continue
-            if "|" in line and not line.startswith("Dia"):
-                parts = [p.strip() for p in line.split("|")]
-                if len(parts) >= 8:
-                    dia = parts[0]
-                    hora = parts[1]
-                    subs = parts[3]
-                    abans = parts[4]
-                    despres = parts[5]
-                    no_treballa = parts[6]
-                    detalls = " | ".join(parts[7:]).strip()
-                    add(f"{dia}  {hora}", True, 10)
-                    add(
-                        f"Subs: {subs}  Abans: {abans}  Després: {despres}  No treb: {no_treballa}",
-                        False,
-                        16,
-                    )
-                    if detalls:
-                        add(f"Detalls: {detalls}", False, 16)
-                continue
-            add(line, False, 10)
-        return lines
-
-    if tab == "professors_slot":
-        for raw in raw_lines:
-            line = raw.strip()
-            if not line or line.startswith("="):
-                continue
-            if line.startswith("📅") or line.startswith("⏰") or line.startswith("⏱️"):
-                add(line, True, 0 if line.startswith("📅") else 8)
-                continue
-            if line.startswith("✅") or line.startswith("📚"):
-                add(line, True, 12)
-                continue
-            if line.startswith("•"):
-                add(line, False, 18)
-                continue
-            add(line, False, 10)
-        return lines
-
-    for raw in raw_lines:
-        line = raw.strip()
-        if not line or line.startswith("="):
-            continue
-        add(line, False, 0)
-    return lines
-
-
-def _write_analysis_pdf(path: str, sections: list[tuple[str, str, str]]):
-    doc = SimpleDocTemplate(path, pagesize=A4, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=16, spaceAfter=12)
-    section_style = ParagraphStyle("Section", parent=styles["Heading2"], fontSize=12, spaceBefore=10, spaceAfter=6)
-    day_style = ParagraphStyle("Day", parent=styles["Heading3"], fontSize=11, spaceBefore=8, spaceAfter=4)
-    slot_style = ParagraphStyle("Slot", parent=styles["Heading4"], fontSize=10, spaceBefore=6, spaceAfter=3)
-    body_style = ParagraphStyle("Body", parent=styles["BodyText"], fontSize=9.5, leading=12)
-    label_style = ParagraphStyle("Label", parent=body_style, fontName="Helvetica-Bold")
-
-    flow = [Paragraph("Anàlisi de possibilitats", title_style)]
-
-    def label_color(text: str) -> colors.Color | None:
-        if "Òptimes" in text:
-            return colors.HexColor("#15803d")
-        if "Bones" in text:
-            return colors.HexColor("#c2410c")
-        if "Acceptables" in text:
-            return colors.HexColor("#b91c1c")
-        return None
-
-    for title, tab, text in sections:
-        flow.append(Paragraph(html.escape(title, quote=False), section_style))
-        bullet_items = []
-        for line, bold, _indent in _format_report_lines(tab, text):
-            if not line:
-                if bullet_items:
-                    flow.append(ListFlowable(bullet_items, bulletType="bullet", leftIndent=18))
-                    bullet_items = []
-                flow.append(Spacer(1, 6))
-                continue
-
-            # Escapat: ReportLab interpreta etiquetes dins dels Paragraph, i
-            # els noms d'assignatures o professors podrien contenir "<".
-            clean = html.escape(
-                line.replace("📅", "").replace("⏰", "").replace("📝", "").replace("⏱️", "").strip(),
-                quote=False,
-            )
-            if line.startswith("- "):
-                bullet_items.append(ListItem(Paragraph(clean[2:], body_style), leftIndent=18))
-                continue
-
-            if bullet_items:
-                flow.append(ListFlowable(bullet_items, bulletType="bullet", leftIndent=18))
-                bullet_items = []
-
-            if line.startswith("📅"):
-                flow.append(Paragraph(clean, day_style))
-                continue
-            if line.startswith("⏰") or line.startswith("⏱️"):
-                flow.append(Paragraph(clean, slot_style))
-                continue
-
-            if clean.endswith(":") and ("Òptimes" in clean or "Bones" in clean or "Acceptables" in clean):
-                color = label_color(clean)
-                if color:
-                    flow.append(
-                        Paragraph(
-                            f"<font color='{color.hexval()}'>" + clean + "</font>",
-                            label_style,
-                        )
-                    )
-                else:
-                    flow.append(Paragraph(clean, label_style))
-                continue
-
-            style = label_style if bold else body_style
-            flow.append(Paragraph(clean, style))
-
-        if bullet_items:
-            flow.append(ListFlowable(bullet_items, bulletType="bullet", leftIndent=18))
-        flow.append(Spacer(1, 10))
-
-    doc.build(flow)

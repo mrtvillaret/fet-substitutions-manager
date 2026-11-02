@@ -25,7 +25,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from routes.scheduler_helpers import extreure_hores_examen_des_alliberaments
+from planificador.alliberaments import extreure_hores_examen_des_alliberaments
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
 from scheduler_engine.factory import crear_motor
 

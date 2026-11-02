@@ -26,14 +26,14 @@ from parametres import DataISO, data_iso
 from pdf import disponibles, generacio
 from pdf.domain import OpcionsPdf
 from pdf.repositories import PreferenciesPdfRepository
-from pdf.schemas import PDFPreferencesRequest
+from pdf.schemas import DesatResponse, PDFPreferencesRequest, PDFPreferencesResponse, ValidacionsPdfResponse
 from serveis.dia import Dia
 from substitucions.schemas import OrdreSubstitucions
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF"])
 
 
-@router.get("/preferences")
+@router.get("/preferences", response_model=PDFPreferencesResponse)
 def get_pdf_preferences(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Retorna les preferències PDF desades per institució
@@ -41,7 +41,7 @@ def get_pdf_preferences(current_user=Depends(get_current_user), db: Session = De
     return PreferenciesPdfRepository.get_all(db)
 
 
-@router.put("/preferences")
+@router.put("/preferences", response_model=DesatResponse)
 def update_pdf_preferences(
     prefs: PDFPreferencesRequest, current_user=Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -53,7 +53,7 @@ def update_pdf_preferences(
     return {"success": True}
 
 
-@router.get("/{data}/validacions")
+@router.get("/{data}/validacions", response_model=ValidacionsPdfResponse)
 def validar_abans_pdf(
     data: DataISO,
     db: Session = Depends(get_db),

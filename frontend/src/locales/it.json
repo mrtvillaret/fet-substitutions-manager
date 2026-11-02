@@ -373,12 +373,9 @@
       "inactive": "Inattivo",
       "deactivate": "Disattiva",
       "activate": "Attiva",
-      "delete": "Elimina",
       "deactivateTitle": "Disattiva istituto",
       "activateTitle": "Attiva istituto",
-      "deleteTitle": "Elimina istituto",
       "deactivateMessage": "Questo disattiverà {slug}. Digita {confirm} per confermare.",
-      "deleteMessage": "Questo eliminerà definitivamente {slug}. Digita {confirm} per confermare.",
       "confirmLabel": "Conferma",
       "confirmMismatch": "La conferma non corrisponde.",
       "saved": "Istituto salvato.",
@@ -919,6 +916,7 @@
       "assigned": "Titolare assegnato",
       "conflict": "Qualcuno ha modificato questa vigilanza: è stata ricaricata."
     },
+    "noLevels": "Non è configurato nessun livello. Un amministratore può crearli nella configurazione degli esami (scheda Livelli); nel frattempo, i PDF includono tutte le sorveglianze.",
     "withoutOwner": {
       "title": "1 vigilanza non ha un titolare definito nella configurazione degli esami: | {count} vigilanze non hanno un titolare definito nella configurazione degli esami:",
       "cap_fila_grup": "nessuna riga per il gruppo",
@@ -1860,7 +1858,8 @@
       "incompatibilities": {
         "title": "Incompatibilità rilevate",
         "defaultMessage": "Non è possibile posizionare tutti gli esami",
-        "undetermined": "Impossibile determinare le incompatibilità."
+        "undetermined": "Impossibile determinare le incompatibilità.",
+        "explanationUnavailable": "Non è stato possibile preparare la spiegazione del perché non è fattibile (errore interno, ref {ref})."
       },
       "daysHours": {
         "typeLabel": "Modalità",

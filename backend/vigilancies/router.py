@@ -8,6 +8,8 @@ Rutes de /api/vigilancies (vigilàncies d'examen de cada dia):
 (Els PDF de vigilàncies són a pdf/router.py, /api/pdf/vigilancies/...)
 """
 
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -23,10 +25,20 @@ from vigilancies.schemas import (
     AjudaVigilantResponse,
     AssignacioResponse,
     AssignacioTitularsResponse,
+    ConfigVigilanciesResponse,
     DisponiblesEnBlocRequest,
+    DisponiblesEnBlocResponse,
     EdicioVigilanciaRequest,
+    MissatgeResponse,
+    NetejaResponse,
+    OrdenacioResponse,
     OrdreManualResponse,
     OrdreRequest,
+    ProfessorDisponible,
+    SuccessResponse,
+    VigilanciaCreadaResponse,
+    VigilanciaDelDia,
+    VigilanciaEditadaResponse,
     VigilanciaRequest,
 )
 
@@ -43,14 +55,14 @@ def _conflicte(exc: services.ConflicteVigilancia) -> HTTPException:
     )
 
 
-@router.get("/config")
+@router.get("/config", response_model=ConfigVigilanciesResponse)
 def obtenir_config_vigilancies(db: Session = Depends(get_db), dia: Dia = Depends(dia_del_calendari)):
     """Configuració per gestionar vigilàncies: nivells, professors i hores de
     l'horari vigent a `data` (o, sense, avui), grups, aules i tipus d'examen."""
     return services.config(db, dia)
 
 
-@router.get("/{data}/{hora}/disponibles")
+@router.get("/{data}/{hora}/disponibles", response_model=List[ProfessorDisponible])
 def obtenir_disponibles_vigilancia(
     data: DataISO,
     hora: str,
@@ -80,7 +92,7 @@ def obtenir_ajuda_vigilant(
     return services.ajuda_vigilant(db, dia, hora, nom)
 
 
-@router.post("/{data}/disponibles-batch")
+@router.post("/{data}/disponibles-batch", response_model=DisponiblesEnBlocResponse)
 def obtenir_disponibles_vigilancia_batch(
     data: DataISO,
     payload: DisponiblesEnBlocRequest,
@@ -91,13 +103,13 @@ def obtenir_disponibles_vigilancia_batch(
     return {"results": services.disponibles_en_bloc(db, dia, payload.queries)}
 
 
-@router.get("/{data}")
+@router.get("/{data}", response_model=List[VigilanciaDelDia])
 def obtenir_vigilancies(data: DataISO, db: Session = Depends(get_db)):
     """Les vigilàncies del dia: llista plana, amb l'id de la BD."""
     return services.llista(db, data)
 
 
-@router.post("/{data}")
+@router.post("/{data}", response_model=VigilanciaCreadaResponse)
 def crear_vigilancia(data: DataISO, vigilancia: VigilanciaRequest, db: Session = Depends(get_db)):
     """Afegeix una vigilància al dia."""
     return {
@@ -114,7 +126,7 @@ def obtenir_ordre_manual(data: DataISO, db: Session = Depends(get_db)):
     return {"ordre_manual": services.ordre_manual(db, data)}
 
 
-@router.put("/{data}/ordre")
+@router.put("/{data}/ordre", response_model=SuccessResponse)
 def desar_ordre(data: DataISO, ordre: OrdreRequest, db: Session = Depends(get_db)):
     """Desa l'ordre de les files d'una hora (400 si n'hi ha d'una altra hora;
     409 si les files de l'hora han canviat mentrestant)."""
@@ -122,7 +134,7 @@ def desar_ordre(data: DataISO, ordre: OrdreRequest, db: Session = Depends(get_db
     return {"success": True}
 
 
-@router.put("/{data}/{vig_id}")
+@router.put("/{data}/{vig_id}", response_model=VigilanciaEditadaResponse)
 def actualitzar_vigilancia(data: DataISO, vig_id: str, update: EdicioVigilanciaRequest, db: Session = Depends(get_db)):
     """Actualitza una vigilància (id de la BD o, l'antic, «hora|nivell|posició»)."""
     try:
@@ -132,7 +144,7 @@ def actualitzar_vigilancia(data: DataISO, vig_id: str, update: EdicioVigilanciaR
     return {"success": True, "message": "Vigilància actualitzada correctament", "updated_at": updated_at}
 
 
-@router.delete("/{data}/{vig_id}")
+@router.delete("/{data}/{vig_id}", response_model=MissatgeResponse)
 def eliminar_vigilancia(
     data: DataISO, vig_id: str, updated_at: str = None, force: bool = False, db: Session = Depends(get_db)
 ):
@@ -167,7 +179,7 @@ def assignar_pendents(
     return services.assigna_pendents(db, dia, data, disponibles=disponibles)
 
 
-@router.post("/{data}/clear")
+@router.post("/{data}/clear", response_model=NetejaResponse)
 def netejar_assignacions(data: DataISO, db: Session = Depends(get_db)):
     """Treu tots els vigilants del dia (es queden tipus, grups i aules)."""
     cleared_count = services.buida_vigilants(db, data)
@@ -178,7 +190,7 @@ def netejar_assignacions(data: DataISO, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/{data}/sort")
+@router.post("/{data}/sort", response_model=OrdenacioResponse)
 def ordenar_per_hora(data: DataISO, db: Session = Depends(get_db)):
     """Desa l'ordre automàtic del dia (dins de cada hora: nivell, grup, aula).
     404 si el dia no té vigilàncies."""

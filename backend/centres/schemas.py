@@ -19,7 +19,7 @@ class InstitucioStatus(BaseModel):
 
 
 class InstitucioDelete(BaseModel):
-    mode: str = "soft"  # soft | hard
+    mode: str = "soft"  # «hard», 400: l'esborrat definitiu es fa des del servidor
     confirm: str
 
 

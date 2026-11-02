@@ -1,12 +1,8 @@
 """
-Anàlisi de possibilitats del planificador (POST /api/scheduler/analisi i
-/analisi/pdf): per a cada examen i franja, quins professors s'haurien de
-substituir. Els informes són text; el PDF en fa una o totes les seccions.
+Anàlisi de possibilitats del planificador (POST /api/scheduler/analisi):
+per a cada examen i franja, quins professors s'haurien de substituir. Els
+informes són text.
 """
-
-import glob
-import os
-import tempfile
 
 import pytest
 from suport_planificador import (
@@ -43,25 +39,6 @@ def test_l_analisi_dona_els_tres_informes_amb_els_examens_del_nivell(client):
     for examen in ("Anglès (1-BAT)", "Català (1-BAT)", "Filosofia (1-BAT)"):
         assert examen in informes["per_sessio"]
     assert "Prof 25" in informes["per_sessio"]  # titular d'Anglès
-
-
-def _pdfs_temporals():
-    return set(glob.glob(os.path.join(tempfile.gettempdir(), "*.pdf")))
-
-
-def test_el_pdf_de_l_analisi_no_deixa_fitxers_temporals(client):
-    abans = _pdfs_temporals()
-    resp = client.post("/api/scheduler/analisi/pdf", json=PETICIO)
-    assert resp.status_code == 200
-    assert resp.headers["content-type"] == "application/pdf"
-    assert resp.content.startswith(b"%PDF")
-    assert _pdfs_temporals() - abans == set()
-
-
-def test_el_pdf_pot_ser_d_una_sola_seccio(client):
-    tot = client.post("/api/scheduler/analisi/pdf", json=PETICIO).content
-    una = client.post("/api/scheduler/analisi/pdf", json=dict(PETICIO, analisi_tab="per_slots")).content
-    assert una.startswith(b"%PDF") and len(una) < len(tot)
 
 
 # ---------------------------------------- examens més llargs que la durada general

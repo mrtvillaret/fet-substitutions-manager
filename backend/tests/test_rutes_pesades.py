@@ -11,7 +11,7 @@ import pytest
 
 from pdf import informes
 from pdf import router as pdf
-from routes import scheduler
+from planificador import router as scheduler
 
 RUTES_PESADES = [
     (pdf, "get_pdf_preferences"),  # (llegeixen la BD amb la sessió síncrona)
@@ -26,7 +26,6 @@ RUTES_PESADES = [
     (informes, "llista_professors"),
     (scheduler, "scheduler_generate"),
     (scheduler, "scheduler_analisi"),
-    (scheduler, "scheduler_analisi_pdf"),
     (scheduler, "recalcular_cost"),
 ]
 

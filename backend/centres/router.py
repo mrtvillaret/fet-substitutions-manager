@@ -1,12 +1,12 @@
 """
 Rutes dels centres (institucions): només HTTP; la lògica, a services.py.
 Llistar-los (admins: només el seu) i, només el superadmin, crear-los,
-canviar-ne el nom visible, activar-los o desactivar-los i esborrar-los. Les
+canviar-ne el nom visible, activar-los o desactivar-los (l'esborrat definitiu,
+només des del servidor: scripts/esborra_centre.py). Les
 URL de sempre, /api/settings/institucions.
 """
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
 from auth.dependencies import require_admin, require_super_admin
 from centres import services
@@ -21,7 +21,6 @@ from centres.schemas import (
     InstitucioUpdate,
     NomVisibleResponse,
 )
-from database import get_auth_db
 
 router = APIRouter(prefix="/api/settings", tags=["Configuració General"])
 
@@ -66,14 +65,10 @@ def update_institucio_status(
 
 
 @router.delete("/institucions/{slug}", response_model=CentreEsborratResponse, response_model_exclude_unset=True)
-def delete_institucio(
-    slug: str,
-    payload: InstitucioDelete,
-    current_user=Depends(require_super_admin),
-    auth_db: Session = Depends(get_auth_db),
-):
+def delete_institucio(slug: str, payload: InstitucioDelete, current_user=Depends(require_super_admin)):
     """
-    Desactiva o elimina una institució amb confirmació forta
+    Desactiva una institució amb confirmació forta (l'esborrat definitiu es fa
+    des del servidor: scripts/esborra_centre.py)
     """
-    mode = services.esborra(auth_db, slug, payload.mode, payload.confirm)
+    mode = services.esborra(slug, payload.mode, payload.confirm)
     return {"success": True, "slug": slug, "mode": mode}

@@ -28,6 +28,16 @@ from errors_domini import Conflicte, ErrorDeDomini, NoPermes, NoTrobat, NoValid
 logger = logging.getLogger("uvicorn.error")
 
 
+def registra_excepcio(missatge: str) -> str:
+    """Desa al registre l'excepció que s'està tractant (amb la traça) i una
+    referència curta, i retorna la referència: per als errors interns que no
+    aturen l'operació (la resposta en dona un missatge genèric amb la
+    referència). Es crida des d'un `except`."""
+    ref = uuid.uuid4().hex[:8]
+    logger.exception("%s [ref %s]", missatge, ref)
+    return ref
+
+
 def _resposta_error_intern(status_code: int, request: Request, detall) -> JSONResponse:
     ref = uuid.uuid4().hex[:8]
     logger.error("Error %s [ref %s] %s %s: %s", status_code, ref, request.method, request.url.path, detall)

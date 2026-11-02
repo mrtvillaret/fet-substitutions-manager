@@ -202,6 +202,13 @@ class MasterConfigRepository:
         return [g.codi for g in grups]
 
     @staticmethod
+    def grups_actius_del_nivell(db: Session, nivell_codi: str) -> List[str]:
+        nivell = db.query(Nivell).filter(Nivell.codi == nivell_codi).first()
+        if not nivell:
+            return []
+        return [g.codi for g in db.query(Grup).filter(Grup.nivell_id == nivell.id, Grup.actiu.is_(True)).all()]
+
+    @staticmethod
     def add_grup(db: Session, nivell_codi: str, codi: str) -> bool:
         """Afegeix un grup a un nivell"""
         nivell = db.query(Nivell).filter(Nivell.codi == nivell_codi).first()

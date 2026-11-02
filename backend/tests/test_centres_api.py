@@ -2,6 +2,7 @@
 Centres (/api/settings/institucions): els gestiona el superadmin.
 """
 
+import shutil
 import uuid
 
 import pytest
@@ -44,6 +45,22 @@ def test_un_nom_de_centre_no_valid_dona_400_i_no_crea_res(nom):
     assert resposta.status_code == 400, resposta.text
     assert resposta.json() == {"detail": "Nom de centre no vàlid"}
     assert sorted(DATA_BASE_DIR.iterdir()) == abans
+
+
+def test_un_nom_de_centre_de_mes_de_64_caracters_dona_400_i_no_crea_res():
+    # Abans: 500 (el sistema de fitxers no accepta noms tan llargs)
+    superadmin = _superadmin()
+    abans = sorted(DATA_BASE_DIR.iterdir())
+
+    for nom in ("a" * 65, "a" * 300):
+        resposta = superadmin.post(URL, json={"nom": nom})
+        assert resposta.status_code == 400, resposta.text
+        assert resposta.json() == {"detail": "El nom del centre pot tenir com a molt 64 caràcters"}
+    assert sorted(DATA_BASE_DIR.iterdir()) == abans
+
+    nom = f"c{uuid.uuid4().hex}".ljust(64, "x")
+    assert superadmin.post(URL, json={"nom": nom}).status_code == 200
+    assert (DATA_BASE_DIR / nom / "gestor.db").exists()
 
 
 def test_es_pot_canviar_el_nom_visible_d_un_centre_desactivat():
@@ -93,3 +110,73 @@ def test_desactivar_un_centre_no_desactiva_els_usuaris_pero_no_hi_poden_entrar()
 
     assert ja_dins.get("/api/users/profile").status_code == 200
     assert entra(client_per(APP), admin).get(URL).status_code == 200
+
+
+def test_el_superadmin_continua_treballant_en_un_centre_desactivat():
+    # Abans: 403 a tot (també reactivar-lo, canviar de centre o tornar a
+    # entrar), tot i que a l'entrada el superadmin sí que hi entra.
+    nom = f"super_{uuid.uuid4().hex[:8]}"
+    centre, altre = nova_institucio(), nova_institucio()
+    crea_usuari(nom, centre, "super_admin")
+    superadmin = entra(client_per(APP), nom)
+
+    assert superadmin.put(f"{URL}/{centre}/status", json={"active": False}).status_code == 200
+
+    assert superadmin.get("/api/users/profile").status_code == 200
+    assert superadmin.get(URL).json()["actual"] == centre
+    assert entra(client_per(APP), nom).get(URL).status_code == 200  # també en tornar a entrar
+    assert superadmin.put(f"{URL}/{centre}/status", json={"active": True}).status_code == 200
+    assert config.is_institucio_activa(centre)
+    config.set_institucio_activa(centre, False)
+    assert superadmin.post("/api/users/profile/institucio", json={"institucio": altre}).status_code == 200
+
+
+def _esborra_carpeta(centre):
+    """Com l'esborrat definitiu des del servidor: la carpeta ja no hi és."""
+    shutil.rmtree(DATA_BASE_DIR / centre)
+
+
+CENTRE_INEXISTENT = {"detail": "El centre d'aquesta sessió ja no existeix: torna a entrar o canvia de centre"}
+
+
+def test_superadmin_amb_la_sessio_en_un_centre_que_ja_no_existeix_pot_sortir_i_canviar_de_centre():
+    # Abans: 500 a tot fins que canviava de centre
+    nom = f"super_{uuid.uuid4().hex[:8]}"
+    propi, esborrat = nova_institucio(), nova_institucio()
+    crea_usuari(nom, propi, "super_admin")
+    superadmin = entra(client_per(APP), nom)
+    assert superadmin.post("/api/users/profile/institucio", json={"institucio": esborrat}).status_code == 200
+    _esborra_carpeta(esborrat)
+
+    for metode, url in [("GET", "/api/users/profile"), ("GET", URL), ("PUT", f"{URL}/{propi}/status")]:
+        resposta = superadmin.request(metode, url, json={"active": True})
+        assert resposta.status_code == 409, (url, resposta.text)
+        assert resposta.json() == CENTRE_INEXISTENT
+    assert not (DATA_BASE_DIR / esborrat).exists()  # no es torna a crear
+
+    assert superadmin.post("/api/users/profile/institucio", json={"institucio": propi}).status_code == 200
+    assert superadmin.get(URL).json()["actual"] == propi
+    assert not (DATA_BASE_DIR / esborrat).exists()
+
+
+def test_amb_la_sessio_en_un_centre_que_ja_no_existeix_es_pot_sortir():
+    nom = f"user_{uuid.uuid4().hex[:8]}"
+    centre = nova_institucio()
+    crea_usuari(nom, centre, "user")
+    usuari = entra(client_per(APP), nom)
+    _esborra_carpeta(centre)
+    try:
+        resposta = usuari.get("/api/users/profile")
+        assert resposta.status_code == 409, resposta.text
+        assert resposta.json() == CENTRE_INEXISTENT
+        # canviar de centre és només del superadmin
+        assert usuari.post("/api/users/profile/institucio", json={"institucio": centre}).status_code == 403
+        assert usuari.post("/api/logout").status_code == 200
+        assert usuari.get("/api/users/profile").status_code == 401
+        assert not (DATA_BASE_DIR / centre).exists()
+    finally:
+        # L'esborrat definitiu també n'esborra els usuaris: que no en quedi cap
+        # d'un centre sense carpeta per als altres tests
+        with AuthSessionLocal() as db:
+            UserRepository.delete(db, UserRepository.get_by_username(db, nom))
+            db.commit()

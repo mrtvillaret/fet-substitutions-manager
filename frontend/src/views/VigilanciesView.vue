@@ -140,6 +140,18 @@
       </div>
     </div>
 
+    <!-- Sense nivells configurats (abans, una llista fixa): es creen a la configuració d'exàmens -->
+    <Message v-if="configCarregada && !nivells.length" severity="info" :closable="false" class="sense-nivells">
+      <span>{{ $t('vigilancies.noLevels') }}</span>
+      <Button
+        :label="$t('vigilancies.withoutOwner.openConfig')"
+        icon="pi pi-cog"
+        size="small"
+        text
+        @click="obreConfiguracioExamens"
+      />
+    </Message>
+
     <!-- Titulars que no s'han posat perquè tenien l'hora lliure: ho decideix qui fa les vigilàncies -->
     <Message
       v-if="!loading && !error && titularsHoraLliure.length"
@@ -312,7 +324,7 @@
           icon="pi pi-file-pdf"
           @click="generarPDF"
           class="p-button-success"
-          :disabled="!pdfConfig.nivells || pdfConfig.nivells.length === 0"
+          :disabled="nivells.length > 0 && !pdfConfig.nivells?.length"
           :loading="generantPDF"
         />
       </template>
@@ -377,7 +389,7 @@
           icon="pi pi-file-pdf"
           @click="generarPDFInterval"
           class="p-button-success"
-          :disabled="!intervalConfig.dataInici || !intervalConfig.dataFinal || !intervalConfig.nivells || intervalConfig.nivells.length === 0"
+          :disabled="!intervalConfig.dataInici || !intervalConfig.dataFinal || (nivells.length > 0 && !intervalConfig.nivells?.length)"
           :loading="generantPDFInterval"
         />
       </template>
@@ -500,6 +512,8 @@ const intervalConfig = ref({
 const professors = ref([])
 const hores = ref([])
 const nivells = ref([])
+// Sense cap nivell configurat, els PDF surten amb totes les vigilàncies (cap nivell triat = tots)
+const configCarregada = ref(false)
 const aules = ref([])
 const grupsPerNivell = ref({})
 const tipusExamens = ref([])
@@ -860,6 +874,7 @@ const carregarConfig = async () => {
     grupsPerNivell.value = response.data.grups_per_nivell
     tipusExamens.value = response.data.tipus_examens
     tipusPerNivell.value = response.data.tipus_per_nivell || {}
+    configCarregada.value = true
   } catch (err) {
     console.error('Error carregant configuració:', err)
   }
@@ -1590,7 +1605,7 @@ const generarPDFInterval = async () => {
     return
   }
 
-  if (!intervalConfig.value.nivells || intervalConfig.value.nivells.length === 0) {
+  if (nivells.value.length > 0 && !intervalConfig.value.nivells?.length) {
     toast.add({
       severity: 'warn',
       summary: t('vigilancies.errors.levelsRequiredTitle'),

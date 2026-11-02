@@ -41,9 +41,9 @@ from horari.router import router as horari_router
 from horari.router import router_admin as horari_admin_router
 from pdf import informes as informes_pdf
 from pdf.router import router as pdf_router
+from planificador.router import router as planificador_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limit_superat, limiter
-from routes import scheduler
 from substitucions.router import router as substitucions_router
 from usuaris.router import router as usuaris_router
 from vigilancies.router import router as vigilancies_router
@@ -175,7 +175,7 @@ app.include_router(prioritats_router, dependencies=[Depends(require_admin)])
 app.include_router(absencia_coberta_router, dependencies=[Depends(require_admin)])
 app.include_router(horari_router, dependencies=[Depends(get_current_user)])
 app.include_router(usuaris_router, dependencies=[Depends(get_current_user)])
-app.include_router(scheduler.router, dependencies=[Depends(require_admin)])
+app.include_router(planificador_router, dependencies=[Depends(require_admin)])
 app.include_router(informes_pdf.router, dependencies=[Depends(require_admin)])
 app.include_router(cursos_router, dependencies=[Depends(get_current_user)])
 app.include_router(dades_router, dependencies=[Depends(require_admin)])

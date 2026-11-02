@@ -231,6 +231,20 @@ class VigilanciaRepository:
         return [v.vigilant for v in vigilancies]
 
     @staticmethod
+    def dates_entre(db: Session, inici: str, final: str) -> set:
+        """Les dates (date) entre `inici` i `final`, incloses, que tenen alguna vigilància."""
+        files = db.query(Vigilancia.data).filter(
+            Vigilancia.data >= parse_date(inici), Vigilancia.data <= parse_date(final)
+        )
+        return {d for (d,) in files.distinct()}
+
+    @staticmethod
+    def grups_usats(db: Session) -> set:
+        """Els grups (tal com estan desats, p. ex. «1-BAT-A,1-BAT-B») de totes les vigilàncies."""
+        files = db.query(Vigilancia.grups).filter(Vigilancia.grups.isnot(None), Vigilancia.grups != "")
+        return {g for (g,) in files.distinct()}
+
+    @staticmethod
     def get_unique_tipus(db: Session) -> List[str]:
         """Retorna tots els tipus d'examen únics de totes les vigilàncies"""
         result = db.query(Vigilancia.tipus).distinct().all()
@@ -266,3 +280,31 @@ class VigilanciaRepository:
     @staticmethod
     def del_dia(db: Session, data: str) -> List[Vigilancia]:
         return db.query(Vigilancia).filter(Vigilancia.data == parse_date(data)).all()
+
+    @staticmethod
+    def hores_del_dia(db: Session, data: str) -> List[str]:
+        """Les hores que tenen alguna vigilància aquell dia."""
+        return [hora for (hora,) in db.query(Vigilancia.hora).filter(Vigilancia.data == parse_date(data)).distinct()]
+
+    @staticmethod
+    def esborra_del_dia(db: Session, data: str) -> int:
+        return db.query(Vigilancia).filter(Vigilancia.data == parse_date(data)).delete(synchronize_session=False)
+
+    @staticmethod
+    def del_dia_dels_nivells(db: Session, data: str, nivells) -> List[Vigilancia]:
+        """Les vigilàncies del dia d'aquests nivells (cap, sense nivells)."""
+        filtre = Vigilancia.nivell.in_(list(nivells)) if nivells else False
+        return db.query(Vigilancia).filter(Vigilancia.data == parse_date(data), filtre).all()
+
+    @staticmethod
+    def afegeix(db: Session, **camps) -> None:
+        """Una vigilància nova tal com ve (l'ordre el posa qui crida)."""
+        db.add(Vigilancia(**camps))
+
+    @staticmethod
+    def esborra(db: Session, vigilancia: Vigilancia) -> None:
+        db.delete(vigilancia)
+
+    @staticmethod
+    def per_id(db: Session, vig_id: int) -> Optional[Vigilancia]:
+        return db.query(Vigilancia).filter(Vigilancia.id == vig_id).first()

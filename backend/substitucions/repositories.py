@@ -93,6 +93,20 @@ class SubstitucioRepository:
         ]
 
     @staticmethod
+    def dates_entre(db: Session, inici: str, final: str) -> set:
+        """Les dates (date) entre `inici` i `final`, incloses, que tenen alguna fila."""
+        files = db.query(Substitucio.data).filter(
+            Substitucio.data >= parse_date(inici), Substitucio.data <= parse_date(final)
+        )
+        return {d for (d,) in files.distinct()}
+
+    @staticmethod
+    def grups_usats(db: Session) -> set:
+        """Els grups (tal com estan desats) de totes les files de l'historial."""
+        files = db.query(Substitucio.grup).filter(Substitucio.grup.isnot(None), Substitucio.grup != "")
+        return {g for (g,) in files.distinct()}
+
+    @staticmethod
     def get_by_date_hour_and_type(db: Session, data: str, hora: str, tipus_absencia: str) -> List[Substitucio]:
         """Retorna les files d'una data i hora amb el tipus indicat."""
         return (
@@ -172,3 +186,10 @@ class SubstitucioRepository:
         db.delete(sub)
         db.flush()
         return True
+
+    @staticmethod
+    def esborra_vigilancies_del_dia(db: Session, data: str) -> None:
+        """Les files de vigilant absent (tipus VIGILANCIA) d'un dia."""
+        db.query(Substitucio).filter(
+            Substitucio.data == parse_date(data), Substitucio.tipus_absencia == "VIGILANCIA"
+        ).delete(synchronize_session=False)

@@ -184,9 +184,9 @@ def test_si_no_es_viable_diu_quina_restriccio_ho_impedeix(dos_nivells, motor):
     assert "Filosofia" in del_motor and "no poden coincidir" not in del_motor
 
 
-def test_si_el_diagnostic_no_hi_veu_res_surt_el_missatge_del_motor(un_nivell):
-    # El límit d'exàmens per professor no el comprova el diagnòstic
-    restr = un_nivell.get("/api/scheduler/restriccions").json()["restriccions"]
+def _amb_limit_de_prof_48(client):
+    """No viable per una regla que el diagnòstic no comprova: el motor el diu."""
+    restr = client.get("/api/scheduler/restriccions").json()["restriccions"]
     restr["restriccions_dures"]["professors_limit_dies_especifics"] = {
         "Prof 48": {
             "assignatures": ["Filosofia (1-BAT)"],
@@ -195,10 +195,46 @@ def test_si_el_diagnostic_no_hi_veu_res_surt_el_missatge_del_motor(un_nivell):
             "pes_penalitzacio": 100,
         }
     }
-    un_nivell.put("/api/scheduler/restriccions", json={"restriccions": restr})
+    client.put("/api/scheduler/restriccions", json={"restriccions": restr})
+
+
+def test_si_el_diagnostic_no_hi_veu_res_surt_el_missatge_del_motor(un_nivell):
+    # El límit d'exàmens per professor no el comprova el diagnòstic
+    _amb_limit_de_prof_48(un_nivell)
     horari = _genera(un_nivell)
     assert horari["metadata"]["viable"] is False
     assert horari["metadata"]["incompatibilitats"] == ["Cap slot per a 'Filosofia (1-BAT)' — Límit exàmens professor"]
+
+
+def test_si_no_es_pot_preparar_l_explicacio_la_resposta_ho_diu(un_nivell, monkeypatch, caplog):
+    from scheduler_engine.core import diagnostic
+
+    def falla(*_args, **_kwargs):
+        raise RuntimeError("detall intern del diagnòstic")
+
+    monkeypatch.setattr(diagnostic.InfeasibilityDiagnostic, "run", falla)
+    _amb_limit_de_prof_48(un_nivell)
+    meta = _genera(un_nivell)["metadata"]
+    assert meta["viable"] is False
+    # La generació no falla: diu que no s'ha pogut preparar l'explicació
+    # (amb la referència del registre) i conserva el que n'ha dit el motor
+    assert re.fullmatch(r"[0-9a-f]{8}", meta["explicacio_no_disponible"]["ref"])
+    assert meta["incompatibilitats"] == ["Cap slot per a 'Filosofia (1-BAT)' — Límit exàmens professor"]
+    assert "detall intern del diagnòstic" in caplog.text
+    assert "detall intern" not in str(meta)
+
+
+def test_si_falla_la_comprovacio_previa_es_genera_igualment(un_nivell, monkeypatch, caplog):
+    from planificador import generacio
+
+    def falla(*_args, **_kwargs):
+        raise RuntimeError("detall intern de la comprovació")
+
+    monkeypatch.setattr(generacio, "_precheck_incompatibilitats_deterministes", falla)
+    meta = _genera(un_nivell)["metadata"]
+    assert meta.get("viable", True)
+    assert "explicacio_no_disponible" not in meta
+    assert "detall intern de la comprovació" in caplog.text
 
 
 def test_sense_horari_xml_no_es_pot_generar():

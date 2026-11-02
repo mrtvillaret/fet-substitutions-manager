@@ -150,3 +150,37 @@ def test_una_contrasenya_de_recuperacio_curta_no_arrenca(tmp_path):
     _arrenca(tmp_path, INICIALS)
     sortida, _ = _arrenca(tmp_path, {"ADMIN_PASSWORD_RECUPERACIO": "curta"})
     assert sortida.returncode != 0 and "ADMIN_PASSWORD_RECUPERACIO" in sortida.stderr
+
+
+# ------------------------------------------------------------ els centres dels usuaris inicials
+
+AVIS_SENSE_CENTRE = "Usuaris actius de centres que no existeixen"
+
+
+def test_una_instal_lacio_nova_crea_el_centre_dels_usuaris_inicials(tmp_path):
+    # Abans no es creava fins a la primera petició; ara cap centre no es crea
+    # sol (una sessió d'un centre que no existeix rep un 409)
+    sortida, _ = _arrenca(tmp_path, {**INICIALS, "ADMIN_INSTITUCIO": "centre_nou"})
+    assert sortida.returncode == 0, sortida.stderr
+    assert (tmp_path / "centre_nou" / "gestor.db").is_file()  # el del superadmin
+    assert (tmp_path / "exemple" / "gestor.db").is_file()  # el d'admin_centre1
+    assert AVIS_SENSE_CENTRE not in sortida.stderr
+
+
+def test_en_arrencar_avisa_dels_usuaris_actius_de_centres_que_no_existeixen(tmp_path):
+    _arrenca(tmp_path, {**INICIALS, "ADMIN_INSTITUCIO": "centre_nou"})
+    sense_centre = (
+        "import shutil, pathlib, os\n"
+        "shutil.rmtree(pathlib.Path(os.environ['DATA_DIR']) / 'centre_nou')\n"
+        "shutil.rmtree(pathlib.Path(os.environ['DATA_DIR']) / 'exemple')"
+    )
+    sortida, _ = _arrenca(tmp_path, abans=[sense_centre])
+    assert sortida.returncode == 0, sortida.stderr
+    # Només nombres: ni noms d'usuari ni de centre
+    assert f"{AVIS_SENSE_CENTRE}: 2 usuaris, 2 centres" in sortida.stderr
+    assert "super_admin" not in sortida.stderr and "centre_nou" not in sortida.stderr
+
+    # Els usuaris inactius no compten
+    sortida, _ = _arrenca(tmp_path, abans=[_ESBORRA_SUPERADMIN, _DESACTIVA])
+    assert sortida.returncode == 0, sortida.stderr
+    assert AVIS_SENSE_CENTRE not in sortida.stderr

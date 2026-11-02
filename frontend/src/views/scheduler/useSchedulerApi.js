@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { costosDesats } from './costos'
 
 const parseAlliberamentsPerNivell = (raw) => {
   const parsed = {}
@@ -65,7 +66,6 @@ export const useSchedulerApi = ({
   analisiLoading,
   analisiResult,
   result,
-  status,
   config,
   configReady,
   motorsMetadata,
@@ -86,6 +86,7 @@ export const useSchedulerApi = ({
   intentsLog,
   incompatibilitats,
   incompatErrorMsg,
+  explicacioNoDisponible,
   mostrarDialogIncompat,
   mostrarDialogIntents,
   pasActiu,
@@ -128,17 +129,15 @@ export const useSchedulerApi = ({
     try {
       const { data: horari } = await axios.get('/api/scheduler/horari')
       horariPlanificacio.value = horari
-      const [st, cfg, dt, re, act, mt, cp] = await Promise.all([
-        axios.get('/api/scheduler/status'),
+      const [cfg, dt, re, act, mt, cp] = await Promise.all([
         axios.get('/api/scheduler/config'),
         axios.get('/api/scheduler/dates'),
         axios.get('/api/scheduler/restriccions'),
         axios.get('/api/scheduler/assignatures-actives'),
         axios.get('/api/scheduler/motors').catch(() => ({ data: { motors: [] } })),
-        axios.get('/api/scheduler/costos-professors').catch(() => ({ data: { globals: {}, individuals: {} } })),
+        axios.get('/api/scheduler/costos-professors').catch(() => ({ data: null })),
       ])
 
-      status.value = st.data
       config.value = cfg.data
 
       if (mt.data?.motors?.length) {
@@ -174,14 +173,7 @@ export const useSchedulerApi = ({
         pesos.value = { ...pesos.value, ...filtrats }
       }
 
-      if (cp?.data) {
-        const globals = cp.data?.globals || {}
-        const individuals = cp.data?.individuals || {}
-        costosProfessors.value = {
-          globals: { ...costosProfessors.value.globals, ...globals },
-          individuals: { ...individuals }
-        }
-      }
+      if (cp?.data) costosProfessors.value = costosDesats(cp.data, costosProfessors.value)
 
       configReady.value = true
     } catch {
@@ -248,6 +240,7 @@ export const useSchedulerApi = ({
         const errorMsg = meta?.error || t('scheduler.dialogs.incompatibilities.defaultMessage')
         incompatibilitats.value = meta?.incompatibilitats || []
         incompatErrorMsg.value = errorMsg
+        explicacioNoDisponible.value = meta?.explicacio_no_disponible?.ref || null
         mostrarDialogIncompat.value = true
         if (!incompatibilitats.value.length) {
           const slots = meta?.slots_disponibles || '?'

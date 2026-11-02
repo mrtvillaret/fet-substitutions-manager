@@ -17,6 +17,14 @@ class PDFPreferencesResponse(BaseModel):
     vigilancies_interval: dict[str, Any] | None = None
 
 
+class DesatResponse(BaseModel):
+    success: bool
+
+
+class ProfessorsLlistaResponse(BaseModel):
+    professors: list[str]
+
+
 class ValidacionsPdfResponse(BaseModel):
     conflicts: list[str]
     warnings: list[str]

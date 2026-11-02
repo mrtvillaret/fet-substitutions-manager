@@ -16,6 +16,8 @@ from database import get_auth_db
 
 log = logging.getLogger(__name__)
 
+CENTRE_INEXISTENT = "El centre d'aquesta sessió ja no existeix: torna a entrar o canvia de centre"
+
 
 def _prepara_institucio(institucio: str) -> str:
     """Deixa a punt la institució de la petició en curs: traduccions del seu
@@ -46,7 +48,9 @@ def _prepara_institucio(institucio: str) -> str:
     return idioma
 
 
-def _valida_usuari(request: Request, db: Session) -> UsuariActual:
+def _valida_usuari(request: Request, db: Session, amb_centre: bool = True) -> UsuariActual:
+    """L'usuari de la sessió. Amb `amb_centre`, també comprova que el centre
+    de la sessió existeix i és actiu (per al superadmin, només que existeix)."""
     # security.COOKIE_NAME (i no una còpia importada): el nom de la galeta es
     # llegeix d'un sol lloc, el mateix que fa servir set_auth_cookie
     token = request.cookies.get(security.COOKIE_NAME)
@@ -87,8 +91,14 @@ def _valida_usuari(request: Request, db: Session) -> UsuariActual:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid")
         institucio_activa = user.institucio
 
-    if not config.is_institucio_activa(institucio_activa):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Institució inactiva")
+    if amb_centre:
+        # Esborrat des del servidor amb la sessió oberta: abans, 500 a tot
+        if not config.institucio_existeix(institucio_activa):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=CENTRE_INEXISTENT)
+        # Com a l'entrada (auth.services.autentica): el superadmin hi treballa
+        # encara que el centre estigui desactivat, i el pot tornar a activar
+        if user.role != Rol.SUPER_ADMIN and not config.is_institucio_activa(institucio_activa):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Institució inactiva")
 
     return UsuariActual(
         id=user.id,
@@ -113,6 +123,13 @@ async def get_current_user(request: Request, db: Session = Depends(get_auth_db))
     return user
 
 
+def get_current_user_without_centre(request: Request, db: Session = Depends(get_auth_db)) -> UsuariActual:
+    """L'usuari de la sessió encara que el seu centre ja no existeixi o estigui
+    desactivat: només per sortir-ne (canviar de centre). No fixa la institució
+    de la petició: la ruta no ha de tocar les dades de cap centre."""
+    return _valida_usuari(request, db, amb_centre=False)
+
+
 def require_user(current_user: UsuariActual = Depends(get_current_user)) -> UsuariActual:
     return current_user
 
@@ -124,6 +141,14 @@ def require_admin(current_user: UsuariActual = Depends(get_current_user)) -> Usu
 
 
 def require_super_admin(current_user: UsuariActual = Depends(get_current_user)) -> UsuariActual:
+    if not current_user.es_super_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permisos insuficients")
+    return current_user
+
+
+def require_super_admin_without_centre(
+    current_user: UsuariActual = Depends(get_current_user_without_centre),
+) -> UsuariActual:
     if not current_user.es_super_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permisos insuficients")
     return current_user

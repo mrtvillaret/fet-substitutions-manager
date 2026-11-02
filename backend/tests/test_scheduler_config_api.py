@@ -15,6 +15,7 @@ from suport_planificador import (
 
 from database import get_data_db_session
 from helpers import invalidar_horari
+from planificador.config import carrega_config
 from rate_limit import limiter
 from repositories import ConfiguracioRepository
 
@@ -54,7 +55,22 @@ def test_nomes_els_admins_fan_servir_el_planificador(centre, metode, ruta):
     assert getattr(client, metode)(ruta, **({} if metode == "get" else {"json": {}})).status_code == 403
 
 
+def test_no_hi_ha_ruta_d_estat(client):
+    # La pantalla la cridava però no en llegia res (esborrada el 01/11/2026)
+    assert client.get("/api/scheduler/status").status_code == 404
+
+
 # ------------------------------------------------------ durades i nivells
+
+
+def test_les_durades_nomes_es_llegeixen_dels_grups_de_durada(centre, client):
+    # El format antic (una durada per examen, sense grups) ja no es llegeix:
+    # cap centre no el tenia (recompte del 01/11/2026)
+    with get_data_db_session(centre[0]) as db:
+        ConfiguracioRepository.set(db, "scheduler_durades_per_sessio", '{"Anglès (1-BAT)": 2}', tipus="json")
+    assert client.get("/api/scheduler/config").json()["durades_grups"] == []
+    cfg = carrega_config(centre[0])
+    assert (cfg.durades_per_sessio, cfg.durades_examen_per_sessio) == ({}, {})
 
 
 def test_la_configuracio_es_desa_i_es_torna(client):
@@ -62,7 +78,6 @@ def test_la_configuracio_es_desa_i_es_torna(client):
     config = client.get("/api/scheduler/config").json()
     assert config["nivells"] == ["1-BAT"]
     assert config["nivells_seleccionats"] == ["1-BAT"]
-    assert config["assignacions_total"] == 6
     assert (config["durada_titular"], config["durada_examen"]) == (1, 2)
     assert config["alliberaments_per_nivell"] == alliberaments()
 
@@ -206,22 +221,28 @@ def test_treure_les_assignatures_que_ja_no_existeixen(client):
     assert restr["restriccions"]["preferencies"]["mateix_slot"] == []
 
 
+def _fixats(client):
+    dures = client.get("/api/scheduler/restriccions").json()["restriccions"]["restriccions_dures"]
+    return dures["assignatures_dia_fix"], dures["assignatures_hora_fix"]
+
+
 def test_fixar_i_desfixar_un_examen(client):
     resp = client.post(
         "/api/scheduler/restriccions/pin", json={"pins": [{"nom": "Català (1-BAT)", "dia": "Dilluns", "hora": "11:30"}]}
     )
-    assert resp.json()["pins"] == {
-        "assignatures_dia_fix": {"Català (1-BAT)": "Dilluns"},
-        "assignatures_hora_fix": {"Català (1-BAT)": "11:30"},
-    }
+    assert resp.json() == {"success": True}
+    assert _fixats(client) == (
+        {"Català (1-BAT)": "Dilluns", "_pes_Català (1-BAT)": 100},
+        {"Català (1-BAT)": "11:30", "_pes_Català (1-BAT)": 100},
+    )
     # Tornar-lo a fixar el mou; no el duplica
-    resp = client.post(
+    client.post(
         "/api/scheduler/restriccions/pin", json={"pins": [{"nom": "Català (1-BAT)", "dia": "Dimarts", "hora": "09:00"}]}
     )
-    assert resp.json()["pins"]["assignatures_dia_fix"] == {"Català (1-BAT)": "Dimarts"}
+    assert _fixats(client)[0] == {"Català (1-BAT)": "Dimarts", "_pes_Català (1-BAT)": 100}
 
-    resp = client.post("/api/scheduler/restriccions/pin", json={"unpins": ["Català (1-BAT)"]})
-    assert resp.json()["pins"] == {"assignatures_dia_fix": {}, "assignatures_hora_fix": {}}
+    client.post("/api/scheduler/restriccions/pin", json={"unpins": ["Català (1-BAT)"]})
+    assert _fixats(client) == ({}, {})
 
 
 # ---------------------------------------------------- costos dels professors
@@ -239,14 +260,9 @@ def test_costos_globals_i_individuals(client):
         "/api/scheduler/costos-professors",
         json={"globals": {"substitucio": 50}, "individuals": {"Prof 48": {"abans_jornada": 90}}},
     )
-    client.put("/api/scheduler/costos-professors/Prof 26", json={"substitucio": 100})
     costos = client.get("/api/scheduler/costos-professors").json()["costos_professors"]
     assert costos["globals"]["substitucio"] == 50
-    assert costos["individuals"] == {"Prof 48": {"abans_jornada": 90}, "Prof 26": {"substitucio": 100}}
-
-    assert client.delete("/api/scheduler/costos-professors/Prof 48").json()["deleted"] == 1
-    costos = client.get("/api/scheduler/costos-professors").json()["costos_professors"]
-    assert costos["individuals"] == {"Prof 26": {"substitucio": 100}}
+    assert costos["individuals"] == {"Prof 48": {"abans_jornada": 90}}
 
 
 # ---------------------------------------------------------------- opcions
@@ -261,13 +277,17 @@ def test_les_sessions_son_assignatura_i_nivell(client):
     assert client.get("/api/scheduler/sessions-info", params={"nivells": "2-BAT"}).json() == []
 
 
-def test_els_grups_combinats_s_expandeixen(client):
-    client.post("/api/config/abreviatures", json={"grups_originals": "1-BAT-A,1-BAT-B", "abreviatura": "1-BAT-AB"})
-    client.post("/api/config/grups/1-BAT", json={"codi": "1-BAT-AB"})
-    grups = client.get("/api/scheduler/grups-nivells").json()
-    per_codi = {g["codi"]: g for g in grups["grups_per_nivell"]["1-BAT"]}
-    assert per_codi["1-BAT-A"] == {"codi": "1-BAT-A", "es_abreviatura": False, "grups_expandits": []}
-    assert per_codi["1-BAT-AB"]["grups_expandits"] == ["1-BAT-A", "1-BAT-B"]
+def test_no_hi_ha_ruta_de_grups_per_nivell(client):
+    # La pantalla no la feia servir (esborrada el 01/11/2026, amb els nivells
+    # GENERAL i RECERCA que s'hi amagaven escrits al codi)
+    assert client.get("/api/scheduler/grups-nivells").status_code == 404
+
+
+def test_el_planificador_no_te_codis_de_nivell_escrits_al_codi():
+    from pathlib import Path
+
+    codi = "".join(p.read_text(encoding="utf-8") for p in (Path(__file__).parents[1] / "planificador").glob("*.py"))
+    assert "GENERAL" not in codi and "RECERCA" not in codi
 
 
 # -------------------------------- configuració d'exàmens d'un curs anterior

@@ -1,6 +1,6 @@
 """
-Desactivar o esborrar una institució desactiva o esborra els seus usuaris,
-llevat del superadmin.
+Desactivar una institució (o esborrar-la en mode «soft») no en toca els
+usuaris; l'esborrat definitiu no es fa des de la web.
 """
 
 import uuid
@@ -13,7 +13,7 @@ from auth.dependencies import require_admin
 from auth.repositories import UserRepository
 from centres import router as centres
 from config.settings import config
-from database import AuthSessionLocal
+from database import DATA_BASE_DIR, AuthSessionLocal
 from rate_limit import limiter
 
 APP = crea_app()
@@ -59,10 +59,15 @@ def test_esborrar_la_institucio_suau_la_desactiva_sense_tocar_els_usuaris(escena
     assert (_usuari(noms["admin"]), _usuari(noms["user"]), _usuari(noms["super"])) == (True, True, True)
 
 
-def test_esborrar_la_institucio_del_tot_n_esborra_els_usuaris(escenari):
+def test_l_esborrat_definitiu_no_es_fa_des_de_la_web(escenari):
+    # Abans n'esborrava la carpeta i els usuaris; ara es fa des del servidor,
+    # amb còpia (scripts/esborra_centre.py, test_esborra_centre.py)
     centre, noms, client = escenari
     resp = client.request(
         "DELETE", f"/api/settings/institucions/{centre}", json={"mode": "hard", "confirm": f"ELIMINA {centre}"}
     )
-    assert resp.status_code == 200
-    assert (_usuari(noms["admin"]), _usuari(noms["user"]), _usuari(noms["super"])) == (None, None, True)
+    assert resp.status_code == 400
+    assert resp.json() == {"detail": "L'esborrat definitiu d'un centre es fa des del servidor"}
+    assert (DATA_BASE_DIR / centre / "gestor.db").is_file()
+    assert config.is_institucio_activa(centre)
+    assert (_usuari(noms["admin"]), _usuari(noms["user"]), _usuari(noms["super"])) == (True, True, True)

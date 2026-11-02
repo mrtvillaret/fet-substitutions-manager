@@ -18,16 +18,16 @@ from absencia_coberta.repositories import AbsenciaCobertaRepository
 from absencia_coberta.router import router as absencia_coberta_router
 from database import get_data_db_session
 from models import ConfiguracioExamen, Grup, GrupAlliberat, Nivell
-from rate_limit import limiter
-from repositories import ConfiguracioRepository
-from routes import scheduler
-from routes.scheduler_service import (
+from planificador import router as scheduler
+from planificador.repositories import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DURADA_EXAMEN_KEY,
     SCHEDULER_DURADA_KEY,
     SCHEDULER_DURADES_GRUPS_KEY,
     SCHEDULER_NIVELLS_KEY,
 )
+from rate_limit import limiter
+from repositories import ConfiguracioRepository
 from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 

@@ -28,6 +28,7 @@ import { buildId, extreuNivell as _extreuNivell } from './scheduler/idUtils'
 import { formatIncidentFull as formatIncidentFullRaw, formatIncidentShort as formatIncidentShortRaw } from './scheduler/incidentFormatters'
 import { useAlliberamentsPerNivell } from './scheduler/useAlliberamentsPerNivell'
 import { useSchedulerApi } from './scheduler/useSchedulerApi'
+import { parametresDelMotor } from './scheduler/motors'
 import { useSchedulerRestrictions } from './scheduler/useSchedulerRestrictions'
 import { useSchedulerResults } from './scheduler/useSchedulerResults'
 import { useSchedulerIncidencies } from './scheduler/useSchedulerIncidencies'
@@ -40,7 +41,7 @@ const { t, locale, te } = useI18n()
 const pasActiu = ref(0)
 const stepperContainerRef = ref(null)
 const loading = ref(true), generating = ref(false), savingRestr = ref(false)
-const config = ref(null), status = ref(null), selectedDates = ref([]), result = ref(null)
+const config = ref(null), selectedDates = ref([]), result = ref(null)
 const modeEdicio = ref(false)
 // Durades del titular i de l'examen
 const duradesGrups = ref([])  // [{ id, nom, assignatures, durada, durada_examen }]
@@ -94,6 +95,7 @@ const mostrarDialogIntents = ref(false)
 const mostrarDialogIncompat = ref(false)
 const incompatibilitats = ref([])
 const incompatErrorMsg = ref('')
+const explicacioNoDisponible = ref(null) // referència de l'error si no s'ha pogut preparar l'explicació
 const intentsLog = ref([])
 const llistaAssignatures = ref([]), llistaProfessors = ref([]), llistaGrups = ref([]), llistaSessions = ref([]), llistaHoresDisponibles = ref([]), genConfigHoresArray = ref([])
 
@@ -177,10 +179,7 @@ const advancedParams = computed(() => {
 // Aplica defaults del motor seleccionat al genConfig
 const aplicarDefaultsMotor = (motorId) => {
   const meta = motorsMetadata.value.find(m => m.id === motorId)
-  if (!meta?.params) return
-  for (const [key, val] of Object.entries(meta.params)) {
-    genConfig.value[key] = val
-  }
+  Object.assign(genConfig.value, parametresDelMotor(meta))
 }
 
 // Quan canvia el motor, actualitza els params amb els defaults nous
@@ -697,7 +696,6 @@ const {
   analisiLoading,
   analisiResult,
   result,
-  status,
   config,
   configReady,
   motorsMetadata,
@@ -718,6 +716,7 @@ const {
   intentsLog,
   incompatibilitats,
   incompatErrorMsg,
+  explicacioNoDisponible,
   mostrarDialogIncompat,
   mostrarDialogIntents,
   pasActiu,

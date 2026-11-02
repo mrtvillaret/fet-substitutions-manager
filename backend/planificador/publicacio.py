@@ -13,10 +13,17 @@ opcionalment, els titulars com a vigilants.
 import logging
 from dataclasses import dataclass, field
 
-from models import Grup, GrupAlliberat, Nivell, Substitucio, Vigilancia
+from configuracio_examens.repositories import MasterConfigRepository
+from database import get_data_db_session
+from errors_domini import NoValid
+from errors_servidor import registra_excepcio
+from grups.repositories import GrupsAlliberatsRepository
+from planificador.config import carrega_config
+from planificador.services import cursos_anteriors
 from repositories import parse_date
 from scheduler_engine.core.constraints import detectar_nivell_grup
 from serveis.dia import Dia
+from substitucions.repositories import SubstitucioRepository
 from utils.hores import normalitzar_hora
 from vigilancies.assignacio import titulars_de
 from vigilancies.repositories import VigilanciaRepository
@@ -30,6 +37,13 @@ from vigilancies.services import (
 )
 
 log = logging.getLogger(__name__)
+
+
+def error_intern(missatge: str) -> str:
+    """Un error intern durant la publicació: el detall (amb la traça) va al
+    registre amb una referència; la resposta només en porta el missatge i la
+    referència. Es crida des d'un `except`."""
+    return f"{missatge} (error intern, ref {registra_excepcio(missatge)})"
 
 
 def data_del_dia(dia_info: dict, setmanes: list) -> str | None:
@@ -74,7 +88,7 @@ class ResumPublicacio:
 
 class PublicacioExamens:
     def __init__(self, db, cfg, totes_hores: list, grups_sense_classe: list, netejar_existents: bool):
-        """`cfg`: la configuració del planificador (routes.scheduler_config.ConfigPlanificador)."""
+        """`cfg`: la configuració del planificador (planificador.config.ConfigPlanificador)."""
         self.db = db
         self.cfg = cfg
         self.alliberaments = cfg.alliberaments if isinstance(cfg.alliberaments, dict) else {}
@@ -92,7 +106,7 @@ class PublicacioExamens:
     def publica_dia(self, dia_info: dict, data_iso: str) -> None:
         data = parse_date(data_iso)
         if self.netejar_existents:
-            self._esborra_el_dia(data, data_iso)
+            self._esborra_el_dia(data_iso)
         nivells_dia = {
             s["curs"]
             for slot in dia_info.get("sessions", [])
@@ -109,19 +123,17 @@ class PublicacioExamens:
             completa_ordre(vigs)
         else:
             ordena_automaticament(vigs)
-        self._allibera_grups(data, data_iso)
+        self._allibera_grups(data_iso)
         self.db.flush()
 
-    def _esborra_el_dia(self, data, data_iso: str) -> None:
+    def _esborra_el_dia(self, data_iso: str) -> None:
         """Mode forçat (opció d'emergència): esborra tot el dia i es recrea."""
         db = self.db
-        for (hora,) in db.query(Vigilancia.hora).filter(Vigilancia.data == data).distinct():
+        for hora in VigilanciaRepository.hores_del_dia(db, data_iso):
             self.resum.hores_esborrades.add((data_iso, hora))
-        self.resum.eliminades += db.query(Vigilancia).filter(Vigilancia.data == data).delete(synchronize_session=False)
-        db.query(GrupAlliberat).filter(GrupAlliberat.data == data).delete(synchronize_session=False)
-        db.query(Substitucio).filter(Substitucio.data == data, Substitucio.tipus_absencia == "VIGILANCIA").delete(
-            synchronize_session=False
-        )
+        self.resum.eliminades += VigilanciaRepository.esborra_del_dia(db, data_iso)
+        GrupsAlliberatsRepository.esborra_del_dia(db, data_iso)
+        SubstitucioRepository.esborra_vigilancies_del_dia(db, data_iso)
         db.flush()
 
     def _hores_seguents(self, hora_inici: str, durada: int) -> list:
@@ -139,9 +151,7 @@ class PublicacioExamens:
         db = self.db
         existents = {
             (v.hora, v.nivell or "", v.grups or "", v.aula or ""): v
-            for v in db.query(Vigilancia)
-            .filter(Vigilancia.data == data, Vigilancia.nivell.in_(list(nivells_dia)) if nivells_dia else False)
-            .all()
+            for v in VigilanciaRepository.del_dia_dels_nivells(db, data_iso, nivells_dia)
         }
         noves = set()
         for slot in dia_info.get("sessions", []):
@@ -161,17 +171,16 @@ class PublicacioExamens:
                         self._publicades.add((data_iso, *clau))
                         noves.add(clau)
                         if clau not in existents:
-                            db.add(
-                                Vigilancia(
-                                    data=data,
-                                    hora=hora,
-                                    tipus=tipus,
-                                    grups=grup,
-                                    aula=aula,
-                                    vigilant=None,
-                                    comentaris="",
-                                    nivell=curs,
-                                )
+                            VigilanciaRepository.afegeix(
+                                db,
+                                data=data,
+                                hora=hora,
+                                tipus=tipus,
+                                grups=grup,
+                                aula=aula,
+                                vigilant=None,
+                                comentaris="",
+                                nivell=curs,
                             )
                             self.resum.creades += 1
                         elif (existents[clau].tipus or "") != tipus:
@@ -182,7 +191,7 @@ class PublicacioExamens:
         for clau, v in existents.items():
             if clau not in noves:
                 self.resum.hores_esborrades.add((data_iso, v.hora))
-                db.delete(v)
+                VigilanciaRepository.esborra(db, v)
                 self.resum.eliminades += 1
 
     def _nivells_marcats(self, data_iso: str) -> list:
@@ -196,7 +205,7 @@ class PublicacioExamens:
             )
         ]
 
-    def _allibera_grups(self, data, data_iso: str) -> None:
+    def _allibera_grups(self, data_iso: str) -> None:
         """Els grups dels nivells seleccionats queden sense classe a les hores
         marcades d'aquell dia, tinguin examen o no (sense repetir els que ja hi són)."""
         db = self.db
@@ -204,24 +213,16 @@ class PublicacioExamens:
         grups = (
             [g for g in self.grups_sense_classe if self._nivell_del_grup(g) in marcats]
             if self.grups_sense_classe
-            else [
-                g.codi
-                for niv in marcats
-                for nivell_obj in [db.query(Nivell).filter(Nivell.codi == niv).first()]
-                if nivell_obj
-                for g in db.query(Grup).filter(Grup.nivell_id == nivell_obj.id, Grup.actiu == True).all()  # noqa: E712
-            ]
+            else [g for niv in marcats for g in MasterConfigRepository.grups_actius_del_nivell(db, niv)]
         )
-        existents = {
-            (ga.hora, ga.grups or "") for ga in db.query(GrupAlliberat).filter(GrupAlliberat.data == data).all()
-        }
+        existents = {(ga.hora, ga.grups or "") for ga in GrupsAlliberatsRepository.files_del_dia(db, data_iso)}
         for grup in grups:
             nivell = self._nivell_del_grup(grup)
             if not nivell:
                 continue
             for hora in self._hores_alliberades(nivell, data_iso):
                 if (hora, grup) not in existents:
-                    db.add(GrupAlliberat(data=data, hora=hora, grups=grup))
+                    GrupsAlliberatsRepository.afegeix(db, data_iso, hora, grup)
                     self.resum.grups_alliberats += 1
 
     def _nivell_del_grup(self, grup: str) -> str | None:
@@ -231,12 +232,8 @@ class PublicacioExamens:
         for nivell in self.nivells:
             if nivell and nivell in grup:
                 return nivell
-        try:
-            nivell = detectar_nivell_grup(grup, self.nivells)
-            return None if nivell == "altres" else nivell
-        except Exception:
-            log.warning("No s'ha pogut detectar el nivell d'un grup", exc_info=True)
-            return None
+        nivell = detectar_nivell_grup(grup, self.nivells)
+        return None if nivell == "altres" else nivell
 
     def _hores_alliberades(self, nivell: str, data_iso: str) -> list:
         """Les hores sense classe (marca «a») d'un nivell aquell dia, en l'ordre de l'horari."""
@@ -307,9 +304,86 @@ class PublicacioExamens:
                 for vig_id, professor in calcul["vigilants"].items():
                     if vig_id not in publicades or professor not in calcul["titulars"].get(vig_id, ()):
                         continue
-                    vig = db.query(Vigilancia).filter(Vigilancia.id == int(vig_id)).first()
+                    vig = VigilanciaRepository.per_id(db, int(vig_id))
                     if vig and not vig.vigilant:
                         vig.vigilant = professor
                         self.resum.titulars += 1
-            except Exception as e:
-                self.resum.errors.append(f"Auto-assignació {data_iso}: {str(e)}")
+            except Exception:
+                self.resum.errors.append(error_intern(f"{data_iso}: no s'han pogut assignar els titulars"))
+
+
+def publica(payload, institucio: str, avui: str) -> dict:
+    """Publica l'horari generat com a vigilàncies (i grups sense classe) de
+    cada data; opcionalment hi posa els titulars. En prova (`dry_run`) o si
+    falla algun dia, no desa res."""
+    horari = payload.horari
+    setmanes = payload.setmanes
+    grups_sense_classe = payload.grups_sense_classe or []
+    opcions = payload.opcions
+    dry_run = payload.dry_run
+
+    if not horari or not horari.get("dies"):
+        raise NoValid("L'horari no conté dies", codi="horari_sense_dies")
+    if not setmanes:
+        raise NoValid("Cal indicar almenys una setmana amb dates", codi="publicacio_sense_setmanes")
+
+    dates_horari = [d.get("data") for d in horari["dies"] if isinstance(d, dict) and d.get("data")]
+    dates_horari += [v for setmana in setmanes for v in setmana.values() if isinstance(v, str)]
+    with get_data_db_session(institucio) as db:
+        anterior = cursos_anteriors(db, dates_horari, avui)
+    if anterior:
+        raise NoValid(
+            f"Les dates són del curs {', '.join(anterior['cursos'])}, anterior a l'actual "
+            f"({anterior['curs_actual']}). El planificador fa servir la configuració d'exàmens del "
+            "curs actual; les vigilàncies de cursos anteriors es consulten a Vigilàncies.",
+            codi="publicacio_curs_anterior",
+            params=anterior,
+        )
+
+    # Hores lectives del centre (per allargar els exàmens de més d'una hora)
+    totes_hores = []
+    data_hores = primera_data(horari, setmanes)
+    if data_hores:
+        totes_hores = Dia.de_text(data_hores, institucio).horari.hores or []
+
+    with get_data_db_session(institucio) as db:
+        publicacio = PublicacioExamens(
+            db, carrega_config(institucio), totes_hores, grups_sense_classe, opcions.netejar_existents
+        )
+        resum = publicacio.resum
+        for dia_info in horari["dies"]:
+            data_iso = data_del_dia(dia_info, setmanes)
+            if not data_iso:
+                continue
+            resum.dates.append(data_iso)
+            try:
+                publicacio.publica_dia(dia_info, data_iso)
+            except Exception:
+                resum.errors.append(error_intern(f"{data_iso}: no s'ha pogut publicar aquest dia"))
+
+        if opcions.auto_assign_titulars and not resum.errors and not dry_run:
+            publicacio.assigna_titulars(institucio)
+
+        if dry_run or resum.errors:
+            db.rollback()
+        else:
+            db.flush()
+            from substitucions.cobertures import refresca_cobertures
+
+            for data_iso, hora in sorted(resum.hores_esborrades):
+                refresca_cobertures(data_iso, hora, db)
+            db.commit()
+
+    return {
+        "success": len(resum.errors) == 0,
+        "dry_run": dry_run,
+        "dates_processades": sorted(set(resum.dates)),
+        "vigilancies_creades": resum.creades,
+        "vigilancies_actualitzades": resum.actualitzades,
+        "vigilancies_sense_canvis": resum.sense_canvis,
+        "vigilancies_eliminades": resum.eliminades,
+        "grups_alliberats_creats": resum.grups_alliberats,
+        "titulars_assignats": resum.titulars,
+        "errors": resum.errors or None,
+        "avisos": resum.avisos or None,
+    }

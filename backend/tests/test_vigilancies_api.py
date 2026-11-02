@@ -120,8 +120,17 @@ def test_config_treu_professors_i_hores_de_l_horari(client):
     assert "Prof 15" in cfg["professors"]
     assert cfg["hores"][:3] == ["08:00", "09:00", "10:00"]
     assert cfg["tipus_examens"][0] == "VIGILÀNCIA"
-    # Sense nivells configurats, en proposa uns per defecte.
-    assert "GENERAL" in cfg["nivells"]
+    # Sense nivells configurats, cap (abans, una llista fixa amb GENERAL): la
+    # pantalla diu que es configuren a Configuració d'exàmens
+    assert cfg["nivells"] == []
+
+
+def test_vigilancies_no_te_codis_de_nivell_escrits_al_codi():
+    # Els nivells són els de la configuració de cada centre
+    from pathlib import Path
+
+    codi = "".join(p.read_text(encoding="utf-8") for p in (Path(__file__).parents[1] / "vigilancies").glob("*.py"))
+    assert "GENERAL" not in codi and "RECERCA" not in codi
 
 
 def test_config_inclou_els_tipus_d_examen_ja_usats(client):

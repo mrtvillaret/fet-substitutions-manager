@@ -1,143 +1,12 @@
-"""Helpers de domini per a les rutes del scheduler."""
+"""Les hores sense classe de cada nivell (alliberaments) marcades al
+calendari del planificador: d'on surten les dates, les hores on pot començar
+un examen i les franges vàlides de cada nivell."""
 
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-from configuracio_examens.repositories import MasterConfigRepository
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from utils.hores import normalitzar_hora as _normalitzar_hora
-
-
-def _nivells_master(db) -> list[str]:
-    master = MasterConfigRepository.get_master_config(db)
-    nivells = list((master or {}).get("nivells", {}).keys())
-    return sorted([n for n in nivells if n], key=len, reverse=True)
-
-
-def _detectar_nivell(grup: str, nivells: list[str]) -> str | None:
-    if not grup:
-        return None
-    for nivell in nivells:
-        if nivell in grup:
-            return nivell
-    return None
-
-
-def _extract_assignatures_from_restriccions(restr: dict) -> set[str]:
-    resultat = set()
-    dures = (restr or {}).get("restriccions_dures", {})
-    preferencies = (restr or {}).get("preferencies", {})
-
-    for item in dures.get("no_mateix_dia", []):
-        if isinstance(item, list):
-            resultat.update(item)
-        elif item:
-            resultat.add(item)
-
-    for grup in (dures.get("no_mateix_slot") or {}).values():
-        if isinstance(grup, list):
-            resultat.update(grup)
-
-    for grup in dures.get("mateix_slot", []):
-        if isinstance(grup, dict):
-            resultat.update(grup.get("assignatures", []) or [])
-        elif isinstance(grup, list):
-            resultat.update(grup)
-
-    resultat.update({k for k in (dures.get("assignatures_dia_fix") or {}).keys() if not str(k).startswith("_pes_")})
-    resultat.update({k for k in (dures.get("assignatures_hora_fix") or {}).keys() if not str(k).startswith("_pes_")})
-
-    for cfg in (dures.get("professors_limit_dies_especifics") or {}).values():
-        if isinstance(cfg, dict):
-            resultat.update(cfg.get("assignatures", []) or [])
-
-    for tipus in ("combinacions_permeses", "assignatures_dies_exclosos", "assignatures_slot_prohibit"):
-        for item in dures.get(tipus, []) or []:
-            if isinstance(item, dict):
-                resultat.update(item.get("assignatures", []) or [])
-            elif isinstance(item, list):
-                resultat.update(item)
-
-    for tipus in ("mateix_dia", "dies_diferents", "mateix_slot"):
-        for item in preferencies.get(tipus, []):
-            if isinstance(item, dict):
-                resultat.update(item.get("assignatures", []) or [])
-
-    return {a for a in resultat if a}
-
-
-def _treu_assignatures_de_restriccions(restr: dict, fora: set[str]) -> dict:
-    """Còpia de les restriccions sense les assignatures `fora` (p.ex. d'un curs
-    anterior). Les restriccions que es queden sense sentit s'eliminen: una
-    agrupació buida; una incompatibilitat, preferència o combinació amb menys
-    de dos exàmens; un examen fixat o un límit de professor sense exàmens."""
-    import copy
-
-    restr = copy.deepcopy(restr or {})
-    dures = restr.setdefault("restriccions_dures", {})
-    prefs = restr.setdefault("preferencies", {})
-
-    def neta(llista):
-        return [a for a in (llista or []) if a not in fora]
-
-    def amb_llista(item, minim):
-        """Item (dict amb 'assignatures' o llista) net, o None si queda massa curt."""
-        if isinstance(item, dict):
-            abans = item.get("assignatures", []) or []
-            ara = neta(abans)
-            if len(ara) < min(minim, len(abans)):
-                return None
-            return dict(item, assignatures=ara)
-        if isinstance(item, list):
-            ara = neta(item)
-            return ara if len(ara) >= min(minim, len(item)) else None
-        return None if item in fora else item
-
-    if "mateix_slot" in dures:
-        dures["mateix_slot"] = [i for i in (amb_llista(x, 1) for x in dures["mateix_slot"]) if i]
-    if "no_mateix_dia" in dures:
-        dures["no_mateix_dia"] = [i for i in (amb_llista(x, 2) for x in dures["no_mateix_dia"]) if i]
-    for tipus, minim in (
-        ("combinacions_permeses", 2),
-        ("assignatures_dies_exclosos", 1),
-        ("assignatures_slot_prohibit", 1),
-    ):
-        if tipus in dures:
-            dures[tipus] = [i for i in (amb_llista(x, minim) for x in dures[tipus] or []) if i]
-
-    if isinstance(dures.get("no_mateix_slot"), dict):
-        nou = {}
-        for nom, grup in dures["no_mateix_slot"].items():
-            if nom.startswith("_") or not isinstance(grup, list):
-                continue
-            ara = neta(grup)
-            if len(ara) >= min(2, len(grup)):
-                nou[nom] = ara
-                if f"_pes_{nom}" in dures["no_mateix_slot"]:
-                    nou[f"_pes_{nom}"] = dures["no_mateix_slot"][f"_pes_{nom}"]
-        dures["no_mateix_slot"] = nou
-
-    for tipus in ("assignatures_dia_fix", "assignatures_hora_fix"):
-        if isinstance(dures.get(tipus), dict):
-            dures[tipus] = {
-                k: v for k, v in dures[tipus].items() if (k[5:] if k.startswith("_pes_") else k) not in fora
-            }
-
-    if isinstance(dures.get("professors_limit_dies_especifics"), dict):
-        nou = {}
-        for prof, cfg in dures["professors_limit_dies_especifics"].items():
-            if isinstance(cfg, dict) and cfg.get("assignatures"):
-                ara = neta(cfg["assignatures"])
-                if not ara:
-                    continue
-                cfg = dict(cfg, assignatures=ara)
-            nou[prof] = cfg
-        dures["professors_limit_dies_especifics"] = nou
-
-    for tipus in ("mateix_dia", "dies_diferents", "mateix_slot"):
-        if tipus in prefs:
-            prefs[tipus] = [i for i in (amb_llista(x, 2) for x in prefs[tipus]) if i]
-    return restr
 
 
 def _selected_dates_from_alliberaments(alliberaments_cfg: dict, nivells_actius: list[str] | None = None) -> list[str]:
@@ -193,10 +62,8 @@ def _selected_dates_from_alliberaments(alliberaments_cfg: dict, nivells_actius: 
 
 
 def _hores_lectives_des_de_xml(xml_path: str, fallback: list[str] | None = None) -> list[str]:
-    """
-    Extreu totes les hores lectives (ordenades) des de l'XML.
-    Si falla, retorna el fallback normalitzat.
-    """
+    """Totes les hores lectives de l'XML, ordenades; si no en té cap, les del
+    fallback."""
     fallback = fallback or []
 
     def _to_minutes(h: str) -> int:
@@ -207,16 +74,11 @@ def _hores_lectives_des_de_xml(xml_path: str, fallback: list[str] | None = None)
             return 10**9
 
     hores = []
-    try:
-        tree = ET.parse(xml_path)
-        root = tree.getroot()
-        for day in root.findall(".//Day"):
-            for hour in day.findall("Hour"):
-                h = _normalitzar_hora(hour.get("name"))
-                if h and h not in hores:
-                    hores.append(h)
-    except Exception:
-        hores = []
+    for day in ET.parse(xml_path).getroot().findall(".//Day"):
+        for hour in day.findall("Hour"):
+            h = _normalitzar_hora(hour.get("name"))
+            if h and h not in hores:
+                hores.append(h)
 
     if not hores:
         hores = [_normalitzar_hora(h) for h in fallback if h]
@@ -406,29 +268,3 @@ def _merge_slots_valids(existing: dict, derived: dict) -> dict:
             per_dia[dia] = sorted(eh & dh)
         out[nivell] = per_dia
     return out
-
-
-def _build_assignatures_options(
-    assignacions,
-    nivells: list[str],
-    only_nivells: list[str] | None = None,
-    extra: set[str] | None = None,
-) -> list[str]:
-    options = set()
-    for a in assignacions:
-        nom = a.get("assignatura") if isinstance(a, dict) else a.assignatura
-        grup = a.get("grup") if isinstance(a, dict) else a.grup
-        if not nom:
-            continue
-        nivell = _detectar_nivell(grup, nivells)
-        if nivell:
-            if not only_nivells or nivell in only_nivells:
-                options.add(f"{nom} ({nivell})")
-        else:
-            if not only_nivells:
-                options.add(nom)
-
-    if extra:
-        options.update(extra)
-
-    return sorted(options)

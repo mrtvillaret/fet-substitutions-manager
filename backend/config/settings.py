@@ -40,24 +40,6 @@ class Config:
             self.global_data["institucio"] = os.getenv("APP_INSTITUCIO")
             log.debug(f"🌐 Institucio override des d'ENV: {os.getenv('APP_INSTITUCIO')}")
 
-        # ===== CONFIG PER INSTITUCIÓ (SQLite) =====
-        self.institucio_defaults = {
-            "xml_horari_path": "horari.xml",
-            "ultim_professor_subs": "",
-            "export_dir": "exports",
-            "data_inici_estadistiques": "2024-07-01",
-            "logo_path": "",
-            "idioma": self._detect_system_language(),
-        }
-        self.institucio_data = {}
-        self.load_institucio()
-
-        # Aplicar override de xml_horari_path si existeix a ENV
-        if os.getenv("APP_XML_PATH"):
-            self.institucio_data["xml_horari_path"] = os.getenv("APP_XML_PATH")
-            log.debug(f"🌐 XML path override des d'ENV: {os.getenv('APP_XML_PATH')}")
-            self.save_institucio()
-
     def load_global(self):
         """Carrega configuració global"""
         if self.global_config_file.exists():
@@ -68,104 +50,21 @@ class Config:
             self.global_data = self.global_defaults.copy()
             self.save_global()
 
-    def _default_language_for_institucio(self, institucio: str) -> str:
-        return self._detect_system_language()
-
-    def _get_institucio_defaults(self, institucio: str) -> dict:
-        defaults = self.institucio_defaults.copy()
-        defaults["idioma"] = self._default_language_for_institucio(institucio)
-        return defaults
-
-    def load_institucio(self):
-        """Carrega configuració de la institució actual des de SQLite"""
-        instit = self.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or self.detectar_institucio()
-        if not instit:
-            return
-
-        self.institucio_defaults = self._get_institucio_defaults(instit)
-
-        try:
-            from database import get_data_db_session
-            from repositories import ConfiguracioRepository
-
-            with get_data_db_session(instit) as db:
-                existing = ConfiguracioRepository.get_all_as_dict(db)
-
-                # Assegurar defaults si falten
-                for key, value in self.institucio_defaults.items():
-                    if key not in existing:
-                        ConfiguracioRepository.set(db, key, str(value), "string")
-                        existing[key] = str(value)
-
-                self.institucio_data = {**self.institucio_defaults, **existing}
-        except Exception:
-            # Fallback sense DB
-            self.institucio_data = self.institucio_defaults.copy()
-
     def save_global(self):
         """Desa configuració global"""
         with open(self.global_config_file, "w", encoding="utf-8") as f:
             json.dump(self.global_data, f, indent=2, ensure_ascii=False)
 
-    def save_institucio(self):
-        """Desa configuració de la institució (SQLite)"""
-        instit = self.global_data.get("institucio") or os.getenv("APP_INSTITUCIO") or self.detectar_institucio()
-        if not instit:
-            return
-
-        try:
-            from database import get_data_db_session
-            from repositories import ConfiguracioRepository
-
-            with get_data_db_session(instit) as db:
-                for key, value in self.institucio_data.items():
-                    ConfiguracioRepository.set(db, key, str(value), "string")
-        except Exception:
-            log.warning("No s'ha pogut desar la configuració del centre", exc_info=True)
-            return
-
-    def save(self):
-        """Desa tant configuració global com d'institució"""
-        self.save_global()
-        self.save_institucio()
-
     def __getattr__(self, key):
-        """Busca primer a institucio_data, després a global_data"""
-        if key in self.institucio_data:
-            return self.institucio_data[key]
+        """Les claus de la configuració global, com a atributs"""
         return self.global_data.get(key)
 
     def __setattr__(self, key, value):
-        """Intercepta canvis per desar-los al diccionari correcte"""
-        # Atributs interns de la classe
-        internal_attrs = {
-            "global_config_file",
-            "global_defaults",
-            "global_data",
-            "institucio_defaults",
-            "institucio_data",
-        }
-
-        if key in internal_attrs:
-            # Desar com atribut normal de l'objecte
+        """Les claus de la configuració global van a global_data"""
+        if key in {"global_config_file", "global_defaults", "global_data"} or key not in self.global_defaults:
             object.__setattr__(self, key, value)
         else:
-            # Desar al diccionari correcte
-            if key in self.institucio_defaults:
-                self.institucio_data[key] = value
-            elif key in self.global_defaults:
-                self.global_data[key] = value
-            else:
-                # Clau desconeguda: afegir a institucio_data (més específic)
-                if hasattr(self, "institucio_data"):
-                    self.institucio_data[key] = value
-                else:
-                    object.__setattr__(self, key, value)
-
-    @property
-    def data(self):
-        """Compatibilitat: retorna diccionari combinat"""
-        return {**self.global_data, **self.institucio_data}
+            self.global_data[key] = value
 
     def _detect_system_language(self):
         """Detecta l'idioma del sistema i retorna ca/es/en"""
@@ -271,6 +170,11 @@ class Config:
                 return data_path.parent
             return data_path
         return Path(__file__).resolve().parents[1] / "data"
+
+    @staticmethod
+    def institucio_existeix(institucio: str) -> bool:
+        """Com get_institucions_disponibles: una carpeta amb gestor.db."""
+        return (Config._institucions_base_path() / institucio / "gestor.db").is_file()
 
     @staticmethod
     def is_institucio_activa(institucio: str) -> bool:

@@ -9,27 +9,25 @@ from datetime import date
 from configuracio_examens.repositories import ConfiguracioExamenRepository
 from database import get_data_db_session
 from horari.repositories import XMLVersionRepository
-from prioritats.repositories import NoSubstituirRepository
-from repositories import ConfiguracioRepository
-from routes.scheduler_helpers import (
+from planificador import restriccions
+from planificador.alliberaments import (
     _build_slots_valids_from_alliberaments,
     _build_slots_valids_iso_from_alliberaments,
     _merge_slots_valids,
-    _nivells_master,
     _selected_dates_from_alliberaments,
 )
-from routes.scheduler_service import (
+from planificador.examens import nivells_master
+from planificador.repositories import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DATES_KEY,
     SCHEDULER_DURADA_EXAMEN_KEY,
     SCHEDULER_DURADA_KEY,
     SCHEDULER_DURADES_GRUPS_KEY,
-    SCHEDULER_DURADES_SESSIO_KEY,
     SCHEDULER_NIVELLS_KEY,
-    _build_config_from_db,
-    _build_restriccions_from_db,
-    _load_json,
+    llegeix_json,
 )
+from prioritats.repositories import NoSubstituirRepository
+from repositories import ConfiguracioRepository
 from scheduler_engine.defaults import DEFAULT_DURADA_TITULAR
 
 
@@ -81,18 +79,30 @@ def _positiu(valor) -> int | None:
 
 
 def _durades(db) -> tuple[dict, dict]:
-    """(vigilància, examen) per assignatura, dels grups de durada; sense
-    grups, el format antic (una sola durada, la mateixa per a tots dos)."""
-    grups = _load_json(ConfiguracioRepository.get(db, SCHEDULER_DURADES_GRUPS_KEY), None)
-    if not grups:
-        durades = _load_json(ConfiguracioRepository.get(db, SCHEDULER_DURADES_SESSIO_KEY), {})
-        return durades, dict(durades)
+    """(vigilància, examen) per assignatura, dels grups de durada."""
     vigilancia, examen = {}, {}
-    for grup in grups:
+    for grup in llegeix_json(db, SCHEDULER_DURADES_GRUPS_KEY, None) or []:
         for assignatura in grup.get("assignatures", []):
             vigilancia[assignatura] = grup.get("durada", 1)
             examen[assignatura] = grup.get("durada_examen", grup.get("durada", 1))
     return vigilancia, examen
+
+
+def _config_dels_motors(assignacions) -> dict:
+    """Les assignacions per assignatura, com les llegeixen els motors."""
+    config = {"assignatures": {}}
+    for a in assignacions:
+        nom = a.get("assignatura") if isinstance(a, dict) else a.assignatura
+        if nom not in config["assignatures"]:
+            config["assignatures"][nom] = {"assignacions": []}
+        config["assignatures"][nom]["assignacions"].append(
+            {
+                "grup": a.get("grup") if isinstance(a, dict) else a.grup,
+                "titular": a.get("titular") if isinstance(a, dict) else a.titular or "",
+                "aula": a.get("aula") if isinstance(a, dict) else a.aula or "",
+            }
+        )
+    return config
 
 
 def carrega_config(institucio: str) -> ConfigPlanificador:
@@ -102,14 +112,14 @@ def carrega_config(institucio: str) -> ConfigPlanificador:
         durada_examen = _positiu(ConfiguracioRepository.get(db, SCHEDULER_DURADA_EXAMEN_KEY)) or durada_titular
         durades_per_sessio, durades_examen_per_sessio = _durades(db)
         return ConfigPlanificador(
-            config=_build_config_from_db(ConfiguracioExamenRepository.get_all(db)),
-            restriccions=_build_restriccions_from_db(db),
+            config=_config_dels_motors(ConfiguracioExamenRepository.get_all(db)),
+            restriccions=restriccions.llegeix(db),
             durada_titular=durada_titular,
             durada_examen=durada_examen,
-            nivells_configurats=_load_json(ConfiguracioRepository.get(db, SCHEDULER_NIVELLS_KEY), []),
-            nivells_master=_nivells_master(db),
-            dates_configurades=_load_json(ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY), []),
-            alliberaments=_load_json(ConfiguracioRepository.get(db, SCHEDULER_ALLIBERAMENTS_KEY), {}),
+            nivells_configurats=llegeix_json(db, SCHEDULER_NIVELLS_KEY, []),
+            nivells_master=nivells_master(db),
+            dates_configurades=llegeix_json(db, SCHEDULER_DATES_KEY, []),
+            alliberaments=llegeix_json(db, SCHEDULER_ALLIBERAMENTS_KEY, {}),
             durades_per_sessio=durades_per_sessio,
             durades_examen_per_sessio=durades_examen_per_sessio,
             no_substituir=set(NoSubstituirRepository.get_all(db)),

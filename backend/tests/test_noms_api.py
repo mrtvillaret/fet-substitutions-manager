@@ -34,14 +34,9 @@ COSSOS_REVISATS = {
     ("POST", "/api/pdf/disponibles-tots-dies"),
     ("POST", "/api/files/upload-xml"),
     ("POST", "/api/files/upload-logo"),
-    # els noms surten de les llistes de la mateixa aplicació (ja nets); pendent
-    # de schema quan es migri el mòdul del planificador
-    ("PUT", "/api/scheduler/config"),
-    ("PUT", "/api/scheduler/costos-professors/{professor}"),
     # netegen els noms en entrar
     ("POST", "/api/config/importar-assignacions-csv/dry-run"),
     ("POST", "/api/config/importar-assignacions-csv"),
-    ("PUT", "/api/scheduler/costos-professors"),
 }
 
 

@@ -55,6 +55,25 @@ def test_desar_la_configuracio_no_canvia_el_centre_per_defecte(config_global):
     assert not config_global.global_config_file.exists()
 
 
+def test_desar_la_configuracio_no_escriu_a_la_bd_del_centre_per_defecte(config_global):
+    # Abans, en desar l'idioma, les dates o l'últim professor, es tornava a llegir
+    # la configuració del centre per defecte del servidor i s'hi escrivien les
+    # claus que hi faltaven
+    centre, per_defecte = nova_institucio(), nova_institucio()
+    config_global.global_data["institucio"] = per_defecte
+    with get_data_db_session(per_defecte) as db:
+        abans = ConfiguracioRepository.get_all_as_dict(db)
+
+    cos = {"idioma": "es", "data_inici_estadistiques": "2026-09-01", "ultim_professor_subs": "Prof 9"}
+    resposta = _client(centre).put(URL, json=cos)
+
+    assert resposta.status_code == 200, resposta.text
+    with get_data_db_session(per_defecte) as db:
+        assert ConfiguracioRepository.get_all_as_dict(db) == abans
+    with get_data_db_session(centre) as db:
+        assert ConfiguracioRepository.get(db, "idioma") == "es"
+
+
 def test_canviar_l_ultim_professor_nomes_buida_l_horari_del_centre():
     # Abans es buidava la memòria cau de l'horari de tots els centres
     centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)

@@ -15,8 +15,9 @@ from suport_xml import amb_horari_futur, dia, fixa_avui, professor_que_plega
 from auth.dependencies import get_current_user, require_admin
 from configuracio_examens import router as config_examens
 from horari import router as horari
+from planificador import config as scheduler_config
+from planificador import router as scheduler
 from rate_limit import limiter
-from routes import scheduler, scheduler_config
 
 APP = crea_app()
 APP.include_router(scheduler.router, dependencies=[Depends(require_admin)])  # com a main.py

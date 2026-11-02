@@ -37,12 +37,6 @@
               v-tooltip.top="data.active ? $t('config.institutions.deactivate') : $t('config.institutions.activate')"
               @click="confirmarCanviEstatInstitucio(data)"
             />
-            <Button
-              icon="pi pi-trash"
-              class="p-button-text p-button-sm p-button-danger"
-              v-tooltip.top="$t('config.institutions.delete')"
-              @click="confirmarEliminarInstitucio(data)"
-            />
           </div>
         </template>
       </Column>
@@ -69,6 +63,7 @@
           <label>{{ $t('config.institutions.code') }}</label>
           <InputText
             v-model="institucioForm.slug"
+            maxlength="64"
             :placeholder="$t('config.institutions.codePlaceholder')"
             :disabled="!!institucioEditant"
           />
@@ -153,26 +148,18 @@ const confirmInstitucioInput = ref('')
 const confirmInstitucioAction = ref('')
 const confirmInstitucioTarget = ref(null)
 
-const confirmInstitucioRequired = computed(() => {
-  if (!confirmInstitucioTarget.value) return ''
-  return confirmInstitucioAction.value === 'delete'
-    ? `ELIMINA ${confirmInstitucioTarget.value.slug}`
-    : confirmInstitucioTarget.value.slug
-})
+// L'esborrat definitiu d'un centre es fa des del servidor (backend/scripts/esborra_centre.py)
+const confirmInstitucioRequired = computed(() => confirmInstitucioTarget.value?.slug || '')
 const confirmInstitucioTitle = computed(() => {
-  if (confirmInstitucioAction.value === 'delete') return t('config.institutions.deleteTitle')
   if (confirmInstitucioAction.value === 'deactivate') return t('config.institutions.deactivateTitle')
   if (confirmInstitucioAction.value === 'activate') return t('config.institutions.activateTitle')
   return t('common.confirm')
 })
 const confirmInstitucioMessage = computed(() => {
   if (!confirmInstitucioTarget.value) return ''
-  return confirmInstitucioAction.value === 'delete'
-    ? t('config.institutions.deleteMessage', { slug: confirmInstitucioTarget.value.slug, confirm: confirmInstitucioRequired.value })
-    : t('config.institutions.deactivateMessage', { slug: confirmInstitucioTarget.value.slug, confirm: confirmInstitucioRequired.value })
+  return t('config.institutions.deactivateMessage', { slug: confirmInstitucioTarget.value.slug, confirm: confirmInstitucioRequired.value })
 })
 const confirmInstitucioActionLabel = computed(() => {
-  if (confirmInstitucioAction.value === 'delete') return t('config.institutions.delete')
   if (confirmInstitucioAction.value === 'deactivate') return t('config.institutions.deactivate')
   if (confirmInstitucioAction.value === 'activate') return t('config.institutions.activate')
   return t('common.confirm')
@@ -239,13 +226,6 @@ const confirmarCanviEstatInstitucio = (inst) => {
   mostrarConfirmInstitucio.value = true
 }
 
-const confirmarEliminarInstitucio = (inst) => {
-  confirmInstitucioTarget.value = inst
-  confirmInstitucioInput.value = ''
-  confirmInstitucioAction.value = 'delete'
-  mostrarConfirmInstitucio.value = true
-}
-
 const tancarConfirmInstitucio = () => {
   mostrarConfirmInstitucio.value = false
   confirmInstitucioInput.value = ''
@@ -266,18 +246,9 @@ const executarAccioInstitucio = async () => {
   }
 
   try {
-    if (confirmInstitucioAction.value === 'delete') {
-      await axios.delete(`/api/settings/institucions/${confirmInstitucioTarget.value.slug}`, {
-        data: {
-          mode: 'hard',
-          confirm: confirmInstitucioInput.value
-        }
-      })
-    } else {
-      await axios.put(`/api/settings/institucions/${confirmInstitucioTarget.value.slug}/status`, {
-        active: confirmInstitucioAction.value === 'activate'
-      })
-    }
+    await axios.put(`/api/settings/institucions/${confirmInstitucioTarget.value.slug}/status`, {
+      active: confirmInstitucioAction.value === 'activate'
+    })
     toast.add({
       severity: 'success',
       summary: t('common.saved'),

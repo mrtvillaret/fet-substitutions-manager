@@ -326,10 +326,13 @@
     <div class="text-sm text-color-secondary mb-2">
       {{ incompatErrorMsg || t('scheduler.dialogs.incompatibilities.defaultMessage') }}
     </div>
+    <Message v-if="explicacioNoDisponible" severity="warn" :closable="false" class="mb-2">
+      {{ t('scheduler.dialogs.incompatibilities.explanationUnavailable', { ref: explicacioNoDisponible }) }}
+    </Message>
     <ul v-if="incompatibilitats.length" class="pl-3 m-0">
       <li v-for="(msg, idx) in incompatibilitats" :key="idx" class="text-sm mb-1">{{ msg }}</li>
     </ul>
-    <div v-else class="text-sm">{{ t('scheduler.dialogs.incompatibilities.undetermined') }}</div>
+    <div v-else-if="!explicacioNoDisponible" class="text-sm">{{ t('scheduler.dialogs.incompatibilities.undetermined') }}</div>
     <template #footer>
       <Button :label="t('common.close')" text @click="emit('update:mostrarDialogIncompat', false)" />
     </template>
@@ -351,6 +354,7 @@ import InputText from 'primevue/inputtext'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
+import Message from 'primevue/message'
 
 const props = defineProps({
   mostrarDialogDurada: { type: Boolean, default: false },
@@ -386,6 +390,7 @@ const props = defineProps({
   bestIntent: { type: Object, default: null },
   incompatibilitats: { type: Array, default: () => [] },
   incompatErrorMsg: { type: String, default: '' },
+  explicacioNoDisponible: { type: String, default: null },
   desarDialogDurada: { type: Function, required: true },
   desarDialogProfessor: { type: Function, required: true },
   desarDialogDiaHora: { type: Function, required: true },

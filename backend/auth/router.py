@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from auth import services
-from auth.dependencies import require_super_admin, require_user
+from auth.dependencies import require_super_admin_without_centre, require_user
 from auth.domain import UsuariActual
 from auth.schemas import (
     CanviContrasenyaRequest,
@@ -83,7 +83,10 @@ def tancar_altres_sessions(
 
 @router.post(f"{PERFIL}/institucio", tags=ETIQUETA_PERFIL, response_model=OkResponse)
 def switch_institucio(
-    payload: CanviInstitucioRequest, response: Response, current_user: UsuariActual = Depends(require_super_admin)
+    payload: CanviInstitucioRequest,
+    response: Response,
+    # També si el centre de la sessió ja no existeix: és la manera de sortir-ne
+    current_user: UsuariActual = Depends(require_super_admin_without_centre),
 ):
     services.comprova_institucio_accessible(payload.institucio)
     set_auth_cookie(response, testimoni_de_sessio(current_user, payload.institucio))

@@ -17,9 +17,7 @@ from datetime import date, datetime, timedelta
 
 from absencia_coberta.repositories import AbsenciaCobertaRepository
 from errors_domini import NoTrobat
-from models import Substitucio, Vigilancia
 from noms import nom_net
-from repositories import parse_date
 from substitucions.absencies import desa_absencies
 from substitucions.cobertures import refresca_cobertures
 from substitucions.domain import DiaEscolar, treu_substituts_no_valids
@@ -39,14 +37,9 @@ def _dies_afectats(db, data_inici: str, data_final: str, avui: date) -> list:
     if inici > final:
         return []
     dates = set()
-    for model in (Substitucio, Vigilancia):
-        for (d,) in (
-            db.query(model.data)
-            .filter(model.data >= parse_date(inici.isoformat()), model.data <= parse_date(final.isoformat()))
-            .distinct()
-        ):
-            dates.add(d.isoformat())
-    return sorted(dates)
+    for repositori in (SubstitucioRepository, VigilanciaRepository):
+        dates |= repositori.dates_entre(db, inici.isoformat(), final.isoformat())
+    return sorted(d.isoformat() for d in dates)
 
 
 def _gestors_amb_absencies_pendents(db, institucio: str, data_iso: str):
