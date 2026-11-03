@@ -14,7 +14,7 @@ class VigilanciaRequest(BaseModel):
     aula: NomNet
     vigilant: Optional[NomNet] = ""
     comentaris: Optional[str] = ""
-    nivell: str
+    nivell: Optional[str] = None
     # L'id d'una fila de la mateixa hora: la nova va just a sota (el «+» de
     # cada fila, que la copia). Sense, va al final del bloc de la seva hora.
     despres_de: Optional[str] = None

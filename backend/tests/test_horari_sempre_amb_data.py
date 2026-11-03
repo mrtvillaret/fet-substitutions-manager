@@ -8,6 +8,7 @@ revisa el codi perquè cap crida la torni a deixar implícita.
 """
 
 import ast
+import os
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parent.parent
@@ -15,17 +16,22 @@ AMB_DATA_PER_NOM = {"get_horari", "get_gestors", "get_horari_fn"}
 
 
 def _crides_sense_data():
-    for fitxer in sorted(BACKEND.rglob("*.py")):
-        if {"venv", "_legacy"} & set(fitxer.parts):
-            continue
-        for node in ast.walk(ast.parse(fitxer.read_text(encoding="utf-8"))):
-            if not isinstance(node, ast.Call):
-                continue
-            nom = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
-            if nom in AMB_DATA_PER_NOM and not any(k.arg == "data_iso" for k in node.keywords):
-                yield f"{fitxer.relative_to(BACKEND)}:{node.lineno}  {ast.unparse(node)}"
-            elif nom == "get_xml_path_for_date" and len(node.args) + len(node.keywords) < 2:
-                yield f"{fitxer.relative_to(BACKEND)}:{node.lineno}  {ast.unparse(node)}"
+    for arrel, directoris, fitxers in os.walk(BACKEND, topdown=True):
+        directoris[:] = sorted(
+            directori
+            for directori in directoris
+            if not directori.startswith("venv") and directori not in {".git", "__pycache__", "_legacy"}
+        )
+        for nom_fitxer in sorted(f for f in fitxers if f.endswith(".py")):
+            fitxer = Path(arrel, nom_fitxer)
+            for node in ast.walk(ast.parse(fitxer.read_text(encoding="utf-8"))):
+                if not isinstance(node, ast.Call):
+                    continue
+                nom = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+                if nom in AMB_DATA_PER_NOM and not any(k.arg == "data_iso" for k in node.keywords):
+                    yield f"{fitxer.relative_to(BACKEND)}:{node.lineno}  {ast.unparse(node)}"
+                elif nom == "get_xml_path_for_date" and len(node.args) + len(node.keywords) < 2:
+                    yield f"{fitxer.relative_to(BACKEND)}:{node.lineno}  {ast.unparse(node)}"
 
 
 def test_cap_crida_a_l_horari_sense_data():

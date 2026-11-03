@@ -347,6 +347,13 @@ INVENTARI = dict(
             CENTRE,
             USER,
             "GET",
+            "/api/pdf/vigilancies/comptes-sense-nivell",
+            params={"data_inici": DATA, "data_final": DATA},
+        ),
+        _r(
+            CENTRE,
+            USER,
+            "GET",
             "/api/pdf/vigilancies/interval",
             params={"data_inici": "2026-09-07", "data_final": "2026-10-30"},
         ),

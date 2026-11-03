@@ -32,5 +32,9 @@ class ValidacionsPdfResponse(BaseModel):
     has_critical: bool
 
 
+class VigilanciesSenseNivellResponse(BaseModel):
+    sense_nivell: int
+
+
 class DisponiblesTotsDiesRequest(BaseModel):
     data_inici: str | None = None

@@ -115,6 +115,30 @@ def test_classes_no_compta_les_activitats_de_no_substituir(centre, client):
     assert [f["assignatura"] for f in detall["resultats"]] == ["Català"]
 
 
+def test_el_detall_de_classes_combina_grups_i_grups_amb_claudators(centre, client):
+    _afegeix(
+        centre,
+        ("08:00", "Prof 1", "Català", "1-ESO-A", "Prof 5", "ABSENCIA"),
+        ("09:00", "Prof 2", "Física", "1-ESO-B", "", "SERVEI"),
+        ("10:00", "Prof 3", "Anglès", "1-ESO-C", "Prof 6", "ABSENCIA"),
+    )
+
+    resposta = client.get(
+        "/api/estadistiques/classes/detall",
+        params=[
+            *INTERVAL.items(),
+            ("grups", "1-ESO-A"),
+            ("grups[]", "1-ESO-B"),
+        ],
+    )
+
+    assert resposta.status_code == 200, resposta.text
+    assert [(fila["grup"], fila["assignatura"]) for fila in resposta.json()["resultats"]] == [
+        ("1-ESO-A", "Català"),
+        ("1-ESO-B", "Física"),
+    ]
+
+
 # Una hora de cada tipus, totes amb grup i substitut llevat del servei
 TOTS_ELS_TIPUS = [
     ("08:00", "Prof 1", "Català", "1-ESO-A", "Prof 5", "ABSENCIA"),

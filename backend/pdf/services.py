@@ -10,17 +10,15 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from configuracio_examens.repositories import MasterConfigRepository
 from pdf.repositories import InformesRepository
 from recomptes.services import (
-    ALTRES,
     absencies_i_serveis,
     dades_professors,
     en_ordre_de_franges,
     franges_de_l_horari,
+    impacte_per_grup,
     mesos_de,
     per_dia_i_hora,
-    per_grup_i_nivell,
     per_mes,
     per_professor_i_mes,
     professors_absencies,
@@ -82,52 +80,8 @@ MESOS = {
     },
 }
 
-# Nivells de la configuració que no compten com a nivell propi (van a ALTRES)
-NIVELLS_EXCLOSOS = {"GENERAL", "RECERCA"}
 # Professors de les taules professor × mes de l'informe de direcció
 MAX_PROFESSORS_PER_MES = 20
-
-
-def nivells_dels_grups(db: Session) -> tuple[list[str], dict[str, str]]:
-    """Mapa grup -> nivell i ordre de nivells segons la configuració d'exàmens del centre.
-
-    Font de veritat: el master config (nivells/grups/abreviatures), el mateix que gestiona
-    la configuració d'exàmens. Cada centre anomena nivells i grups a la seva manera, així que
-    no s'infereix res del nom del grup.
-
-    Retorna (ordre_nivells, grup2nivell):
-      - ordre_nivells: nivells en l'ordre configurat + "Altres" al final
-      - grup2nivell: codi de grup -> nivell ("Altres" per GENERAL/RECERCA i desconeguts)
-    """
-    try:
-        master = MasterConfigRepository.get_master_config(db)
-    except Exception:
-        log.warning("No s'ha pogut llegir la configuració de nivells", exc_info=True)
-        return [ALTRES], {}
-
-    grup2nivell = {}
-    ordre_nivells = []
-    for codi, data in master.get("nivells", {}).items():  # {codi: {"grups": [...], ...}}, ja ordenat
-        if codi in NIVELLS_EXCLOSOS:
-            nom_niv = ALTRES
-        else:
-            nom_niv = codi
-            ordre_nivells.append(codi)
-        for g in data.get("grups", []):
-            grup2nivell[g] = nom_niv
-
-    # Grups combinats (abreviatures): hereten el nivell del primer grup original conegut.
-    for originals, abreviatura in master.get("abreviatures", {}).items():
-        if abreviatura in grup2nivell:
-            continue
-        for og in (originals or "").split(","):
-            og = og.strip()
-            if og in grup2nivell:
-                grup2nivell[abreviatura] = grup2nivell[og]
-                break
-
-    ordre_nivells.append(ALTRES)
-    return ordre_nivells, grup2nivell
 
 
 def dades_direccio(
@@ -163,9 +117,6 @@ def dades_direccio(
         mesos_ordenats,
         mesos_nom,
     )
-    # Grups — nivell segons la configuració d'exàmens del centre (no s'infereix del nom)
-    ordre_nivells, grup2nivell = nivells_dels_grups(db)
-
     return {
         "stats": resum(subs_reals, total_baixes),
         "per_mes": mesos,
@@ -178,7 +129,7 @@ def dades_direccio(
         "per_substitut_mes": per_substitut_mes,
         "mesos_ordenats": mesos_ordenats,
         "hores_ordre": hores_xml,
-        "grups_data": per_grup_i_nivell(subs_reals, ordre_nivells, grup2nivell, mesos_ordenats, mesos_nom),
+        "grups_data": impacte_per_grup(subs_reals, mesos_ordenats, mesos_nom),
     }
 
 

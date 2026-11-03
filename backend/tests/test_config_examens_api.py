@@ -248,6 +248,22 @@ def test_un_cos_que_no_es_el_que_toca_dona_422_i_no_canvia_res(admin, centre, me
     assert _estat_config(centre) == abans
 
 
+# ------------------------------------------------ afinitats desades i normalitzades
+
+
+def test_les_afinitats_es_desen_i_es_llegeixen_normalitzades(admin):
+    esperades = [{"base": "1-ESO", "ordre": ["1-ESO", "2-ESO"]}]
+
+    resposta = admin.put(
+        f"{C}/afinitats",
+        json={"afinitats": [{"base": " 1-ESO ", "ordre": ["2-ESO", "2-ESO"]}]},
+    )
+
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["afinitats"] == esperades
+    assert admin.get(f"{C}/afinitats").json() == {"afinitats": esperades}
+
+
 # ------------------------------------------------- abreviatures repetides (E8)
 
 

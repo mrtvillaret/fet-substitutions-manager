@@ -15,7 +15,7 @@ teclat inclòs). Ara s'usa el camp tipus_absencia='VIGILANCIA_ABSENT' directamen
 from collections import defaultdict
 
 from config import constants
-from substitucions.assignacio import CandidateValidator
+from substitucions.assignacio import CandidateValidator, candidats_de_maxima_prioritat
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 
@@ -86,7 +86,14 @@ def sincronitzar_vigilancies_absents(
 
 
 def assignar_substituts_pendents(
-    db, data: str, dia_name: str, alliberats, absents: dict, professors_ocupats: dict, grups_sense_classe: dict = None
+    db,
+    data: str,
+    dia_name: str,
+    alliberats,
+    absents: dict,
+    professors_ocupats: dict,
+    grups_sense_classe: dict = None,
+    rng=None,
 ) -> int:
     """
     Assigna substituts als registres Tipus A pendents (vigilant absent → cobrir slot).
@@ -109,6 +116,7 @@ def assignar_substituts_pendents(
             assignats_hora[s.get("hora", "")].add(sub_nom)
 
     assignades = 0
+    selector = CandidateValidator(rng=rng)
     for pendent in pendents:
         hora = pendent.get("hora", "")
         prof_absent = pendent.get("professor_absent", "")
@@ -131,16 +139,13 @@ def assignar_substituts_pendents(
             if p != prof_absent and p not in absents_set and p not in assignats_hora[hora] and p not in vigilants_hora:
                 candidats_per_cat[categoria_idx(tipus)].append((p, tipus, detall))
 
-        # Escollir a l'atzar dins de la categoria activa amb prioritat més alta,
-        # igual que el motor normal de substitucions.
+        # La prioritat i el desempat són dos passos separats, igual que al
+        # motor normal de substitucions.
+        prioritaris = candidats_de_maxima_prioritat(candidats_per_cat, constants.CATEGORIES_ACTIVES)
+        escollit = selector._escollir_aleatoriament_amb_pesos(prioritaris)
         best = None
-        for cat_i in sorted(candidats_per_cat.keys()):
-            if cat_i < len(constants.CATEGORIES_ACTIVES) and not constants.CATEGORIES_ACTIVES[cat_i]:
-                continue  # Categoria inactiva → saltar
-            disponibles_cat = candidats_per_cat[cat_i]
-            if disponibles_cat:
-                best, best_tipus, best_detall = CandidateValidator()._escollir_aleatoriament_amb_pesos(disponibles_cat)
-                break
+        if escollit:
+            best, best_tipus, best_detall = escollit
 
         if not best:
             continue

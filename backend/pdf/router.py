@@ -26,9 +26,16 @@ from parametres import DataISO, data_iso
 from pdf import disponibles, generacio
 from pdf.domain import OpcionsPdf
 from pdf.repositories import PreferenciesPdfRepository
-from pdf.schemas import DesatResponse, PDFPreferencesRequest, PDFPreferencesResponse, ValidacionsPdfResponse
+from pdf.schemas import (
+    DesatResponse,
+    PDFPreferencesRequest,
+    PDFPreferencesResponse,
+    ValidacionsPdfResponse,
+    VigilanciesSenseNivellResponse,
+)
 from serveis.dia import Dia
 from substitucions.schemas import OrdreSubstitucions
+from vigilancies.repositories import VigilanciaRepository
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF"])
 
@@ -129,11 +136,23 @@ def generar_pdf_complet(
 # ===== PDF VIGILÀNCIES =====
 
 
+@router.get("/vigilancies/comptes-sense-nivell", response_model=VigilanciesSenseNivellResponse)
+def comptar_vigilancies_sense_nivell(
+    data_inici: DataISO,
+    data_final: DataISO,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Recompte per mostrar l'opció «Sense nivell» al selector del PDF."""
+    return {"sense_nivell": VigilanciaRepository.compta_sense_nivell(db, data_inici, data_final)}
+
+
 @router.get("/vigilancies/interval")
 def generar_pdf_interval(
     data_inici: DataISO,
     data_final: DataISO,
     nivells: str = "",
+    inclou_sense_nivell: Optional[bool] = None,
     include_weekends: bool = False,
     include_empty_days: bool = False,
     compress: bool = False,
@@ -156,6 +175,7 @@ def generar_pdf_interval(
         data_final,
         OpcionsPdf(format, mida_lletra, compress, show_comments, show_hours),
         nivells=nivells,
+        inclou_sense_nivell=inclou_sense_nivell,
         amb_caps_de_setmana=include_weekends,
         amb_dies_buits=include_empty_days,
         amb_substitucions=include_substitucions,
@@ -176,6 +196,7 @@ def generar_pdf_interval(
 def generar_pdf_vigilancies(
     data: DataISO,
     nivells: str = "",  # Comma-separated: "1-BATX,2-BATX"
+    inclou_sense_nivell: Optional[bool] = None,
     compress: bool = False,
     show_comments: bool = True,
     show_hours: bool = False,
@@ -197,6 +218,7 @@ def generar_pdf_vigilancies(
         data,
         OpcionsPdf(format, mida_lletra, compress, show_comments, show_hours),
         nivells=nivells,
+        inclou_sense_nivell=inclou_sense_nivell,
         amb_substitucions=include_substitucions,
     )
     if not pdf.nom:

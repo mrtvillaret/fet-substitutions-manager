@@ -294,7 +294,7 @@
       v-model:visible="mostrarDialogPDF"
       :header="$t('vigilancies.dialogs.pdfTitle')"
       :modal="true"
-      :style="{ width: '500px' }"
+      :style="{ width: '500px', maxWidth: 'calc(100vw - 2rem)' }"
       :closable="true"
     >
       <div class="p-fluid">
@@ -302,10 +302,13 @@
           <label>{{ $t('vigilancies.dialogs.levelsLabel') }}</label>
           <MultiSelect
             v-model="pdfConfig.nivells"
-            :options="nivells"
+            :options="opcionsNivellsPdfDia"
+            optionLabel="etiqueta"
+            optionValue="valor"
             :placeholder="$t('vigilancies.dialogs.levelsPlaceholder')"
             display="chip"
             :showToggleAll="true"
+            style="width: 100%;"
           />
           <small style="color: #6b7280;">{{ $t('vigilancies.dialogs.levelsHint') }}</small>
         </div>
@@ -324,7 +327,7 @@
           icon="pi pi-file-pdf"
           @click="generarPDF"
           class="p-button-success"
-          :disabled="nivells.length > 0 && !pdfConfig.nivells?.length"
+          :disabled="opcionsNivellsPdfDia.length > 0 && !pdfConfig.nivells?.length"
           :loading="generantPDF"
         />
       </template>
@@ -335,7 +338,7 @@
       v-model:visible="mostrarDialogInterval"
       :header="$t('vigilancies.dialogs.intervalTitle')"
       :modal="true"
-      :style="{ width: '550px' }"
+      :style="{ width: '550px', maxWidth: 'calc(100vw - 2rem)' }"
       :closable="true"
     >
       <div class="p-fluid">
@@ -363,10 +366,13 @@
           <label>{{ $t('vigilancies.dialogs.levelsLabel') }}</label>
           <MultiSelect
             v-model="intervalConfig.nivells"
-            :options="nivells"
+            :options="opcionsNivellsPdfInterval"
+            optionLabel="etiqueta"
+            optionValue="valor"
             :placeholder="$t('vigilancies.dialogs.levelsPlaceholder')"
             display="chip"
             :showToggleAll="true"
+            style="width: 100%;"
           />
         </div>
 
@@ -389,7 +395,7 @@
           icon="pi pi-file-pdf"
           @click="generarPDFInterval"
           class="p-button-success"
-          :disabled="!intervalConfig.dataInici || !intervalConfig.dataFinal || (nivells.length > 0 && !intervalConfig.nivells?.length)"
+          :disabled="!intervalConfig.dataInici || !intervalConfig.dataFinal || (opcionsNivellsPdfInterval.length > 0 && !intervalConfig.nivells?.length)"
           :loading="generantPDFInterval"
         />
       </template>
@@ -428,6 +434,7 @@ import MultiSelect from 'primevue/multiselect'
 import Calendar from 'primevue/calendar'
 import PdfOpcionsComunes from '../components/PdfOpcionsComunes.vue'
 import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions'
+import { SENSE_NIVELL, opcionsNivellsPdf, parametresNivellsPdf, seleccioInicialNivellsPdf } from '../vigilanciesPdf'
 import Badge from 'primevue/badge'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
 import FiltreAula from '../components/vigilancies/FiltreAula.vue'
@@ -436,6 +443,7 @@ import TaulaVigilancies from '../components/vigilancies/TaulaVigilancies.vue'
 import * as apiVigilancies from '../api/vigilancies'
 import { useAjudaVigilant } from '../composables/useAjudaVigilant'
 import { useOrdreFiles } from '../composables/useOrdreFiles'
+import { adaptaVigilanciaAlNivell } from '../vigilanciesNivell'
 
 const emit = defineEmits(['anar-substitucions'])
 const toast = useToast()
@@ -512,6 +520,18 @@ const intervalConfig = ref({
 const professors = ref([])
 const hores = ref([])
 const nivells = ref([])
+const senseNivellDia = ref(0)
+const senseNivellInterval = ref(0)
+const opcionsNivellsPdfDia = computed(() =>
+  opcionsNivellsPdf(nivells.value, senseNivellDia.value, (count) =>
+    t('vigilancies.dialogs.withoutLevel', { count })
+  )
+)
+const opcionsNivellsPdfInterval = computed(() =>
+  opcionsNivellsPdf(nivells.value, senseNivellInterval.value, (count) =>
+    t('vigilancies.dialogs.withoutLevel', { count })
+  )
+)
 // Sense cap nivell configurat, els PDF surten amb totes les vigilàncies (cap nivell triat = tots)
 const configCarregada = ref(false)
 const aules = ref([])
@@ -940,8 +960,21 @@ const recarregaLlistat = async () => {
 
 // Un camp d'una fila de la taula: es canvia i es desa
 const canviaCamp = async (fila, camp, valor) => {
+  if ((camp !== 'nivell' && !fila.nivell) || (camp === 'nivell' && !valor)) {
+    toast.add({
+      severity: 'warn',
+      summary: t('common.warning'),
+      detail: t('vigilancies.errors.levelRequired'),
+      life: 4000
+    })
+    return
+  }
   const horaAbans = fila.hora
-  fila[camp] = valor
+  if (camp === 'nivell') {
+    Object.assign(fila, adaptaVigilanciaAlNivell(fila, valor, opcionsFiles.value))
+  } else {
+    fila[camp] = valor
+  }
   await actualitzarVigilancia(fila, { horaAbans })
 }
 
@@ -1489,21 +1522,45 @@ const desarPreferenciesPdf = async (tipus) => {
   }
 }
 
+const recompteSenseNivell = async (dataInici, dataFinal) => {
+  const response = await axios.get('/api/pdf/vigilancies/comptes-sense-nivell', {
+    params: { data_inici: dataInici, data_final: dataFinal }
+  })
+  return response.data.sense_nivell || 0
+}
+
 const mostrarDialegPDF = async () => {
-  // Pre-seleccionar tots els nivells disponibles
-  pdfConfig.value.nivells = [...nivells.value]
+  senseNivellDia.value = await recompteSenseNivell(dataISO.value, dataISO.value)
+  pdfConfig.value.nivells = seleccioInicialNivellsPdf(opcionsNivellsPdfDia.value)
   await carregarPreferenciesPdf()
   mostrarDialogPDF.value = true
 }
 
 const mostrarDialegInterval = async () => {
-  // Pre-seleccionar tots els nivells i dates predeterminades
-  intervalConfig.value.nivells = [...nivells.value]
   intervalConfig.value.dataInici = dataTreball.value
   intervalConfig.value.dataFinal = dataTreball.value
+  senseNivellInterval.value = await recompteSenseNivell(dataISO.value, dataISO.value)
+  intervalConfig.value.nivells = seleccioInicialNivellsPdf(opcionsNivellsPdfInterval.value)
   await carregarPreferenciesPdf()
   mostrarDialogInterval.value = true
 }
+
+watch(
+  () => [intervalConfig.value.dataInici, intervalConfig.value.dataFinal],
+  async ([inici, final]) => {
+    if (!mostrarDialogInterval.value || !inici || !final) return
+    const dataInici = dataIso(inici)
+    const dataFinal = dataIso(final)
+    if (!dataInici || !dataFinal) return
+    const teniaOpcioSenseNivell = senseNivellInterval.value > 0
+    senseNivellInterval.value = await recompteSenseNivell(dataInici, dataFinal)
+    const valorsValids = new Set(opcionsNivellsPdfInterval.value.map((opcio) => opcio.valor))
+    intervalConfig.value.nivells = intervalConfig.value.nivells.filter((valor) => valorsValids.has(valor))
+    if (!teniaOpcioSenseNivell && senseNivellInterval.value > 0) {
+      intervalConfig.value.nivells.push(SENSE_NIVELL)
+    }
+  }
+)
 
 const generarPDF = async () => {
   generantPDF.value = true
@@ -1548,10 +1605,10 @@ const cancelarPDFVig = () => {
 const _baixarPDFVigilancies = async () => {
   generantPDF.value = true
   try {
-    const nivellsParam = pdfConfig.value.nivells.join(',')
+    const seleccioNivells = parametresNivellsPdf(pdfConfig.value.nivells)
     const params = new URLSearchParams({
       ...parametresComuns(pdfConfig.value),
-      nivells: nivellsParam,
+      ...seleccioNivells,
       include_substitucions: pdfConfig.value.includeSubstitucions
     })
 
@@ -1605,7 +1662,7 @@ const generarPDFInterval = async () => {
     return
   }
 
-  if (nivells.value.length > 0 && !intervalConfig.value.nivells?.length) {
+  if (opcionsNivellsPdfInterval.value.length > 0 && !intervalConfig.value.nivells?.length) {
     toast.add({
       severity: 'warn',
       summary: t('vigilancies.errors.levelsRequiredTitle'),
@@ -1633,13 +1690,13 @@ const generarPDFInterval = async () => {
       })
       return
     }
-    const nivellsParam = intervalConfig.value.nivells.join(',')
+    const seleccioNivells = parametresNivellsPdf(intervalConfig.value.nivells)
 
     // Construir URL amb paràmetres
     const params = new URLSearchParams({
       data_inici: dataInici,
       data_final: dataFinal,
-      nivells: nivellsParam,
+      ...seleccioNivells,
       ...parametresComuns(intervalConfig.value),
       include_weekends: intervalConfig.value.includeWeekends,
       include_empty_days: intervalConfig.value.includeEmptyDays,

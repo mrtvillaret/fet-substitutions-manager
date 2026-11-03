@@ -686,64 +686,41 @@ def _color_cobertura(pct: int) -> colors.Color:
     return colors.HexColor("#c0392b")
 
 
-def _taula_grups_per_nivell(grups_data: dict) -> list:
-    """Taula resum de grups agrupada per nivell amb cobertura"""
-    elems = _section_title(_("Impacte per grup i nivell"))
-
-    ordre = grups_data["ordre_nivells"]
-    per_nivell = grups_data["per_nivell"]
-
-    # ── Part 1: Resum per nivell ───────────────────────────────────────
-    elems.append(
-        Paragraph(
-            _("Resum per nivell"),
-            _s("sub", fontName="Helvetica-Bold", fontSize=10, textColor=C_NAVY, leading=14, spaceBefore=4),
-        )
-    )
-    elems.append(Spacer(1, 0.2 * cm))
-
-    headers_niv = [_("Nivell"), _("Grups"), _("Absències"), _("Amb substitut"), _("Pendents"), _("Cobertura")]
-    rows_niv = [headers_niv]
-    for niv in ordre:
-        if niv not in per_nivell:
-            continue
-        v = per_nivell[niv]
-        rows_niv.append(
+def _taula_impacte_per_grup(grups_data: dict) -> list:
+    """Absències i cobertura de cada grup, sense nivells d'exàmens."""
+    elems = _section_title(_("Impacte per grup"))
+    grups = grups_data["grups_ordenats"]
+    rows = [[_("Grup"), _("Absències"), _("Amb substitut"), _("Pendents"), _("Cobertura")]]
+    for grup in grups:
+        rows.append(
             [
-                niv,
-                str(v["n_grups"]),
-                str(v["absencies"]),
-                str(v["cobertes"]),
-                str(v["pendents"]),
-                f"{v['pct']}%",
+                grup["nom"],
+                str(grup["absencies"]),
+                str(grup["cobertes"]),
+                str(grup["pendents"]),
+                f"{grup['pct']}%",
             ]
         )
-    # Fila total
-    tot_abs = sum(v["absencies"] for v in per_nivell.values())
-    tot_cob = sum(v["cobertes"] for v in per_nivell.values())
+    tot_abs = sum(grup["absencies"] for grup in grups)
+    tot_cob = sum(grup["cobertes"] for grup in grups)
     tot_pen = tot_abs - tot_cob
     tot_pct = round(tot_cob / tot_abs * 100) if tot_abs else 0
-    rows_niv.append([_("TOTAL"), "—", str(tot_abs), str(tot_cob), str(tot_pen), f"{tot_pct}%"])
+    rows.append([_("TOTAL"), str(tot_abs), str(tot_cob), str(tot_pen), f"{tot_pct}%"])
 
-    col_niv = [3 * cm, 1.8 * cm, 2.5 * cm, 3 * cm, 2.5 * cm, 2.5 * cm]
-    t_niv = Table(rows_niv, colWidths=col_niv, hAlign="LEFT")
-    st_niv = _table_style_base(C_NAVY)
-    for col in range(1, 6):
-        st_niv.add("ALIGN", (col, 1), (col, -1), "CENTER")
-    # Color cobertura per fila de nivell
-    for r_idx, niv in enumerate([n for n in ordre if n in per_nivell], start=1):
-        pct = per_nivell[niv]["pct"]
-        c = _color_cobertura(pct)
-        st_niv.add("TEXTCOLOR", (5, r_idx), (5, r_idx), c)
-        st_niv.add("FONTNAME", (5, r_idx), (5, r_idx), "Helvetica-Bold")
-    # Fila total
-    last = len(rows_niv) - 1
-    st_niv.add("BACKGROUND", (0, last), (-1, last), colors.HexColor("#d5e8f5"))
-    st_niv.add("FONTNAME", (0, last), (-1, last), "Helvetica-Bold")
-    st_niv.add("LINEABOVE", (0, last), (-1, last), 1, C_NAVY)
-    st_niv.add("TEXTCOLOR", (5, last), (5, last), _color_cobertura(tot_pct))
-    t_niv.setStyle(st_niv)
-    elems.append(t_niv)
+    taula = Table(rows, colWidths=[4 * cm, 3 * cm, 3.2 * cm, 2.5 * cm, 3 * cm], hAlign="LEFT")
+    estil = _table_style_base(C_NAVY)
+    for col in range(1, 5):
+        estil.add("ALIGN", (col, 1), (col, -1), "CENTER")
+    for r_idx, grup in enumerate(grups, start=1):
+        estil.add("TEXTCOLOR", (4, r_idx), (4, r_idx), _color_cobertura(grup["pct"]))
+        estil.add("FONTNAME", (4, r_idx), (4, r_idx), "Helvetica-Bold")
+    last = len(rows) - 1
+    estil.add("BACKGROUND", (0, last), (-1, last), colors.HexColor("#d5e8f5"))
+    estil.add("FONTNAME", (0, last), (-1, last), "Helvetica-Bold")
+    estil.add("LINEABOVE", (0, last), (-1, last), 1, C_NAVY)
+    estil.add("TEXTCOLOR", (4, last), (4, last), _color_cobertura(tot_pct))
+    taula.setStyle(estil)
+    elems.append(taula)
     elems.append(Spacer(1, 0.3 * cm))
     elems.append(
         Paragraph(
@@ -777,10 +754,6 @@ def _taula_matriu_grups_mesos(grups_data: dict) -> list:
                 _("Grup"),
                 _s("gh", fontName="Helvetica-Bold", fontSize=7.5, textColor=C_WHITE, alignment=TA_LEFT, leading=10),
             ),
-            Paragraph(
-                _("Niv."),
-                _s("ghn", fontName="Helvetica-Bold", fontSize=7, textColor=C_WHITE, alignment=TA_CENTER, leading=9),
-            ),
         ]
         + [
             Paragraph(
@@ -804,10 +777,6 @@ def _taula_matriu_grups_mesos(grups_data: dict) -> list:
             Paragraph(
                 _text(nom),
                 _s("gn", fontName="Helvetica", fontSize=7.5, textColor=C_BLACK, alignment=TA_LEFT, leading=10),
-            ),
-            Paragraph(
-                _text(g["nivell"]).replace(" ", "\n"),
-                _s("gnv", fontName="Helvetica", fontSize=6.5, textColor=C_GREY_TXT, alignment=TA_CENTER, leading=8),
             ),
         ]
         for mes in mesos:
@@ -835,10 +804,9 @@ def _taula_matriu_grups_mesos(grups_data: dict) -> list:
 
     n_mesos = len(mesos)
     nom_w = 2.8 * cm
-    niv_w = 1.5 * cm
     tot_w = 1.0 * cm
-    mes_w = (CONTENT_W - nom_w - niv_w - tot_w) / n_mesos
-    col_w = [nom_w, niv_w] + [mes_w] * n_mesos + [tot_w]
+    mes_w = (CONTENT_W - nom_w - tot_w) / n_mesos
+    col_w = [nom_w] + [mes_w] * n_mesos + [tot_w]
 
     t = Table(rows, colWidths=col_w, hAlign="LEFT")
     st = TableStyle(
@@ -860,7 +828,7 @@ def _taula_matriu_grups_mesos(grups_data: dict) -> list:
 
     for r_idx, g in enumerate(grups_ordenats, start=1):
         mes_data = per_grup_mes.get(g["nom"], {})
-        for c_idx, mes in enumerate(mesos, start=2):  # +2 per nom+niv
+        for c_idx, mes in enumerate(mesos, start=1):
             val = mes_data.get(mes, 0)
             if val > 0:
                 st.add("BACKGROUND", (c_idx, r_idx), (c_idx, r_idx), _heatmap_color(val, max_val))
@@ -1100,10 +1068,10 @@ def generar_informe_pdf(
             hores_xml=dades.get("hores_ordre"),
         )
 
-    # Grups per nivell + matriu grups × mesos
+    # Impacte per grup + matriu grups × mesos
     if dades.get("grups_data"):
         story.append(PageBreak())
-        story += _taula_grups_per_nivell(dades["grups_data"])
+        story += _taula_impacte_per_grup(dades["grups_data"])
         story.append(PageBreak())
         story += _taula_matriu_grups_mesos(dades["grups_data"])
 

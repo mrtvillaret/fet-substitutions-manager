@@ -26,6 +26,7 @@ from serveis.dia import Dia
 from substitucions.repositories import SubstitucioRepository
 from utils.hores import normalitzar_hora
 from vigilancies.assignacio import titulars_de
+from vigilancies.domain import nivell_obligatori
 from vigilancies.repositories import VigilanciaRepository
 from vigilancies.services import (
     calcula_assignacio,
@@ -180,7 +181,7 @@ class PublicacioExamens:
                                 aula=aula,
                                 vigilant=None,
                                 comentaris="",
-                                nivell=curs,
+                                nivell=nivell_obligatori(curs),
                             )
                             self.resum.creades += 1
                         elif (existents[clau].tipus or "") != tipus:

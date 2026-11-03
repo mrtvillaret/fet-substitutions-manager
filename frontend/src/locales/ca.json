@@ -849,6 +849,7 @@
       "levelsLabel": "Nivells a incloure *",
       "levelsPlaceholder": "Selecciona nivells",
       "levelsHint": "Selecciona els nivells a incloure al PDF",
+      "withoutLevel": "Sense nivell ({count})",
       "generatePdf": "Genera PDF",
       "intervalTitle": "📅 Exporta PDF interval",
       "startDateLabel": "Data inici *",
@@ -893,6 +894,7 @@
       "orderChanged": "Les files d'aquesta hora havien canviat: s'han tornat a carregar."
     },
     "errors": {
+      "levelRequired": "Cal indicar el nivell de la vigilància abans d'editar-la",
       "load": "Error en carregar les vigilàncies",
       "update": "No s'ha pogut actualitzar la vigilància",
       "create": "No s'ha pogut crear la vigilància",

@@ -6,7 +6,7 @@ Les absències i la cobertura compten les files que es veuen a la pantalla
 Substitucions (`substitucions_reals`, amb la regla de la pantalla:
 `es_visible_a_substitucions`); les substitucions fetes, totes les files amb
 substitut (`substitucions_fetes`). Cada apartat (resum, per mes, per
-professor, per dia i hora, per grup i nivell) és una funció que rep aquesta
+professor, per dia i hora, per grup) és una funció que rep aquesta
 llista i es pot provar sense BD.
 """
 
@@ -21,6 +21,7 @@ from grups.repositories import GrupsAlliberatsRepository
 from helpers import MissingXmlError
 from horari.repositories import XMLVersionRepository
 from noms import ordre_alfabetic
+from ordre_curs import clau_curs
 from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from recomptes.domain import IntervalNoValid
@@ -28,9 +29,6 @@ from recomptes.repositories import RecomptesRepository
 from serveis.dia import Dia
 from substitucions.visibilitat import es_visible_a_substitucions
 from utils.hores import normalitzar_hora
-
-# Nivell dels grups que no són de cap nivell de la configuració d'exàmens
-ALTRES = "Altres"
 
 
 def valida_interval(data_inici: str, data_final: str) -> None:
@@ -374,19 +372,12 @@ def per_grup(subs_reals: list[dict]) -> dict[str, dict]:
     return dict(grups)
 
 
-def per_grup_i_nivell(
-    subs_reals: list[dict],
-    ordre_nivells: list[str],
-    grup2nivell: dict[str, str],
-    mesos: list[str],
-    mesos_nom: dict,
-) -> dict:
-    """Substitucions i cobertes per grup (i per grup i mes) i per nivell. Les
-    substitucions sense grup («-» o buit) no hi compten."""
+def impacte_per_grup(subs_reals: list[dict], mesos: list[str], mesos_nom: dict) -> dict:
+    """Absències i cobertura per grup, i absències per grup i mes.
 
-    def nivell(grup):
-        return grup2nivell.get(grup, ALTRES)
-
+    L'ordre és el de la taula de Substitucions (`ordre_curs.clau_curs`) i no
+    depèn de la configuració d'exàmens. Les files sense grup no hi compten.
+    """
     grups = per_grup(subs_reals)
     per_grup_mes = {}
     for s in subs_reals:
@@ -399,25 +390,7 @@ def per_grup_i_nivell(
         if mes in mesos:  # un mes sense absències, serveis ni cobertes no hi és
             per_grup_mes[grup][mes] += 1
 
-    per_nivell = defaultdict(lambda: {"absencies": 0, "cobertes": 0, "grups": set()})
-    for grup, v in grups.items():
-        niv = nivell(grup)
-        per_nivell[niv]["absencies"] += v["absencies"]
-        per_nivell[niv]["cobertes"] += v["cobertes"]
-        per_nivell[niv]["grups"].add(grup)
-
     return {
-        "per_nivell": {
-            niv: {
-                "absencies": v["absencies"],
-                "cobertes": v["cobertes"],
-                "pendents": v["absencies"] - v["cobertes"],
-                "pct": percentatge(v["cobertes"], v["absencies"]),
-                "n_grups": len(v["grups"]),
-            }
-            for niv, v in per_nivell.items()
-        },
-        "ordre_nivells": ordre_nivells,
         "per_grup_mes": per_grup_mes,
         "mesos": mesos,
         "grups_ordenats": sorted(
@@ -427,11 +400,10 @@ def per_grup_i_nivell(
                     **v,
                     "pendents": v["absencies"] - v["cobertes"],
                     "pct": percentatge(v["cobertes"], v["absencies"]),
-                    "nivell": nivell(g),
                 }
                 for g, v in grups.items()
             ],
-            key=lambda x: (ordre_nivells.index(x["nivell"]) if x["nivell"] in ordre_nivells else 99, x["nom"]),
+            key=lambda x: clau_curs(x["nom"]),
         ),
     }
 

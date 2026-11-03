@@ -1,6 +1,7 @@
 """Casos d'ús de les substitucions d'un dia, sense dependències HTTP."""
 
 import logging
+import random
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -42,6 +43,11 @@ disponibles = _consultes.disponibles
 disponibles_en_bloc = _consultes.disponibles_en_bloc
 
 
+def _atzar():
+    """Atzar dels desempats; els tests poden injectar-hi un generador."""
+    return random
+
+
 def genera_substitucions(
     db: Session,
     dia: Dia,
@@ -51,7 +57,7 @@ def genera_substitucions(
     omplir: bool,
 ) -> dict:
     data_iso(data)
-    resultat = genera_substitucions_dia(db, data, dia.gestors(), regenerar_tot, omplir)
+    resultat = genera_substitucions_dia(db, data, dia.gestors(), regenerar_tot, omplir, rng=_atzar())
     db.commit()
     return resultat
 
@@ -274,13 +280,20 @@ def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:
         str(sub.get("id")): (sub.get("substitut") or "").strip() for sub in substitucions_data if sub.get("id")
     }
     cleared = len(treu_substituts_no_valids(db, data))
-    resultat_generacio = genera_substitucions_dia(db, data, dia.gestors(), regenerar_tot=False)
+    rng = _atzar()
+    resultat_generacio = genera_substitucions_dia(
+        db,
+        data,
+        dia.gestors(),
+        regenerar_tot=False,
+        rng=rng,
+    )
     avisos = list(resultat_generacio.get("avisos", []))
     substitucions_despres = SubstitucioRepository.get_by_date(db, data)
 
     try:
         with db.begin_nested():
-            millors = MillorsSubstituts(DiaEscolar(db, data), dia.gestors())
+            millors = MillorsSubstituts(DiaEscolar(db, data), dia.gestors(), rng=rng)
             for sub in substitucions_despres:
                 millor = millors.millor(sub)
                 if millor and sub.get("id"):

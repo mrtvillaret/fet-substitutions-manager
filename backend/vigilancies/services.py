@@ -29,6 +29,7 @@ from vigilancies.assignacio import (
     save_vigilancies_afinitats,
     titulars_de,
 )
+from vigilancies.domain import nivell_obligatori
 from vigilancies.repositories import VigilanciaRepository
 
 PLACEHOLDER_VIGILANT = "-- selecciona vigilant --"
@@ -486,7 +487,7 @@ def crea(db: Session, data: str, vigilancia) -> dict:
         "aula": vigilancia.aula,
         "vigilant": _sense_placeholder(vigilancia.vigilant),
         "comentaris": vigilancia.comentaris,
-        "nivell": vigilancia.nivell,
+        "nivell": nivell_obligatori(vigilancia.nivell),
     }
 
     nova_vig = VigilanciaRepository.create(db, data, vigilancia_data)
@@ -543,6 +544,9 @@ def edita(db: Session, data: str, vig_id: str, edicio) -> str | None:
     # objecte, i després ja tindria l'hora nova (i la cobertura de l'hora
     # antiga no es recalculava mai)
     hora_abans = vig_abans.hora if vig_abans else None
+
+    if vig_abans:
+        nivell_obligatori(updates.get("nivell", vig_abans.nivell))
 
     if not edicio.force:
         _comprova_versio(vig_abans, edicio.updated_at, "Falta el camp updated_at per comprovar conflictes")

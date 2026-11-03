@@ -137,30 +137,28 @@ def test_per_dia_i_hora_amb_l_hora_normalitzada():
     }
 
 
-def test_per_grup_i_nivell():
+def test_impacte_per_grup_sense_nivells_i_en_l_ordre_de_substitucions():
     subs = [
-        _sub("2026-03-02", grup="1-ESO-A", substitut="Prof 5"),
-        _sub("2026-03-02", grup="1-ESO-B"),
+        _sub("2026-03-02", grup="2-ESO-A"),
+        _sub("2026-03-02", grup="1-BAT-A", substitut="Prof 5"),
+        _sub("2026-03-02", grup="1-BAT-A"),
         _sub("2026-03-02", grup="ALTRE"),
         _sub("2026-03-02", grup="-"),
-        _sub("2026-04-01", grup="1-ESO-A"),  # abril no és als mesos: no hi surt per mes
+        _sub("2026-04-01", grup="1-BAT-A"),  # abril no és als mesos: no hi surt per mes
     ]
     mesos = ["Març 2026"]
 
-    grups = services.per_grup_i_nivell(
-        subs, ["1-ESO", "Altres"], {"1-ESO-A": "1-ESO", "1-ESO-B": "1-ESO"}, mesos, MESOS_CA
-    )
+    grups = services.impacte_per_grup(subs, mesos, MESOS_CA)
 
-    assert grups["per_nivell"] == {
-        "1-ESO": {"absencies": 3, "cobertes": 1, "pendents": 2, "pct": 33, "n_grups": 2},
-        "Altres": {"absencies": 1, "cobertes": 0, "pendents": 1, "pct": 0, "n_grups": 1},
-    }
+    assert "per_nivell" not in grups
+    assert "ordre_nivells" not in grups
     assert grups["per_grup_mes"] == {
-        "1-ESO-A": {"Març 2026": 1},
-        "1-ESO-B": {"Març 2026": 1},
+        "2-ESO-A": {"Març 2026": 1},
+        "1-BAT-A": {"Març 2026": 2},
         "ALTRE": {"Març 2026": 1},
     }
-    assert [g["nom"] for g in grups["grups_ordenats"]] == ["1-ESO-A", "1-ESO-B", "ALTRE"]
+    assert [g["nom"] for g in grups["grups_ordenats"]] == ["ALTRE", "1-BAT-A", "2-ESO-A"]
+    assert all("nivell" not in g for g in grups["grups_ordenats"])
 
 
 def test_els_empats_dels_rankings_van_per_ordre_alfabetic_natural():

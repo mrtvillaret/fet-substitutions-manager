@@ -1247,8 +1247,8 @@ msgid "Generat"
 msgstr "Generado"
 
 #: pdf/informe_direccio.py:661
-msgid "Impacte per grup i nivell"
-msgstr "Impacto por grupo y nivel"
+msgid "Impacte per grup"
+msgstr "Impacto por grupo"
 
 #: pdf/informe_direccio.py:1023 pdf/informe_direccio.py:130
 msgid "Informe de Substitucions"

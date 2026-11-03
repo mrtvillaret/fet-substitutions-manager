@@ -846,6 +846,7 @@
       "levelsLabel": "Levels to include *",
       "levelsPlaceholder": "Select levels",
       "levelsHint": "Select the levels to include in the PDF",
+      "withoutLevel": "No level ({count})",
       "generatePdf": "Generate PDF",
       "intervalTitle": "📅 Export interval PDF",
       "startDateLabel": "Start date *",
@@ -890,6 +891,7 @@
       "orderChanged": "The rows of this hour had changed: they have been reloaded."
     },
     "errors": {
+      "levelRequired": "Set the invigilation level before editing it",
       "load": "Error loading supervisions",
       "update": "Could not update the supervision",
       "create": "Could not create the supervision",

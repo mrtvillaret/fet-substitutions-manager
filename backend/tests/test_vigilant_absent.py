@@ -14,8 +14,6 @@ Dilluns 20/04/2026 a les 10:00: Prof 15 fa Anglès amb 3-ESO-A; Prof 3, 21 i
 28 fan guàrdia.
 """
 
-import random
-
 from test_vigilancies_api import (  # noqa: F401  (fixtures)
     URL,
     URL_SUBS,
@@ -93,6 +91,10 @@ def test_vigilancia_absent_tria_a_l_atzar_dins_la_categoria(monkeypatch):
                 ("Segon candidat", "Guàrdia", "Guàrdia"),
             ]
 
+    class AtzarControlat:
+        def choice(self, candidats):
+            return candidats[-1]
+
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
     monkeypatch.setattr(vigilancia_absent.SubstitucioRepository, "get_by_date", lambda db, data: files)
@@ -101,8 +103,6 @@ def test_vigilancia_absent_tria_a_l_atzar_dins_la_categoria(monkeypatch):
         "update",
         lambda db, sub_id, canvis: actualitzacions.append(canvis),
     )
-    monkeypatch.setattr(random, "choice", lambda candidats: candidats[-1])
-
     assignades = vigilancia_absent.assignar_substituts_pendents(
         object(),
         "2026-04-20",
@@ -110,6 +110,7 @@ def test_vigilancia_absent_tria_a_l_atzar_dins_la_categoria(monkeypatch):
         Alliberats(),
         {"Prof absent": ["10:00"]},
         {},
+        rng=AtzarControlat(),
     )
 
     assert assignades == 1

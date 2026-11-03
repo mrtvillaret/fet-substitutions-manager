@@ -345,15 +345,35 @@ def test_el_planificador_recorda_l_ultim_horari_generat(un_nivell):
     assert _col_locats(desat["resultat"]["horari"]) == _col_locats(horari)
 
 
-def test_un_horari_editat_a_ma_passa_a_ser_l_ultim(un_nivell):
+def test_una_sessio_moguda_i_recalculada_passa_a_ser_l_ultim_horari(un_nivell):
     horari = _genera(un_nivell)
-    # L'editor envia l'horari modificat a recalcular el cost: es desa aquest
+    abans = _col_locats(horari)
+    nom, (data_origen, hora_origen, _) = next(iter(abans.items()))
+    data_desti, hora_desti = next(
+        posicio
+        for posicio in ((data, hora) for data in DATES for hora in ("09:00", "11:30"))
+        if posicio not in {(data, hora) for data, hora, _ in abans.values()}
+    )
+    dia_origen = next(dia for dia in horari["dies"] if dia["data"] == data_origen)
+    slot_origen = next(slot for slot in dia_origen["sessions"] if slot["hora"] == hora_origen)
+    sessio = next(sessio for sessio in slot_origen["sessions_simultanees"] if sessio["nom"] == nom)
+    slot_origen["sessions_simultanees"].remove(sessio)
+    dia_desti = next(dia for dia in horari["dies"] if dia["data"] == data_desti)
+    slot_desti = next((slot for slot in dia_desti["sessions"] if slot["hora"] == hora_desti), None)
+    if slot_desti is None:
+        slot_desti = {"hora": hora_desti, "sessions_simultanees": []}
+        dia_desti["sessions"].append(slot_desti)
+    slot_desti["sessions_simultanees"].append(sessio)
     horari["metadata"]["editat_a_ma"] = True
+
     resp = un_nivell.post(
         "/api/scheduler/recalcular-cost", json={"horari": horari, "data_referencia": DATES[0], "selected_dates": DATES}
     )
+
     assert resp.status_code == 200
     desat = un_nivell.get("/api/scheduler/ultim-resultat").json()["resultat"]
+    assert _col_locats(desat["horari"])[nom][:2] == (data_desti, hora_desti)
+    assert _col_locats(desat["horari"]) != abans
     assert desat["horari"]["metadata"]["editat_a_ma"] is True
     assert desat["horari"]["metadata"]["cost_total"] == resp.json()["cost_total"]
     assert desat["dies_utilitzar"] == DIES

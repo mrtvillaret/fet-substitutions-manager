@@ -14,13 +14,14 @@ prioritats mínimes de suport_api. Dilluns 20/04/2026 a les 10:00:
 """
 
 import uuid
+from datetime import date
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
 from grups.repositories import GrupsAlliberatsRepository
-from models import ConfiguracioExamen
+from models import ConfiguracioExamen, Vigilancia
 from rate_limit import limiter
 from substitucions import router as substitucions
 from vigilancies import services
@@ -146,6 +147,67 @@ def test_crear_i_llistar(client):
     assert (creada["hora"], creada["vigilant"], creada["nivell"]) == ("10:00", "Prof 21", "2-BAT")
     [vig] = _vigilancies(client)
     assert (vig["hora"], vig["grups"], vig["vigilant"]) == ("10:00", "2-BAT-A", "Prof 21")
+
+
+@pytest.mark.parametrize("nivell", [None, "", "   "], ids=["omes", "buit", "espais"])
+def test_crear_sense_nivell_dona_un_error_clar(client, nivell):
+    cos = {
+        "hora": "10:00",
+        "tipus": "Anglès",
+        "grups": "2-BAT-A",
+        "aula": "A1",
+        "vigilant": "",
+        "comentaris": "",
+    }
+    if nivell is not None:
+        cos["nivell"] = nivell
+
+    resp = client.post(URL, json=cos)
+
+    assert resp.status_code == 400
+    assert resp.json() == {"detail": "Cal indicar el nivell de la vigilància"}
+    assert _vigilancies(client) == []
+
+
+def test_actualitzar_no_permet_treure_el_nivell(client):
+    _crea(client)
+    vig = _vigilancies(client)[0]
+
+    resp = client.put(
+        f"{URL}/{vig['id']}",
+        json={"nivell": "  ", "updated_at": vig["updated_at"]},
+    )
+
+    assert resp.status_code == 400
+    assert resp.json() == {"detail": "Cal indicar el nivell de la vigilància"}
+    assert _vigilancies(client)[0]["nivell"] == "2-BAT"
+
+
+def test_actualitzar_una_vigilancia_antiga_sense_nivell_obliga_a_posar_lo(client, centre):
+    with get_data_db_session(centre) as db:
+        db.add(
+            Vigilancia(
+                data=date.fromisoformat(DATA),
+                hora="10:00",
+                tipus="Celebració",
+                grups="",
+                aula="Pati",
+                nivell="",
+                comentaris="antiga",
+            )
+        )
+        db.commit()
+
+    [vig] = _vigilancies(client)
+    resp = client.put(
+        f"{URL}/{vig['id']}",
+        json={"comentaris": "canvi", "updated_at": vig["updated_at"]},
+    )
+
+    assert resp.status_code == 400
+    assert resp.json() == {"detail": "Cal indicar el nivell de la vigilància"}
+    [sense_canvis] = _vigilancies(client)
+    assert (sense_canvis["nivell"], sense_canvis["comentaris"]) == ("", "antiga")
 
 
 def test_el_placeholder_de_vigilant_es_desa_buit(client):

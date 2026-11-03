@@ -153,11 +153,6 @@ def test_no_es_pot_marcar_absent_un_professor_de_baixa(client):
         f"/api/substitucions/{FUTUR}/absencies/Prof 15", json={"hores_absencia": ["10:00"], "updated_at_map": {}}
     )
     assert resp.status_code == 400 and "té una absència coberta" in resp.json()["detail"]
-    resp = client.put(
-        f"/api/substitucions/{FUTUR}/absencies/Prof 15",
-        json={"hores_absencia": ["10:00"], "updated_at_map": {}},
-    )
-    assert resp.status_code == 400 and "té una absència coberta" in resp.json()["detail"]
     assert not any(s["professor_absent"] == "Prof 15" for s in _files(client, FUTUR))
 
     # Treure-li absències sí que es pot

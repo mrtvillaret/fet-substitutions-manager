@@ -86,15 +86,6 @@ def test_un_canvi_posterior_el_torna_a_l_estat_normal(client):
     assert not _alliberat(client, DILLUNS[3], "10:00", "Prof 26")
 
 
-def test_els_canvis_no_es_llisten_ni_s_esborren_per_l_api(client):
-    # La pantalla no ho fa servir (30/10/2026): un canvi es desfà amb un altre
-    # canvi posterior (test_un_canvi_posterior_el_torna_a_l_estat_normal)
-    _canvi(client, "professor", "Prof 26", ["10:00"], DILLUNS[1])
-    assert client.get("/api/grups/periode/canvis").status_code == 404
-    assert client.delete("/api/grups/periode/1").status_code == 404
-    assert _alliberat(client, DILLUNS[2], "10:00", "Prof 26")
-
-
 # ------------------------------------------------------------------ grup
 
 

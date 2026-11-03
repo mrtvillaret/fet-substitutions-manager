@@ -19,7 +19,11 @@ if str(BACKEND_DIR) not in sys.path:
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-nomes-per-als-tests")
 os.environ.setdefault("ENVIRONMENT", "development")
-os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="gestor_tests_data_")
+# xdist executa cada worker en un procés: cadascun rep una carpeta, auth.db,
+# variables d'entorn i globals de l'aplicació propis. El nom del worker al
+# prefix fa visible l'aïllament si una prova falla.
+worker = os.environ.get("PYTEST_XDIST_WORKER", "serie")
+os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix=f"gestor_tests_{worker}_data_")
 # S'esborra en acabar: cada execució hi deixa centenars de centres de prova i,
 # a /tmp (sovint en memòria), s'acabava omplint
 atexit.register(shutil.rmtree, os.environ["DATA_DIR"], ignore_errors=True)

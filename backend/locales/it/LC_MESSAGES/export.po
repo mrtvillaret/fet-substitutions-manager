@@ -43,8 +43,8 @@ msgstr "Andamento delle sostituzioni effettuate per docente e mese"
 msgid "Professors que han fet més substitucions"
 msgstr "Docenti che hanno effettuato più sostituzioni"
 
-msgid "Impacte per grup i nivell"
-msgstr "Impatto per gruppo e livello"
+msgid "Impacte per grup"
+msgstr "Impatto per gruppo"
 
 msgid "Resum per nivell"
 msgstr "Riepilogo per livello"

@@ -139,6 +139,30 @@ def test_prioritza_la_categoria_mes_alta_encara_que_tingui_menys_candidats():
     assert escollit[0] == "Prof_AltaPrioritat"
 
 
+def test_un_alliberat_guanya_dos_de_guardia_sense_consultar_l_atzar(monkeypatch):
+    class AtzarProhibit:
+        def choice(self, candidats):
+            raise AssertionError(f"No calia desempatar entre {candidats}")
+
+    monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True, True])
+    gestor = GestorSubstitucions(FakeHorari([]), FakeAlliberats({}), FakeAbsencies([]))
+    gestor.validator = CandidateValidator(rng=AtzarProhibit())
+
+    escollit = gestor._escollir_millor_candidat_disponible(
+        {
+            0: [("Prof_Alliberat", "alliberat", "tenia classe")],
+            1: [
+                ("Prof_Guardia_1", "Guàrdia", "Guàrdia"),
+                ("Prof_Guardia_2", "Guàrdia", "Guàrdia"),
+            ],
+        },
+        set(),
+        "09:00",
+    )
+
+    assert escollit == ("Prof_Alliberat", "alliberat", "tenia classe")
+
+
 def test_categoria_desactivada_no_assigna_automaticament(monkeypatch):
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [False, True])
 

@@ -303,7 +303,7 @@ amb `fetes_del_curs_per_substitut`):
   la feina de cada professor).
 - Un apartat per funció: `cobertura`, `resum`, `per_mes`,
   `professors_absencies`, `professors_substitucions`, `balanc_per_professor`,
-  `per_dia_i_hora`, `per_grup`, `per_grup_i_nivell`, `dades_professors`,
+  `per_dia_i_hora`, `per_grup`, `impacte_per_grup`, `dades_professors`,
   `vigilancies_per_resultat`; els empats dels rànquings, per ordre alfabètic
   natural (`per_comptador`).
 - `franges_de_l_horari`: les franges de les versions de l'XML vigents a

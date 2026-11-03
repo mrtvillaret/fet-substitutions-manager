@@ -87,7 +87,7 @@ substitut, algú hi ha anat.
 |---|---|---|---|---|---|
 | Pantalla Substitucions i PDF del dia | si es veu | si es veu | sempre | si es veu | si es veu (sota la seva) |
 | **Absències i serveis**: informe de direcció, informe per professor; Estadístiques (per professor, top d'absents, classes, detall) | absència | servei | — | — | — |
-| **Cobertura** (a cobrir, cobertes, %): portada, per mes, dia × hora, grups i nivells; Estadístiques (resum, temporals, classes) | sí | sí | — | — | — |
+| **Cobertura** (a cobrir, cobertes, %): portada, per mes, dia × hora i grups; Estadístiques (resum, temporals, classes) | sí | sí | — | — | — |
 | **Substitucions fetes** (amb substitut, sense filtres): PDF de direcció (rànquing, professor × mes), PDF per professor; Estadístiques (top de substituts, taula per professor i balanç, detall, franges); «(n/total)» del desplegable de substituts | sí | sí | sí | sí | sí |
 | **Vigilàncies cobertes** (Estadístiques, apartat propi, per resultat) | — | — | la vigilància és coberta si té substitut | — | — |
 | **Vigilàncies fetes per professor** (Estadístiques) | — | — | — (el substitut ho té a les substitucions fetes) | — | — |

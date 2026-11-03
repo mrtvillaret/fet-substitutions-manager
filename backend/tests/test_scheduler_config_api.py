@@ -55,11 +55,6 @@ def test_nomes_els_admins_fan_servir_el_planificador(centre, metode, ruta):
     assert getattr(client, metode)(ruta, **({} if metode == "get" else {"json": {}})).status_code == 403
 
 
-def test_no_hi_ha_ruta_d_estat(client):
-    # La pantalla la cridava però no en llegia res (esborrada el 01/11/2026)
-    assert client.get("/api/scheduler/status").status_code == 404
-
-
 # ------------------------------------------------------ durades i nivells
 
 
@@ -275,12 +270,6 @@ def test_les_sessions_son_assignatura_i_nivell(client):
         "Filosofia (1-BAT)",
     ]
     assert client.get("/api/scheduler/sessions-info", params={"nivells": "2-BAT"}).json() == []
-
-
-def test_no_hi_ha_ruta_de_grups_per_nivell(client):
-    # La pantalla no la feia servir (esborrada el 01/11/2026, amb els nivells
-    # GENERAL i RECERCA que s'hi amagaven escrits al codi)
-    assert client.get("/api/scheduler/grups-nivells").status_code == 404
 
 
 def test_el_planificador_no_te_codis_de_nivell_escrits_al_codi():

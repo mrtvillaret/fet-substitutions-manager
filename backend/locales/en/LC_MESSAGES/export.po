@@ -32,8 +32,8 @@ msgstr "Substitutions made evolution by teacher and month"
 msgid "Professors que han fet més substitucions"
 msgstr "Teachers with most substitutions made"
 
-msgid "Impacte per grup i nivell"
-msgstr "Impact by group and level"
+msgid "Impacte per grup"
+msgstr "Impact by group"
 
 msgid "Resum per nivell"
 msgstr "Summary by level"

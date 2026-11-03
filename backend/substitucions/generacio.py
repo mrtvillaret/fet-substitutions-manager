@@ -251,7 +251,7 @@ def _resum(db, estat: EstatDia, files_motor: list, regenerar_tot: bool, avisos: 
     }
 
 
-def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir: bool = True) -> dict:
+def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir: bool = True, rng=None) -> dict:
     """Genera i desa les substitucions d'un dia. `gestors`: el que retorna
     helpers.get_gestors. Amb `omplir=False` no es tria cap substitut nou, ni
     per al motor (GestorSubstitucions.assignar_substitucions) ni per a les
@@ -270,6 +270,7 @@ def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir
         absents_tipus=estat.absents_tipus,
         activitats_fallback=estat.activitats_fallback,
         omplir=omplir,
+        rng=rng,
     )
     files_motor = [s for s in resultat_motor if not s.get("separador")]
 
@@ -287,6 +288,7 @@ def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir
             estat.absents,
             estat.vigilants,
             grups_sense_classe=estat.grups,
+            rng=rng,
         )
 
     return _resum(db, estat, files_motor, regenerar_tot, list(getattr(substitucions_mgr, "avisos", [])))

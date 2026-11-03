@@ -665,8 +665,8 @@ msgstr "Evolución de sustituciones realizadas por profesor y mes"
 msgid "Professors que han fet més substitucions"
 msgstr "Profesores que han realizado más sustituciones"
 
-msgid "Impacte per grup i nivell"
-msgstr "Impacto por grupo y nivel"
+msgid "Impacte per grup"
+msgstr "Impacto por grupo"
 
 msgid "Resum per nivell"
 msgstr "Resumen por nivel"

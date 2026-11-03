@@ -64,7 +64,7 @@
     <td>
       <CampDesplegable
         :modelValue="fila.nivell || ''"
-        :options="[$t('vigilancies.placeholders.level'), ...opcions.nivells]"
+        :options="opcions.nivells"
         :placeholder="$t('vigilancies.placeholders.level')"
         :etiqueta="$t('vigilancies.columns.level')"
         @change="emit('canvi', fila, 'nivell', $event)"

@@ -252,6 +252,26 @@ def test_generar_assigna_substituts_que_estan_lliures(client):
         assert len(substituts) == len(set(substituts)), f"substitut repetit a les {hora}"
 
 
+def test_generar_desempata_amb_l_atzar_injectat(client, monkeypatch):
+    class AtzarControlat:
+        def __init__(self):
+            self.crides = []
+
+        def choice(self, candidats):
+            self.crides.append(list(candidats))
+            return candidats[-1]
+
+    rng = AtzarControlat()
+    monkeypatch.setattr(services, "_atzar", lambda: rng)
+    _marca_absencia(client, hores=["10:00"])
+
+    resp = client.post(f"{URL}/generar")
+
+    assert resp.status_code == 200
+    assert len(rng.crides[0]) == 3
+    assert _sub(client, "10:00")["substitut"] == rng.crides[0][-1][0]
+
+
 def test_qui_deixa_una_guardia_per_substituir_genera_una_substitucio_encadenada(client):
     _marca_absencia(client, hores=["10:00"])
     client.post(f"{URL}/generar")
@@ -271,6 +291,40 @@ def test_generar_dues_vegades_no_duplica_files(client):
     primer = sorted((s["hora"], s["professor_absent"]) for s in _subs(client))
     client.post(f"{URL}/generar")
     assert sorted((s["hora"], s["professor_absent"]) for s in _subs(client)) == primer
+
+
+def test_generar_dues_vegades_conserva_l_estat_de_totes_les_files(client, monkeypatch):
+    _marca_absencia(client, hores=["10:00"])
+
+    primera = client.post(f"{URL}/generar")
+    assert primera.status_code == 200, primera.text
+
+    def projeccio():
+        return [
+            (
+                fila["hora"],
+                fila["professor_absent"],
+                fila["assignatura"],
+                fila["grup"],
+                fila["substitut"],
+                fila["tipus_absencia"],
+            )
+            for fila in _subs(client)
+        ]
+
+    estat_inicial = projeccio()
+
+    class AtzarQueCanviariaElsSubstituts:
+        def choice(self, candidats):
+            ocupats = {fila[4] for fila in estat_inicial if fila[4]}
+            return next((candidat for candidat in candidats if candidat[0] not in ocupats), candidats[-1])
+
+    monkeypatch.setattr(services, "_atzar", AtzarQueCanviariaElsSubstituts)
+    segona = client.post(f"{URL}/generar")
+
+    assert segona.status_code == 200, segona.text
+    assert projeccio() == estat_inicial
+    assert segona.json()["total"] == len(estat_inicial)
 
 
 def test_generar_respecta_el_substitut_assignat_a_ma(client):

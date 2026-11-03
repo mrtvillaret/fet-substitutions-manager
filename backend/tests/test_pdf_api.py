@@ -11,7 +11,7 @@ import uuid
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
-from pdf import generacio, informes, services
+from pdf import generacio, informes, services, taula
 from pdf import router as pdf
 from rate_limit import limiter
 from substitucions import router as substitucions
@@ -75,6 +75,44 @@ def _prepara(client, valor):
     assert resp.status_code == 200, resp.text
 
 
+def test_compta_les_vigilancies_sense_nivell_de_l_interval(client, centre):
+    from datetime import date
+
+    from database import get_data_db_session
+    from models import Vigilancia
+
+    with get_data_db_session(centre) as db:
+        db.add_all(
+            [
+                Vigilancia(
+                    data=date.fromisoformat(DATA),
+                    hora="10:00",
+                    tipus="Antiga",
+                    grups="",
+                    aula="A1",
+                    nivell="",
+                ),
+                Vigilancia(
+                    data=date.fromisoformat(DATA),
+                    hora="11:30",
+                    tipus="Amb nivell",
+                    grups="1-ESO-A",
+                    aula="A2",
+                    nivell="1-ESO",
+                ),
+            ]
+        )
+        db.commit()
+
+    resp = client.get(
+        "/api/pdf/vigilancies/comptes-sense-nivell",
+        params={"data_inici": DATA, "data_final": DATA},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"sense_nivell": 1}
+
+
 @pytest.mark.parametrize("ruta", PDFS)
 @pytest.mark.parametrize("valor", [TEXT_PERILLÓS, IMATGE, MARCATGE])
 def test_el_text_dels_usuaris_no_trenca_ni_s_interpreta_al_pdf(client, ruta, valor):
@@ -82,6 +120,33 @@ def test_el_text_dels_usuaris_no_trenca_ni_s_interpreta_al_pdf(client, ruta, val
     resp = client.get(ruta)
     assert resp.status_code == 200, resp.text[:300]
     assert resp.headers["content-type"] == "application/pdf"
+
+
+@pytest.mark.parametrize(
+    "ruta, prefix",
+    [
+        (f"/api/pdf/complete/{DATA}", f"complet_{DATA}_"),
+        (
+            f"/api/pdf/vigilancies/interval?data_inici={DATA}&data_final={DATA}",
+            f"vigilancies_interval_{DATA}_a_{DATA}_",
+        ),
+        (
+            f"/api/informes/direccio?data_inici={DATA}&data_final={DATA}",
+            f"informe_direccio_{DATA}_{DATA}.pdf",
+        ),
+    ],
+)
+def test_les_descarregues_pdf_porten_un_nom_de_fitxer(client, ruta, prefix):
+    _prepara(client, "Física")
+
+    resposta = client.get(ruta)
+
+    assert resposta.status_code == 200, resposta.text[:300]
+    assert resposta.headers["content-type"] == "application/pdf"
+    disposicio = resposta.headers["content-disposition"]
+    assert disposicio.startswith("attachment;")
+    assert prefix in disposicio
+    assert disposicio.rstrip('"').endswith(".pdf")
 
 
 # ------------------------------------------------ espai per escriure a mà
@@ -95,6 +160,57 @@ def _text_pdf(contingut: bytes) -> str:
     if not shutil.which("pdftotext"):
         pytest.skip("cal pdftotext (poppler-utils)")
     return subprocess.run(["pdftotext", "-", "-"], input=contingut, capture_output=True, check=True).stdout.decode()
+
+
+@pytest.mark.parametrize(
+    "vigilancia, esperat",
+    [
+        ({"nivell": "GENERAL", "grups": "1-ESO-A"}, "GENERAL"),
+        ({"nivell": "Nivell propi", "grups": "1-ESO-A"}, "Nivell propi"),
+        ({"nivell": "", "grups": "1-ESO-A"}, ""),
+        ({"grups": "1-ESO-A"}, ""),
+    ],
+)
+def test_el_curs_de_la_vigilancia_es_el_nivell_sense_deduccions(vigilancia, esperat):
+    assert taula.curs_vigilancia(vigilancia) == esperat
+
+
+def test_l_informe_de_direccio_no_llegeix_la_configuracio_d_examens(centre, monkeypatch):
+    from datetime import date
+
+    from configuracio_examens.repositories import MasterConfigRepository
+    from database import get_data_db_session
+    from models import Substitucio
+
+    with get_data_db_session(centre) as db:
+        db.add_all(
+            [
+                Substitucio(
+                    data=date.fromisoformat(DATA),
+                    hora="08:00",
+                    professor_absent="Prof 1",
+                    grup="2-ESO-A",
+                    tipus_absencia="ABSENCIA",
+                ),
+                Substitucio(
+                    data=date.fromisoformat(DATA),
+                    hora="09:00",
+                    professor_absent="Prof 2",
+                    grup="1-BAT-A",
+                    tipus_absencia="ABSENCIA",
+                ),
+            ]
+        )
+        db.commit()
+
+        def falla(*_args, **_kwargs):
+            raise AssertionError("l'informe no ha de llegir la configuració d'exàmens")
+
+        monkeypatch.setattr(MasterConfigRepository, "get_master_config", falla)
+        dades = services.dades_direccio(db, DATA, DATA, [])
+
+    assert [g["nom"] for g in dades["grups_data"]["grups_ordenats"]] == ["1-BAT-A", "2-ESO-A"]
+    assert all("nivell" not in grup for grup in dades["grups_data"]["grups_ordenats"])
 
 
 def _hores_del_pdf(client, **params):

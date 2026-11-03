@@ -6,6 +6,8 @@ fan servir els avisos del PDF i «Reassignar problemàtics».
 
 from collections import defaultdict
 
+from config import constants
+from substitucions.assignacio import candidats_de_maxima_prioritat, desempata_candidats
 from substitucions.domain import DiaEscolar
 
 
@@ -29,10 +31,11 @@ def text_tipus_substitut(tipus: str, detall: str) -> str:
 
 
 class MillorsSubstituts:
-    def __init__(self, dia: DiaEscolar, gestors):
+    def __init__(self, dia: DiaEscolar, gestors, rng=None):
         """`gestors`: el que retorna helpers.get_gestors per a aquell dia."""
         self.dia = dia
         self.motor, _, self.alliberats, _ = gestors
+        self.rng = rng
         self.ocupats_per_hora = defaultdict(set)
         for sub in dia.files:
             hora = (sub.get("hora") or "").strip()
@@ -41,9 +44,11 @@ class MillorsSubstituts:
                 self.ocupats_per_hora[hora].add(substitut)
 
     def millor(self, sub: dict):
-        """(professor, tipus, detall, tipus_actual) del primer disponible d'una
-        categoria de més prioritat que la del substitut de `sub`, o None. No
-        compta qui és absent, vigila o ja substitueix a aquella hora."""
+        """Millor candidat d'una categoria superior a la de l'actual.
+
+        Retorna (professor, tipus, detall, tipus_actual) o None. No compta qui
+        és absent, vigila o ja substitueix a aquella hora.
+        """
         hora = (sub.get("hora") or "").strip()
         actual = (sub.get("substitut") or "").strip()
         if not hora or not actual:
@@ -58,9 +63,24 @@ class MillorsSubstituts:
             | self.dia.vigilants_per_hora.get(hora, set())
             | self.ocupats_per_hora.get(hora, set())
         )
+        candidats_per_categoria = defaultdict(list)
         for prof, tipus, detall in disponibles:
-            if prof not in no_poden and self.motor._obtenir_categoria(tipus) < categoria_actual:
-                return prof, tipus, detall, tipus_actual
+            categoria = self.motor._obtenir_categoria(tipus)
+            if categoria < len(constants.ORDRE_PRIORITATS):
+                candidats_per_categoria[categoria].append((prof, tipus, detall))
+
+        candidats = candidats_de_maxima_prioritat(
+            candidats_per_categoria,
+            constants.CATEGORIES_ACTIVES,
+            no_poden,
+        )
+        # «Reassigna» hi injecta el mateix atzar que la generació. Els avisos
+        # del PDF no assignen ningú i conserven un representant estable.
+        millor = (
+            desempata_candidats(candidats, self.rng) if self.rng is not None else (candidats[0] if candidats else None)
+        )
+        if millor and self.motor._obtenir_categoria(millor[1]) < categoria_actual:
+            return *millor, tipus_actual
         return None
 
     def canvia(self, hora: str, abans: str, despres: str) -> None:

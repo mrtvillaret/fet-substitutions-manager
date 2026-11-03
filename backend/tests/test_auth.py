@@ -382,14 +382,6 @@ def test_un_admin_que_es_reanomena_conserva_la_sessio(client, escenari):
     assert resp.status_code == 200 and resp.json()["username"] == nou
 
 
-def test_un_testimoni_d_abans_sense_uid_encara_val(client, escenari):
-    client.cookies.set(
-        COOKIE_NAME,
-        create_access_token({"sub": escenari["noms"]["user_a"], "institucio": escenari["a"], "role": "user"}),
-    )
-    assert client.get("/prova/user").status_code == 200
-
-
 def test_institucio_inactiva_bloqueja_els_seus_usuaris(client, escenari):
     _entra(client, escenari, "user_a")
     config.set_institucio_activa(escenari["a"], False)

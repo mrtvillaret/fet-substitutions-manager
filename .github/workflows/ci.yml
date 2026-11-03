@@ -35,7 +35,7 @@ jobs:
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: ruff check .
       # Els tests creen centres temporals amb l'horari de data/exemple/
-      - run: python -m pytest -q -p no:cacheprovider
+      - run: python -m pytest -q -n auto --dist loadscope -p no:cacheprovider
 
   frontend:
     runs-on: ubuntu-24.04

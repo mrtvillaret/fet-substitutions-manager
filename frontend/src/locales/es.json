@@ -846,6 +846,7 @@
       "levelsLabel": "Niveles a incluir *",
       "levelsPlaceholder": "Selecciona niveles",
       "levelsHint": "Selecciona los niveles a incluir en el PDF",
+      "withoutLevel": "Sin nivel ({count})",
       "generatePdf": "Generar PDF",
       "intervalTitle": "📅 Exportar PDF intervalo",
       "startDateLabel": "Fecha inicio *",
@@ -890,6 +891,7 @@
       "orderChanged": "Las filas de esta hora habían cambiado: se han vuelto a cargar."
     },
     "errors": {
+      "levelRequired": "Hay que indicar el nivel de la vigilancia antes de editarla",
       "load": "Error al cargar las vigilancias",
       "update": "No se ha podido actualizar la vigilancia",
       "create": "No se ha podido crear la vigilancia",

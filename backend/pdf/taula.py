@@ -77,23 +77,8 @@ def _valors_substitucio(sub: dict) -> dict:
 
 
 def curs_vigilancia(vig: dict) -> str:
-    """Curs que es mostra d'una vigilància: el nivell, o el que es dedueix del grup."""
-    nivell = vig.get("nivell", "")
-    # Don't show "GENERAL" as course - it's for special vigilances
-    if nivell == "GENERAL":
-        nivell = ""
-    # Only show level if there's an explicit group selection
-    if not nivell:
-        grup = vig.get("grups", "") or vig.get("grup", "")
-        # ONLY extract level from explicit group selection, NOT from aula
-        if grup and "-" in grup:
-            parts = grup.split("-")
-            if len(parts) >= 2:
-                if parts[1] == "ESO":
-                    nivell = f"{parts[0]}{'r' if parts[0] in ['1', '3'] else 't'} ESO"
-                elif parts[1] == "BATX":
-                    nivell = f"{parts[0]}{'r' if parts[0] == '1' else 'n'} BATX"
-    return nivell
+    """Nom del nivell de la vigilància, tal com està configurat."""
+    return vig.get("nivell", "") or ""
 
 
 def _valors_vigilancia(vig: dict) -> dict:

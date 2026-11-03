@@ -21,12 +21,58 @@ except ImportError:
         return text
 
 
+def prioritat_candidat(tipus_activitat: str) -> int:
+    """Retorna l'índex de prioritat d'un tipus (0 = prioritat màxima)."""
+    from config import constants
+
+    for i, categoria in enumerate(constants.ORDRE_PRIORITATS):
+        if tipus_activitat in categoria:
+            return i
+    return len(constants.ORDRE_PRIORITATS)
+
+
+def candidats_de_maxima_prioritat(
+    candidats_per_categoria: Dict[int, List],
+    categories_actives,
+    professors_exclosos: Set[str] = frozenset(),
+) -> List[Tuple[str, str, str]]:
+    """Calcula els candidats de la primera categoria activa amb disponibles.
+
+    No desempata: conserva l'ordre d'entrada perquè l'atzar el resolgui en un
+    pas separat.
+    """
+    for categoria in sorted(candidats_per_categoria):
+        if categoria < len(categories_actives) and not categories_actives[categoria]:
+            continue
+        candidats = [
+            candidat for candidat in candidats_per_categoria[categoria] if candidat[0] not in professors_exclosos
+        ]
+        if candidats:
+            return candidats
+    return []
+
+
+def desempata_candidats(candidats: List[Tuple[str, str, str]], rng=random) -> Optional[Tuple[str, str, str]]:
+    """Tria uniformement entre candidats de la mateixa prioritat."""
+    if not candidats:
+        return None
+    if len(candidats) == 1:
+        return candidats[0]
+    return rng.choice(candidats)
+
+
 class CandidateValidator:
     """Validador centralitzat per candidats a substitucions"""
 
-    def __init__(self, professors_ocupats_examens: Dict = None, substitucions_existents: Dict = None):
+    def __init__(
+        self,
+        professors_ocupats_examens: Dict = None,
+        substitucions_existents: Dict = None,
+        rng=None,
+    ):
         self.professors_ocupats_examens = professors_ocupats_examens or {}
         self.substitucions_existents = substitucions_existents or {}
+        self.rng = random if rng is None else rng
 
     # ELIMINADA: escollir_millor_candidat() - no s'utilitzava (duplicat obsolet)
     # Utilitzar _escollir_millor_candidat_disponible() en lloc d'aquesta
@@ -37,14 +83,7 @@ class CandidateValidator:
         NOTA: Els candidats ja estan filtrats per categoria (prioritat).
         Dins de cada categoria, fem selecció aleatòria equiprobable.
         """
-        if not candidats:
-            return None
-        if len(candidats) == 1:
-            return candidats[0]
-
-        # Selecció aleatòria equiprobable dins de la mateixa categoria
-        # (els candidats ja estan ordenats per categoria abans d'arribar aquí)
-        return random.choice(candidats)
+        return desempata_candidats(candidats, self.rng)
 
 
 class GestorSubstitucions:
@@ -74,6 +113,7 @@ class GestorSubstitucions:
         absents_tipus: Dict[str, str] = None,
         activitats_fallback: Dict = None,
         omplir: bool = True,
+        rng=None,
     ) -> List[Dict]:
         """Assigna substituts automàticament per hores
 
@@ -119,7 +159,7 @@ class GestorSubstitucions:
             self.grups_sense_classe_dict = grups_sense_classe
 
         # Inicialitza validador amb la info actual
-        self.validator = CandidateValidator(professors_ocupats_examens, substitucions_existents)
+        self.validator = CandidateValidator(professors_ocupats_examens, substitucions_existents, rng)
 
         substitucions = self.absencies.get_substitucions_necessaries(
             dia, absents, absents_tipus, activitats_fallback=activitats_fallback
@@ -486,31 +526,13 @@ class GestorSubstitucions:
 
         categories_actives = constants.CATEGORIES_ACTIVES
 
-        # Recorre categories per ordre de prioritat
-        for categoria in sorted(candidats_per_categoria.keys()):
-            # Salta categoria si està desactivada (checkbox desmarcat)
-            if categoria < len(categories_actives) and not categories_actives[categoria]:
-                continue  # No assigna automàticament d'aquesta categoria
-
-            candidats_categoria = candidats_per_categoria[categoria]
-            # Filtra candidats per aquesta categoria
-            candidats_disponibles = []
-            for prof, tipus, detall in candidats_categoria:
-                if prof not in ocupats_hora and prof not in professors_vigilancies:
-                    candidats_disponibles.append((prof, tipus, detall))
-
-            if candidats_disponibles:
-                # Tria aleatòriament amb pesos dins d'aquesta categoria
-                escollit = self.validator._escollir_aleatoriament_amb_pesos(candidats_disponibles)
-                return escollit
-
-        return None  # Cap candidat disponible
+        candidats_prioritaris = candidats_de_maxima_prioritat(
+            candidats_per_categoria,
+            categories_actives,
+            ocupats_hora | professors_vigilancies,
+        )
+        return self.validator._escollir_aleatoriament_amb_pesos(candidats_prioritaris)
 
     def _obtenir_categoria(self, tipus_activitat: str) -> int:
         """Retorna l'índex de categoria (0 = prioritat màxima)"""
-        from config import constants
-
-        for i, categoria in enumerate(constants.ORDRE_PRIORITATS):
-            if tipus_activitat in categoria:
-                return i
-        return len(constants.ORDRE_PRIORITATS)  # Categoria mínima per tipus desconeguts
+        return prioritat_candidat(tipus_activitat)

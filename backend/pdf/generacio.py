@@ -167,13 +167,19 @@ def substitucions_del_pdf(db: Session, data: str) -> list[dict]:
     ]
 
 
-def vigilancies_dels_nivells(per_nivell: dict, nivells: list[str]) -> list[dict]:
+def vigilancies_dels_nivells(
+    per_nivell: dict, nivells: list[str], *, inclou_sense_nivell: bool | None = None
+) -> list[dict]:
     """Les vigilàncies d'un dia (`per_nivell`, com les retorna el repositori)
     dels `nivells` (totes si no se'n diu cap), en l'ordre de la pantalla dins
     de cada hora."""
+    if inclou_sense_nivell is None:
+        # Compatibilitat: sense filtre s'incloïa tot; amb nivells triats, només
+        # aquests nivells. La pantalla nova sempre envia la tria explícita.
+        inclou_sense_nivell = not nivells
     vigilancies = []
     for nivell, vigs in per_nivell.items():
-        if not nivells or nivell in nivells:
+        if (not nivell and inclou_sense_nivell) or (nivell and (not nivells or nivell in nivells)):
             vigilancies.extend(vigs)
     return en_ordre(vigilancies)
 
@@ -241,7 +247,14 @@ def genera_pdf_complet(
 
 
 def genera_pdf_vigilancies(
-    db: Session, dia: Dia, data: str, opcions: OpcionsPdf, *, nivells: str, amb_substitucions: bool
+    db: Session,
+    dia: Dia,
+    data: str,
+    opcions: OpcionsPdf,
+    *,
+    nivells: str,
+    inclou_sense_nivell: bool | None,
+    amb_substitucions: bool,
 ) -> PdfGenerat:
     """Les vigilàncies del dia dels nivells triats (tots si no se'n tria cap)
     i, si es vol, les substitucions de vigilància. Els conflictes, els calcula
@@ -250,7 +263,7 @@ def genera_pdf_vigilancies(
     per_nivell = VigilanciaRepository.get_by_date(db, data)
     if not per_nivell:
         raise SenseVigilancies(f"No hi ha vigilàncies per {data}", codi="sense_vigilancies")
-    vigilancies_list = vigilancies_dels_nivells(per_nivell, _nivells(nivells))
+    vigilancies_list = vigilancies_dels_nivells(per_nivell, _nivells(nivells), inclou_sense_nivell=inclou_sense_nivell)
 
     horari_mgr = dia.horari
     exporter = _exportador(horari_mgr.hores, opcions)
@@ -293,7 +306,12 @@ def _dia_buit(data: str) -> dict:
 
 
 def vigilancies_i_substitucions_de_l_interval(
-    db: Session, dates: list[str], nivells: list[str], amb_dies_buits: bool, amb_substitucions: bool
+    db: Session,
+    dates: list[str],
+    nivells: list[str],
+    amb_dies_buits: bool,
+    amb_substitucions: bool,
+    inclou_sense_nivell: bool | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Les vigilàncies de cada dia dels nivells triats i (si es volen) les
     substitucions de vigilància, marcades amb el seu dia. Un dia sense
@@ -303,9 +321,11 @@ def vigilancies_i_substitucions_de_l_interval(
     for data in dates:
         del_dia = [
             _marca_dia(vig, data)
-            for nivell, vigs in VigilanciaRepository.get_by_date(db, data).items()
-            if not nivells or nivell in nivells
-            for vig in vigs
+            for vig in vigilancies_dels_nivells(
+                VigilanciaRepository.get_by_date(db, data),
+                nivells,
+                inclou_sense_nivell=inclou_sense_nivell,
+            )
         ]
         if del_dia:
             vigilancies.extend(en_ordre(del_dia))  # l'ordre de la pantalla dins de cada hora
@@ -336,6 +356,7 @@ def genera_pdf_interval(
     opcions: OpcionsPdf,
     *,
     nivells: str,
+    inclou_sense_nivell: bool | None,
     amb_caps_de_setmana: bool,
     amb_dies_buits: bool,
     amb_substitucions: bool,
@@ -352,7 +373,12 @@ def genera_pdf_interval(
     horari_mgr = horaris_per_data[dates[0]] if dates else Dia.de_text(data_inici, institucio).horari
 
     vigilancies, substitucions = vigilancies_i_substitucions_de_l_interval(
-        db, dates, nivells_list, amb_dies_buits, amb_substitucions
+        db,
+        dates,
+        nivells_list,
+        amb_dies_buits,
+        amb_substitucions,
+        inclou_sense_nivell,
     )
     if not vigilancies:
         raise SenseVigilancies("No hi ha vigilàncies a l'interval seleccionat", codi="sense_vigilancies")

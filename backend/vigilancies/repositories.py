@@ -46,6 +46,19 @@ class VigilanciaRepository:
         return result
 
     @staticmethod
+    def compta_sense_nivell(db: Session, data_inici: str, data_final: str) -> int:
+        """Vigilàncies antigues sense nivell dins d'un interval, inclosos els extrems."""
+        return (
+            db.query(Vigilancia)
+            .filter(
+                Vigilancia.data >= parse_date(data_inici),
+                Vigilancia.data <= parse_date(data_final),
+                func.trim(Vigilancia.nivell) == "",
+            )
+            .count()
+        )
+
+    @staticmethod
     def create(db: Session, data: str, vigilancia_data: Dict) -> Vigilancia:
         """Crea una nova vigilància"""
         vig = Vigilancia(

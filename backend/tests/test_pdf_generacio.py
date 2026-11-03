@@ -49,10 +49,21 @@ def test_vigilancies_dels_nivells_en_l_ordre_de_la_pantalla():
     per_nivell = {
         "2-BAT": [{"hora": "10:00", "ordre": 1, "grups": "2-BAT-A"}],
         "1-ESO": [{"hora": "08:00", "ordre": 0, "grups": "1-ESO-A"}],
+        "": [{"hora": "09:00", "ordre": 0, "grups": "Antic"}],
     }
 
-    assert [v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, [])] == ["1-ESO-A", "2-BAT-A"]
+    assert [v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, [])] == [
+        "1-ESO-A",
+        "Antic",
+        "2-BAT-A",
+    ]
     assert [v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"])] == ["2-BAT-A"]
+    assert [
+        v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"], inclou_sense_nivell=True)
+    ] == ["Antic", "2-BAT-A"]
+    assert [
+        v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"], inclou_sense_nivell=False)
+    ] == ["2-BAT-A"]
 
 
 def test_linies_dels_disponibles_amb_els_absents_i_els_ocupats_ratllats():

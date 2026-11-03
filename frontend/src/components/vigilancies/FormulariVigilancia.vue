@@ -15,10 +15,10 @@
         <CampDesplegable v-model="fila.hora" :options="opcions.hores" :etiqueta="$t('common.hour')" aspecte="camp" />
       </div>
       <div class="formulari-vigilancia__camp">
-        <label>{{ $t('vigilancies.columns.level') }}</label>
+        <label>{{ $t('vigilancies.columns.level') }} *</label>
         <CampDesplegable
           v-model="fila.nivell"
-          :options="[$t('vigilancies.placeholders.level'), ...opcions.nivells]"
+          :options="opcions.nivells"
           :placeholder="$t('vigilancies.placeholders.level')"
           :etiqueta="$t('vigilancies.columns.level')"
           aspecte="camp"
@@ -80,7 +80,13 @@
 
     <template #footer>
       <Button :label="$t('common.cancel')" class="p-button-text" @click="visible = false" />
-      <Button :label="$t('common.save')" icon="pi pi-check" :loading="desant" :disabled="!fila.hora" @click="desa" />
+      <Button
+        :label="$t('common.save')"
+        icon="pi pi-check"
+        :loading="desant"
+        :disabled="!fila.hora || !fila.nivell"
+        @click="desa"
+      />
     </template>
   </Dialog>
 </template>
@@ -89,6 +95,7 @@
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
+import { adaptaVigilanciaAlNivell } from '../../vigilanciesNivell'
 import AjudaVigilant from './AjudaVigilant.vue'
 import CampDesplegable from './CampDesplegable.vue'
 import SelectorVigilant from './SelectorVigilant.vue'
@@ -115,9 +122,10 @@ watch(visible, (obert) => {
   fila.value = { ...buida(), ...props.proposta }
 })
 
-// Si el nivell canvia, el grup d'abans pot no ser-ne
+// La mateixa regla que fa servir la taula: conserva tipus i grup només si
+// continuen sent vàlids per al nivell nou; la resta de camps no es toca.
 const nivellCanviat = () => {
-  if (fila.value.grups && !props.opcions.grupsDe(fila.value.nivell).includes(fila.value.grups)) fila.value.grups = ''
+  fila.value = adaptaVigilanciaAlNivell(fila.value, fila.value.nivell, props.opcions)
 }
 
 // Els disponibles depenen de l'hora i, per marcar el titular, de l'examen
@@ -139,7 +147,7 @@ const etiquetaVigilant = computed(() => opcioVigilant.value?.label || '')
 const colorVigilant = computed(() => opcioVigilant.value?.color || '')
 
 const desa = () => {
-  if (!fila.value.hora || props.desant) return
+  if (!fila.value.hora || !fila.value.nivell || props.desant) return
   emit('desa', { ...fila.value })
 }
 </script>

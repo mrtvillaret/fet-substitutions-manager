@@ -180,6 +180,7 @@ def test_crea_una_vigilancia_per_examen(client):
         ("10:00", "1-BAT", "1-BAT-A", "Filosofia", ""),
         ("10:00", "2-BAT", "2-BAT-A", "Anglès", ""),
     ]
+    assert all(v["nivell"].strip() for v in _vigilancies(client))
 
 
 def test_un_examen_de_dues_hores_te_vigilancia_a_cada_hora(client, centre):

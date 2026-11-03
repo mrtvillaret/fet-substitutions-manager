@@ -34,6 +34,21 @@ def _superadmin():
     return entra(client_per(APP), nom)
 
 
+def test_crear_un_centre_desa_i_mostra_el_nom_visible():
+    superadmin = _superadmin()
+    centre = f"centre_{uuid.uuid4().hex[:8]}"
+    nom_visible = "Centre de prova"
+
+    resposta = superadmin.post(URL, json={"nom": centre, "display_name": nom_visible})
+
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json() == {"success": True, "institucio": centre}
+    with get_data_db_session(centre) as db:
+        assert ConfiguracioRepository.nom_visible_institucio(db, centre) == nom_visible
+    institucions = {fila["slug"]: fila for fila in superadmin.get(URL).json()["institucions"]}
+    assert institucions[centre] == {"slug": centre, "display_name": nom_visible, "active": True}
+
+
 @pytest.mark.parametrize("nom", ["../fora", "Centre E", ".amagat", "", "a/b"])
 def test_un_nom_de_centre_no_valid_dona_400_i_no_crea_res(nom):
     # Abans: 500 (el ValueError de la carpeta no es controlava)
