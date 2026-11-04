@@ -6,7 +6,6 @@ VERSIÓ OPTIMITZADA I AMB FORMAT DE CONFLICTES MILLORAT
 import html
 import logging
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -16,6 +15,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
 
+import rellotge
 from export.pdf_images import pdf_images
 from export.pdf_styles import PDFStyleFactory
 
@@ -54,10 +54,9 @@ log = logging.getLogger(__name__)
 class PDFCompletExporter:
     """Exportador de PDF combinat optimitzat"""
 
-    def __init__(self, hores: List[str] = None, export_dir: str = "exports", horari_mgr=None):
+    def __init__(self, hores: List[str] = None, export_dir: str = "exports"):
         self.hores = hores if hores is not None else []
         self.export_dir = Path(export_dir)
-        self.horari_mgr = horari_mgr
         self.export_dir.mkdir(parents=True, exist_ok=True)
         self.styles = getSampleStyleSheet()
         self.custom_styles = PDFStyleFactory.get_standard_styles()
@@ -193,7 +192,7 @@ class PDFCompletExporter:
 
         @staticmethod
         def get_filename(data_iso: str, subs_reals: List[Dict], vigilancies_reals: List[Dict]) -> str:
-            timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+            timestamp = rellotge.ara().strftime("%y%m%d_%H%M%S")
 
             if data_iso:
                 from utils.date_context import DateContext
@@ -201,7 +200,7 @@ class PDFCompletExporter:
                 date_ctx = DateContext.from_iso(data_iso)
                 data_curta = date_ctx.datetime.strftime("%y%m%d")
             else:
-                data_curta = datetime.now().strftime("%y%m%d")
+                data_curta = rellotge.ara().strftime("%y%m%d")
 
             if subs_reals and vigilancies_reals:
                 return f"{data_curta}_substitucions_vigilancies_{timestamp}.pdf"
@@ -239,7 +238,6 @@ class PDFCompletExporter:
         vigilancies: List[Dict],
         data_text: str,
         conflictes: List[str] = None,
-        absents: Dict[str, List[str]] = None,
         data_iso: str = None,
         tipus_pdf: str = "auto",
     ) -> str:
@@ -247,11 +245,7 @@ class PDFCompletExporter:
         try:
             # Setup configuration
             compact_mode = self.pdf_config.get("single_page_mode", False)
-            if conflictes is None:
-                if tipus_pdf == "vigilancies_interval":
-                    conflictes = self._validar_conflictes_interval(substitucions, vigilancies)
-                else:
-                    conflictes = self._validar_conflictes_complets(substitucions, vigilancies, absents)
+            conflictes = conflictes or []
 
             self._setup_document_config(tipus_pdf)
 
@@ -333,7 +327,7 @@ class PDFCompletExporter:
                 story.append(Spacer(1, PDFConstants.SPACER_NORMAL))
             footer = Paragraph(
                 _("Generat el {data} a les {hora}").format(
-                    data=datetime.now().strftime("%d/%m/%Y"), hora=datetime.now().strftime("%H:%M")
+                    data=rellotge.ara().strftime("%d/%m/%Y"), hora=rellotge.ara().strftime("%H:%M")
                 ),
                 self.styles["Normal"],
             )
@@ -450,9 +444,9 @@ class PDFCompletExporter:
                         spaceBefore=8,
                         spaceAfter=4,
                     )
-                    dades.append([Paragraph(conflicte, day_style)])
+                    dades.append([Paragraph(_text(conflicte), day_style)])
                 else:  # Conflicte individual
-                    dades.append([Paragraph(conflicte, conflict_style)])
+                    dades.append([Paragraph(_text(conflicte), conflict_style)])
         else:
             # Reagrupar per hora (comportament original)
             conflictes_per_hora = defaultdict(list)
@@ -501,7 +495,7 @@ class PDFCompletExporter:
                     if hora != "9999":
                         c = re.sub(rf"^(\W*?)\s*{re.escape(hora_formatejada)}:\s*", r"\1", c, count=1)
                     # Usa la nova gestió d'imatges per als conflictes
-                    conflicte_net = pdf_images.format_conflict_text(c)
+                    conflicte_net = pdf_images.format_conflict_text(_text(c))
                     dades.append([Paragraph(conflicte_net, conflict_style)])
 
         # Crea taula amb millor amplada
@@ -549,274 +543,6 @@ class PDFCompletExporter:
                 dades_per_hora[hora]["vigilancies"].append(vig)
 
         return dades_per_hora
-
-    def _validar_conflictes_interval(self, substitucions: List[Dict], vigilancies: List[Dict]) -> List[str]:
-        """Valida conflictes per interval, agrupats per dia amb capçalera"""
-        from collections import defaultdict
-
-        dies_subs: Dict[str, List] = defaultdict(list)
-        dies_vigs: Dict[str, List] = defaultdict(list)
-        dia_iso_map: Dict[str, str] = {}
-
-        for sub in substitucions:
-            dia = sub.get("_dia_interval", "")
-            if dia:
-                dies_subs[dia].append(sub)
-                iso = sub.get("_data_iso", "")
-                if iso:
-                    dia_iso_map[dia] = iso
-
-        for vig in vigilancies:
-            if vig.get("_empty_day"):
-                continue
-            dia = vig.get("_dia_interval", "")
-            if dia:
-                dies_vigs[dia].append(vig)
-                iso = vig.get("_data_iso", "")
-                if iso:
-                    dia_iso_map[dia] = iso
-
-        all_dies = sorted(set(dies_subs.keys()) | set(dies_vigs.keys()), key=lambda d: dia_iso_map.get(d, "9999-12-31"))
-
-        conflictes = []
-        for dia in all_dies:
-            day_conflicts = self._validar_conflictes_complets(dies_subs.get(dia, []), dies_vigs.get(dia, []))
-            day_jornada = self._avisos_fora_jornada_dia(
-                dies_subs.get(dia, []), dies_vigs.get(dia, []), dia_iso_map.get(dia, "")
-            )
-            all_day = day_conflicts + day_jornada
-            if all_day:
-                conflictes.append(f"{dia}:")
-                conflictes.extend(all_day)
-
-        return conflictes
-
-    def _avisos_fora_jornada_dia(self, substitucions: List[Dict], vigilancies: List[Dict], data_iso: str) -> List[str]:
-        """Detecta professors assignats fora de la seva jornada habitual per un dia concret."""
-        if not self.horari_mgr or not data_iso:
-            return []
-
-        from datetime import datetime as _dt
-
-        try:
-            date_obj = _dt.strptime(data_iso, "%Y-%m-%d")
-            dia_name = self.horari_mgr.get_dia_name(date_obj.weekday())
-        except (ValueError, TypeError):
-            return []
-
-        hores_ordenades = self.horari_mgr.hores
-        if not hores_ordenades:
-            return []
-        index_map = {h: i for i, h in enumerate(hores_ordenades)}
-
-        avisos = []
-        vistos = set()
-
-        def _comprova(professor: str, hora: str):
-            key = (professor, hora)
-            if key in vistos or not professor or not hora:
-                return
-            vistos.add(key)
-            primera, ultima = self.horari_mgr.get_jornada_professor(dia_name, professor)
-            if primera is None:
-                return
-            idx_h = index_map.get(hora)
-            idx_primera = index_map.get(primera)
-            idx_ultima = index_map.get(ultima)
-            if idx_h is None or idx_primera is None or idx_ultima is None:
-                return
-            if idx_h < idx_primera:
-                avisos.append(
-                    _("🕐 {professor} → arriba abans a {hora} (primera hora: {primera})").format(
-                        professor=professor, hora=hora, primera=primera
-                    )
-                )
-            elif idx_h > idx_ultima:
-                avisos.append(
-                    _("🕐 {professor} → queda més estona a {hora} (última hora: {ultima})").format(
-                        professor=professor, hora=hora, ultima=ultima
-                    )
-                )
-
-        for vig in vigilancies:
-            _comprova(vig.get("vigilant", ""), vig.get("hora", ""))
-
-        for sub in substitucions:
-            substitut = sub.get("substitut", "")
-            if substitut and substitut not in ("---", "PENDENT"):
-                _comprova(substitut, sub.get("hora", ""))
-
-        return avisos
-
-    def _validar_conflictes_complets(
-        self, substitucions: List[Dict], vigilancies: List[Dict], absents: Dict[str, List[str]] = None
-    ) -> List[str]:
-        """Validate conflicts for both substitutions and vigilances - unified logic"""
-        from collections import defaultdict
-
-        if absents is None:
-            absents = {}
-
-        conflictes = []
-
-        # Si un professor absent és-hi per servei (SERVEI) o no (ABSENCIA), segons les
-        # seves pròpies files de substitució
-        tipus_absencia = {
-            (s.get("professor_absent", ""), s.get("hora", "")): s.get("tipus_absencia", "")
-            for s in substitucions
-            if s.get("tipus_absencia") in ("ABSENCIA", "SERVEI")
-        }
-
-        def text_absencia(professor, hora):
-            if tipus_absencia.get((professor, hora)) == "SERVEI":
-                return _("absent (servei)")
-            return _("absent")
-
-        # Group by hour
-        per_hora = defaultdict(lambda: {"substitucions": [], "vigilancies": []})
-
-        for sub in substitucions:
-            hora = sub.get("hora", "")
-            if hora:
-                per_hora[hora]["substitucions"].append(sub)
-
-        for vig in vigilancies:
-            hora = vig.get("hora", "")
-            if hora:
-                per_hora[hora]["vigilancies"].append(vig)
-
-        # Check conflicts for each hour
-        for hora, data_hora in per_hora.items():
-            vigilants_assignats = set()
-            aules_assignades = set()
-
-            # Validate substitutions
-            for sub in data_hora["substitucions"]:
-                substitut = sub.get("substitut", "")
-
-                if substitut and substitut not in ["---", "PENDENT"]:
-                    # Absent substitute
-                    if substitut in absents and hora in absents[substitut]:
-                        conflictes.append(
-                            _("⚠️ {hora}: Substitut {substitut} {absence_text}").format(
-                                hora=hora, substitut=substitut, absence_text=text_absencia(substitut, hora)
-                            )
-                        )
-
-                    # Duplicate substitute
-                    if substitut in vigilants_assignats:
-                        conflictes.append(
-                            _("🕐 {hora}: Substitut {substitut} duplicat").format(hora=hora, substitut=substitut)
-                        )
-                    else:
-                        vigilants_assignats.add(substitut)
-
-                # Missing substitute
-                if not substitut or substitut in ["---", "PENDENT"]:
-                    professor = sub.get("professor_absent", sub.get("professor", ""))
-                    assignatura = sub.get("assignatura", "")
-                    # Only add if we have valid professor and assignatura data
-                    if professor and professor.strip() and assignatura and assignatura.strip():
-                        conflictes.append(
-                            _("❌ {hora}: {professor} - {assignatura} sense substitut assignat").format(
-                                hora=hora, professor=professor, assignatura=assignatura
-                            )
-                        )
-
-            # Validate vigilances (same logic as vigilancies_pdf.py)
-            for vig in data_hora["vigilancies"]:
-                vigilant = vig.get("vigilant", "")
-                aula = vig.get("aula", "")
-
-                if vigilant and not vigilant.startswith("-- selecciona"):
-                    # Absent vigilant
-                    if vigilant in absents and hora in absents[vigilant]:
-                        conflictes.append(
-                            _("⚠️ {hora}: Vigilant {vigilant} {absence_text}").format(
-                                hora=hora, vigilant=vigilant, absence_text=text_absencia(vigilant, hora)
-                            )
-                        )
-
-                    # Duplicate vigilant
-                    if vigilant in vigilants_assignats:
-                        conflictes.append(
-                            _("🕐 {hora}: Vigilant {vigilant} duplicat").format(hora=hora, vigilant=vigilant)
-                        )
-                    else:
-                        vigilants_assignats.add(vigilant)
-
-                if aula and aula != "ENLLAÇ":
-                    # Duplicate classroom
-                    if aula in aules_assignades:
-                        conflictes.append(_("🏫 {hora}: Aula {aula} duplicada").format(hora=hora, aula=aula))
-                    else:
-                        aules_assignades.add(aula)
-
-                # Missing vigilant
-                # El nom de l'assignatura és una dada del centre: no es tradueix;
-                # només el valor fix «VIGILÀNCIA»
-                if not vigilant or vigilant.startswith("-- selecciona"):
-                    tipus = vig.get("tipus", "")
-                    if tipus == "VIGILÀNCIA":
-                        conflictes.append(
-                            _("❌ {hora}: {tipus} sense vigilant assignat").format(hora=hora, tipus=_("VIGILÀNCIA"))
-                        )
-                    else:
-                        conflictes.append(
-                            _("❌ {hora}: Assignatura {tipus} sense vigilant assignat").format(hora=hora, tipus=tipus)
-                        )
-
-                # Missing classroom
-                if not aula:
-                    tipus = vig.get("tipus", "")
-                    if tipus == "VIGILÀNCIA":
-                        conflictes.append(
-                            _("🏫 {hora}: {tipus} sense aula assignada").format(hora=hora, tipus=_("VIGILÀNCIA"))
-                        )
-                    else:
-                        conflictes.append(
-                            _("🏫 {hora}: Assignatura {tipus} sense aula assignada").format(hora=hora, tipus=tipus)
-                        )
-
-        # Detectar substitucions duplicades per mateix professor (absent + vigilant)
-        professors_amb_substitucions = defaultdict(list)
-        for sub in substitucions:
-            if sub.get("separador"):
-                continue
-            professor_absent = sub.get("professor_absent", "")
-            hora = sub.get("hora", "")
-            substitut = sub.get("substitut", "")
-            assignatura = sub.get("assignatura", "")
-
-            if professor_absent and hora and substitut and not substitut.startswith("---"):
-                professors_amb_substitucions[professor_absent].append(
-                    {"hora": hora, "substitut": substitut, "assignatura": assignatura}
-                )
-
-        # Comprovar si hi ha professors amb múltiples substitucions a la mateixa hora
-        for professor, substitucions_prof in professors_amb_substitucions.items():
-            hores_substitucions = defaultdict(list)
-            for sub in substitucions_prof:
-                hores_substitucions[sub["hora"]].append(sub)
-
-            for hora, subs_hora in hores_substitucions.items():
-                if len(subs_hora) > 1:
-                    # Hi ha múltiples substitucions pel mateix professor a la mateixa hora
-                    substituts = [s["substitut"] for s in subs_hora]
-                    assignatures = [s["assignatura"] for s in subs_hora]
-                    conflictes.append(
-                        _(
-                            "🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | Assignatures: {assignatures})"
-                        ).format(
-                            hora=hora,
-                            professor=professor,
-                            num=len(subs_hora),
-                            substituts=", ".join(substituts),
-                            assignatures=", ".join(assignatures),
-                        )
-                    )
-
-        return conflictes
 
     def _sort_vigilancies_by_date(self, vigilancies: List[Dict]) -> tuple:
         """Sort vigilancies by date and return organized data"""

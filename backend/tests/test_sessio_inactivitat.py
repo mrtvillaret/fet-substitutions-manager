@@ -5,12 +5,14 @@ SESSIO_MAXIMA_HORES des de l'entrada.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 import jwt
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_rellotge import ARA
 
+from auth.security import decode_access_token
 from config.auth import (
     ALGORITHM,
     COOKIE_NAME,
@@ -22,13 +24,10 @@ from rate_limit import limiter
 from usuaris.router import router as usuaris_router
 
 APP = crea_app(usuaris_router)
-ARA = None
 
 
 @pytest.fixture(autouse=True)
 def _limiter_net():
-    global ARA
-    ARA = datetime.now(timezone.utc)
     limiter.reset()
     yield
 
@@ -42,7 +41,7 @@ def client():
 
 
 def _payload(client):
-    return jwt.decode(client.cookies[COOKIE_NAME], SECRET_KEY, algorithms=[ALGORITHM])
+    return decode_access_token(client.cookies[COOKIE_NAME])
 
 
 def _amb_testimoni(client, emes, inici, caduca):
@@ -104,3 +103,11 @@ def test_una_peticio_que_falla_no_renova(client):
     resp = client.get("/api/users/no-existeix-aquesta-ruta")
     assert resp.status_code >= 400
     assert COOKIE_NAME not in resp.headers.get("set-cookie", "")
+
+
+def test_la_mateixa_sessio_caduca_avancant_nomes_el_rellotge(client, rellotge_fix):
+    assert _perfil(client).status_code == 200
+    rellotge_fix.avanca(minutes=SESSIO_INACTIVITAT_MINUTS)
+    resposta = _perfil(client)
+    assert resposta.status_code == 401
+    assert resposta.json()["detail"] == "Sessió caducada"

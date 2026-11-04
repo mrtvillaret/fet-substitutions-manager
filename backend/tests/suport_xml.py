@@ -4,33 +4,18 @@ l'horari d'exemple i "futur.xml" el mateix sense el primer professor.
 """
 
 import xml.etree.ElementTree as ET
-from datetime import date, timedelta
+from datetime import timedelta
 
 from suport_api import XML_EXEMPLE, nova_institucio
+from suport_rellotge import AVUI
 
 from database import get_data_db_session, get_data_dir_for_institucio
 from models import XMLVersion
 from repositories import ConfiguracioRepository
 
-# Es calcula un sol cop, en importar-se: si la suite creua la mitjanit, les
-# rutes que fan servir «avui» han de veure aquesta data (fixa_avui).
-AVUI = date.today()
-
 
 def dia(dies):
     return AVUI + timedelta(days=dies)
-
-
-class _AvuiFix(date):
-    @classmethod
-    def today(cls):
-        return AVUI
-
-
-def fixa_avui(monkeypatch, *moduls):
-    """Fa que date.today() dels mòduls donats retorni AVUI."""
-    for modul in moduls:
-        monkeypatch.setattr(modul, "date", _AvuiFix)
 
 
 def professor_que_plega():

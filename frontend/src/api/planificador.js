@@ -80,4 +80,3 @@ export const desaRestriccions = (...args) => desaRestriccionsAmb(clientApi, ...a
 export const desaCostosProfessorsAmb = (client, ...args) =>
   client.put('/api/scheduler/costos-professors', ...args)
 export const desaCostosProfessors = (...args) => desaCostosProfessorsAmb(clientApi, ...args)
-

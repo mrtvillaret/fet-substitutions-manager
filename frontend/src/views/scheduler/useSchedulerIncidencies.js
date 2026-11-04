@@ -1,3 +1,4 @@
+import { tradueixMissatge } from './missatges.js'
 import { computed } from 'vue'
 
 import { normalizeText, extractHour, getAvisEmoji, getIncidentEmoji, isCriticalIncident, isZonaExamenIncident, stripIncidentDecorators, localizeIncidentText } from './textUtils'
@@ -99,7 +100,7 @@ export function useSchedulerIncidencies({ t, logsIncidencies, logsEnllacos, resu
     if (meta.professors_slots_duplicats) {
       meta.professors_slots_duplicats.forEach((d) => l.push(`❌ SIMULTANI: ${d.professor} a ${d.dia} ${d.hora}`))
     }
-    if (meta.logs) l.push(...meta.logs)
+    if (meta.logs) l.push(...meta.logs.map(m => tradueixMissatge(m, t)))
     return l
   })
 

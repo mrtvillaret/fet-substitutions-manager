@@ -59,3 +59,12 @@ test('PDF: reassignació, recàrrega i canvis en ordre de les hores de l’XML',
   assert.equal(p.mostrarDialogValidacions.value, true)
   assert.equal(p.reassignantProblematics.value, false)
 })
+test('PDF complet amb importants exigeix confirmar abans de descarregar',async()=>{
+ const p=prepara({validacio:{conflicts:['Problema important'],warnings:[],has_critical:true,total:1}})
+ await p.generarPDFComplet();await p.continuarPDF()
+ assert.deepEqual(p.links,[])
+ p.confirmacioImportants.value=true;await p.continuarPDF()
+ assert.equal(p.links.length,1)
+ await p.generarPDFComplet();assert.equal(p.confirmacioImportants.value,false)
+ await p.continuarPDF();assert.equal(p.links.length,1)
+})

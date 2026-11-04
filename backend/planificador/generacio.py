@@ -18,6 +18,7 @@ from planificador.diagnostic import (
 from planificador.planificacio import prepara_planificacio
 from planificador.schemas import SchedulerGenerateRequest
 from planificador.services import desa_ultim_resultat
+from scheduler_engine.core.missatges import missatge, unics
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 
 PARAMETRES_V3 = (
@@ -68,7 +69,7 @@ def _executa_motor(gen, metode: str, motor: str, payload: SchedulerGenerateReque
             horari = {
                 "metadata": {
                     "viable": False,
-                    "error": "El backtracking no ha trobat cap solució vàlida",
+                    "error": missatge("backtrack_sense_solucio"),
                     "motor": "v2-backtrack",
                 },
                 "dies": [],
@@ -100,10 +101,10 @@ def _marca_sessions_pendents(horari: dict, gen) -> None:
     pendents = sum((info or {}).get("pendents", 0) for info in recompte.values())
     if pendents > 0:
         meta = horari.setdefault("metadata", {})
-        meta.setdefault("logs", []).append(f"⚠️ Sessions pendents de col·locar: {pendents}")
+        meta.setdefault("logs", []).append(missatge("sessions_pendents", count=pendents))
         if meta.get("viable", True):
             meta["viable"] = False
-            meta["error"] = "No s'han pogut col·locar tots els exàmens"
+            meta["error"] = missatge("examens_pendents")
 
 
 def _explicacio_no_disponible(meta: dict) -> None:
@@ -121,7 +122,7 @@ def _explica_no_viable(horari: dict, gen, pla, del_precheck: bool = False) -> No
     vist, el precheck només es mostra quan el diagnòstic no diu res: tots dos
     analitzen el mateix i es repetirien amb paraules diferents."""
     meta = horari["metadata"]
-    error = meta.get("error", "No és possible col·locar tots els exàmens")
+    error = meta.get("error", missatge("examens_pendents"))
     try:
         diagnostic = _diagnosticar_incompatibilitats(
             gen=gen,
@@ -144,10 +145,10 @@ def _explica_no_viable(horari: dict, gen, pla, del_precheck: bool = False) -> No
             except Exception:
                 _explicacio_no_disponible(meta)
                 del_motor = []
-        incompat = list(dict.fromkeys(diagnostic + list(del_motor)))
+        incompat = unics(diagnostic + list(del_motor))
     if incompat:
         meta["incompatibilitats"] = incompat
-    meta["logs"] = list(dict.fromkeys(meta.get("logs", []) + [f"❌ {error}"]))
+    meta["logs"] = unics(meta.get("logs", []) + [error])
 
 
 def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
@@ -186,10 +187,10 @@ def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
                     "dies": [],
                     "metadata": {
                         "viable": False,
-                        "error": "No s'han pogut col·locar tots els exàmens",
+                        "error": missatge("examens_pendents"),
                         "incompatibilitats": incompatibilitats,
                         "motor": motor,
-                        "logs": ["❌ Precheck de viabilitat: incompatibilitats deterministes detectades"],
+                        "logs": [missatge("precheck_detectat")],
                     },
                 }
             else:

@@ -37,3 +37,13 @@ class NoValid(ErrorDeDomini):
 
 class Conflicte(ErrorDeDomini):
     """Xoca amb el que ja hi ha (un nom repetit...)."""
+
+
+class MissingXmlError(NoValid):
+    """No hi ha cap XML d'horari disponible per al centre."""
+
+    def __init__(self, institucio: str, xml_path: str | None):
+        message = f"Cal pujar un fitxer XML d'horari per a la institució {institucio}."
+        super().__init__(message, codi="xml_missing", params={"institucio": institucio})
+        self.institucio = institucio
+        self.xml_path = xml_path

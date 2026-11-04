@@ -10,12 +10,11 @@ import uuid
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra
-from suport_xml import amb_horari_futur, dia, fixa_avui, professor_que_plega
+from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from auth.dependencies import get_current_user, require_admin
 from configuracio_examens import router as config_examens
 from horari import router as horari
-from planificador import config as scheduler_config
 from planificador import router as scheduler
 from rate_limit import limiter
 
@@ -30,12 +29,6 @@ FUTUR = [dia(10).isoformat(), dia(11).isoformat()]
 def _limiter_net():
     limiter.reset()
     yield
-
-
-@pytest.fixture(autouse=True)
-def _avui_fix(monkeypatch):
-    # Sense dates, el planificador fa servir l'horari d'avui
-    fixa_avui(monkeypatch, scheduler_config)
 
 
 @pytest.fixture

@@ -47,7 +47,11 @@
     "reload": "Aggiorna"
   },
   "common": {
-    "roles": {"super_admin": "Amministratore globale", "admin": "Amministratore", "user": "Utente"},
+    "roles": {
+      "super_admin": "Amministratore globale",
+      "admin": "Amministratore",
+      "user": "Utente"
+    },
     "filterOptions": "Filtra le opzioni",
     "save": "Salva",
     "cancel": "Annulla",
@@ -562,13 +566,14 @@
         "coveredUntil": "🔄 coperta fino al {data}"
       },
       "pdfValidation": {
-        "criticalTitle": "⚠️ Rilevati problemi critici - Esportare il PDF?",
+        "criticalTitle": "⚠️ Rilevati problemi importanti - Esportare il PDF?",
         "warningTitle": "📋 Rilevati avvisi - Esportare il PDF?",
         "detectedIssues": "Problemi rilevati:",
-        "critical": "🚨 CRITICI:",
+        "critical": "Problemi importanti:",
         "warnings": "⚠️ AVVISI:",
         "appliedChanges": "🔄 MODIFICHE APPLICATE:",
         "totalIssues": "Totale: {count} problema rilevato | Totale: {count} problemi rilevati",
+        "confirmImportant": "Confermo di voler stampare con problemi importanti.",
         "continueQuestion": "🔍 Vuoi continuare con l'esportazione del PDF?",
         "reassign": "Riassegna"
       },
@@ -1886,6 +1891,58 @@
         "groupName": "Nome del gruppo",
         "incompatibleSubjects": "Materie incompatibili",
         "optionalName": "Nome (facoltativo)"
+      }
+    },
+    "diagnostic": {
+      "sense_solucions": "Nessuna soluzione trovata",
+      "no_viable": "L’orario non è fattibile",
+      "sense_dades": "Nessun dato disponibile",
+      "fixos_sense_hores": "Non ci sono ore disponibili per gli esami con giorno o ora fissati",
+      "capacitat_exhaurida": "Non è possibile collocare tutti gli esami: ci sono più esami che ore per livello",
+      "sense_hora_compatible": "Non è possibile collocare tutti gli esami: un esame non ha ore compatibili",
+      "backtrack_sense_solucio": "La ricerca non ha trovato soluzioni valide",
+      "examens_pendents": "Non è stato possibile collocare tutti gli esami",
+      "capacitat_nivell": "{nivell}: occorre collocare {examens}, con solo {horesText} a disposizione",
+      "capacitat_nivell_fixos": "{nivell}: occorre collocare {examens}, ma dopo aver fissato giorni e ore restano solo {horesText}",
+      "capacitat_nivell_dates": "{nivell}: occorre collocare {examens}, ma ci sono solo {horesText} in {diesText}",
+      "nivell_sense_hora": "{nivell}: nessuna ora possibile",
+      "examen_sense_hora": "{nom} ({nivell}) non ha ore possibili",
+      "examen_sense_hora_motor": "«{nom}» non ha ore disponibili",
+      "examen_sense_hora_causa": "«{nom}» non ha ore disponibili — causa: {causa}",
+      "examens_sense_hora_causa": "{nivell}: {examens} senza ore disponibili — causa: {causa} (ad es. «{nom}»)",
+      "fixats_mateix_dia": "Giorni diversi #{index} [{assignatures}]: {noms} devono svolgersi in giorni diversi, ma sono fissati al giorno {dia}",
+      "dies_insuficients": "Giorni diversi #{index} [{assignatures}]: {examens} devono svolgersi in giorni diversi, ma ci sono solo {diesText}; ridurre il gruppo o aggiungere giorni",
+      "parella_mateixos_dies": "Giorni diversi #{index} [{assignatures}]: «{nom}» e «{altre}» devono svolgersi in giorni diversi, ma sono limitati agli stessi giorni: {dies}",
+      "examen_dies_solapats": "Giorni diversi #{index} [{assignatures}]: «{nom}» può svolgersi solo in {dies}, che coincide con «{altre}»",
+      "parella_mateixa_hora": "Non contemporaneamente «{grup}» [{assignatures}]: «{nom}» e «{altre}» non possono coincidere, ma sono limitati alla stessa ora",
+      "hores_insuficients": "Non contemporaneamente «{grup}» [{assignatures}]: {examens} non possono coincidere, ma complessivamente hanno solo {horesText}",
+      "nivell_cap_collocat": "{nivell}: nessun esame collocato ({examens} in totale). Rivedere i vincoli o ampliare le date",
+      "nivell_pendents": "{nivell}: {examens} da collocare (progresso: {collocats}/{esperats}). Rivedere i vincoli o ampliare le date",
+      "examen_pendent": "Impossibile collocare «{nom}» ({nivell}). Rivedere i vincoli o ampliare le date",
+      "examens_pendents_nivell": "{nivell}: impossibile collocare «{nom}» e altri {count}. Rivedere i vincoli o ampliare le date",
+      "fixat_dia_no_disponible": "{nom}: il giorno {dia} non è disponibile",
+      "fixat_hora_no_disponible": "{nom}: l’ora {hora} non è disponibile",
+      "fixat_slot_no_disponible": "{nom}: il giorno {dia} alle {hora} non è disponibile",
+      "precheck_detectat": "Il controllo preliminare ha rilevato incompatibilità deterministiche",
+      "sessions_pendents": "Esami ancora da collocare: {count}",
+      "nivell_incomplet": "Livello incompleto: {nivell} ({collocats}/{esperats})",
+      "llista_mes": "{noms} e altri {count}",
+      "sense_nom": "Senza nome",
+      "nivell_desconegut": "Livello sconosciuto",
+      "unitats": {
+        "examens": "nessun esame | 1 esame | {count} esami",
+        "hores": "nessuna ora | 1 ora | {count} ore",
+        "dies": "nessun giorno | 1 giorno | {count} giorni"
+      },
+      "causes": {
+        "dia_hora_fix": "Giorno/ora fissato",
+        "no_mateix_dia": "Giorni diversi",
+        "combinacions_permeses": "Combinazione non consentita",
+        "limit_dies_professor": "Limite di esami del docente",
+        "preferencia_dia": "Preferenza del giorno",
+        "professors_estrictes": "Orario rigoroso del docente",
+        "desconeguda": "Vincolo sconosciuto",
+        "conflicte_restriccions": "Conflitto tra vincoli"
       }
     }
   },

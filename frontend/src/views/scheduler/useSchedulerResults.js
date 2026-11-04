@@ -1,3 +1,4 @@
+import { tradueixMissatge } from './missatges.js'
 import { computed } from 'vue'
 import { dataIso } from '../../dates'
 import { classifyIncidentKind, INCIDENT_KINDS, extractIncidentScore, isIncidentLogLine, isLinkIncident } from './textUtils'
@@ -26,7 +27,7 @@ export const useSchedulerResults = ({
 
   const incidenciesAgrupades = computed(() => {
     const logs = result.value?.horari?.metadata?.logs || []
-    const filtered = logs.map((line) => line.trim()).filter(isIncidentLogLine)
+    const filtered = logs.map((line) => tradueixMissatge(line, t).trim()).filter(isIncidentLogLine)
 
     const grups = {
       conflictes: { id: 'conflicts', titol: `🚨 ${t('scheduler.steps.results.incidents.groups.conflicts')}`, items: [], severity: 'error' },
@@ -54,7 +55,7 @@ export const useSchedulerResults = ({
 
   const logsEnllacos = computed(() => {
     const logs = result.value?.horari?.metadata?.logs || []
-    return logs.map((line) => line.trim()).filter(isLinkIncident)
+    return logs.map((line) => tradueixMissatge(line, t).trim()).filter(isLinkIncident)
   })
 
   const logsIncidencies = computed(() => {

@@ -36,4 +36,3 @@ export const detallClasses = (...args) => detallClassesAmb(clientApi, ...args)
 export const horesAmb = (client, ...args) =>
   client.get('/api/estadistiques/hores', ...args)
 export const hores = (...args) => horesAmb(clientApi, ...args)
-

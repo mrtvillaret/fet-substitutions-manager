@@ -6,23 +6,24 @@ Funcions auxiliars compartides pel backend
 
 import logging
 import os
-from datetime import date, datetime
+from datetime import datetime
 from typing import Dict, Optional
 
 from sqlalchemy.orm import Session
 
+import rellotge
 from configuracio_examens.repositories import ConfiguracioExamenRepository
 from core.absencies import GestorAbsencies
 from core.alliberats import GestorAlliberats
 from core.vigilancia_core import VigilanciaCore
 from database import get_data_db_session, get_data_dir_for_institucio
+from errors_domini import MissingXmlError
 from grups.repositories import GrupsAlliberatsRepository
 from horari.repositories import XMLVersionRepository
 from horari_web import GestorHorariWeb  # Versió web que llegeix de SQLite
 from repositories import ConfiguracioRepository, ProfessorRepository
 from substitucions.assignacio import GestorSubstitucions
 from substitucions.repositories import SubstitucioRepository
-from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 
@@ -34,14 +35,6 @@ log = logging.getLogger(__name__)
 # podrien trepitjar.
 _horari: Dict[str, GestorHorariWeb] = {}
 _vigilancia_core: Dict[str, VigilanciaCore] = {}
-
-
-class MissingXmlError(RuntimeError):
-    def __init__(self, institucio: str, xml_path: Optional[str]):
-        message = f"Cal pujar un fitxer XML d'horari per a la institució {institucio}."
-        super().__init__(message)
-        self.institucio = institucio
-        self.xml_path = xml_path
 
 
 def _cache_key(institucio: str, xml_path: str) -> str:
@@ -74,7 +67,7 @@ def invalidar_horari(institucio: str = None):
 def avui() -> str:
     """La data d'avui (AAAA-MM-DD). L'horari sempre es demana per a una data:
     qui vol el d'avui ho ha de dir."""
-    return date.today().isoformat()
+    return rellotge.avui().isoformat()
 
 
 def _resolve_xml_path(institucio: str, data_iso: str) -> Optional[str]:
@@ -225,21 +218,6 @@ def get_vigilancia_core(data: str, db: Session = None, institucio: str = None) -
 
     # Grups sense classe (Des de SQLite)
     grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
-
-    # Afegir grups amb examen (vigilàncies) com a alliberats per l'hora corresponent
-    try:
-        vigilancies_data = VigilanciaRepository.get_by_date(db, data)
-        for vig_list in vigilancies_data.values():
-            for vig in vig_list:
-                hora_vig = vig.get("hora")
-                grup_vig = vig.get("grups")
-                if not hora_vig or not grup_vig:
-                    continue
-                grups_sense_classe.setdefault(hora_vig, [])
-                if grup_vig not in grups_sense_classe[hora_vig]:
-                    grups_sense_classe[hora_vig].append(grup_vig)
-    except Exception as e:
-        log.warning(f"⚠️ No s'han pogut afegir grups d'examen als alliberats: {e}")
 
     # Dia de la setmana
     weekday_idx = date_obj.weekday()

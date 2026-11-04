@@ -27,12 +27,13 @@ export const esborra = async (data, id, opcions) => esborraAmb(clientApi, data, 
 
 // Disponibles d'una consulta ({tipus, grups, aula}); els paràmetres buits no
 // s'envien, igual que feia la vista quan construïa l'URL.
-export const disponiblesAmb = async (client, data, hora, { tipus, grups, aula } = {}) => {
+export const disponiblesAmb = async (client, data, hora, { tipus, grups, aula, vigilancia_id } = {}) => {
   let url = `${base(data)}/${hora}/disponibles`
   const params = new URLSearchParams()
   if (tipus) params.append('tipus', tipus)
   if (grups) params.append('grups', grups)
   if (aula) params.append('aula', aula)
+  if (vigilancia_id) params.append('vigilancia_id', vigilancia_id)
   if (params.toString()) url += `?${params.toString()}`
   return (await client.get(url)).data
 }
@@ -81,3 +82,8 @@ export const assignaPendents = async (data, disponibles) =>
 
 export const netejaAmb = async (client, data) => (await client.post(`${base(data)}/clear`)).data
 export const neteja = async (data) => netejaAmb(clientApi, data)
+
+
+// Conflictes del dia: la mateixa regla que la revisió i els PDF.
+export const analisiAmb = async (client, data) => (await client.get(`${base(data)}/analisi`)).data
+export const analisi = async (data) => analisiAmb(clientApi, data)

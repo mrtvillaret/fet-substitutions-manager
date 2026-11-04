@@ -9,10 +9,11 @@ una institució temporal amb l'horari d'exemple. Dilluns 20/04/2026:
 
 import json
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_rellotge import AVUI
 
 from absencia_coberta.repositories import AbsenciaCobertaRepository
 from absencia_coberta.router import router as absencia_coberta_router
@@ -395,7 +396,7 @@ def test_sense_absencia_coberta_no_hi_ha_cap_avis(client, titular_alliberat):
 def test_una_absencia_coberta_desada_despres_de_publicar_treu_les_vigilancies_futures(client, centre):
     """Publicat amb el titular com a vigilant; si després se li desa una
     absència coberta, se li treu la vigilància (d'avui endavant)."""
-    avui = date.today()
+    avui = AVUI
     futur = (avui + timedelta(days=7 - avui.weekday())).isoformat()  # dilluns vinent
     config = {"1-BAT": {"durada": 1, "dates": [futur], "config": {futur: {"10:00": {"a": True, "i": True}}}}}
     with get_data_db_session(centre) as db:
@@ -433,11 +434,11 @@ def test_una_absencia_coberta_desada_despres_de_publicar_treu_les_vigilancies_fu
 
 @pytest.fixture
 def amb_cursos(centre):
-    from datetime import date, timedelta
+    from datetime import timedelta
 
     from cursos.repositories import CursRepository
 
-    avui = date.today()
+    avui = AVUI
     with get_data_db_session(centre) as db:
         CursRepository.create(db, "Curs anterior", avui - timedelta(days=400))
         CursRepository.create(db, "Curs actual", avui - timedelta(days=30))

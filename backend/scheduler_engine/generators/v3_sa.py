@@ -24,6 +24,7 @@ from scheduler_engine.core.constraints import (
 )
 from scheduler_engine.core.date_mapping import DIES_CAT as _DIES_CAT
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.missatges import missatge
 from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
 from scheduler_engine.core.restriction_engine import RestrictionEngine
 from scheduler_engine.core.scoring import calcular_cost_slot
@@ -125,7 +126,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         self.max_iteracions = DEFAULT_SA_PARAMS["max_iteracions"]
         self.intents_solucio_inicial = DEFAULT_SA_PARAMS.get("intents_solucio_inicial", 50)
 
-    def _check_fixos_viables(self) -> List[str]:
+    def _check_fixos_viables(self) -> List[dict]:
         """Comprova que les assignatures amb dia/hora fix tenen algun slot disponible."""
         restriccions = self.get_restriccions()
         dures = restriccions.get("restriccions_dures", {})
@@ -143,7 +144,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         iso_set = {s.data for s in self.slots if s.data}
         hours_set = {s.hora for s in self.slots}
 
-        missing: List[str] = []
+        missing: List[dict] = []
         for s in self.sessions:
             s_dict = self._sessio_to_dict(s)
             d = get_restriccio_val(dia_fix, s_dict)
@@ -152,19 +153,19 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 is_iso = bool(_re_iso.match(str(d)))
                 if is_iso:
                     if d not in iso_set:
-                        missing.append(f"{s_dict.get('nom')} -> data {d} no disponible")
+                        missing.append(missatge("fixat_dia_no_disponible", nom=s_dict.get("nom"), dia=d))
                         continue
                     if h and (d, h) not in slots_set_iso:
-                        missing.append(f"{s_dict.get('nom')} -> {d} {h} no és un slot disponible")
+                        missing.append(missatge("fixat_slot_no_disponible", nom=s_dict.get("nom"), dia=d, hora=h))
                 else:
                     d_norm = normalitzar_dia(d)
                     if d_norm not in days_set:
-                        missing.append(f"{s_dict.get('nom')} -> dia {d_norm} no disponible")
+                        missing.append(missatge("fixat_dia_no_disponible", nom=s_dict.get("nom"), dia=d_norm))
                         continue
                     if h and (d_norm, h) not in slots_set_dia:
-                        missing.append(f"{s_dict.get('nom')} -> {d_norm} {h} no és un slot disponible")
+                        missing.append(missatge("fixat_slot_no_disponible", nom=s_dict.get("nom"), dia=d_norm, hora=h))
             elif h and h not in hours_set:
-                missing.append(f"{s_dict.get('nom')} -> hora {h} no disponible")
+                missing.append(missatge("fixat_hora_no_disponible", nom=s_dict.get("nom"), hora=h))
         return missing
 
     def carregar_dades(self):
@@ -1125,14 +1126,14 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         self.engine = RestrictionEngine(self.get_restriccions(), self.nivells_actius)
         self.crear_slots(dies_utilitzar)
         if not self.slots or not self.sessions:
-            return {"dies": [], "metadata": {"cost_total": 999999, "error": "No dades"}}
+            return {"dies": [], "metadata": {"cost_total": 999999, "error": missatge("sense_dades")}}
         missing_fixos = self._check_fixos_viables()
         if missing_fixos:
             return {
                 "dies": [],
                 "metadata": {
                     "viable": False,
-                    "error": "No hi ha slots per assignatures amb dia/hora fix",
+                    "error": missatge("fixos_sense_hores"),
                     "detalls": missing_fixos[:10],
                     "motor": "v3-sa",
                 },
@@ -1143,7 +1144,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 "dies": [],
                 "metadata": {
                     "viable": False,
-                    "error": "No és possible col·locar tots els exàmens (items > slots per nivell)",
+                    "error": missatge("capacitat_exhaurida"),
                     "motor": "v3-sa",
                 },
             }
@@ -1155,15 +1156,17 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             if infactible:
                 item_nom = getattr(infactible, "id", None) or str(infactible)
                 motiu = self._detectar_motiu_item_infactible(infactible)
-                msg = f"Cap slot per a '{item_nom}'"
-                if motiu:
-                    msg += f" — {motiu}"
+                msg = (
+                    missatge("examen_sense_hora_causa", nom=item_nom, causa=motiu)
+                    if motiu
+                    else missatge("examen_sense_hora_motor", nom=item_nom)
+                )
                 incompat_motor = [msg]
             return {
                 "dies": [],
                 "metadata": {
                     "viable": False,
-                    "error": "No és possible col·locar tots els exàmens (cap slot compatible per algun ítem)",
+                    "error": missatge("sense_hora_compatible"),
                     "incompatibilitats": incompat_motor,
                     "motor": "v3-sa",
                 },
@@ -1181,7 +1184,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 s_dict = self._sessio_to_dict(s)
                 violation = engine.check_hard(s_dict, slot.dia, slot.hora, slot.data or slot.dia, [], [], {})
                 if violation:
-                    raons[violation.label] += 1
+                    raons[violation.restriction] += 1
                     break
         if raons:
             return raons.most_common(1)[0][0]

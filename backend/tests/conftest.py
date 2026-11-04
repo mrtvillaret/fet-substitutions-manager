@@ -52,3 +52,29 @@ def db_session():
             next(gen)
         except StopIteration:
             pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _rellotge_de_la_suite():
+    """Les fixtures de mòdul també emeten testimonis amb l'hora fixa."""
+    from suport_rellotge import RellotgeDeProva
+
+    import rellotge
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(rellotge, "_rellotge", RellotgeDeProva())
+        yield
+
+
+@pytest.fixture(autouse=True)
+def rellotge_fix():
+    """Cada test comença al mateix dia i hora, sense caducar per temps real."""
+    from suport_rellotge import RellotgeDeProva
+
+    import rellotge
+
+    fix = RellotgeDeProva()
+    # Un undo() del monkeypatch d’un test no ha de desfer el rellotge comú.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(rellotge, "_rellotge", fix)
+        yield fix

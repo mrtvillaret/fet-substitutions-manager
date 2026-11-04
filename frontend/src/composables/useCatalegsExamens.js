@@ -479,7 +479,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       // Recarregar també les llistes auxiliars dels dropdowns
       await carregarTotesAssignatures()
       await carregarTotsGrups()
-      
+
       // Recarregar assignacions per actualitzar els filtres (assignaturesUniques)
       await carregarAssignacions()
 

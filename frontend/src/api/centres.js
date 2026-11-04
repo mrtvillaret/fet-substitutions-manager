@@ -16,4 +16,3 @@ export const crea = (...args) => creaAmb(clientApi, ...args)
 export const estatAmb = (client, slug, ...args) =>
   client.put(`/api/settings/institucions/${slug}/status`, ...args)
 export const estat = (slug, ...args) => estatAmb(clientApi, slug, ...args)
-

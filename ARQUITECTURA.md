@@ -479,3 +479,11 @@ cd backend
 pip install -r requirements-dev.txt
 pytest tests/
 ```
+
+
+Conflictes de vigilàncies: `vigilancies/analisi.py` conté l’anàlisi pura
+`analitza_vigilancies(DiaEscolar)` i la selecció per files. Es publica amb
+`ProblemaVigilancia` a `GET /api/vigilancies/{data}/analisi` i a la revisió
+PDF (`problemes_vigilancies`). `pdf/generacio.py` injecta els missatges als
+renderitzadors, també per dia als intervals; `pdf/engine.py` només imprimeix.
+La pantalla carrega l’anàlisi amb les files i descarta respostes antigues.

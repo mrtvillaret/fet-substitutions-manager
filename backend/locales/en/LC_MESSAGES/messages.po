@@ -712,3 +712,31 @@ msgstr "ℹ️ {count} invigilators’ classes with a substitute (the teacher is
 #: pdf/validacions.py
 msgid "❌ {count} classes de vigilants sense substitut (el professor vigila un examen a aquella hora)"
 msgstr "❌ {count} invigilators’ classes without a substitute (the teacher is invigilating an exam at that time)"
+
+
+msgid "⚠️ No s’ha pogut completar la comprovació de l’horari"
+msgstr "⚠️ The timetable check could not be completed"
+
+
+msgid "❌ Vigilància sense hora ({tipus}, {grup})"
+msgstr "❌ Invigilation without a time ({tipus}, {grup})"
+
+
+msgid "ℹ️ {hora}: {vigilant} vigila; {assignatura} de {grup} coberta per {substitut}"
+msgstr "ℹ️ {hora}: {vigilant} invigilates; {assignatura} for {grup} covered by {substitut}"
+
+
+msgid "❌ {hora}: {vigilant} vigila; {assignatura} de {grup} queda sense substitut"
+msgstr "❌ {hora}: {vigilant} invigilates; {assignatura} for {grup} has no substitute"
+
+
+msgid "ℹ️ {hora}: Vigilant {vigilant} alliberat manualment"
+msgstr "ℹ️ {hora}: Invigilator {vigilant} manually released"
+
+
+msgid "ℹ️ {hora}: Vigilant {vigilant} té una activitat sense grup ({assignatura})"
+msgstr "ℹ️ {hora}: Invigilator {vigilant} has an activity without a group ({assignatura})"
+
+#: substitucions/encadenades.py
+msgid "L'encadenada de les {hora} la cobreix {substitut}, que deixa sense cobrir {activitat}"
+msgstr "The chained substitution at {hora} is covered by {substitut}, leaving {activitat} uncovered"

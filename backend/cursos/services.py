@@ -7,6 +7,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+import rellotge
 from cursos.repositories import CursRepository
 from errors_domini import NoTrobat, NoValid
 from horari.repositories import XMLVersionRepository
@@ -40,7 +41,7 @@ def avisos_xml(db: Session) -> list[dict]:
     if not cursos:
         return []
 
-    avui = date.today()
+    avui = rellotge.avui()
     primer_inici = min(c.data_inici for c in cursos)
     avisos = []
 

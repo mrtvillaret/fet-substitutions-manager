@@ -19,7 +19,7 @@ from core.alliberats import (
     ocupats_de,
     professors_de,
 )
-from errors_domini import Conflicte, NoTrobat, NoValid
+from errors_domini import Conflicte, MissingXmlError, NoTrobat, NoValid
 from grups.domain import ActivitatNoConfigurada, PeriodeNoValid
 from grups.repositories import (
     AbreviaturaGrupRepository,
@@ -27,7 +27,7 @@ from grups.repositories import (
     GrupsAlliberatsRepository,
     GrupsAmagatsRepository,
 )
-from helpers import MissingXmlError, invalidar_horari
+from helpers import invalidar_horari
 from parametres import data_iso
 from repositories import ConfiguracioRepository
 from serveis.dia import Dia

@@ -1,6 +1,6 @@
 """Tests de la generació i regeneració de substitucions."""
 
-from substitucions import generacio
+from substitucions import domain, generacio
 
 
 class _Horari:
@@ -19,8 +19,8 @@ def test_activitat_fallback_conserva_l_aula_desada(monkeypatch):
         "tipus_absencia": "ABSENCIA",
     }
     monkeypatch.setattr(generacio.SubstitucioRepository, "get_by_date", lambda db, data: [fila])
-    monkeypatch.setattr(generacio.GrupsAlliberatsRepository, "get_by_date", lambda db, data: {})
-    monkeypatch.setattr(generacio.VigilanciaRepository, "get_by_date", lambda db, data: {})
+    monkeypatch.setattr(domain.GrupsAlliberatsRepository, "get_by_date", lambda db, data: {})
+    monkeypatch.setattr(domain.VigilanciaRepository, "get_by_date", lambda db, data: {})
 
     estat = generacio.llegeix_estat(object(), "2026-04-20", _Horari())
 

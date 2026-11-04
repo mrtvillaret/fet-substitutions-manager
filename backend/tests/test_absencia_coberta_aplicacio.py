@@ -8,11 +8,12 @@ Dilluns, horari d'exemple: Prof 3 fa guàrdia a les 10:00 i té classe (ViP,
 """
 
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_rellotge import AVUI
 
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user
@@ -25,7 +26,7 @@ from vigilancies.router import router as vigilancies_router
 APP = crea_app(substitucions.router, vigilancies_router, prioritats_router, absencia_coberta_router)
 # Com a main.py: el router de l'horari agafa el centre de la sessió
 APP.include_router(horari.router, dependencies=[Depends(get_current_user)])
-_avui = date.today()
+_avui = AVUI
 FUTUR = (_avui + timedelta(days=7 - _avui.weekday())).isoformat()  # dilluns vinent
 PASSAT = (_avui - timedelta(days=_avui.weekday() + 7)).isoformat()  # dilluns de fa una setmana
 

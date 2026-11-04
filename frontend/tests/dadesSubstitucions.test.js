@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { ref, computed } from 'vue'
 import { dataIso } from '../src/dates.js'
 import { carregaBloc } from './support/carregaBlocSubstitucions.js'
-const noms=['substitucions','substitucionsFiltrades','totesAbsencies','vigilanciesCount','professors','absenciesCobertes','horesDisponibles','loading','errorCarregaSubstitucions','ordreFiles','carregarSubstitucions','carregarTotesAbsencies','carregarProfessors','carregarHores','canviaOrdre']
-function prepara(api = {}) {
+const noms=['avisosEncadenades','substitucions','substitucionsFiltrades','totesAbsencies','vigilanciesCount','professors','absenciesCobertes','horesDisponibles','loading','errorCarregaSubstitucions','ordreFiles','carregarSubstitucions','carregarTotesAbsencies','carregarProfessors','carregarHores','canviaOrdre']
+function prepara(api = {}, revisions = [{data:{avisos_encadenades:['Avís del backend']}}]) {
   const peticions=[], avisos=[], guardat=[]
   const deferits=[]
   const dependents={dataTreball:ref(new Date('2026-04-20T10:00:00')),locale:ref('ca'),toast:{add:m=>avisos.push(m)},t:x=>x}
-  const dependencies={...dependents,dependents,ref,computed,dataIso,ambDataTreball:()=>({params:{data:'2026-04-20'}}),localStorage:{getItem:()=>null,setItem:(...a)=>guardat.push(a)},llistaVigilancies:async()=>[{},{}],apiHorari:{professorsHorari:async()=>({professors:['Prof 2','Prof 1'],absencies_cobertes:[]}),hores:async()=>({hores:['08:00','09:00']})},apiSubstitucions:{llista:async(...a)=>{peticions.push(['llista',...a]);return [{id:1,hora:'08:00'}]},llistaTotes:async(...a)=>{peticions.push(['totes',...a]);return [{id:2,hora:'09:00'}]},disponiblesEnBloc:(...a)=>{peticions.push(['disponibles',...a]);return new Promise(resolve=>deferits.push(resolve))},...api}}
+  const dependencies={apiPdf:{validacions:async()=>revisions.shift() || {data:{avisos_encadenades:[]}}},...dependents,dependents,ref,computed,dataIso,ambDataTreball:()=>({params:{data:'2026-04-20'}}),localStorage:{getItem:()=>null,setItem:(...a)=>guardat.push(a)},llistaVigilancies:async()=>[{},{}],apiHorari:{professorsHorari:async()=>({professors:['Prof 2','Prof 1'],absencies_cobertes:[]}),hores:async()=>({hores:['08:00','09:00']})},apiSubstitucions:{llista:async(...a)=>{peticions.push(['llista',...a]);return [{id:1,hora:'08:00'}]},llistaTotes:async(...a)=>{peticions.push(['totes',...a]);return [{id:2,hora:'09:00'}]},disponiblesEnBloc:(...a)=>{peticions.push(['disponibles',...a]);return new Promise(resolve=>deferits.push(resolve))},...api}}
   const bloc=carregaBloc('useDadesSubstitucions',[['// State','const mostrarDialogConflicte'],['// Computed','// Mètodes'],['// Mètodes','const anarAVigilancies'],['const carregarProfessors','const obrirDialogConflicte'],['const carregarHores','const mostrarAvisos']],noms,dependencies)
   return {...bloc,peticions,avisos,guardat,deferits,dependents}
 }
@@ -47,4 +47,12 @@ test('dades: recorda l’ordre i carrega professors i hores sense canviar la res
   await p.carregarProfessors(); await p.carregarHores()
   assert.deepEqual(p.professors.value,['Prof 1','Prof 2'])
   assert.deepEqual(p.horesDisponibles.value,['08:00','09:00'])
+})
+
+test('dades: publica els avisos del backend i els retira en recarregar', async () => {
+  const p = prepara({ disponiblesEnBloc: async () => ({}) })
+  await p.carregarSubstitucions()
+  assert.deepEqual(p.avisosEncadenades.value, ['Avís del backend'])
+  await p.carregarSubstitucions()
+  assert.deepEqual(p.avisosEncadenades.value, [])
 })

@@ -67,6 +67,7 @@
 
     <div class="content-card">
       <AvisErrorCarrega v-if="errorCarregaSubstitucions" :missatge="$t('substitutions.errors.loadAvailable')" @reintenta="carregarSubstitucions" />
+      <Message v-for="avis in avisosEncadenades" :key="avis" severity="warn" :closable="false">{{ avis }}</Message>
       <TaulaSubstitucions
         :files="substitucionsFiltrades"
         :data="dataISO"
@@ -122,6 +123,7 @@
     />
 
     <PdfSubstitucionsDialogs
+      v-model:confirmacioImportants="confirmacioImportants"
       v-model:mostrarDialogValidacions="mostrarDialogValidacions"
       v-model:mostrarDialogPDF="mostrarDialogPDF"
       v-model:pdfConfig="pdfConfig"
@@ -152,6 +154,7 @@ import { useDadesSubstitucions } from '../composables/useDadesSubstitucions.js'
 // Components PrimeVue
 import PdfSubstitucionsDialogs from '../components/substitucions/PdfSubstitucionsDialogs.vue'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 import GestioAbsenciesSubstitucions from '../components/substitucions/GestioAbsenciesSubstitucions.vue'
 import Badge from 'primevue/badge'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -169,6 +172,7 @@ const { t, locale } = useI18n()
 const emit = defineEmits(['anar-vigilancies'])
 
 const {
+  avisosEncadenades,
   substitucionsFiltrades,
   totesAbsencies,
   vigilanciesCount,
@@ -330,6 +334,7 @@ const {
 } = useAbsenciesSubstitucions({ dataISO, professors, absenciesCobertes, totesAbsencies, horesDisponibles, loading, toast, t, confirmaEsborrar, obrirDialogConflicte, carregarSubstitucions, carregarTotesAbsencies })
 
 const {
+  confirmacioImportants,
   mostrarDialogPDF,
   mostrarDialogValidacions,
   generantPDF,

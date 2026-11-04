@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date
 from functools import cached_property
 
+import rellotge
 from database import get_data_db_session
 from helpers import (
     _get_institucio_actual,
@@ -29,7 +30,7 @@ class Dia:
 
     @classmethod
     def avui(cls, institucio: str) -> "Dia":
-        return cls(date.today(), institucio)
+        return cls(rellotge.avui(), institucio)
 
     @classmethod
     def de_text(cls, data_iso: str, institucio: str = None) -> "Dia":

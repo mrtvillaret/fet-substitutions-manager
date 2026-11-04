@@ -4,8 +4,8 @@ generar, analitzar i recalcular el cost: es llegeix d'un sol lloc.
 """
 
 from dataclasses import dataclass
-from datetime import date
 
+import rellotge
 from configuracio_examens.repositories import ConfiguracioExamenRepository
 from database import get_data_db_session
 from horari.repositories import XMLVersionRepository
@@ -163,7 +163,7 @@ def horari_de_la_planificacio(institucio: str, dates: list | None = None) -> dic
         cfg = carrega_config(institucio)
         dates = cfg.dates(None, cfg.nivells_actius())
     dates = sorted(d for d in (dates or []) if d)
-    referencia = dates[0] if dates else date.today().isoformat()
+    referencia = dates[0] if dates else rellotge.avui().isoformat()
     with get_data_db_session(institucio) as db:
         versions = {}
         for d in dates or [referencia]:

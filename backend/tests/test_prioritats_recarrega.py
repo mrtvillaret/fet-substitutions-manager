@@ -5,11 +5,12 @@ recarreguen de seguida, sense haver de reiniciar ni desar les prioritats.
 """
 
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from fastapi import APIRouter, Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_rellotge import AVUI
 
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user
@@ -31,7 +32,7 @@ def no_substituir_a_memoria(_usuari=Depends(get_current_user)):
 
 
 APP = crea_app(substitucions.router, pdf.router, prioritats_router, absencia_coberta_router, _no_substituir)
-_avui = date.today()
+_avui = AVUI
 # Un dilluns passat: la baixa no hi treu res (absencia_coberta/services.py), però s'hi ha de veure.
 DATA = (_avui - timedelta(days=_avui.weekday() + 7)).isoformat()
 

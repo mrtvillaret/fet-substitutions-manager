@@ -3,15 +3,18 @@ import * as apiVigilancies from '../api/vigilancies.js'
 import { llistaSimple as llistaSubstitucions } from '../api/substitucions.js'
 
 // Cap dada ni error d'una petició antiga no pot substituir el dia actual.
-export function useCarregaVigilancies({ dataISO, loading, error, vigilancies, seleccionades, substitucionsCount, carregarDisponiblesPerLlista, publicaConfig, oblidaAjudes, t }) {
+export function useCarregaVigilancies({ dataISO, loading, error, vigilancies, seleccionades, substitucionsCount, problemes, carregarDisponiblesPerLlista, publicaConfig, oblidaAjudes, t }) {
   let versio = 0
   watch(dataISO, () => { versio++ }, { flush: 'sync' })
 
   const carregarSubstitucionsCount = async () => {
     const data = dataISO.value, id = versio
     try {
-      const files = await llistaSubstitucions(data)
-      if (id === versio && data === dataISO.value) substitucionsCount.value = files.length
+      const [files, analisi] = await Promise.all([llistaSubstitucions(data), apiVigilancies.analisi(data)])
+      if (id === versio && data === dataISO.value) {
+        substitucionsCount.value = files.length
+        problemes.value = analisi
+      }
     } catch (err) {
       if (id !== versio || data !== dataISO.value) return
       console.error('Error carregant substitucions:', err)
@@ -27,14 +30,16 @@ export function useCarregaVigilancies({ dataISO, loading, error, vigilancies, se
     seleccionades.value = []
     oblidaAjudes()
     try {
-      const [config, files, substitucions] = await Promise.all([
+      const [config, files, substitucions, analisi] = await Promise.all([
         apiVigilancies.configuracio({ params: { data } }),
         apiVigilancies.llista(data),
-        llistaSubstitucions(data)
+        llistaSubstitucions(data),
+        apiVigilancies.analisi(data)
       ])
       if (!vigent()) return
       await carregarDisponiblesPerLlista(files, { substitueix: true, data, vigent, alhora: () => {
         publicaConfig(config)
+        problemes.value = analisi
         vigilancies.value = files
         substitucionsCount.value = substitucions.length
       } })
@@ -42,6 +47,7 @@ export function useCarregaVigilancies({ dataISO, loading, error, vigilancies, se
       if (!vigent()) return
       console.error('Error carregant vigilàncies:', err)
       error.value = t('vigilancies.errors.load')
+      problemes.value = []
       vigilancies.value = []
       substitucionsCount.value = 0
     } finally {

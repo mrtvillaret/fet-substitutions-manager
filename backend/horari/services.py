@@ -10,7 +10,7 @@ import os
 import shutil
 import uuid
 import xml.etree.ElementTree as ET
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import BinaryIO, Optional
 
@@ -18,10 +18,11 @@ import defusedxml.ElementTree as SafeET
 from defusedxml import DefusedXmlException
 from sqlalchemy.orm import Session
 
+import rellotge
 from absencia_coberta.services import absencies_cobertes_del_dia
 from database import get_data_db_session, get_data_dir_for_institucio
-from errors_domini import NoTrobat, NoValid
-from helpers import MissingXmlError, invalidar_horari
+from errors_domini import MissingXmlError, NoTrobat, NoValid
+from helpers import invalidar_horari
 from horari.repositories import XMLVersionRepository
 from noms import nom_net
 from parametres import data_iso
@@ -40,14 +41,14 @@ def estat(dia: Dia) -> dict:
         horari = dia.horari
     except MissingXmlError:
         return {
-            "data_actual": datetime.now().strftime("%Y-%m-%d"),
+            "data_actual": rellotge.ara().strftime("%Y-%m-%d"),
             "horari_carregat": False,
             "num_professors": 0,
             "num_hores": 0,
             "xml_missing": True,
         }
     return {
-        "data_actual": datetime.now().strftime("%Y-%m-%d"),
+        "data_actual": rellotge.ara().strftime("%Y-%m-%d"),
         "horari_carregat": True,
         "num_professors": len(horari.professors),
         "num_hores": len(horari.hores),
@@ -229,7 +230,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
         if data_inici:
             vigent_des_de = data_iso(data_inici)
         else:
-            vigent_des_de = date.today()
+            vigent_des_de = rellotge.avui()
 
         data_dir = str(get_data_dir_for_institucio(institucio))
         os.makedirs(data_dir, exist_ok=True)
@@ -290,7 +291,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
 
             # Si no hi ha versions prèvies, crear versió inicial amb l'XML anterior (si existeix)
             if not current_version and previous_path and previous_hash:
-                timestamp_prev = datetime.now().strftime("%Y%m%d_%H%M%S")
+                timestamp_prev = rellotge.ara().strftime("%Y%m%d_%H%M%S")
                 history_prev_path = history_dir / f"horari_inicial_{timestamp_prev}_{uuid.uuid4().hex[:8]}.xml"
                 shutil.copy2(previous_path, history_prev_path)
                 stored_prev_path = _relatiu(history_prev_path, data_dir)
@@ -309,7 +310,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
                         "message": "XML idèntic a l'anterior; s'ha creat la versió inicial",
                     }
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = rellotge.ara().strftime("%Y%m%d_%H%M%S")
             # El moment per llegir-lo; el sufix, perquè dues pujades del mateix
             # segon no es trepitgin
             history_path = history_dir / f"horari_{timestamp}_{uuid.uuid4().hex[:8]}.xml"
@@ -321,7 +322,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
             # punter "actual" només es mou si la nova ja és vigent avui
             XMLVersionRepository.encadena(db)
             db.commit()
-            es_vigent_avui = vigent_des_de <= date.today()
+            es_vigent_avui = vigent_des_de <= rellotge.avui()
 
         # Invalidar cache del horari per forçar recàrrega del nou XML
         invalidar_horari(institucio)

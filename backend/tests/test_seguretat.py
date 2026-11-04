@@ -372,6 +372,7 @@ INVENTARI = dict(
             recull=lambda resp, ctx: ctx.update(vigilancia=resp.json()["vigilancia"]["id"]),
         ),
         _r(CENTRE, USER, "GET", "/api/vigilancies/{data}", f"/api/vigilancies/{DATA}", recull=_vigilancies_de_les_deu),
+        _r(CENTRE, USER, "GET", "/api/vigilancies/{data}/analisi", f"/api/vigilancies/{DATA}/analisi"),
         _r(CENTRE, USER, "GET", "/api/vigilancies/{data}/ordre", f"/api/vigilancies/{DATA}/ordre"),
         _r(
             CENTRE,

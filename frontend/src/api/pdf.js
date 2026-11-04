@@ -28,4 +28,3 @@ export const validacions = (data, ...args) => validacionsAmb(clientApi, data, ..
 export const comptesSenseNivellAmb = (client, ...args) =>
   client.get('/api/pdf/vigilancies/comptes-sense-nivell', ...args)
 export const comptesSenseNivell = (...args) => comptesSenseNivellAmb(clientApi, ...args)
-

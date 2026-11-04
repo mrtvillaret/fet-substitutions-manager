@@ -8,6 +8,7 @@ from typing import List, Optional
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
+import rellotge
 from models import Configuracio, XMLVersion
 from repositories import parse_date
 
@@ -50,7 +51,7 @@ class XMLVersionRepository:
         """La versió vigent a `data` (per defecte avui). Si aquell dia no en
         cobreix cap: la primera que comenci després (p. ex. només s'ha pujat
         l'horari d'un curs que encara no ha començat) o, si no, la darrera."""
-        data = data or date.today().isoformat()
+        data = data or rellotge.avui().isoformat()
         versio = XMLVersionRepository.get_for_date(db, data)
         if versio:
             return versio

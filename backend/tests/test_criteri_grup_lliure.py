@@ -3,7 +3,7 @@ Les validacions (assignar un substitut a mà, avisos abans del PDF i
 «Reassignar problemàtics») decideixen si un professor té classe amb el mateix
 criteri que la generació automàtica (core/alliberats.sense_classe): el grup de
 la seva classe ha de ser, tal com surt a l'horari, un dels grups marcats sense
-classe; per a vigilàncies, també un dels grups que fan examen.
+classe. Un examen no allibera, tampoc per a vigilàncies.
 
 Dilluns 20/04/2026 a les 10:00, Prof 26 fa classe a l'agrupació
 «2-BAT-A,2-BAT-B». Marcar només «2-BAT-A» no l'allibera: hi queden els
@@ -98,7 +98,7 @@ def _prof_26_substitut(client, centre):
 def _avisos(client):
     resp = client.get(f"/api/pdf/{DATA}/validacions")
     assert resp.status_code == 200, resp.text
-    return " | ".join(resp.json()["warnings"])
+    return " | ".join(resp.json()["warnings"] + resp.json()["conflicts"])
 
 
 def test_prof_26_fa_classe_a_l_agrupacio():
@@ -167,7 +167,7 @@ def test_l_examen_de_l_agrupacio_no_allibera_el_substitut(client, centre):
     "examen, marcats, problematic",
     [
         ("2-BAT-A", [], True),  # l'examen és només d'una part de l'agrupació
-        (AGRUPACIO, [], False),  # l'examen és de tota l'agrupació
+        (AGRUPACIO, [], True),  # ni un examen de tota l’agrupació no allibera
         ("1-ESO-A", ["2-BAT-A"], True),
         ("1-ESO-A", [AGRUPACIO], False),  # l'agrupació està sense classe
     ],
@@ -176,4 +176,5 @@ def test_vigilant_amb_classe_a_una_agrupacio(client, centre, examen, marcats, pr
     _sense_classe(centre, marcats)
     _examen(centre, examen, vigilant=PROFESSOR)
 
-    assert (VIGILANT_PROF_26 in _avisos(client)) == problematic
+    ps = client.get(f"/api/pdf/{DATA}/validacions").json()["problemes_vigilancies"]
+    assert any(p["professor"] == PROFESSOR and p["tipus"] == "classe_sense_cobertura" for p in ps) == problematic

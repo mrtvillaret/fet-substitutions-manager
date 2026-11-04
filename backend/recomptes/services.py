@@ -17,8 +17,8 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from cursos.repositories import CursRepository
+from errors_domini import MissingXmlError
 from grups.repositories import GrupsAlliberatsRepository
-from helpers import MissingXmlError
 from horari.repositories import XMLVersionRepository
 from noms import ordre_alfabetic
 from ordre_curs import clau_curs

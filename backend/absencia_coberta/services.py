@@ -15,6 +15,7 @@ import copy
 import logging
 from datetime import date, datetime, timedelta
 
+import rellotge
 from absencia_coberta.repositories import AbsenciaCobertaRepository
 from errors_domini import NoTrobat
 from noms import nom_net
@@ -63,7 +64,7 @@ def aplica_absencia_coberta(
     if not professor:
         return canvis
 
-    for d in _dies_afectats(db, data_inici, data_final, avui or date.today()):
+    for d in _dies_afectats(db, data_inici, data_final, avui or rellotge.avui()):
         gestors = _gestors_amb_absencies_pendents(db, institucio, d)
         _, horari, _, absencies = gestors
         hores_absent = sorted(
@@ -180,7 +181,7 @@ def classes_sense_substitut(institucio: str, professor: str, data_inici: str, da
     hi fos el substitut extern, n'hi hauria un. És un avís, no bloqueja res.
     Cada classe surt un cop per dia de la setmana i horari: {dia, hora, grup,
     assignatura}."""
-    from helpers import MissingXmlError
+    from errors_domini import MissingXmlError
     from serveis.dia import Dia
 
     professor = nom_net(professor or "")

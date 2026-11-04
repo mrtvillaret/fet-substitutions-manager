@@ -1,6 +1,6 @@
 """Schemas d'entrada i de sortida de les rutes de vigilàncies."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -36,6 +36,7 @@ class EdicioVigilanciaRequest(BaseModel):
 
 
 class ConsultaDisponibles(BaseModel):
+    vigilancia_id: str | None = None
     hora: str
     tipus: Optional[str] = None
     grups: Optional[str] = None
@@ -249,3 +250,15 @@ class OrdenacioResponse(BaseModel):
     success: bool
     sorted_count: int
     message: str
+
+
+class ProblemaVigilancia(BaseModel):
+    tipus: str
+    gravetat: Literal["important", "avis", "informacio"]
+    hora: str
+    files: list[str]
+    professor: str
+    grup: str
+    aula: str
+    cobertura_efectiva: str | None
+    missatge: str

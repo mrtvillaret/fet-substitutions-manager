@@ -34,6 +34,7 @@ from vigilancies.schemas import (
     OrdenacioResponse,
     OrdreManualResponse,
     OrdreRequest,
+    ProblemaVigilancia,
     ProfessorDisponible,
     SuccessResponse,
     VigilanciaCreadaResponse,
@@ -69,6 +70,7 @@ def obtenir_disponibles_vigilancia(
     tipus: str = None,
     grups: str = None,
     aula: NomNet = None,
+    vigilancia_id: str = None,
     db: Session = Depends(get_db),
     dia: Dia = Depends(dia_de_la_peticio),
 ):
@@ -76,7 +78,7 @@ def obtenir_disponibles_vigilancia(
     Professors disponibles per a una vigilància, amb el que fan a l'hora.
     `tipus`, `grups` i `aula` (opcionals) serveixen per detectar el titular.
     """
-    return services.disponibles(db, dia, hora, tipus=tipus, grups=grups, aula=aula)
+    return services.disponibles(db, dia, hora, tipus=tipus, grups=grups, aula=aula, vigilancia_id=vigilancia_id)
 
 
 @router.get("/{data}/{hora}/professor", response_model=AjudaVigilantResponse)
@@ -107,6 +109,11 @@ def obtenir_disponibles_vigilancia_batch(
 def obtenir_vigilancies(data: DataISO, db: Session = Depends(get_db)):
     """Les vigilàncies del dia: llista plana, amb l'id de la BD."""
     return services.llista(db, data)
+
+
+@router.get("/{data}/analisi", response_model=list[ProblemaVigilancia])
+def analitzar_vigilancies(data: DataISO, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
+    return services.analisi(db, dia)
 
 
 @router.post("/{data}", response_model=VigilanciaCreadaResponse)

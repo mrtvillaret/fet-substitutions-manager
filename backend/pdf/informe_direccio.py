@@ -23,6 +23,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+import rellotge
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
 from pdf.dies import dies_capcalera
@@ -1010,10 +1011,10 @@ def generar_informe_pdf(
     export_path = Path(export_dir)
     export_path.mkdir(parents=True, exist_ok=True)
 
-    ts = datetime.now().strftime("%y%m%d_%H%M%S")
+    ts = rellotge.ara().strftime("%y%m%d_%H%M%S")
     filename = export_path / f"informe_direccio_{ts}.pdf"
 
-    timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
+    timestamp = rellotge.ara().strftime("%d/%m/%Y %H:%M")
 
     doc = SimpleDocTemplate(
         str(filename),

@@ -9,7 +9,7 @@ prepara el conftest.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from pathlib import Path
 
 import jwt
@@ -17,13 +17,14 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from slowapi.errors import RateLimitExceeded
+from suport_rellotge import ARA
 
 import auth.router as rutes_auth
 import auth.services as serveis_auth
 from auth import security
 from auth.dependencies import require_admin, require_super_admin, require_user
 from auth.repositories import UserRepository
-from auth.security import create_access_token, hash_password, verify_password
+from auth.security import create_access_token, decode_access_token, hash_password, verify_password
 from config.auth import ALGORITHM, COOKIE_NAME, SECRET_KEY
 from config.settings import config
 from database import AuthSessionLocal, create_auth_tables, get_data_db_session
@@ -162,7 +163,7 @@ def test_login_correcte_posa_cookie_httponly_amb_les_dades_del_usuari(client, es
     assert "HttpOnly" in cookie
     assert "samesite=lax" in cookie.lower()
 
-    payload = jwt.decode(client.cookies[COOKIE_NAME], SECRET_KEY, algorithms=[ALGORITHM])
+    payload = decode_access_token(client.cookies[COOKIE_NAME])
     assert payload["sub"] == escenari["noms"]["admin_a"]
     assert payload["institucio"] == escenari["a"]
     assert payload["role"] == "admin"
@@ -298,7 +299,7 @@ def test_token_caducat_dona_401(client, escenari):
             "sub": escenari["noms"]["user_a"],
             "institucio": escenari["a"],
             "role": "user",
-            "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+            "exp": ARA - timedelta(minutes=1),
         },
     )
     assert client.get("/prova/user").status_code == 401

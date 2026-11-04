@@ -18,6 +18,7 @@ from scheduler_engine.core.constraints import (
 )
 from scheduler_engine.core.date_mapping import DIES_CAT as _DIES_CAT
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.missatges import missatge
 from scheduler_engine.core.normalitzacio import (
     dia_nom_per_horari,
     format_dia_label,
@@ -685,7 +686,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                     "dies": [],
                     "metadata": {
                         "viable": False,
-                        "error": f"No és possible col·locar tots els exàmens ({nivell}: {count} items > {len(physical_slots)} slots)",
+                        "error": missatge("capacitat_nivell", nivell=nivell, count=count, hores=len(physical_slots)),
                         "motor": "v2-intents",
                     },
                 }

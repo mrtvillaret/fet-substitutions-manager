@@ -17,6 +17,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base
 
+import rellotge
+
 Base = declarative_base()
 
 
@@ -25,7 +27,7 @@ def ara_utc() -> datetime:
     (obsolet des de Python 3.12). Es manté sense fus a propòsit: les dates ja
     desades i el format d'updated_at (que el frontend compara per detectar
     conflictes) han de continuar sent idèntics."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return rellotge.ara(timezone.utc).replace(tzinfo=None)
 
 
 class Nivell(Base):

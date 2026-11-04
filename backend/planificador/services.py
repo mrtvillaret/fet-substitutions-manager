@@ -7,10 +7,10 @@ Generar i analitzar són a generacio.py; el cost d'un horari editat, a
 cost.py; publicar-lo com a vigilàncies, a publicacio.py."""
 
 import json
-from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+import rellotge
 from configuracio_examens.repositories import ConfiguracioExamenRepository, MasterConfigRepository
 from cursos.repositories import CursRepository
 from database import get_data_db_session
@@ -218,7 +218,7 @@ def desa_ultim_resultat(institucio: str, horari: dict, dies_utilitzar: list | No
             json.dumps(
                 jsonable_encoder(
                     {
-                        "desat": datetime.now().isoformat(timespec="seconds"),
+                        "desat": rellotge.ara().isoformat(timespec="seconds"),
                         "resultat": {"dies_utilitzar": dies_utilitzar, "horari": horari},
                     }
                 ),

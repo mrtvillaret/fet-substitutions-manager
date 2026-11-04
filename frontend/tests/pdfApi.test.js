@@ -92,4 +92,3 @@ test('comptesSenseNivell: URL, mètode, arguments, resposta i errors intactes', 
   client.get = async () => { throw error }
   await assert.rejects(api.comptesSenseNivellAmb(client, ...args, ...argumentsHttp), e => e === error)
 })
-

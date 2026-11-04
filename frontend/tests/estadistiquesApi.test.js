@@ -118,4 +118,3 @@ test('hores: URL, mètode, arguments, resposta i errors intactes', async () => {
   client.get = async () => { throw error }
   await assert.rejects(api.horesAmb(client, ...args, ...argumentsHttp), e => e === error)
 })
-

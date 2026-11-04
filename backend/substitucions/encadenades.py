@@ -13,6 +13,7 @@ import re
 from typing import Optional
 
 from config import constants
+from i18n_setup import translate
 from substitucions.repositories import SubstitucioRepository
 
 log = logging.getLogger(__name__)
@@ -78,3 +79,24 @@ def reconcilia_encadenades(db, data: str) -> dict:
     if resum["creades"] or resum["esborrades"]:
         log.debug(f"🔗 Encadenades {data}: {resum}")
     return resum
+
+
+def avisos_encadenades(files: list[dict]) -> list[str]:
+    """Avisa de l'activitat que deixa qui cobreix una encadenada.
+
+    Només lectura: es manté el límit d'un nivell. La mateixa regla
+    d'activitat encadenable serveix per generar i per avisar.
+    """
+    avisos = []
+    for fila in files:
+        if fila.get("tipus_absencia") != "ENCADENADA":
+            continue
+        substitut = (fila.get("substitut") or "").strip()
+        activitat = activitat_encadenada(fila.get("tipus_substitut") or "")
+        if substitut and activitat:
+            avisos.append(
+                translate(
+                    "L'encadenada de les {hora} la cobreix {substitut}, que deixa sense cobrir {activitat}"
+                ).format(hora=fila.get("hora", ""), substitut=substitut, activitat=activitat)
+            )
+    return avisos

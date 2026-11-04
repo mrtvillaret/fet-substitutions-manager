@@ -120,7 +120,8 @@ class GrupsAlliberatsRepository:
             clau_professor,
             ocupats_de,
         )
-        from helpers import MissingXmlError, get_horari
+        from errors_domini import MissingXmlError
+        from helpers import get_horari
 
         try:
             horari = get_horari(data_iso=data)

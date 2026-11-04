@@ -157,4 +157,3 @@ test('esborra: URL, mètode, arguments, resposta i errors intactes', async () =>
   client.delete = async () => { throw error }
   await assert.rejects(api.esborraAmb(client, ...args, ...argumentsHttp), e => e === error)
 })
-

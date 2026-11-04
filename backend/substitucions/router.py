@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from dependencies import dia_de_la_peticio, get_db
-from helpers import MissingXmlError
+from errors_domini import MissingXmlError
 from noms import NomNet
 from parametres import DataISO
 from serveis.dia import Dia

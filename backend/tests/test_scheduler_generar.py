@@ -22,6 +22,7 @@ from suport_planificador import (
 )
 
 from rate_limit import limiter
+from scheduler_engine.core.missatges import missatge
 
 URL = "/api/scheduler/generate"
 PETICIO = {"data_inici": DATES[0], "data_final": DATES[-1], "selected_dates": DATES, "dies_utilitzar": DIES}
@@ -152,7 +153,9 @@ def test_si_no_hi_caben_diu_que_no_es_viable(un_nivell):
     assert horari["metadata"]["viable"] is False
     # El precheck ho veu abans del motor i diu el mateix que el diagnòstic:
     # només surt el diagnòstic
-    assert horari["metadata"]["incompatibilitats"] == ["1-BAT: 3 ítems > 1 slots disponibles en 1 dates"]
+    assert horari["metadata"]["incompatibilitats"] == [
+        missatge("capacitat_nivell_dates", nivell="1-BAT", count=3, hores=1, dies=1)
+    ]
 
 
 @pytest.mark.parametrize("motor", ["v3", "v2", "v2-backtrack"])
@@ -179,9 +182,15 @@ def test_si_no_es_viable_diu_quina_restriccio_ho_impedeix(dos_nivells, motor):
     assert horari["metadata"]["viable"] is False
     # Primer el diagnòstic, després el que diu el motor
     diagnostic, del_motor = horari["metadata"]["incompatibilitats"]
-    assert "Prof 48" in diagnostic
-    assert "'Filosofia (1-BAT)' i 'Filosofia (2-BAT)' no poden coincidir" in diagnostic
-    assert "Filosofia" in del_motor and "no poden coincidir" not in del_motor
+    assert diagnostic == missatge(
+        "parella_mateixa_hora",
+        grup="Prof 48",
+        assignatures=["Filosofia (1-BAT)", "Filosofia (2-BAT)"],
+        nom="Filosofia (1-BAT)",
+        altre="Filosofia (2-BAT)",
+    )
+    assert "Filosofia" in del_motor["params"]["nom"]
+    assert del_motor["codi"] in ("examen_sense_hora_causa", "examen_pendent", "examens_pendents_nivell")
 
 
 def _amb_limit_de_prof_48(client):
@@ -203,7 +212,9 @@ def test_si_el_diagnostic_no_hi_veu_res_surt_el_missatge_del_motor(un_nivell):
     _amb_limit_de_prof_48(un_nivell)
     horari = _genera(un_nivell)
     assert horari["metadata"]["viable"] is False
-    assert horari["metadata"]["incompatibilitats"] == ["Cap slot per a 'Filosofia (1-BAT)' — Límit exàmens professor"]
+    assert horari["metadata"]["incompatibilitats"] == [
+        missatge("examen_sense_hora_causa", nom="Filosofia (1-BAT)", causa="limit_dies_professor")
+    ]
 
 
 def test_si_no_es_pot_preparar_l_explicacio_la_resposta_ho_diu(un_nivell, monkeypatch, caplog):
@@ -219,7 +230,9 @@ def test_si_no_es_pot_preparar_l_explicacio_la_resposta_ho_diu(un_nivell, monkey
     # La generació no falla: diu que no s'ha pogut preparar l'explicació
     # (amb la referència del registre) i conserva el que n'ha dit el motor
     assert re.fullmatch(r"[0-9a-f]{8}", meta["explicacio_no_disponible"]["ref"])
-    assert meta["incompatibilitats"] == ["Cap slot per a 'Filosofia (1-BAT)' — Límit exàmens professor"]
+    assert meta["incompatibilitats"] == [
+        missatge("examen_sense_hora_causa", nom="Filosofia (1-BAT)", causa="limit_dies_professor")
+    ]
     assert "detall intern del diagnòstic" in caplog.text
     assert "detall intern" not in str(meta)
 

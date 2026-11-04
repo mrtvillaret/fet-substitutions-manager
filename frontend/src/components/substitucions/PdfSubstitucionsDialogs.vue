@@ -4,7 +4,7 @@
       v-model:visible="mostrarDialogValidacions"
       :header="validacions.has_critical ? $t('substitutions.dialogs.pdfValidation.criticalTitle') : $t('substitutions.dialogs.pdfValidation.warningTitle')"
       :modal="true"
-      :style="{ width: '600px', maxHeight: '80vh' }"
+      :style="{ width: '600px', maxWidth: 'calc(100vw - 2rem)', maxHeight: '80vh' }"
     >
       <div class="validacions-content">
         <p style="font-weight: 600; margin-bottom: 1rem;">{{ $t('substitutions.dialogs.pdfValidation.detectedIssues') }}</p>
@@ -49,6 +49,11 @@
           {{ $t('substitutions.dialogs.pdfValidation.totalIssues', { count: totalIssuesFiltrats }, totalIssuesFiltrats) }}
         </p>
 
+        <div v-if="validacions.conflicts?.length > 0" class="confirmacio-importants">
+          <Checkbox v-model="confirmacioImportants" :binary="true" :inputId="prefixEtiquetes + '-confirma-importants'" />
+          <label :for="prefixEtiquetes + '-confirma-importants'">{{ $t('substitutions.dialogs.pdfValidation.confirmImportant') }}</label>
+        </div>
+
         <Message severity="warn" style="margin-top: 1rem;">
           {{ $t('substitutions.dialogs.pdfValidation.continueQuestion') }}
         </Message>
@@ -70,6 +75,7 @@
         />
         <Button
           :label="$t('common.continue')"
+          :disabled="(validacions.conflicts?.length > 0) && !confirmacioImportants"
           icon="pi pi-check"
           @click="emit('continuarPDF')"
           :loading="generantPDF"
@@ -128,13 +134,18 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import Message from 'primevue/message'
 import PdfOpcionsComunes from '../PdfOpcionsComunes.vue'
 
+const prefixEtiquetes = useId()
+
 const mostrarDialogValidacions = defineModel('mostrarDialogValidacions', { required: true })
 const mostrarDialogPDF = defineModel('mostrarDialogPDF', { required: true })
+const confirmacioImportants = defineModel('confirmacioImportants', { required: true })
 const pdfConfig = defineModel('pdfConfig', { required: true })
 defineProps({
   validacions: { type: Object, required: true },
@@ -146,3 +157,7 @@ defineProps({
 })
 const emit = defineEmits(['cancelarPDF', 'reassignarProblematics', 'continuarPDF', 'generarPDFComplet'])
 </script>
+
+<style scoped>
+.confirmacio-importants { display: flex; align-items: center; gap: 0.75rem; }
+</style>

@@ -489,11 +489,11 @@ def test_assignar_pendents_amb_disponibles_fa_servir_professors_de_guardia(clien
     _comprova_assignacions_valides(client)
 
 
-def test_assignar_pendents_posa_el_professor_del_grup_que_fa_l_examen(client):
-    # Prof 48 té classe amb 1-BAT-A a les 10:00: si 1-BAT-A fa examen, el vigila ell.
+def test_assignar_pendents_no_allibera_el_professor_pel_fet_de_fer_examen(client):
+    # Prof 48 té classe amb 1-BAT-A: sense marca manual no pot vigilar.
     _crea(client, grups="1-BAT-A", tipus="Música", nivell="1-BAT")
     client.post(f"{URL}/assign/pendents")
-    assert _vigilants(client) == {"1-BAT-A": "Prof 48"}
+    assert _vigilants(client) == {"1-BAT-A": ""}
 
 
 def test_assignar_pendents_respecta_el_pes_dins_de_la_categoria():

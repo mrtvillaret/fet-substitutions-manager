@@ -1,6 +1,7 @@
 <template src="./scheduler/SchedulerView.template.html"></template>
 
 <script setup>
+import { tradueixMissatge } from './scheduler/missatges.js'
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import * as apiPlanificador from '../api/planificador'
 import { ruta } from '../basePath'

@@ -175,6 +175,14 @@
 
     <!-- Taula de vigilàncies: agrupada per hores, en l'ordre desat -->
     <template v-else>
+    <div class="problemes-vigilancies" aria-live="polite">
+      <Message v-for="(problema, index) in problemesVisibles" :key="index"
+        :severity="{ important: 'error', avis: 'warn', informacio: 'info' }[problema.gravetat]"
+        :closable="false">
+        {{ problema.missatge }}
+      </Message>
+    </div>
+
       <Message v-if="filtresActius && vigilancies.length" severity="info" :closable="false" class="avis-ordre-filtres">
         {{ $t('vigilancies.table.orderDisabledByFilter') }}
       </Message>
@@ -208,6 +216,7 @@
     />
 
     <PdfVigilanciesDialogs
+      v-model:confirmacioImportants="confirmacioImportants"
       v-model:mostrarDialogValidacionsVig="mostrarDialogValidacionsVig"
       v-model:mostrarDialogPDF="mostrarDialogPDF"
       v-model:mostrarDialogInterval="mostrarDialogInterval"
@@ -276,6 +285,7 @@ const confirmaEsborrar = useConfirmaEsborrar()
 const { t, locale } = useI18n()
 
 const vigilancies = ref([])
+const problemes = ref([])
 
 const obreConfiguracioExamens = () => window.dispatchEvent(new CustomEvent('obre-configuracio-examens'))
 
@@ -305,8 +315,8 @@ const dataFormatada = computed(() => {
   })
 })
 
-const { mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval } = usePdfVigilancies({
-  dataISO, dataTreball, nivells, toast, t
+const { confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval } = usePdfVigilancies({
+  dataISO, dataTreball, nivells, vigilancies, toast, t
 })
 
 const collator = computed(() => new Intl.Collator(locale.value || 'ca', { sensitivity: 'base' }))
@@ -319,6 +329,11 @@ const { allLabel, statusOptions, filtreLevell, filtreHora, filtreEstat, filtreAu
   vigilancies, aules, collator, t
 })
 
+const problemesVisibles = computed(() => {
+  const ids = new Set(vigilanciesFiltrades.value.map(v => String(v.id)))
+  return problemes.value.filter(p => !p.files.length || p.files.some(id => ids.has(id)))
+})
+
 const { ressaltades, ressalta } = useOrdreFiles()
 const { oblida: oblidaAjudes } = useAjudaVigilant()
 
@@ -329,9 +344,9 @@ const opcionsFiles = computed(() => ({
   tipusDe: (nivell) => getTipusOptions(nivell, true),
   grupsDe: (nivell) => getGrupsPerNivell(nivell)
 }))
-const disponiblesDe = (fila) => getDisponiblesPerHora(fila.hora, fila.tipus, fila.grups, fila.aula)
+const disponiblesDe = (fila) => getDisponiblesPerHora(fila.hora, fila.tipus, fila.grups, fila.aula, fila.id)
 const etiquetaVigilantDe = (fila) =>
-  fila.vigilant ? getVigilantLabel(fila.hora, fila.vigilant, fila.tipus, fila.grups, fila.aula) : ''
+  fila.vigilant ? getVigilantLabel(fila.hora, fila.vigilant, fila.tipus, fila.grups, fila.aula, fila.id) : ''
 
 const getGrupsPerNivell = (nivell) => {
   if (!nivell || !grupsPerNivell.value[nivell]) {
@@ -364,7 +379,7 @@ const publicaConfig = (config) => {
   configCarregada.value = true
 }
 const { carregarVigilancies, carregarSubstitucionsCount } = useCarregaVigilancies({
-  dataISO, loading, error, vigilancies, seleccionades, substitucionsCount,
+  dataISO, loading, error, vigilancies, seleccionades, substitucionsCount, problemes,
   carregarDisponiblesPerLlista, publicaConfig, oblidaAjudes, t
 })
 

@@ -14,25 +14,23 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     return normalized || null
   }
 
-  const getDisponiblesCacheKey = (hora, tipus = null, grups = null, aula = null) => {
+  const getDisponiblesCacheKey = (hora, tipus = null, grups = null, aula = null, vigilanciaId = null) => {
     const horaNorm = String(hora || '').trim()
     const tipusNorm = normalitzarDisponiblesParam(tipus)
-    if (!tipusNorm) {
-      return horaNorm
-    }
     const grupsNorm = normalitzarDisponiblesParam(grups) || ''
     const aulaNorm = normalitzarDisponiblesParam(aula) || ''
-    return `${horaNorm}|${tipusNorm}|${grupsNorm}|${aulaNorm}`
+    const clau = tipusNorm ? `${horaNorm}|${tipusNorm}|${grupsNorm}|${aulaNorm}` : horaNorm
+    return vigilanciaId ? `${clau}|fila:${vigilanciaId}` : clau
   }
 
-  const carregarDisponibles = async (hora, force = false, tipus = null, grups = null, aula = null) => {
+  const carregarDisponibles = async (hora, force = false, tipus = null, grups = null, aula = null, vigilanciaId = null) => {
     const horaNorm = String(hora || '').trim()
     if (!horaNorm) return []
 
     const tipusNorm = normalitzarDisponiblesParam(tipus)
     const grupsNorm = normalitzarDisponiblesParam(grups)
     const aulaNorm = normalitzarDisponiblesParam(aula)
-    const cacheKey = getDisponiblesCacheKey(horaNorm, tipusNorm, grupsNorm, aulaNorm)
+    const cacheKey = getDisponiblesCacheKey(horaNorm, tipusNorm, grupsNorm, aulaNorm, vigilanciaId)
 
     // Si ja tenim les dades en cache i no es força, retornar-les
     if (!force && disponiblesPerHora.value[cacheKey]) {
@@ -44,7 +42,8 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
       const disponibles = await apiVigilancies.disponibles(data, horaNorm, {
         tipus: tipusNorm,
         grups: grupsNorm,
-        aula: aulaNorm
+        aula: aulaNorm,
+        ...(vigilanciaId ? { vigilancia_id: String(vigilanciaId) } : {})
       })
       if (id !== versioDia || data !== dataISO.value) return []
       disponiblesPerHora.value[cacheKey] = disponibles
@@ -83,25 +82,26 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     }
 
     const queriesMap = new Map()
-    const addQuery = (hora, tipus = null, grups = null, aula = null) => {
+    const addQuery = (hora, tipus = null, grups = null, aula = null, vigilanciaId = null) => {
       const horaNorm = String(hora || '').trim()
       if (!horaNorm) return
       const tipusNorm = normalitzarDisponiblesParam(tipus)
       const grupsNorm = normalitzarDisponiblesParam(grups)
       const aulaNorm = normalitzarDisponiblesParam(aula)
-      const key = getDisponiblesCacheKey(horaNorm, tipusNorm, grupsNorm, aulaNorm)
+      const key = getDisponiblesCacheKey(horaNorm, tipusNorm, grupsNorm, aulaNorm, vigilanciaId)
       if (!queriesMap.has(key)) {
         queriesMap.set(key, {
           hora: horaNorm,
           tipus: tipusNorm,
           grups: grupsNorm,
-          aula: aulaNorm
+          aula: aulaNorm,
+          ...(vigilanciaId ? { vigilancia_id: String(vigilanciaId) } : {})
         })
       }
     }
 
     for (const vigilancia of llistaVigilancies) {
-      addQuery(vigilancia.hora, vigilancia.tipus, vigilancia.grups, vigilancia.aula)
+      addQuery(vigilancia.hora, vigilancia.tipus, vigilancia.grups, vigilancia.aula, vigilancia.id)
     }
 
     const horesUniques = new Set(llistaVigilancies.map(v => v.hora))
@@ -146,10 +146,10 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
 
   const SENSE_DISPONIBLES = []
 
-  const getDisponiblesPerHora = (hora, tipus = null, grups = null, aula = null) => {
+  const getDisponiblesPerHora = (hora, tipus = null, grups = null, aula = null, vigilanciaId = null) => {
     // Retornar disponibles amb tipus, grups i aula per detectar titulars
     const horaNorm = String(hora || '').trim()
-    const cacheKey = getDisponiblesCacheKey(horaNorm, tipus, grups, aula)
+    const cacheKey = getDisponiblesCacheKey(horaNorm, tipus, grups, aula, vigilanciaId)
 
     // Buscar primer amb la clau específica (amb titular), sinó la genèrica
     const disponibles = disponiblesPerHora.value[cacheKey] || disponiblesPerHora.value[horaNorm] || SENSE_DISPONIBLES
@@ -188,10 +188,10 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     return opcions
   }
 
-  const getVigilantLabel = (hora, vigilantValue, tipus = null, grups = null, aula = null) => {
+  const getVigilantLabel = (hora, vigilantValue, tipus = null, grups = null, aula = null, vigilanciaId = null) => {
     // Troba el label del vigilant dins de les opcions disponibles (amb titular si és el cas)
     const horaNorm = String(hora || '').trim()
-    const cacheKey = getDisponiblesCacheKey(horaNorm, tipus, grups, aula)
+    const cacheKey = getDisponiblesCacheKey(horaNorm, tipus, grups, aula, vigilanciaId)
     const disponibles = disponiblesPerHora.value[cacheKey] || disponiblesPerHora.value[horaNorm] || []
     const vigilant = disponibles.find(d => d.value === vigilantValue)
     return vigilant ? vigilant.label : vigilantValue

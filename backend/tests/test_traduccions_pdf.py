@@ -23,7 +23,7 @@ from pdf.taula import NOTA_VIGILANCIES, SUBSTITUCIONS, VIGILANCIES
 BACKEND = Path(__file__).resolve().parent.parent
 LOCALES = BACKEND / "locales"
 LLENGUES = ("es", "en", "it")
-FITXERS_PDF = ()
+FITXERS_PDF = ("vigilancies/analisi.py", "substitucions/encadenades.py")
 FUNCIONS = {"_", "translate"}
 
 

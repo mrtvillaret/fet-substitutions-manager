@@ -5,7 +5,7 @@ la institució ni trepitjar l'XML vigent abans de desar-lo a l'històric.
 """
 
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from suport_api import (
@@ -16,6 +16,7 @@ from suport_api import (
     entra,
     nova_institucio,
 )
+from suport_rellotge import AVUI
 
 from database import DATA_BASE_DIR, get_data_db_session, get_data_dir_for_institucio
 from horari import router as horari
@@ -119,7 +120,7 @@ def test_pujar_desa_l_horari_a_l_historic_i_el_fa_vigent(client, centre):
 
 def test_pujar_el_mateix_horari_dues_vegades_no_crea_una_versio_nova(client, centre):
     _puja(client)
-    resp = _puja(client, data_inici=(date.today() + timedelta(days=1)).isoformat())
+    resp = _puja(client, data_inici=(AVUI + timedelta(days=1)).isoformat())
     assert resp.status_code == 200
     assert "idèntic" in resp.json()["message"]
     assert len(_versions(centre)) == 1
@@ -128,7 +129,7 @@ def test_pujar_el_mateix_horari_dues_vegades_no_crea_una_versio_nova(client, cen
 
 def test_un_horari_futur_no_passa_a_ser_vigent_fins_al_seu_dia(client, centre):
     primer = _puja(client).json()["path"]
-    demà = (date.today() + timedelta(days=1)).isoformat()
+    demà = (AVUI + timedelta(days=1)).isoformat()
     resp = _puja(client, contingut=XML.replace(b"Prof 1", b"Prof 1b"), data_inici=demà)
     assert resp.json()["vigent_avui"] is False
     assert _xml_actual(centre) == primer
@@ -137,7 +138,7 @@ def test_un_horari_futur_no_passa_a_ser_vigent_fins_al_seu_dia(client, centre):
 
 def test_una_versio_no_pot_comencar_abans_que_la_vigent(client):
     _puja(client)
-    ahir = (date.today() - timedelta(days=1)).isoformat()
+    ahir = (AVUI - timedelta(days=1)).isoformat()
     resp = _puja(client, contingut=XML.replace(b"Prof 1", b"Prof 1b"), data_inici=ahir)
     assert resp.status_code == 400
 
@@ -191,21 +192,15 @@ def test_l_xml_es_desa_tal_com_es_puja_amb_els_espais_dels_noms(client, centre):
     assert (get_data_dir_for_institucio(centre) / cos["path"]).read_bytes() == amb_espais
 
 
-def test_dues_pujades_en_el_mateix_segon_no_es_trepitgen(client, centre, monkeypatch):
+def test_dues_pujades_en_el_mateix_segon_no_es_trepitgen(client, centre, rellotge_fix):
     # El nom del fitxer de l'històric porta el segon: la segona pujada
     # sobreescrivia el de la primera, que quedava amb un contingut que no era el seu
     import hashlib
-    from datetime import datetime
 
-    from horari import services
-
-    class _SempreElMateixSegon(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 10, 31, 12, 0, 0)
-
-    monkeypatch.setattr(services, "datetime", _SempreElMateixSegon)
-    avui = date.today()
+    # El rellotge compartit només avança microsegons: totes les pujades
+    # d'aquest test queden dins del mateix segon.
+    segon = rellotge_fix.moment.replace(microsecond=0)
+    avui = AVUI
     assert _puja(client, data_inici=(avui + timedelta(days=10)).isoformat()).status_code == 200
     assert (
         _puja(
@@ -213,6 +208,8 @@ def test_dues_pujades_en_el_mateix_segon_no_es_trepitgen(client, centre, monkeyp
         ).status_code
         == 200
     )
+
+    assert rellotge_fix.moment.replace(microsecond=0) == segon
 
     carpeta = get_data_dir_for_institucio(centre)
     with get_data_db_session(centre) as db:

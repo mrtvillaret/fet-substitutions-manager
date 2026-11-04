@@ -261,4 +261,3 @@ test('desaCostosProfessors: URL, mètode, arguments, resposta i errors intactes'
   client.put = async () => { throw error }
   await assert.rejects(api.desaCostosProfessorsAmb(client, ...args, ...argumentsHttp), e => e === error)
 })
-

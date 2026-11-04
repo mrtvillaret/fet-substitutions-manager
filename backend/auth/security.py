@@ -10,6 +10,7 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import Request, Response
 from jwt import PyJWTError
 
+import rellotge
 from config.auth import (
     ALGORITHM,
     COOKIE_NAME,
@@ -68,7 +69,7 @@ def hash_fictici() -> str:
 
 def create_access_token(data: Dict[str, Any], expira: datetime = None) -> str:
     """`expira`: per defecte, d'aquí a SESSIO_INACTIVITAT_MINUTS."""
-    ara = datetime.now(timezone.utc)
+    ara = rellotge.ara(timezone.utc)
     to_encode = data.copy()
     to_encode["iat"] = ara
     to_encode["exp"] = expira or ara + timedelta(minutes=SESSIO_INACTIVITAT_MINUTS)
@@ -85,7 +86,7 @@ def testimoni_de_sessio(user, institucio: str = None) -> str:
     """Testimoni de sessió d'un usuari, amb el seu id («uid», que l'identifica:
     el nom pot canviar o passar a un altre usuari), la versió de sessió actual
     i l'hora d'entrada («ini»), que fixa el màxim de la sessió."""
-    ara = datetime.now(timezone.utc)
+    ara = rellotge.ara(timezone.utc)
     return create_access_token(
         {
             "sub": user.username,
@@ -129,7 +130,7 @@ def renova_testimoni(token: str):
         payload = decode_access_token(token)
     except PyJWTError:
         return None
-    ara = datetime.now(timezone.utc)
+    ara = rellotge.ara(timezone.utc)
     emes = payload.get("iat")
     if emes and ara.timestamp() - emes < SESSIO_RENOVACIO_MINUTS * 60:
         return None
@@ -143,4 +144,24 @@ def renova_testimoni(token: str):
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
-    return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    return _JWT(rellotge.ara(timezone.utc).timestamp()).decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+
+class _JWT(jwt.PyJWT):
+    """Manté totes les validacions de PyJWT amb l'hora del nostre rellotge.
+
+    Una instància per lectura: cap estat temporal compartit entre peticions.
+    """
+
+    def __init__(self, ara: float):
+        super().__init__()
+        self._ara = ara
+
+    def _validate_iat(self, payload, now, leeway):
+        return super()._validate_iat(payload, self._ara, leeway)
+
+    def _validate_nbf(self, payload, now, leeway):
+        return super()._validate_nbf(payload, self._ara, leeway)
+
+    def _validate_exp(self, payload, now, leeway):
+        return super()._validate_exp(payload, self._ara, leeway)

@@ -1,6 +1,6 @@
 """utils/date_context.DateContext: la data dels PDF i el dia de la setmana."""
 
-from datetime import datetime
+from suport_rellotge import AVUI
 
 import i18n_setup
 from utils.date_context import DateContext
@@ -19,4 +19,4 @@ def test_dia_de_la_setmana():
 
 
 def test_una_data_no_valida_es_avui():
-    assert DateContext.from_iso("no-és-una-data").datetime.date() == datetime.now().date()
+    assert DateContext.from_iso("no-és-una-data").datetime.date() == AVUI

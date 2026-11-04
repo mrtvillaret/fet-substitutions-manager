@@ -178,10 +178,9 @@ def _normalitza_param(value: str | None) -> str | None:
     return cleaned or None
 
 
-def _clau_consulta(hora: str, tipus: str | None, grups: str | None, aula: str | None) -> str:
-    if tipus:
-        return f"{hora}|{tipus}|{grups or ''}|{aula or ''}"
-    return hora
+def _clau_consulta(hora: str, tipus: str | None, grups: str | None, aula: str | None, vigilancia_id=None) -> str:
+    clau = f"{hora}|{tipus}|{grups or ''}|{aula or ''}" if tipus else hora
+    return f"{clau}|fila:{vigilancia_id}" if vigilancia_id else clau
 
 
 def _categoria_prioritat(tipus_activitat: str, ordre_prioritats: list) -> int:
@@ -242,6 +241,7 @@ def _context_disponibles(dia: Dia, db: Session, hores_consulta: set[str], necess
         "ordre_prioritats": ORDRE_PRIORITATS,
         "prioritats": set(PRIORITATS),
         "vigilants_per_hora": vigilants_hora,
+        "vigilancies": [v for vs in vigilancies_dict.values() for v in vs],
         "absents_per_professor": absents_per_professor,
         "absents_tipus": absents_tipus,
         "substituts_ocupats_per_hora": substituts_ocupats_per_hora,
@@ -280,9 +280,10 @@ def estat_a_l_hora(context: dict, hora: str, professor: str) -> dict:
     return {"estat": estat, "assignatura": assignatura, "grup": grup, "tipus_absencia": tipus_absencia}
 
 
-def _disponibles_de(context: dict, hora: str, tipus: str | None, grups: str | None, aula: str | None) -> list[dict]:
+def _disponibles_de(
+    context: dict, hora: str, tipus: str | None, grups: str | None, aula: str | None, vigilancia_id=None
+) -> list[dict]:
     ordre_prioritats = context["ordre_prioritats"]
-    vigilants_assignats = context["vigilants_per_hora"].get(hora, set())
     substituts_ocupats_hora = context["substituts_ocupats_per_hora"].get(hora, set())
     config_examens = context["config_examens"]
 
@@ -326,18 +327,23 @@ def _disponibles_de(context: dict, hora: str, tipus: str | None, grups: str | No
         else:  # LLIURE
             emoji, info, ordre_tipus, color = "⚪", assignatura or "lliure", 4, "#F5F5F5"
 
-        ja_assignat = professor in vigilants_assignats
+        ja_assignat = any(
+            v.get("hora") == hora
+            and (v.get("vigilant") or "").strip() == professor
+            and str(v.get("id")) != str(vigilancia_id)
+            for v in context["vigilancies"]
+        )
         if ja_assignat:
             info += " [JA ASSIGNAT]"
         if es_substituint:
             info += " [SUBSTITUCIÓ]"
 
-        if es_titular:
+        if es_titular and estat not in ("CLASSE", "ABSENT", "DE BAIXA"):
             color = "#ADD8E6"
             ordre_tipus = 0
-        elif ja_assignat:
+        elif ja_assignat and estat not in ("CLASSE", "ABSENT", "DE BAIXA"):
             color = "#A9A9A9"
-        elif es_substituint:
+        elif es_substituint and estat not in ("CLASSE", "ABSENT", "DE BAIXA"):
             color = "#8B8B8B"
 
         categoria = _categoria_prioritat(assignatura, ordre_prioritats) if assignatura else len(ordre_prioritats)
@@ -361,7 +367,7 @@ def _disponibles_de(context: dict, hora: str, tipus: str | None, grups: str | No
     return professors_info
 
 
-def disponibles(db: Session, dia: Dia, hora: str, tipus=None, grups=None, aula=None) -> list[dict]:
+def disponibles(db: Session, dia: Dia, hora: str, tipus=None, grups=None, aula=None, vigilancia_id=None) -> list[dict]:
     """Tots els professors per a una vigilància, amb el que fan a l'hora i
     ordenats per idoneïtat (titular, alliberats, disponibles...). Amb `tipus`,
     `grups` i `aula` es marca el titular de l'examen."""
@@ -373,7 +379,9 @@ def disponibles(db: Session, dia: Dia, hora: str, tipus=None, grups=None, aula=N
     context = _context_disponibles(
         dia=dia, db=db, hores_consulta={hora_norm}, necessita_titulars=bool(tipus_norm and tipus_norm != "VIGILÀNCIA")
     )
-    return _disponibles_de(context=context, hora=hora_norm, tipus=tipus_norm, grups=grups_norm, aula=aula_norm)
+    return _disponibles_de(
+        context=context, hora=hora_norm, tipus=tipus_norm, grups=grups_norm, aula=aula_norm, vigilancia_id=vigilancia_id
+    )
 
 
 def disponibles_en_bloc(db: Session, dia: Dia, consultes) -> dict:
@@ -388,12 +396,19 @@ def disponibles_en_bloc(db: Session, dia: Dia, consultes) -> dict:
         tipus_norm = _normalitza_param(query.tipus)
         grups_norm = _normalitza_param(query.grups)
         aula_norm = _normalitza_param(query.aula)
-        cache_key = _clau_consulta(hora_norm, tipus_norm, grups_norm, aula_norm)
+        cache_key = _clau_consulta(hora_norm, tipus_norm, grups_norm, aula_norm, query.vigilancia_id)
         if cache_key in keys_seen:
             continue
         keys_seen.add(cache_key)
         queries.append(
-            {"hora": hora_norm, "tipus": tipus_norm, "grups": grups_norm, "aula": aula_norm, "cache_key": cache_key}
+            {
+                "hora": hora_norm,
+                "tipus": tipus_norm,
+                "grups": grups_norm,
+                "aula": aula_norm,
+                "cache_key": cache_key,
+                "vigilancia_id": query.vigilancia_id,
+            }
         )
 
     if not queries:
@@ -406,7 +421,12 @@ def disponibles_en_bloc(db: Session, dia: Dia, consultes) -> dict:
     results = {}
     for query in queries:
         results[query["cache_key"]] = _disponibles_de(
-            context=context, hora=query["hora"], tipus=query["tipus"], grups=query["grups"], aula=query["aula"]
+            context=context,
+            hora=query["hora"],
+            tipus=query["tipus"],
+            grups=query["grups"],
+            aula=query["aula"],
+            vigilancia_id=query["vigilancia_id"],
         )
     return results
 
@@ -847,3 +867,10 @@ def desa_afinitats(db: Session, afinitats: list) -> list:
     """Format: [{base, ordre:[...]}] (el valida l'esquema); retorna les desades
     (normalitzades)."""
     return save_vigilancies_afinitats(db, afinitats)
+
+
+def analisi(db: Session, dia: Dia) -> list[dict]:
+    from substitucions.domain import DiaEscolar
+    from vigilancies.analisi import analitza_vigilancies
+
+    return analitza_vigilancies(DiaEscolar(db, dia.iso, dia.institucio))

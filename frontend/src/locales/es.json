@@ -47,7 +47,11 @@
     "reload": "Actualizar"
   },
   "common": {
-    "roles": {"super_admin": "Administrador global", "admin": "Administrador", "user": "Usuario"},
+    "roles": {
+      "super_admin": "Administrador global",
+      "admin": "Administrador",
+      "user": "Usuario"
+    },
     "filterOptions": "Filtra las opciones",
     "save": "Guardar",
     "cancel": "Cancelar",
@@ -559,13 +563,14 @@
         "coveredUntil": "🔄 cubierta hasta el {data}"
       },
       "pdfValidation": {
-        "criticalTitle": "⚠️ Problemas críticos detectados - ¿Exportar PDF?",
+        "criticalTitle": "⚠️ Problemas importantes detectados - ¿Exportar PDF?",
         "warningTitle": "📋 Avisos detectados - ¿Exportar PDF?",
         "detectedIssues": "Problemas detectados:",
-        "critical": "🚨 CRÍTICOS:",
+        "critical": "Problemas importantes:",
         "warnings": "⚠️ AVISOS:",
         "appliedChanges": "🔄 CAMBIOS APLICADOS:",
         "totalIssues": "Total: {count} problema detectado | Total: {count} problemas detectados",
+        "confirmImportant": "Confirmo que quiero imprimir con problemas importantes.",
         "continueQuestion": "🔍 ¿Quieres continuar con la exportación del PDF?",
         "reassign": "Reasignar"
       },
@@ -1882,6 +1887,58 @@
         "groupName": "Nombre del grupo",
         "incompatibleSubjects": "Asignaturas incompatibles",
         "optionalName": "Nombre (opcional)"
+      }
+    },
+    "diagnostic": {
+      "sense_solucions": "No se ha encontrado ninguna solución",
+      "no_viable": "El horario no es viable",
+      "sense_dades": "No hay datos",
+      "fixos_sense_hores": "No hay horas disponibles para los exámenes con día u hora fijados",
+      "capacitat_exhaurida": "No se pueden colocar todos los exámenes: hay más exámenes que horas por nivel",
+      "sense_hora_compatible": "No se pueden colocar todos los exámenes: alguno no tiene ninguna hora compatible",
+      "backtrack_sense_solucio": "La búsqueda no ha encontrado ninguna solución válida",
+      "examens_pendents": "No se han podido colocar todos los exámenes",
+      "capacitat_nivell": "{nivell}: hay que colocar {examens}, pero solo hay {horesText}",
+      "capacitat_nivell_fixos": "{nivell}: hay que colocar {examens}, pero tras fijar días y horas solo hay {horesText}",
+      "capacitat_nivell_dates": "{nivell}: hay que colocar {examens}, pero solo hay {horesText} en {diesText}",
+      "nivell_sense_hora": "{nivell}: ninguna hora viable",
+      "examen_sense_hora": "{nom} ({nivell}) no tiene ninguna hora viable",
+      "examen_sense_hora_motor": "«{nom}» no tiene ninguna hora disponible",
+      "examen_sense_hora_causa": "«{nom}» no tiene ninguna hora disponible — causa: {causa}",
+      "examens_sense_hora_causa": "{nivell}: {examens} sin ninguna hora disponible — causa: {causa} (p. ej. «{nom}»)",
+      "fixats_mateix_dia": "Días distintos #{index} [{assignatures}]: {noms} deben ir en días distintos, pero tienen fijado el día {dia}",
+      "dies_insuficients": "Días distintos #{index} [{assignatures}]: {examens} deben ir en días distintos, pero solo hay {diesText}; hay que reducir el grupo o añadir días",
+      "parella_mateixos_dies": "Días distintos #{index} [{assignatures}]: «{nom}» y «{altre}» deben ir en días distintos, pero están limitados a los mismos días: {dies}",
+      "examen_dies_solapats": "Días distintos #{index} [{assignatures}]: «{nom}» solo puede ir a {dies}, que coincide con «{altre}»",
+      "parella_mateixa_hora": "No al mismo tiempo «{grup}» [{assignatures}]: «{nom}» y «{altre}» no pueden coincidir, pero están limitados a la misma hora",
+      "hores_insuficients": "No al mismo tiempo «{grup}» [{assignatures}]: {examens} no pueden coincidir, pero entre todos solo tienen {horesText}",
+      "nivell_cap_collocat": "{nivell}: ningún examen colocado ({examens} en total). Revisa las restricciones o amplía las fechas",
+      "nivell_pendents": "{nivell}: {examens} sin colocar (progreso: {collocats}/{esperats}). Revisa las restricciones o amplía las fechas",
+      "examen_pendent": "No se ha podido colocar «{nom}» ({nivell}). Revisa las restricciones o amplía las fechas",
+      "examens_pendents_nivell": "{nivell}: no se ha podido colocar «{nom}» y {count} más. Revisa las restricciones o amplía las fechas",
+      "fixat_dia_no_disponible": "{nom}: el día {dia} no está disponible",
+      "fixat_hora_no_disponible": "{nom}: la hora {hora} no está disponible",
+      "fixat_slot_no_disponible": "{nom}: el día {dia} a las {hora} no está disponible",
+      "precheck_detectat": "La comprobación previa ha detectado incompatibilidades deterministas",
+      "sessions_pendents": "Exámenes pendientes de colocar: {count}",
+      "nivell_incomplet": "Nivel incompleto: {nivell} ({collocats}/{esperats})",
+      "llista_mes": "{noms} y {count} más",
+      "sense_nom": "Sin nombre",
+      "nivell_desconegut": "Nivel desconocido",
+      "unitats": {
+        "examens": "ningún examen | 1 examen | {count} exámenes",
+        "hores": "ninguna hora | 1 hora | {count} horas",
+        "dies": "ningún día | 1 día | {count} días"
+      },
+      "causes": {
+        "dia_hora_fix": "Día/hora fijado",
+        "no_mateix_dia": "Días distintos",
+        "combinacions_permeses": "Combinación no permitida",
+        "limit_dies_professor": "Límite de exámenes del profesor",
+        "preferencia_dia": "Preferencia de día",
+        "professors_estrictes": "Horario estricto del profesor",
+        "desconeguda": "Restricción desconocida",
+        "conflicte_restriccions": "Conflicto entre restricciones"
       }
     }
   },

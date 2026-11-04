@@ -8,11 +8,12 @@ from datetime import datetime
 from babel.dates import format_date
 
 import i18n_setup
+import rellotge
 
 
 class DateContext:
     def __init__(self, data: datetime = None):
-        self._data = data or datetime.now()
+        self._data = data or rellotge.ara()
 
     @classmethod
     def from_iso(cls, iso_date: str) -> "DateContext":

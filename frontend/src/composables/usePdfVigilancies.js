@@ -6,10 +6,12 @@ import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpci
 import { SENSE_NIVELL, opcionsNivellsPdf, parametresNivellsPdf, seleccioInicialNivellsPdf } from '../vigilanciesPdf.js'
 
 // Extret de la vista: es preserven estat, efectes i ordre de les operacions.
-export function usePdfVigilancies({ dataISO, dataTreball, nivells, toast, t }) {
+export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, toast, t }) {
   const mostrarDialogPDF = ref(false)
 
   const mostrarDialogInterval = ref(false)
+
+  const confirmacioImportants = ref(false)
 
   const generantPDF = ref(false)
 
@@ -19,17 +21,24 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, toast, t }) {
 
   const validacionsVig = ref({ conflicts: [], warnings: [], total: 0, has_critical: false })
 
-  const esAvisVigilancia = (text) => {
-    const t = (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    return t.includes('vigilant') || t.includes('aula') || t.includes('vigilanci')
-  }
+  const problemesVigFiltrats = computed(() => {
+    const seleccio = parametresNivellsPdf(pdfConfig.value.nivells)
+    const nivellsTriats = new Set(pdfConfig.value.nivells.filter(n => n !== SENSE_NIVELL))
+    const ids = new Set(vigilancies.value.filter(v => v.nivell
+      ? (!nivellsTriats.size || nivellsTriats.has(v.nivell))
+      : seleccio.inclou_sense_nivell).map(v => String(v.id)))
+    // L'API separa els problemes tipats de vigilàncies; mai no mirem el text traduït.
+    return (validacionsVig.value.problemes_vigilancies || []).filter(p =>
+      p.tipus && (!p.files.length || p.files.some(id => ids.has(String(id))))
+    )
+  })
 
   const conflictesVigFiltrats = computed(() =>
-    (validacionsVig.value.conflicts || []).filter(esAvisVigilancia)
+    problemesVigFiltrats.value.filter(p => p.gravetat === 'important').map(p => p.missatge)
   )
 
   const warningsVigFiltrats = computed(() =>
-    (validacionsVig.value.warnings || []).filter(esAvisVigilancia)
+    problemesVigFiltrats.value.filter(p => p.gravetat !== 'important').map(p => p.missatge)
   )
 
   const totalVigFiltrats = computed(() =>
@@ -138,6 +147,7 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, toast, t }) {
   }
 
   const mostrarDialegPDF = async () => {
+    confirmacioImportants.value = false
     senseNivellDia.value = await recompteSenseNivell(dataISO.value, dataISO.value)
     pdfConfig.value.nivells = seleccioInicialNivellsPdf(opcionsNivellsPdfDia.value)
     await carregarPreferenciesPdf()
@@ -171,10 +181,13 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, toast, t }) {
   )
 
   const generarPDF = async () => {
+    confirmacioImportants.value = false
     generantPDF.value = true
     try {
       const validacioResponse = await apiPdf.validacions(dataISO.value)
+      confirmacioImportants.value = false
       validacionsVig.value = validacioResponse.data
+      validacionsVig.value.has_critical = conflictesVigFiltrats.value.length > 0
 
       if (totalVigFiltrats.value > 0) {
         mostrarDialogPDF.value = false
@@ -200,11 +213,13 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, toast, t }) {
   }
 
   const continuarPDFVig = async () => {
+    if (conflictesVigFiltrats.value.length && !confirmacioImportants.value) return
     await _baixarPDFVigilancies()
     mostrarDialogValidacionsVig.value = false
   }
 
   const cancelarPDFVig = () => {
+    confirmacioImportants.value = false
     mostrarDialogValidacionsVig.value = false
     mostrarDialogPDF.value = true
     generantPDF.value = false
@@ -356,5 +371,5 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, toast, t }) {
     }
   }
 
-  return { mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval }
+  return { confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval }
 }

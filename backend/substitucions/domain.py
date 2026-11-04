@@ -17,6 +17,8 @@ from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 
+# Files que es gestionen a part de les absències del motor.
+TIPUS_NO_ABSENCIA = ("VIGILANCIA", "ENCADENADA", "VIGILANCIA_ABSENT")
 TIPUS_ABSENCIA_REAL = ("ABSENCIA", "SERVEI")
 
 
@@ -76,6 +78,61 @@ class DiaEscolar:
         if self.horari is None:
             return {}
         return self.horari.get_activitat(self.dia, hora, professor) or {}
+
+    @cached_property
+    def _absencies_motor(self) -> tuple[dict, dict, dict]:
+        """Absències del motor: primer tipus i activitat per professor/hora.
+
+        Es conserva el filtre històric de generació, diferent de les
+        absències reals que valida absents_per_hora.
+        """
+        absents, absents_tipus, activitats_fallback = {}, {}, {}
+        for sub in self.files:
+            professor = sub.get("professor_absent", "")
+            hora = sub.get("hora", "")
+            tipus = sub.get("tipus_absencia", "") or "ABSENCIA"
+            if tipus in TIPUS_NO_ABSENCIA or not professor or not hora:
+                continue
+            if professor not in absents:
+                absents[professor] = []
+                absents_tipus[professor] = tipus
+            if hora not in absents[professor]:
+                absents[professor].append(hora)
+            activitats_fallback.setdefault(
+                (professor, hora),
+                {
+                    "assignatura": sub.get("assignatura", ""),
+                    "grup": sub.get("grup", ""),
+                    "aula": sub.get("aula", ""),
+                },
+            )
+        return absents, absents_tipus, activitats_fallback
+
+    @property
+    def absents(self) -> dict:
+        return self._absencies_motor[0]
+
+    @property
+    def absents_tipus(self) -> dict:
+        return self._absencies_motor[1]
+
+    @property
+    def activitats_fallback(self) -> dict:
+        return self._absencies_motor[2]
+
+    @cached_property
+    def grups(self) -> dict:
+        """Alliberats amb el format de conjunts que espera el motor."""
+        return {hora: set(valors) if isinstance(valors, list) else valors for hora, valors in self.alliberats.items()}
+
+    @cached_property
+    def vigilants(self) -> dict:
+        """Vigilants del motor amb els valors originals, com a la generació."""
+        resultat = {}
+        for vig in self.vigilancies:
+            if vig.get("hora") and vig.get("vigilant"):
+                resultat.setdefault(vig["hora"], set()).add(vig["vigilant"])
+        return resultat
 
     def motius_substitut(self, substitut: str, hora: str) -> list:
         """Per què `substitut` no pot fer una substitució a `hora` (llista buida

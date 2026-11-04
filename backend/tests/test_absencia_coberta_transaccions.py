@@ -1,11 +1,12 @@
 """L'absència coberta i tots els seus efectes es desen en una transacció."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
+from suport_rellotge import AVUI
 
 from absencia_coberta import services
 from absencia_coberta.repositories import AbsenciaCobertaRepository
@@ -16,7 +17,6 @@ from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 from vigilancies.router import router as vigilancies_router
 
-AVUI = date.today()
 FUTUR = (AVUI + timedelta(days=7 - AVUI.weekday())).isoformat()
 PASSAT = (AVUI - timedelta(days=AVUI.weekday() + 7)).isoformat()
 URL = "/api/absencies-cobertes"

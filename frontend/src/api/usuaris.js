@@ -48,4 +48,3 @@ export const desactiva = (id, ...args) => desactivaAmb(clientApi, id, ...args)
 export const esborraAmb = (client, id, ...args) =>
   client.delete(`/api/users/${id}/hard`, ...args)
 export const esborra = (id, ...args) => esborraAmb(clientApi, id, ...args)
-

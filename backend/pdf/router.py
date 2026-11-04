@@ -11,7 +11,6 @@ Només HTTP: els casos d'ús són a pdf/generacio.py i pdf/disponibles.py.
 
 import shutil
 import tempfile
-from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -20,6 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
+import rellotge
 from auth.dependencies import get_current_user
 from dependencies import dia_de_la_peticio, get_db
 from parametres import DataISO, data_iso
@@ -88,7 +88,7 @@ def _resposta_pdf(export_dir: Path, filename: str, pdf_filename: str) -> FileRes
 
 
 def _marca_de_temps() -> str:
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
+    return rellotge.ara().strftime("%Y%m%d_%H%M%S")
 
 
 @router.get("/complete/{data}")
@@ -238,7 +238,7 @@ def generar_pdf_disponibles_tots_dies(
     un full per dia. Comença des de data_inici (o avui si no s'especifica).
     """
     # Data d'inici: la proporcionada (la pantalla hi posa la del calendari) o avui
-    primer_dia = data_iso(data_inici) if data_inici else date.today()
+    primer_dia = data_iso(data_inici) if data_inici else rellotge.avui()
 
     temp_dir = Path(tempfile.mkdtemp())
     pdf_filename = f"disponibles_tots_dies_{_marca_de_temps()}.pdf"

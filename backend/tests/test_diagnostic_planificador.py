@@ -8,6 +8,7 @@ Calendari: dilluns i dimarts, a les 09:00 i a les 11:30 (4 hores).
 """
 
 from scheduler_engine.core.diagnostic import InfeasibilityDiagnostic
+from scheduler_engine.core.missatges import missatge
 
 DIES = [("Dilluns", "2026-04-20"), ("Dimarts", "2026-04-21")]
 HORES = ["09:00", "11:30"]
@@ -39,8 +40,9 @@ def test_tres_incompatibles_limitats_a_dues_hores_no_hi_caben():
         assignatures_dia_fix={"Fil (1-BAT)": "Dilluns", "Fil (2-BAT)": "Dilluns", "Fil (3-BAT)": "Dilluns"},
     )
     assert len(msgs) == 1
-    assert "3 exàmens no poden coincidir" in msgs[0]
-    assert "només tenen 2 hores possibles" in msgs[0]
+    assert msgs[0] == missatge(
+        "hores_insuficients", grup="G", assignatures=["Fil (1-BAT)", "Fil (2-BAT)", "Fil (3-BAT)"], count=3, hores=2
+    )
 
 
 def test_dos_incompatibles_amb_les_mateixes_dues_hores_hi_caben():
@@ -61,15 +63,22 @@ def test_dos_incompatibles_fixats_a_la_mateixa_hora():
         assignatures_hora_fix={"Fil (1-BAT)": "09:00", "Fil (2-BAT)": "09:00"},
     )
     assert len(msgs) == 1
-    assert "'Fil (1-BAT)' i 'Fil (2-BAT)' no poden coincidir" in msgs[0]
+    assert msgs[0] == missatge(
+        "parella_mateixa_hora",
+        grup="G",
+        assignatures=["Fil (1-BAT)", "Fil (2-BAT)"],
+        nom="Fil (1-BAT)",
+        altre="Fil (2-BAT)",
+    )
 
 
 def test_cinc_incompatibles_en_quatre_hores():
     examens = [_examen(f"Ex{i} ({i}-N)", f"{i}-N") for i in range(5)]
     msgs = _diagnostic(examens, no_mateix_slot=_incompatibles(*(e["nom"] for e in examens)))
     assert len(msgs) == 1
-    assert "5 exàmens no poden coincidir" in msgs[0]
-    assert "només tenen 4 hores possibles" in msgs[0]
+    assert msgs[0] == missatge(
+        "hores_insuficients", grup="G", assignatures=[e["nom"] for e in examens], count=5, hores=4
+    )
 
 
 def test_quatre_incompatibles_en_quatre_hores_hi_caben():
@@ -84,7 +93,7 @@ def _examens_1bat(n):
 def test_tres_examens_d_un_nivell_amb_una_sola_hora_possible():
     # Abans comptava «dates amb alguna hora × totes les hores»: 1 × 2 = 2
     msgs = _diagnostic(_examens_1bat(3), slots_valids_per_nivell={"1-BAT": {"Dilluns": ["09:00"], "Dimarts": []}})
-    assert msgs == ["1-BAT: 3 ítems > 1 slots disponibles en 1 dates"]
+    assert msgs == [missatge("capacitat_nivell_dates", nivell="1-BAT", count=3, hores=1, dies=1)]
 
 
 def test_tres_examens_d_un_nivell_amb_una_hora_cada_dia():
@@ -92,7 +101,7 @@ def test_tres_examens_d_un_nivell_amb_una_hora_cada_dia():
     msgs = _diagnostic(
         _examens_1bat(3), slots_valids_per_nivell={"1-BAT": {"Dilluns": ["09:00"], "Dimarts": ["11:30"]}}
     )
-    assert msgs == ["1-BAT: 3 ítems > 2 slots disponibles en 2 dates"]
+    assert msgs == [missatge("capacitat_nivell_dates", nivell="1-BAT", count=3, hores=2, dies=2)]
 
 
 def test_dos_examens_d_un_nivell_amb_una_hora_cada_dia_hi_caben():

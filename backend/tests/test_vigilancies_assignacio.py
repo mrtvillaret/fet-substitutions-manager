@@ -11,7 +11,8 @@ Dilluns 20/04/2026 a les 10:00, horari d'exemple:
   3-ESO-B Prof 41
   2-BAT-A,2-BAT-B Prof 26, 31, 35 i 47 (una sola classe dels dos grups)
   guàrdia: Prof 3, 21, 28; Prof 2, hora lliure
-Els grups amb examen queden sense classe; els altres, només si es diu.
+Els tests marquen manualment els grups amb examen sense classe; els altres,
+només si es diu. Un examen sol no allibera.
 """
 
 import itertools
@@ -98,6 +99,18 @@ def _crea(client, grups, tipus="Castellà", aula="A1", nivell=None):
     body = {"hora": "10:00", "tipus": tipus, "grups": grups, "aula": aula, "vigilant": "", "nivell": nivell}
     resp = client.post(URL, json=body)
     assert resp.status_code == 200, resp.text
+    from auth.repositories import UserRepository
+    from database import AuthSessionLocal
+
+    # Preparació explícita: crear un examen ja no allibera el seu grup.
+    with AuthSessionLocal() as auth:
+        nom = client.get("/api/users/profile").json()["username"]
+        centre = UserRepository.get_by_username(auth, nom).institucio
+    with get_data_db_session(centre) as db:
+        marques = GrupsAlliberatsRepository.get_by_date(db, DATA)
+        marques.setdefault("10:00", []).append(grups)
+        GrupsAlliberatsRepository.set_for_date(db, DATA, marques)
+        db.commit()
 
 
 def _vigilants(client):

@@ -53,4 +53,3 @@ test('estat: URL, mètode, arguments, resposta i errors intactes', async () => {
   client.put = async () => { throw error }
   await assert.rejects(api.estatAmb(client, ...args, ...argumentsHttp), e => e === error)
 })
-

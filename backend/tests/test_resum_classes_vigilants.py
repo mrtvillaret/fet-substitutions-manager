@@ -1,16 +1,26 @@
-from types import SimpleNamespace
+"""Les cobertures es mostren per classe, amb gravetat i substitut efectiu."""
 
-from pdf.validacions import _resum_cobertures
+from test_vigilancies_analisi import dia_fals, vig
+
+from vigilancies.analisi import analitza_vigilancies
 
 
-def test_el_resum_identifica_les_classes_del_vigilant_i_conserva_els_recomptes():
-    cob = SimpleNamespace(classes_de_vigilants={"09:00": {"Prof 1": "Prof 2", "Prof 3": ""}, "10:00": {"Prof 4": ""}})
-    avisos = []
-    _resum_cobertures(cob, avisos)
-    assert avisos == [
-        "ℹ️ 1 classes de vigilants amb substitut (el professor vigila un examen a aquella hora)",
-        "❌ 2 classes de vigilants sense substitut (el professor vigila un examen a aquella hora)",
-    ]
-    avisos = []
-    _resum_cobertures(SimpleNamespace(classes_de_vigilants={}), avisos)
-    assert avisos == []
+def test_identifica_cada_classe_en_lloc_d_un_resum_que_pot_duplicar_problemes():
+    files = [dict(hora="10:00", professor_absent="Prof 1", grup="G2", substitut="Prof 2", tipus_absencia="VIGILANCIA")]
+    dia = dia_fals(
+        [vig(), vig("2", vigilant="Prof 3")],
+        files,
+        {
+            "Prof 1": {"assignatura": "Prova 1", "grup": "G2"},
+            "Prof 3": {"assignatura": "Prova 3", "grup": "G3"},
+        },
+    )
+    problemes = analitza_vigilancies(dia)
+    cobertes = [p for p in problemes if p["tipus"] == "classe_coberta"]
+    pendents = [p for p in problemes if p["tipus"] == "classe_sense_cobertura"]
+    assert len(cobertes) == len(pendents) == 1
+    assert cobertes[0]["cobertura_efectiva"] == "Prof 2"
+    assert pendents[0]["gravetat"] == "important"
+    assert "Prova 1" in cobertes[0]["missatge"] and "G2" in cobertes[0]["missatge"]
+    assert "Prova 3" in pendents[0]["missatge"] and "G3" in pendents[0]["missatge"]
+    assert analitza_vigilancies(dia_fals([])) == []

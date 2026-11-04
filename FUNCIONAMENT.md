@@ -24,7 +24,7 @@ XML vigent aquella data ──► Dia / DiaEscolar
    absència coberta ─────────►├─ l'absent desapareix de l'horari (no és res: ni
                               │  substituït, ni substitut, ni vigilant, ni disponible)
    grups / professors ───────►├─ sense_classe(): el professor queda lliure
-   alliberats                 │  (substitucions: un examen NO allibera; vigilàncies: sí)
+   alliberats                 │  (només controls manuals; un examen mai no allibera)
    No substituir ────────────►└─ aquelles activitats no generen res a cobrir
 ```
 
@@ -47,6 +47,15 @@ Regles que hi intervenen:
 - L'hora d'absència compta **un sol cop** encara que hi hagi classe i vigilància.
 - Cas límit acceptat: si a aquella hora només tenia vigilància, l'absència no surt com a
   absència, només la vigilància com a feina a cobrir.
+
+Les encadenades són **d’un sol nivell**. Si qui cobreix una `ENCADENADA`
+deixa una altra activitat de prioritats que no és a «No substituir», es mostra
+l’avís «L'encadenada de les 10:00 la cobreix Prof X, que deixa sense cobrir
+<activitat>» a Substitucions i a la revisió prèvia del seu PDF (ca/es/en/it).
+No es crea cap altra encadenada ni es canvien els recomptes o el PDF imprès.
+La regla és `substitucions/encadenades.py:avisos_encadenades`; la pantalla
+consumeix `avisos_encadenades` de la mateixa revisió que usa el diàleg PDF.
+L’avís es recalcula en carregar el dia o després de canviar el substitut.
 
 ## 4. El flux d'un dia
 
@@ -167,3 +176,34 @@ informes PDF, amb els recomptes al mòdul comú `recomptes/` (vegeu `ARQUITECTUR
 El filtre per hores també s'aplica als informes PDF (decidit el 30/10/2026). La regla de
 quines files es veuen a Substitucions (apartat 5) la fan servir la pantalla (backend; el
 frontend ja no filtra pel seu compte) i els recomptes.
+
+## Alliberament per a vigilàncies
+
+Només alliberen els controls manuals: grup sense classe, professor alliberat
+o activitat alliberable de Prioritats, segons el seu estat (incloses les
+alliberades fins que tinguin alumnes). Mai no es dedueix d’un examen ni
+d’una fila de vigilància. La regla és la mateixa al selector, a l’assignació
+automàtica i a la revisió del PDF.
+
+## Conflictes de vigilàncies
+
+`vigilancies/analisi.py:analitza_vigilancies` analitza el dia complet sense
+escriure-hi res. Retorna problemes amb tipus estable, gravetat (`important`,
+`avis`, `informacio`), hora, identificadors de files, professor, grup, aula,
+cobertura efectiva i missatge traduït. Pantalla, revisió prèvia i els dos
+PDF que inclouen vigilàncies fan servir aquests mateixos problemes. En filtrar
+nivells es conserven els conflictes amb files d’altres nivells si afecten la
+tria. Els avisos de l’interval es calculen per dia amb la mateixa funció.
+L’exportació d’interval no té diàleg de revisió prèvia: els problemes es
+mostren només impresos dins del PDF.
+
+Una fila de cobertura buida no cobreix la classe. El substitut de classe ha
+de ser present, sense classe pendent i sense una altra feina simultània.
+Si el vigilant és absent, s’identifica qui el cobreix i també se’n revisa la
+disponibilitat. Si falta l’horari, s’avisa que la revisió és incompleta i
+les absències es continuen comprovant per hora. Desar continua permès.
+
+Als PDF diaris, imprimir amb problemes importants requereix marcar la
+confirmació explícita del diàleg. La confirmació es reinicia en cada revisió
+i cancel·lació; els avisos i la informació no l’exigeixen. L’interval
+continua descarregant directament amb els problemes impresos.

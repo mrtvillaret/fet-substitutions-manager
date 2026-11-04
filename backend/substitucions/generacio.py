@@ -10,11 +10,9 @@ Dos modes:
 """
 
 import logging
-from dataclasses import dataclass
-from datetime import datetime
 
-from grups.repositories import GrupsAlliberatsRepository
 from prioritats.repositories import NoSubstituirRepository
+from substitucions.domain import DiaEscolar
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import (
     assignar_substituts_pendents as assignar_vigilancies_absents_pendents,
@@ -22,12 +20,9 @@ from substitucions.vigilancia_absent import (
 from substitucions.vigilancia_absent import (
     es_vigilancia_absent,
 )
-from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 
-# Files que no són absències d'un professor (es gestionen a part)
-TIPUS_NO_ABSENCIA = ("VIGILANCIA", "ENCADENADA", "VIGILANCIA_ABSENT")
 TIPUS_COBERTURA_VIGILANCIA = ("VIGILANCIA", "VIGILANCIA_ABSENT")
 
 
@@ -35,60 +30,11 @@ def clau_fila(sub: dict) -> str:
     return f"{sub.get('professor_absent', '')}|{sub.get('hora', '')}|{sub.get('assignatura', '')}|{sub.get('grup', '')}"
 
 
-@dataclass
-class EstatDia:
-    """El que el motor necessita saber d'un dia, tal com és a la BD."""
-
-    data: str
-    dia: str  # nom del dia a l'XML
-    files: list  # files de substitució desades
-    absents: dict  # {professor: [hores]}: absències i serveis
-    absents_tipus: dict  # {professor: "ABSENCIA" | "SERVEI"}
-    activitats_fallback: dict  # {(professor, hora): activitat desada}
-    grups: dict  # {hora: set()}: alliberats efectius
-    vigilants: dict  # {hora: set()}: qui vigila un examen
+def llegeix_estat(db, data: str, horari) -> DiaEscolar:
+    return DiaEscolar(db, data, horari=horari)
 
 
-def llegeix_estat(db, data: str, horari) -> EstatDia:
-    files = SubstitucioRepository.get_by_date(db, data)
-
-    absents, absents_tipus, activitats_fallback = {}, {}, {}
-    for sub in files:
-        professor = sub.get("professor_absent", "")
-        hora = sub.get("hora", "")
-        tipus = sub.get("tipus_absencia", "") or "ABSENCIA"
-        if tipus in TIPUS_NO_ABSENCIA or not professor or not hora:
-            continue
-        if professor not in absents:
-            absents[professor] = []
-            absents_tipus[professor] = tipus
-        if hora not in absents[professor]:
-            absents[professor].append(hora)
-        activitats_fallback.setdefault(
-            (professor, hora),
-            {
-                "assignatura": sub.get("assignatura", ""),
-                "grup": sub.get("grup", ""),
-                "aula": sub.get("aula", ""),
-            },
-        )
-
-    grups = {
-        hora: set(valors) if isinstance(valors, list) else valors
-        for hora, valors in GrupsAlliberatsRepository.get_by_date(db, data).items()
-    }
-
-    vigilants = {}
-    for vigs in VigilanciaRepository.get_by_date(db, data).values():
-        for vig in vigs:
-            if vig.get("hora") and vig.get("vigilant"):
-                vigilants.setdefault(vig["hora"], set()).add(vig["vigilant"])
-
-    dia = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
-    return EstatDia(data, dia, files, absents, absents_tipus, activitats_fallback, grups, vigilants)
-
-
-def _ocupats(estat: EstatDia) -> dict:
+def _ocupats(estat: DiaEscolar) -> dict:
     """Qui no pot substituir per hora: els vigilants i els substituts de les
     files de vigilant absent (perquè el motor no els torni a fer servir)."""
     ocupats = {hora: set(vigilants) for hora, vigilants in estat.vigilants.items()}
@@ -170,7 +116,7 @@ def _desa_files_motor(db, data: str, files_motor: list, desats: dict) -> None:
         SubstitucioRepository.create(db, _fila_nova(data, sub, substitut, tipus_substitut))
 
 
-def _desa_hores_sense_substitucio(db, estat: EstatDia, horari, files_motor: list, tambe_bd: bool) -> None:
+def _desa_hores_sense_substitucio(db, estat: DiaEscolar, horari, files_motor: list, tambe_bd: bool) -> None:
     """Desa una fila sense substitut per a les hores d'absència que no han
     generat cap substitució (p. ex. una guàrdia): així es continua sabent que
     el professor és absent. Amb `tambe_bd`, no es repeteixen les que ja són a la BD."""
@@ -204,7 +150,7 @@ def _desa_hores_sense_substitucio(db, estat: EstatDia, horari, files_motor: list
             )
 
 
-def _resum(db, estat: EstatDia, files_motor: list, regenerar_tot: bool, avisos: list[str]) -> dict:
+def _resum(db, estat: DiaEscolar, files_motor: list, regenerar_tot: bool, avisos: list[str]) -> dict:
     """Assignades i pendents: les absències, segons el motor (sap quines calen);
     les cobertures de vigilància, segons la BD (totes les que tenen assignatura)."""
     assignades = sum(1 for s in files_motor if s.get("substitut", "").strip())

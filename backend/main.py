@@ -12,7 +12,6 @@ load_dotenv()
 import logging
 import os
 import time
-from datetime import datetime
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +19,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+import rellotge
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user, require_admin
 from auth.router import router as auth_router
@@ -32,11 +32,11 @@ from configuracio_examens.router import router as config_examens_router
 from cursos.router import router as cursos_router
 from dades.router import router as dades_router
 from database import create_auth_tables
+from errors_domini import MissingXmlError
 from errors_servidor import registra_gestors_errors
 from estadistiques.router import router as estadistiques_router
 from grups.router import router as grups_router
 from grups.router import router_admin as grups_admin_router
-from helpers import MissingXmlError
 from horari.router import router as horari_router
 from horari.router import router_admin as horari_admin_router
 from pdf import informes as informes_pdf
@@ -137,7 +137,7 @@ def _log_request(request: Request, duration_ms: int, status_code: int) -> None:
     query = request.url.query
     full_path = f"{path}?{query}" if query else path
     ip = request.client.host if request.client else "-"
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = rellotge.ara().strftime("%Y-%m-%d %H:%M:%S")
     access_logger.info(
         f"{timestamp} | {username} ({role}@{instit}) | {ip} | {request.method} {full_path} | {status_code} | {duration_ms}ms"
     )

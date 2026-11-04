@@ -7,6 +7,7 @@ from collections import defaultdict
 from scheduler_engine.core.constraints import es_slot_valid_per_nivell, viola_restriccio_dia_hora_fixos
 from scheduler_engine.core.date_mapping import DIES_CAT
 from scheduler_engine.core.diagnostic import InfeasibilityDiagnostic, construir_dies_efectius
+from scheduler_engine.core.missatges import missatge
 
 
 def _diagnosticar_incompatibilitats(
@@ -16,7 +17,7 @@ def _diagnosticar_incompatibilitats(
     dia_a_data_iso: dict[str, str],
     alliberaments_cfg: dict,
     nivells_actius: list[str],
-) -> list[str]:
+) -> list[dict]:
     """
     Calcula incompatibilitats quan l'horari no és viable.
     Retorna missatges breus per mostrar en un popup.
@@ -45,7 +46,7 @@ def _diagnosticar_incompatibilitats(
     return diag.run(items_gen)
 
 
-def _identificar_sessions_no_collocades(horari: dict, gen) -> list[str]:
+def _identificar_sessions_no_collocades(horari: dict, gen) -> list[dict]:
     """
     Quan InfeasibilityDiagnostic no detecta incompatibilitats estructurals,
     identifica quines sessions no s'han col·locat.
@@ -96,7 +97,6 @@ def _identificar_sessions_no_collocades(horari: dict, gen) -> list[str]:
         if not manquen_per_nivell:
             return []
 
-    suffix_hint = " — reviseu les restriccions o amplieu el rang de dates"
     result = []
     for nivell, manquen in sorted(manquen_per_nivell.items()):
         manquen_u = list(dict.fromkeys(manquen))
@@ -105,16 +105,15 @@ def _identificar_sessions_no_collocades(horari: dict, gen) -> list[str]:
             _, _, p_s, e_s, c_s = manquen_u[0].split("\x00")
             p, e, c = int(p_s), int(e_s), int(c_s)
             if c == 0:
-                result.append(f"{nivell}: cap sessió col·locada ({p} previstes){suffix_hint}")
+                result.append(missatge("nivell_cap_collocat", nivell=nivell, count=p))
             else:
-                result.append(f"{nivell}: {p} sessió(ns) no col·locada(s) ({c}/{e} col·locades){suffix_hint}")
+                result.append(missatge("nivell_pendents", nivell=nivell, count=p, collocats=c, esperats=e))
         elif len(manquen_u) == 1:
-            result.append(f"No s'ha pogut col·locar '{manquen_u[0]}' ({nivell}){suffix_hint}")
+            result.append(missatge("examen_pendent", nom=manquen_u[0], nivell=nivell))
         else:
             exemple = manquen_u[0]
             altres = len(manquen_u) - 1
-            sfx = f" i {altres} més" if altres else ""
-            result.append(f"{nivell}: no s'han pogut col·locar '{exemple}'{sfx}{suffix_hint}")
+            result.append(missatge("examens_pendents_nivell", nivell=nivell, nom=exemple, count=altres))
     return result
 
 
@@ -144,7 +143,7 @@ def _item_label_precheck(item: dict) -> str:
             noms.append(nom)
     if noms:
         return " + ".join(noms)
-    return item.get("nom") or "(sense nom)"
+    return item.get("nom") or ""
 
 
 def _precheck_incompatibilitats_deterministes(
@@ -153,7 +152,7 @@ def _precheck_incompatibilitats_deterministes(
     dies_utilitzar: list[str],
     nivells_actius: list[str],
     selected_dates: list[str] = None,
-) -> list[str]:
+) -> list[dict]:
     """
     Precheck ràpid i segur (sense heurístiques):
       1) Capacitat per nivell (items <= slots físics disponibles)
@@ -198,7 +197,7 @@ def _precheck_incompatibilitats_deterministes(
     if not items:
         return []
 
-    def _hores_ocupades(hora: str, nivell: str | None) -> list[str]:
+    def _hores_ocupades(hora: str, nivell: str | None) -> list[dict]:
         getter = getattr(gen, "_get_hores_ocupades", None)
         if callable(getter):
             return getter(hora, nivell)
@@ -234,7 +233,7 @@ def _precheck_incompatibilitats_deterministes(
                 slots_fisics_per_nivell[nivell].add(f"{sk_prefix}_{hora}")
 
     incompat = []
-    seen = set()
+    seen = []
 
     # Capacitat base per nivell (abans de fixos per assignatura).
     items_per_nivell = defaultdict(int)
@@ -248,9 +247,9 @@ def _precheck_incompatibilitats_deterministes(
     for nivell, count in items_per_nivell.items():
         slots_count = len(slots_fisics_per_nivell.get(nivell, set()))
         if count > slots_count:
-            msg = f"{nivell}: {count} ítems > {slots_count} slots disponibles"
+            msg = missatge("capacitat_nivell", nivell=nivell, count=count, hores=slots_count)
             if msg not in seen:
-                seen.add(msg)
+                seen.append(msg)
                 incompat.append(msg)
 
     # Cobertura mínima per ítem i unió de slots per nivell (després de fixos).
@@ -280,9 +279,9 @@ def _precheck_incompatibilitats_deterministes(
                     candidats.add(f"{sk_prefix}_{hora}")
 
         if not candidats:
-            msg = f"{_item_label_precheck(item)} ({nivell}) sense cap slot viable"
+            msg = missatge("examen_sense_hora", nom=_item_label_precheck(item), nivell=nivell)
             if msg not in seen:
-                seen.add(msg)
+                seen.append(msg)
                 incompat.append(msg)
         else:
             slots_items_per_nivell[nivell].update(candidats)
@@ -290,14 +289,14 @@ def _precheck_incompatibilitats_deterministes(
     for nivell, count in items_per_nivell.items():
         slots_count = len(slots_items_per_nivell.get(nivell, set()))
         if count and slots_count and count > slots_count:
-            msg = f"{nivell}: {count} ítems > {slots_count} slots possibles després de fixos"
+            msg = missatge("capacitat_nivell_fixos", nivell=nivell, count=count, hores=slots_count)
             if msg not in seen:
-                seen.add(msg)
+                seen.append(msg)
                 incompat.append(msg)
         elif count and slots_count == 0:
-            msg = f"{nivell}: cap slot viable"
+            msg = missatge("nivell_sense_hora", nivell=nivell)
             if msg not in seen:
-                seen.add(msg)
+                seen.append(msg)
                 incompat.append(msg)
 
     return incompat
@@ -337,4 +336,4 @@ def _afegir_recompte_nivells(horari: dict, sessions_per_nivell: dict) -> None:
     if incomplets:
         logs = metadata.setdefault("logs", [])
         for nivell, pendents, total in incomplets:
-            logs.append(f"⚠️ NIVELL INCOMPLET: {nivell} ({total - pendents}/{total})")
+            logs.append(missatge("nivell_incomplet", nivell=nivell, collocats=total - pendents, esperats=total))

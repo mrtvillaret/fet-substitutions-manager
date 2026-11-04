@@ -5,6 +5,7 @@ serveis.dia.Dia: un dia per a un centre i l'horari (XML) vigent aquell dia.
 from datetime import date
 
 import pytest
+from suport_rellotge import AVUI
 from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from serveis.dia import Dia
@@ -28,7 +29,7 @@ def test_la_versio_de_l_horari_i_des_de_quan_es_vigent(centre):
 
 
 def test_avui_i_de_text(centre):
-    assert Dia.avui(centre) == Dia(date.today(), centre)
+    assert Dia.avui(centre) == Dia(AVUI, centre)
     assert Dia.de_text("2026-04-20", centre) == Dia(date(2026, 4, 20), centre)
     assert Dia.de_text("2026-04-20", centre).iso == "2026-04-20"
 

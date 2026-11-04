@@ -15,8 +15,10 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from scheduler_engine.core.constraints import _pes_obligatori, sessio_in_group
 from scheduler_engine.core.date_mapping import DIES_CAT
+from scheduler_engine.core.missatges import missatge
 from scheduler_engine.core.normalitzacio import normalitzar_dia as _normalitzar_dia
 from scheduler_engine.core.restriction_engine import RestrictionEngine
+from scheduler_engine.defaults import ETIQUETES_RESTRICCIONS
 
 _ISO_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -45,16 +47,7 @@ def _item_label(item: dict) -> str:
     sessions = item.get("sessions") or []
     noms = [_sessio_to_dict(s).get("nom") for s in sessions]
     noms = [n for n in noms if n]
-    return " + ".join(noms) if noms else item.get("nom") or "(sense nom)"
-
-
-def _format_assignatures(assignatures: List[str], max_show: int = 4) -> str:
-    """Formata una llista d'assignatures de manera concisa."""
-    if not assignatures:
-        return ""
-    if len(assignatures) <= max_show:
-        return ", ".join(assignatures)
-    return ", ".join(assignatures[:max_show]) + f" i {len(assignatures) - max_show} més"
+    return " + ".join(noms) if noms else item.get("nom") or ""
 
 
 class InfeasibilityDiagnostic:
@@ -85,7 +78,7 @@ class InfeasibilityDiagnostic:
     # API pública
     # ------------------------------------------------------------------
 
-    def run(self, items: List[dict]) -> List[str]:
+    def run(self, items: List[dict]) -> List[dict]:
         """
         Retorna una llista de missatges d'incompatibilitat útils.
 
@@ -105,12 +98,10 @@ class InfeasibilityDiagnostic:
             if not dates:
                 causa_per_item[label] = causa
 
-        msgs: List[str] = []
-        seen: Set[str] = set()
+        msgs: List[dict] = []
 
-        def add(msg: str):
-            if msg not in seen:
-                seen.add(msg)
+        def add(msg: dict):
+            if msg not in msgs:
                 msgs.append(msg)
 
         # 1. Ítems sense cap slot viable — agrupar per nivell+causa (evita 19 línies iguals)
@@ -120,21 +111,21 @@ class InfeasibilityDiagnostic:
         for item in items:
             label = _item_label(item)
             if not dates_per_item.get(label):
-                causa = causa_per_item.get(label, "restricció desconeguda")
+                causa = causa_per_item.get(label, "desconeguda")
                 sessions = item.get("sessions") or []
-                nivell = (
-                    item.get("curs") or (_sessio_to_dict(sessions[0]).get("curs") if sessions else None) or "desconegut"
-                )
+                nivell = item.get("curs") or (_sessio_to_dict(sessions[0]).get("curs") if sessions else None) or ""
                 sense_slot_per_nivell_causa[nivell][causa].append(label)
 
         for nivell, per_causa in sorted(sense_slot_per_nivell_causa.items()):
-            for causa, labels in sorted(per_causa.items()):
+            for causa, labels in sorted(
+                per_causa.items(), key=lambda item: ETIQUETES_RESTRICCIONS.get(item[0], item[0])
+            ):
                 n = len(labels)
                 if n == 1:
-                    add(f"'{labels[0]}' no té cap slot disponible — causa: {causa}")
+                    add(missatge("examen_sense_hora_causa", nom=labels[0], causa=causa))
                 else:
                     exemple = labels[0].split(" + ")[0]  # Primer nom del primer ítem
-                    add(f"{nivell}: {n} ítems sense cap slot disponible — causa: {causa} (ex: '{exemple}', ...)")
+                    add(missatge("examens_sense_hora_causa", nivell=nivell, count=n, causa=causa, nom=exemple))
 
         # 2. Restriccions no_mateix_dia: parelles atrapades i sobrecàrrega per grup
         self._check_no_mateix_dia(items, dates_per_item, add)
@@ -196,7 +187,7 @@ class InfeasibilityDiagnostic:
                         dia_sessions=None,  # evita checks de context (limit_dies, preferencia_dia)
                     )
                     if violation:
-                        causa_counts[violation.label] = causa_counts.get(violation.label, 0) + 1
+                        causa_counts[violation.restriction] = causa_counts.get(violation.restriction, 0) + 1
                         ok = False
                         break
                 if ok:
@@ -207,7 +198,7 @@ class InfeasibilityDiagnostic:
             return dates, ""
 
         # Retornar la causa més freqüent
-        causa = max(causa_counts, key=causa_counts.get) if causa_counts else "restricció desconeguda"
+        causa = max(causa_counts, key=causa_counts.get) if causa_counts else "desconeguda"
         return dates, causa
 
     def _check_no_mateix_dia(self, items: List[dict], dates_per_item: Dict[str, Set[str]], add) -> None:
@@ -246,8 +237,7 @@ class InfeasibilityDiagnostic:
             if not _pes_obligatori(pes):
                 continue
 
-            ref = f"Dies distints #{idx}"
-            assigs_fmt = _format_assignatures(assignatures)
+            referencia = {"index": idx, "assignatures": assignatures}
 
             # Trobar ítems del grup
             items_grup: List[Tuple[str, Set[str]]] = []
@@ -284,21 +274,11 @@ class InfeasibilityDiagnostic:
                 per_data[date_fix].append(label)
             for date_fix, conflicting in per_data.items():
                 if len(conflicting) >= 2:
-                    noms_fmt = _format_assignatures(conflicting)
-                    add(
-                        f"⚠ Restricció '{ref}' [{assigs_fmt}]: "
-                        f"{noms_fmt} han d'anar en dies distints "
-                        f"però totes estan fixades al dia {date_fix}"
-                    )
+                    add(missatge("fixats_mateix_dia", **referencia, noms=conflicting, dia=date_fix))
 
             # Detectar sobrecàrrega: grup té més ítems que dies disponibles
             if n_items_grup > n_dies:
-                add(
-                    f"⚠ Restricció '{ref}' [{assigs_fmt}]: "
-                    f"{n_items_grup} assignatures han d'anar en dies distints "
-                    f"però només hi ha {n_dies} dia(es) disponible(s) — "
-                    f"cal reduir el grup o afegir més dies"
-                )
+                add(missatge("dies_insuficients", **referencia, count=n_items_grup, dies=n_dies))
                 continue  # Les parelles ja no aporten informació addicional
 
             # Detectar parelles bloquejades (grup viable en teoria però parelles concretes no)
@@ -314,25 +294,13 @@ class InfeasibilityDiagnostic:
 
                     if not excl_a and not excl_b:
                         dates_fmt = ", ".join(sorted(comunes)[:3])
-                        add(
-                            f"⚠ Restricció '{ref}' [{assigs_fmt}]: "
-                            f"'{lbl_a}' i '{lbl_b}' han d'anar en dies distints "
-                            f"però ambdós limitats als mateixos dies: {dates_fmt}"
-                        )
+                        add(missatge("parella_mateixos_dies", **referencia, nom=lbl_a, altre=lbl_b, dies=dates_fmt))
                     elif not excl_a:
                         dates_fmt = ", ".join(sorted(dates_a)[:3])
-                        add(
-                            f"⚠ Restricció '{ref}' [{assigs_fmt}]: "
-                            f"'{lbl_a}' només pot anar a {dates_fmt}, "
-                            f"que coincideix amb '{lbl_b}'"
-                        )
+                        add(missatge("examen_dies_solapats", **referencia, nom=lbl_a, altre=lbl_b, dies=dates_fmt))
                     elif not excl_b:
                         dates_fmt = ", ".join(sorted(dates_b)[:3])
-                        add(
-                            f"⚠ Restricció '{ref}' [{assigs_fmt}]: "
-                            f"'{lbl_b}' només pot anar a {dates_fmt}, "
-                            f"que coincideix amb '{lbl_a}'"
-                        )
+                        add(missatge("examen_dies_solapats", **referencia, nom=lbl_b, altre=lbl_a, dies=dates_fmt))
 
     def _check_no_mateix_slot(self, items: List[dict], slots_per_item: Dict[str, Set[str]], add) -> None:
         """Detecta grups no_mateix_slot que no hi caben: dos ítems limitats a
@@ -350,8 +318,7 @@ class InfeasibilityDiagnostic:
             if not _pes_obligatori(pes):
                 continue
 
-            assigs_fmt = _format_assignatures(assignatures)
-            ref = f"No al mateix moment '{grup_nom}'"
+            referencia = {"grup": grup_nom, "assignatures": assignatures}
 
             # Els ítems sense cap hora possible ja surten com a «sense cap slot»
             items_grup: List[Tuple[str, Set[str]]] = []
@@ -371,20 +338,12 @@ class InfeasibilityDiagnostic:
                     lbl_b, slots_b = items_grup[j]
                     if len(slots_a) == 1 and slots_a == slots_b:
                         parelles = True
-                        add(
-                            f"⚠ Restricció '{ref}' [{assigs_fmt}]: "
-                            f"'{lbl_a}' i '{lbl_b}' no poden coincidir "
-                            f"però tots dos estan limitats als mateixos slots"
-                        )
+                        add(missatge("parella_mateixa_hora", **referencia, nom=lbl_a, altre=lbl_b))
 
             # Si no hi ha cap parella atrapada, pot ser que no hi càpiguen tots
             hores_conjunt = set().union(*(slots for _, slots in items_grup))
             if not parelles and len(items_grup) > len(hores_conjunt):
-                add(
-                    f"⚠ Restricció '{ref}' [{assigs_fmt}]: "
-                    f"{len(items_grup)} exàmens no poden coincidir però entre tots "
-                    f"només tenen {len(hores_conjunt)} hores possibles"
-                )
+                add(missatge("hores_insuficients", **referencia, count=len(items_grup), hores=len(hores_conjunt)))
 
     def _check_capacitat(self, items: List[dict], slots_per_item: Dict[str, Set[str]], add) -> None:
         """Detecta nivells amb més ítems que hores possibles (la unió de les
@@ -410,7 +369,7 @@ class InfeasibilityDiagnostic:
             slots = slots_per_nivell[nivell]
             if count > len(slots):
                 n_dates = len({slot.rsplit("_", 1)[0] for slot in slots})
-                add(f"{nivell}: {count} ítems > {len(slots)} slots disponibles en {n_dates} dates")
+                add(missatge("capacitat_nivell_dates", nivell=nivell, count=count, hores=len(slots), dies=n_dates))
 
 
 # ------------------------------------------------------------------

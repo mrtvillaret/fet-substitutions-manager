@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from vigilancies.schemas import ProblemaVigilancia
+
 
 class PDFPreferencesRequest(BaseModel):
     substitucions: dict[str, Any] | None = None
@@ -26,6 +28,8 @@ class ProfessorsLlistaResponse(BaseModel):
 
 
 class ValidacionsPdfResponse(BaseModel):
+    avisos_encadenades: list[str]
+    problemes_vigilancies: list[ProblemaVigilancia]
     conflicts: list[str]
     warnings: list[str]
     total: int

@@ -1320,3 +1320,31 @@ msgstr "ℹ️ {count} lezioni dei sorveglianti con supplente (il docente sorveg
 #: pdf/validacions.py
 msgid "❌ {count} classes de vigilants sense substitut (el professor vigila un examen a aquella hora)"
 msgstr "❌ {count} lezioni dei sorveglianti senza supplente (il docente sorveglia un esame a quell’ora)"
+
+
+msgid "⚠️ No s’ha pogut completar la comprovació de l’horari"
+msgstr "⚠️ Non è stato possibile completare la verifica dell’orario"
+
+
+msgid "❌ Vigilància sense hora ({tipus}, {grup})"
+msgstr "❌ Sorveglianza senza orario ({tipus}, {grup})"
+
+
+msgid "ℹ️ {hora}: {vigilant} vigila; {assignatura} de {grup} coberta per {substitut}"
+msgstr "ℹ️ {hora}: {vigilant} sorveglia; {assignatura} di {grup} coperta da {substitut}"
+
+
+msgid "❌ {hora}: {vigilant} vigila; {assignatura} de {grup} queda sense substitut"
+msgstr "❌ {hora}: {vigilant} sorveglia; {assignatura} di {grup} resta senza sostituto"
+
+
+msgid "ℹ️ {hora}: Vigilant {vigilant} alliberat manualment"
+msgstr "ℹ️ {hora}: Sorvegliante {vigilant} liberato manualmente"
+
+
+msgid "ℹ️ {hora}: Vigilant {vigilant} té una activitat sense grup ({assignatura})"
+msgstr "ℹ️ {hora}: Sorvegliante {vigilant} ha un’attività senza gruppo ({assignatura})"
+
+#: substitucions/encadenades.py
+msgid "L'encadenada de les {hora} la cobreix {substitut}, que deixa sense cobrir {activitat}"
+msgstr "La sostituzione concatenata delle {hora} è coperta da {substitut}, che lascia scoperta {activitat}"

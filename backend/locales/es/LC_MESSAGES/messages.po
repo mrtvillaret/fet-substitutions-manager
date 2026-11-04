@@ -1409,3 +1409,31 @@ msgstr "ℹ️ {count} clases de vigilantes con sustituto (el profesor vigila un
 #: pdf/validacions.py
 msgid "❌ {count} classes de vigilants sense substitut (el professor vigila un examen a aquella hora)"
 msgstr "❌ {count} clases de vigilantes sin sustituto (el profesor vigila un examen a esa hora)"
+
+
+msgid "⚠️ No s’ha pogut completar la comprovació de l’horari"
+msgstr "⚠️ No se ha podido completar la comprobación del horario"
+
+
+msgid "❌ Vigilància sense hora ({tipus}, {grup})"
+msgstr "❌ Vigilancia sin hora ({tipus}, {grup})"
+
+
+msgid "ℹ️ {hora}: {vigilant} vigila; {assignatura} de {grup} coberta per {substitut}"
+msgstr "ℹ️ {hora}: {vigilant} vigila; {assignatura} de {grup} cubierta por {substitut}"
+
+
+msgid "❌ {hora}: {vigilant} vigila; {assignatura} de {grup} queda sense substitut"
+msgstr "❌ {hora}: {vigilant} vigila; {assignatura} de {grup} queda sin sustituto"
+
+
+msgid "ℹ️ {hora}: Vigilant {vigilant} alliberat manualment"
+msgstr "ℹ️ {hora}: Vigilante {vigilant} liberado manualmente"
+
+
+msgid "ℹ️ {hora}: Vigilant {vigilant} té una activitat sense grup ({assignatura})"
+msgstr "ℹ️ {hora}: Vigilante {vigilant} tiene una actividad sin grupo ({assignatura})"
+
+#: substitucions/encadenades.py
+msgid "L'encadenada de les {hora} la cobreix {substitut}, que deixa sense cobrir {activitat}"
+msgstr "La encadenada de las {hora} la cubre {substitut}, que deja sin cubrir {activitat}"

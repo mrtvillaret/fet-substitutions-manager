@@ -5,11 +5,12 @@ Les substitucions es llegeixen amb el repositori dels recomptes
 """
 
 from collections.abc import Collection
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
+import rellotge
 from errors_domini import NoValid
 from noms import ordre_alfabetic
 from recomptes.services import (
@@ -55,9 +56,9 @@ class HoraNoValida(NoValid):
 def interval(data_inici: Optional[str], data_final: Optional[str]) -> tuple[str, str]:
     """L'interval demanat; sense dates, els últims 30 dies fins avui."""
     if not data_final:
-        data_final = datetime.now().strftime("%Y-%m-%d")
+        data_final = rellotge.ara().strftime("%Y-%m-%d")
     if not data_inici:
-        data_inici = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        data_inici = (rellotge.ara() - timedelta(days=30)).strftime("%Y-%m-%d")
     valida_interval(data_inici, data_final)  # 400, com els informes
     return data_inici, data_final
 

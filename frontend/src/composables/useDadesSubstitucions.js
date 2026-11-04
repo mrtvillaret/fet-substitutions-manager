@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import * as apiSubstitucions from '../api/substitucions.js'
 import { llista as llistaVigilancies } from '../api/vigilancies.js'
+import * as apiPdf from '../api/pdf.js'
 import * as apiHorari from '../api/horari.js'
 import { ambDataTreball } from '../dataTreball.js'
 import { dataIso } from '../dates.js'
@@ -8,6 +9,7 @@ import { dataIso } from '../dates.js'
 // Publica el dia complet amb els disponibles i descarta les càrregues antigues.
 export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
   // State
+  const avisosEncadenades = ref([])
   const substitucions = ref([])
   const substitucionsFiltrades = ref([])
   const totesAbsencies = ref([]) // TOTES les absències (amb i sense grup) per detectar professors absents
@@ -83,10 +85,11 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
     // totes les dades: es substitueix de cop, sense parpelleig ni perdre el
     // desplaçament al mòbil
     try {
-      const [files, totes, recompteVigilancies] = await Promise.all([
+      const [files, totes, recompteVigilancies, revisio] = await Promise.all([
         apiSubstitucions.llista(data, ordreFiles.value),
         apiSubstitucions.llistaTotes(data, { silent: true }),
-        obtenirVigilanciesCount(data)
+        obtenirVigilanciesCount(data),
+        apiPdf.validacions(data)
       ])
       if (idCarrega !== idCarregaSubstitucions) return
 
@@ -104,6 +107,7 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
       substitucionsFiltrades.value = filesAmbDisponibles
       totesAbsencies.value = totes
       vigilanciesCount.value = recompteVigilancies
+      avisosEncadenades.value = revisio.data.avisos_encadenades || []
     } catch (error) {
       if (idCarrega !== idCarregaSubstitucions) return
       console.error('Error carregant substitucions:', error)
@@ -111,6 +115,7 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
       substitucionsFiltrades.value = []
       totesAbsencies.value = []
       vigilanciesCount.value = 0
+      avisosEncadenades.value = []
       errorCarregaSubstitucions.value = true
     } finally {
       if (idCarrega === idCarregaSubstitucions) loading.value = false
@@ -187,5 +192,5 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
   }
 
 
-  return { substitucions, substitucionsFiltrades, totesAbsencies, vigilanciesCount, professors, absenciesCobertes, horesDisponibles, xmlMissingNotified, loading, errorCarregaSubstitucions, dataISO, dataFormatada, dataISOCurta, collator, substitucionsAssignades, substitucionsPendents, CLAU_ORDRE, llegeixOrdre, ordreFiles, canviaOrdre, carregarSubstitucions, carregarTotesAbsencies, obtenirVigilanciesCount, carregarProfessors, carregarHores }
+  return { avisosEncadenades, substitucions, substitucionsFiltrades, totesAbsencies, vigilanciesCount, professors, absenciesCobertes, horesDisponibles, xmlMissingNotified, loading, errorCarregaSubstitucions, dataISO, dataFormatada, dataISOCurta, collator, substitucionsAssignades, substitucionsPendents, CLAU_ORDRE, llegeixOrdre, ordreFiles, canviaOrdre, carregarSubstitucions, carregarTotesAbsencies, obtenirVigilanciesCount, carregarProfessors, carregarHores }
 }

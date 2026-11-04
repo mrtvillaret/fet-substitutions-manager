@@ -4,7 +4,7 @@
       v-model:visible="mostrarDialogValidacionsVig"
       :header="validacionsVig.has_critical ? $t('substitutions.dialogs.pdfValidation.criticalTitle') : $t('substitutions.dialogs.pdfValidation.warningTitle')"
       :modal="true"
-      :style="{ width: '600px', maxHeight: '80vh' }"
+      :style="{ width: '600px', maxWidth: 'calc(100vw - 2rem)', maxHeight: '80vh' }"
     >
       <div class="validacions-content">
         <p style="font-weight: 600; margin-bottom: 1rem;">{{ $t('substitutions.dialogs.pdfValidation.detectedIssues') }}</p>
@@ -12,15 +12,20 @@
         <div v-if="conflictesVigFiltrats.length > 0" style="margin-bottom: 1.5rem;">
           <p style="font-weight: 600; color: #d32f2f; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.critical') }}</p>
           <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(conflict, idx) in conflictesVigFiltrats.slice(0, 10)" :key="idx" style="margin-bottom: 0.25rem;">{{ conflict }}</li>
+            <li v-for="(conflict, idx) in conflictesVigFiltrats" :key="idx" style="margin-bottom: 0.25rem;">{{ conflict }}</li>
           </ul>
         </div>
 
         <div v-if="warningsVigFiltrats.length > 0" style="margin-bottom: 1.5rem;">
           <p style="font-weight: 600; color: #f57c00; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.warnings') }}</p>
           <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(warning, idx) in warningsVigFiltrats.slice(0, 10)" :key="idx" style="margin-bottom: 0.25rem;">{{ warning }}</li>
+            <li v-for="(warning, idx) in warningsVigFiltrats" :key="idx" style="margin-bottom: 0.25rem;">{{ warning }}</li>
           </ul>
+        </div>
+
+        <div v-if="conflictesVigFiltrats.length > 0" class="confirmacio-importants">
+          <Checkbox v-model="confirmacioImportants" :binary="true" :inputId="prefixEtiquetes + '-confirma-importants'" />
+          <label :for="prefixEtiquetes + '-confirma-importants'">{{ $t('substitutions.dialogs.pdfValidation.confirmImportant') }}</label>
         </div>
 
         <Message severity="warn" style="margin-top: 1rem;">
@@ -37,6 +42,7 @@
         />
         <Button
           :label="$t('common.continue')"
+          :disabled="(conflictesVigFiltrats.length > 0) && !confirmacioImportants"
           icon="pi pi-check"
           @click="continuarPDFVig"
           :loading="generantPDF"
@@ -163,6 +169,7 @@
 import { useId } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import MultiSelect from 'primevue/multiselect'
 import Calendar from 'primevue/calendar'
 import Message from 'primevue/message'
@@ -173,6 +180,7 @@ const prefixEtiquetes = useId()
 const mostrarDialogValidacionsVig = defineModel('mostrarDialogValidacionsVig', { required: true })
 const mostrarDialogPDF = defineModel('mostrarDialogPDF', { required: true })
 const mostrarDialogInterval = defineModel('mostrarDialogInterval', { required: true })
+const confirmacioImportants = defineModel('confirmacioImportants', { required: true })
 const pdfConfig = defineModel('pdfConfig', { required: true })
 const intervalConfig = defineModel('intervalConfig', { required: true })
 defineProps({
@@ -191,6 +199,8 @@ defineProps({
 </script>
 
 <style scoped>
+.confirmacio-importants { display: flex; align-items: center; gap: 0.75rem; }
+.confirmacio-importants label { margin: 0; }
 /* Mida fixa per tots els dropdowns i inputs */
 :deep(.p-inputtext-sm),
 :deep(.p-dropdown),

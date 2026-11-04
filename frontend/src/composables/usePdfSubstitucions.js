@@ -9,6 +9,8 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
   // PDF export
   const mostrarDialogPDF = ref(false)
   const mostrarDialogValidacions = ref(false)
+  const confirmacioImportants = ref(false)
+
   const generantPDF = ref(false)
   const reassignantProblematics = ref(false)
   const reassignChanges = ref([])
@@ -80,12 +82,14 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
   }
 
   const mostrarDialegPDF = async () => {
+    confirmacioImportants.value = false
     await carregarPreferenciesPdf()
     mostrarDialogPDF.value = true
   }
 
 
   const generarPDFComplet = async () => {
+    confirmacioImportants.value = false
     // Validar que almenys un tipus de contingut està seleccionat
     if (!pdfConfig.value.includeSubstitutions && !pdfConfig.value.includeVigilancies) {
       toast.add({
@@ -102,6 +106,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
       reassignChanges.value = []
       // 1. Primer validar abans de generar PDF
       const validacioResponse = await apiPdf.validacions(dataISO.value)
+      confirmacioImportants.value = false
       validacions.value = validacioResponse.data
 
       // 2. Mostrar diàleg de validacions si hi ha problemes
@@ -191,16 +196,19 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
   }
 
   const continuarPDF = async () => {
+    if (validacions.value.conflicts?.length && !confirmacioImportants.value) return
     await generarPDFAmbOpcions()
   }
 
   const cancelarPDF = () => {
+    confirmacioImportants.value = false
     mostrarDialogValidacions.value = false
     mostrarDialogPDF.value = true
     generantPDF.value = false
   }
 
   const reassignarProblematics = async () => {
+    confirmacioImportants.value = false
     reassignantProblematics.value = true
     try {
       const canvis = []
@@ -231,6 +239,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
 
       if (canvis.length > 0) {
         const validacioResponse = await apiPdf.validacions(dataISO.value)
+        confirmacioImportants.value = false
         validacions.value = validacioResponse.data
         reassignChanges.value = ordenarCanvisPerHora(canvis).map((item) => item.label)
         mostrarDialogPDF.value = false
@@ -239,6 +248,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
       }
 
       const validacioResponse = await apiPdf.validacions(dataISO.value)
+      confirmacioImportants.value = false
       validacions.value = validacioResponse.data
 
       if (validacions.value.total === 0) {
@@ -280,5 +290,5 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
   }
 
 
-  return { mostrarDialogPDF, mostrarDialogValidacions, generantPDF, reassignantProblematics, reassignChanges, validacions, warningsFiltrats, totalIssuesFiltrats, pdfConfig, mostrarDialegPDF, carregarPreferenciesPdf, generarPDFComplet, continuarPDF, cancelarPDF, reassignarProblematics }
+  return { confirmacioImportants, mostrarDialogPDF, mostrarDialogValidacions, generantPDF, reassignantProblematics, reassignChanges, validacions, warningsFiltrats, totalIssuesFiltrats, pdfConfig, mostrarDialegPDF, carregarPreferenciesPdf, generarPDFComplet, continuarPDF, cancelarPDF, reassignarProblematics }
 }

@@ -21,6 +21,7 @@ from scheduler_engine.core.constraints import (
 )
 from scheduler_engine.core.date_mapping import DIES_CAT as _DIES_CAT
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.missatges import missatge
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.restriction_engine import RestrictionEngine
 from scheduler_engine.core.scoring import calcular_cost_slot
@@ -75,7 +76,9 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         )
         if not solucions or not solucions[0].get("dies"):
             return (
-                solucions[0] if solucions else {"dies": [], "metadata": {"cost_total": 999999, "error": "No solucions"}}
+                solucions[0]
+                if solucions
+                else {"dies": [], "metadata": {"cost_total": 999999, "error": missatge("sense_solucions")}}
             )
         return solucions[0]
 
@@ -145,7 +148,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             h["metadata"].update({"cost_total": cost, "motor": "v2-backtrack"})
             resultats.append(h)
 
-        return resultats if resultats else [{"metadata": {"error": "No viable", "viable": False}, "dies": []}]
+        return resultats if resultats else [{"metadata": {"error": missatge("no_viable"), "viable": False}, "dies": []}]
 
     def _backtrack_with_seed(self, seed, dies_utilitzar, max_solucions, max_nodes=100000, shuffle_top_n=0):
         from datetime import datetime as _dt
@@ -261,13 +264,13 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                         for s in item["sessions"]:
                             violation = engine.check_hard(s, d_sk, h_sk, prefix_sk, [], [], {})
                             if violation:
-                                raons[violation.label] += 1
+                                raons[violation.restriction] += 1
                                 break
                     if raons:
                         motiu = raons.most_common(1)[0][0]
-                        self._incompatibilitats_bt.append(f"Cap slot per a '{nom}' — {motiu}")
+                        self._incompatibilitats_bt.append(missatge("examen_sense_hora_causa", nom=nom, causa=motiu))
                     else:
-                        self._incompatibilitats_bt.append(f"Cap slot disponible per a '{nom}'")
+                        self._incompatibilitats_bt.append(missatge("examen_sense_hora_motor", nom=nom))
 
         if not items_info:
             return []
@@ -555,15 +558,11 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                     for s in deadend_item["item"]["sessions"]:
                         violation = engine.check_hard(s, d_sk, h_sk, prefix_sk, [], [], {})
                         if violation:
-                            raons_dd[violation.label] += 1
+                            raons_dd[violation.restriction] += 1
                             break
                 if raons_dd:
                     motiu = raons_dd.most_common(1)[0][0]
-            msg = f"Cap slot per a '{label}'"
-            if motiu:
-                msg += f" — {motiu}"
-            else:
-                msg += " — conflicte entre restriccions"
+            msg = missatge("examen_sense_hora_causa", nom=label, causa=motiu or "conflicte_restriccions")
             self._incompatibilitats_bt.append(msg)
         return totes_solucions
 

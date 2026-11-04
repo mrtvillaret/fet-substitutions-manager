@@ -47,7 +47,11 @@
     "reload": "Reload"
   },
   "common": {
-    "roles": {"super_admin": "Global administrator", "admin": "Administrator", "user": "User"},
+    "roles": {
+      "super_admin": "Global administrator",
+      "admin": "Administrator",
+      "user": "User"
+    },
     "filterOptions": "Filter options",
     "save": "Save",
     "cancel": "Cancel",
@@ -559,13 +563,14 @@
         "coveredUntil": "🔄 covered until {data}"
       },
       "pdfValidation": {
-        "criticalTitle": "⚠️ Critical issues detected - Export PDF?",
+        "criticalTitle": "⚠️ Important issues detected - Export PDF?",
         "warningTitle": "📋 Warnings detected - Export PDF?",
         "detectedIssues": "Detected issues:",
-        "critical": "🚨 CRITICAL:",
+        "critical": "Important issues:",
         "warnings": "⚠️ WARNINGS:",
         "appliedChanges": "🔄 APPLIED CHANGES:",
         "totalIssues": "Total: {count} issue detected | Total: {count} issues detected",
+        "confirmImportant": "I confirm that I want to print with important issues.",
         "continueQuestion": "🔍 Do you want to continue with the PDF export?",
         "reassign": "Reassign"
       },
@@ -1882,6 +1887,58 @@
         "groupName": "Group name",
         "incompatibleSubjects": "Incompatible subjects",
         "optionalName": "Name (optional)"
+      }
+    },
+    "diagnostic": {
+      "sense_solucions": "No solution found",
+      "no_viable": "The schedule is not feasible",
+      "sense_dades": "No data available",
+      "fixos_sense_hores": "No times are available for exams with a fixed day or time",
+      "capacitat_exhaurida": "Not all exams can be placed: there are more exams than times per level",
+      "sense_hora_compatible": "Not all exams can be placed: an exam has no compatible time",
+      "backtrack_sense_solucio": "The search found no valid solution",
+      "examens_pendents": "Not all exams could be placed",
+      "capacitat_nivell": "{nivell}: {examens} must be placed, with only {horesText} available",
+      "capacitat_nivell_fixos": "{nivell}: {examens} must be placed, but only {horesText} remain after fixing days and times",
+      "capacitat_nivell_dates": "{nivell}: {examens} must be placed, with only {horesText} across {diesText}",
+      "nivell_sense_hora": "{nivell}: no feasible time",
+      "examen_sense_hora": "{nom} ({nivell}) has no feasible time",
+      "examen_sense_hora_motor": "“{nom}” has no available time",
+      "examen_sense_hora_causa": "“{nom}” has no available time — reason: {causa}",
+      "examens_sense_hora_causa": "{nivell}: {examens} with no available time — reason: {causa} (e.g. “{nom}”)",
+      "fixats_mateix_dia": "Different days #{index} [{assignatures}]: {noms} must be on different days, but are fixed to {dia}",
+      "dies_insuficients": "Different days #{index} [{assignatures}]: {examens} must be on different days, with only {diesText} available; reduce the group or add days",
+      "parella_mateixos_dies": "Different days #{index} [{assignatures}]: “{nom}” and “{altre}” must be on different days, but are limited to the same days: {dies}",
+      "examen_dies_solapats": "Different days #{index} [{assignatures}]: “{nom}” can only be on {dies}, which overlaps with “{altre}”",
+      "parella_mateixa_hora": "Not at the same time “{grup}” [{assignatures}]: “{nom}” and “{altre}” cannot coincide, but are limited to the same time",
+      "hores_insuficients": "Not at the same time “{grup}” [{assignatures}]: {examens} cannot coincide, but between them only have {horesText}",
+      "nivell_cap_collocat": "{nivell}: no exams placed ({examens} planned). Review restrictions or extend the dates",
+      "nivell_pendents": "{nivell}: {examens} not placed ({collocats}/{esperats} placed). Review restrictions or extend the dates",
+      "examen_pendent": "“{nom}” ({nivell}) could not be placed. Review restrictions or extend the dates",
+      "examens_pendents_nivell": "{nivell}: “{nom}” and {count} more could not be placed. Review restrictions or extend the dates",
+      "fixat_dia_no_disponible": "{nom}: day {dia} is unavailable",
+      "fixat_hora_no_disponible": "{nom}: time {hora} is unavailable",
+      "fixat_slot_no_disponible": "{nom}: {dia} at {hora} is unavailable",
+      "precheck_detectat": "The preliminary check detected deterministic incompatibilities",
+      "sessions_pendents": "Exams still to be placed: {count}",
+      "nivell_incomplet": "Incomplete level: {nivell} ({collocats}/{esperats})",
+      "llista_mes": "{noms} and {count} more",
+      "sense_nom": "Unnamed",
+      "nivell_desconegut": "Unknown level",
+      "unitats": {
+        "examens": "no exams | 1 exam | {count} exams",
+        "hores": "no times | 1 time | {count} times",
+        "dies": "no days | 1 day | {count} days"
+      },
+      "causes": {
+        "dia_hora_fix": "Fixed day/time",
+        "no_mateix_dia": "Different days",
+        "combinacions_permeses": "Combination not allowed",
+        "limit_dies_professor": "Teacher exam limit",
+        "preferencia_dia": "Day preference",
+        "professors_estrictes": "Strict teacher timetable",
+        "desconeguda": "Unknown restriction",
+        "conflicte_restriccions": "Conflicting restrictions"
       }
     }
   },

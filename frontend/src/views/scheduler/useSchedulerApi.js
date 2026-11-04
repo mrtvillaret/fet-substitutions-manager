@@ -1,3 +1,4 @@
+import { tradueixMissatge } from './missatges.js'
 import * as apiPlanificador from '../../api/planificador'
 import { costosDesats } from './costos'
 import * as apiHorari from '../../api/horari'
@@ -249,7 +250,7 @@ export const useSchedulerApi = ({
           toast.add({
             severity: 'warn',
             summary: t('scheduler.view.messages.notViable'),
-            detail: t('scheduler.view.messages.notViableDetail', { message: errorMsg, items, slots }),
+            detail: t('scheduler.view.messages.notViableDetail', { message: tradueixMissatge(errorMsg, t), items, slots }),
             life: 10000
           })
         }

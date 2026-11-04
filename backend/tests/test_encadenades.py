@@ -14,17 +14,18 @@ from datetime import date
 
 import pytest
 from fastapi import Depends
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
 
 from auth.dependencies import get_current_user, require_admin
 from database import get_data_db_session
 from grups import router as grups
 from models import Substitucio
+from pdf.router import router as pdf_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
 from substitucions import router as substitucions
 
-APP = crea_app()
+APP = crea_app(pdf_router)
 APP.include_router(prioritats_router, dependencies=[Depends(require_admin)])  # com a main.py
 APP.include_router(substitucions.router, dependencies=[Depends(get_current_user)])
 APP.include_router(grups.router, dependencies=[Depends(get_current_user)])
@@ -249,3 +250,95 @@ def test_l_ordre_posa_cada_encadenada_sota_la_seva_substitucio():
         ("10:00", "Prof 9"),  # l'encadenada del seu substitut
         ("10:00", "Prof 7"),  # 10-ESO-A: ordre natural
     ]
+
+
+@pytest.mark.parametrize("manual", [False, True], ids=["automatica", "manual"])
+def test_avisa_activitat_descoberta_sense_segona_encadenada(centre, manual):
+    institucio, client = centre
+    if manual:
+        _absent(client)
+        _tria(client, "Prof 2")
+        resposta = client.put(
+            f"/api/substitucions/{DATA}/09:00/Prof 2",
+            json={"substitut": "Prof 9", "force": True},
+        )
+        assert resposta.status_code == 200, resposta.text
+    else:
+        _absent_i_genera(client)
+    abans = _files(institucio)
+    encadenades = _encadenades(institucio)
+    assert len(encadenades) == 1
+    substitut = encadenades[0][3]
+    assert substitut in GUARDIA
+    resposta = client.get(f"/api/pdf/{DATA}/validacions")
+    assert resposta.status_code == 200, resposta.text
+    revisio = resposta.json()
+    avis = f"L'encadenada de les 09:00 la cobreix {substitut}, que deixa sense cobrir Guàrdia"
+    assert revisio["avisos_encadenades"] == [avis]
+    assert revisio["warnings"].count(avis) == 1
+    assert avis not in revisio["conflicts"]
+    pdf = client.get(f"/api/pdf/complete/{DATA}", params={"include_vigilancies": False})
+    assert pdf.status_code == 200, pdf.text
+    assert not any("L'encadenada de les" in text for text in text_pdf(pdf.content))
+    assert _files(institucio) == abans
+
+
+def test_treure_substitut_encadenada_treu_avis(centre):
+    _, client = centre
+    _absent(client)
+    _tria(client, "Prof 2")
+    url = f"/api/substitucions/{DATA}/09:00/Prof 2"
+    for substitut, nombre in [("Prof 9", 1), ("", 0)]:
+        assert client.put(url, json={"substitut": substitut, "force": True}).status_code == 200
+        revisio = client.get(f"/api/pdf/{DATA}/validacions").json()
+        assert len(revisio["avisos_encadenades"]) == nombre
+
+
+@pytest.mark.parametrize("exclusio", ["no_substituir", "fora_prioritats", "alliberat", "pendent"])
+def test_no_avisa_quan_no_deixa_activitat_encadenable(centre, exclusio):
+    institucio, client = centre
+    _absent_i_genera(client)
+    if exclusio == "no_substituir":
+        assert client.post("/api/prioritats/no-substituir", json={"assignatura": "Guàrdia"}).status_code == 200
+    elif exclusio == "fora_prioritats":
+        from config import constants
+
+        constants.desa_prioritats(institucio, GENERA_ENCADENADES=[])
+    else:
+        with get_data_db_session(institucio) as db:
+            fila = db.query(Substitucio).filter(Substitucio.tipus_absencia == "ENCADENADA").one()
+            if exclusio == "pendent":
+                fila.substitut = ""
+            else:
+                fila.tipus_substitut = "alliberat (tenia Religió)"
+            db.commit()
+    abans = _files(institucio)
+    resposta = client.get(f"/api/pdf/{DATA}/validacions")
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["avisos_encadenades"] == []
+    assert _files(institucio) == abans
+
+
+@pytest.mark.parametrize(
+    "idioma, inici",
+    [
+        ("ca", "L'encadenada de les"),
+        ("es", "La encadenada de las"),
+        ("en", "The chained substitution at"),
+        ("it", "La sostituzione concatenata delle"),
+    ],
+)
+def test_avis_encadenada_en_l_idioma_del_centre(centre, idioma, inici):
+    from repositories import ConfiguracioRepository
+
+    institucio, client = centre
+    _absent_i_genera(client)
+    with get_data_db_session(institucio) as db:
+        ConfiguracioRepository.set(db, "idioma", idioma)
+        db.commit()
+    resposta = client.get(f"/api/pdf/{DATA}/validacions")
+    assert resposta.status_code == 200, resposta.text
+    avisos = resposta.json()["avisos_encadenades"]
+    assert len(avisos) == 1
+    assert avisos[0].startswith(inici + " 09:00")
+    assert "Prof " in avisos[0] and "Guàrdia" in avisos[0]

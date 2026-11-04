@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+import rellotge
 from models import Configuracio
 
 log = logging.getLogger(__name__)
@@ -76,11 +77,10 @@ class ProfessorRepository:
     @staticmethod
     def sync_from_xml(db: Session, professors_xml: List[str], data_sync=None) -> Dict[str, int]:
         """Sincronitza professors amb l'XML (actiu/inactiu)"""
-        from datetime import date
 
         from models import Professor
 
-        data_avui = data_sync or date.today()
+        data_avui = data_sync or rellotge.avui()
         professors_noms = {nom.strip() for nom in professors_xml if nom and nom.strip()}
 
         existing = {p.nom: p for p in db.query(Professor).all()}
