@@ -429,3 +429,16 @@
 .agrupacions-toolbar .scheduler-dropdown-sm { width: 12rem; }
 .restriccio-title { font-weight: 600; }
 .tiny-tag { padding: 0.1rem 0.4rem; min-width: 2rem; display: inline-flex; justify-content: center; }
+
+@media (max-width: 600px) {
+  .stepper-container .p-steps ul { min-width: 0; flex-wrap: wrap; }
+  .stepper-container .p-steps .p-steps-item { min-width: 0; flex: 1 1 30%; }
+  .stepper-container .p-steps .p-steps-title { white-space: normal; text-align: center; font-size: 0.8rem; }
+  .agrupacions-toolbar, .agrupacions-toolbar .actions { flex-wrap: wrap; gap: 0.5rem; min-width: 0; }
+  .agrupacions-toolbar .scheduler-dropdown-sm { max-width: 100%; }
+}
+
+@media (max-width: 600px) {
+  .restriccions-header { flex-wrap: wrap; }
+  .restriccions-header > .p-button { flex-shrink: 0; }
+}

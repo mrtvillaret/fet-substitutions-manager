@@ -7,8 +7,8 @@
 
       <div v-if="professorsInactius.length" class="anon-form">
         <div class="field">
-          <label>{{ $t('config.dataManagement.anonSelect') }}</label>
-          <Dropdown
+          <label :for="prefixEtiquetes + '-camp-1'">{{ $t('config.dataManagement.anonSelect') }}</label>
+          <Dropdown :filterInputProps="{ 'aria-label': $t('common.filterOptions') }" :aria-label="$t('config.dataManagement.anonSelect')" :inputId="prefixEtiquetes + '-camp-1'"
             v-model="profSeleccionat"
             :options="professorsInactius"
             optionLabel="nom"
@@ -18,8 +18,8 @@
           />
         </div>
         <div class="field">
-          <label>{{ $t('config.dataManagement.anonNewName') }}</label>
-          <InputText v-model="nomNou" />
+          <label :for="prefixEtiquetes + '-camp-2'">{{ $t('config.dataManagement.anonNewName') }}</label>
+          <InputText :id="prefixEtiquetes + '-camp-2'" v-model="nomNou" />
         </div>
         <Button
           :label="$t('config.dataManagement.anonButton')"
@@ -40,8 +40,8 @@
 
     <div class="interval-selector">
       <div v-if="cursos.length" class="field">
-        <label>{{ $t('config.dataManagement.course') }}</label>
-        <Dropdown
+        <label :for="prefixEtiquetes + '-camp-3'">{{ $t('config.dataManagement.course') }}</label>
+        <Dropdown :aria-label="$t('config.dataManagement.course')" :inputId="prefixEtiquetes + '-camp-3'"
           v-model="cursSeleccionat"
           :options="cursos"
           optionLabel="nom"
@@ -50,12 +50,12 @@
         />
       </div>
       <div class="field">
-        <label>{{ $t('config.dataManagement.startDate') }}</label>
-        <Calendar v-model="dataInici" dateFormat="dd/mm/yy" :showIcon="true" :manualInput="false" />
+        <label :for="prefixEtiquetes + '-camp-4'">{{ $t('config.dataManagement.startDate') }}</label>
+        <Calendar :inputId="prefixEtiquetes + '-camp-4'" v-model="dataInici" dateFormat="dd/mm/yy" :showIcon="true" :manualInput="false" />
       </div>
       <div class="field">
-        <label>{{ $t('config.dataManagement.endDate') }}</label>
-        <Calendar v-model="dataFinal" dateFormat="dd/mm/yy" :showIcon="true" :manualInput="false" />
+        <label :for="prefixEtiquetes + '-camp-5'">{{ $t('config.dataManagement.endDate') }}</label>
+        <Calendar :inputId="prefixEtiquetes + '-camp-5'" v-model="dataFinal" dateFormat="dd/mm/yy" :showIcon="true" :manualInput="false" />
       </div>
       <Button
         :label="$t('config.dataManagement.analyze')"
@@ -148,9 +148,11 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
+import * as apiDades from '../../api/dades'
+import { llista as llistaCursos } from '../../api/cursos'
 import { dataIso } from '../../dates'
 import Calendar from 'primevue/calendar'
 import Button from 'primevue/button'
@@ -162,6 +164,8 @@ import Divider from 'primevue/divider'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
+
+const prefixEtiquetes = useId()
 
 const { t } = useI18n()
 const toast = useToast()
@@ -178,7 +182,7 @@ const professorsInactius = computed(() => professors.value.filter(p => !p.actiu)
 
 async function carregarProfessors() {
   try {
-    const { data } = await axios.get('/api/dades/professors')
+    const data = await apiDades.professors()
     professors.value = data.professors || []
   } catch (e) {
     toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 5000 })
@@ -207,7 +211,7 @@ function confirmarAnon() {
 async function anonimitzar() {
   carregantAnon.value = true
   try {
-    const { data } = await axios.post('/api/dades/professors/reanomena', {
+    const data = await apiDades.reanomenaProfessor({
       nom_actual: profSeleccionat.value,
       nom_nou: nomNou.value.trim(),
     })
@@ -231,7 +235,7 @@ const cursSeleccionat = ref(null)
 
 async function carregarCursos() {
   try {
-    const { data } = await axios.get('/api/cursos')
+    const data = await llistaCursos()
     cursos.value = data || []
   } catch {
     cursos.value = []
@@ -303,7 +307,7 @@ async function analitzar() {
   manifest.value = null
   carregant.value = true
   try {
-    const { data } = await axios.post('/api/dades/purga/analitzar', {
+    const data = await apiDades.analitzaPurga({
       data_inici: toIso(dataInici.value),
       data_final: toIso(dataFinal.value),
     })
@@ -334,7 +338,7 @@ function confirmarPurga() {
 async function purgar() {
   carregant.value = true
   try {
-    const { data } = await axios.post('/api/dades/purga/executar', {
+    const data = await apiDades.executaPurga({
       data_inici: manifest.value.interval.inici,
       data_final: manifest.value.interval.final,
       confirmar: true,

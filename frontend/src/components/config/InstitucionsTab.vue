@@ -17,12 +17,12 @@
     >
       <Column field="display_name" :header="$t('config.institutions.name')" />
       <Column field="slug" :header="$t('config.institutions.code')" style="width: 180px;" />
-      <Column :header="$t('config.institutions.status')" bodyClass="text-center">
+      <Column :header="$t('config.institutions.status')">
         <template #body="{ data }">
           {{ data.active ? $t('config.institutions.active') : $t('config.institutions.inactive') }}
         </template>
       </Column>
-      <Column :header="$t('common.actions')" bodyClass="text-center">
+      <Column :header="$t('common.actions')">
         <template #body="{ data }">
           <div class="table-actions">
             <Button
@@ -60,8 +60,8 @@
       </template>
       <div class="p-fluid">
         <div class="field">
-          <label>{{ $t('config.institutions.code') }}</label>
-          <InputText
+          <label :for="prefixEtiquetes + '-camp-1'">{{ $t('config.institutions.code') }}</label>
+          <InputText :id="prefixEtiquetes + '-camp-1'"
             v-model="institucioForm.slug"
             maxlength="64"
             :placeholder="$t('config.institutions.codePlaceholder')"
@@ -69,8 +69,8 @@
           />
         </div>
         <div class="field">
-          <label>{{ $t('config.institutions.name') }}</label>
-          <InputText
+          <label :for="prefixEtiquetes + '-camp-2'">{{ $t('config.institutions.name') }}</label>
+          <InputText :id="prefixEtiquetes + '-camp-2'"
             v-model="institucioForm.display_name"
             :placeholder="$t('config.institutions.namePlaceholder')"
           />
@@ -104,8 +104,8 @@
       <div class="p-fluid">
         <p class="field-hint">{{ confirmInstitucioMessage }}</p>
         <div class="field">
-          <label>{{ $t('config.institutions.confirmLabel') }}</label>
-          <InputText v-model="confirmInstitucioInput" />
+          <label :for="prefixEtiquetes + '-camp-3'">{{ $t('config.institutions.confirmLabel') }}</label>
+          <InputText :id="prefixEtiquetes + '-camp-3'" v-model="confirmInstitucioInput" />
         </div>
       </div>
 
@@ -123,15 +123,18 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
+import * as apiCentres from '../../api/centres'
 import { useToast } from 'primevue/usetoast'
 import Dialog from 'primevue/dialog'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+
+const prefixEtiquetes = useId()
 
 const toast = useToast()
 const { t } = useI18n()
@@ -166,7 +169,7 @@ const confirmInstitucioActionLabel = computed(() => {
 })
 
 const carregarInstitucions = async () => {
-  const resp = await axios.get('/api/settings/institucions')
+  const resp = await apiCentres.llista()
   institucions.value = resp.data.institucions || []
 }
 
@@ -191,11 +194,11 @@ const tancarDialogInstitucio = () => {
 const desarInstitucio = async () => {
   try {
     if (institucioEditant.value) {
-      await axios.put(`/api/settings/institucions/${institucioForm.value.slug}`, {
+      await apiCentres.edita(institucioForm.value.slug, {
         display_name: institucioForm.value.display_name
       })
     } else {
-      await axios.post('/api/settings/institucions', {
+      await apiCentres.crea({
         nom: institucioForm.value.slug,
         display_name: institucioForm.value.display_name
       })
@@ -246,7 +249,7 @@ const executarAccioInstitucio = async () => {
   }
 
   try {
-    await axios.put(`/api/settings/institucions/${confirmInstitucioTarget.value.slug}/status`, {
+    await apiCentres.estat(confirmInstitucioTarget.value.slug, {
       active: confirmInstitucioAction.value === 'activate'
     })
     toast.add({

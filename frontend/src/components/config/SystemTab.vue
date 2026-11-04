@@ -44,7 +44,7 @@
         <Button icon="pi pi-upload" @click="$refs.logoInput.click()" v-tooltip.top="$t('common.upload')" class="logo-upload-btn" />
       </div>
       <input
-        ref="logoInput"
+        :aria-label="$t('config.system.logoLabel')" ref="logoInput"
         type="file"
         accept=".png,.jpg,.jpeg"
         style="display: none"
@@ -58,8 +58,8 @@
 
     <div class="field">
       <label for="idioma">{{ $t('config.system.language') }}</label>
-      <Dropdown
-        id="idioma"
+      <Dropdown :aria-label="$t('config.system.language')"
+        inputId="idioma"
         v-model="settings.idioma"
         :options="idiomes"
         optionLabel="name"
@@ -85,7 +85,7 @@
         <Button icon="pi pi-upload" @click="$refs.fileInput.click()" v-tooltip.top="$t('config.system.xmlUpload')" />
       </div>
       <input
-        ref="fileInput"
+        :aria-label="$t('config.system.xmlLabel')" ref="fileInput"
         type="file"
         accept=".xml"
         style="display: none"
@@ -123,8 +123,8 @@
 
       <!-- Data de vigència: permet PREPARAR l'horari d'un curs futur -->
       <div class="xml-vigencia">
-        <label class="date-inline-label">{{ $t('config.system.xmlEffectiveFrom') }}:</label>
-        <Calendar
+        <label :for="prefixEtiquetes + '-camp-1'" class="date-inline-label">{{ $t('config.system.xmlEffectiveFrom') }}:</label>
+        <Calendar :inputId="prefixEtiquetes + '-camp-1'"
           v-model="xmlVigentDesDe"
           dateFormat="yy-mm-dd"
           :showIcon="true"
@@ -144,7 +144,7 @@
     <!-- Versions XML -->
     <div class="field">
       <!-- Un horari pujat amb data futura encara no es fa servir: s'avisa -->
-      <Message v-if="horariFutur" severity="info" :closable="false" class="mb-2">
+      <Message v-if="horariFutur" severity="info" :closable="false">
         {{ $t('config.system.futureSchedule', { data: dataAmbAny(horariFutur.data_inici) }) }}
       </Message>
       <div class="toolbar" style="margin-bottom: 0.5rem;">
@@ -179,8 +179,8 @@
           <div class="xml-version-row">
             <div class="xml-version-dates">
               <div class="date-field">
-                <label class="date-inline-label">{{ $t('config.system.xmlStart') }}:</label>
-                <Calendar
+                <label :for="prefixEtiquetes + '-camp-2' + '-' + encodeURIComponent(String(version.id))" class="date-inline-label">{{ $t('config.system.xmlStart') }}:</label>
+                <Calendar :inputId="prefixEtiquetes + '-camp-2' + '-' + encodeURIComponent(String(version.id))"
                   :modelValue="parseIsoDate(version.data_inici)"
                   @update:modelValue="value => { version.data_inici = formatIsoDate(value) }"
                   dateFormat="yy-mm-dd"
@@ -189,8 +189,8 @@
                 />
               </div>
               <div class="date-field">
-                <label class="date-inline-label">{{ $t('config.system.xmlEnd') }}:</label>
-                <Calendar
+                <label :for="prefixEtiquetes + '-camp-3' + '-' + encodeURIComponent(String(version.id))" class="date-inline-label">{{ $t('config.system.xmlEnd') }}:</label>
+                <Calendar :inputId="prefixEtiquetes + '-camp-3' + '-' + encodeURIComponent(String(version.id))"
                   :modelValue="parseIsoDate(version.data_fi)"
                   dateFormat="yy-mm-dd"
                   :showIcon="true"
@@ -222,8 +222,8 @@
     <!-- Últim professor -->
     <div class="field">
       <label for="ultim_professor">{{ $t('config.system.lastTeacher') }}</label>
-      <Dropdown
-        id="ultim_professor"
+      <Dropdown :filterInputProps="{ 'aria-label': $t('common.filterOptions') }" :aria-label="$t('config.system.lastTeacher')"
+        inputId="ultim_professor"
         v-model="settings.ultim_professor_subs"
         :options="ultimProfessorOptions"
         optionLabel="label"
@@ -253,10 +253,12 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { ambDataTreball } from '../../dataTreball'
+import { professorsTots } from '../../api/horari'
+import * as apiConfiguracio from '../../api/configuracio'
 import { dataAmbAny, dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
@@ -269,6 +271,8 @@ import Divider from 'primevue/divider'
 import Tag from 'primevue/tag'
 import { useCursos } from './useCursos.js'
 import { setLocale } from '../../i18n'
+
+const prefixEtiquetes = useId()
 
 const toast = useToast()
 const { t } = useI18n()
@@ -377,14 +381,14 @@ const carregarSettings = async () => {
       professorsAllResp,
       xmlVersionsResp
     ] = await Promise.all([
-      axios.get('/api/settings'),
-      axios.get('/api/settings/idiomes'),
-      axios.get('/api/horari/professors/all', ambDataTreball()),
-      axios.get('/api/settings/xml-versions')
+      apiConfiguracio.llegeix(),
+      apiConfiguracio.idiomes(),
+      professorsTots(ambDataTreball()),
+      apiConfiguracio.versionsXml()
     ])
 
-    settings.value = settingsResp.data
-    if (settingsResp.data?.xml_missing && !xmlMissingNotified.value) {
+    settings.value = settingsResp
+    if (settingsResp?.xml_missing && !xmlMissingNotified.value) {
       toast.add({
         severity: 'warn',
         summary: t('common.warning'),
@@ -403,12 +407,12 @@ const carregarSettings = async () => {
       logoUrl.value = ''
     }
     logoNom.value = settings.value.logo_path ? settings.value.logo_path.split('/').pop() : ''
-    idiomes.value = idiomesResp.data.idiomes
+    idiomes.value = idiomesResp.idiomes
     // Ordre XML + nom cru (per veure els espais). Fallback a la llista plana
     // si el backend encara no retorna `professors_ordenats`.
-    professorsAll.value = professorsAllResp.data.professors_ordenats
-      || (professorsAllResp.data.professors || []).map((n) => ({ nom: n, nom_cru: n }))
-    xmlVersions.value = xmlVersionsResp.data.versions || []
+    professorsAll.value = professorsAllResp.professors_ordenats
+      || (professorsAllResp.professors || []).map((n) => ({ nom: n, nom_cru: n }))
+    xmlVersions.value = xmlVersionsResp.versions || []
 
     if (canManageUsers.value) {
       await carregarCursos()
@@ -432,8 +436,8 @@ const carregarSettings = async () => {
 const carregarXmlVersions = async () => {
   xmlVersionsLoading.value = true
   try {
-    const resp = await axios.get('/api/settings/xml-versions')
-    xmlVersions.value = resp.data.versions || []
+    const resposta = await apiConfiguracio.versionsXml()
+    xmlVersions.value = resposta.versions || []
   } catch (error) {
     console.error('Error carregant versions XML:', error)
     toast.add({
@@ -454,12 +458,8 @@ const carregarLogo = async () => {
   }
 
   try {
-    const response = await axios.get('/api/files/logo', {
-      responseType: 'blob',
-      params: { ts: Date.now() },
-      _silent: true,
-    })
-    logoObjectUrl = URL.createObjectURL(response.data)
+    const blob = await apiConfiguracio.logo(Date.now())
+    logoObjectUrl = URL.createObjectURL(blob)
     logoUrl.value = logoObjectUrl
   } catch (error) {
     if (error.response?.status !== 404) {
@@ -476,7 +476,7 @@ const xmlVersionsDisplay = computed(() =>
 const desarXmlVersion = async (version) => {
   try {
     // Només l'inici: el backend torna a encadenar totes les versions
-    await axios.put(`/api/settings/xml-versions/${version.id}`, {
+    await apiConfiguracio.editaVersioXml(version.id, {
       data_inici: version.data_inici || null
     })
     toast.add({
@@ -506,7 +506,7 @@ const eliminarXmlVersion = async (version) => {
     rejectLabel: t('common.cancel'),
     accept: async () => {
       try {
-        await axios.delete(`/api/settings/xml-versions/${version.id}`)
+        await apiConfiguracio.esborraVersioXml(version.id)
         toast.add({
           severity: 'success',
           summary: t('common.deleted'),
@@ -535,18 +535,16 @@ const pujarLogo = async (event) => {
   formData.append('file', file)
 
   try {
-    const response = await axios.post('/api/files/upload-logo', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    settings.value.logo_path = response.data.path
+    const resposta = await apiConfiguracio.pujaLogo(formData)
+    settings.value.logo_path = resposta.path
     settings.value.te_logo = true
-    logoNom.value = response.data.filename
+    logoNom.value = resposta.filename
     await carregarLogo()
     actualitzarSnapshot()
     toast.add({
       severity: 'success',
       summary: t('config.system.logoUploaded'),
-      detail: response.data.message,
+      detail: resposta.message,
       life: 3000
     })
   } catch (error) {
@@ -565,7 +563,7 @@ const pujarLogo = async (event) => {
 const desar = async () => {
   desant.value = true
   try {
-    const response = await axios.put('/api/settings', {
+    const resposta = await apiConfiguracio.desa({
       institucio: settings.value.institucio,
       ...(isSuperAdmin.value ? { institucio_display_name: settings.value.institucio_display_name } : {}),
       idioma: settings.value.idioma,
@@ -577,7 +575,7 @@ const desar = async () => {
     toast.add({
       severity: 'success',
       summary: t('common.saved'),
-      detail: response.data.message,
+      detail: resposta.message,
       life: 3000
     })
 
@@ -616,25 +614,21 @@ const pujarXML = async (event) => {
       life: 2000
     })
 
-    const response = await axios.post('/api/files/upload-xml', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+    const resposta = await apiConfiguracio.pujaXml(formData)
 
     // El path "actual" només canvia si la versió nova ja és vigent avui.
     // Si s'ha programat per a un curs futur, l'horari vigent segueix sent l'anterior.
-    if (response.data.vigent_avui !== false) {
-      settings.value.xml_horari_path = response.data.path
+    if (resposta.vigent_avui !== false) {
+      settings.value.xml_horari_path = resposta.path
       actualitzarSnapshot()
     }
 
     toast.add({
       severity: 'success',
       summary: t('common.uploaded'),
-      detail: response.data.vigent_avui === false
-        ? t('config.system.xmlScheduled', { data: response.data.data_inici })
-        : response.data.message,
+      detail: resposta.vigent_avui === false
+        ? t('config.system.xmlScheduled', { data: resposta.data_inici })
+        : resposta.message,
       life: 4000
     })
 
@@ -646,7 +640,7 @@ const pujarXML = async (event) => {
 
     // Si el nou horari ja és vigent, la resta de l'aplicació (professors,
     // hores, substitucions...) s'ha de tornar a carregar amb ell.
-    if (response.data.vigent_avui !== false) {
+    if (resposta.vigent_avui !== false) {
       emit('xml-importat')
     }
   } catch (error) {

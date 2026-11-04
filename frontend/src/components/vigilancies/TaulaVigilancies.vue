@@ -334,4 +334,19 @@ thead th {
   margin-bottom: 0.5rem;
   font-size: 1.1rem;
 }
+
+/* En pantalles estretes conservem la taula i el desplaçament lateral. */
+@media (max-width: 600px) {
+  table { min-width: 46rem; }
+  .col-seleccio { width: 2rem; }
+  .col-ordre { width: 2.5rem; }
+  .col-hora { width: 4.5rem; }
+  .col-nivell { width: 4rem; }
+  .col-tipus { width: 7rem; }
+  .col-grups { width: 5rem; }
+  .col-aula { width: 4rem; }
+  .col-vigilant { width: 10rem; }
+  .col-observacions { width: 7rem; min-width: 0; }
+  .col-accions { width: 0; }
+}
 </style>

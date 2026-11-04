@@ -2,7 +2,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
-import axios from 'axios'
+import * as apiPlanificador from '../api/planificador'
 import { ruta } from '../basePath'
 import { dataAmbAny, dataIso } from '../dates'
 import { useToast } from 'primevue/usetoast'
@@ -284,7 +284,7 @@ const pinnedNoms = computed(() => {
 const assignaturesInexistents = ref([])
 const carregarAssignaturesInexistents = async () => {
   try {
-    const { data } = await axios.get('/api/scheduler/restriccions')
+    const { data } = await apiPlanificador.restriccions()
     assignaturesInexistents.value = data.assignatures_inexistents || []
   } catch (err) {
     assignaturesInexistents.value = []
@@ -292,7 +292,7 @@ const carregarAssignaturesInexistents = async () => {
 }
 const treureAssignaturesInexistents = async () => {
   try {
-    const { data } = await axios.post('/api/scheduler/restriccions/treure-inexistents')
+    const { data } = await apiPlanificador.treuInexistents()
     aplicarRestriccions(data.restriccions)
     assignaturesInexistents.value = []
     toast.add({ severity: 'success', summary: t('scheduler.view.staleSubjects.removed', { count: data.trets.length }, data.trets.length), life: 4000 })
@@ -308,7 +308,7 @@ const ultimResultatDesat = ref(null)
 const recuperarUltimResultat = async () => {
   if (result.value) return
   try {
-    const { data } = await axios.get('/api/scheduler/ultim-resultat')
+    const { data } = await apiPlanificador.ultimResultat()
     if (data?.resultat?.horari?.dies?.length && !result.value) {
       result.value = data.resultat
       resultatRecuperat.value = data.resultat
@@ -331,7 +331,7 @@ watch(selectedDates, (dates) => {
     const llista = (dates || []).map(formatLocalDate)
     try {
       const anterior = horariPlanificacio.value?.data_referencia
-      const { data: horari } = await axios.get('/api/scheduler/horari', { params: { dates: llista.join(',') || undefined } })
+      const { data: horari } = await apiPlanificador.horari({ params: { dates: llista.join(',') || undefined } })
       horariPlanificacio.value = horari
       // Amb un altre horari, els professors, grups i hores són uns altres
       if (anterior && horari.data_referencia !== anterior) await carregarDadesHorari(horari.data_referencia)
@@ -343,7 +343,7 @@ watch(selectedDates, (dates) => {
       return
     }
     try {
-      const { data } = await axios.get('/api/scheduler/curs-dates', { params: { dates: llista.join(',') } })
+      const { data } = await apiPlanificador.cursDates({ params: { dates: llista.join(',') } })
       cursAnterior.value = data.curs_anterior
     } catch (err) {
       cursAnterior.value = null
@@ -353,7 +353,7 @@ watch(selectedDates, (dates) => {
 
 const onPinChanged = async () => {
   try {
-    const { data } = await axios.get('/api/scheduler/restriccions')
+    const { data } = await apiPlanificador.restriccions()
     aplicarRestriccions(data.restriccions)
   } catch (err) {
     console.error('Error recarregant restriccions:', err)
@@ -364,7 +364,7 @@ const clearAllPins = async () => {
   const unpins = Array.from(pinnedNoms.value)
   if (!unpins.length) return
   try {
-    await axios.post('/api/scheduler/restriccions/pin', { pins: [], unpins })
+    await apiPlanificador.pins({ pins: [], unpins })
     await onPinChanged()
   } catch (err) {
     console.error('Error desfixant tot:', err)
@@ -620,7 +620,7 @@ const desarMotorConfig = async (opts = {}) => {
   try {
     sincronitzarDatesGlobals()
     // Desar hores tal qual (format XML) + hores per nivell + alliberaments + durades per grups
-    await axios.put('/api/scheduler/config', {
+    await apiPlanificador.desaConfiguracio({
       durada_titular: config.value.durada_titular,
       durada_examen: duradaExamen.value,
       durades_grups: duradesGrups.value.map(({ id, ...rest }) => rest),
@@ -671,7 +671,7 @@ const flushPendingConfigSave = async () => {
 const desarDates = async () => {
   try {
     const dates = selectedDates.value.map(formatLocalDate)
-    await axios.put('/api/scheduler/dates', { selected_dates: dates })
+    await apiPlanificador.desaDates({ selected_dates: dates })
   } catch (e) {
     console.error(e)
   }

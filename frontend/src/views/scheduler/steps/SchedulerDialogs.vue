@@ -8,28 +8,28 @@
     :style="{ width: '480px' }"
   >
     <div class="p-fluid">
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.steps.restrictions.durades.dialog.nameLabel') }}</label>
-        <InputText
-          v-model="formulariDurada.nom"
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-1'" class="font-bold">{{ t('scheduler.steps.restrictions.durades.dialog.nameLabel') }}</label>
+        <InputText :id="prefixEtiquetes + '-camp-1'"
+          :modelValue="formularisLocals.formulariDurada.nom" @update:modelValue="actualitzaCamp('formulariDurada', 'nom', $event)"
           :placeholder="t('scheduler.steps.restrictions.durades.dialog.namePlaceholder')"
         />
       </div>
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.steps.restrictions.durades.dialog.sessionsLabel') }}</label>
-        <MultiSelect
-          v-model="formulariDurada.sessions"
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-2'" class="font-bold">{{ t('scheduler.steps.restrictions.durades.dialog.sessionsLabel') }}</label>
+        <MultiSelect :filterInputProps="{ 'aria-label': t('common.filterOptions') }" :aria-label="t('scheduler.steps.restrictions.durades.dialog.sessionsLabel')" :inputId="prefixEtiquetes + '-camp-2'"
+          :modelValue="formularisLocals.formulariDurada.sessions" @update:modelValue="actualitzaCamp('formulariDurada', 'sessions', $event)"
           :options="llistaSessions"
           filter
           :placeholder="t('scheduler.steps.restrictions.durades.dialog.sessionsPlaceholder')"
           class="scheduler-multiselect"
         />
       </div>
-      <div class="field mb-3">
-        <label class="font-bold">{{ t('scheduler.steps.restrictions.durades.dialog.durationLabel') }}</label>
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-3'" class="font-bold">{{ t('scheduler.steps.restrictions.durades.dialog.durationLabel') }}</label>
         <div class="flex align-items-center gap-2">
-          <InputNumber
-            v-model="formulariDurada.durada"
+          <InputNumber :inputId="prefixEtiquetes + '-camp-3'"
+            :modelValue="formularisLocals.formulariDurada.durada" @update:modelValue="actualitzaCamp('formulariDurada', 'durada', $event)"
             showButtons
             buttonLayout="horizontal"
             incrementButtonIcon="pi pi-plus"
@@ -42,10 +42,10 @@
         </div>
       </div>
       <div class="field mb-2">
-        <label class="font-bold">{{ t('scheduler.steps.restrictions.durades.dialog.examDurationLabel') }}</label>
+        <label :for="prefixEtiquetes + '-camp-4'" class="font-bold">{{ t('scheduler.steps.restrictions.durades.dialog.examDurationLabel') }}</label>
         <div class="flex align-items-center gap-2">
-          <InputNumber
-            v-model="formulariDurada.durada_examen"
+          <InputNumber :inputId="prefixEtiquetes + '-camp-4'"
+            :modelValue="formularisLocals.formulariDurada.durada_examen" @update:modelValue="actualitzaCamp('formulariDurada', 'durada_examen', $event)"
             showButtons
             buttonLayout="horizontal"
             incrementButtonIcon="pi pi-plus"
@@ -72,31 +72,31 @@
     :style="{ width: '560px' }"
   >
     <div class="p-fluid">
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.teacher') }}</label>
-        <Dropdown v-model="formulariProfessor.professor" :options="llistaProfessors" filter class="scheduler-dropdown" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-5'" class="font-bold">{{ t('scheduler.dialogs.fields.teacher') }}</label>
+        <Dropdown :filterInputProps="{ 'aria-label': t('common.filterOptions') }" :aria-label="t('scheduler.dialogs.fields.teacher')" :inputId="prefixEtiquetes + '-camp-5'" :modelValue="formularisLocals.formulariProfessor.professor" @update:modelValue="actualitzaCamp('formulariProfessor', 'professor', $event)" :options="llistaProfessors" filter class="scheduler-dropdown" />
       </div>
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.subjects') }}</label>
-        <MultiSelect v-model="formulariProfessor.assignatures" :options="llistaSessions" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-6'" class="font-bold">{{ t('scheduler.dialogs.fields.subjects') }}</label>
+        <MultiSelect :filterInputProps="{ 'aria-label': t('common.filterOptions') }" :aria-label="t('scheduler.dialogs.fields.subjects')" :inputId="prefixEtiquetes + '-camp-6'" :modelValue="formularisLocals.formulariProfessor.assignatures" @update:modelValue="actualitzaCamp('formulariProfessor', 'assignatures', $event)" :options="llistaSessions" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
       </div>
-      <div class="field mb-4">
+      <div class="field">
         <label class="font-bold">{{ t('scheduler.dialogs.fields.restrictedDays') }}</label>
         <div class="flex flex-wrap gap-3">
           <div v-for="dia in diesSetmana" :key="dia" class="flex align-items-center gap-2">
-            <Checkbox :inputId="`dia-${dia}`" v-model="formulariProfessor.dies" :value="dia" />
+            <Checkbox :inputId="`dia-${dia}`" :modelValue="formularisLocals.formulariProfessor.dies" @update:modelValue="actualitzaCamp('formulariProfessor', 'dies', $event)" :value="dia" />
             <label :for="`dia-${dia}`">{{ dayLabel(dia) }}</label>
           </div>
         </div>
       </div>
       <div class="grid">
-        <div class="field col-6">
-          <label class="font-bold">{{ t('scheduler.dialogs.fields.maxExams') }}</label>
-          <InputNumber v-model="formulariProfessor.max_examens" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="20" class="scheduler-inputnumber" />
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-7'" class="font-bold">{{ t('scheduler.dialogs.fields.maxExams') }}</label>
+          <InputNumber :inputId="prefixEtiquetes + '-camp-7'" :modelValue="formularisLocals.formulariProfessor.max_examens" @update:modelValue="actualitzaCamp('formulariProfessor', 'max_examens', $event)" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="20" class="scheduler-inputnumber" />
         </div>
-        <div class="field col-6">
-          <label class="font-bold">{{ t('scheduler.dialogs.fields.weightPercent') }}</label>
-          <InputNumber v-model="formulariProfessor.pes" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="100" suffix=" %" class="scheduler-inputnumber" />
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-8'" class="font-bold">{{ t('scheduler.dialogs.fields.weightPercent') }}</label>
+          <InputNumber :inputId="prefixEtiquetes + '-camp-8'" :modelValue="formularisLocals.formulariProfessor.pes" @update:modelValue="actualitzaCamp('formulariProfessor', 'pes', $event)" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="100" suffix=" %" class="scheduler-inputnumber" />
         </div>
       </div>
     </div>
@@ -114,28 +114,28 @@
     :style="{ width: '520px' }"
   >
     <div class="p-fluid">
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.daysHours.typeLabel') }}</label>
-        <SelectButton
-          v-model="formulariDiaHora.tipus"
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-9'" class="font-bold">{{ t('scheduler.dialogs.daysHours.typeLabel') }}</label>
+        <SelectButton :aria-label="t('scheduler.dialogs.daysHours.typeLabel')" :id="prefixEtiquetes + '-camp-9'"
+          :modelValue="formularisLocals.formulariDiaHora.tipus" @update:modelValue="actualitzaCamp('formulariDiaHora', 'tipus', $event)"
           :options="tipusDiaHoraOptions"
           optionLabel="label"
           optionValue="value"
           class="w-full"
         />
       </div>
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.subjects') }}</label>
-        <MultiSelect v-model="formulariDiaHora.assignatures" :options="llistaSessions" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-10'" class="font-bold">{{ t('scheduler.dialogs.fields.subjects') }}</label>
+        <MultiSelect :filterInputProps="{ 'aria-label': t('common.filterOptions') }" :aria-label="t('scheduler.dialogs.fields.subjects')" :inputId="prefixEtiquetes + '-camp-10'" :modelValue="formularisLocals.formulariDiaHora.assignatures" @update:modelValue="actualitzaCamp('formulariDiaHora', 'assignatures', $event)" :options="llistaSessions" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
       </div>
       <div class="grid">
-        <div class="field col-6">
+        <div class="field">
           <div class="flex align-items-center gap-2 mb-2">
-            <Checkbox inputId="te-dia" v-model="formulariDiaHora.teDia" :binary="true" />
+            <Checkbox :aria-label="t('scheduler.dialogs.fields.fixedDay')" inputId="te-dia" :modelValue="formularisLocals.formulariDiaHora.teDia" @update:modelValue="actualitzaCamp('formulariDiaHora', 'teDia', $event)" :binary="true" />
             <label>{{ t('scheduler.dialogs.fields.fixedDay') }}</label>
           </div>
           <Dropdown
-            v-model="formulariDiaHora.dia"
+            :aria-label="t('scheduler.dialogs.fields.fixedDay')" :modelValue="formularisLocals.formulariDiaHora.dia" @update:modelValue="actualitzaCamp('formulariDiaHora', 'dia', $event)"
             :options="diesSetmanaOptions"
             optionLabel="label"
             optionValue="value"
@@ -143,12 +143,12 @@
             class="scheduler-dropdown"
           />
         </div>
-        <div class="field col-6">
+        <div class="field">
           <div class="flex align-items-center gap-2 mb-2">
-            <Checkbox inputId="te-hora" v-model="formulariDiaHora.teHora" :binary="true" />
+            <Checkbox :aria-label="t('scheduler.dialogs.fields.fixedHour')" inputId="te-hora" :modelValue="formularisLocals.formulariDiaHora.teHora" @update:modelValue="actualitzaCamp('formulariDiaHora', 'teHora', $event)" :binary="true" />
             <label>{{ t('scheduler.dialogs.fields.fixedHour') }}</label>
           </div>
-          <Dropdown v-model="formulariDiaHora.hora" :options="llistaHoresDisponibles" :disabled="!formulariDiaHora.teHora" class="scheduler-dropdown" />
+          <Dropdown :aria-label="t('scheduler.dialogs.fields.fixedHour')" :modelValue="formularisLocals.formulariDiaHora.hora" @update:modelValue="actualitzaCamp('formulariDiaHora', 'hora', $event)" :options="llistaHoresDisponibles" :disabled="!formulariDiaHora.teHora" class="scheduler-dropdown" />
         </div>
       </div>
     </div>
@@ -166,18 +166,18 @@
     :style="{ width: '520px' }"
   >
     <div class="p-fluid">
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.subjects') }}</label>
-        <MultiSelect v-model="formulariPreferencia.assignatures" :options="llistaSessions" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-11'" class="font-bold">{{ t('scheduler.dialogs.fields.subjects') }}</label>
+        <MultiSelect :filterInputProps="{ 'aria-label': t('common.filterOptions') }" :aria-label="t('scheduler.dialogs.fields.subjects')" :inputId="prefixEtiquetes + '-camp-11'" :modelValue="formularisLocals.formulariPreferencia.assignatures" @update:modelValue="actualitzaCamp('formulariPreferencia', 'assignatures', $event)" :options="llistaSessions" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
       </div>
       <div class="grid">
-        <div class="field col-6">
-          <label class="font-bold">{{ t('scheduler.dialogs.fields.type') }}</label>
-          <Dropdown v-model="formulariPreferencia.tipus" :options="tipusPreferenciaDia" optionLabel="label" optionValue="value" class="scheduler-dropdown" />
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-12'" class="font-bold">{{ t('scheduler.dialogs.fields.type') }}</label>
+          <Dropdown :aria-label="t('scheduler.dialogs.fields.type')" :inputId="prefixEtiquetes + '-camp-12'" :modelValue="formularisLocals.formulariPreferencia.tipus" @update:modelValue="actualitzaCamp('formulariPreferencia', 'tipus', $event)" :options="tipusPreferenciaDia" optionLabel="label" optionValue="value" class="scheduler-dropdown" />
         </div>
-        <div class="field col-6">
-          <label class="font-bold">{{ t('scheduler.dialogs.fields.weightPercent') }}</label>
-          <InputNumber v-model="formulariPreferencia.pes" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="100" suffix=" %" class="scheduler-inputnumber" />
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-13'" class="font-bold">{{ t('scheduler.dialogs.fields.weightPercent') }}</label>
+          <InputNumber :inputId="prefixEtiquetes + '-camp-13'" :modelValue="formularisLocals.formulariPreferencia.pes" @update:modelValue="actualitzaCamp('formulariPreferencia', 'pes', $event)" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="100" suffix=" %" class="scheduler-inputnumber" />
           <small class="text-color-secondary">{{ t('scheduler.dialogs.preference.weightHelp') }}</small>
         </div>
       </div>
@@ -196,17 +196,17 @@
     :style="{ width: '520px' }"
   >
     <div class="p-fluid">
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.groupName') }}</label>
-        <InputText v-model="formulariIncompat.nom" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-14'" class="font-bold">{{ t('scheduler.dialogs.fields.groupName') }}</label>
+        <InputText :id="prefixEtiquetes + '-camp-14'" :modelValue="formularisLocals.formulariIncompat.nom" @update:modelValue="actualitzaCamp('formulariIncompat', 'nom', $event)" />
       </div>
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.incompatibleSubjects') }}</label>
-        <MultiSelect v-model="formulariIncompat.assignatures" :options="llistaSessions" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-15'" class="font-bold">{{ t('scheduler.dialogs.fields.incompatibleSubjects') }}</label>
+        <MultiSelect :filterInputProps="{ 'aria-label': t('common.filterOptions') }" :aria-label="t('scheduler.dialogs.fields.incompatibleSubjects')" :inputId="prefixEtiquetes + '-camp-15'" :modelValue="formularisLocals.formulariIncompat.assignatures" @update:modelValue="actualitzaCamp('formulariIncompat', 'assignatures', $event)" :options="llistaSessions" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
       </div>
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.weightPercent') }}</label>
-        <InputNumber v-model="formulariIncompat.pes" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="100" suffix=" %" class="scheduler-inputnumber" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-16'" class="font-bold">{{ t('scheduler.dialogs.fields.weightPercent') }}</label>
+        <InputNumber :inputId="prefixEtiquetes + '-camp-16'" :modelValue="formularisLocals.formulariIncompat.pes" @update:modelValue="actualitzaCamp('formulariIncompat', 'pes', $event)" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="100" suffix=" %" class="scheduler-inputnumber" />
       </div>
     </div>
     <template #footer>
@@ -223,13 +223,13 @@
     :style="{ width: '560px' }"
   >
     <div class="p-fluid">
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.optionalName') }}</label>
-        <InputText v-model="formulariAgrupacio.nom" :placeholder="t('scheduler.dialogs.grouping.namePlaceholder')" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-17'" class="font-bold">{{ t('scheduler.dialogs.fields.optionalName') }}</label>
+        <InputText :id="prefixEtiquetes + '-camp-17'" :modelValue="formularisLocals.formulariAgrupacio.nom" @update:modelValue="actualitzaCamp('formulariAgrupacio', 'nom', $event)" :placeholder="t('scheduler.dialogs.grouping.namePlaceholder')" />
       </div>
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.subjects') }}</label>
-        <MultiSelect v-model="formulariAgrupacio.assignatures" :options="sessionsFiltrades" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-18'" class="font-bold">{{ t('scheduler.dialogs.fields.subjects') }}</label>
+        <MultiSelect :filterInputProps="{ 'aria-label': t('common.filterOptions') }" :aria-label="t('scheduler.dialogs.fields.subjects')" :inputId="prefixEtiquetes + '-camp-18'" :modelValue="formularisLocals.formulariAgrupacio.assignatures" @update:modelValue="actualitzaCamp('formulariAgrupacio', 'assignatures', $event)" :options="sessionsFiltrades" filter :placeholder="t('scheduler.dialogs.fields.sessionsPlaceholder')" class="scheduler-multiselect" />
       </div>
     </div>
     <template #footer>
@@ -246,26 +246,26 @@
     :style="{ width: '560px' }"
   >
     <div class="p-fluid">
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.dialogs.fields.teacher') }}</label>
-        <Dropdown v-model="formulariCostProfessor.professor" :options="llistaProfessors" filter class="scheduler-dropdown" />
+      <div class="field">
+        <label :for="prefixEtiquetes + '-camp-19'" class="font-bold">{{ t('scheduler.dialogs.fields.teacher') }}</label>
+        <Dropdown :filterInputProps="{ 'aria-label': t('common.filterOptions') }" :aria-label="t('scheduler.dialogs.fields.teacher')" :inputId="prefixEtiquetes + '-camp-19'" :modelValue="formularisLocals.formulariCostProfessor.professor" @update:modelValue="actualitzaCamp('formulariCostProfessor', 'professor', $event)" :options="llistaProfessors" filter class="scheduler-dropdown" />
       </div>
       <div class="grid">
-        <div class="field col-6">
-          <label class="font-bold">{{ t('scheduler.dialogs.cost.fields.substitution') }}</label>
-          <InputNumber v-model="formulariCostProfessor.substitucio" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="500" class="scheduler-inputnumber" />
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-20'" class="font-bold">{{ t('scheduler.dialogs.cost.fields.substitution') }}</label>
+          <InputNumber :inputId="prefixEtiquetes + '-camp-20'" :modelValue="formularisLocals.formulariCostProfessor.substitucio" @update:modelValue="actualitzaCamp('formulariCostProfessor', 'substitucio', $event)" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="500" class="scheduler-inputnumber" />
         </div>
-        <div class="field col-6">
-          <label class="font-bold">{{ t('scheduler.dialogs.cost.fields.beforeShift') }}</label>
-          <InputNumber v-model="formulariCostProfessor.abans_jornada" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="500" class="scheduler-inputnumber" />
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-21'" class="font-bold">{{ t('scheduler.dialogs.cost.fields.beforeShift') }}</label>
+          <InputNumber :inputId="prefixEtiquetes + '-camp-21'" :modelValue="formularisLocals.formulariCostProfessor.abans_jornada" @update:modelValue="actualitzaCamp('formulariCostProfessor', 'abans_jornada', $event)" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="500" class="scheduler-inputnumber" />
         </div>
-        <div class="field col-6">
-          <label class="font-bold">{{ t('scheduler.dialogs.cost.fields.afterShift') }}</label>
-          <InputNumber v-model="formulariCostProfessor.despres_jornada" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="500" class="scheduler-inputnumber" />
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-22'" class="font-bold">{{ t('scheduler.dialogs.cost.fields.afterShift') }}</label>
+          <InputNumber :inputId="prefixEtiquetes + '-camp-22'" :modelValue="formularisLocals.formulariCostProfessor.despres_jornada" @update:modelValue="actualitzaCamp('formulariCostProfessor', 'despres_jornada', $event)" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="500" class="scheduler-inputnumber" />
         </div>
-        <div class="field col-6">
-          <label class="font-bold">{{ t('scheduler.dialogs.cost.fields.noWorkDay') }}</label>
-          <InputNumber v-model="formulariCostProfessor.no_treballa_dia" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="500" class="scheduler-inputnumber" />
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-23'" class="font-bold">{{ t('scheduler.dialogs.cost.fields.noWorkDay') }}</label>
+          <InputNumber :inputId="prefixEtiquetes + '-camp-23'" :modelValue="formularisLocals.formulariCostProfessor.no_treballa_dia" @update:modelValue="actualitzaCamp('formulariCostProfessor', 'no_treballa_dia', $event)" showButtons buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus" :min="0" :max="500" class="scheduler-inputnumber" />
         </div>
       </div>
     </div>
@@ -329,8 +329,8 @@
     <Message v-if="explicacioNoDisponible" severity="warn" :closable="false" class="mb-2">
       {{ t('scheduler.dialogs.incompatibilities.explanationUnavailable', { ref: explicacioNoDisponible }) }}
     </Message>
-    <ul v-if="incompatibilitats.length" class="pl-3 m-0">
-      <li v-for="(msg, idx) in incompatibilitats" :key="idx" class="text-sm mb-1">{{ msg }}</li>
+    <ul v-if="incompatibilitats.length" class="pl-3">
+      <li v-for="(msg, idx) in incompatibilitats" :key="idx" class="text-sm">{{ msg }}</li>
     </ul>
     <div v-else-if="!explicacioNoDisponible" class="text-sm">{{ t('scheduler.dialogs.incompatibilities.undetermined') }}</div>
     <template #footer>
@@ -340,7 +340,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { useId } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { localizeBackendDayName } from '../textUtils'
 import Button from 'primevue/button'
@@ -355,6 +356,8 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
+
+const prefixEtiquetes = useId()
 
 const props = defineProps({
   mostrarDialogDurada: { type: Boolean, default: false },
@@ -409,8 +412,49 @@ const emit = defineEmits([
   'update:mostrarDialogAgrupacio',
   'update:mostrarDialogCostProfessor',
   'update:mostrarDialogIntents',
-  'update:mostrarDialogIncompat'
+  'update:mostrarDialogIncompat',
+  'update:formulariDurada',
+  'update:formulariProfessor',
+  'update:formulariDiaHora',
+  'update:formulariPreferencia',
+  'update:formulariIncompat',
+  'update:formulariAgrupacio',
+  'update:formulariCostProfessor',
 ])
+
+// Cada camp continua arribant al pare en editar-lo (també si després es
+// cancel·la). Les còpies eviten modificar les props o compartir-hi els arrays.
+const copiaFormulari = (valor) => {
+  if (Array.isArray(valor)) return valor.map(copiaFormulari)
+  if (valor && typeof valor === 'object') {
+    return Object.fromEntries(Object.entries(valor).map(([clau, camp]) => [clau, copiaFormulari(camp)]))
+  }
+  return valor
+}
+
+const formularisLocals = reactive({})
+const nomsFormularis = [
+  'formulariDurada',
+  'formulariProfessor',
+  'formulariDiaHora',
+  'formulariPreferencia',
+  'formulariIncompat',
+  'formulariAgrupacio',
+  'formulariCostProfessor',
+]
+
+for (const nom of nomsFormularis) {
+  // El pare reinicia els formularis en obrir/editar i després de desar. La
+  // sincronització immediata també preserva els canvis de camps fets pel pare.
+  watch(() => props[nom], (valor) => {
+    formularisLocals[nom] = copiaFormulari(valor)
+  }, { immediate: true, deep: true, flush: 'sync' })
+}
+
+const actualitzaCamp = (nom, camp, valor) => {
+  formularisLocals[nom][camp] = copiaFormulari(valor)
+  emit(`update:${nom}`, copiaFormulari(formularisLocals[nom]))
+}
 
 const { t } = useI18n()
 const dayLabel = (day) => localizeBackendDayName(day, t)

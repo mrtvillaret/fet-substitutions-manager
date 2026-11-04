@@ -12,8 +12,8 @@
       <!-- Selector de període -->
       <div class="periode-selector">
         <div v-if="cursos && cursos.length" class="field">
-          <label>{{ $t('stats.period.course') }}</label>
-          <Dropdown
+          <label :for="prefixEtiquetes + '-camp-1'">{{ $t('stats.period.course') }}</label>
+          <Dropdown :aria-label="$t('stats.period.course')" :inputId="prefixEtiquetes + '-camp-1'"
             v-model="cursTriatId"
             :options="cursos"
             optionLabel="nom"
@@ -24,8 +24,8 @@
           />
         </div>
         <div class="field">
-          <label>{{ $t('stats.period.start') }}</label>
-          <Calendar
+          <label :for="prefixEtiquetes + '-camp-2'">{{ $t('stats.period.start') }}</label>
+          <Calendar :inputId="prefixEtiquetes + '-camp-2'"
             v-model="dataInici"
             dateFormat="yy-mm-dd"
             :maxDate="dataFinal"
@@ -34,8 +34,8 @@
           />
         </div>
         <div class="field">
-          <label>{{ $t('stats.period.end') }}</label>
-          <Calendar
+          <label :for="prefixEtiquetes + '-camp-3'">{{ $t('stats.period.end') }}</label>
+          <Calendar :inputId="prefixEtiquetes + '-camp-3'"
             v-model="dataFinal"
             dateFormat="yy-mm-dd"
             :minDate="dataInici"
@@ -45,7 +45,7 @@
         </div>
         <div class="field">
           <label for="estadistiques-hores">{{ $t('stats.period.hours') }}</label>
-          <MultiSelect
+          <MultiSelect :aria-label="$t('stats.period.hours')"
             v-model="horesTriades"
             inputId="estadistiques-hores"
             :options="frangesHorari"
@@ -315,7 +315,7 @@
                 </div>
                 <p class="informe-bloc__desc">{{ $t('stats.informes.professor.desc') }}</p>
                 <div class="informe-prof-controls">
-                  <Dropdown
+                  <Dropdown :aria-label="$t('stats.informes.professor.tots')"
                     v-model="informeProfessorSeleccionat"
                     :options="informeProfessorsOpcions"
                     :placeholder="$t('stats.informes.professor.tots')"
@@ -432,23 +432,23 @@
     <div class="franges-body">
       <div class="franges-controls">
         <div class="field">
-          <label>{{ $t('stats.slots.day') }}</label>
-          <Dropdown
+          <label :for="prefixEtiquetes + '-camp-4'">{{ $t('stats.slots.day') }}</label>
+          <Dropdown :aria-label="$t('stats.slots.day')" :inputId="prefixEtiquetes + '-camp-4'"
             v-model="frangesDia"
             :options="diesOpcions"
             optionLabel="label"
             optionValue="value"
             :placeholder="$t('stats.slots.selectDay')"
-            class="w-full"
+
           />
         </div>
         <div class="field">
-          <label>{{ $t('stats.slots.hour') }}</label>
-          <Dropdown
+          <label :for="prefixEtiquetes + '-camp-5'">{{ $t('stats.slots.hour') }}</label>
+          <Dropdown :aria-label="$t('stats.slots.hour')" :inputId="prefixEtiquetes + '-camp-5'"
             v-model="frangesHora"
             :options="horesDisponibles"
             :placeholder="$t('stats.slots.selectHour')"
-            class="w-full"
+
           />
         </div>
         <Button
@@ -500,14 +500,14 @@
     <div class="classes-detail-body">
       <div class="classes-detail-controls">
         <div class="field">
-          <label>{{ $t('stats.classes.detailClasses') }}</label>
-          <MultiSelect
+          <label :for="prefixEtiquetes + '-camp-6'">{{ $t('stats.classes.detailClasses') }}</label>
+          <MultiSelect :aria-label="$t('stats.classes.detailClasses')" :inputId="prefixEtiquetes + '-camp-6'"
             v-model="classesSeleccionades"
             :options="classesDisponibles"
             optionLabel="label"
             optionValue="value"
             :placeholder="$t('stats.classes.detailPlaceholder')"
-            class="w-full"
+
             display="chip"
           />
         </div>
@@ -571,12 +571,8 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { useId } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
-import { dataTreball } from '../dataTreball'
-import { dataIso } from '../dates'
-import { ordenaAlfabeticament } from '../ordreAlfabetic'
 import { localizeBackendDayName } from '../views/scheduler/textUtils'
 import { useToast } from 'primevue/usetoast'
 import Dialog from 'primevue/dialog'
@@ -590,6 +586,9 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dropdown from 'primevue/dropdown'
 import MultiSelect from 'primevue/multiselect'
+import { useEstadistiques } from '../composables/useEstadistiques'
+
+const prefixEtiquetes = useId()
 
 const toast = useToast()
 const { t } = useI18n()
@@ -613,1059 +612,58 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible'])
 
-const loading = ref(false)
-const dataInici = ref(null)
-const dataFinal = ref(null)
-const resum = ref(null)
-const professorsStats = ref({
-  professors_absents: [],
-  top_substituts: []
-})
-const temporalStats = ref(null)
-const classesStats = ref({ classes: [] })
-const professorsResum = ref({ professors: [] })
-const professorDetailVisible = ref(false)
-const professorDetail = ref(null)
-const detailLoading = ref(false)
-const frangesVisible = ref(false)
-const frangesLoading = ref(false)
-const frangesData = ref(null)
-const frangesDia = ref('')
-const frangesHora = ref('')
-const classesDetailVisible = ref(false)
-const classesDetailLoading = ref(false)
-const classesDetailData = ref(null)
-const classesSeleccionades = ref([])
-
-// Informes PDF
-const generantDireccio = ref(false)
-const generantProfessor = ref(false)
-const informeProfessorSeleccionat = ref(null)
-const informeMostrarTaules = ref(false)
-const informeProfessorsOpcions = ref([])
-
-// Filtre per hores: les franges de l'horari de l'interval i les triades
-const frangesHorari = ref([])
-const horesTriades = ref([])
-
-const diesDisponibles = computed(() => (temporalStats.value?.dies || []).map((d) => d.dia))
-// El backend anomena els dies en català; a la pantalla, en l'idioma triat
-const diesOpcions = computed(() => diesDisponibles.value.map((d) => ({ label: localizeBackendDayName(d, t), value: d })))
-const horesDisponibles = computed(() => (temporalStats.value?.hores || []).map((h) => h.hora))
-
-const topAbsents = computed(() => (professorsStats.value.professors_absents || []).slice(0, 5))
-const topSubstituts = computed(() => (professorsStats.value.top_substituts || []).slice(0, 5))
-const topAbsentsMax = computed(() => Math.max(0, ...topAbsents.value.map(p => p.total || 0)))
-const topSubstitutsMax = computed(() => Math.max(0, ...topSubstituts.value.map(p => p.total || 0)))
-// Per ordre alfabètic natural («1-ESO-B» abans de «1-ESO-C», «2-BAT» abans de «10-...»)
-const classesDisponibles = computed(() =>
-  ordenaAlfabeticament((classesStats.value?.classes || []).map((c) => c.grup)).map((grup) => ({
-    label: grup,
-    value: grup
-  }))
-)
-
-// Curs triat al selector del diàleg (null = rang personalitzat)
-const cursTriatId = ref(null)
-
-// Aplica el rang d'un curs. L'últim curs és obert (data_fi = null): el tanquem amb la
-// data més tardana entre avui, l'inici i la data de treball — així no queda un rang
-// invertit quan es preparen dades d'un curs que encara no ha començat.
-const aplicarRangCurs = (curs) => {
-  if (!curs?.data_inici) return false
-  const inici = new Date(curs.data_inici)
-  let fi
-  if (curs.data_fi) {
-    fi = new Date(curs.data_fi)
-  } else {
-    const candidats = [Date.now(), inici.getTime()]
-    // la data de treball, per acotar el final d'un curs encara obert
-    candidats.push(dataTreball.value.getTime())
-    fi = new Date(Math.max(...candidats))
-  }
-  dataInici.value = inici
-  dataFinal.value = fi
-  return true
-}
-
-const onCursTriat = () => {
-  const curs = props.cursos.find(c => c.id === cursTriatId.value)
-  if (curs && aplicarRangCurs(curs)) carregarEstadistiques()
-}
-
-// Inicialitzar dates: el curs de la data de treball mana; si no n'hi ha, la BD o
-// últims 30 dies. Les dates es poden ajustar lliurement (un rang pot creuar cursos).
-const inicialitzarDates = async () => {
-  cursTriatId.value = props.curs?.id ?? null
-  if (aplicarRangCurs(props.curs)) return
-
-  try {
-    const response = await axios.get('/api/settings')
-    const cfg = response.data || {}
-    const dataIniciCfg = cfg.data_inici_estadistiques
-    const dataFinalCfg = cfg.data_final_estadistiques
-
-    if (dataIniciCfg && dataFinalCfg) {
-      dataInici.value = new Date(dataIniciCfg)
-      dataFinal.value = new Date(dataFinalCfg)
-      return
-    }
-  } catch (error) {
-    console.error('Error carregant configuració estadístiques:', error)
-  }
-
-  // Dates per defecte: últims 30 dies
-  const avui = new Date()
-  dataFinal.value = avui
-
-  const fa30Dies = new Date()
-  fa30Dies.setDate(avui.getDate() - 30)
-  dataInici.value = fa30Dies
-}
-
-const formatDate = dataIso
-
-// El període i el filtre per hores de tots els recomptes (sense hores triades, totes)
-const paramsDelFiltre = () => ({
-  data_inici: formatDate(dataInici.value),
-  data_final: formatDate(dataFinal.value),
-  ...(horesTriades.value.length ? { hores: horesTriades.value } : {})
-})
-
-// Les hores amb què s'han carregat les estadístiques: en tancar el selector,
-// només es recarrega si han canviat (també la llista de professors dels
-// informes, que fan servir el mateix filtre)
-let horesCarregades = []
-const recarregaSiCanviaElFiltre = () => {
-  const ara = [...horesTriades.value].sort()
-  if (ara.join('|') !== [...horesCarregades].sort().join('|')) {
-    carregarEstadistiques()
-    carregarInformeProfessors()
-  }
-}
-
-const carregarEstadistiques = async () => {
-  loading.value = true
-  try {
-    const params = paramsDelFiltre()
-    horesCarregades = [...horesTriades.value]
-
-    // Guardar dates a la BD per institució (les hores, no)
-    await axios.put('/api/settings', {
-      data_inici_estadistiques: params.data_inici,
-      data_final_estadistiques: params.data_final
-    })
-
-    const [resumResp, professorsResp, temporalResp, classesResp, taulaResp] = await Promise.all([
-      axios.get('/api/estadistiques/resum', { params }),
-      axios.get('/api/estadistiques/professors', { params }),
-      axios.get('/api/estadistiques/temporal', { params }),
-      axios.get('/api/estadistiques/classes', { params }),
-      axios.get('/api/estadistiques/taula', { params })
-    ])
-
-    resum.value = resumResp.data
-    professorsStats.value = professorsResp.data
-    temporalStats.value = temporalResp.data
-    classesStats.value = classesResp.data
-    professorsResum.value = taulaResp.data
-  } catch (error) {
-    console.error('Error carregant estadístiques:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('stats.errors.load'),
-      life: 3000
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
-// El tipus de fila de substitució (ABSENCIA, SERVEI...), en l'idioma triat
-const nomTipusFila = (tipus) => (tipus ? t(`stats.detail.types.${tipus}`) : '')
-
-const formatPercent = (value, total) => {
-  if (!total || total <= 0) return '0%'
-  const percent = Math.min(100, Math.round((value / total) * 100))
-  return `${percent}%`
-}
-
-const formatBarWidth = (value, maxValue) => {
-  if (!maxValue || maxValue <= 0) return '0%'
-  const percent = Math.min(100, Math.round((value / maxValue) * 100))
-  return `${percent}%`
-}
-
-const formatProfessors = (professors) => {
-  if (!professors || professors.length === 0) return '-'
-  return professors.map((p) => `${p.professor} (${p.total})`).join(', ')
-}
-
-const obrirResumFranges = () => {
-  if (!frangesDia.value) {
-    frangesDia.value = diesDisponibles.value[0] || ''
-  }
-  if (!frangesHora.value) {
-    frangesHora.value = horesDisponibles.value[0] || ''
-  }
-  frangesVisible.value = true
-  if (frangesDia.value && frangesHora.value) {
-    carregarFranges()
-  }
-}
-
-const carregarFranges = async () => {
-  if (!frangesDia.value || !frangesHora.value) return
-  frangesLoading.value = true
-  try {
-    const params = {
-      ...paramsDelFiltre(),
-      dia: frangesDia.value,
-      hora: frangesHora.value
-    }
-    const resp = await axios.get('/api/estadistiques/franges', { params })
-    frangesData.value = resp.data
-  } catch (error) {
-    console.error('Error carregant franges:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('stats.errors.slots'),
-      life: 3000
-    })
-  } finally {
-    frangesLoading.value = false
-  }
-}
-
-const onProfessorRowClick = async (event) => {
-  const prof = event?.data?.professor
-  if (!prof) return
-  detailLoading.value = true
-  professorDetailVisible.value = true
-  try {
-    const params = paramsDelFiltre()
-    const resp = await axios.get(`/api/estadistiques/professor/${encodeURIComponent(prof)}`, { params })
-    professorDetail.value = resp.data
-  } catch (error) {
-    console.error('Error carregant detall professor:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('stats.errors.teacherDetail'),
-      life: 3000
-    })
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-const obrirDetallClasses = (grup = null) => {
-  if (grup) {
-    classesSeleccionades.value = [grup]
-  } else if (!classesSeleccionades.value.length && classesDisponibles.value.length) {
-    classesSeleccionades.value = [classesDisponibles.value[0].value]
-  }
-  classesDetailVisible.value = true
-}
-
-const onClasseRowClick = (event) => {
-  const grup = event?.data?.grup
-  if (!grup) return
-  obrirDetallClasses(grup)
-  carregarDetallClasses()
-}
-
-const carregarDetallClasses = async () => {
-  if (!classesSeleccionades.value.length) {
-    toast.add({
-      severity: 'warn',
-      summary: t('stats.classes.selectionRequired'),
-      detail: t('stats.classes.selectAtLeastOne'),
-      life: 2500
-    })
-    return
-  }
-
-  classesDetailLoading.value = true
-  try {
-    const params = {
-      ...paramsDelFiltre(),
-      grups: classesSeleccionades.value
-    }
-    const resp = await axios.get('/api/estadistiques/classes/detall', { params })
-    classesDetailData.value = resp.data
-  } catch (error) {
-    console.error('Error carregant detall classes:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('stats.errors.classesDetail'),
-      life: 3000
-    })
-  } finally {
-    classesDetailLoading.value = false
-  }
-}
-
-const tancar = () => {
-  emit('update:visible', false)
-}
-
-const _descarregarPdf = async (url, params, nomFitxer, refLoading) => {
-  refLoading.value = true
-  try {
-    const resp = await axios.get(url, { params, responseType: 'blob' })
-    const blob = new Blob([resp.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = nomFitxer
-    link.click()
-    URL.revokeObjectURL(link.href)
-  } catch (error) {
-    // L'avís amb el missatge del backend (detail) el mostra l'interceptor
-    // d'App.vue, que també el llegeix del blob
-    console.error('Error generant informe:', error)
-  } finally {
-    refLoading.value = false
-  }
-}
-
-const generarInformeDireccio = async () => {
-  const params = paramsDelFiltre()
-  const nom = `informe_direccio_${params.data_inici}_${params.data_final}.pdf`
-  await _descarregarPdf('/api/informes/direccio', params, nom, generantDireccio)
-}
-
-const generarInformeProfessor = async () => {
-  const params = {
-    ...paramsDelFiltre(),
-    mostrar_taules: informeMostrarTaules.value,
-  }
-  if (informeProfessorSeleccionat.value) {
-    params.professor = informeProfessorSeleccionat.value
-  }
-  const nom = informeProfessorSeleccionat.value
-    ? `informe_${informeProfessorSeleccionat.value}_${params.data_inici}_${params.data_final}.pdf`
-    : `informe_professors_${params.data_inici}_${params.data_final}.pdf`
-  await _descarregarPdf('/api/informes/professor', params, nom, generantProfessor)
-}
-
-const carregarInformeProfessors = async () => {
-  try {
-    const resp = await axios.get('/api/informes/professors-llista', { params: paramsDelFiltre() })
-    informeProfessorsOpcions.value = ordenaAlfabeticament(resp.data.professors || [])
-    // El professor triat potser no té res al nou interval
-    if (!informeProfessorsOpcions.value.includes(informeProfessorSeleccionat.value)) {
-      informeProfessorSeleccionat.value = null
-    }
-  } catch (error) {
-    console.error('Error carregant llista professors:', error)
-  }
-}
-
-// Les franges de l'horari de l'interval, per al filtre per hores. Si una
-// hora triada ja no hi és (un altre horari), es treu del filtre.
-const carregarFrangesHorari = async () => {
-  try {
-    const params = {
-      data_inici: formatDate(dataInici.value),
-      data_final: formatDate(dataFinal.value)
-    }
-    const resp = await axios.get('/api/estadistiques/hores', { params })
-    frangesHorari.value = resp.data.hores || []
-    horesTriades.value = horesTriades.value.filter((h) => frangesHorari.value.includes(h))
-  } catch (error) {
-    console.error('Error carregant les franges de l\'horari:', error)
-  }
-}
-
-// Carregar quan s'obre el diàleg
-watch(() => props.visible, (newVal) => {
-  if (newVal) {
-    inicialitzarDates().then(async () => {
-      await carregarFrangesHorari()
-      carregarEstadistiques()
-      carregarInformeProfessors()
-    })
-  }
-})
-
-// La llista de professors i les franges són les de l'interval: es refan
-// quan canvien les dates (la llista, després de treure del filtre les hores
-// que ja no hi són)
-watch([dataInici, dataFinal], async ([inici, final]) => {
-  if (props.visible && inici && final) {
-    await carregarFrangesHorari()
-    carregarInformeProfessors()
-  }
-})
-
-// Si canvia la data de treball (i per tant el seu curs) amb el diàleg obert,
-// reescopa les estadístiques al nou curs
-watch(() => props.curs?.id, (nou, antic) => {
-  if (!props.visible || nou === antic || !nou) return
-  cursTriatId.value = nou
-  if (aplicarRangCurs(props.curs)) carregarEstadistiques()
-})
+const {
+  loading,
+  dataInici,
+  dataFinal,
+  resum,
+  temporalStats,
+  classesStats,
+  professorsResum,
+  professorDetailVisible,
+  professorDetail,
+  detailLoading,
+  frangesVisible,
+  frangesLoading,
+  frangesData,
+  frangesDia,
+  frangesHora,
+  classesDetailVisible,
+  classesDetailLoading,
+  classesDetailData,
+  classesSeleccionades,
+  generantDireccio,
+  generantProfessor,
+  informeProfessorSeleccionat,
+  informeMostrarTaules,
+  informeProfessorsOpcions,
+  frangesHorari,
+  horesTriades,
+  diesOpcions,
+  horesDisponibles,
+  topAbsents,
+  topSubstituts,
+  topAbsentsMax,
+  topSubstitutsMax,
+  classesDisponibles,
+  cursTriatId,
+  onCursTriat,
+  recarregaSiCanviaElFiltre,
+  carregarEstadistiques,
+  nomTipusFila,
+  formatPercent,
+  formatBarWidth,
+  formatProfessors,
+  obrirResumFranges,
+  carregarFranges,
+  onProfessorRowClick,
+  obrirDetallClasses,
+  onClasseRowClick,
+  carregarDetallClasses,
+  tancar,
+  generarInformeDireccio,
+  generarInformeProfessor,
+} = useEstadistiques({ props, emit, t, toast })
 </script>
 
-<style scoped>
-.estadistiques-container {
-  padding: 0.75rem 0.75rem 0.5rem;
-}
-
-.informes-container {
-  padding: 0.5rem 0;
-}
-
-.informe-bloc {
-  padding: 1rem 0;
-}
-
-.informe-bloc__titol {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1e3a5f;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.informe-bloc__desc {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 0.75rem;
-}
-
-.informe-prof-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.informe-check {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.875rem;
-  color: #374151;
-}
-
-.periode-selector {
-  display: flex;
-  flex-wrap: wrap; /* a la pantalla estreta, els camps passen a la línia següent */
-  gap: 1rem;
-  align-items: flex-end;
-  margin-bottom: 1.25rem;
-}
-
-.periode-selector .field {
-  flex: 1 1 10rem; /* prou ample perquè es llegeixi la data sencera */
-  min-width: 10rem;
-}
-
-.periode-selector .field :deep(.p-calendar),
-.periode-selector .field :deep(.p-dropdown),
-.periode-selector .field :deep(.p-multiselect) {
-  width: 100%;
-}
-
-.periode-selector .field label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #374151;
-  font-size: 0.9rem;
-}
-
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 2rem;
-  text-align: center;
-  gap: 1rem;
-  color: #667eea;
-}
-
-.stats-content {
-  padding: 0.5rem 0;
-}
-
-
-.stats-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.14rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.stat-card.primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.stat-card.success {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  color: white;
-}
-
-.stat-card.info {
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-  color: white;
-}
-
-.stat-card.warning {
-  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-  color: white;
-}
-
-.stat-icon {
-  font-size: 2rem;
-  opacity: 0.9;
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 1.6rem;
-  font-weight: 700;
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-  opacity: 0.9;
-  font-weight: 500;
-}
-
-.stat-detail {
-  font-size: 0.75rem;
-  opacity: 0.85;
-  margin-top: 0.25rem;
-}
-
-.top-lists {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.top-list h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid #e5e7eb;
-}
-
-.list-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: #f9fafb;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-  transition: all 0.2s;
-}
-
-.list-item:hover {
-  background: #f3f4f6;
-  transform: translateX(4px);
-}
-
-.rank {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: #667eea;
-  color: white;
-  border-radius: 50%;
-  font-weight: 700;
-  font-size: 0.85rem;
-  flex-shrink: 0;
-}
-
-.name {
-  flex: 1;
-  font-weight: 500;
-  color: #374151;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.empty-list {
-  text-align: center;
-  padding: 2rem 1rem;
-  color: #9ca3af;
-  font-style: italic;
-}
-
-.bar-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.bar-row {
-  display: grid;
-  grid-template-columns: 32px 1fr 140px 36px;
-  gap: 0.6rem;
-  align-items: center;
-  padding: 0.35rem 0.5rem;
-  background: #f8fafc;
-  border-radius: 8px;
-}
-
-.bar-track {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.2s ease;
-}
-
-.bar-fill.warning {
-  background: linear-gradient(90deg, #f59e0b, #f97316);
-}
-
-.bar-fill.success {
-  background: linear-gradient(90deg, #10b981, #22c55e);
-}
-
-.bar-fill.info {
-  background: linear-gradient(90deg, #3b82f6, #6366f1);
-}
-
-.bar-value {
-  text-align: right;
-  font-weight: 600;
-  color: #374151;
-}
-
-.temporal-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.5rem;
-}
-
-.temporal-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
-}
-
-.classes-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.75rem;
-}
-
-.temporal-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-}
-
-.temporal-card h3 {
-  margin: 0 0 1rem;
-  font-size: 1.05rem;
-  color: #1f2937;
-}
-
-.top-list__hint {
-  display: block;
-  margin: -0.35rem 0 0.6rem;
-  color: #6b7280;
-  font-size: 0.78rem;
-}
-
-.temporal-legend {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #6b7280;
-  margin: -0.35rem 0 0.75rem;
-}
-
-/* La barra és la de les hores a cobrir */
-.temporal-legend .legend-to-cover {
-  color: #4f46e5;
-}
-
-.temporal-legend .legend-subs {
-  color: #059669;
-}
-
-.temporal-legend .legend-vigs {
-  color: #6b7280;
-}
-
-.temporal-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.temporal-row {
-  display: grid;
-  grid-template-columns: 90px 1fr 100px;
-  gap: 0.6rem;
-  align-items: center;
-}
-
-.temporal-label {
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.9rem;
-}
-
-.temporal-bar {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.temporal-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #4f46e5 100%);
-  border-radius: 999px;
-}
-
-.temporal-values {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-}
-
-.temporal-values .to-cover {
-  font-weight: 600;
-  color: #4f46e5;
-}
-
-.temporal-values .subs {
-  color: #059669;
-}
-
-.temporal-values .vigs {
-  color: #6b7280;
-}
-
-.classes-table {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-:deep(.classes-table .p-datatable-tbody > tr) {
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-:deep(.classes-table .p-datatable-tbody > tr:hover) {
-  background: #eef2ff;
-}
-
-.professors-section {
-  margin-top: 1.5rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.section-header h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #1f2937;
-}
-
-.section-header small {
-  color: #6b7280;
-}
-
-.section-header__hints {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-}
-
-/* A la pantalla estreta, les ajudes sota el títol (si no, el títol fa tres línies) */
-@media (max-width: 600px) {
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
-  }
-
-  .section-header__hints {
-    align-items: flex-start;
-    text-align: left;
-  }
-}
-
-.professors-table {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-:deep(.professors-table .p-datatable-tbody > tr) {
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-:deep(.professors-table .p-datatable-tbody > tr:hover) {
-  background: #eef2ff;
-}
-
-:deep(.professors-table .p-datatable-thead > tr > th) {
-  background: #f8f9fa;
-  color: #1f2937;
-  font-weight: 700;
-  text-align: center;
-  padding: 0.75rem 0.6rem;
-}
-
-:deep(.professors-table .p-datatable-tbody > tr > td) {
-  padding: 0.7rem 0.6rem;
-  text-align: center;
-  font-weight: 500;
-  color: #374151;
-}
-
-:deep(.professors-table .p-datatable-tbody > tr > td:first-child),
-:deep(.professors-table .p-datatable-thead > tr > th:first-child) {
-  text-align: left;
-  font-weight: 600;
-}
-
-/* Els totals: total d'absències, substitucions fetes i balanç */
-:deep(.professors-table .p-datatable-tbody > tr > td:nth-child(4)),
-:deep(.professors-table .p-datatable-tbody > tr > td:nth-child(5)),
-:deep(.professors-table .p-datatable-tbody > tr > td:nth-child(7)) {
-  font-weight: 700;
-  color: #111827;
-}
-
-.detail-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.detail-section h3 {
-  margin: 0 0 0.75rem;
-  font-size: 1.05rem;
-  color: #1f2937;
-}
-
-.detail-table {
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-}
-
-.franges-controls {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 1rem;
-  align-items: end;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
-.franges-controls :deep(.p-dropdown) {
-  min-height: 2.6rem;
-}
-
-.franges-controls :deep(.p-dropdown-label) {
-  padding: 0.6rem 0.85rem;
-  font-size: 0.95rem;
-}
-
-.franges-controls :deep(.p-dropdown-trigger) {
-  width: 2.2rem;
-}
-
-.franges-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.franges-body {
-  padding: 1.25rem 1.25rem 1rem;
-}
-
-.franges-summary {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.franges-summary :deep(.p-tag) {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.9rem;
-}
-
-.franges-dialog :deep(.p-dialog-header) {
-  background: #f8fafc;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.franges-dialog :deep(.p-dialog-content) {
-  background: #ffffff;
-  padding: 0;
-}
-
-.classes-detail-body {
-  padding: 1.25rem 1.25rem 1rem;
-}
-
-.classes-detail-controls {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1rem;
-  align-items: end;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
-.classes-detail-controls :deep(.p-multiselect) {
-  min-height: 2.6rem;
-}
-
-.classes-detail-controls :deep(.p-multiselect-label) {
-  padding: 0.6rem 0.85rem;
-  font-size: 0.95rem;
-}
-
-.classes-detail-controls :deep(.p-multiselect-trigger) {
-  width: 2.2rem;
-}
-
-.classes-detail-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.classes-detail-summary :deep(.p-tag) {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.9rem;
-}
-
-.classes-detail-groups {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  color: #4b5563;
-}
-
-.classes-detail-groups .group-chip {
-  background: #f1f5f9;
-  border: 1px solid #e5e7eb;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.classes-detail-table {
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-}
-
-.classes-detail-table :deep(.p-datatable-thead > tr > th),
-.classes-detail-table :deep(.p-datatable-tbody > tr > td) {
-  padding: 0.75rem 0.7rem;
-}
-
-.classes-detail-dialog :deep(.p-dialog-content) {
-  background: #ffffff;
-  padding: 0;
-}
-
-.franges-dialog :deep(.p-tag) {
-  font-weight: 600;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
-}
-
-.franges-dialog :deep(.p-tag + .p-tag) {
-  background: #ecfdf3;
-  color: #166534;
-}
-
-.franges-professors {
-  color: #374151;
-  font-size: 0.9rem;
-}
-
-.franges-table {
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-}
-
-.franges-table :deep(.p-datatable-thead > tr > th) {
-  padding: 0.8rem 0.8rem;
-}
-
-.franges-table :deep(.p-datatable-tbody > tr > td) {
-  padding: 0.8rem 0.8rem;
-}
-
-</style>
+<style scoped src="./estadistiquesDialog.css"></style>

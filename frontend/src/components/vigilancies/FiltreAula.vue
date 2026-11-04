@@ -1,7 +1,7 @@
 <template>
   <!-- Filtre per aula (Vigilàncies i Configuració d'exàmens). Amb «ENLLAÇ» es
        veu de seguida qui fa d'enllaç. Amb cerca: hi pot haver moltes aules. -->
-  <Dropdown
+  <Dropdown :filterInputProps="{ 'aria-label': $t('common.filterOptions') }"
     v-model="aula"
     :options="[etiquetaTotes, ...aules]"
     :placeholder="$t('vigilancies.filters.room')"

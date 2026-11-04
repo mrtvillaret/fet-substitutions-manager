@@ -1,5 +1,6 @@
-import axios from 'axios'
+import * as apiPlanificador from '../../api/planificador'
 import { costosDesats } from './costos'
+import * as apiHorari from '../../api/horari'
 
 const parseAlliberamentsPerNivell = (raw) => {
   const parsed = {}
@@ -104,20 +105,20 @@ export const useSchedulerApi = ({
   const carregarDadesHorari = async (dataReferencia) => {
     const params = { params: { data: dataReferencia } }
     const [pr, gr, hr] = await Promise.all([
-      axios.get('/api/professors', params),
-      axios.get('/api/horari/grups/detectar', params),
-      axios.get('/api/hores', params),
+      apiHorari.professors(params),
+      apiHorari.detectaGrups(params),
+      apiHorari.hores(params),
     ])
-    llistaProfessors.value = pr.data.professors || []
-    llistaGrups.value = (gr.data.grups_raw || []).map((g) => ({ nom: g, codi: g }))
-    llistaHoresDisponibles.value = [...new Set(hr.data?.hores || [])]
+    llistaProfessors.value = pr.professors || []
+    llistaGrups.value = (gr.grups_raw || []).map((g) => ({ nom: g, codi: g }))
+    llistaHoresDisponibles.value = [...new Set(hr?.hores || [])]
   }
 
   const carregarSessions = async () => {
     if (!genConfig.value.nivells_actius.length) return
     try {
       const nivells = genConfig.value.nivells_actius.join(',')
-      const response = await axios.get(`/api/scheduler/sessions-info?nivells=${nivells}`)
+      const response = await apiPlanificador.sessionsInfo(nivells)
       llistaSessions.value = response.data || []
     } catch (error) {
       console.error(error)
@@ -127,15 +128,15 @@ export const useSchedulerApi = ({
   const carregarDades = async () => {
     loading.value = true
     try {
-      const { data: horari } = await axios.get('/api/scheduler/horari')
+      const { data: horari } = await apiPlanificador.horari()
       horariPlanificacio.value = horari
       const [cfg, dt, re, act, mt, cp] = await Promise.all([
-        axios.get('/api/scheduler/config'),
-        axios.get('/api/scheduler/dates'),
-        axios.get('/api/scheduler/restriccions'),
-        axios.get('/api/scheduler/assignatures-actives'),
-        axios.get('/api/scheduler/motors').catch(() => ({ data: { motors: [] } })),
-        axios.get('/api/scheduler/costos-professors').catch(() => ({ data: null })),
+        apiPlanificador.configuracio(),
+        apiPlanificador.dates(),
+        apiPlanificador.restriccions(),
+        apiPlanificador.assignaturesActives(),
+        apiPlanificador.motors().catch(() => ({ data: { motors: [] } })),
+        apiPlanificador.costosProfessors().catch(() => ({ data: null })),
       ])
 
       config.value = cfg.data
@@ -198,7 +199,7 @@ export const useSchedulerApi = ({
           delete slot._items
         }
       }
-      const { data } = await axios.post('/api/scheduler/recalcular-cost', {
+      const { data } = await apiPlanificador.recalculaCost({
         horari: horariPerEnviar,
         data_referencia: getDataReferenciaScheduler(),
         selected_dates: selectedDates.value.map(formatLocalDate)
@@ -232,7 +233,7 @@ export const useSchedulerApi = ({
         dies_utilitzar: buildDiesUtilitzar(dSorted),
         ...genConfig.value
       }
-      const response = await axios.post('/api/scheduler/generate', payload, { timeout: 300000 })
+      const response = await apiPlanificador.genera(payload, { timeout: 300000 })
       result.value = response.data
 
       const meta = response.data?.horari?.metadata
@@ -284,7 +285,7 @@ export const useSchedulerApi = ({
         dies_utilitzar: buildDiesUtilitzar(dSorted),
         nivells_actius: genConfig.value.nivells_actius
       }
-      const response = await axios.post('/api/scheduler/analisi', payload, { timeout: 300000 })
+      const response = await apiPlanificador.analisi(payload, { timeout: 300000 })
       analisiResult.value = response.data
     } catch {
       toast.add({ severity: 'error', summary: t('common.error') })

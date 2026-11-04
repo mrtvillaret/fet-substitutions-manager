@@ -47,6 +47,8 @@
     "reload": "Actualitza"
   },
   "common": {
+    "roles": {"super_admin": "Administrador global", "admin": "Administrador", "user": "Usuari"},
+    "filterOptions": "Filtra les opcions",
     "save": "Desa",
     "cancel": "Cancel·la",
     "close": "Tanca",
@@ -1181,8 +1183,8 @@
       "daysWithVigs": "Dies amb vigilàncies",
       "perTeacher": "Detall per professor",
       "perTeacherHint": "Fes clic en un professor per veure el detall per dies",
-      "topAbsences": "Top 5 absències",
-      "topSubstitutions": "Top 5 substitucions fetes",
+      "topAbsences": "Les 5 persones amb més absències",
+      "topSubstitutions": "Les 5 persones amb més substitucions fetes",
       "toCover": "Hores a cobrir",
       "toCoverBreakdown": "{absences} d'absència i {services} de servei",
       "coveredDetail": "{count} amb substitut ({percent}%)",
@@ -1225,9 +1227,9 @@
       "detailLoading": "Carregant detall...",
       "summary": {
         "totalHours": "Hores a cobrir: {count}",
-        "topSubject": "Assignatura top: {name} ({total})",
-        "topTeacher": "Professor top: {name} ({total})",
-        "topSubstitute": "Substitut top: {name} ({total})",
+        "topSubject": "Assignatura més freqüent: {name} ({total})",
+        "topTeacher": "Professor més freqüent: {name} ({total})",
+        "topSubstitute": "Substitut més freqüent: {name} ({total})",
         "groupTotal": "{group}: {total}"
       },
       "selectionRequired": "Cal fer una selecció",
@@ -1310,7 +1312,7 @@
     "restrictionsInvalid": "El format JSON no és vàlid.",
     "restrictionsSaveError": "No s'han pogut desar les restriccions.",
     "restrictions": {
-      "noSameSlot": "Incompatibilitats (no mateix slot)",
+      "noSameSlot": "Incompatibilitats (en franges diferents)",
       "fixedDay": "Assignatures amb dia fix",
       "fixedHour": "Assignatures amb hora fixa",
       "groupPlaceholder": "Grup o clau",
@@ -1340,7 +1342,7 @@
     "motors": {
       "v3": "Optimització progressiva",
       "v2": "Millor de molts intents",
-      "v2-backtrack": "Exploració exhaustiva (Backtracking)",
+      "v2-backtrack": "Exploració exhaustiva",
       "advancedParams": "Paràmetres avançats",
       "generate": "Generar Horari",
       "params": {
@@ -1369,8 +1371,8 @@
           "help": "Com es prioritza la cerca",
           "options": {
             "ponderada": "Ponderada",
-            "epsilon_greedy": "Epsilon Greedy",
-            "greedy": "Greedy"
+            "epsilon_greedy": "Voraç amb exploració",
+            "greedy": "Voraç"
           }
         },
         "max_intents_validacio": {
@@ -1378,24 +1380,24 @@
           "help": "Quantes solucions es proven per trobar la millor"
         },
         "epsilon": {
-          "label": "Epsilon",
+          "label": "Èpsilon",
           "help": "Probabilitat d'acceptar pitjors solucions (exploració)"
         },
         "random_seed": {
-          "label": "Seed aleatòria",
-          "help": "Canvia el resultat del backtracking (mateixa seed = mateixa solució)"
+          "label": "Llavor aleatòria",
+          "help": "Canvia el resultat de la cerca (mateixa llavor = mateixa solució)"
         },
         "seeds_count": {
-          "label": "Nombre de seeds",
-          "help": "Provar múltiples seeds i quedar-se amb la millor solució"
+          "label": "Nombre de llavors",
+          "help": "Prova diverses llavors i tria la millor solució"
         },
         "max_nodes": {
           "label": "Límit de nodes",
           "help": "Nodes màxims a explorar (més alt = més exhaustiu però més lent)"
         },
         "shuffle_top_n": {
-          "label": "Aleatorietat (top-N)",
-          "help": "Quantes de les millors hores es barregen segons la seed (0 = determinista i ràpid, 3 = equilibrat, 5 = molt aleatori)"
+          "label": "Aleatorietat (N millors opcions)",
+          "help": "Quantes de les millors hores es barregen segons la llavor (0 = determinista i ràpid, 3 = equilibrat, 5 = molt aleatori)"
         }
       }
     },
@@ -1412,9 +1414,9 @@
         "apply": "Aplicar"
       },
       "staging": {
-        "itemsTitle": "Zona d'aparcar (items)",
-        "itemsHint": "Arrossega items individuals aquí",
-        "itemsEmpty": "Arrossega items individuals aquí",
+        "itemsTitle": "Zona d'aparcar (exàmens)",
+        "itemsHint": "Arrossega exàmens individuals aquí",
+        "itemsEmpty": "Arrossega exàmens individuals aquí",
         "groupsTitle": "Zona d'aparcar (agrupacions)",
         "groupsHint": "Arrossega des de la capçalera del grup (⋮⋮)",
         "groupsEmpty": "Arrossega agrupacions senceres aquí",
@@ -1507,11 +1509,11 @@
           },
           "perGroup": {
             "title": "Per Agrupació",
-            "desc": "Per cada agrupació: tots els slots disponibles amb el cost i els detalls d'impacte."
+            "desc": "Per cada agrupació: totes les franges disponibles amb el cost i els detalls d'impacte."
           },
           "teachersPerSlot": {
-            "title": "Professors per Slot",
-            "desc": "Disponibles i alliberats per a cada slot, segons els nivells actius."
+            "title": "Professors per franja",
+            "desc": "Disponibles i alliberats per a cada franja, segons els nivells actius."
           }
         }
       },
@@ -1547,8 +1549,8 @@
           "desc": "Bonifica/penalitza tenir assignatures el mateix dia."
         },
         "preferenciaMateixSlot": {
-          "label": "Preferència mateix slot",
-          "desc": "Bonifica/penalitza compartir el mateix slot."
+          "label": "Preferència per la mateixa franja",
+          "desc": "Bonifica/penalitza compartir la mateixa franja."
         },
         "preferenciaDiesDiferents": {
           "label": "Preferència dies diferents",
@@ -1567,7 +1569,7 @@
         "scheduleUpdated": "Horari actualitzat",
         "localChangesApplied": "Els canvis s'han aplicat localment",
         "notViable": "No viable",
-        "notViableDetail": "{message} ({items} items > {slots} slots)"
+        "notViableDetail": "{message} ({items} exàmens > {slots} franges)"
       },
       "staleSubjects": {
         "text": "Hi ha restriccions amb assignatures que ja no són a la configuració d'exàmens (d'un curs anterior o d'abans de canviar el nom d'un nivell) i no s'apliquen a cap examen:",
@@ -1635,7 +1637,7 @@
           "examGlobalLabel": "Durada examen per defecte:",
           "examGlobalSuffix": "hora/es que dura l'examen (alumnes)",
           "exceptionsTitle": "Grups de durada personalitzada",
-          "exceptionsDesc": "Assignatures que necessiten durades diferents del default. Pots agrupar-ne diverses amb la mateixa durada.",
+          "exceptionsDesc": "Assignatures que necessiten durades diferents del valor per defecte. Pots agrupar-ne diverses amb la mateixa durada.",
           "emptyMessage": "Cap grup definit. Totes les assignatures usen la durada per defecte.",
           "columns": {
             "name": "Nom",
@@ -1671,7 +1673,7 @@
         },
         "daysHours": {
           "title": "Assignatures fixades o prohibides en un dia i/o hora específics",
-          "description": "Fixa assignatures a un slot concret (mode Fixar) o prohibeix que hi caiguin (mode Prohibir). Exemple: Anglès → Prohibir Divendres 11:30.",
+          "description": "Fixa assignatures a una franja concreta (mode Fixar) o prohibeix que hi caiguin (mode Prohibir). Exemple: Anglès → Prohibir Divendres 11:30.",
           "emptyMessage": "Cap restricció de dia/hora definida",
           "columns": {
             "type": "Tipus",
@@ -1699,8 +1701,8 @@
           }
         },
         "incompatibilities": {
-          "title": "Grups d'assignatures que NO poden coincidir al mateix slot",
-          "description": "Grups d'assignatures que no poden coincidir al mateix dia i hora (slot). Útil per evitar exàmens simultanis d'un mateix professor.",
+          "title": "Grups d’assignatures que NO poden coincidir a la mateixa franja",
+          "description": "Grups d’assignatures que no poden coincidir el mateix dia i hora. Útil per evitar exàmens simultanis d’un mateix professor.",
           "example": "Exemple: Mates → Modalitat 1.1 (1), Modalitat 2.1 (2), FILOSOFIA 1.",
           "emptyMessage": "Cap incompatibilitat definida",
           "columns": {
@@ -1728,7 +1730,7 @@
       },
       "analysis": {
         "title": "Anàlisi de possibilitats",
-        "subtitle": "Analitza quines agrupacions es poden col·locar en cada slot i quins professors estan disponibles.",
+        "subtitle": "Analitza quines agrupacions es poden col·locar en cada franja i quins professors estan disponibles.",
         "actions": {
           "analyze": "Analitzar disponibilitat",
           "printPdf": "Imprimir (PDF)"
@@ -1736,7 +1738,7 @@
         "tabs": {
           "byHourDay": "Per Hora/Dia",
           "byGrouping": "Per Agrupació",
-          "teachersPerSlot": "Professors per Slot"
+          "teachersPerSlot": "Professors per franja"
         },
         "substitutionsTitle": "Substitucions",
         "teachersPrefix": "Professors:",

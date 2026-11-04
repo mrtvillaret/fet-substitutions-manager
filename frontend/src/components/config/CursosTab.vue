@@ -64,12 +64,12 @@
 
       <div class="p-fluid">
         <div class="field">
-          <label>{{ $t('config.courses.name') }}</label>
-          <InputText v-model="cursForm.nom" :placeholder="$t('config.courses.namePlaceholder')" />
+          <label :for="prefixEtiquetes + '-camp-1'">{{ $t('config.courses.name') }}</label>
+          <InputText :id="prefixEtiquetes + '-camp-1'" v-model="cursForm.nom" :placeholder="$t('config.courses.namePlaceholder')" />
         </div>
         <div class="field">
-          <label>{{ $t('config.courses.start') }}</label>
-          <Calendar v-model="cursForm.data_inici" dateFormat="dd/mm/yy" :showIcon="true" />
+          <label :for="prefixEtiquetes + '-camp-2'">{{ $t('config.courses.start') }}</label>
+          <Calendar :inputId="prefixEtiquetes + '-camp-2'" v-model="cursForm.data_inici" dateFormat="dd/mm/yy" :showIcon="true" />
           <small class="field-hint">{{ $t('config.courses.startHint') }}</small>
         </div>
       </div>
@@ -89,9 +89,10 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
+import * as apiCursos from '../../api/cursos'
 import { useToast } from 'primevue/usetoast'
 import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 import Dialog from 'primevue/dialog'
@@ -102,6 +103,8 @@ import Tag from 'primevue/tag'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import { useCursos } from './useCursos.js'
+
+const prefixEtiquetes = useId()
 
 const toast = useToast()
 const { t } = useI18n()
@@ -154,9 +157,9 @@ const desarCurs = async () => {
       data_inici: formatIsoDate(cursForm.value.data_inici)
     }
     if (cursForm.value.id) {
-      await axios.put(`/api/cursos/${cursForm.value.id}`, payload)
+      await apiCursos.edita(cursForm.value.id, payload)
     } else {
-      await axios.post('/api/cursos', payload)
+      await apiCursos.crea(payload)
     }
     mostrarDialegCurs.value = false
     await carregarCursos()
@@ -178,7 +181,7 @@ const eliminarCurs = (curs) => {
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
       try {
-        await axios.delete(`/api/cursos/${curs.id}`)
+        await apiCursos.esborra(curs.id)
         await carregarCursos()
         await carregarAvisosXml()
         emit('cursos-canviats')

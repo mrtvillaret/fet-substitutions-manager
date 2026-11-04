@@ -1,6 +1,6 @@
   <div class="scheduler-view">
     <Toast />
-    
+
     <header class="view-header">
       <div class="header-left">
         <Button id="btn-home" icon="pi pi-home" class="p-button-rounded p-button-text p-button-lg" @click="tornarGestor" />
@@ -10,32 +10,32 @@
       </div>
       <div class="header-actions">
         <Button v-if="result" :label="t('scheduler.view.actions.printPdf')" icon="pi pi-print" class="p-button-text" @click="imprimirHorari" />
-        <Button v-if="result" id="btn-pub-vigs" :label="t('scheduler.publish.publishButton')" icon="pi pi-upload" class="p-button-success shadow-sm" @click="publicarVigilancies" />
+        <Button v-if="result" id="btn-pub-vigs" :label="t('scheduler.publish.publishButton')" icon="pi pi-upload" class="p-button-success" @click="publicarVigilancies" />
         <Button v-if="intentsLog.length" :label="t('scheduler.view.actions.attempts')" icon="pi pi-chart-line" class="p-button-text" @click="mostrarDialogIntents = true" />
       </div>
     </header>
 
-    <div ref="stepperContainerRef" class="stepper-container content-card mb-4">
+    <div ref="stepperContainerRef" class="stepper-container content-card">
       <Steps :model="passos" :activeStep="pasActiu" @update:activeStep="pasActiu = $event" :readonly="false" />
     </div>
 
     <div class="step-content" v-if="config">
       <!-- Dates d'un curs anterior -->
-      <Message v-if="(pasActiu === 0 || pasActiu === 4) && cursAnterior" severity="warn" :closable="false" class="mb-3">
+      <Message v-if="(pasActiu === 0 || pasActiu === 4) && cursAnterior" severity="warn" :closable="false">
         {{ t('scheduler.view.previousCourse', { cursos: cursAnterior.cursos.join(', '), actual: cursAnterior.curs_actual }) }}
       </Message>
 
       <!-- Quin horari (XML) es fa servir: el de la primera data planificada -->
       <Message v-if="(pasActiu === 0 || pasActiu === 4) && horariPlanificacio?.versio_des_de && !horariPlanificacio.sense_dates"
-               severity="info" :closable="false" class="mb-3">
+               severity="info" :closable="false">
         {{ t('scheduler.view.scheduleUsed', { data: dataAmbAny(horariPlanificacio.data_referencia), desDe: dataAmbAny(horariPlanificacio.versio_des_de) }) }}
       </Message>
-      <Message v-if="(pasActiu === 0 || pasActiu === 4) && horariPlanificacio?.canvi_horari" severity="warn" :closable="false" class="mb-3">
+      <Message v-if="(pasActiu === 0 || pasActiu === 4) && horariPlanificacio?.canvi_horari" severity="warn" :closable="false">
         {{ t('scheduler.view.scheduleChanges', { canvi: dataAmbAny(horariPlanificacio.canvi_horari), data: dataAmbAny(horariPlanificacio.data_referencia) }) }}
       </Message>
 
       <!-- Horari recuperat (l'últim generat o editat) -->
-      <Message v-if="pasActiu === 4 && result && result === resultatRecuperat" severity="info" :closable="false" class="mb-3">
+      <Message v-if="pasActiu === 4 && result && result === resultatRecuperat" severity="info" :closable="false">
         {{ t('scheduler.view.lastResult', { data: ultimResultatDesat }) }}
       </Message>
 
@@ -64,9 +64,9 @@
       <ConfirmDialog />
 
       <!-- Restriccions amb assignatures que ja no existeixen (curs anterior) -->
-      <Message v-if="(pasActiu === 1 || pasActiu === 2) && assignaturesInexistents.length" severity="warn" :closable="false" class="mb-3">
+      <Message v-if="(pasActiu === 1 || pasActiu === 2) && assignaturesInexistents.length" severity="warn" :closable="false">
         <div>{{ t('scheduler.view.staleSubjects.text') }} <strong>{{ assignaturesInexistents.join(', ') }}</strong></div>
-        <Button :label="t('scheduler.view.staleSubjects.remove')" icon="pi pi-trash" size="small" severity="warning" class="mt-2" @click="treureAssignaturesInexistents" />
+        <Button :label="t('scheduler.view.staleSubjects.remove')" icon="pi pi-trash" size="small" severity="warning"  @click="treureAssignaturesInexistents" />
       </Message>
 
       <!-- PAS 1: AGRUPACIONS -->
@@ -216,6 +216,13 @@
       :desar-dialog-incompatibilitat="desarDialogIncompatibilitat"
       :desar-dialog-agrupacio="desarDialogAgrupacio"
       :desar-dialog-cost-professor="desarDialogCostProfessor"
+      @update:formulariDurada="formulariDurada = $event"
+      @update:formulariProfessor="formulariProfessor = $event"
+      @update:formulariDiaHora="formulariDiaHora = $event"
+      @update:formulariPreferencia="formulariPreferencia = $event"
+      @update:formulariIncompat="formulariIncompat = $event"
+      @update:formulariAgrupacio="formulariAgrupacio = $event"
+      @update:formulariCostProfessor="formulariCostProfessor = $event"
       @update:mostrarDialogDurada="mostrarDialogDurada = $event"
       @update:mostrarDialogProfessor="mostrarDialogProfessor = $event"
       @update:mostrarDialogDiaHora="mostrarDialogDiaHora = $event"

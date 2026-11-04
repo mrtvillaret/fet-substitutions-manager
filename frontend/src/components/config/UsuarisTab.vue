@@ -1,9 +1,9 @@
 <template>
   <div class="tab-content">
     <div class="toolbar" style="margin-bottom: 0.75rem;">
-      <label>{{ $t('config.users.title') }}</label>
+      <span>{{ $t('config.users.title') }}</span>
       <div class="user-tools">
-        <Dropdown
+        <Dropdown :aria-label="$t('config.users.filterInstitution')" :inputId="prefixEtiquetes + '-camp-1'"
           v-if="props.currentRole === 'super_admin'"
           v-model="userInstitutionFilter"
           :options="userInstitutionOptions"
@@ -35,18 +35,20 @@
       class="p-datatable-sm"
     >
       <Column field="username" :header="$t('config.users.username')" />
-      <Column field="role" :header="$t('config.users.role')" style="min-width: 7.5rem" />
+      <Column field="role" :header="$t('config.users.role')" style="min-width: 7.5rem">
+        <template #body="{ data }">{{ $t(`common.roles.${data.role}`) }}</template>
+      </Column>
       <Column v-if="props.currentRole === 'super_admin'" :header="$t('config.users.institucio')">
         <template #body="{ data }">
           {{ data.institucio_display_name || data.institucio }}
         </template>
       </Column>
-      <Column :header="$t('config.users.active')" bodyClass="text-center">
+      <Column :header="$t('config.users.active')">
         <template #body="{ data }">
           {{ data.active ? $t('config.users.activeYes') : $t('config.users.activeNo') }}
         </template>
       </Column>
-      <Column :header="$t('common.actions')" bodyClass="text-center">
+      <Column :header="$t('common.actions')">
         <template #body="{ data }">
           <div class="table-actions">
             <Button
@@ -96,12 +98,12 @@
       </template>
       <div class="p-fluid">
         <div class="field">
-          <label>{{ $t('config.users.username') }}</label>
-          <InputText v-model="usuariForm.username" autocomplete="new-username" name="new-username" />
+          <label :for="prefixEtiquetes + '-camp-2'">{{ $t('config.users.username') }}</label>
+          <InputText :id="prefixEtiquetes + '-camp-2'" v-model="usuariForm.username" autocomplete="new-username" name="new-username" />
         </div>
         <div class="field">
-          <label>{{ $t('config.users.password') }}</label>
-          <Password
+          <label :for="prefixEtiquetes + '-camp-3'">{{ $t('config.users.password') }}</label>
+          <Password :inputId="prefixEtiquetes + '-camp-3'"
             v-model="usuariForm.password"
             :feedback="false"
             toggleMask
@@ -111,8 +113,8 @@
           />
         </div>
         <div class="field">
-          <label>{{ $t('config.users.role') }}</label>
-          <Dropdown
+          <label :for="prefixEtiquetes + '-camp-4'">{{ $t('config.users.role') }}</label>
+          <Dropdown :aria-label="$t('config.users.role')" :inputId="prefixEtiquetes + '-camp-4'"
             v-model="usuariForm.role"
             :options="roleOptions"
             optionLabel="label"
@@ -121,15 +123,15 @@
           />
         </div>
         <div v-if="props.currentRole === 'super_admin'" class="field">
-          <label>{{ $t('config.users.institucio') }}</label>
-          <Dropdown
+          <label :for="prefixEtiquetes + '-camp-5'">{{ $t('config.users.institucio') }}</label>
+          <Dropdown :aria-label="$t('config.users.institucio')" :inputId="prefixEtiquetes + '-camp-5'"
             v-model="usuariForm.institucio"
             :options="institucionsOptions"
             class="w-full"
           />
         </div>
         <div class="field checkbox-field">
-          <Checkbox v-model="usuariForm.active" binary />
+          <Checkbox :aria-label="$t('config.users.active')" v-model="usuariForm.active" binary />
           <span>{{ $t('config.users.active') }}</span>
         </div>
       </div>
@@ -148,9 +150,11 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
+import * as apiCentres from '../../api/centres'
+import * as apiUsuaris from '../../api/usuaris'
 import { useToast } from 'primevue/usetoast'
 import { useConfirmaEsborrar } from '../../composables/useConfirmaEsborrar'
 import Dialog from 'primevue/dialog'
@@ -161,6 +165,8 @@ import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Checkbox from 'primevue/checkbox'
+
+const prefixEtiquetes = useId()
 
 const toast = useToast()
 const { t, locale } = useI18n()
@@ -224,26 +230,26 @@ const usersFiltered = computed(() => {
 const roleOptions = computed(() => {
   if (props.currentRole === 'super_admin') {
     return [
-      { label: 'super_admin', value: 'super_admin' },
-      { label: 'admin', value: 'admin' },
-      { label: 'user', value: 'user' }
+      { label: t('common.roles.super_admin'), value: 'super_admin' },
+      { label: t('common.roles.admin'), value: 'admin' },
+      { label: t('common.roles.user'), value: 'user' }
     ]
   }
   return [
-    { label: 'admin', value: 'admin' },
-    { label: 'user', value: 'user' }
+    { label: t('common.roles.admin'), value: 'admin' },
+    { label: t('common.roles.user'), value: 'user' }
   ]
 })
 
 const carregarInstitucions = async () => {
-  const resp = await axios.get('/api/settings/institucions')
+  const resp = await apiCentres.llista()
   institucions.value = resp.data.institucions || []
 }
 
 const carregarUsuaris = async () => {
   usersLoading.value = true
   try {
-    const response = await axios.get('/api/users')
+    const response = await apiUsuaris.llista()
     users.value = response.data || []
   } catch (error) {
     console.error('Error carregant usuaris:', error)
@@ -325,7 +331,7 @@ const desarUsuari = async () => {
       if (usuariForm.value.password) {
         payload.password = usuariForm.value.password
       }
-      await axios.put(`/api/users/${usuariForm.value.id}`, payload)
+      await apiUsuaris.edita(usuariForm.value.id, payload)
     } else {
       const payload = {
         username: usuariForm.value.username,
@@ -335,7 +341,7 @@ const desarUsuari = async () => {
       if (props.currentRole === 'super_admin') {
         payload.institucio = institucioValue
       }
-      await axios.post('/api/users', payload)
+      await apiUsuaris.crea(payload)
     }
     toast.add({
       severity: 'success',
@@ -366,7 +372,7 @@ const desactivarUsuari = (user) => {
     rejectLabel: t('common.cancel'),
     accept: async () => {
       try {
-        await axios.delete(`/api/users/${user.id}`)
+        await apiUsuaris.desactiva(user.id)
         toast.add({
           severity: 'success',
           summary: t('common.deleted'),
@@ -396,7 +402,7 @@ const eliminarUsuari = (user) => {
     rejectLabel: t('common.cancel'),
     accept: async () => {
       try {
-        await axios.delete(`/api/users/${user.id}/hard`)
+        await apiUsuaris.esborra(user.id)
         toast.add({
           severity: 'success',
           summary: t('common.deleted'),
@@ -512,5 +518,10 @@ onMounted(() => {
   right: 0.75rem;
   line-height: 1;
   cursor: pointer;
+}
+@media (max-width: 600px) {
+  .toolbar, .user-tools { flex-wrap: wrap; gap: 0.5rem; min-width: 0; }
+  .user-tools { width: 100%; }
+  .user-tools > .p-dropdown { flex: 1 1 100%; min-width: 0; }
 }
 </style>

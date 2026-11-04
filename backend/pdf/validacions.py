@@ -241,9 +241,17 @@ def _resum_cobertures(cob: _Cobertures, warnings: list) -> None:
     cobertes = sum(1 for profs in cob.classes_de_vigilants.values() for s in profs.values() if s)
     pendents = sum(1 for profs in cob.classes_de_vigilants.values() for s in profs.values() if not s)
     if cobertes > 0:
-        warnings.append(f"ℹ️ {cobertes} vigilàncies cobertes automàticament (substitució tècnica)")
+        warnings.append(
+            translate(
+                "ℹ️ {count} classes de vigilants amb substitut (el professor vigila un examen a aquella hora)"
+            ).format(count=cobertes)
+        )
     if pendents > 0:
-        warnings.append(f"❌ {pendents} vigilàncies cobertes automàticament sense substitut assignat")
+        warnings.append(
+            translate(
+                "❌ {count} classes de vigilants sense substitut (el professor vigila un examen a aquella hora)"
+            ).format(count=pendents)
+        )
 
 
 def _clau_hora(text: str):

@@ -212,6 +212,61 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
                         └── exports/
 ```
 
+## Vista de substitucions
+
+`SubstitucionsView.vue` coordina la data de treball, la generació, la taula i
+els diàlegs. Els esdeveniments de navegació i `mostrarDialegPDF` (exposat a App)
+es mantenen a la vista. Les responsabilitats extretes són:
+
+| Peça | Responsabilitat |
+| --- | --- |
+| `composables/useDadesSubstitucions.js` | Horari, professors, absències i recompte de vigilàncies; càrrega atòmica amb disponibles, descart de respostes antigues i ordre recordat. |
+| `composables/useEdicioSubstitucions.js` | Opcions estables per fila, canvi de substitut o comentari, trasllat confirmat i conflictes de concurrència. |
+| `composables/useAbsenciesSubstitucions.js` | Professor, hores, rang de dates, desat i eliminació d'absències; sincronització del formulari amb el dia. |
+| `composables/usePdfSubstitucions.js` | Preferències, validacions, reassignació i descàrrega amb el mateix ordre de la pantalla. |
+| `components/substitucions/GestioAbsenciesSubstitucions.vue` | Panell d'absències teletransportat, focus del botó de tancar, camps, accions i estils. |
+| `components/substitucions/PdfSubstitucionsDialogs.vue` | Diàlegs d'opcions i validació del PDF; models i esdeveniments cap a la vista. |
+
+`TaulaSubstitucions` i `FilaSubstitucio` continuen gestionant la taula i les
+accions tàctils; no hi ha cap format nou per al mòbil. Els composables criden
+`api/` i reben refs i callbacks de coordinació; no en dupliquen l'estat.
+La caracterització prèvia és a `frontend/tests/*Substitucions.test.js` i,
+fora del repositori, `../arnesos/arnes_frontend_vistes/` (Chrome a 1440 px i
+390 px tàctil, mateix DOM normalitzat, estils calculats i peticions).
+
+## Vigilàncies i configuració d'exàmens (bloc 7, 03/11/2026)
+
+`VigilanciesView.vue` coordina la data, la càrrega de configuració i de files,
+la taula existent i cinc composables: `usePdfVigilancies`,
+`useDisponiblesVigilancies`, `useFiltresVigilancies`, `useEdicioVigilancies` i
+`useAssignacioVigilancies`. Els diàlegs PDF i els avisos de titulars són a
+`components/vigilancies/PdfVigilanciesDialogs.vue` i
+`AvisosTitularsVigilancies.vue`. La memòria cau, els lots i el fallback dels
+disponibles mantenen el comportament anterior; el control de respostes
+antigues i el reintent queden pendents de decisió.
+
+`ConfiguracioExamensDialog.vue` conserva l'obertura, el tancament, les
+pestanyes i la càrrega inicial en el mateix ordre. `useCatalegsExamens` gestiona
+els catàlegs i els renoms; `useAssignacionsExamens`, les files, els filtres i
+l'edició; `useImportacioExamens`, les propostes XML, la selecció, el CSV i els
+resums; `useAfinitatsExamens`, la lectura i el desat d'afinitats. Les
+assignacions són una ref compartida per l'edició i la propagació dels renoms.
+
+A `components/examens/` hi ha les sis pestanyes (`NivellsExamens`,
+`GrupsExamens`, `AssignaturesExamens`, `AulesExamens`, `AssignacionsExamens` i
+`AfinitatsExamens`), els seus diàlegs d'alta, `EdicioCatalegsExamensDialogs`
+(renom i dependències compartides) i `ImportacioExamensDialogs` (propostes i
+resums). Els selectors CSS existents tenen una única font a
+`configuracioExamens.css`, importada amb scope per les peces que la fan servir.
+No s'han canviat les classes ni els estils.
+
+Caracterització: 27 tests nous del frontend sobre els blocs originals abans
+d'extreure'ls i els composables després; al navegador, càrrega, edició, PDF,
+catàlegs i importacions amb un centre temporal i l'XML d'exemple, a 1440 px i
+390 px tàctil. L'arnès i les referències són fora del repositori, a
+`../arnesos/arnes_frontend_vistes/`; l'auditoria compara també 188 declaracions
+i watchers i les plantilles mogudes amb els originals.
+
 ## Flux típic d'una petició
 
 ```

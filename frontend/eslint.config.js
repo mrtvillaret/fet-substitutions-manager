@@ -23,11 +23,6 @@ export default [
     languageOptions: { globals: { ...globals.node } },
   },
   {
-    // Deute conegut: SchedulerDialogs.vue modifica props. Avís fins que es
-    // refaci el planificador (fase 3), perquè no aturi la CI.
-    rules: { 'vue/no-mutating-props': 'warn' },
-  },
-  {
     rules: {
       // `_nom`: paràmetre que es rep però no es fa servir; i el patró
       // `({ a, b, ...rest }) => rest` per treure camps d'un objecte.

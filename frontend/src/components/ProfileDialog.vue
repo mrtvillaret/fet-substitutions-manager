@@ -21,13 +21,13 @@
 
       <div v-if="isSuperAdmin" class="field">
         <label for="institucio-select">{{ $t('profile.institution') }}</label>
-        <Dropdown
-          id="institucio-select"
+        <Dropdown :aria-label="$t('profile.institution')"
+          inputId="institucio-select"
           v-model="institucioSeleccionada"
           :options="institucionsOptions"
           optionLabel="label"
           optionValue="value"
-          class="w-full"
+
         />
         <div class="profile-actions">
           <Button
@@ -48,7 +48,7 @@
           :feedback="false"
           toggleMask
           :inputProps="{ autocomplete: 'current-password', 'data-form-type': 'other', 'data-lpignore': 'true' }"
-          class="w-full password-with-eye"
+          class="password-with-eye"
         />
       </div>
 
@@ -60,7 +60,7 @@
           :feedback="false"
           toggleMask
           :inputProps="{ autocomplete: 'new-password', 'data-form-type': 'other', 'data-lpignore': 'true' }"
-          class="w-full password-with-eye"
+          class="password-with-eye"
         />
       </div>
 
@@ -72,7 +72,7 @@
           :feedback="false"
           toggleMask
           :inputProps="{ autocomplete: 'new-password', 'data-form-type': 'other', 'data-lpignore': 'true' }"
-          class="w-full password-with-eye"
+          class="password-with-eye"
         />
       </div>
 
@@ -113,7 +113,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
+import * as apiUsuaris from '../api/usuaris'
+import * as apiCentres from '../api/centres'
 import Dialog from 'primevue/dialog'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
@@ -194,7 +195,7 @@ const guardarPassword = async () => {
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    await axios.put('/api/users/profile/password', {
+    await apiUsuaris.canviaContrasenya({
       current_password: currentPassword.value,
       new_password: newPassword.value
     })
@@ -223,7 +224,7 @@ watch(
 
 const carregarInstitucions = async () => {
   try {
-    const response = await axios.get('/api/settings/institucions')
+    const response = await apiCentres.llista()
     institucions.value = response.data?.institucions || []
     institucioSeleccionada.value = props.institucio || response.data?.actual || ''
   } catch (error) {
@@ -238,7 +239,7 @@ const tancarAltresSessions = async () => {
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    await axios.post('/api/users/profile/tancar-altres-sessions')
+    await apiUsuaris.tancaAltresSessions()
     successMessage.value = t('profile.otherSessionsClosed')
   } catch (error) {
     errorMessage.value = error.response?.data?.detail || t('profile.otherSessionsError')
@@ -255,7 +256,7 @@ const canviarInstitucio = async () => {
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    await axios.post('/api/users/profile/institucio', {
+    await apiUsuaris.canviaCentre({
       institucio: institucioSeleccionada.value
     })
     successMessage.value = t('profile.institutionSwitched')

@@ -152,51 +152,15 @@
       />
     </Message>
 
-    <!-- Titulars que no s'han posat perquè tenien l'hora lliure: ho decideix qui fa les vigilàncies -->
-    <Message
-      v-if="!loading && !error && titularsHoraLliure.length"
-      severity="warn"
-      :closable="true"
-      class="titulars-hora-lliure"
-      @close="titularsHoraLliure = []"
-    >
-      <div>{{ $t('vigilancies.freeHourOwners.title', { count: titularsHoraLliure.length }, titularsHoraLliure.length) }}</div>
-      <ul>
-        <li v-for="item in titularsHoraLliure" :key="item.vigilancia_id">
-          {{ item.hora }} · {{ item.grups }} · {{ item.tipus }} — <strong>{{ item.titular }}</strong>
-          <Button
-            :label="$t('vigilancies.freeHourOwners.assign')"
-            size="small"
-            text
-            :loading="posantTitular === item.vigilancia_id"
-            @click="posaTitularHoraLliure(item)"
-          />
-        </li>
-      </ul>
-    </Message>
-
-    <!-- Vigilàncies que la configuració d'exàmens no deixa definides -->
-    <Message
-      v-if="!loading && !error && vigilanciesSenseTitular.length"
-      severity="info"
-      :closable="true"
-      class="titulars-hora-lliure"
-      @close="vigilanciesSenseTitular = []"
-    >
-      <div>{{ $t('vigilancies.withoutOwner.title', { count: vigilanciesSenseTitular.length }, vigilanciesSenseTitular.length) }}</div>
-      <ul>
-        <li v-for="item in vigilanciesSenseTitular" :key="item.vigilancia_id">
-          {{ item.hora }} · {{ item.grups }} · {{ item.tipus }} — {{ $t(`vigilancies.withoutOwner.${item.motiu}`) }}
-        </li>
-      </ul>
-      <Button
-        :label="$t('vigilancies.withoutOwner.openConfig')"
-        icon="pi pi-cog"
-        size="small"
-        text
-        @click="obreConfiguracioExamens"
-      />
-    </Message>
+    <AvisosTitularsVigilancies
+      v-model:titularsHoraLliure="titularsHoraLliure"
+      v-model:vigilanciesSenseTitular="vigilanciesSenseTitular"
+      :loading="loading"
+      :error="error"
+      :posant-titular="posantTitular"
+      :posa-titular-hora-lliure="posaTitularHoraLliure"
+      :obre-configuracio-examens="obreConfiguracioExamens"
+    />
 
     <!-- Carregant: només la primera vegada; amb files ja carregades, la taula es
          queda i mostra la càrrega a sobre (tornar-la a crear costava 1,5 s) -->
@@ -206,7 +170,7 @@
     </div>
 
     <div v-else-if="error" class="error-message">
-      <Message severity="error" :closable="false">{{ error }}</Message>
+      <AvisErrorCarrega :missatge="error" @reintenta="carregarVigilancies" />
     </div>
 
     <!-- Taula de vigilàncies: agrupada per hores, en l'ordre desat -->
@@ -243,163 +207,24 @@
       @desa="creaVigilancia"
     />
 
-    <!-- Diàleg validacions PDF -->
-    <Dialog
-      v-model:visible="mostrarDialogValidacionsVig"
-      :header="validacionsVig.has_critical ? $t('substitutions.dialogs.pdfValidation.criticalTitle') : $t('substitutions.dialogs.pdfValidation.warningTitle')"
-      :modal="true"
-      :style="{ width: '600px', maxHeight: '80vh' }"
-    >
-      <div class="validacions-content">
-        <p style="font-weight: 600; margin-bottom: 1rem;">{{ $t('substitutions.dialogs.pdfValidation.detectedIssues') }}</p>
-
-        <div v-if="conflictesVigFiltrats.length > 0" style="margin-bottom: 1.5rem;">
-          <p style="font-weight: 600; color: #d32f2f; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.critical') }}</p>
-          <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(conflict, idx) in conflictesVigFiltrats.slice(0, 10)" :key="idx" style="margin-bottom: 0.25rem;">{{ conflict }}</li>
-          </ul>
-        </div>
-
-        <div v-if="warningsVigFiltrats.length > 0" style="margin-bottom: 1.5rem;">
-          <p style="font-weight: 600; color: #f57c00; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.warnings') }}</p>
-          <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(warning, idx) in warningsVigFiltrats.slice(0, 10)" :key="idx" style="margin-bottom: 0.25rem;">{{ warning }}</li>
-          </ul>
-        </div>
-
-        <Message severity="warn" style="margin-top: 1rem;">
-          {{ $t('substitutions.dialogs.pdfValidation.continueQuestion') }}
-        </Message>
-      </div>
-
-      <template #footer>
-        <Button
-          :label="$t('common.cancel')"
-          icon="pi pi-times"
-          @click="cancelarPDFVig"
-          class="p-button-text"
-        />
-        <Button
-          :label="$t('common.continue')"
-          icon="pi pi-check"
-          @click="continuarPDFVig"
-          :loading="generantPDF"
-          :class="validacionsVig.has_critical ? 'p-button-danger' : 'p-button-warning'"
-        />
-      </template>
-    </Dialog>
-
-    <!-- Diàleg Exportar PDF -->
-    <Dialog
-      v-model:visible="mostrarDialogPDF"
-      :header="$t('vigilancies.dialogs.pdfTitle')"
-      :modal="true"
-      :style="{ width: '500px', maxWidth: 'calc(100vw - 2rem)' }"
-      :closable="true"
-    >
-      <div class="p-fluid">
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.levelsLabel') }}</label>
-          <MultiSelect
-            v-model="pdfConfig.nivells"
-            :options="opcionsNivellsPdfDia"
-            optionLabel="etiqueta"
-            optionValue="valor"
-            :placeholder="$t('vigilancies.dialogs.levelsPlaceholder')"
-            display="chip"
-            :showToggleAll="true"
-            style="width: 100%;"
-          />
-          <small style="color: #6b7280;">{{ $t('vigilancies.dialogs.levelsHint') }}</small>
-        </div>
-
-        <PdfOpcionsComunes
-          v-model:config="pdfConfig"
-          prefix="vig"
-          :opcions-propies="[{ clau: 'includeSubstitucions', etiqueta: 'vigilancies.dialogs.includeSubstitucions' }]"
-        />
-      </div>
-
-      <template #footer>
-        <Button :label="$t('common.cancel')" @click="mostrarDialogPDF = false" class="p-button-text" />
-        <Button
-          :label="$t('vigilancies.dialogs.generatePdf')"
-          icon="pi pi-file-pdf"
-          @click="generarPDF"
-          class="p-button-success"
-          :disabled="opcionsNivellsPdfDia.length > 0 && !pdfConfig.nivells?.length"
-          :loading="generantPDF"
-        />
-      </template>
-    </Dialog>
-
-    <!-- Diàleg PDF Interval -->
-    <Dialog
-      v-model:visible="mostrarDialogInterval"
-      :header="$t('vigilancies.dialogs.intervalTitle')"
-      :modal="true"
-      :style="{ width: '550px', maxWidth: 'calc(100vw - 2rem)' }"
-      :closable="true"
-    >
-      <div class="p-fluid">
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.startDateLabel') }}</label>
-          <Calendar
-            v-model="intervalConfig.dataInici"
-            dateFormat="yy-mm-dd"
-            :placeholder="$t('vigilancies.dialogs.startDate')"
-            :showIcon="true"
-          />
-        </div>
-
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.endDateLabel') }}</label>
-          <Calendar
-            v-model="intervalConfig.dataFinal"
-            dateFormat="yy-mm-dd"
-            :placeholder="$t('vigilancies.dialogs.endDate')"
-            :showIcon="true"
-          />
-        </div>
-
-        <div class="field">
-          <label>{{ $t('vigilancies.dialogs.levelsLabel') }}</label>
-          <MultiSelect
-            v-model="intervalConfig.nivells"
-            :options="opcionsNivellsPdfInterval"
-            optionLabel="etiqueta"
-            optionValue="valor"
-            :placeholder="$t('vigilancies.dialogs.levelsPlaceholder')"
-            display="chip"
-            :showToggleAll="true"
-            style="width: 100%;"
-          />
-        </div>
-
-        <PdfOpcionsComunes
-          v-model:config="intervalConfig"
-          prefix="interval"
-          amb-dia-per-pagina
-          :opcions-propies="[
-            { clau: 'includeWeekends', etiqueta: 'vigilancies.dialogs.includeWeekends' },
-            { clau: 'includeEmptyDays', etiqueta: 'vigilancies.dialogs.includeEmpty' },
-            { clau: 'includeSubstitucions', etiqueta: 'vigilancies.dialogs.includeSubstitucions' }
-          ]"
-        />
-      </div>
-
-      <template #footer>
-        <Button :label="$t('common.cancel')" @click="mostrarDialogInterval = false" class="p-button-text" />
-        <Button
-          :label="$t('vigilancies.dialogs.generatePdf')"
-          icon="pi pi-file-pdf"
-          @click="generarPDFInterval"
-          class="p-button-success"
-          :disabled="!intervalConfig.dataInici || !intervalConfig.dataFinal || (opcionsNivellsPdfInterval.length > 0 && !intervalConfig.nivells?.length)"
-          :loading="generantPDFInterval"
-        />
-      </template>
-    </Dialog>
+    <PdfVigilanciesDialogs
+      v-model:mostrarDialogValidacionsVig="mostrarDialogValidacionsVig"
+      v-model:mostrarDialogPDF="mostrarDialogPDF"
+      v-model:mostrarDialogInterval="mostrarDialogInterval"
+      v-model:pdfConfig="pdfConfig"
+      v-model:intervalConfig="intervalConfig"
+      :validacions-vig="validacionsVig"
+      :conflictes-vig-filtrats="conflictesVigFiltrats"
+      :warnings-vig-filtrats="warningsVigFiltrats"
+      :generant-p-d-f="generantPDF"
+      :opcions-nivells-pdf-dia="opcionsNivellsPdfDia"
+      :opcions-nivells-pdf-interval="opcionsNivellsPdfInterval"
+      :generant-p-d-f-interval="generantPDFInterval"
+      :cancelar-p-d-f-vig="cancelarPDFVig"
+      :continuar-p-d-f-vig="continuarPDFVig"
+      :generar-p-d-f="generarPDF"
+      :generar-p-d-f-interval="generarPDFInterval"
+    />
 
     <!-- Diàleg de confirmació -->
     <ConfirmDialog></ConfirmDialog>
@@ -416,34 +241,33 @@
 </template>
 
 <script setup>
+import AvisosTitularsVigilancies from '../components/vigilancies/AvisosTitularsVigilancies.vue'
+import AvisErrorCarrega from '../components/AvisErrorCarrega.vue'
+import { useCarregaVigilancies } from '../composables/useCarregaVigilancies'
+import { useAssignacioVigilancies } from '../composables/useAssignacioVigilancies.js'
+import { useEdicioVigilancies } from '../composables/useEdicioVigilancies.js'
+import { useFiltresVigilancies } from '../composables/useFiltresVigilancies.js'
+import { useDisponiblesVigilancies } from '../composables/useDisponiblesVigilancies.js'
+import PdfVigilanciesDialogs from '../components/vigilancies/PdfVigilanciesDialogs.vue'
+import { usePdfVigilancies } from '../composables/usePdfVigilancies.js'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
-import { ambDataTreball, dataTreball } from '../dataTreball'
+import { dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
-import { jaAvisat } from '../errorsApi'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
 import Message from 'primevue/message'
-import Dialog from 'primevue/dialog'
 import ConfirmDialog from 'primevue/confirmdialog'
-import MultiSelect from 'primevue/multiselect'
-import Calendar from 'primevue/calendar'
-import PdfOpcionsComunes from '../components/PdfOpcionsComunes.vue'
-import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions'
-import { SENSE_NIVELL, opcionsNivellsPdf, parametresNivellsPdf, seleccioInicialNivellsPdf } from '../vigilanciesPdf'
 import Badge from 'primevue/badge'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
 import FiltreAula from '../components/vigilancies/FiltreAula.vue'
 import FormulariVigilancia from '../components/vigilancies/FormulariVigilancia.vue'
 import TaulaVigilancies from '../components/vigilancies/TaulaVigilancies.vue'
-import * as apiVigilancies from '../api/vigilancies'
 import { useAjudaVigilant } from '../composables/useAjudaVigilant'
 import { useOrdreFiles } from '../composables/useOrdreFiles'
-import { adaptaVigilanciaAlNivell } from '../vigilanciesNivell'
 
 const emit = defineEmits(['anar-substitucions'])
 const toast = useToast()
@@ -451,136 +275,25 @@ const confirm = useConfirm()
 const confirmaEsborrar = useConfirmaEsborrar()
 const { t, locale } = useI18n()
 
-// State
 const vigilancies = ref([])
-// Titulars que «Assigna titulars» no ha posat perquè tenien l'hora lliure
-const titularsHoraLliure = ref([])
-// Vigilàncies sense un titular definit a la configuració d'exàmens (motiu)
-const vigilanciesSenseTitular = ref([])
+
 const obreConfiguracioExamens = () => window.dispatchEvent(new CustomEvent('obre-configuracio-examens'))
-const posantTitular = ref(null)
+
 const seleccionades = ref([])
 const substitucionsCount = ref(0)
 const loading = ref(false)
 const error = ref(null)
-const assignantTitulars = ref(false)
-const assignantPendents = ref(false)
-const ordenant = ref(false)
-const mostrarDialogConflicte = ref(false)
-const conflicteOverwrite = ref(null)
 
-// State PDF
-const mostrarDialogPDF = ref(false)
-const mostrarDialogInterval = ref(false)
-const generantPDF = ref(false)
-const generantPDFInterval = ref(false)
-const mostrarDialogValidacionsVig = ref(false)
-const validacionsVig = ref({ conflicts: [], warnings: [], total: 0, has_critical: false })
-
-const esAvisVigilancia = (text) => {
-  const t = (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-  return t.includes('vigilant') || t.includes('aula') || t.includes('vigilanci')
-}
-const conflictesVigFiltrats = computed(() =>
-  (validacionsVig.value.conflicts || []).filter(esAvisVigilancia)
-)
-const warningsVigFiltrats = computed(() =>
-  (validacionsVig.value.warnings || []).filter(esAvisVigilancia)
-)
-const totalVigFiltrats = computed(() =>
-  conflictesVigFiltrats.value.length + warningsVigFiltrats.value.length
-)
-
-const pdfConfig = ref({
-  nivells: [],
-  format: 'hores',
-  midaLletra: midaPerDefecte('hores'),
-  showComments: true,
-  showHours: false,
-  compress: false,
-  includeSubstitucions: false
-})
-
-const intervalConfig = ref({
-  dataInici: null,
-  dataFinal: null,
-  nivells: [],
-  includeWeekends: false,
-  includeEmptyDays: false,
-  format: 'hores',
-  midaLletra: midaPerDefecte('hores'),
-  diaPerPagina: false,
-  showComments: true,
-  showHours: false,
-  compress: false,
-  includeSubstitucions: false
-})
-
-// Configuració
 const professors = ref([])
 const hores = ref([])
 const nivells = ref([])
-const senseNivellDia = ref(0)
-const senseNivellInterval = ref(0)
-const opcionsNivellsPdfDia = computed(() =>
-  opcionsNivellsPdf(nivells.value, senseNivellDia.value, (count) =>
-    t('vigilancies.dialogs.withoutLevel', { count })
-  )
-)
-const opcionsNivellsPdfInterval = computed(() =>
-  opcionsNivellsPdf(nivells.value, senseNivellInterval.value, (count) =>
-    t('vigilancies.dialogs.withoutLevel', { count })
-  )
-)
-// Sense cap nivell configurat, els PDF surten amb totes les vigilàncies (cap nivell triat = tots)
+
 const configCarregada = ref(false)
 const aules = ref([])
 const grupsPerNivell = ref({})
 const tipusExamens = ref([])
 const tipusPerNivell = ref({})
-const disponiblesPerHora = ref({}) // Cache de professors disponibles per hora
-const DISPONIBLES_BATCH_SIZE = 8
 
-// Filtres
-const allLabel = computed(() => t('common.all'))
-const statusAssignedLabel = computed(() => t('vigilancies.stats.assigned'))
-const statusPendingLabel = computed(() => t('vigilancies.stats.pending'))
-const statusOptions = computed(() => [
-  allLabel.value,
-  statusAssignedLabel.value,
-  statusPendingLabel.value
-])
-
-const filtreLevell = ref(allLabel.value)
-const filtreHora = ref(allLabel.value)
-const filtreEstat = ref(allLabel.value)
-const filtreAula = ref(allLabel.value)
-// El nom del filtre dins del seu valor: «Nivell: tots», «Hora: 08:00»...
-const etiquetaFiltre = (clau, valor) =>
-  !valor || valor === allLabel.value
-    ? t(`vigilancies.filters.${clau}All`)
-    : t(`vigilancies.filters.${clau}Value`, { valor })
-// Amb un filtre posat no es pot canviar l'ordre: no és clar on aniria la fila
-const filtresActius = computed(() =>
-  [filtreLevell.value, filtreHora.value, filtreEstat.value, filtreAula.value].some(f => f && f !== allLabel.value)
-)
-
-watch(allLabel, (newVal, oldVal) => {
-  if (filtreLevell.value === oldVal) {
-    filtreLevell.value = newVal
-  }
-  if (filtreHora.value === oldVal) {
-    filtreHora.value = newVal
-  }
-  if (filtreEstat.value === oldVal) {
-    filtreEstat.value = newVal
-  }
-  if (filtreAula.value === oldVal) {
-    filtreAula.value = newVal
-  }
-})
-
-// Computed
 const dataISO = computed(() => dataIso(dataTreball.value))
 
 const dataFormatada = computed(() => {
@@ -592,43 +305,23 @@ const dataFormatada = computed(() => {
   })
 })
 
+const { mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval } = usePdfVigilancies({
+  dataISO, dataTreball, nivells, toast, t
+})
+
 const collator = computed(() => new Intl.Collator(locale.value || 'ca', { sensitivity: 'base' }))
 
-const vigilanciesAssignades = computed(() =>
-  vigilanciesFiltrades.value.filter(v => v.vigilant && v.vigilant.trim()).length
-)
+const { carregarDisponibles, carregarDisponiblesPerLlista, refrescarDisponiblesHora, getDisponiblesPerHora, getVigilantLabel } = useDisponiblesVigilancies({
+  dataISO, professors, vigilancies, locale, collator, t
+})
 
-const vigilanciesPendents = computed(() =>
-  vigilanciesFiltrades.value.filter(v => !v.vigilant || !v.vigilant.trim()).length
-)
-
-// Les vigilàncies que es veuen, en l'ordre desat (el backend les dona per
-// hora i, dins de cada hora, per l'ordre de les files). La taula les agrupa
-// per hores; no s'hi reordena res.
-const vigilanciesFiltrades = computed(() => {
-  let result = vigilancies.value
-
-  if (filtreLevell.value && filtreLevell.value !== allLabel.value) {
-    result = result.filter(v => v.nivell === filtreLevell.value)
-  }
-  if (filtreHora.value && filtreHora.value !== allLabel.value) {
-    result = result.filter(v => v.hora === filtreHora.value)
-  }
-  if (filtreEstat.value === statusAssignedLabel.value) {
-    result = result.filter(v => v.vigilant && v.vigilant.trim())
-  } else if (filtreEstat.value === statusPendingLabel.value) {
-    result = result.filter(v => !v.vigilant || !v.vigilant.trim())
-  }
-  if (filtreAula.value && filtreAula.value !== allLabel.value) {
-    result = result.filter(v => v.aula === filtreAula.value)
-  }
-  return result
+const { allLabel, statusOptions, filtreLevell, filtreHora, filtreEstat, filtreAula, etiquetaFiltre, filtresActius, vigilanciesAssignades, vigilanciesPendents, vigilanciesFiltrades, aulesDelFiltre } = useFiltresVigilancies({
+  vigilancies, aules, collator, t
 })
 
 const { ressaltades, ressalta } = useOrdreFiles()
 const { oblida: oblidaAjudes } = useAjudaVigilant()
 
-// El que necessita cada fila per als seus desplegables
 const opcionsFiles = computed(() => ({
   hores: hores.value,
   nivells: nivells.value,
@@ -636,18 +329,10 @@ const opcionsFiles = computed(() => ({
   tipusDe: (nivell) => getTipusOptions(nivell, true),
   grupsDe: (nivell) => getGrupsPerNivell(nivell)
 }))
-// La mateixa llista per a les files amb els mateixos disponibles (veure getDisponiblesPerHora)
 const disponiblesDe = (fila) => getDisponiblesPerHora(fila.hora, fila.tipus, fila.grups, fila.aula)
 const etiquetaVigilantDe = (fila) =>
   fila.vigilant ? getVigilantLabel(fila.hora, fila.vigilant, fila.tipus, fila.grups, fila.aula) : ''
-// Les aules de la configuració i les que ja surten a les files (p.ex. «ENLLAÇ»)
-const aulesDelFiltre = computed(() =>
-  [...new Set([...aules.value, ...vigilancies.value.map(v => v.aula)].filter(Boolean))]
-    .sort((a, b) => collator.value.compare(a, b))
-)
-const idsTitularsHoraLliure = computed(() => new Set(titularsHoraLliure.value.map(item => String(item.vigilancia_id))))
 
-// Mètodes
 const getGrupsPerNivell = (nivell) => {
   if (!nivell || !grupsPerNivell.value[nivell]) {
     return []
@@ -668,1097 +353,40 @@ const getTipusOptions = (nivell, includePlaceholder) => {
   return includePlaceholder ? [t('vigilancies.placeholders.type'), ...normalitzats] : normalitzats
 }
 
-const normalitzarDisponiblesParam = (value) => {
-  if (value === null || value === undefined) return null
-  const normalized = String(value).trim()
-  return normalized || null
+const publicaConfig = (config) => {
+  professors.value = [...(config.professors || [])].sort((a, b) => collator.value.compare(a, b))
+  hores.value = config.hores
+  nivells.value = config.nivells
+  aules.value = config.aules
+  grupsPerNivell.value = config.grups_per_nivell
+  tipusExamens.value = config.tipus_examens
+  tipusPerNivell.value = config.tipus_per_nivell || {}
+  configCarregada.value = true
 }
-
-const getDisponiblesCacheKey = (hora, tipus = null, grups = null, aula = null) => {
-  const horaNorm = String(hora || '').trim()
-  const tipusNorm = normalitzarDisponiblesParam(tipus)
-  if (!tipusNorm) {
-    return horaNorm
-  }
-  const grupsNorm = normalitzarDisponiblesParam(grups) || ''
-  const aulaNorm = normalitzarDisponiblesParam(aula) || ''
-  return `${horaNorm}|${tipusNorm}|${grupsNorm}|${aulaNorm}`
-}
-
-const carregarDisponibles = async (hora, force = false, tipus = null, grups = null, aula = null) => {
-  const horaNorm = String(hora || '').trim()
-  if (!horaNorm) return []
-
-  const tipusNorm = normalitzarDisponiblesParam(tipus)
-  const grupsNorm = normalitzarDisponiblesParam(grups)
-  const aulaNorm = normalitzarDisponiblesParam(aula)
-  const cacheKey = getDisponiblesCacheKey(horaNorm, tipusNorm, grupsNorm, aulaNorm)
-
-  // Si ja tenim les dades en cache i no es força, retornar-les
-  if (!force && disponiblesPerHora.value[cacheKey]) {
-    return disponiblesPerHora.value[cacheKey]
-  }
-
-  try {
-    // Construir URL amb paràmetres opcionals per detectar titulars
-    let url = `/api/vigilancies/${dataISO.value}/${horaNorm}/disponibles`
-    const params = new URLSearchParams()
-    if (tipusNorm) params.append('tipus', tipusNorm)
-    if (grupsNorm) params.append('grups', grupsNorm)
-    if (aulaNorm) params.append('aula', aulaNorm)
-
-    if (params.toString()) {
-      url += '?' + params.toString()
-    }
-
-    const response = await axios.get(url)
-    disponiblesPerHora.value[cacheKey] = response.data
-
-    // També guardar a la cache general per hora (sense tipus) per compatibilitat
-    if (!disponiblesPerHora.value[horaNorm]) {
-      disponiblesPerHora.value[horaNorm] = response.data
-    }
-
-    return response.data
-  } catch (err) {
-    console.error(`Error carregant disponibles per hora ${horaNorm}:`, err)
-    // Fallback: retornar professors sense format
-    return professors.value.map(p => ({
-      value: p,
-      label: p,
-      emoji: '',
-      estat: '',
-      info: '',
-      ordre_tipus: 999,
-      color: '#FFFFFF',
-      ja_assignat: false
-    }))
-  }
-}
-
-// `substitueix`: la memòria es refà sencera amb la resposta (en recarregar el
-// dia); si no, s'hi afegeixen les claus noves. `alhora`: el que s'ha d'aplicar
-// en el mateix moment que els disponibles (el llistat nou), perquè la taula es
-// pinti un sol cop.
-const carregarDisponiblesPerLlista = async (llistaVigilancies = [], { substitueix = false, alhora = null } = {}) => {
-  if (!llistaVigilancies.length) {
-    alhora?.()
-    if (substitueix) disponiblesPerHora.value = {}
-    return
-  }
-
-  const queriesMap = new Map()
-  const addQuery = (hora, tipus = null, grups = null, aula = null) => {
-    const horaNorm = String(hora || '').trim()
-    if (!horaNorm) return
-    const tipusNorm = normalitzarDisponiblesParam(tipus)
-    const grupsNorm = normalitzarDisponiblesParam(grups)
-    const aulaNorm = normalitzarDisponiblesParam(aula)
-    const key = getDisponiblesCacheKey(horaNorm, tipusNorm, grupsNorm, aulaNorm)
-    if (!queriesMap.has(key)) {
-      queriesMap.set(key, {
-        hora: horaNorm,
-        tipus: tipusNorm,
-        grups: grupsNorm,
-        aula: aulaNorm
-      })
-    }
-  }
-
-  for (const vigilancia of llistaVigilancies) {
-    addQuery(vigilancia.hora, vigilancia.tipus, vigilancia.grups, vigilancia.aula)
-  }
-
-  const horesUniques = new Set(llistaVigilancies.map(v => v.hora))
-  for (const hora of horesUniques) {
-    addQuery(hora)
-  }
-
-  const queries = Array.from(queriesMap.values())
-  if (!queries.length) {
-    alhora?.()
-    return
-  }
-
-  try {
-    const response = await axios.post(`/api/vigilancies/${dataISO.value}/disponibles-batch`, {
-      queries
-    })
-    const results = response.data?.results || {}
-    const novaCache = substitueix ? {} : { ...disponiblesPerHora.value }
-
-    for (const [key, value] of Object.entries(results)) {
-      const disponibles = Array.isArray(value) ? value : []
-      novaCache[key] = disponibles
-      const horaKey = key.includes('|') ? key.split('|')[0] : key
-      if (!novaCache[horaKey]) {
-        novaCache[horaKey] = disponibles
-      }
-    }
-    alhora?.()
-    disponiblesPerHora.value = novaCache
-  } catch (err) {
-    console.error('Error en batch de disponibles, fallback a crides individuals:', err)
-    alhora?.()
-    if (substitueix) disponiblesPerHora.value = {}
-    const tasques = queries.map((query) => () =>
-      carregarDisponibles(query.hora, false, query.tipus, query.grups, query.aula)
-    )
-    for (let i = 0; i < tasques.length; i += DISPONIBLES_BATCH_SIZE) {
-      const lot = tasques.slice(i, i + DISPONIBLES_BATCH_SIZE)
-      await Promise.all(lot.map((tasca) => tasca()))
-    }
-  }
-}
-
-const refrescarDisponiblesHora = async (hora) => {
-  const novaCache = { ...disponiblesPerHora.value }
-  for (const clau of Object.keys(novaCache)) {
-    if (clau === hora || clau.startsWith(`${hora}|`)) {
-      delete novaCache[clau]
-    }
-  }
-  disponiblesPerHora.value = novaCache
-
-  const vigilanciesHora = vigilancies.value.filter(v => v.hora === hora)
-  if (!vigilanciesHora.length) return
-  await carregarDisponiblesPerLlista(vigilanciesHora)
-}
-
-// Les opcions ordenades de cada llista de disponibles, calculades un sol cop:
-// la mateixa llista per a totes les files que la fan servir. Així, quan es
-// recarreguen els disponibles d'una hora, les files de les altres hores reben
-// la mateixa llista i no es tornen a pintar.
-const opcionsOrdenades = new WeakMap()
-const SENSE_DISPONIBLES = []
-
-const getDisponiblesPerHora = (hora, tipus = null, grups = null, aula = null) => {
-  // Retornar disponibles amb tipus, grups i aula per detectar titulars
-  const horaNorm = String(hora || '').trim()
-  const cacheKey = getDisponiblesCacheKey(horaNorm, tipus, grups, aula)
-
-  // Buscar primer amb la clau específica (amb titular), sinó la genèrica
-  const disponibles = disponiblesPerHora.value[cacheKey] || disponiblesPerHora.value[horaNorm] || SENSE_DISPONIBLES
-  const desades = opcionsOrdenades.get(disponibles)
-  if (desades && desades.idioma === locale.value) return desades.opcions
-
-  const ordenats = [...disponibles].sort((a, b) => {
-    const ordreA = Number.isFinite(Number(a.ordre_tipus)) ? Number(a.ordre_tipus) : 999
-    const ordreB = Number.isFinite(Number(b.ordre_tipus)) ? Number(b.ordre_tipus) : 999
-    if (ordreA !== ordreB) {
-      return ordreA - ordreB
-    }
-    const catA = Number.isFinite(Number(a.categoria)) ? Number(a.categoria) : 999
-    const catB = Number.isFinite(Number(b.categoria)) ? Number(b.categoria) : 999
-    if (catA !== catB) {
-      return catA - catB
-    }
-    return collator.value.compare(a.value || a.label || '', b.value || b.label || '')
-  })
-
-  // AFEGIR opció buida al principi (estil Softcatalà: "Seleccioneu")
-  const opcions = [
-    {
-      value: '',
-      label: t('vigilancies.placeholders.supervisorSelect'),
-      emoji: '',
-      estat: '',
-      info: '',
-      ordre_tipus: -1,
-      color: '#F3F4F6',
-      ja_assignat: false
-    },
-    ...ordenats
-  ]
-  opcionsOrdenades.set(disponibles, { idioma: locale.value, opcions })
-  return opcions
-}
-
-const getVigilantLabel = (hora, vigilantValue, tipus = null, grups = null, aula = null) => {
-  // Troba el label del vigilant dins de les opcions disponibles (amb titular si és el cas)
-  const horaNorm = String(hora || '').trim()
-  const cacheKey = getDisponiblesCacheKey(horaNorm, tipus, grups, aula)
-  const disponibles = disponiblesPerHora.value[cacheKey] || disponiblesPerHora.value[horaNorm] || []
-  const vigilant = disponibles.find(d => d.value === vigilantValue)
-  return vigilant ? vigilant.label : vigilantValue
-}
-
-const carregarConfig = async () => {
-  try {
-    const response = await axios.get('/api/vigilancies/config', ambDataTreball())
-    const llista = response.data.professors || []
-    professors.value = [...llista].sort((a, b) => collator.value.compare(a, b))
-    hores.value = response.data.hores
-    nivells.value = response.data.nivells
-    aules.value = response.data.aules
-    grupsPerNivell.value = response.data.grups_per_nivell
-    tipusExamens.value = response.data.tipus_examens
-    tipusPerNivell.value = response.data.tipus_per_nivell || {}
-    configCarregada.value = true
-  } catch (err) {
-    console.error('Error carregant configuració:', err)
-  }
-}
-
-const carregarVigilancies = async () => {
-  loading.value = true
-  error.value = null
-  seleccionades.value = []
-  oblidaAjudes()
-
-  try {
-    const llista = await apiVigilancies.llista(dataISO.value)
-
-    // Disponibles de totes les files, recalculats amb les noves assignacions.
-    // La memòria se substitueix en arribar la resposta (buidar-la abans feia
-    // parpellejar els noms dels vigilants), i el llistat es posa en el mateix
-    // moment: la taula es pinta un sol cop.
-    await carregarDisponiblesPerLlista(llista, { substitueix: true, alhora: () => { vigilancies.value = llista } })
-  } catch (err) {
-    console.error('Error carregant vigilàncies:', err)
-    error.value = t('vigilancies.errors.load')
-    vigilancies.value = []
-  } finally {
-    loading.value = false
-  }
-  await carregarSubstitucionsCount()
-}
-
-const carregarSubstitucionsCount = async () => {
-  try {
-    const response = await axios.get(`/api/substitucions/${dataISO.value}`)
-    substitucionsCount.value = Array.isArray(response.data) ? response.data.length : 0
-  } catch (err) {
-    console.error('Error carregant substitucions:', err)
-    substitucionsCount.value = 0
-  }
-}
+const { carregarVigilancies, carregarSubstitucionsCount } = useCarregaVigilancies({
+  dataISO, loading, error, vigilancies, seleccionades, substitucionsCount,
+  carregarDisponiblesPerLlista, publicaConfig, oblidaAjudes, t
+})
 
 const anarASubstitucions = () => {
   emit('anar-substitucions')
 }
 
-const obrirDialogConflicte = (overwriteAction) => {
-  conflicteOverwrite.value = overwriteAction
-  mostrarDialogConflicte.value = true
-}
+const { mostrarDialogConflicte, gestionarConflicte, executarOverwrite, canviaCamp, confirmarEliminar, confirmarEliminarSeleccionades, mostrarFormulariNova, creantVigilancia, propostaNova, afegirNovaVigilancia, disponiblesDelFormulari, creaVigilancia, afegirVigilanciaDesprés, mouFiles } = useEdicioVigilancies({
+  dataISO, vigilancies, seleccionades, vigilanciesFiltrades, hores, opcionsFiles, toast, t, confirmaEsborrar, oblidaAjudes, ressalta, carregarVigilancies, carregarSubstitucionsCount, refrescarDisponiblesHora, carregarDisponibles, getDisponiblesPerHora
+})
 
-const gestionarConflicte = async () => {
-  await carregarVigilancies()
-}
+const { titularsHoraLliure, vigilanciesSenseTitular, posantTitular, assignantTitulars, assignantPendents, ordenant, posaTitularHoraLliure, assignarTitulars, assignarPendents, confirmarNetejar, ordenarPerHora, idsTitularsHoraLliure } = useAssignacioVigilancies({
+  dataISO, vigilancies, toast, t, confirm, confirmaEsborrar, carregarVigilancies
+})
 
-const executarOverwrite = async () => {
-  if (conflicteOverwrite.value) {
-    await conflicteOverwrite.value()
-  }
-}
-
-// Només el llistat (l'ordre i els updated_at nous), sense recalcular els disponibles
-const recarregaLlistat = async () => {
-  vigilancies.value = await apiVigilancies.llista(dataISO.value)
-}
-
-// Un camp d'una fila de la taula: es canvia i es desa
-const canviaCamp = async (fila, camp, valor) => {
-  if ((camp !== 'nivell' && !fila.nivell) || (camp === 'nivell' && !valor)) {
-    toast.add({
-      severity: 'warn',
-      summary: t('common.warning'),
-      detail: t('vigilancies.errors.levelRequired'),
-      life: 4000
-    })
-    return
-  }
-  const horaAbans = fila.hora
-  if (camp === 'nivell') {
-    Object.assign(fila, adaptaVigilanciaAlNivell(fila, valor, opcionsFiles.value))
-  } else {
-    fila[camp] = valor
-  }
-  await actualitzarVigilancia(fila, { horaAbans })
-}
-
-// `horaAbans`: si la fila canvia d'hora, va al final del bloc de l'hora nova
-// (ho fa el backend), es ressalta i la pantalla s'hi desplaça
-const actualitzarVigilancia = async (vigilancia, { horaAbans = vigilancia.hora } = {}) => {
-  const esPlaceholder = (value, fallback) =>
-    !value || value.startsWith('--') || value === fallback
-
-  const tipusNormalitzat = esPlaceholder(vigilancia.tipus, t('vigilancies.placeholders.type')) ? '' : vigilancia.tipus
-  const grupsNormalitzat = esPlaceholder(vigilancia.grups, t('vigilancies.placeholders.groups')) ? '' : vigilancia.grups
-  const aulaNormalitzada = esPlaceholder(vigilancia.aula, t('vigilancies.placeholders.room')) ? '' : vigilancia.aula
-  const nivellNormalitzat = esPlaceholder(vigilancia.nivell, t('vigilancies.placeholders.level')) ? '' : vigilancia.nivell
-
-  try {
-    const response = await axios.put(`/api/vigilancies/${dataISO.value}/${vigilancia.id}`, {
-      hora: vigilancia.hora,
-      tipus: tipusNormalitzat,
-      grups: grupsNormalitzat,
-      aula: aulaNormalitzada,
-      vigilant: vigilancia.vigilant,
-      comentaris: vigilancia.comentaris,
-      nivell: nivellNormalitzat,
-      updated_at: vigilancia.updated_at
-    })
-
-    if (response.data?.updated_at) {
-      vigilancia.updated_at = response.data.updated_at
-    }
-
-    oblidaAjudes()
-    if (horaAbans !== vigilancia.hora) {
-      await recarregaLlistat()
-      await refrescarDisponiblesHora(horaAbans)
-      await refrescarDisponiblesHora(vigilancia.hora)
-      ressalta(vigilancia.id)
-    } else {
-      // Disponibles de l'hora afectada, perquè els candidats siguin coherents
-      await refrescarDisponiblesHora(vigilancia.hora)
-    }
-
-    // Actualitzar recompte de substitucions (assignar vigilant amb classe en genera)
-    await carregarSubstitucionsCount()
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.updated'),
-      detail: t('vigilancies.messages.updated'),
-      life: 2000
-    })
-  } catch (err) {
-    console.error('Error actualitzant vigilància:', err)
-    if (err.response?.status === 409 && err.response?.data?.detail?.current_data) {
-      const currentData = err.response.data.detail.current_data
-      obrirDialogConflicte(async () => {
-        await axios.put(`/api/vigilancies/${dataISO.value}/${vigilancia.id}`, {
-          hora: vigilancia.hora,
-          tipus: tipusNormalitzat,
-          grups: grupsNormalitzat,
-          aula: aulaNormalitzada,
-          vigilant: vigilancia.vigilant,
-          comentaris: vigilancia.comentaris,
-          nivell: nivellNormalitzat,
-          updated_at: currentData.updated_at,
-          force: true
-        })
-        await carregarVigilancies()
-      })
-      return
-    }
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('vigilancies.errors.update'),
-      life: 3000
-    })
-    // Recarregar per restaurar estat original
-    await carregarVigilancies()
-  }
-}
-
-const confirmarEliminar = (vigilancia) => {
-  confirmaEsborrar({
-    message: t('vigilancies.confirm.deleteMessage', { hour: vigilancia.hora }),
-    header: t('common.confirmDelete'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('common.delete'),
-    rejectLabel: t('common.cancel'),
-    accept: async () => {
-      await eliminarVigilancia(vigilancia)
-    }
-  })
-}
-
-const confirmarEliminarSeleccionades = () => {
-  const count = seleccionades.value.length
-  confirmaEsborrar({
-    message: t('vigilancies.confirm.deleteSelectedMessage', { count }, count),
-    header: t('common.confirmDelete'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('vigilancies.actions.deleteSelected', { count }),
-    rejectLabel: t('common.cancel'),
-    accept: async () => {
-      const llistaAEliminar = [...seleccionades.value]
-      seleccionades.value = []
-      let errors = 0
-      await Promise.all(llistaAEliminar.map(async (vig) => {
-        try {
-          const params = vig.updated_at ? `?updated_at=${encodeURIComponent(vig.updated_at)}` : ''
-          await axios.delete(`/api/vigilancies/${dataISO.value}/${vig.id}${params}`)
-        } catch {
-          errors++
-        }
-      }))
-      await carregarVigilancies()
-      if (errors === 0) {
-        toast.add({
-          severity: 'success',
-          summary: t('common.deleted'),
-          detail: t('vigilancies.messages.deletedSelected', { count: llistaAEliminar.length }, llistaAEliminar.length),
-          life: 3000
-        })
-      } else {
-        toast.add({
-          severity: 'warn',
-          summary: t('common.warning'),
-          detail: t('vigilancies.messages.deletedSelectedPartial', { ok: llistaAEliminar.length - errors, errors }),
-          life: 5000
-        })
-      }
-    }
-  })
-}
-
-const eliminarVigilancia = async (vigilancia) => {
-  try {
-    const params = vigilancia.updated_at ? `?updated_at=${encodeURIComponent(vigilancia.updated_at)}` : ''
-    await axios.delete(`/api/vigilancies/${dataISO.value}/${vigilancia.id}${params}`)
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.deleted'),
-      detail: t('vigilancies.messages.deleted'),
-      life: 3000
-    })
-
-    await carregarVigilancies()
-  } catch (err) {
-    console.error('Error eliminant vigilància:', err)
-    if (err.response?.status === 409 && err.response?.data?.detail?.current_data) {
-      const currentData = err.response.data.detail.current_data
-      obrirDialogConflicte(async () => {
-        const params = currentData.updated_at ? `?updated_at=${encodeURIComponent(currentData.updated_at)}&force=true` : '?force=true'
-        await axios.delete(`/api/vigilancies/${dataISO.value}/${vigilancia.id}${params}`)
-        await carregarVigilancies()
-      })
-      return
-    }
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('vigilancies.errors.delete'),
-      life: 3000
-    })
-  }
-}
-
-// Posa com a vigilant, només en aquella fila, un titular que tenia l'hora lliure
-const posaTitularHoraLliure = async (item) => {
-  const vigilancia = vigilancies.value.find(v => String(v.id) === String(item.vigilancia_id))
-  posantTitular.value = item.vigilancia_id
-  try {
-    await axios.put(`/api/vigilancies/${dataISO.value}/${item.vigilancia_id}`, {
-      vigilant: item.titular,
-      updated_at: vigilancia?.updated_at
-    })
-    titularsHoraLliure.value = titularsHoraLliure.value.filter(x => x.vigilancia_id !== item.vigilancia_id)
-    toast.add({ severity: 'success', summary: t('vigilancies.freeHourOwners.assigned'), detail: `${item.titular} · ${item.hora} · ${item.grups}`, life: 3000 })
-    await carregarVigilancies()
-  } catch (err) {
-    console.error('Error posant el titular:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: err.response?.status === 409 ? t('vigilancies.freeHourOwners.conflict') : (err.response?.data?.detail || t('vigilancies.errors.assignOwners')),
-      life: 5000
-    })
-    await carregarVigilancies()
-  } finally {
-    posantTitular.value = null
-  }
-}
-
-// «Nova vigilància»: el formulari, amb l'hora, el nivell i el tipus de la darrera fila
-const mostrarFormulariNova = ref(false)
-const creantVigilancia = ref(false)
-const propostaNova = ref({})
-
-const afegirNovaVigilancia = () => {
-  const darrera = vigilanciesFiltrades.value[vigilanciesFiltrades.value.length - 1]
-  propostaNova.value = {
-    hora: darrera?.hora || hores.value[0] || '',
-    nivell: darrera?.nivell || '',
-    tipus: darrera?.tipus || ''
-  }
-  mostrarFormulariNova.value = true
-}
-
-// Els disponibles d'una consulta del formulari (hora i examen), amb l'opció buida
-const disponiblesDelFormulari = async ({ hora, tipus, grups, aula }) => {
-  await carregarDisponibles(hora, false, tipus, grups, aula)
-  return getDisponiblesPerHora(hora, tipus, grups, aula)
-}
-
-const creaVigilancia = async (fila) => {
-  creantVigilancia.value = true
-  try {
-    const nova = await apiVigilancies.crea(dataISO.value, fila)
-    mostrarFormulariNova.value = false
-    toast.add({ severity: 'success', summary: t('common.created'), detail: t('vigilancies.messages.added'), life: 2000 })
-    await carregarVigilancies()
-    if (nova?.id) ressalta(nova.id)
-  } catch (err) {
-    console.error('Error creant vigilància:', err)
-    toast.add({ severity: 'error', summary: t('common.error'), detail: t('vigilancies.errors.create'), life: 3000 })
-  } finally {
-    creantVigilancia.value = false
-  }
-}
-
-// El «+» de cada fila: una còpia just a sota («Nova vigilància» la posa al final del bloc)
-const afegirVigilanciaDesprés = async (vigilancia) => {
-  try {
-    const esPlaceholder = (value, fallback) =>
-      !value || value.startsWith('--') || value === fallback
-
-    const novaVig = {
-      hora: vigilancia.hora,
-      nivell: vigilancia.nivell || null,
-      tipus: vigilancia.tipus || '',
-      grups: vigilancia.grups,
-      aula: vigilancia.aula,
-      vigilant: '',
-      comentaris: ''
-    }
-    const payload = {
-      ...novaVig,
-      nivell: esPlaceholder(novaVig.nivell, t('vigilancies.placeholders.level')) ? '' : (novaVig.nivell || ''),
-      tipus: esPlaceholder(novaVig.tipus, t('vigilancies.placeholders.type')) ? '' : (novaVig.tipus || ''),
-      despres_de: String(vigilancia.id)
-    }
-
-    // La còpia va just a sota de la fila que copia (`despres_de`) i es ressalta
-    const nova = await apiVigilancies.crea(dataISO.value, payload)
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.created'),
-      detail: t('vigilancies.messages.added'),
-      life: 2000
-    })
-
-    await carregarVigilancies()
-    if (nova?.id) ressalta(nova.id)
-  } catch (err) {
-    console.error('Error creant vigilància:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('vigilancies.errors.create'),
-      life: 3000
-    })
-  }
-}
-
-// Nou ordre de les files d'una hora (arrossegant o amb ↑/↓). Es mostra de
-// seguida; si el servidor no l'accepta (la taula ha canviat), es recarrega.
-const mouFiles = async (hora, ids) => {
-  const posicio = new Map(ids.map((id, i) => [String(id), i]))
-  const deLhora = vigilancies.value.filter(v => v.hora === hora)
-    .sort((a, b) => posicio.get(String(a.id)) - posicio.get(String(b.id)))
-  let k = 0
-  vigilancies.value = vigilancies.value.map(v => (v.hora === hora ? deLhora[k++] : v))
-  try {
-    await apiVigilancies.desaOrdre(dataISO.value, hora, ids)
-    await recarregaLlistat() // desar l'ordre canvia els updated_at
-  } catch (err) {
-    console.error('Error desant l\'ordre:', err)
-    toast.add({
-      severity: err.response?.status === 409 ? 'warn' : 'error',
-      summary: err.response?.status === 409 ? t('common.warning') : t('common.error'),
-      detail: err.response?.status === 409 ? t('vigilancies.messages.orderChanged') : t('vigilancies.errors.order'),
-      life: 4000
-    })
-    await carregarVigilancies()
-  }
-}
-
-// Mètodes d'assignació automàtica
-
-const assignarTitulars = async () => {
-  assignantTitulars.value = true
-
-  try {
-    const response = await axios.post(`/api/vigilancies/${dataISO.value}/assign/titulars`)
-    titularsHoraLliure.value = response.data.titulars_hora_lliure || []
-    vigilanciesSenseTitular.value = response.data.vigilancies_sense_titular || []
-
-    toast.add({
-      severity: 'success',
-      summary: t('vigilancies.messages.assignOwnersTitle'),
-      detail: response.data.message,
-      life: 5000
-    })
-
-    // Recarregar vigilàncies
-    await carregarVigilancies()
-  } catch (err) {
-    console.error('Error assignant titulars:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: err.response?.data?.detail || t('vigilancies.errors.assignOwners'),
-      life: 5000
-    })
-  } finally {
-    assignantTitulars.value = false
-  }
-}
-
-const assignarPendents = async () => {
-  // FASE 1: Assignar només alliberats
-  assignantPendents.value = true
-
-  try {
-    const response1 = await axios.post(`/api/vigilancies/${dataISO.value}/assign/pendents?disponibles=false`)
-
-    await carregarVigilancies()
-
-    const assignats = response1.data.assigned_count
-    const pendents = response1.data.remaining_count
-
-    // Si s'han assignat alliberats, mostrar missatge
-    if (assignats > 0) {
-      toast.add({
-        severity: 'success',
-        summary: t('vigilancies.messages.assignedFreeTitle'),
-        detail: t('vigilancies.messages.assignedFreeDetail', { count: assignats }, assignats),
-        life: 4000
-      })
-    }
-
-    // Si encara queden pendents, preguntar si vol disponibles
-    if (pendents > 0) {
-      assignantPendents.value = false
-
-      confirm.require({
-        message: t('vigilancies.confirm.assignAvailableMessage', { assigned: assignats, pending: pendents }),
-        header: t('vigilancies.confirm.assignAvailableTitle'),
-        icon: 'pi pi-question-circle',
-        acceptLabel: t('vigilancies.confirm.assignAvailableAccept', { count: pendents }, pendents),
-        rejectLabel: t('vigilancies.confirm.assignAvailableReject'),
-        accept: async () => {
-          // FASE 2: Assignar disponibles
-          assignantPendents.value = true
-          try {
-            const response2 = await axios.post(`/api/vigilancies/${dataISO.value}/assign/pendents?disponibles=true`)
-
-            await carregarVigilancies()
-
-            toast.add({
-              severity: 'success',
-              summary: t('vigilancies.messages.availableAssignedTitle'),
-              detail: response2.data.message,
-              life: 5000
-            })
-          } catch (err) {
-            console.error('Error assignant disponibles:', err)
-            toast.add({
-              severity: 'error',
-              summary: t('common.error'),
-              detail: err.response?.data?.detail || t('vigilancies.errors.assignAvailable'),
-              life: 5000
-            })
-          } finally {
-            assignantPendents.value = false
-          }
-        }
-      })
-    } else {
-      // No queden pendents
-      toast.add({
-        severity: 'info',
-        summary: t('vigilancies.messages.allAssignedTitle'),
-        detail: t('vigilancies.messages.allAssignedDetail'),
-        life: 3000
-      })
-      assignantPendents.value = false
-    }
-
-  } catch (err) {
-    console.error('Error assignant alliberats:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: err.response?.data?.detail || t('vigilancies.errors.assignFree'),
-      life: 5000
-    })
-    assignantPendents.value = false
-  }
-}
-
-const confirmarNetejar = () => {
-  confirmaEsborrar({
-    message: t('vigilancies.confirm.clearMessage'),
-    header: t('vigilancies.confirm.clearTitle'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('vigilancies.confirm.clearAccept'),
-    rejectLabel: t('common.cancel'),
-    accept: async () => {
-      try {
-        const response = await axios.post(`/api/vigilancies/${dataISO.value}/clear`)
-
-        toast.add({
-          severity: 'success',
-          summary: t('vigilancies.messages.clearedTitle'),
-          detail: response.data.message,
-          life: 3000
-        })
-
-        await carregarVigilancies()
-      } catch (err) {
-        console.error('Error netejant assignacions:', err)
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: t('vigilancies.errors.clear'),
-          life: 3000
-        })
-      }
-    }
-  })
-}
-
-// «Ordena» desa l'ordre automàtic: si hi havia retocs fets a mà, ho demana abans
-const ordenarPerHora = async () => {
-  let manual = false
-  try {
-    manual = await apiVigilancies.teOrdreManual(dataISO.value)
-  } catch (err) {
-    console.error('Error consultant l\'ordre:', err)
-  }
-  if (!manual) return ordena()
-  confirm.require({
-    header: t('vigilancies.confirm.sortManualTitle'),
-    message: t('vigilancies.confirm.sortManualMessage'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('vigilancies.actions.sort'),
-    rejectLabel: t('common.cancel'),
-    accept: ordena
-  })
-}
-
-const ordena = async () => {
-  ordenant.value = true
-
-  try {
-    const response = await axios.post(`/api/vigilancies/${dataISO.value}/sort`)
-
-    toast.add({
-      severity: 'success',
-      summary: t('vigilancies.messages.sortedTitle'),
-      detail: response.data.message,
-      life: 3000
-    })
-
-    // Ordenar no canvia qui està disponible ni les substitucions: només cal
-    // el llistat (amb l'ordre i els updated_at nous)
-    const llistat = await axios.get(`/api/vigilancies/${dataISO.value}`)
-    vigilancies.value = llistat.data
-  } catch (err) {
-    console.error('Error ordenant vigilàncies:', err)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('vigilancies.errors.sort'),
-      life: 3000
-    })
-  } finally {
-    ordenant.value = false
-  }
-}
-
-// Funcions PDF
-const carregarPreferenciesPdf = async () => {
-  try {
-    const response = await axios.get('/api/pdf/preferences', { _silent: true })
-    aplicaPreferencies(
-      pdfConfig,
-      response.data?.vigilancies,
-      ['format', 'midaLletra', 'showComments', 'showHours', 'compress', 'includeSubstitucions']
-    )
-    aplicaPreferencies(
-      intervalConfig,
-      response.data?.vigilancies_interval,
-      ['format', 'midaLletra', 'diaPerPagina', 'includeWeekends', 'includeEmptyDays', 'showComments', 'showHours', 'compress', 'includeSubstitucions']
-    )
-  } catch (error) {
-    console.error('Error carregant preferències PDF:', error)
-  }
-}
-
-const desarPreferenciesPdf = async (tipus) => {
-  try {
-    if (tipus === 'vigilancies') {
-      await axios.put('/api/pdf/preferences', {
-        vigilancies: {
-          format: pdfConfig.value.format,
-          midaLletra: pdfConfig.value.midaLletra,
-          showComments: pdfConfig.value.showComments,
-          showHours: pdfConfig.value.showHours,
-          compress: pdfConfig.value.compress,
-          includeSubstitucions: pdfConfig.value.includeSubstitucions
-        }
-      }, { _silent: true })
-      return
-    }
-    if (tipus === 'interval') {
-      await axios.put('/api/pdf/preferences', {
-        vigilancies_interval: {
-          format: intervalConfig.value.format,
-          midaLletra: intervalConfig.value.midaLletra,
-          diaPerPagina: intervalConfig.value.diaPerPagina,
-          includeWeekends: intervalConfig.value.includeWeekends,
-          includeEmptyDays: intervalConfig.value.includeEmptyDays,
-          showComments: intervalConfig.value.showComments,
-          showHours: intervalConfig.value.showHours,
-          compress: intervalConfig.value.compress,
-          includeSubstitucions: intervalConfig.value.includeSubstitucions
-        }
-      }, { _silent: true })
-    }
-  } catch (error) {
-    console.error('Error desant preferències PDF:', error)
-  }
-}
-
-const recompteSenseNivell = async (dataInici, dataFinal) => {
-  const response = await axios.get('/api/pdf/vigilancies/comptes-sense-nivell', {
-    params: { data_inici: dataInici, data_final: dataFinal }
-  })
-  return response.data.sense_nivell || 0
-}
-
-const mostrarDialegPDF = async () => {
-  senseNivellDia.value = await recompteSenseNivell(dataISO.value, dataISO.value)
-  pdfConfig.value.nivells = seleccioInicialNivellsPdf(opcionsNivellsPdfDia.value)
-  await carregarPreferenciesPdf()
-  mostrarDialogPDF.value = true
-}
-
-const mostrarDialegInterval = async () => {
-  intervalConfig.value.dataInici = dataTreball.value
-  intervalConfig.value.dataFinal = dataTreball.value
-  senseNivellInterval.value = await recompteSenseNivell(dataISO.value, dataISO.value)
-  intervalConfig.value.nivells = seleccioInicialNivellsPdf(opcionsNivellsPdfInterval.value)
-  await carregarPreferenciesPdf()
-  mostrarDialogInterval.value = true
-}
-
-watch(
-  () => [intervalConfig.value.dataInici, intervalConfig.value.dataFinal],
-  async ([inici, final]) => {
-    if (!mostrarDialogInterval.value || !inici || !final) return
-    const dataInici = dataIso(inici)
-    const dataFinal = dataIso(final)
-    if (!dataInici || !dataFinal) return
-    const teniaOpcioSenseNivell = senseNivellInterval.value > 0
-    senseNivellInterval.value = await recompteSenseNivell(dataInici, dataFinal)
-    const valorsValids = new Set(opcionsNivellsPdfInterval.value.map((opcio) => opcio.valor))
-    intervalConfig.value.nivells = intervalConfig.value.nivells.filter((valor) => valorsValids.has(valor))
-    if (!teniaOpcioSenseNivell && senseNivellInterval.value > 0) {
-      intervalConfig.value.nivells.push(SENSE_NIVELL)
-    }
-  }
-)
-
-const generarPDF = async () => {
-  generantPDF.value = true
-  try {
-    const validacioResponse = await axios.get(`/api/pdf/${dataISO.value}/validacions`)
-    validacionsVig.value = validacioResponse.data
-
-    if (totalVigFiltrats.value > 0) {
-      mostrarDialogPDF.value = false
-      mostrarDialogValidacionsVig.value = true
-      generantPDF.value = false
-      return
-    }
-
-    await _baixarPDFVigilancies()
-  } catch (err) {
-    console.error('Error validant PDF:', err)
-    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-    if (!jaAvisat(err)) {
-      toast.add({
-        severity: 'error',
-        summary: t('common.error'),
-        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
-        life: 5000
-      })
-    }
-    generantPDF.value = false
-  }
-}
-
-const continuarPDFVig = async () => {
-  await _baixarPDFVigilancies()
-  mostrarDialogValidacionsVig.value = false
-}
-
-const cancelarPDFVig = () => {
-  mostrarDialogValidacionsVig.value = false
-  mostrarDialogPDF.value = true
-  generantPDF.value = false
-}
-
-const _baixarPDFVigilancies = async () => {
-  generantPDF.value = true
-  try {
-    const seleccioNivells = parametresNivellsPdf(pdfConfig.value.nivells)
-    const params = new URLSearchParams({
-      ...parametresComuns(pdfConfig.value),
-      ...seleccioNivells,
-      include_substitucions: pdfConfig.value.includeSubstitucions
-    })
-
-    const url = `/api/pdf/vigilancies/${dataISO.value}?${params.toString()}`
-    const response = await axios.get(url, { responseType: 'blob' })
-
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const downloadUrl = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    link.download = `vigilancies_${dataISO.value}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(downloadUrl)
-
-    toast.add({
-      severity: 'success',
-      summary: t('vigilancies.messages.pdfGeneratedTitle'),
-      detail: t('vigilancies.messages.pdfGeneratedDetail'),
-      life: 3000
-    })
-
-    await desarPreferenciesPdf('vigilancies')
-    mostrarDialogPDF.value = false
-  } catch (err) {
-    console.error('Error generant PDF:', err)
-    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-    if (!jaAvisat(err)) {
-      toast.add({
-        severity: 'error',
-        summary: t('common.error'),
-        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
-        life: 5000
-      })
-    }
-  } finally {
-    generantPDF.value = false
-  }
-}
-
-const generarPDFInterval = async () => {
-  // Validar dates abans de començar
-  if (!intervalConfig.value.dataInici || !intervalConfig.value.dataFinal) {
-    toast.add({
-      severity: 'warn',
-      summary: t('vigilancies.errors.datesRequiredTitle'),
-      detail: t('vigilancies.errors.datesRequired'),
-      life: 3000
-    })
-    return
-  }
-
-  if (opcionsNivellsPdfInterval.value.length > 0 && !intervalConfig.value.nivells?.length) {
-    toast.add({
-      severity: 'warn',
-      summary: t('vigilancies.errors.levelsRequiredTitle'),
-      detail: t('vigilancies.errors.levelsRequired'),
-      life: 3000
-    })
-    return
-  }
-
-  generantPDFInterval.value = true
-
-  try {
-    // Convertir dates a format YYYY-MM-DD
-        const formatDate = dataIso
-
-    const dataInici = formatDate(intervalConfig.value.dataInici)
-    const dataFinal = formatDate(intervalConfig.value.dataFinal)
-
-    if (!dataInici || !dataFinal) {
-      toast.add({
-        severity: 'error',
-        summary: t('vigilancies.errors.dateFormatTitle'),
-        detail: t('vigilancies.errors.dateFormat'),
-        life: 3000
-      })
-      return
-    }
-    const seleccioNivells = parametresNivellsPdf(intervalConfig.value.nivells)
-
-    // Construir URL amb paràmetres
-    const params = new URLSearchParams({
-      data_inici: dataInici,
-      data_final: dataFinal,
-      ...seleccioNivells,
-      ...parametresComuns(intervalConfig.value),
-      include_weekends: intervalConfig.value.includeWeekends,
-      include_empty_days: intervalConfig.value.includeEmptyDays,
-      dia_per_pagina: intervalConfig.value.diaPerPagina,
-      include_substitucions: intervalConfig.value.includeSubstitucions
-    })
-
-    const url = `/api/pdf/vigilancies/interval?${params.toString()}`
-
-    // Descarregar PDF
-    const response = await axios.get(url, {
-      responseType: 'blob'
-    })
-
-    // Crear link temporal per descarregar
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const downloadUrl = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    link.download = `vigilancies_interval_${dataInici}_a_${dataFinal}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(downloadUrl)
-
-    toast.add({
-      severity: 'success',
-      summary: t('vigilancies.messages.pdfIntervalTitle'),
-      detail: t('vigilancies.messages.pdfIntervalDetail'),
-      life: 3000
-    })
-
-    await desarPreferenciesPdf('interval')
-
-    mostrarDialogInterval.value = false
-  } catch (err) {
-    console.error('Error generant PDF interval:', err)
-    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-    if (!jaAvisat(err)) {
-      toast.add({
-        severity: 'error',
-        summary: t('common.error'),
-        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdfInterval'),
-        life: 5000
-      })
-    }
-  } finally {
-    generantPDFInterval.value = false
-  }
-}
-
-// Watch per canvis de data
 watch(dataTreball, async () => {
   titularsHoraLliure.value = []
   vigilanciesSenseTitular.value = []
-  await carregarConfig()   // professors i hores de l'horari vigent aquell dia
   await carregarVigilancies()
 })
 
-// Lifecycle
 onMounted(async () => {
-  await carregarConfig()
   await carregarVigilancies()
 })
 </script>
@@ -1933,7 +561,6 @@ onMounted(async () => {
 .error-message {
   margin: 2rem 0;
 }
-
 
 /* Mida fixa per tots els dropdowns i inputs */
 :deep(.p-inputtext-sm),

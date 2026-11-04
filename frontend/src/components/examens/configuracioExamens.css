@@ -1,0 +1,290 @@
+.esborrar-assignacions p {
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+.esborrar-assignacions__pregunta {
+  font-weight: 600;
+}
+.esborrar-assignacions__botons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.resum-avis-sobreescriu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  gap: 1rem;
+  color: #667eea;
+}
+
+.config-container {
+  padding: 0.75rem 0.75rem 0.5rem;
+}
+
+.tab-content {
+  padding: 1rem 0;
+  min-height: 400px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nivell-selector {
+  min-width: 200px;
+}
+
+.items-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+  max-height: 450px;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.item-card:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.item-name {
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.select-nivell-message {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Tab content amb taula */
+.tab-content-table {
+  padding: 1rem 0;
+}
+
+/* Estils per Assignacions DataTable */
+.assignacions-table {
+  margin-top: 1rem;
+}
+
+.import-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.overwrite-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.accions-buttons {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+/* Estils per tab de Nivells */
+.item-card-readonly {
+  cursor: default;
+}
+
+.item-card-readonly:hover {
+  transform: none;
+}
+
+.import-section {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.import-section h4 {
+  margin: 0 0 0.5rem 0;
+  color: #111827;
+}
+
+.import-section-desc {
+  margin: 0 0 1rem 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.import-buttons-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.info-text {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 4px;
+  color: #1e40af;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Filtres assignacions */
+.filtres-assignacions {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.filtre-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filtre-group label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.filtre-dropdown {
+  min-width: 180px;
+}
+
+.filtres-import {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.toolbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Taula inline editable */
+:deep(.p-datatable-sm .p-datatable-tbody > tr > td) {
+  padding: 0.4rem 0.5rem;
+}
+
+/* Dropdowns a les cel·les */
+:deep(.p-datatable .p-datatable-tbody > tr > td .p-dropdown) {
+  width: 100%;
+  min-height: 32px;
+}
+
+:deep(.p-datatable .p-datatable-tbody > tr > td .p-dropdown .p-dropdown-label) {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+:deep(.p-datatable .p-datatable-tbody > tr > td .p-dropdown .p-dropdown-trigger) {
+  width: 2rem;
+}
+
+/* Cel·les en mode edició - fons diferent */
+:deep(.p-datatable .p-datatable-tbody > tr > td.p-cell-editing) {
+  background-color: #fff3cd !important;
+  padding: 0.2rem !important;
+}
+
+/* Hover a les cel·les editables */
+:deep(.p-datatable .p-datatable-tbody > tr > td:not(:last-child):hover) {
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+
+.w-full {
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .toolbar, .toolbar-left, .toolbar-right { flex-wrap: wrap; min-width: 0; }
+  .toolbar .nivell-selector { flex: 1 1 10rem; min-width: 0; max-width: 100%; }
+  .toolbar > .p-button, .toolbar-right > .p-button { flex-shrink: 0; }
+  .items-list { grid-template-columns: minmax(0, 1fr); }
+}

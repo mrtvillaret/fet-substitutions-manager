@@ -47,6 +47,8 @@
     "reload": "Actualizar"
   },
   "common": {
+    "roles": {"super_admin": "Administrador global", "admin": "Administrador", "user": "Usuario"},
+    "filterOptions": "Filtra las opciones",
     "save": "Guardar",
     "cancel": "Cancelar",
     "close": "Cerrar",

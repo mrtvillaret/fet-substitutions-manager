@@ -1312,3 +1312,11 @@ msgstr "Sorveglianza"
 #: pdf/informe_direccio.py pdf/informe_professors.py
 msgid "Hores"
 msgstr "Ore"
+
+#: pdf/validacions.py
+msgid "ℹ️ {count} classes de vigilants amb substitut (el professor vigila un examen a aquella hora)"
+msgstr "ℹ️ {count} lezioni dei sorveglianti con supplente (il docente sorveglia un esame a quell’ora)"
+
+#: pdf/validacions.py
+msgid "❌ {count} classes de vigilants sense substitut (el professor vigila un examen a aquella hora)"
+msgstr "❌ {count} lezioni dei sorveglianti senza supplente (il docente sorveglia un esame a quell’ora)"

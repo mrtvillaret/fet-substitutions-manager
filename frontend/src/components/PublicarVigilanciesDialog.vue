@@ -176,7 +176,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import axios from 'axios'
+import * as apiPlanificador from '../api/planificador'
 import { ruta } from '../basePath'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
@@ -264,7 +264,7 @@ const _payload = () => ({
 const previsualitzar = async () => {
   previsualitzant.value = true
   try {
-    const { data } = await axios.post('/api/scheduler/publicar', {
+    const { data } = await apiPlanificador.publica({
       ..._payload(),
       dry_run: true
     })
@@ -283,7 +283,7 @@ const confirmarPublicar = async () => {
   publicant.value = true
   resultat.value = null
   try {
-    const { data } = await axios.post('/api/scheduler/publicar', {
+    const { data } = await apiPlanificador.publica({
       ..._payload(),
       dry_run: false
     })

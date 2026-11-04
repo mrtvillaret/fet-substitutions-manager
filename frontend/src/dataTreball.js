@@ -10,5 +10,5 @@ export const dataTreball = ref(new Date())
 // AAAA-MM-DD, per a les crides a l'API
 export const dataTreballIso = computed(() => dataIso(dataTreball.value))
 
-// Opcions d'axios amb ?data= de la data de treball (i altres paràmetres)
+// Opcions HTTP amb ?data= de la data de treball (i altres paràmetres)
 export const ambDataTreball = (params = {}) => ({ params: { ...params, data: dataTreballIso.value } })

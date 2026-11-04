@@ -57,8 +57,8 @@
     >
       <div class="p-fluid">
         <div class="field">
-          <label>{{ $t('config.absences.teacher') }}</label>
-          <Dropdown
+          <label :for="prefixEtiquetes + '-camp-1'">{{ $t('config.absences.teacher') }}</label>
+          <Dropdown :filterInputProps="{ 'aria-label': $t('common.filterOptions') }" :aria-label="$t('config.absences.teacher')" :inputId="prefixEtiquetes + '-camp-1'"
             v-model="novaProfessorBaixa.professor"
             :options="professorsAll"
             :placeholder="$t('config.absences.selectTeacher')"
@@ -69,8 +69,8 @@
         </div>
 
         <div class="field">
-          <label>{{ $t('config.absences.startDate') }}</label>
-          <Calendar
+          <label :for="prefixEtiquetes + '-camp-2'">{{ $t('config.absences.startDate') }}</label>
+          <Calendar :inputId="prefixEtiquetes + '-camp-2'"
             v-model="novaProfessorBaixa.data_inici"
             dateFormat="yy-mm-dd"
             :showIcon="true"
@@ -79,8 +79,8 @@
         </div>
 
         <div class="field">
-          <label>{{ $t('config.absences.endDate') }}</label>
-          <Calendar
+          <label :for="prefixEtiquetes + '-camp-3'">{{ $t('config.absences.endDate') }}</label>
+          <Calendar :inputId="prefixEtiquetes + '-camp-3'"
             v-model="novaProfessorBaixa.data_final"
             dateFormat="yy-mm-dd"
             :showIcon="true"
@@ -89,8 +89,8 @@
         </div>
 
         <div class="field">
-          <label>{{ $t('config.absences.reasonOptional') }}</label>
-          <InputText
+          <label :for="prefixEtiquetes + '-camp-4'">{{ $t('config.absences.reasonOptional') }}</label>
+          <InputText :id="prefixEtiquetes + '-camp-4'"
             v-model="novaProfessorBaixa.motiu"
             :placeholder="$t('config.absences.reasonPlaceholder')"
           />
@@ -119,10 +119,12 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { ambDataTreball } from '../../dataTreball'
+import { professorsTots } from '../../api/horari'
+import * as apiAbsenciesCobertes from '../../api/absenciesCobertes'
 import { dataIso } from '../../dates'
 import { useToast } from 'primevue/usetoast'
 import { avisaSubstitutsTrets, dataCurta } from '../../substitutsTrets'
@@ -134,6 +136,8 @@ import Button from 'primevue/button'
 
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
+
+const prefixEtiquetes = useId()
 
 const toast = useToast()
 const { t } = useI18n()
@@ -169,8 +173,8 @@ const dateToString = dataIso
 
 const carregarProfessorsAll = async () => {
   try {
-    const response = await axios.get('/api/horari/professors/all', ambDataTreball())
-    professorsAll.value = response.data.professors
+    const resposta = await professorsTots(ambDataTreball())
+    professorsAll.value = resposta.professors
   } catch (error) {
     console.error('Error carregant professors:', error)
   }
@@ -178,8 +182,8 @@ const carregarProfessorsAll = async () => {
 
 const carregarProfessorsBaixa = async () => {
   try {
-    const response = await axios.get('/api/absencies-cobertes')
-    professorsBaixa.value = response.data.absencies_cobertes
+    const resposta = await apiAbsenciesCobertes.llista()
+    professorsBaixa.value = resposta.absencies_cobertes
   } catch (error) {
     console.error('Error carregant professors de baixa:', error)
   }
@@ -230,31 +234,31 @@ const desarProfessorBaixa = async () => {
 
     if (professorBaixaEditant.value) {
       // Actualitzar existent
-      const resposta = await axios.put(`/api/absencies-cobertes/${professorBaixaEditant.value}`, baixaData)
+      const resposta = await apiAbsenciesCobertes.edita(professorBaixaEditant.value, baixaData)
       toast.add({
         severity: 'success',
         summary: t('common.updated'),
         detail: t('config.absences.updated'),
         life: 3000
       })
-      avisaCanvis(resposta.data.canvis)
-      avisaSenseSubstitut(resposta.data.avisos)
+      avisaCanvis(resposta.canvis)
+      avisaSenseSubstitut(resposta.avisos)
     } else {
       // Crear nou
-      const resposta = await axios.post('/api/absencies-cobertes', baixaData)
+      const resposta = await apiAbsenciesCobertes.crea(baixaData)
       toast.add({
         severity: 'success',
         summary: t('common.added'),
         detail: t('config.absences.added'),
         life: 3000
       })
-      avisaCanvis(resposta.data.canvis)
-      avisaSenseSubstitut(resposta.data.avisos)
+      avisaCanvis(resposta.canvis)
+      avisaSenseSubstitut(resposta.avisos)
     }
 
     // Recarregar professors baixa
-    const response = await axios.get('/api/absencies-cobertes')
-    professorsBaixa.value = response.data.absencies_cobertes
+    const resposta = await apiAbsenciesCobertes.llista()
+    professorsBaixa.value = resposta.absencies_cobertes
 
     // Tancar diàleg i netejar
     cancelarProfessorBaixa()
@@ -282,7 +286,7 @@ const editarProfessorBaixa = (baixa) => {
 
 const eliminarProfessorBaixa = async (id) => {
   try {
-    await axios.delete(`/api/absencies-cobertes/${id}`)
+    await apiAbsenciesCobertes.esborra(id)
 
     toast.add({
       severity: 'success',
@@ -292,8 +296,8 @@ const eliminarProfessorBaixa = async (id) => {
     })
 
     // Recarregar professors baixa
-    const response = await axios.get('/api/absencies-cobertes')
-    professorsBaixa.value = response.data.absencies_cobertes
+    const resposta = await apiAbsenciesCobertes.llista()
+    professorsBaixa.value = resposta.absencies_cobertes
   } catch (error) {
     console.error('Error eliminant professor baixa:', error)
     toast.add({

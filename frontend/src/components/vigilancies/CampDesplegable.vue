@@ -3,7 +3,7 @@
        fa clic (o s'hi prem Retorn). Una taula amb molts camps així és lleugera:
        crear-hi tots els desplegables de cop era el que la feia lenta. -->
   <div class="camp-desplegable" :class="`camp-desplegable--${aspecte}`">
-    <Dropdown
+    <Dropdown :filterInputProps="{ 'aria-label': $t('common.filterOptions') }"
       v-if="actiu"
       ref="desplegable"
       :modelValue="modelValue"

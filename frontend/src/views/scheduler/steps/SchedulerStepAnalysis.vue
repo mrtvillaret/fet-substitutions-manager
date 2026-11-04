@@ -1,6 +1,6 @@
 <template>
   <div class="step-panel animate-fade-in analysis-print-area">
-    <div class="card bg-primary-light mb-4 analysis-header">
+    <div class="card analysis-header">
       <div>
         <h3 class="analysis-title">📊 {{ t('scheduler.steps.analysis.title') }}</h3>
         <p class="analysis-desc">{{ t('scheduler.steps.analysis.subtitle') }}</p>

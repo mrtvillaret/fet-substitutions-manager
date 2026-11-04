@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import * as apiCursos from '../../api/cursos.js'
 import { dataIso } from '../../dates'
 
 // Estat compartit a nivell de mòdul: el tab Cursos (llista + CRUD) i el tab
@@ -22,7 +22,7 @@ const formatIsoDate = dataIso
 const carregarCursos = async () => {
   carregantCursos.value = true
   try {
-    const { data } = await axios.get('/api/cursos')
+    const data = await apiCursos.llista()
     cursos.value = data
   } finally {
     carregantCursos.value = false
@@ -31,7 +31,7 @@ const carregarCursos = async () => {
 
 const carregarAvisosXml = async () => {
   try {
-    const { data } = await axios.get('/api/cursos/validacio-xml')
+    const data = await apiCursos.validacioXml()
     avisosXml.value = data
   } catch {
     avisosXml.value = []

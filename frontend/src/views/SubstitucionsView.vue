@@ -66,17 +66,7 @@
     </div>
 
     <div class="content-card">
-      <Message v-if="errorCarregaSubstitucions" severity="error" :closable="false" class="error-carrega">
-        <div class="error-carrega-contingut">
-          <span>{{ $t('substitutions.errors.loadAvailable') }}</span>
-          <Button
-            :label="$t('substitutions.actions.retry')"
-            icon="pi pi-refresh"
-            size="small"
-            @click="carregarSubstitucions"
-          />
-        </div>
-      </Message>
+      <AvisErrorCarrega v-if="errorCarregaSubstitucions" :missatge="$t('substitutions.errors.loadAvailable')" @reintenta="carregarSubstitucions" />
       <TaulaSubstitucions
         :files="substitucionsFiltrades"
         :data="dataISO"
@@ -90,146 +80,34 @@
       />
     </div>
 
-    <!-- Bottom Sheet per gestionar absències -->
-    <Teleport to="body">
-      <Transition name="bs-overlay">
-        <div v-if="mostrarDialogGestio" class="bs-overlay" @click="tancarDialogGestio"></div>
-      </Transition>
-      <div class="bs-sheet" :class="{ 'bs-sheet--visible': mostrarDialogGestio }" role="dialog" aria-modal="true">
-        <div class="bs-drag-handle"></div>
-        <div class="bs-header">
-          <span class="p-dialog-title">{{ $t('substitutions.dialogs.absences.title') }}</span>
-          <button ref="closeBtnRef" class="bs-close-btn" @click="tancarDialogGestio" :aria-label="$t('common.close')">
-            <i class="pi pi-times"></i>
-          </button>
-        </div>
-
-        <div class="bs-content">
-          <!-- Professor selector -->
-          <div class="bs-field">
-            <label class="bs-label">{{ $t('substitutions.dialogs.absences.absentTeacherLabel') }}</label>
-            <Dropdown
-              v-model="dropdownProfValue"
-              :options="professorsAmbInfo"
-              optionLabel="nom"
-              optionDisabled="coberta"
-              :filter="true"
-              :placeholder="$t('substitutions.dialogs.absences.selectTeacher')"
-              @change="seleccionarProfessorDropdown"
-              class="w-full"
-            >
-              <template #value="{ value, placeholder }">
-                {{ value ? value.nom : placeholder }}
-              </template>
-              <template #option="{ option }">
-                <div class="bs-prof-option" :class="{ 'bs-prof-option--absencies': option.teAbsencies, 'bs-prof-option--coberta': option.coberta }">
-                  <span>{{ option.nom }}<span v-if="option.coberta" class="bs-badge-coberta"> {{ option.finsA ? $t('substitutions.dialogs.absences.coveredUntil', { data: option.finsA }) : $t('substitutions.dialogs.absences.covered') }}</span></span>
-                  <span v-if="option.teAbsencies" class="bs-badge-hores">{{ option.numHores }}h</span>
-                </div>
-              </template>
-            </Dropdown>
-          </div>
-
-          <!-- Rang de dates -->
-          <div class="bs-field bs-field--rang" v-if="gestioAbsencies.professor">
-            <div class="bs-rang-toggle">
-              <button type="button"
-                :class="['bs-rang-opt', !modeRang && 'bs-rang-opt--active']"
-                @click="modeRang = false; dataFinalRang = ''">
-                {{ $t('substitutions.range.onlyToday') }}
-              </button>
-              <button type="button"
-                :class="['bs-rang-opt', modeRang && 'bs-rang-opt--active']"
-                @click="modeRang = true">
-                {{ $t('substitutions.range.until') }}
-              </button>
-            </div>
-            <div v-if="modeRang" class="bs-rang-dates">
-              <span class="bs-rang-inici">{{ dataISOCurta }}</span>
-              <span class="bs-rang-arrow">→</span>
-              <input type="date" class="bs-input bs-rang-fi"
-                v-model="dataFinalRang" :min="dataISO" />
-            </div>
-            <div v-if="modeRang && datesDelRang.length > 1" class="bs-rang-resum">
-              {{ $t('substitutions.range.summary', { count: datesDelRang.length }, datesDelRang.length) }}
-            </div>
-          </div>
-
-          <!-- Hores d'absència Normal -->
-          <div class="bs-field">
-            <div class="bs-label-row">
-              <label class="bs-label">{{ $t('substitutions.dialogs.absences.normalHoursLabel') }} <span class="bs-type-badge bs-type-badge--normal">{{ $t('substitutions.dialogs.absences.normalBadge') }}</span></label>
-              <button type="button" class="bs-sel-all-btn" @click="toggleTotesAbsencia">{{ totesTrnadesAbsencia ? $t('substitutions.dialogs.absences.selectNone') : $t('substitutions.dialogs.absences.selectAll') }}</button>
-            </div>
-            <div class="bs-hours-grid">
-              <button
-                v-for="hora in horesDisponibles"
-                :key="`abs-${hora}`"
-                type="button"
-                class="bs-hour-btn"
-                :class="{
-                  'bs-hour-btn--selected': gestioAbsencies.horesAbsencia.includes(hora),
-                  'bs-hour-btn--al-centre': horesCarregades && !horesAmbClasse.includes(hora) && horesAlCentre.includes(hora),
-                  'bs-hour-btn--fora': horesCarregades && !horesAmbClasse.includes(hora) && !horesAlCentre.includes(hora)
-                }"
-                :disabled="gestioAbsencies.horesServei.includes(hora)"
-                @click="toggleHoraAbsencia(hora)"
-              >{{ hora }}</button>
-            </div>
-          </div>
-
-          <!-- Hores de Servei -->
-          <div class="bs-field">
-            <div class="bs-label-row">
-              <label class="bs-label">{{ $t('substitutions.dialogs.absences.serviceHoursLabel') }} <span class="bs-type-badge bs-type-badge--servei">{{ $t('substitutions.dialogs.absences.serviceBadge') }}</span></label>
-              <button type="button" class="bs-sel-all-btn bs-sel-all-btn--servei" @click="toggleTotesServei">{{ totesTrnadesServei ? $t('substitutions.dialogs.absences.selectNone') : $t('substitutions.dialogs.absences.selectAll') }}</button>
-            </div>
-            <div class="bs-hours-grid">
-              <button
-                v-for="hora in horesDisponibles"
-                :key="`serv-${hora}`"
-                type="button"
-                class="bs-hour-btn bs-hour-btn--servei-base"
-                :class="{
-                  'bs-hour-btn--servei-selected': gestioAbsencies.horesServei.includes(hora),
-                  'bs-hour-btn--al-centre': horesCarregades && !horesAmbClasse.includes(hora) && horesAlCentre.includes(hora),
-                  'bs-hour-btn--fora': horesCarregades && !horesAmbClasse.includes(hora) && !horesAlCentre.includes(hora)
-                }"
-                :disabled="gestioAbsencies.horesAbsencia.includes(hora)"
-                @click="toggleHoraServei(hora)"
-              >{{ hora }}</button>
-            </div>
-          </div>
-
-          <!-- Llista absències del dia -->
-          <div v-if="absenciesDelDiaAgrupades.length > 0" class="bs-absencies-section">
-            <p class="bs-section-title">{{ $t('substitutions.dialogs.absences.todayAbsences') }}</p>
-            <div
-              v-for="grup in absenciesDelDiaAgrupades"
-              :key="grup.professor"
-              class="bs-card bs-card--clickable"
-              @click="editarAbsenciesProfessor({ professor_absent: grup.professor })"
-            >
-              <span class="bs-card-prof">{{ grup.professor }}</span>
-              <button class="bs-card-del" @click.stop="confirmarEliminarAbsenciesProf(grup.professor)"
-                :disabled="loading" :aria-label="$t('common.delete')"><i class="pi pi-trash" aria-hidden="true"></i></button>
-            </div>
-          </div>
-        </div>
-
-        <div class="bs-footer">
-          <button
-            type="button"
-            class="bs-btn-primary"
-            :disabled="!gestioAbsencies.professor || (gestioAbsencies.horesAbsencia.length === 0 && gestioAbsencies.horesServei.length === 0) || loading"
-            @click="afegirAbsenciaImmediata"
-          >
-            <span v-if="loading" class="bs-spinner"></span>
-            <span v-else>{{ $t('substitutions.dialogs.absences.addAbsence') }}</span>
-          </button>
-        </div>
-      </div>
-    </Teleport>
+    <GestioAbsenciesSubstitucions
+      v-model:dropdownProfValue="dropdownProfValue"
+      v-model:modeRang="modeRang"
+      v-model:dataFinalRang="dataFinalRang"
+      :mostrarDialogGestio="mostrarDialogGestio"
+      :gestioAbsencies="gestioAbsencies"
+      :professorsAmbInfo="professorsAmbInfo"
+      :dataISOCurta="dataISOCurta"
+      :dataISO="dataISO"
+      :datesDelRang="datesDelRang"
+      :horesDisponibles="horesDisponibles"
+      :horesCarregades="horesCarregades"
+      :horesAmbClasse="horesAmbClasse"
+      :horesAlCentre="horesAlCentre"
+      :totesTrnadesAbsencia="totesTrnadesAbsencia"
+      :totesTrnadesServei="totesTrnadesServei"
+      :absenciesDelDiaAgrupades="absenciesDelDiaAgrupades"
+      :loading="loading"
+      @tancarDialogGestio="tancarDialogGestio"
+      @seleccionarProfessorDropdown="seleccionarProfessorDropdown"
+      @toggleTotesAbsencia="toggleTotesAbsencia"
+      @toggleHoraAbsencia="toggleHoraAbsencia"
+      @toggleTotesServei="toggleTotesServei"
+      @toggleHoraServei="toggleHoraServei"
+      @editarAbsenciesProfessor="editarAbsenciesProfessor"
+      @confirmarEliminarAbsenciesProf="confirmarEliminarAbsenciesProf"
+      @afegirAbsenciaImmediata="afegirAbsenciaImmediata"
+    />
 
     <!-- Diàleg de confirmació per eliminar -->
     <ConfirmDialog></ConfirmDialog>
@@ -243,155 +121,42 @@
       @overwrite="executarOverwrite"
     />
 
-    <!-- Diàleg personalitzat per mostrar validacions PDF -->
-    <Dialog
-      v-model:visible="mostrarDialogValidacions"
-      :header="validacions.has_critical ? $t('substitutions.dialogs.pdfValidation.criticalTitle') : $t('substitutions.dialogs.pdfValidation.warningTitle')"
-      :modal="true"
-      :style="{ width: '600px', maxHeight: '80vh' }"
-    >
-      <div class="validacions-content">
-        <p style="font-weight: 600; margin-bottom: 1rem;">{{ $t('substitutions.dialogs.pdfValidation.detectedIssues') }}</p>
-
-        <div v-if="validacions.conflicts && validacions.conflicts.length > 0" style="margin-bottom: 1.5rem;">
-          <p style="font-weight: 600; color: #d32f2f; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.critical') }}</p>
-          <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(conflict, idx) in validacions.conflicts.slice(0, 10)" :key="idx" style="margin-bottom: 0.25rem;">
-              {{ conflict }}
-            </li>
-          </ul>
-          <p v-if="validacions.conflicts.length > 10" style="margin-top: 0.5rem; font-style: italic; color: #666;">
-            {{ $t('common.moreItems', { count: validacions.conflicts.length - 10 }) }}
-          </p>
-        </div>
-
-        <div v-if="warningsFiltrats.length > 0" style="margin-bottom: 1.5rem;">
-          <p style="font-weight: 600; color: #f57c00; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.warnings') }}</p>
-          <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(warning, idx) in warningsFiltrats.slice(0, 10)" :key="idx" style="margin-bottom: 0.25rem;">
-              {{ warning }}
-            </li>
-          </ul>
-          <p v-if="warningsFiltrats.length > 10" style="margin-top: 0.5rem; font-style: italic; color: #666;">
-            {{ $t('common.moreItems', { count: warningsFiltrats.length - 10 }) }}
-          </p>
-        </div>
-
-        <div v-if="reassignChanges.length > 0" style="margin-bottom: 1.5rem;">
-          <p style="font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.appliedChanges') }}</p>
-          <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(change, idx) in reassignChanges.slice(0, 10)" :key="idx" style="margin-bottom: 0.25rem;">
-              {{ change }}
-            </li>
-          </ul>
-          <p v-if="reassignChanges.length > 10" style="margin-top: 0.5rem; font-style: italic; color: #666;">
-            {{ $t('common.moreItems', { count: reassignChanges.length - 10 }) }}
-          </p>
-        </div>
-
-        <p style="font-weight: 600; margin-top: 1rem;">
-          {{ $t('substitutions.dialogs.pdfValidation.totalIssues', { count: totalIssuesFiltrats }, totalIssuesFiltrats) }}
-        </p>
-
-        <Message severity="warn" style="margin-top: 1rem;">
-          {{ $t('substitutions.dialogs.pdfValidation.continueQuestion') }}
-        </Message>
-      </div>
-
-      <template #footer>
-        <Button
-          :label="$t('common.cancel')"
-          icon="pi pi-times"
-          @click="cancelarPDF"
-          class="p-button-text"
-        />
-        <Button
-          :label="$t('substitutions.dialogs.pdfValidation.reassign')"
-          icon="pi pi-refresh"
-          @click="reassignarProblematics"
-          :loading="reassignantProblematics"
-          class="p-button-secondary"
-        />
-        <Button
-          :label="$t('common.continue')"
-          icon="pi pi-check"
-          @click="continuarPDF"
-          :loading="generantPDF"
-          :class="validacions.has_critical ? 'p-button-danger' : 'p-button-warning'"
-        />
-      </template>
-    </Dialog>
-
-    <!-- Diàleg per exportar PDF -->
-    <Dialog
-      v-model:visible="mostrarDialogPDF"
-      :header="$t('substitutions.dialogs.pdf.title')"
-      :modal="true"
-      :style="{ width: '500px' }"
-    >
-      <div class="p-fluid">
-<PdfOpcionsComunes
-          v-model:config="pdfConfig"
-          prefix="subs"
-          amb-conflictes
-          titol-contingut="substitutions.dialogs.pdf.includeContent"
-          :contingut="[
-            { clau: 'includeSubstitutions', etiqueta: 'substitutions.dialogs.pdf.substitutions' },
-            { clau: 'includeVigilancies', etiqueta: 'substitutions.dialogs.pdf.vigilancies' }
-          ]"
-          :opcions-propies="[{
-            clau: 'blankRows',
-            etiqueta: 'substitutions.dialogs.pdf.blankRows',
-            ajuda: 'substitutions.dialogs.pdf.blankRowsHint',
-            amagada: !pdfConfig.includeSubstitutions
-          }]"
-        />
-
-        <Message v-if="!pdfConfig.includeSubstitutions && !pdfConfig.includeVigilancies" severity="warn" class="mt-3">
-          {{ $t('substitutions.dialogs.pdf.selectAtLeastOne') }}
-        </Message>
-      </div>
-
-      <template #footer>
-        <Button
-          :label="$t('common.cancel')"
-          icon="pi pi-times"
-          @click="mostrarDialogPDF = false"
-          class="p-button-text"
-        />
-        <Button
-          :label="$t('substitutions.dialogs.pdf.generate')"
-          icon="pi pi-file-pdf"
-          @click="generarPDFComplet"
-          :loading="generantPDF"
-          :disabled="!pdfConfig.includeSubstitutions && !pdfConfig.includeVigilancies"
-          class="p-button-success"
-        />
-      </template>
-    </Dialog>
+    <PdfSubstitucionsDialogs
+      v-model:mostrarDialogValidacions="mostrarDialogValidacions"
+      v-model:mostrarDialogPDF="mostrarDialogPDF"
+      v-model:pdfConfig="pdfConfig"
+      :validacions="validacions"
+      :warningsFiltrats="warningsFiltrats"
+      :totalIssuesFiltrats="totalIssuesFiltrats"
+      :reassignChanges="reassignChanges"
+      :reassignantProblematics="reassignantProblematics"
+      :generantPDF="generantPDF"
+      @cancelarPDF="cancelarPDF"
+      @reassignarProblematics="reassignarProblematics"
+      @continuarPDF="continuarPDF"
+      @generarPDFComplet="generarPDFComplet"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import AvisErrorCarrega from '../components/AvisErrorCarrega.vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
-import { ambDataTreball, dataTreball } from '../dataTreball'
-import { dataIso } from '../dates'
-import { jaAvisat } from '../errorsApi'
-import { disponiblesEnBloc } from '../api/substitucions'
+import { useEdicioSubstitucions } from '../composables/useEdicioSubstitucions.js'
+import { usePdfSubstitucions } from '../composables/usePdfSubstitucions.js'
+import { dataTreball } from '../dataTreball'
+import * as apiSubstitucions from '../api/substitucions'
+import { useDadesSubstitucions } from '../composables/useDadesSubstitucions.js'
 
 // Components PrimeVue
-import PdfOpcionsComunes from '../components/PdfOpcionsComunes.vue'
-import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions'
+import PdfSubstitucionsDialogs from '../components/substitucions/PdfSubstitucionsDialogs.vue'
 import Button from 'primevue/button'
-import Dropdown from 'primevue/dropdown'
+import GestioAbsenciesSubstitucions from '../components/substitucions/GestioAbsenciesSubstitucions.vue'
 import Badge from 'primevue/badge'
-import Dialog from 'primevue/dialog'
 import ConfirmDialog from 'primevue/confirmdialog'
-import Message from 'primevue/message'
 import { useToast } from 'primevue/usetoast'
-import { avisaSubstitutsTrets } from '../substitutsTrets'
+import { useAbsenciesSubstitucions } from '../composables/useAbsenciesSubstitucions.js'
 import { useConfirm } from 'primevue/useconfirm'
 import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
@@ -403,305 +168,34 @@ const confirmaEsborrar = useConfirmaEsborrar()
 const { t, locale } = useI18n()
 const emit = defineEmits(['anar-vigilancies'])
 
-// State
-const substitucions = ref([])
-const substitucionsFiltrades = ref([])
-const totesAbsencies = ref([]) // TOTES les absències (amb i sense grup) per detectar professors absents
-const vigilanciesCount = ref(0)
-const professors = ref([])
-// Professors amb una absència coberta el dia que es mira: no són a la llista de
-// l'horari d'aquell dia (no se'ls poden posar absències), però es mostren al final
-// del desplegable, sense que es puguin triar, perquè qui els busqui els trobi
-const absenciesCobertes = ref([])  // [{ professor, data_final }]
-const horesDisponibles = ref([])
-const xmlMissingNotified = ref(false)
-const loading = ref(false)
-const errorCarregaSubstitucions = ref(false)
-let idCarregaSubstitucions = 0
-const mostrarDialogGestio = ref(false)
-const closeBtnRef = ref(null)
-watch(mostrarDialogGestio, (val) => {
-  if (val) nextTick(() => closeBtnRef.value?.focus())
-})
-const dropdownProfValue = ref(null)
-const gestioAbsencies = ref({
-  professor: null,
-  professorSearch: '',
-  horesAbsencia: [],
-  horesServei: []
-})
-const horesAmbClasse = ref([])
-const horesAlCentre = ref([])
-const horesCarregades = ref(false)
-const modeRang = ref(false)
-const dataFinalRang = ref('')
+const {
+  substitucionsFiltrades,
+  totesAbsencies,
+  vigilanciesCount,
+  professors,
+  absenciesCobertes,
+  horesDisponibles,
+  loading,
+  errorCarregaSubstitucions,
+  dataISO,
+  dataFormatada,
+  dataISOCurta,
+  collator,
+  substitucionsAssignades,
+  substitucionsPendents,
+  ordreFiles,
+  canviaOrdre,
+  carregarSubstitucions,
+  carregarTotesAbsencies,
+  carregarProfessors,
+  carregarHores
+} = useDadesSubstitucions({ dataTreball, locale, toast, t })
+
 const mostrarDialogConflicte = ref(false)
 const conflicteOverwrite = ref(null)
 
-// PDF export
-const mostrarDialogPDF = ref(false)
-const mostrarDialogValidacions = ref(false)
-const generantPDF = ref(false)
-const reassignantProblematics = ref(false)
-const reassignChanges = ref([])
-const validacions = ref({
-  conflicts: [],
-  warnings: [],
-  total: 0,
-  has_critical: false
-})
-
-const warningsFiltrats = computed(() => {
-  const warnings = validacions.value.warnings || []
-  return warnings.filter((warning) => {
-    const text = (warning || '').trim().toLowerCase()
-    if (!text.startsWith('⚠️')) return true
-    return !(text.includes('prioritat') || text.includes('prioridad') || text.includes('priority'))
-  })
-})
-
-const totalIssuesFiltrats = computed(() => {
-  const conflicts = validacions.value.conflicts || []
-  return conflicts.length + warningsFiltrats.value.length
-})
-// Mida de la lletra de la taula del dia (routes/pdf.py, MIDES_LLETRA)
-const pdfConfig = ref({
-  includeSubstitutions: true,
-  includeVigilancies: true,
-  showComments: true,
-  showHours: false,
-  showConflicts: true,
-  compress: false,
-  blankRows: false,
-  format: 'hores',
-  midaLletra: midaPerDefecte('hores')
-})
-
-// Computed
-const dataISO = computed(() => dataIso(dataTreball.value))
-
-const dataFormatada = computed(() => {
-  return dataTreball.value.toLocaleDateString(locale.value || 'ca-ES', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-})
-
-const dataISOCurta = computed(() =>
-  dataTreball.value.toLocaleDateString(locale.value || 'ca-ES', {
-    day: '2-digit', month: '2-digit', year: 'numeric'
-  })
-)
-
-const collator = computed(() => new Intl.Collator(locale.value || 'ca', { sensitivity: 'base' }))
-
-const substitucionsAssignades = computed(() =>
-  substitucionsFiltrades.value.filter(s => s.substitut).length
-)
-
-const substitucionsPendents = computed(() =>
-  substitucionsFiltrades.value.filter(s => !s.substitut).length
-)
-
-const professorsAmbInfo = computed(() => {
-  // Detectar quins professors tenen absències REALS (excloent vigilàncies tècniques i forats)
-  const absenciesReals = totesAbsencies.value.filter(sub => {
-    const tipus = (sub.tipus_absencia || "").toUpperCase();
-    return !["VIGILANCIA", "VIGILÀNCIA", "ENCADENADA"].includes(tipus);
-  });
-
-  const professorsAmbAbsencies = new Set(
-    absenciesReals.map(sub => sub.professor_absent)
-  );
-
-  const finsA = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : null)  // dd/mm
-  return [
-    ...professors.value.map(prof => ({
-      nom: prof,
-      teAbsencies: professorsAmbAbsencies.has(prof),
-      numHores: absenciesReals.filter(sub => sub.professor_absent === prof).length,
-      coberta: false
-    })),
-    ...absenciesCobertes.value.map(a => ({
-      nom: a.professor,
-      teAbsencies: false,
-      numHores: 0,
-      coberta: true,
-      finsA: finsA(a.data_final)
-    }))
-  ]
-})
-
-// Detecta si una sub és Tipus A VIGILANCIA_ABSENT (vigilant absent → slot descobert)
-const esVigilanciaAbsent = (sub) => (sub.tipus_absencia || '').toUpperCase() === 'VIGILANCIA_ABSENT'
-
-const absenciesDelDia = computed(() => {
-  return totesAbsencies.value
-    .filter(a => {
-      const tipus = (a.tipus_absencia || '').toUpperCase()
-      if (tipus === 'ENCADENADA') return false
-      if (tipus === 'VIGILANCIA') return esVigilanciaAbsent(a) // Inclou Tipus A, exclou Tipus B
-      return true
-    })
-    .sort((a, b) => {
-      const ia = horesDisponibles.value.indexOf(a.hora)
-      const ib = horesDisponibles.value.indexOf(b.hora)
-      if (ia !== ib) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
-      return (a.professor_absent || '').localeCompare(b.professor_absent || '')
-    })
-})
-
-const absenciesDelDiaAgrupades = computed(() => {
-  const grups = {}
-  for (const abs of absenciesDelDia.value) {
-    const prof = abs.professor_absent
-    if (!grups[prof]) grups[prof] = { professor: prof, horesAbsencia: [], horesServei: [] }
-    const tipus = (abs.tipus_absencia || '').toUpperCase()
-    if (tipus === 'SERVEI') grups[prof].horesServei.push(abs.hora)
-    else grups[prof].horesAbsencia.push(abs.hora)
-  }
-  return Object.values(grups).sort((a, b) => a.professor.localeCompare(b.professor))
-})
-
-const seleccionarProfessorDropdown = (event) => {
-  if (event.value) {
-    seleccionarProfessor(event.value)
-  }
-}
-
-const datesDelRang = computed(() => {
-  if (!modeRang.value || !dataFinalRang.value) return [dataISO.value]
-    const isoLocal = dataIso
-  const dates = []
-  const fi = new Date(dataFinalRang.value + 'T00:00:00')
-  let actual = new Date(dataISO.value + 'T00:00:00')
-  while (actual <= fi) {
-    const dow = actual.getDay()
-    if (dow !== 0 && dow !== 6) dates.push(isoLocal(actual))
-    actual.setDate(actual.getDate() + 1)
-  }
-  return dates.length > 0 ? dates : [dataISO.value]
-})
-
-// Mètodes
-// L'ordre dins de cada hora ('curs' o 'professor'): el mateix a la pantalla i
-// al PDF (l'ordena el backend). Es recorda al navegador de cada usuari.
-const CLAU_ORDRE = 'substitucions_ordre'
-const llegeixOrdre = () => {
-  try {
-    return localStorage.getItem(CLAU_ORDRE) === 'professor' ? 'professor' : 'curs'
-  } catch {
-    return 'curs'
-  }
-}
-const ordreFiles = ref(llegeixOrdre())
-const canviaOrdre = (ordre) => {
-  ordreFiles.value = ordre
-  try {
-    localStorage.setItem(CLAU_ORDRE, ordre)
-  } catch {
-    // Sense el navegador per recordar-ho: només per a aquesta visita
-  }
-  carregarSubstitucions()
-}
-
-const carregarSubstitucions = async () => {
-  const idCarrega = ++idCarregaSubstitucions
-  const data = dataISO.value
-  loading.value = true
-  errorCarregaSubstitucions.value = false
-  // La taula d'abans es queda (difuminada i sense accions) fins que arriben
-  // totes les dades: es substitueix de cop, sense parpelleig ni perdre el
-  // desplaçament al mòbil
-  try {
-    const [responseFiltrades, responseTotes, recompteVigilancies] = await Promise.all([
-      axios.get(`/api/substitucions/${data}`, { params: { ordre: ordreFiles.value }, _silent: true }),
-      axios.get(`/api/substitucions/${data}?include_all=true`, { _silent: true }),
-      obtenirVigilanciesCount(data)
-    ])
-    if (idCarrega !== idCarregaSubstitucions) return
-
-    const files = responseFiltrades.data
-    const hores = [...new Set(files.map(substitucio => substitucio.hora))]
-    const disponiblesPerHora = await disponiblesEnBloc(data, hores)
-    if (idCarrega !== idCarregaSubstitucions) return
-
-    // Publicació atòmica: cap fila no es veu fins que totes les hores tenen
-    // els disponibles. Quines files es veuen ja ho ha decidit el backend.
-    const filesAmbDisponibles = files.map(substitucio => ({
-      ...substitucio,
-      disponibles: disponiblesPerHora[substitucio.hora]?.disponibles || []
-    }))
-    substitucions.value = filesAmbDisponibles
-    substitucionsFiltrades.value = filesAmbDisponibles
-    totesAbsencies.value = responseTotes.data
-    vigilanciesCount.value = recompteVigilancies
-  } catch (error) {
-    if (idCarrega !== idCarregaSubstitucions) return
-    console.error('Error carregant substitucions:', error)
-    substitucions.value = []
-    substitucionsFiltrades.value = []
-    totesAbsencies.value = []
-    vigilanciesCount.value = 0
-    errorCarregaSubstitucions.value = true
-  } finally {
-    if (idCarrega === idCarregaSubstitucions) loading.value = false
-  }
-}
-
-// Nova funció per carregar TOTES les absències (incloses les sense grup: VP, Guàrdia, etc.)
-// Útil per editar absències i veure totes les hores marcades
-const carregarTotesAbsencies = async () => {
-  // Si ja estan carregades (de carregarSubstitucions), retornar-les
-  if (totesAbsencies.value.length > 0) {
-    return totesAbsencies.value
-  }
-
-  // Sinó, carregar-les
-  try {
-    const response = await axios.get(`/api/substitucions/${dataISO.value}?include_all=true`)
-    totesAbsencies.value = response.data
-    return response.data
-  } catch (error) {
-    console.error('Error carregant totes les absències:', error)
-    return []
-  }
-}
-
-const obtenirVigilanciesCount = async (data) => {
-  try {
-    const response = await axios.get(`/api/vigilancies/${data}`)
-    return Array.isArray(response.data) ? response.data.length : 0
-  } catch (error) {
-    console.error('Error carregant vigilàncies:', error)
-    return 0
-  }
-}
-
 const anarAVigilancies = () => {
   emit('anar-vigilancies')
-}
-
-const carregarProfessors = async () => {
-  try {
-    const response = await axios.get('/api/horari/professors', ambDataTreball())
-    if (response.data?.xml_missing && !xmlMissingNotified.value) {
-      toast.add({
-        severity: 'warn',
-        summary: t('common.warning'),
-        detail: t('common.xmlMissing'),
-        life: 4000
-      })
-      xmlMissingNotified.value = true
-    }
-    const llista = response.data.professors || []
-    professors.value = [...llista].sort((a, b) => collator.value.compare(a, b))
-    absenciesCobertes.value = response.data.absencies_cobertes || []
-  } catch (error) {
-    console.error('Error carregant professors:', error)
-  }
 }
 
 const obrirDialogConflicte = (overwriteAction) => {
@@ -716,24 +210,6 @@ const gestionarConflicte = async () => {
 const executarOverwrite = async () => {
   if (conflicteOverwrite.value) {
     await conflicteOverwrite.value()
-  }
-}
-
-const carregarHores = async () => {
-  try {
-    const response = await axios.get('/api/hores', ambDataTreball())
-    if (response.data?.xml_missing && !xmlMissingNotified.value) {
-      toast.add({
-        severity: 'warn',
-        summary: t('common.warning'),
-        detail: t('common.xmlMissing'),
-        life: 4000
-      })
-      xmlMissingNotified.value = true
-    }
-    horesDisponibles.value = response.data.hores
-  } catch (error) {
-    console.error('Error carregant hores:', error)
   }
 }
 
@@ -771,9 +247,9 @@ const generarPendents = async () => {
   loading.value = true
   try {
     const data = dataISO.value
-    const response = await axios.post(`/api/substitucions/${data}/generar?regenerar_tot=false`)
+    const resposta = await apiSubstitucions.genera(data, false)
     await carregarSubstitucions()
-    mostrarResultatGeneracio(response.data)
+    mostrarResultatGeneracio(resposta)
   } catch (error) {
     console.error('Error generant substitucions:', error)
     toast.add({
@@ -799,10 +275,10 @@ const regenerarTot = async () => {
       loading.value = true
       try {
         const data = dataISO.value
-        const response = await axios.post(`/api/substitucions/${data}/generar?regenerar_tot=true`)
+        const resposta = await apiSubstitucions.genera(data, true)
 
         await carregarSubstitucions()
-        mostrarResultatGeneracio(response.data, t('common.regenerated'))
+        mostrarResultatGeneracio(resposta, t('common.regenerated'))
       } catch (error) {
         console.error('Error regenerant substitucions:', error)
         toast.add({
@@ -818,754 +294,59 @@ const regenerarTot = async () => {
   })
 }
 
-// Si el professor triat ja substitueix algú altre a la mateixa hora (en vermell),
-// es pot moure aquí: l'altra substitució queda pendent.
-const actualitzarSubstitut = (substitucio) => {
-  const opcio = (substitucio.disponibles || []).find(d => d.professor === substitucio.substitut)
-  const nomesJaAssignat = opcio?.ja_assignat && !opcio.absent && !opcio.de_baixa && !opcio.ocupat_vigilancia
-  if (!nomesJaAssignat) return desarSubstitut(substitucio)
-
-  const altra = totesAbsencies.value.find(s => s.hora === substitucio.hora && s.substitut === substitucio.substitut &&
-    s.professor_absent !== substitucio.professor_absent)
-  confirm.require({
-    header: t('substitutions.confirm.moveTitle'),
-    message: t('substitutions.confirm.moveMessage', {
-      name: substitucio.substitut, absent: altra?.professor_absent || '—', hora: substitucio.hora
-    }),
-    icon: 'pi pi-arrow-right-arrow-left',
-    acceptLabel: t('substitutions.confirm.moveAccept'),
-    rejectLabel: t('common.cancel'),
-    accept: () => desarSubstitut(substitucio, true),
-    reject: () => carregarSubstitucions()   // torna el desplegable com era
-  })
-}
-
-const desarSubstitut = async (substitucio, moure = false) => {
-  try {
-    const data = dataISO.value
-    const response = await axios.put(
-      `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
-      { id: substitucio.id, substitut: substitucio.substitut, updated_at: substitucio.updated_at, moure },
-      { _silent: true }
-    )
-
-    if (response.data?.updated_at) {
-      substitucio.updated_at = response.data.updated_at
-    }
-    mostrarAvisos(response.data?.avisos)
-
-    // Actualitzar estat
-    substitucio.estat = substitucio.substitut ? 'assignada' : 'pendent'
-
-    const alliberades = response.data?.alliberades || []
-    if (alliberades.length) {
-      // L'altra fila ha canviat: es torna a carregar tot
-      await carregarSubstitucions()
-      toast.add({
-        severity: 'info',
-        summary: t('common.updated'),
-        detail: t('substitutions.messages.substituteMoved', {
-          name: substitucio.substitut, absent: alliberades.map(a => a.professor_absent).join(', ')
-        }),
-        life: 5000
-      })
-      return
-    }
-
-    // S'ha creat o esborrat l'encadenada del substitut: la llista ha canviat (es
-    // torna a carregar, amb els disponibles). Si no, només els disponibles, per
-    // actualitzar els colors (algun pot passar a «JA ASSIGNAT»)
-    const encadenades = response.data?.encadenades
-    if (encadenades?.creades || encadenades?.esborrades) {
-      await carregarSubstitucions()
-    } else {
-      await carregarSubstitucions()
-    }
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.updated'),
-      detail: t('substitutions.messages.substituteAssigned', { name: substitucio.substitut || t('common.none') }),
-      life: 2000
-    })
-  } catch (error) {
-    console.error('Error actualitzant substitut:', error)
-    if (error.response?.status === 409 && error.response?.data?.detail?.current_data) {
-      const currentData = error.response.data.detail.current_data
-      obrirDialogConflicte(async () => {
-        const data = dataISO.value
-        const response = await axios.put(
-          `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
-          {
-            id: substitucio.id,
-            substitut: substitucio.substitut,
-            updated_at: currentData.updated_at,
-            force: true,
-            moure
-          }
-        )
-        mostrarAvisos(response.data?.avisos)
-        await carregarSubstitucions()
-      })
-      return
-    }
-
-    // Mostrar missatge d'error de l'API (si està disponible)
-    const errorDetail = error.response?.data?.detail || t('substitutions.errors.updateSubstitute')
-
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: errorDetail,
-      life: 4000
-    })
-
-    // Recarregar substitucions per restaurar els valors correctes de la BD
-    await carregarSubstitucions()
-  }
-}
-
-const actualitzarComentari = async (substitucio) => {
-  try {
-    const data = dataISO.value
-    const response = await axios.put(
-      `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
-      {
-        id: substitucio.id,
-        substitut: substitucio.substitut,
-        comentaris: substitucio.comentaris,
-        updated_at: substitucio.updated_at
-      },
-      { _silent: true }
-    )
-
-    if (response.data?.updated_at) {
-      substitucio.updated_at = response.data.updated_at
-    }
-    mostrarAvisos(response.data?.avisos)
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.updated'),
-      detail: t('substitutions.messages.commentSaved'),
-      life: 2000
-    })
-  } catch (error) {
-    console.error('Error actualitzant comentari:', error)
-    if (error.response?.status === 409 && error.response?.data?.detail?.current_data) {
-      const currentData = error.response.data.detail.current_data
-      obrirDialogConflicte(async () => {
-        const data = dataISO.value
-        const response = await axios.put(
-          `/api/substitucions/${data}/${substitucio.hora}/${substitucio.professor_absent}`,
-          {
-            id: substitucio.id,
-            substitut: substitucio.substitut,
-            comentaris: substitucio.comentaris,
-            updated_at: currentData.updated_at,
-            force: true
-          }
-        )
-        mostrarAvisos(response.data?.avisos)
-        await carregarSubstitucions()
-      })
-      return
-    }
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('substitutions.errors.saveComment'),
-      life: 3000
-    })
-  }
-}
-
-const formatDisponibles = (disponibles, substitutActual = '') => {
-  // Sempre afegir una opció neutra al principi (valor buit per esborrar substitut)
-  const opcioNeutra = { label: t('common.selectOption'), value: '', color: '#F3F4F6' };
-
-  const llistaDisponibles = Array.isArray(disponibles) ? disponibles : []
-  const ordenats = [...llistaDisponibles].sort((a, b) => {
-    const baixaA = a.de_baixa ? 1 : 0
-    const baixaB = b.de_baixa ? 1 : 0
-    if (baixaA !== baixaB) {
-      return baixaA - baixaB
-    }
-    const ocupatA = a.ocupat ? 1 : 0
-    const ocupatB = b.ocupat ? 1 : 0
-    if (ocupatA !== ocupatB) {
-      return ocupatA - ocupatB
-    }
-    const catA = Number.isFinite(Number(a.categoria)) ? Number(a.categoria) : 999
-    const catB = Number.isFinite(Number(b.categoria)) ? Number(b.categoria) : 999
-    if (catA !== catB) {
-      return catA - catB
-    }
-    return collator.value.compare(a.professor || '', b.professor || '')
-  })
-  const opcionsDisponibles = ordenats.map(disp => {
-    // Usar text_display del backend si existeix, sinó crear-lo manualment
-    let label = disp.text_display || disp.professor
-
-    // Fallback si no hi ha text_display (compatibilitat)
-    if (!disp.text_display && disp.tipus && disp.detall) {
-      label = `${disp.professor} (${disp.tipus} - ${disp.detall})`
-    }
-
-    return {
-      label: label,
-      value: disp.professor,
-      color: disp.color || 'transparent'
-    }
-  });
-
-  const valors = new Set(opcionsDisponibles.map(op => op.value))
-  const opcions = [opcioNeutra, ...opcionsDisponibles]
-
-  if (substitutActual && !valors.has(substitutActual)) {
-    opcions.push({
-      label: `${substitutActual} (${t('common.inactive')})`,
-      value: substitutActual,
-      color: '#F3F4F6'
-    })
-  }
-
-  if (llistaDisponibles.length === 0) {
-    return opcions
-  }
-
-  return opcions;
-}
-
-const obrirDialogNou = () => {
-  gestioAbsencies.value = {
-    professor: null,
-    professorSearch: '',
-    horesAbsencia: [],
-    horesServei: []
-  }
-  mostrarDialogGestio.value = true
-  document.body.style.overflow = 'hidden'
-}
-
-const confirmarEliminarAbsenciesProf = (professorNom) => {
-  confirmaEsborrar({
-    message: t('substitutions.confirm.deleteAllAbsencesMessage', { teacher: professorNom }),
-    header: t('substitutions.confirm.deleteAbsenceTitle'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('common.delete'),
-    rejectLabel: t('common.cancel'),
-    accept: () => eliminarTotesAbsenciesProf(professorNom)
-  })
-}
-
-const eliminarTotesAbsenciesProf = async (professorNom) => {
-  loading.value = true
-  try {
-    const data = dataISO.value
-    const professorEncoded = encodeURIComponent(professorNom)
-    const updatedAtMap = {}
-    absenciesDelDia.value
-      .filter(a => a.professor_absent === professorNom && !esVigilanciaAbsent(a))
-      .forEach(a => { if (a.updated_at) updatedAtMap[a.hora] = a.updated_at })
-
-    await axios.put(`/api/substitucions/${data}/absencies/${professorEncoded}`, {
-      hores_absencia: [],
-      hores_servei: [],
-      updated_at_map: updatedAtMap
-    }, { _silent: true })
-
-    toast.add({
-      severity: 'success',
-      summary: t('common.deleted'),
-      detail: t('substitutions.messages.allAbsencesDeleted', { teacher: professorNom }),
-      life: 3000
-    })
-
-    await carregarSubstitucions()
-  } catch (error) {
-    console.error('Error eliminant absències:', error)
-    if (error.response?.status === 409) {
-      obrirDialogConflicte(async () => {
-        await axios.put(`/api/substitucions/${dataISO.value}/absencies/${encodeURIComponent(professorNom)}`, {
-          hores_absencia: [],
-          hores_servei: [],
-          force: true
-        })
-        await carregarSubstitucions()
-      })
-      return
-    }
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('substitutions.errors.deleteAbsence'),
-      life: 3000
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
-const editarAbsenciesProfessor = async (substitucio) => {
-  const professorNom = substitucio.professor_absent
-  await carregarTotesAbsencies()
-
-  const absProf = totesAbsencies.value.filter(a => {
-    const tipus = (a.tipus_absencia || '').toUpperCase()
-    if (a.professor_absent !== professorNom) return false
-    if (tipus === 'ENCADENADA') return false
-    if (tipus === 'VIGILANCIA') return esVigilanciaAbsent(a) // Inclou Tipus A, exclou Tipus B
-    return true
-  })
-  // Hores ABSENCIA + hores on el vigilant és absent (Tipus A VIGILANCIA)
-  const horesAbsencia = absProf
-    .filter(a => a.tipus_absencia === 'ABSENCIA' || esVigilanciaAbsent(a))
-    .map(a => a.hora)
-  gestioAbsencies.value = {
-    professor: professorNom,
-    professorSearch: '',
-    horesAbsencia,
-    horesServei: absProf.filter(a => a.tipus_absencia === 'SERVEI').map(a => a.hora)
-  }
-  dropdownProfValue.value = professorsAmbInfo.value.find(p => p.nom === professorNom) || null
-
-  carregarHoresAmbClasse(professorNom)
-  mostrarDialogGestio.value = true
-  document.body.style.overflow = 'hidden'
-}
-
-const tancarDialogGestio = () => {
-  mostrarDialogGestio.value = false
-  gestioAbsencies.value = {
-    professor: null,
-    professorSearch: '',
-    horesAbsencia: [],
-    horesServei: []
-  }
-  dropdownProfValue.value = null
-  horesAmbClasse.value = []
-  horesAlCentre.value = []
-  horesCarregades.value = false
-  modeRang.value = false
-  dataFinalRang.value = ''
-  document.body.style.overflow = ''
-}
-
-// Funcions del bottom sheet
-const carregarHoresAmbClasse = async (professorNom) => {
-  horesCarregades.value = false
-  try {
-    const res = await axios.get(`/api/substitucions/${dataISO.value}/hores-professor/${encodeURIComponent(professorNom)}`)
-    horesAmbClasse.value = res.data.hores_amb_classe
-    horesAlCentre.value = res.data.hores_al_centre || []
-  } catch {
-    horesAmbClasse.value = []
-    horesAlCentre.value = []
-  } finally {
-    horesCarregades.value = true
-  }
-}
-
-const seleccionarProfessor = (prof) => {
-  const absProf = absenciesDelDia.value.filter(a => a.professor_absent === prof.nom)
-  gestioAbsencies.value.professor = prof.nom
-  gestioAbsencies.value.professorSearch = ''
-  gestioAbsencies.value.horesAbsencia = absProf.filter(a => a.tipus_absencia === 'ABSENCIA' || esVigilanciaAbsent(a)).map(a => a.hora)
-  gestioAbsencies.value.horesServei = absProf.filter(a => a.tipus_absencia === 'SERVEI').map(a => a.hora)
-  carregarHoresAmbClasse(prof.nom)
-}
-
-
-const toggleHoraAbsencia = (hora) => {
-  const idx = gestioAbsencies.value.horesAbsencia.indexOf(hora)
-  if (idx === -1) gestioAbsencies.value.horesAbsencia.push(hora)
-  else gestioAbsencies.value.horesAbsencia.splice(idx, 1)
-}
-
-const toggleHoraServei = (hora) => {
-  const idx = gestioAbsencies.value.horesServei.indexOf(hora)
-  if (idx === -1) gestioAbsencies.value.horesServei.push(hora)
-  else gestioAbsencies.value.horesServei.splice(idx, 1)
-}
-
-const disponiblesPerAbsencia = computed(() =>
-  horesDisponibles.value.filter(h => !gestioAbsencies.value.horesServei.includes(h))
-)
-const disponiblesPerServei = computed(() =>
-  horesDisponibles.value.filter(h => !gestioAbsencies.value.horesAbsencia.includes(h))
-)
-const totesTrnadesAbsencia = computed(() =>
-  disponiblesPerAbsencia.value.length > 0 &&
-  disponiblesPerAbsencia.value.every(h => gestioAbsencies.value.horesAbsencia.includes(h))
-)
-const totesTrnadesServei = computed(() =>
-  disponiblesPerServei.value.length > 0 &&
-  disponiblesPerServei.value.every(h => gestioAbsencies.value.horesServei.includes(h))
-)
-
-const toggleTotesAbsencia = () => {
-  if (totesTrnadesAbsencia.value) {
-    gestioAbsencies.value.horesAbsencia = []
-  } else {
-    gestioAbsencies.value.horesAbsencia = [...disponiblesPerAbsencia.value]
-  }
-}
-const toggleTotesServei = () => {
-  if (totesTrnadesServei.value) {
-    gestioAbsencies.value.horesServei = []
-  } else {
-    gestioAbsencies.value.horesServei = [...disponiblesPerServei.value]
-  }
-}
-
-const afegirAbsenciaImmediata = async () => {
-  if (!gestioAbsencies.value.professor) {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: t('substitutions.errors.selectTeacher'), life: 3000 })
-    return
-  }
-  if (gestioAbsencies.value.horesAbsencia.length === 0 && gestioAbsencies.value.horesServei.length === 0) {
-    toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('substitutions.dialogs.absences.hoursHint'), life: 3000 })
-    return
-  }
-
-  const profNom = gestioAbsencies.value.professor
-  const horesAbsencia = [...gestioAbsencies.value.horesAbsencia]
-  const horesServei = [...gestioAbsencies.value.horesServei]
-
-  loading.value = true
-  try {
-    const professorEncoded = encodeURIComponent(profNom)
-    const dates = datesDelRang.value
-
-    if (dates.length === 1) {
-      const data = dates[0]
-      const updatedAtMap = {}
-      absenciesDelDia.value
-        .filter(a => a.professor_absent === profNom && !esVigilanciaAbsent(a))
-        .forEach(a => { if (a.updated_at) updatedAtMap[a.hora] = a.updated_at })
-
-      // Únic PUT multi-tipus: el backend processa ABSENCIA i SERVEI de forma independent
-      const resposta = await axios.put(`/api/substitucions/${data}/absencies/${professorEncoded}`, {
-        hores_absencia: horesAbsencia,
-        hores_servei: horesServei,
-        updated_at_map: updatedAtMap
-      }, { _silent: true })
-
-      toast.add({
-        severity: 'success',
-        summary: t('common.saved'),
-        detail: t('substitutions.messages.absencesSaved', { teacher: profNom }),
-        life: 2500
-      })
-      avisaSubstitutsTrets(toast, t, resposta.data?.substituts_trets)
-      if (resposta.data?.vigilancies_desassignades > 0) {
-        toast.add({
-          severity: 'info',
-          summary: t('substitutions.messages.vigilanciesUnassignedTitle'),
-          detail: t('substitutions.messages.vigilanciesUnassignedDetail', { count: resposta.data.vigilancies_desassignades }, resposta.data.vigilancies_desassignades),
-          life: 6000
-        })
-      }
-      await carregarSubstitucions()
-    } else {
-      const respostes = await Promise.all(dates.map(d =>
-        axios.put(`/api/substitucions/${d}/absencies/${professorEncoded}`, {
-          hores_absencia: horesAbsencia,
-          hores_servei: horesServei,
-          updated_at_map: {}
-        })
-      ))
-      toast.add({
-        severity: 'success',
-        summary: t('common.saved'),
-        detail: `${dates.length} ${t('substitutions.range.daysRegistered', { teacher: profNom })}`,
-        life: 4000
-      })
-      avisaSubstitutsTrets(toast, t, respostes.flatMap(r => r.data?.substituts_trets || []))
-      modeRang.value = false
-      dataFinalRang.value = ''
-      await carregarSubstitucions()
-    }
-  } catch (error) {
-    console.error('Error afegint absència:', error)
-    if (error.response?.status === 409) {
-      obrirDialogConflicte(async () => {
-        const d = dataISO.value
-        const profEncoded = encodeURIComponent(profNom)
-        await axios.put(`/api/substitucions/${d}/absencies/${profEncoded}`, {
-          hores_absencia: horesAbsencia,
-          hores_servei: horesServei,
-          force: true
-        })
-        await carregarSubstitucions()
-      })
-      return
-    }
-    toast.add({ severity: 'error', summary: t('common.error'), detail: (typeof error.response?.data?.detail === 'string' && error.response.data.detail) || t('substitutions.errors.saveAbsences'), life: 8000 })
-  } finally {
-    loading.value = false
-  }
-}
-
-// Les opcions del substitut de cada fila (una sola vegada per fila: la taula
-// no les ha de tornar a calcular a cada repintat)
-const opcionsPerFila = computed(() =>
-  new Map(substitucionsFiltrades.value.map(fila => [fila, formatDisponibles(fila.disponibles, fila.substitut)]))
-)
-const disponiblesDe = (fila) => opcionsPerFila.value.get(fila) || []
-
-// Un canvi a la taula (el substitut o les observacions)
-const canviaCamp = (fila, camp, valor) => {
-  if (camp === 'substitut') {
-    fila.substitut = valor
-    actualitzarSubstitut(fila)
-  } else if (camp === 'comentaris') {
-    fila.comentaris = valor
-    actualitzarComentari(fila)
-  }
-}
+const { disponiblesDe, canviaCamp } = useEdicioSubstitucions({
+  dataISO, totesAbsencies, substitucionsFiltrades, collator, toast, t, confirm,
+  obrirDialogConflicte, mostrarAvisos, carregarSubstitucions
+})
 
 // Esborrar des de la fila: totes les absències d'aquell professor aquell dia
 // (una sola hora es treu a «Gestionar absències»)
 const esborraAbsenciesDeFila = (fila) => confirmarEliminarAbsenciesProf(fila.professor_absent)
 
-// PDF Functions
-const aplicarPreferenciesPdf = (prefs) => {
-  aplicaPreferencies(pdfConfig, prefs, ['includeSubstitutions', 'includeVigilancies', 'showComments', 'showHours', 'showConflicts', 'compress', 'blankRows', 'format', 'midaLletra'])
-}
+const {
+  mostrarDialogGestio,
+  dropdownProfValue,
+  gestioAbsencies,
+  horesAmbClasse,
+  horesAlCentre,
+  horesCarregades,
+  modeRang,
+  dataFinalRang,
+  professorsAmbInfo,
+  absenciesDelDiaAgrupades,
+  seleccionarProfessorDropdown,
+  datesDelRang,
+  obrirDialogNou,
+  confirmarEliminarAbsenciesProf,
+  editarAbsenciesProfessor,
+  tancarDialogGestio,
+  toggleHoraAbsencia,
+  toggleHoraServei,
+  totesTrnadesAbsencia,
+  totesTrnadesServei,
+  toggleTotesAbsencia,
+  toggleTotesServei,
+  afegirAbsenciaImmediata
+} = useAbsenciesSubstitucions({ dataISO, professors, absenciesCobertes, totesAbsencies, horesDisponibles, loading, toast, t, confirmaEsborrar, obrirDialogConflicte, carregarSubstitucions, carregarTotesAbsencies })
 
-const carregarPreferenciesPdf = async () => {
-  try {
-    const response = await axios.get('/api/pdf/preferences', { _silent: true })
-    aplicarPreferenciesPdf(response.data?.substitucions)
-  } catch (error) {
-    console.error('Error carregant preferències PDF:', error)
-  }
-}
+const {
+  mostrarDialogPDF,
+  mostrarDialogValidacions,
+  generantPDF,
+  reassignantProblematics,
+  reassignChanges,
+  validacions,
+  warningsFiltrats,
+  totalIssuesFiltrats,
+  pdfConfig,
+  mostrarDialegPDF,
+  generarPDFComplet,
+  continuarPDF,
+  cancelarPDF,
+  reassignarProblematics
+} = usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, collator, toast, t, mostrarAvisos, carregarSubstitucions })
 
-const desarPreferenciesPdf = async () => {
-  try {
-    await axios.put('/api/pdf/preferences', {
-      substitucions: {
-        includeSubstitutions: pdfConfig.value.includeSubstitutions,
-        includeVigilancies: pdfConfig.value.includeVigilancies,
-        showComments: pdfConfig.value.showComments,
-        showHours: pdfConfig.value.showHours,
-        showConflicts: pdfConfig.value.showConflicts,
-        compress: pdfConfig.value.compress,
-        blankRows: pdfConfig.value.blankRows,
-        format: pdfConfig.value.format,
-        midaLletra: pdfConfig.value.midaLletra
-      }
-    }, { _silent: true })
-  } catch (error) {
-    console.error('Error desant preferències PDF:', error)
-  }
-}
-
-const mostrarDialegPDF = async () => {
-  await carregarPreferenciesPdf()
-  mostrarDialogPDF.value = true
-}
-
-defineExpose({
-  mostrarDialegPDF
-})
-
-const generarPDFComplet = async () => {
-  // Validar que almenys un tipus de contingut està seleccionat
-  if (!pdfConfig.value.includeSubstitutions && !pdfConfig.value.includeVigilancies) {
-    toast.add({
-      severity: 'warn',
-      summary: t('common.warning'),
-      detail: t('substitutions.dialogs.pdf.selectAtLeastOneShort'),
-      life: 3000
-    })
-    return
-  }
-
-  generantPDF.value = true
-  try {
-    reassignChanges.value = []
-    // 1. Primer validar abans de generar PDF
-    const validacioResponse = await axios.get(`/api/pdf/${dataISO.value}/validacions`)
-    validacions.value = validacioResponse.data
-
-    // 2. Mostrar diàleg de validacions si hi ha problemes
-    if (validacions.value.total > 0) {
-      // Tancar diàleg de configuració i mostrar diàleg de validacions
-      mostrarDialogPDF.value = false
-      mostrarDialogValidacions.value = true
-      generantPDF.value = false
-      return
-    }
-
-    // 3. Si no hi ha problemes, continuar directament
-    await generarPDFAmbOpcions()
-
-  } catch (error) {
-    console.error('Error validant PDF:', error)
-    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-    if (!jaAvisat(error)) {
-      toast.add({
-        severity: 'error',
-        summary: t('common.error'),
-        detail: error.response?.data?.detail || t('substitutions.errors.validatePdf'),
-        life: 3000
-      })
-    }
-    generantPDF.value = false
-  }
-}
-
-const generarPDFAmbOpcions = async () => {
-  generantPDF.value = true
-  try {
-    // Generar PDF
-    const params = new URLSearchParams({
-      ...parametresComuns(pdfConfig.value),
-      include_substitutions: pdfConfig.value.includeSubstitutions,
-      include_vigilancies: pdfConfig.value.includeVigilancies,
-      show_conflicts: pdfConfig.value.showConflicts,
-      blank_rows: pdfConfig.value.blankRows,
-      ordre: ordreFiles.value // el mateix ordre que la pantalla
-    })
-
-    const url = `/api/pdf/complete/${dataISO.value}?${params.toString()}`
-
-    // Download PDF
-    const response = await axios.get(url, {
-      responseType: 'blob'
-    })
-
-    // Create download link
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const downloadUrl = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    link.download = `complet_${dataISO.value}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(downloadUrl)
-
-    toast.add({
-      severity: 'success',
-      summary: t('substitutions.messages.pdfGeneratedTitle'),
-      detail: t('substitutions.messages.pdfGeneratedDetail', { date: dataISO.value }),
-      life: 3000
-    })
-
-    await desarPreferenciesPdf()
-
-    // Tancar tots els diàlegs
-    mostrarDialogPDF.value = false
-    mostrarDialogValidacions.value = false
-  } catch (error) {
-    console.error('Error generant PDF:', error)
-    // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-    if (!jaAvisat(error)) {
-      toast.add({
-        severity: 'error',
-        summary: t('common.error'),
-        detail: error.response?.data?.detail || t('substitutions.errors.generatePdf'),
-        life: 3000
-      })
-    }
-  } finally {
-    generantPDF.value = false
-  }
-}
-
-const continuarPDF = async () => {
-  await generarPDFAmbOpcions()
-}
-
-const cancelarPDF = () => {
-  mostrarDialogValidacions.value = false
-  mostrarDialogPDF.value = true
-  generantPDF.value = false
-}
-
-const reassignarProblematics = async () => {
-  reassignantProblematics.value = true
-  try {
-    const canvis = []
-    if (pdfConfig.value.includeSubstitutions) {
-      const respSubs = await axios.post(`/api/substitucions/${dataISO.value}/reassign-problematics`)
-      mostrarAvisos(respSubs.data?.avisos)
-      if (Array.isArray(respSubs?.data?.changes)) {
-        respSubs.data.changes.forEach(change => {
-          const meta = [change.professor_absent, change.assignatura, change.grup]
-            .filter(Boolean)
-            .join(' · ')
-          canvis.push({
-            hora: change.hora || '',
-            label: `SUB ${change.hora} ${meta}: ${change.abans || '—'} → ${change.despres || '—'}`
-          })
-        })
-      }
-      if (respSubs?.data?.cleared !== undefined) {
-        toast.add({
-          severity: 'success',
-          summary: t('substitutions.messages.reassignSubstitutionsTitle'),
-          detail: t('substitutions.messages.reassignSubstitutionsDetail', { count: respSubs.data.cleared }, respSubs.data.cleared),
-          life: 6000
-        })
-      }
-      await carregarSubstitucions()
-    }
-
-    if (canvis.length > 0) {
-      const validacioResponse = await axios.get(`/api/pdf/${dataISO.value}/validacions`)
-      validacions.value = validacioResponse.data
-      reassignChanges.value = ordenarCanvisPerHora(canvis).map((item) => item.label)
-      mostrarDialogPDF.value = false
-      mostrarDialogValidacions.value = true
-      return
-    }
-
-    const validacioResponse = await axios.get(`/api/pdf/${dataISO.value}/validacions`)
-    validacions.value = validacioResponse.data
-
-    if (validacions.value.total === 0) {
-      await generarPDFAmbOpcions()
-      return
-    }
-
-    toast.add({
-      severity: 'info',
-      summary: t('substitutions.messages.reassignDoneTitle'),
-      detail: t('substitutions.messages.reassignDoneDetail'),
-      life: 3500
-    })
-  } catch (error) {
-    console.error('Error reassignant problemàtics:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: error.response?.data?.detail || t('substitutions.errors.reassignProblematics'),
-      life: 3000
-    })
-  } finally {
-    reassignantProblematics.value = false
-  }
-}
-
-const ordenarCanvisPerHora = (canvis) => {
-  const ordreHores = horesDisponibles.value || []
-  const horaIndex = (hora) => {
-    const idx = ordreHores.indexOf(hora)
-    return idx === -1 ? 999 : idx
-  }
-
-  return [...canvis].sort((a, b) => {
-    const diff = horaIndex(a.hora) - horaIndex(b.hora)
-    if (diff !== 0) return diff
-    return collator.value.compare(a.label || '', b.label || '')
-  })
-}
+defineExpose({ mostrarDialegPDF })
 
 // Watch per canvis de data
 watch(dataTreball, async () => {
@@ -1575,19 +356,7 @@ watch(dataTreball, async () => {
   await carregarProfessors()
 })
 
-// Quan les dades canvien (desa/elimina), sincronitzar els dos grids si hi ha professor seleccionat
-watch(absenciesDelDia, () => {
-  if (!mostrarDialogGestio.value || !gestioAbsencies.value.professor) return
-  const prof = gestioAbsencies.value.professor
-  const absProf = absenciesDelDia.value.filter(a => a.professor_absent === prof)
-  gestioAbsencies.value.horesAbsencia = absProf.filter(a => a.tipus_absencia === 'ABSENCIA' || esVigilanciaAbsent(a)).map(a => a.hora)
-  gestioAbsencies.value.horesServei = absProf.filter(a => a.tipus_absencia === 'SERVEI').map(a => a.hora)
-})
-
 // Lifecycle
-onBeforeUnmount(() => {
-  document.body.style.overflow = ''
-})
 
 onMounted(async () => {
   await carregarHores()
@@ -1598,18 +367,6 @@ onMounted(async () => {
 
 <style scoped>
 .substitucions-view {
-  width: 100%;
-}
-
-.error-carrega {
-  margin-bottom: 1rem;
-}
-
-.error-carrega-contingut {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
   width: 100%;
 }
 
@@ -1888,553 +645,4 @@ onMounted(async () => {
   }
 }
 
-/* ================================================================
-   BOTTOM SHEET — Gestionar absències
-   Mobile: slide up from bottom. Desktop: centered modal.
-   ================================================================ */
-
-.bs-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.48);
-  z-index: 1050;
-}
-
-.bs-overlay-enter-active,
-.bs-overlay-leave-active {
-  transition: opacity 0.25s ease;
-}
-.bs-overlay-enter-from,
-.bs-overlay-leave-to {
-  opacity: 0;
-}
-
-.bs-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #fff;
-  border-radius: 12px 12px 0 0;
-  z-index: 1051;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  transform: translateY(100%);
-  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
-  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.18);
-  pointer-events: none;
-  overflow: hidden;
-  padding: 0;
-}
-
-.bs-sheet--visible {
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-/* Desktop: centered modal — mateix breakpoint que PrimeVue (720px) */
-@media (min-width: 720px) {
-  .bs-sheet {
-    bottom: auto;
-    left: 50%;
-    right: auto;
-    top: 50%;
-    width: 480px;
-    height: min(82vh, 640px);
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    transform: translate(-50%, -44%) scale(0.97);
-    opacity: 0;
-    transition: transform 0.22s ease, opacity 0.22s ease;
-    pointer-events: none;
-  }
-  .bs-sheet--visible {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
-
-.bs-drag-handle {
-  display: none;
-}
-
-/* Header — mateix estil que p-dialog-header de PrimeVue (lara-light-blue) */
-.bs-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 0 none;
-  background: #ffffff;
-  color: #374151;
-  flex-shrink: 0;
-}
-
-/* Títol — rèplica de p-dialog-title */
-.bs-header .p-dialog-title {
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: #374151;
-}
-
-/* Botó tancar — rèplica de p-dialog-header-icon */
-.bs-close-btn {
-  width: 2rem;
-  height: 2rem;
-  color: #6b7280;
-  border: 0 none;
-  background: transparent;
-  border-radius: 50%;
-  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
-  outline-color: transparent;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.875rem;
-  padding: 0;
-  flex-shrink: 0;
-}
-.bs-close-btn:hover {
-  color: #374151;
-  background: #f3f4f6;
-}
-.bs-close-btn:focus,
-.bs-close-btn:focus-visible {
-  outline: 0 none;
-  box-shadow: 0 0 0 0.2rem #BFDBFE;
-}
-
-/* Scrollable content */
-.bs-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* Field */
-.bs-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.bs-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
-}
-.bs-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.bs-sel-all-btn {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #0369a1;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.bs-sel-all-btn--servei { color: #7c3aed; }
-.bs-sel-all-btn:hover { opacity: 0.7; }
-
-/* date input per al rang */
-.bs-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 1rem;
-  border: 1.5px solid #d1d5db;
-  border-radius: 10px;
-  font-size: 1rem;
-  color: #1f2937;
-  outline: none;
-  transition: border-color 0.15s;
-  box-sizing: border-box;
-}
-.bs-input:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
-}
-
-/* Opció professor al Dropdown */
-.bs-prof-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  gap: 0.5rem;
-}
-.bs-prof-option--absencies {
-  background: #fffbeb;
-  border-left: 3px solid #f59e0b;
-  margin-left: -0.75rem;
-  padding-left: calc(0.75rem - 3px);
-  margin-right: -0.75rem;
-  padding-right: 0.75rem;
-}
-
-.bs-prof-option--coberta {
-  opacity: 0.6;
-}
-
-.bs-badge-coberta {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #6b7280;
-}
-
-.bs-badge-hores {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #92400e;
-  background: #fef3c7;
-  padding: 0.15rem 0.5rem;
-  border-radius: 99px;
-  flex-shrink: 0;
-}
-
-
-/* Badges de tipus al label */
-.bs-type-badge {
-  display: inline-block;
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0.1rem 0.5rem;
-  border-radius: 99px;
-  vertical-align: middle;
-  margin-left: 0.3rem;
-}
-.bs-type-badge--normal {
-  background: #e0e3f8;
-  color: var(--primary-color-dark);
-}
-.bs-type-badge--servei {
-  background: #ede9fe;
-  color: #6d28d9;
-}
-
-/* Hours grid */
-.bs-hours-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.bs-hour-btn {
-  min-height: 36px;
-  min-width: 68px;
-  padding: 0 0.9rem;
-  border: 1.5px solid #d1d5db;
-  border-radius: 8px;
-  background: #f9fafb;
-  color: #374151;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.12s;
-  white-space: nowrap;
-}
-.bs-hour-btn:disabled {
-  opacity: 0.28;
-  cursor: not-allowed;
-}
-.bs-hour-btn:not(:disabled):hover {
-  border-color: var(--primary-color);
-  background: #eef0fd;
-  color: var(--primary-color-dark);
-}
-
-/* Botons Servei */
-.bs-hour-btn--servei-base {
-  border-color: #ddd6fe;
-  background: #faf5ff;
-  color: #4c1d95;
-}
-.bs-hour-btn--servei-base:not(:disabled):hover {
-  border-color: #7c3aed;
-  background: #ede9fe;
-  color: #5b21b6;
-}
-
-/* Colors d'horari (al centre / fora) — després de servei-base per sobreescriure'l */
-.bs-hour-btn--al-centre {
-  background: #ffffff;
-  border-color: #fed7aa;
-  color: #c2410c;
-}
-.bs-hour-btn--al-centre:not(:disabled):hover {
-  border-color: var(--primary-color);
-  background: #eef0fd;
-  color: var(--primary-color-dark);
-}
-.bs-hour-btn--fora {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  color: #9ca3af;
-}
-.bs-hour-btn--fora:not(:disabled):hover {
-  border-color: var(--primary-color);
-  background: #eef0fd;
-  color: var(--primary-color-dark);
-}
-
-/* Seleccionats — han d'anar AL FINAL per guanyar sempre */
-.bs-hour-btn--selected {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-  color: white;
-  font-weight: 600;
-}
-.bs-hour-btn--selected:not(:disabled):hover {
-  background: var(--primary-color-dark);
-  border-color: var(--primary-color-dark);
-}
-.bs-hour-btn--servei-selected {
-  background: #7c3aed;
-  border-color: #7c3aed;
-  color: white;
-  font-weight: 600;
-}
-.bs-hour-btn--servei-selected:not(:disabled):hover {
-  background: #6d28d9;
-  border-color: #6d28d9;
-}
-
-/* Segmented toggle */
-.bs-toggle-segment {
-  display: inline-flex;
-  background: #f3f4f6;
-  border-radius: 10px;
-  padding: 3px;
-  gap: 3px;
-}
-.bs-toggle-opt {
-  min-height: 40px;
-  padding: 0 1.5rem;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #6b7280;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.bs-toggle-opt--active {
-  background: white;
-  color: #1f2937;
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-}
-
-/* Absències del dia */
-.bs-absencies-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.bs-section-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
-  margin: 0;
-}
-.bs-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 0.65rem 0.9rem;
-  gap: 0.75rem;
-}
-.bs-card--clickable {
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-}
-.bs-card--clickable:hover { background: #f0f9ff; border-color: #bae6fd; }
-.bs-card-info {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-  flex: 1;
-  min-width: 0;
-}
-.bs-card-prof {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: #1f2937;
-}
-.bs-card-hora {
-  font-size: 0.8rem;
-  color: #6b7280;
-  background: #e5e7eb;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-.bs-card-tipus {
-  font-size: 0.78rem;
-  font-weight: 500;
-  background: #e0f2fe;
-  color: #0369a1;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-}
-.bs-card-tipus--servei {
-  background: #f3e8ff;
-  color: #7c3aed;
-}
-.bs-card-del {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #fee2e2;
-  background: #fff5f5;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  color: var(--color-perill);
-  transition: all 0.12s;
-  flex-shrink: 0;
-}
-.bs-card-del:hover { background: #fee2e2; border-color: #fca5a5; }
-.bs-card-del:disabled { opacity: 0.45; cursor: not-allowed; }
-.bs-card-hores-detall {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin-top: 0.1rem;
-}
-.bs-card-hores-normal {
-  font-size: 0.8rem;
-  color: #0369a1;
-  background: #e0f2fe;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-.bs-card-hores-servei {
-  font-size: 0.8rem;
-  color: #7c3aed;
-  background: #f3e8ff;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-.bs-card-actions {
-  display: flex;
-  gap: 0.35rem;
-  flex-shrink: 0;
-}
-.bs-card-edit {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #e0f2fe;
-  background: #f0f9ff;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  transition: all 0.12s;
-  flex-shrink: 0;
-}
-.bs-card-edit:hover { background: #bae6fd; border-color: #7dd3fc; }
-.bs-card-edit:disabled { opacity: 0.45; cursor: not-allowed; }
-
-/* Footer sticky */
-.bs-footer {
-  padding: 0.75rem 1rem;
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-  border-top: 1px solid #f1f5f9;
-  flex-shrink: 0;
-  background: white;
-  border-radius: 0;
-}
-@media (min-width: 640px) {
-  .bs-footer { border-radius: 0 0 16px 16px; }
-}
-
-.bs-btn-primary {
-  width: 100%;
-  height: 52px;
-  background: #16a34a;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.bs-btn-primary:hover:not(:disabled) { background: #15803d; }
-.bs-btn-primary:disabled {
-  background: #d1d5db;
-  color: #9ca3af;
-  cursor: not-allowed;
-}
-
-/* Spinner al botó */
-.bs-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255,255,255,0.35);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: bs-spin 0.6s linear infinite;
-}
-@keyframes bs-spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Rang de dates */
-.bs-field--rang { gap: 0.5rem; }
-.bs-rang-toggle {
-  display: flex;
-  gap: 3px;
-  background: #f3f4f6;
-  border-radius: 8px;
-  padding: 3px;
-}
-.bs-rang-opt {
-  flex: 1; padding: 0.4rem 0.75rem;
-  border: none; border-radius: 6px;
-  font-size: 0.875rem; cursor: pointer;
-  background: transparent; color: #6b7280;
-  transition: all 0.15s;
-}
-.bs-rang-opt--active {
-  background: white; color: var(--primary-color);
-  font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-.bs-rang-dates {
-  display: flex; align-items: center;
-  gap: 0.5rem; margin-top: 0.25rem;
-}
-.bs-rang-inici { font-size: 0.875rem; color: #6b7280; font-weight: 500; }
-.bs-rang-arrow { color: #9ca3af; }
-.bs-rang-fi { flex: 1; height: 36px; font-size: 0.875rem; }
-.bs-rang-resum {
-  font-size: 0.8rem; color: var(--primary-color);
-  font-weight: 600; text-align: center;
-}
 </style>

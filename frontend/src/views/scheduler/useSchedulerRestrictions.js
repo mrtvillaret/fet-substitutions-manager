@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import axios from 'axios'
+import * as apiPlanificador from '../../api/planificador'
 
 export const useSchedulerRestrictions = ({
   t,
@@ -413,14 +413,14 @@ export const useSchedulerRestrictions = ({
         if (row.tipus === 'no_mateix_dia') dures.no_mateix_dia.push(assignatures)
       })
 
-      await axios.put('/api/scheduler/restriccions', {
+      await apiPlanificador.desaRestriccions({
         restriccions: {
           restriccions_dures: dures,
           preferencies: prefs,
           pesos_optimitzacio: pesos.value
         }
       })
-      await axios.put('/api/scheduler/costos-professors', costosProfessors.value)
+      await apiPlanificador.desaCostosProfessors(costosProfessors.value)
       if (!silent) toast.add({ severity: 'success', summary: t('common.saved') })
     } catch (error) {
       const detall = error.response?.status === 400 ? error.response.data?.detail : null

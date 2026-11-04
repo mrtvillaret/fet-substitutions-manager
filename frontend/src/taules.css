@@ -117,3 +117,15 @@
     background: var(--taula-fila-seleccionada);
   }
 }
+
+/* Mòbil: menys espai entre columnes i text complet en diverses línies.
+   L'alçada tàctil dels camps es conserva. */
+@media (max-width: 600px) {
+  .taula-dades { --taula-cella-espai: 0.3rem 0.25rem; font-size: 0.85rem; }
+  .taula-dades thead th { padding: 0.4rem 0.25rem; font-size: 0.8rem; }
+  .taula-dades .camp-desplegable__text { padding: 0.3rem 0.1rem; }
+  .taula-dades .camp-desplegable__valor { white-space: normal; overflow-wrap: anywhere; }
+  .taula-dades .fila-substitucio__absent,
+  .taula-dades .fila-substitucio__text { overflow-wrap: anywhere; }
+  .taula-dades .fila-substitucio__estat { padding: 0.2rem; font-size: 0.75rem; }
+}

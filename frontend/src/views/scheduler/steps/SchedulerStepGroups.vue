@@ -1,14 +1,14 @@
 <template>
   <div class="step-panel animate-fade-in">
-    <div class="card shadow-sm">
-      <div class="flex flex-column gap-2 mb-3 agrupacions-head">
+    <div class="card">
+      <div class="agrupacions-head">
         <div>
           <h3>🔗 {{ t('scheduler.steps.groups.title') }}</h3>
-          <p class="text-sm text-color-secondary m-0">{{ t('scheduler.steps.groups.subtitle') }}</p>
+          <p >{{ t('scheduler.steps.groups.subtitle') }}</p>
         </div>
         <div class="toolbar agrupacions-toolbar">
           <div class="actions">
-            <Dropdown
+            <Dropdown :aria-label="t('scheduler.steps.groups.filterPlaceholder')"
               :modelValue="filtreNivellAgrupacio"
               @update:modelValue="emit('update:filtreNivellAgrupacio', $event)"
               :options="nivellsFiltreOptions"
@@ -23,16 +23,16 @@
           </div>
         </div>
       </div>
-      <p class="text-xs text-color-secondary mt-0 mb-3 agrupacions-desc">{{ t('scheduler.steps.groups.description') }}</p>
-      <p class="text-xs text-color-secondary mt-0 mb-3 agrupacions-avis">
-        <i class="pi pi-info-circle mr-1"></i>{{ t('scheduler.steps.groups.levelsHint', { cami: camiMateixMoment }) }}
+      <p class="agrupacions-desc">{{ t('scheduler.steps.groups.description') }}</p>
+      <p class="agrupacions-avis">
+        <i class="pi pi-info-circle"></i>{{ t('scheduler.steps.groups.levelsHint', { cami: camiMateixMoment }) }}
       </p>
 
-      <div class="mb-3 agrupacions-soltes-section">
-        <div class="text-xs text-color-secondary mb-2">{{ t('scheduler.steps.groups.ungroupedTitle') }}</div>
-        <div class="flex flex-wrap gap-2">
-          <Tag v-for="a in sessionsSoltes" :key="a" :value="a" severity="info" class="text-xs scheduler-tag" />
-          <span v-if="!sessionsSoltes.length" class="text-color-secondary text-xs">{{ t('common.none') }}</span>
+      <div class="agrupacions-soltes-section">
+        <div >{{ t('scheduler.steps.groups.ungroupedTitle') }}</div>
+        <div >
+          <Tag v-for="a in sessionsSoltes" :key="a" :value="a" severity="info" class="scheduler-tag" />
+          <span v-if="!sessionsSoltes.length">{{ t('common.none') }}</span>
         </div>
       </div>
 
@@ -40,14 +40,14 @@
         <Column field="nom" :header="t('scheduler.steps.groups.columns.name')" style="width: 160px"></Column>
         <Column field="assignatures" :header="t('scheduler.steps.groups.columns.subjects')">
           <template #body="s">
-            <div class="flex flex-wrap gap-2">
-              <Tag v-for="a in s.data.assignatures" :key="a" :value="a" severity="warning" class="text-xs scheduler-tag" />
+            <div >
+              <Tag v-for="a in s.data.assignatures" :key="a" :value="a" severity="warning" class="scheduler-tag" />
             </div>
           </template>
         </Column>
         <Column style="width: 120px">
           <template #body="s">
-            <div class="flex gap-2 align-items-center justify-content-end">
+            <div >
               <Button icon="pi pi-pencil" text severity="secondary" size="small" @click="obrirDialogAgrupacio(s.data)" />
               <Button icon="pi pi-trash" text severity="danger" size="small" @click="eliminarAgrupacio(s.data.id)" />
             </div>

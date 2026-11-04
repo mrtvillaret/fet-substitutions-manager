@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n'
+import { textosPrimeVueCa } from './primevueCa'
 import ca from './locales/ca.json'
 import es from './locales/es.json'
 import en from './locales/en.json'
@@ -8,6 +9,7 @@ const storedLocale = localStorage.getItem('app_locale') || 'ca'
 
 export const primeLocales = {
   ca: {
+    ...textosPrimeVueCa,
     firstDayOfWeek: 1,
     dayNames: ['diumenge', 'dilluns', 'dimarts', 'dimecres', 'dijous', 'divendres', 'dissabte'],
     dayNamesShort: ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'],

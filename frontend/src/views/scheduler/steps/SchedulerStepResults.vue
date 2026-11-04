@@ -1,16 +1,16 @@
 <template>
   <div class="step-panel animate-fade-in">
-    <div class="card bg-primary-light mb-4" v-if="!generating">
+    <div class="card" v-if="!generating">
       <div class="scheduler-setup">
         <div class="motor-toolbar">
           <div class="motor-main-field">
             <div class="field-info">
-              <label class="font-bold">{{ t('scheduler.steps.results.motorLabel') }}</label>
+              <label >{{ t('scheduler.steps.results.motorLabel') }}</label>
               <small class="field-help">{{ t('scheduler.steps.results.motorHelp') }}</small>
             </div>
             <div class="field-control">
               <Dropdown
-                inputId="motor"
+                :aria-label="t('scheduler.steps.results.motorLabel')" inputId="motor"
                 :modelValue="genConfig?.motor"
                 @update:modelValue="setGenConfigField('motor', $event)"
                 :options="motors"
@@ -25,11 +25,11 @@
           <template v-for="p in mainParams" :key="p.key">
             <div class="motor-main-field">
               <div class="field-info">
-                <label :for="`mp-${p.key}`" class="font-bold">{{ p.label }}</label>
+                <label :for="`mp-${p.key}`">{{ p.label }}</label>
                 <small class="field-help">{{ p.help }}</small>
               </div>
               <div class="field-control">
-                <Dropdown
+                <Dropdown :aria-label="p.label"
                   v-if="p.type === 'select'"
                   :inputId="`mp-${p.key}`"
                   :modelValue="genConfig?.[p.key]"
@@ -62,9 +62,9 @@
           <div v-if="mostrarParametresAvancats && advancedParams.length" class="motor-advanced-column">
             <div class="motor-advanced-fields">
               <div v-for="p in advancedParams" :key="p.key" class="motor-adv-card">
-                <label :for="`ap-${p.key}`" class="font-bold">{{ p.label }}</label>
+                <label :for="`ap-${p.key}`">{{ p.label }}</label>
                 <small class="field-help">{{ p.help }}</small>
-                <Dropdown
+                <Dropdown :aria-label="p.label"
                   v-if="p.type === 'select'"
                   :inputId="`ap-${p.key}`"
                   :modelValue="genConfig?.[p.key]"
@@ -95,10 +95,10 @@
               <Checkbox
                 :modelValue="mostrarParametresAvancats"
                 @update:modelValue="emit('update:mostrarParametresAvancats', $event)"
-                inputId="adv"
+                :aria-label="t('scheduler.steps.results.advancedParamsToggle')" inputId="adv"
                 :binary="true"
               />
-              <label class="ml-2">{{ t('scheduler.steps.results.advancedParamsToggle') }}</label>
+              <label >{{ t('scheduler.steps.results.advancedParamsToggle') }}</label>
             </div>
             <div class="motor-actions">
               <Button :label="t('scheduler.steps.results.actions.generateSchedule')" icon="pi pi-bolt" class="p-button-lg motor-generate-button" :loading="generating" @click="emit('generar')" />
@@ -126,10 +126,10 @@
       </div>
     </div>
 
-    <div v-if="generating" class="card text-center p-8"><ProgressSpinner /><h2 class="mt-4">{{ t('scheduler.steps.results.generatingTitle') }}</h2></div>
+    <div v-if="generating" class="card"><ProgressSpinner /><h2 >{{ t('scheduler.steps.results.generatingTitle') }}</h2></div>
 
     <div v-if="result" class="result-view animate-slide-up horari-print-area">
-      <div class="result-toolbar mb-3">
+      <div class="result-toolbar">
         <Button
           :label="modeEdicio ? t('scheduler.steps.results.actions.viewMode') : t('scheduler.steps.results.actions.editMode')"
           :icon="modeEdicio ? 'pi pi-eye' : 'pi pi-pencil'"
@@ -139,7 +139,7 @@
         />
       </div>
 
-      <div class="result-overview mb-4">
+      <div class="result-overview">
         <div class="card result-kpis-card">
           <h3>📈 {{ t('scheduler.steps.results.statsTitle') }}</h3>
           <div class="kpi-grid">
@@ -150,7 +150,7 @@
             <div class="kpi-item">
               <span v-tooltip.top="recompteTooltip">
                 {{ t('scheduler.steps.results.kpis.placedExams') }}
-                <i v-if="recompteTooltip" class="pi pi-info-circle ml-2 text-xs"></i>
+                <i v-if="recompteTooltip" class="pi pi-info-circle"></i>
               </span>
               <span class="kpi-value">{{ recompteTotalsText }}</span>
             </div>
@@ -173,7 +173,7 @@
           </div>
         </div>
 
-        <div class="card bg-slate-50 incidencies-card result-incidencies screen-only">
+        <div class="card incidencies-card result-incidencies screen-only">
           <h3>⚠️ {{ t('scheduler.steps.results.incidentsTitle', { count: incidenciesCount }) }}</h3>
           <div class="incidencies-scroll">
             <div class="incident-content">
@@ -203,7 +203,7 @@
       />
 
       <template v-else>
-        <div v-for="setmana in horarisPerSetmana" :key="setmana.id" class="horari-taula-container card shadow-sm mb-3 print-week">
+        <div v-for="setmana in horarisPerSetmana" :key="setmana.id" class="horari-taula-container card print-week">
           <div class="setmana-header" v-if="horarisPerSetmana.length > 1">{{ t('scheduler.steps.results.weekLabel', { num: setmana.numSetmana }) }}</div>
           <table class="horari-taula">
             <thead>
@@ -242,7 +242,7 @@
         </div>
       </template>
 
-      <div class="card bg-slate-50 incidencies-card print-only print-incidencies">
+      <div class="card incidencies-card print-only print-incidencies">
         <h3>⚠️ {{ t('scheduler.steps.results.incidentsTitle', { count: incidenciesCount }) }}</h3>
         <div class="incidencies-scroll">
           <div class="incident-content">

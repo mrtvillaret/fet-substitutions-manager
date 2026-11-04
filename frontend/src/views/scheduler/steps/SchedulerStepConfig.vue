@@ -1,17 +1,17 @@
 <template>
   <div class="step-panel animate-fade-in">
-    <div class="card shadow-sm">
+    <div class="card">
       <h3>📅 {{ t('scheduler.steps.config.title') }}</h3>
 
-      <div class="field mb-4">
-        <label class="font-bold">{{ t('scheduler.steps.config.levelsLabel') }}</label>
-        <MultiSelect
+      <div class="field">
+        <label for="nivells-select">{{ t('scheduler.steps.config.levelsLabel') }}</label>
+        <MultiSelect :aria-label="t('scheduler.steps.config.levelsLabel')"
           inputId="nivells-select"
           :modelValue="nivellsActius"
           @update:modelValue="emit('update:nivellsActius', $event)"
           :options="config?.nivells || []"
           :placeholder="t('scheduler.steps.config.levelsPlaceholder')"
-          class="w-full"
+
           style="max-width: 400px"
         />
       </div>
@@ -22,7 +22,7 @@
             <div class="calendari-section">
               <h4>📅 {{ t('scheduler.steps.config.examDaysTitle') }}</h4>
               <Calendar
-                :modelValue="datesPerNivellModel[nivell]"
+                :aria-label="`${t('scheduler.steps.config.levelsLabel')} · ${nivell}`" :modelValue="datesPerNivellModel[nivell]"
                 @update:modelValue="onDatesChange(nivell, $event)"
                 selectionMode="multiple"
                 inline
@@ -51,7 +51,7 @@
                         @click="mostrarMenuColumna($event, nivell, hora)"
                       >
                         {{ hora }}
-                        <i class="pi pi-chevron-down text-xs ml-1"></i>
+                        <i class="pi pi-chevron-down"></i>
                       </th>
                     </tr>
                   </thead>
@@ -59,7 +59,7 @@
                     <tr v-for="data in getDatesPerNivellOrdenades(nivell)" :key="`d-${nivell}-${data}`">
                       <td class="dia-label" @click="mostrarMenuFila($event, nivell, data)">
                         {{ formatDataCurta(data) }}
-                        <i class="pi pi-chevron-right text-xs ml-1"></i>
+                        <i class="pi pi-chevron-right"></i>
                       </td>
                       <td
                         v-for="hora in llistaHoresDisponibles"
@@ -71,14 +71,14 @@
                             type="checkbox"
                             :checked="isAlliberat(nivell, data, hora)"
                             @change="toggleAlliberat(nivell, data, hora)"
-                            class="cb-alliberat"
+                            :aria-label="`${t('scheduler.steps.config.legend.free')} · ${nivell} · ${data} · ${hora}`" class="cb-alliberat"
                             :title="t('scheduler.steps.config.legend.free')"
                           />
                           <input
                             type="checkbox"
                             :checked="isIniciExamen(nivell, data, hora)"
                             @change="toggleIniciExamen(nivell, data, hora)"
-                            class="cb-inici"
+                            :aria-label="`${t('scheduler.steps.config.legend.start')} · ${nivell} · ${data} · ${hora}`" class="cb-inici"
                             :disabled="!isAlliberat(nivell, data, hora)"
                             :title="t('scheduler.steps.config.legend.start')"
                           />
@@ -89,7 +89,7 @@
                 </table>
               </div>
               <div v-else class="no-dates-message">
-                <i class="pi pi-info-circle mr-2"></i>
+                <i class="pi pi-info-circle"></i>
                 {{ t('scheduler.steps.config.noDatesMessage') }}
               </div>
             </div>
@@ -98,7 +98,7 @@
       </TabView>
 
       <div v-else class="no-nivells-message">
-        <i class="pi pi-info-circle mr-2"></i>
+        <i class="pi pi-info-circle"></i>
         {{ t('scheduler.steps.config.noLevelsMessage') }}
       </div>
     </div>
@@ -106,6 +106,7 @@
 </template>
 
 <script setup>
+
 import { useI18n } from 'vue-i18n'
 import MultiSelect from 'primevue/multiselect'
 import TabView from 'primevue/tabview'

@@ -118,8 +118,8 @@
     >
       <div class="p-fluid">
         <div class="field">
-          <label>{{ $t('config.groups.originalGroups') }}</label>
-          <MultiSelect
+          <label :for="prefixEtiquetes + '-camp-1'">{{ $t('config.groups.originalGroups') }}</label>
+          <MultiSelect :filterInputProps="{ 'aria-label': $t('common.filterOptions') }" :aria-label="$t('config.groups.originalGroups')" :inputId="prefixEtiquetes + '-camp-1'"
             v-model="grupsSeleccionats"
             :options="grupsDetectats"
             :placeholder="$t('config.groups.selectGroups')"
@@ -134,8 +134,8 @@
         </div>
 
         <div class="field">
-          <label>{{ $t('config.groups.abbrevLabel') }}</label>
-          <InputText
+          <label :for="prefixEtiquetes + '-camp-2'">{{ $t('config.groups.abbrevLabel') }}</label>
+          <InputText :id="prefixEtiquetes + '-camp-2'"
             v-model="novaAbreviatura.abreviatura"
             :placeholder="$t('config.groups.abbrevPlaceholder')"
             @keyup.enter="desarAbreviatura"
@@ -162,10 +162,12 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { ambDataTreball, dataTreball } from '../../dataTreball'
+import { detectaGrups } from '../../api/horari'
+import * as apiGrups from '../../api/grups'
 import { useToast } from 'primevue/usetoast'
 import Dialog from 'primevue/dialog'
 import MultiSelect from 'primevue/multiselect'
@@ -174,6 +176,8 @@ import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Divider from 'primevue/divider'
 
+
+const prefixEtiquetes = useId()
 
 const toast = useToast()
 const { t, locale } = useI18n()
@@ -208,8 +212,8 @@ const desantAmagats = ref(false)
 
 const carregarAbreviatures = async () => {
   try {
-    const response = await axios.get('/api/config/abreviatures')
-    abreviatures.value = response.data.abreviatures
+    const resposta = await apiGrups.abreviatures()
+    abreviatures.value = resposta.abreviatures
   } catch (error) {
     console.error('Error carregant abreviatures:', error)
   }
@@ -218,17 +222,17 @@ const carregarAbreviatures = async () => {
 const detectarGrupsXML = async (silent = false) => {
   try {
     // Detecta sobre l'XML vigent per la data del calendari general
-    const response = await axios.get('/api/horari/grups/detectar', ambDataTreball())
+    const resposta = await detectaGrups(ambDataTreball())
 
     // Guardar grups detectats (usem grups_raw, els grups originals sense abreviar)
-    grupsDetectats.value = response.data.grups_raw
-    xmlDataInici.value = response.data.xml_data_inici || null
+    grupsDetectats.value = resposta.grups_raw
+    xmlDataInici.value = resposta.xml_data_inici || null
 
     if (!silent) {
       toast.add({
         severity: 'success',
         summary: t('common.detected'),
-        detail: t('config.groups.detectedCount', { count: response.data.total_raw }, response.data.total_raw),
+        detail: t('config.groups.detectedCount', { count: resposta.total_raw }, resposta.total_raw),
         life: 3000
       })
     }
@@ -248,8 +252,8 @@ const detectarGrupsXML = async (silent = false) => {
 // ===== Grups amagats (llista d'exclusió) =====
 const carregarGrupsAmagats = async () => {
   try {
-    const response = await axios.get('/api/grups-amagats')
-    grupsAmagats.value = response.data.grups || []
+    const resposta = await apiGrups.amagats()
+    grupsAmagats.value = resposta.grups || []
   } catch (error) {
     console.error('Error carregant grups amagats:', error)
   }
@@ -268,7 +272,7 @@ const mostrarTots = () => {
 const desarGrupsAmagats = async () => {
   desantAmagats.value = true
   try {
-    await axios.put('/api/grups-amagats', { grups: grupsAmagats.value })
+    await apiGrups.desaAmagats(grupsAmagats.value)
     toast.add({
       severity: 'success',
       summary: t('common.saved'),
@@ -299,7 +303,7 @@ const desarAbreviatura = async () => {
   try {
     if (abreviaturaEditant.value) {
       // Actualitzar existent
-      await axios.put(`/api/config/abreviatures/${abreviaturaEditant.value}`, {
+      await apiGrups.editaAbreviatura(abreviaturaEditant.value, {
         grups_originals: grupsOriginalsString.trim(),
         abreviatura: novaAbreviatura.value.abreviatura.trim()
       })
@@ -312,7 +316,7 @@ const desarAbreviatura = async () => {
       })
     } else {
       // Crear nova
-      await axios.post('/api/config/abreviatures', {
+      await apiGrups.creaAbreviatura({
         grups_originals: grupsOriginalsString.trim(),
         abreviatura: novaAbreviatura.value.abreviatura.trim()
       })
@@ -326,8 +330,8 @@ const desarAbreviatura = async () => {
     }
 
     // Recarregar abreviatures
-    const response = await axios.get('/api/config/abreviatures')
-    abreviatures.value = response.data.abreviatures
+    const resposta = await apiGrups.abreviatures()
+    abreviatures.value = resposta.abreviatures
 
     // Tancar diàleg i netejar
     cancelarAbreviatura()
@@ -357,7 +361,7 @@ const editarAbreviatura = (abr) => {
 
 const eliminarAbreviatura = async (id) => {
   try {
-    await axios.delete(`/api/config/abreviatures/${id}`)
+    await apiGrups.esborraAbreviatura(id)
 
     toast.add({
       severity: 'success',
@@ -367,8 +371,8 @@ const eliminarAbreviatura = async (id) => {
     })
 
     // Recarregar abreviatures
-    const response = await axios.get('/api/config/abreviatures')
-    abreviatures.value = response.data.abreviatures
+    const resposta = await apiGrups.abreviatures()
+    abreviatures.value = resposta.abreviatures
   } catch (error) {
     console.error('Error eliminant abreviatura:', error)
     toast.add({
