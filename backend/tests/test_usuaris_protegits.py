@@ -16,7 +16,6 @@ from suport_api import (
     nova_institucio,
 )
 
-import auth.services as serveis_auth
 from rate_limit import limiter
 from usuaris.router import router as usuaris_router
 
@@ -30,11 +29,11 @@ def _limiter_net():
 
 
 @pytest.fixture
-def demo(monkeypatch):
+def demo(config_auth_de_prova):
     centre = nova_institucio()
     noms = {r: f"{r}_{uuid.uuid4().hex[:6]}" for r in ("user", "admin", "super_admin")}
     ids = {r: crea_usuari(nom, centre, r) for r, nom in noms.items()}
-    monkeypatch.setattr(serveis_auth, "USUARIS_PROTEGITS", frozenset({noms["user"], noms["admin"]}))
+    config_auth_de_prova(USUARIS_PROTEGITS=",".join([noms["user"], noms["admin"]]))
     return noms, ids
 
 

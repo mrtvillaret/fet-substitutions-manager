@@ -391,3 +391,62 @@ def test_les_franges_del_filtre_son_les_de_les_versions_de_l_horari_de_l_interva
     assert abans.index("10:00") < abans.index("PATI") < abans.index("11:30")
     assert hores("2026-03-01", "2026-03-31") == [*abans, "ESBARJO"]
     assert "PATI" not in hores("2026-03-16", "2026-03-31")
+
+
+@pytest.mark.parametrize("hores", [None, ["08:00"], ["10:00"], ["PATI"], ["08:00", "10:00"]])
+def test_batch_identic_a_les_rutes_i_a_la_llista_pdf(centre, client, hores, monkeypatch):
+    from grups.repositories import GrupsAlliberatsRepository
+    from pdf.services import professors_amb_activitat
+
+    _afegeix(
+        centre,
+        ("08:00", "Prof 1", "Català", "1-ESO-A", "Prof 5", "ABSENCIA"),
+        ("10:00", "Prof 2", "Català", "1-ESO-A", "", "SERVEI"),
+        ("10:00", "Prof 3", "Guàrdia", "", "Prof 6", "ENCADENADA"),
+        ("10:00", "Prof 4", "Classe", "2-ESO-A", "Prof 7", "ABSENCIA"),
+        ("PATI", "Prof 8", "VP", "", "Prof 9", "ABSENCIA"),
+        alliberats=[("10:00", "professor:Prof 4")],
+    )
+    with get_data_db_session(centre) as db:
+        db.add(
+            Vigilancia(data=DILLUNS, hora="10:00", tipus="Prova", grups="G", aula="A", vigilant="Prof 20", nivell="")
+        )
+        db.commit()
+    params = {"hores": hores} if hores else {}
+    esperat = {ruta: _get(client, ruta, **params) for ruta in ["resum", "professors", "temporal", "classes", "taula"]}
+    horari = _get(client, "hores")["hores"]
+    with get_data_db_session(centre) as db:
+        llista = professors_amb_activitat(db, **INTERVAL, hores=hores)
+    original = GrupsAlliberatsRepository.get_entre_dates
+    crides = []
+
+    def compta(db, dates):
+        crides.append(dates)
+        return original(db, dates)
+
+    monkeypatch.setattr(GrupsAlliberatsRepository, "get_entre_dates", compta)
+    lot = _get(client, "batch", **params)
+    assert {k: lot[k] for k in esperat} == esperat
+    assert lot["hores"] == horari
+    assert set(lot["hores_triades"]) == set(hores or [])
+    assert lot["professors_informe"] == llista
+    assert len(crides) == 1  # visibilitat resolta un sol cop per lot
+
+
+def test_batch_retira_hores_inexistents_com_la_pantalla(client):
+    lot = _get(client, "batch", hores=["08:00", "inexistent"])
+    assert lot["hores_triades"] == ["08:00"]
+    assert lot["resum"] == _get(client, "resum", hores=["08:00"])
+    assert _get(client, "batch", hores=["inexistent"])["resum"] == _get(client, "resum")
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"data_inici": "malament"},
+        {"data_final": "2026-02-30"},
+        {"data_inici": "2026-04-01", "data_final": "2026-03-01"},
+    ],
+)
+def test_batch_valida_dates_com_les_rutes_actuals(client, params):
+    assert client.get("/api/estadistiques/batch", params=params).status_code == 400

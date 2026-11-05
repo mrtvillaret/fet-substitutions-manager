@@ -11,15 +11,7 @@ from fastapi import Request, Response
 from jwt import PyJWTError
 
 import rellotge
-from config.auth import (
-    ALGORITHM,
-    COOKIE_NAME,
-    COOKIE_SECURE,
-    SECRET_KEY,
-    SESSIO_INACTIVITAT_MINUTS,
-    SESSIO_MAXIMA_HORES,
-    SESSIO_RENOVACIO_MINUTS,
-)
+from config.auth import get_config_auth
 
 # Argon2 per evitar problemes amb bcrypt a Python 3.13.
 # S'usa argon2-cffi directament: passlib només feia de capa intermèdia i porta
@@ -29,19 +21,29 @@ from config.auth import (
 _hasher = PasswordHasher()
 
 
+def get_auth_token(request: Request) -> str | None:
+    """Llegeix el testimoni amb el mateix nom de galeta que en entrar i sortir."""
+    return request.cookies.get(get_config_auth().cookie_name)
+
+
 def set_auth_cookie(response: Response, token: str) -> None:
     response.set_cookie(
-        key=COOKIE_NAME,
+        key=get_config_auth().cookie_name,
         value=token,
         httponly=True,
-        secure=COOKIE_SECURE,
+        secure=get_config_auth().cookie_secure,
         samesite="lax",
-        max_age=SESSIO_INACTIVITAT_MINUTS * 60,
+        max_age=get_config_auth().sessio_inactivitat_minuts * 60,
     )
 
 
 def clear_auth_cookie(response: Response) -> None:
-    response.delete_cookie(key=COOKIE_NAME, httponly=True, secure=COOKIE_SECURE, samesite="lax")
+    response.delete_cookie(
+        key=get_config_auth().cookie_name,
+        httponly=True,
+        secure=get_config_auth().cookie_secure,
+        samesite="lax",
+    )
 
 
 def hash_password(password: str) -> str:
@@ -72,14 +74,14 @@ def create_access_token(data: Dict[str, Any], expira: datetime = None) -> str:
     ara = rellotge.ara(timezone.utc)
     to_encode = data.copy()
     to_encode["iat"] = ara
-    to_encode["exp"] = expira or ara + timedelta(minutes=SESSIO_INACTIVITAT_MINUTS)
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    to_encode["exp"] = expira or ara + timedelta(minutes=get_config_auth().sessio_inactivitat_minuts)
+    return jwt.encode(to_encode, get_config_auth().secret_key, algorithm=get_config_auth().algorithm)
 
 
 def _caducitat(inici: float, ara: datetime) -> datetime:
     """La primera de: d'aquí a la inactivitat màxima o el màxim des de l'entrada."""
-    limit = datetime.fromtimestamp(inici, timezone.utc) + timedelta(hours=SESSIO_MAXIMA_HORES)
-    return min(ara + timedelta(minutes=SESSIO_INACTIVITAT_MINUTS), limit)
+    limit = datetime.fromtimestamp(inici, timezone.utc) + timedelta(hours=get_config_auth().sessio_maxima_hores)
+    return min(ara + timedelta(minutes=get_config_auth().sessio_inactivitat_minuts), limit)
 
 
 def testimoni_de_sessio(user, institucio: str = None) -> str:
@@ -109,12 +111,12 @@ def registra_renovacio_sessio(app) -> None:
     @app.middleware("http")
     async def renova_sessio(request: Request, call_next):
         response = await call_next(request)
-        token = request.cookies.get(COOKIE_NAME)
+        token = get_auth_token(request)
         if (
             token
             and response.status_code < 400
             and request.url.path.startswith("/api/")
-            and not any(COOKIE_NAME in v for v in response.headers.getlist("set-cookie"))
+            and not any(get_config_auth().cookie_name in v for v in response.headers.getlist("set-cookie"))
         ):
             nou = renova_testimoni(token)
             if nou:
@@ -132,7 +134,7 @@ def renova_testimoni(token: str):
         return None
     ara = rellotge.ara(timezone.utc)
     emes = payload.get("iat")
-    if emes and ara.timestamp() - emes < SESSIO_RENOVACIO_MINUTS * 60:
+    if emes and ara.timestamp() - emes < get_config_auth().sessio_renovacio_minuts * 60:
         return None
     inici = payload.get("ini") or ara.timestamp()  # testimonis d'abans d'aquest canvi
     caduca = _caducitat(inici, ara)
@@ -144,7 +146,9 @@ def renova_testimoni(token: str):
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
-    return _JWT(rellotge.ara(timezone.utc).timestamp()).decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    return _JWT(rellotge.ara(timezone.utc).timestamp()).decode(
+        token, get_config_auth().secret_key, algorithms=[get_config_auth().algorithm]
+    )
 
 
 class _JWT(jwt.PyJWT):

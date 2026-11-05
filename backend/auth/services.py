@@ -10,16 +10,7 @@ from sqlalchemy.orm import Session
 from auth.domain import Rol, UsuariActual
 from auth.repositories import UserRepository
 from auth.security import hash_fictici, hash_password, verify_password
-from config.auth import (
-    ADMIN_INSTITUCIO,
-    ADMIN_PASSWORD,
-    ADMIN_PASSWORD_RECUPERACIO,
-    ADMIN_USERNAME,
-    DEFAULT_USERS,
-    LOGIN_DELEGACIO_URL,
-    LOGIN_DELEGACIO_USUARIS,
-    USUARIS_PROTEGITS,
-)
+from config.auth import get_config_auth
 from config.settings import config
 from database import get_auth_db_session, get_data_db_session
 from errors_domini import NoPermes, NoTrobat, NoValid
@@ -35,7 +26,7 @@ log = logging.getLogger("uvicorn.error")
 def comprova_no_protegit(username: str, current_user: UsuariActual) -> None:
     """Els usuaris de USUARIS_PROTEGITS (els d'una demo pública) només els
     modifica el superadmin."""
-    if username in USUARIS_PROTEGITS and not current_user.es_super_admin:
+    if username in get_config_auth().usuaris_protegits and not current_user.es_super_admin:
         raise NoPermes("Aquest usuari no es pot modificar", codi="usuari_protegit")
 
 
@@ -52,7 +43,7 @@ def delegacio_de_login(username: str) -> Optional[str]:
     """L'adreça on s'ha d'entrar si l'usuari és d'una altra instal·lació del
     mateix domini; aquí no se'n valida res i el frontend hi reenvia les
     credencials."""
-    return LOGIN_DELEGACIO_URL if username in LOGIN_DELEGACIO_USUARIS else None
+    return get_config_auth().login_delegacio_url if username in get_config_auth().login_delegacio_usuaris else None
 
 
 def autentica(db: Session, username: str, contrasenya: str) -> Optional[User]:
@@ -144,8 +135,8 @@ def crea_usuaris_inicials() -> None:
     with get_auth_db_session() as db:
         if UserRepository.count(db) == 0:
             _crea_usuaris_d_instal_lacio_nova(db)
-        if ADMIN_PASSWORD_RECUPERACIO:
-            _recupera_superadmin(db, ADMIN_PASSWORD_RECUPERACIO)
+        if get_config_auth().admin_password_recuperacio:
+            _recupera_superadmin(db, get_config_auth().admin_password_recuperacio)
         db.commit()
         _avisa_usuaris_sense_centre(db)
 
@@ -162,21 +153,21 @@ def _avisa_usuaris_sense_centre(db: Session) -> None:
 
 
 def _crea_usuaris_d_instal_lacio_nova(db: Session) -> None:
-    if not ADMIN_PASSWORD:
+    if not get_config_auth().admin_password:
         raise SystemExit(
-            f"\nERROR: cal definir ADMIN_PASSWORD per crear l'usuari '{ADMIN_USERNAME}'.\n"
+            f"\nERROR: cal definir ADMIN_PASSWORD per crear l'usuari '{get_config_auth().admin_username}'.\n"
             f"Afegeix-la al fitxer .env i torna a arrencar.\n"
         )
     inicials = [
         {
-            "username": ADMIN_USERNAME,
-            "password": ADMIN_PASSWORD,
-            "institucio": ADMIN_INSTITUCIO,
+            "username": get_config_auth().admin_username,
+            "password": get_config_auth().admin_password,
+            "institucio": get_config_auth().admin_institucio,
             "role": Rol.SUPER_ADMIN,
         }
     ]
     # Els usuaris de mostra són opcionals: sense contrasenya definida, no es creen
-    inicials += [u for u in DEFAULT_USERS if u["password"]]
+    inicials += [u for u in get_config_auth().default_users if u["password"]]
     for usuari in inicials:
         # El centre, també: cap centre no es crea sol en la primera petició
         if not config.institucio_existeix(usuari["institucio"]):
@@ -194,13 +185,13 @@ def _crea_usuaris_d_instal_lacio_nova(db: Session) -> None:
 
 def _recupera_superadmin(db: Session, contrasenya: str) -> None:
     valida_contrasenya_o_atura("ADMIN_PASSWORD_RECUPERACIO", contrasenya)
-    user = UserRepository.get_by_username(db, ADMIN_USERNAME)
+    user = UserRepository.get_by_username(db, get_config_auth().admin_username)
     if user is None:
         UserRepository.create(
             db=db,
-            username=ADMIN_USERNAME,
+            username=get_config_auth().admin_username,
             password_hash=hash_password(contrasenya),
-            institucio=ADMIN_INSTITUCIO,
+            institucio=get_config_auth().admin_institucio,
             role=Rol.SUPER_ADMIN,
             active=True,
         )
@@ -218,7 +209,7 @@ def _recupera_superadmin(db: Session, contrasenya: str) -> None:
         "ADMIN_PASSWORD_RECUPERACIO: s'ha recuperat el superadmin '%s' amb aquesta contrasenya. "
         "CAL TREURE LA VARIABLE ADMIN_PASSWORD_RECUPERACIO DE L'ENTORN (.env) i reiniciar: "
         "si no, cada reinici hi tornarà a posar la mateixa contrasenya.",
-        ADMIN_USERNAME,
+        get_config_auth().admin_username,
     )
 
 

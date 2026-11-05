@@ -136,6 +136,16 @@ def absents_coberts(db, data_iso: str) -> frozenset:
     return frozenset(absents_coberts_en(AbsenciaCobertaRepository.get_all(db), data_iso))
 
 
+def vista_per_data(db):
+    """Una lectura de períodes per a totes les vistes d'una petició."""
+    baixes = AbsenciaCobertaRepository.get_all(db)
+
+    def vista(horari, data):
+        return sense_absents_coberts(horari, frozenset(absents_coberts_en(baixes, data)))
+
+    return vista
+
+
 def sense_absents_coberts(horari, absents: frozenset):
     """L'horari d'un dia sense els professors amb una absència coberta: queden
     fora de tot (ni substitueixen, ni són substituïts, ni vigilen, ni surten

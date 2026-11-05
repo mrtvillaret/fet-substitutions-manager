@@ -13,6 +13,7 @@ from auth.repositories import UserRepository
 from config.context import fixa_institucio_peticio
 from config.settings import config
 from database import get_auth_db
+from prioritats.memoria import carrega_prioritats
 
 log = logging.getLogger(__name__)
 
@@ -39,8 +40,6 @@ def _prepara_institucio(institucio: str) -> str:
         log.warning("No s'ha pogut carregar l'idioma del centre", exc_info=True)
     if not constants.te_prioritats(institucio):
         try:
-            from prioritats.services import carrega_prioritats
-
             with get_data_db_session(institucio) as db:
                 carrega_prioritats(db)
         except Exception:
@@ -51,9 +50,7 @@ def _prepara_institucio(institucio: str) -> str:
 def _valida_usuari(request: Request, db: Session, amb_centre: bool = True) -> UsuariActual:
     """L'usuari de la sessió. Amb `amb_centre`, també comprova que el centre
     de la sessió existeix i és actiu (per al superadmin, només que existeix)."""
-    # security.COOKIE_NAME (i no una còpia importada): el nom de la galeta es
-    # llegeix d'un sol lloc, el mateix que fa servir set_auth_cookie
-    token = request.cookies.get(security.COOKIE_NAME)
+    token = security.get_auth_token(request)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticat")
     try:

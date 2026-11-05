@@ -118,3 +118,17 @@ test('hores: URL, mètode, arguments, resposta i errors intactes', async () => {
   client.get = async () => { throw error }
   await assert.rejects(api.horesAmb(client, ...args, ...argumentsHttp), e => e === error)
 })
+
+
+test('batch: una petició amb dates i hores, resposta i errors originals', async () => {
+  const params = { data_inici: '2026-01-01', data_final: '2026-12-31', hores: ['08:00'] }
+  const resposta = { data: { resum: {}, professors_informe: [] } }
+  const client = { get: async (...args) => {
+    assert.deepEqual(args, ['/api/estadistiques/batch', { params }])
+    return resposta
+  } }
+  assert.equal(await api.batchAmb(client, { params }), resposta)
+  const error = new Error('error del lot')
+  client.get = async () => { throw error }
+  await assert.rejects(api.batchAmb(client, { params }), e => e === error)
+})

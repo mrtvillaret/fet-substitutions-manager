@@ -137,46 +137,75 @@ export function useEstadistiques(dependents) {
     const ara = [...horesTriades.value].sort()
     if (ara.join('|') !== [...horesCarregades].sort().join('|')) {
       carregarEstadistiques()
-      carregarInformeProfessors()
     }
   }
 
-  const carregarEstadistiques = async () => {
-    loading.value = true
-    try {
-      const params = paramsDelFiltre()
-      horesCarregades = [...horesTriades.value]
-
-      // Guardar dates a la BD per institució (les hores, no)
-      await apiConfiguracio.desa({
-        data_inici_estadistiques: params.data_inici,
-        data_final_estadistiques: params.data_final
-      })
-
-      const [resumResp, professorsResp, temporalResp, classesResp, taulaResp] = await Promise.all([
-        apiEstadistiques.resum({ params }),
-        apiEstadistiques.professors({ params }),
-        apiEstadistiques.temporal({ params }),
-        apiEstadistiques.classes({ params }),
-        apiEstadistiques.taula({ params })
-      ])
-
-      resum.value = resumResp.data
-      professorsStats.value = professorsResp.data
-      temporalStats.value = temporalResp.data
-      classesStats.value = classesResp.data
-      professorsResum.value = taulaResp.data
-    } catch (error) {
-      console.error('Error carregant estadístiques:', error)
-      toast.add({
-        severity: 'error',
-        summary: t('common.error'),
-        detail: t('stats.errors.load'),
-        life: 3000
-      })
-    } finally {
-      loading.value = false
+  const lotsEnCurs = new Map()
+  const llegirLot = (params, previa = Promise.resolve()) => {
+    const clau = JSON.stringify(params)
+    if (!lotsEnCurs.has(clau)) {
+      const peticio = previa.then(() => apiEstadistiques.batch({ params }))
+      lotsEnCurs.set(clau, peticio)
+      const acaba = () => lotsEnCurs.delete(clau)
+      peticio.then(acaba, acaba)
     }
+    return lotsEnCurs.get(clau)
+  }
+  const aplicaAuxiliars = (data) => {
+    frangesHorari.value = data.hores
+    horesTriades.value = data.hores_triades
+    informeProfessorsOpcions.value = ordenaAlfabeticament(data.professors_informe)
+    if (!informeProfessorsOpcions.value.includes(informeProfessorSeleccionat.value)) {
+      informeProfessorSeleccionat.value = null
+    }
+  }
+
+  // Només es comparteixen peticions encara en curs. Un reintent o una
+  // recàrrega posterior sempre torna a llegir les dades del centre.
+  let carregaEnCurs = null
+  let clauEnCurs = null
+  let versioCarrega = 0
+  const carregarEstadistiques = () => {
+    const params = paramsDelFiltre()
+    const clau = JSON.stringify(params)
+    if (carregaEnCurs && clau === clauEnCurs) return carregaEnCurs
+    const versio = ++versioCarrega
+    clauEnCurs = clau
+    loading.value = true
+    carregaEnCurs = (async () => {
+      try {
+        const desat = apiConfiguracio.desa({
+          data_inici_estadistiques: params.data_inici,
+          data_final_estadistiques: params.data_final
+        })
+        const [, { data }] = await Promise.all([desat, llegirLot(params, desat)])
+        if (versio !== versioCarrega) return
+
+        resum.value = data.resum
+        professorsStats.value = data.professors
+        temporalStats.value = data.temporal
+        classesStats.value = data.classes
+        professorsResum.value = data.taula
+        aplicaAuxiliars(data)
+        horesCarregades = [...horesTriades.value]
+      } catch (error) {
+        if (versio !== versioCarrega) return
+        console.error('Error carregant estadístiques:', error)
+        toast.add({
+          severity: 'error',
+          summary: t('common.error'),
+          detail: t('stats.errors.load'),
+          life: 3000
+        })
+      } finally {
+        if (versio === versioCarrega) {
+          loading.value = false
+          carregaEnCurs = null
+          clauEnCurs = null
+        }
+      }
+    })()
+    return carregaEnCurs
   }
 
   // El tipus de fila de substitució (ABSENCIA, SERVEI...), en l'idioma triat
@@ -349,54 +378,34 @@ export function useEstadistiques(dependents) {
     await _descarregarPdf('/api/informes/professor', params, nom, generantProfessor)
   }
 
-  const carregarInformeProfessors = async () => {
+  // Canviar les dates actualitza les hores i la llista PDF, com abans.
+  // Els recomptes visibles canvien en prémer Actualitza o en triar un curs.
+  const carregarAuxiliars = async () => {
+    const params = paramsDelFiltre()
+    const clau = JSON.stringify(params)
     try {
-      const resp = await apiPdf.professorsInforme({ params: paramsDelFiltre() })
-      informeProfessorsOpcions.value = ordenaAlfabeticament(resp.data.professors || [])
-      // El professor triat potser no té res al nou interval
-      if (!informeProfessorsOpcions.value.includes(informeProfessorSeleccionat.value)) {
-        informeProfessorSeleccionat.value = null
-      }
+      const { data } = await llegirLot(params)
+      if (clau === JSON.stringify(paramsDelFiltre())) aplicaAuxiliars(data)
     } catch (error) {
-      console.error('Error carregant llista professors:', error)
+      console.error('Error carregant les dades auxiliars:', error)
     }
   }
+  const carregarInformeProfessors = () => carregarAuxiliars()
+  const carregarFrangesHorari = () => carregarAuxiliars()
 
-  // Les franges de l'horari de l'interval, per al filtre per hores. Si una
-  // hora triada ja no hi és (un altre horari), es treu del filtre.
-  const carregarFrangesHorari = async () => {
-    try {
-      const params = {
-        data_inici: formatDate(dataInici.value),
-        data_final: formatDate(dataFinal.value)
-      }
-      const resp = await apiEstadistiques.hores({ params })
-      frangesHorari.value = resp.data.hores || []
-      horesTriades.value = horesTriades.value.filter((h) => frangesHorari.value.includes(h))
-    } catch (error) {
-      console.error('Error carregant les franges de l\'horari:', error)
-    }
-  }
-
-  // Carregar quan s'obre el diàleg
+  let inicialitzant = false
   watch(() => props.visible, (newVal) => {
     if (newVal) {
-      inicialitzarDates().then(async () => {
-        await carregarFrangesHorari()
+      inicialitzant = true
+      inicialitzarDates().then(() => {
+        inicialitzant = false
         carregarEstadistiques()
-        carregarInformeProfessors()
       })
     }
   })
 
-  // La llista de professors i les franges són les de l'interval: es refan
-  // quan canvien les dates (la llista, després de treure del filtre les hores
-  // que ja no hi són)
-  watch([dataInici, dataFinal], async ([inici, final]) => {
-    if (props.visible && inici && final) {
-      await carregarFrangesHorari()
-      carregarInformeProfessors()
-    }
+  watch([dataInici, dataFinal], ([inici, final]) => {
+    if (props.visible && inici && final && !inicialitzant) carregarAuxiliars()
   })
 
   // Si canvia la data de treball (i per tant el seu curs) amb el diàleg obert,

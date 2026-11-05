@@ -51,6 +51,7 @@ from suport_main import app_sencera
 from suport_planificador import alliberaments
 
 from auth import security
+from config.auth import get_config_auth
 from config.settings import config
 from database import DATA_BASE_DIR, AuthSessionLocal, get_data_db_session
 from helpers import avui, get_horari, invalidar_horari
@@ -574,6 +575,7 @@ INVENTARI = dict(
         _r(CENTRE, USER, "GET", "/api/horari/grups/detectar"),
         _r(CENTRE, USER, "GET", "/api/horari/assignatures/detectar"),
         # ------------------------------------------------------ estadístiques
+        _r(CENTRE, ADMIN, "GET", "/api/estadistiques/batch"),
         _r(CENTRE, ADMIN, "GET", "/api/estadistiques/resum"),
         _r(CENTRE, ADMIN, "GET", "/api/estadistiques/professors"),
         _r(CENTRE, ADMIN, "GET", "/api/estadistiques/temporal"),
@@ -1070,7 +1072,7 @@ def test_sense_una_sessio_valida_es_rebutja_amb_401(entorn):
     for nom, testimoni in _testimonis_que_no_valen(ctx).items():
         client = _client()
         if testimoni:
-            client.cookies.set(security.COOKIE_NAME, testimoni)
+            client.cookies.set(get_config_auth().cookie_name, testimoni)
         for clau, ruta in INVENTARI.items():
             if ruta.grup == PUBLICA:
                 continue

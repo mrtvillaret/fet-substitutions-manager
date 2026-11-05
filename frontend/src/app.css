@@ -633,6 +633,34 @@ input.p-inputtext.p-inputtext-sm {
   justify-content: space-between;
 }
 
+/* Botons de la capçalera (menú, dia anterior/següent): icona blanca sobre el
+   blau; el cercle translúcid només en tocar-los */
+.mobile-header .p-button.p-button-text.p-button-plain {
+  color: #fff;
+  background: transparent;
+}
+
+.mobile-header .p-button.p-button-text.p-button-plain:enabled:hover,
+.mobile-header .p-button.p-button-text.p-button-plain:enabled:active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Sense l'anell de focus després de tocar-lo; només amb el teclat */
+.mobile-header .p-button.p-button-text.p-button-plain {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-header .p-button.p-button-text.p-button-plain:focus {
+  box-shadow: none;
+  outline: none;
+}
+
+.mobile-header .p-button.p-button-text.p-button-plain:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+
 .mobile-date-row {
   display: flex;
   align-items: center;

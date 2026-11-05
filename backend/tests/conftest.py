@@ -80,3 +80,16 @@ def rellotge_fix():
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(rellotge, "_rellotge", fix)
         yield fix
+
+
+@pytest.fixture
+def config_auth_de_prova(monkeypatch):
+    """Injecta tota la configuració validada al punt comú, per a tots els consumidors."""
+    from config import auth
+
+    def injecta(**variables):
+        configuracio = auth.carrega_config_auth({**os.environ, **variables})
+        monkeypatch.setattr(auth, "_config_auth", configuracio)
+        return configuracio
+
+    return injecta

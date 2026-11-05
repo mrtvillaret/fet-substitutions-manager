@@ -1,6 +1,7 @@
 """Els canvis d'alliberats i la reconciliació formen una sola transacció."""
 
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,7 +25,8 @@ def centre():
 
 
 @pytest.fixture
-def client(centre):
+def client(centre, rellotge_fix):
+    rellotge_fix.moment = datetime(2026, 4, 20, 12, tzinfo=timezone.utc)
     nom = f"admin_{uuid.uuid4().hex[:8]}"
     crea_usuari(nom, centre, "admin")
     client_sense_excepcions = TestClient(APP, base_url="https://testserver", raise_server_exceptions=False)

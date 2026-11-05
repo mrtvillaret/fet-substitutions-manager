@@ -7,6 +7,7 @@ from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
+import rellotge
 from models import AlliberamentPeriode, GrupAlliberat, Substitucio, Vigilancia
 from repositories import ConfiguracioRepository, parse_date
 
@@ -94,11 +95,13 @@ class AlliberamentsPeriodeRepository:
     @staticmethod
     def dates_afectades(db: Session, des_de: str, dia_setmana: int) -> List[str]:
         """Les dates que un canvi per període pot afectar: a partir de
-        `des_de`, les del dia de la setmana `dia_setmana` (0 = dilluns) que ja
-        tenen alguna substitució o vigilància, per ordre."""
+        `des_de` i mai abans d'avui (rellotge injectable), les del dia de la
+        setmana `dia_setmana` (0 = dilluns) que ja tenen alguna substitució o
+        vigilància, per ordre. L'historial no es reconcilia."""
+        inici = max(parse_date(des_de), rellotge.avui())
         dates = set()
         for model in (Substitucio, Vigilancia):
-            for (d,) in db.query(model.data).filter(model.data >= parse_date(des_de)).distinct():
+            for (d,) in db.query(model.data).filter(model.data >= inici).distinct():
                 if d.weekday() == dia_setmana:
                     dates.add(d.isoformat())
         return sorted(dates)
@@ -114,12 +117,6 @@ class GrupsAlliberatsRepository:
         es resolen als professors que les fan (perquè compti com qualsevol
         professor alliberat)."""
         result = GrupsAlliberatsRepository.get_dia_by_date(db, data)
-        from core.alliberats import (
-            activitats_de,
-            clau_ocupat,
-            clau_professor,
-            ocupats_de,
-        )
         from errors_domini import MissingXmlError
         from helpers import get_horari
 
@@ -127,52 +124,62 @@ class GrupsAlliberatsRepository:
             horari = get_horari(data_iso=data)
         except MissingXmlError:
             return result  # sense horari no hi ha activitats ni períodes a resoldre
+        from grups.alliberaments import resol_alliberats
+
         dia = horari.get_dia_name(parse_date(data).weekday())
+        return resol_alliberats(
+            result,
+            horari,
+            parse_date(data),
+            AlliberamentsPeriodeRepository.darrers(db, data, dia),
+            set(GrupsAlliberatsRepository.activitats_per_defecte(db)),
+        )
 
-        for hora, items in AlliberamentsPeriodeRepository.estats(db, data, dia).items():
-            for item in items:
-                clau = clau_professor(item["clau"])  # només n'hi ha de professors
-                if clau not in result.setdefault(hora, []):
-                    result[hora].append(clau)
+    @staticmethod
+    def get_entre_dates(db: Session, dates: list[str]) -> dict[str, dict[str, list[str]]]:
+        """Els alliberats de les dates demanades, amb consultes per interval
+        i un horari per versió de l'XML. Memòria només d'aquesta crida."""
+        from errors_domini import MissingXmlError
+        from grups.alliberaments import resol_alliberats
+        from helpers import horaris_per_dates
 
-        for hora, valors in result.items():
-            activitats = set(activitats_de(valors))
-            if not activitats:
-                continue
-            for professor in horari.professors:
-                act = horari.get_activitat(dia, hora, professor) or {}
-                if (act.get("assignatura") or "") in activitats:
-                    clau = clau_professor(professor)
-                    if clau not in valors:
-                        valors.append(clau)
-
-        # Activitats «alliberades fins que tinguin alumnes» (p.ex. Reforç): qui
-        # les fa està alliberat, tret de les franges marcades amb alumnes
+        dates = sorted(set(dates))
+        if not dates:
+            return {}
+        resultat = {d: {} for d in dates}
+        files = (
+            db.query(GrupAlliberat)
+            .filter(
+                GrupAlliberat.data >= parse_date(dates[0]),
+                GrupAlliberat.data <= parse_date(dates[-1]),
+            )
+            .all()
+        )
+        for fila in files:
+            d = fila.data.isoformat()
+            if d in resultat:
+                resultat[d].setdefault(fila.hora, []).append(fila.grups)
+        canvis = (
+            db.query(AlliberamentPeriode)
+            .filter(AlliberamentPeriode.des_de <= parse_date(dates[-1]))
+            .order_by(AlliberamentPeriode.des_de, AlliberamentPeriode.id)
+            .all()
+        )
         per_defecte = set(GrupsAlliberatsRepository.activitats_per_defecte(db))
-        if per_defecte:
-            darrers = AlliberamentsPeriodeRepository.darrers(db, data, dia)
-            for hora in horari.hores:
-                for professor in horari.professors:
-                    act = horari.get_activitat(dia, hora, professor) or {}
-                    if act.get("grup") or (act.get("assignatura") or "") not in per_defecte:
-                        continue
-                    canvi = darrers.get(("professor", professor, dia, hora))
-                    if canvi is not None and not canvi.alliberat:
-                        continue  # ja té alumnes
-                    if clau_ocupat(professor) in result.get(hora, []):
-                        continue  # aquell dia sí que té alumnes
-                    clau = clau_professor(professor)
-                    if clau not in result.setdefault(hora, []):
-                        result[hora].append(clau)
-
-        # Un professor marcat «ocupat» aquell dia no està alliberat, vingui d'on
-        # vingui l'alliberament (per defecte o per un canvi d'estat)
-        for valors in result.values():
-            for professor in ocupats_de(valors):
-                clau = clau_professor(professor)
-                while clau in valors:
-                    valors.remove(clau)
-        return result
+        horaris = horaris_per_dates(db)
+        darrers, index = {}, 0
+        for data in dates:
+            data_obj = parse_date(data)
+            while index < len(canvis) and canvis[index].des_de <= data_obj:
+                c = canvis[index]
+                darrers[(c.tipus, c.clau, c.dia_setmana, c.hora)] = c
+                index += 1
+            try:
+                horari = horaris(data)
+            except MissingXmlError:
+                continue  # com la lectura d'un dia: només les marques manuals
+            resultat[data] = resol_alliberats(resultat[data], horari, data_obj, darrers, per_defecte)
+        return resultat
 
     @staticmethod
     def activitats_per_defecte(db: Session) -> List[str]:

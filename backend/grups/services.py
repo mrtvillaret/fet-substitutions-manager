@@ -82,8 +82,8 @@ def _reconcilia_dia(db: Session, data: str, hores_afectades: set) -> list:
 
 
 def _reconcilia_dies_afectats(db: Session, des_de: str, dia_setmana: int, hores: set) -> list:
-    """Un canvi per període afecta tots els dies següents del mateix dia de la
-    setmana: es reconcilien els que ja tenen substitucions o vigilàncies."""
+    """Revisa els dies amb files, des de l'inici del canvi i mai abans d'avui.
+    La data desada del període es conserva; els dies passats són historial."""
     trets = []
     for d in AlliberamentsPeriodeRepository.dates_afectades(db, des_de, dia_setmana):
         trets += _reconcilia_dia(db, d, hores)

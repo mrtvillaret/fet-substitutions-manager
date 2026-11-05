@@ -21,11 +21,10 @@ from suport_rellotge import ARA
 
 import auth.router as rutes_auth
 import auth.services as serveis_auth
-from auth import security
 from auth.dependencies import require_admin, require_super_admin, require_user
 from auth.repositories import UserRepository
 from auth.security import create_access_token, decode_access_token, hash_password, verify_password
-from config.auth import ALGORITHM, COOKIE_NAME, SECRET_KEY
+from config.auth import get_config_auth
 from config.settings import config
 from database import AuthSessionLocal, create_auth_tables, get_data_db_session
 from errors_servidor import registra_gestors_errors
@@ -134,8 +133,8 @@ def _entra(client, escenari, qui):
     return client
 
 
-def _posa_token(client, payload, clau=SECRET_KEY):
-    client.cookies.set(COOKIE_NAME, jwt.encode(payload, clau, algorithm=ALGORITHM))
+def _posa_token(client, payload, clau=get_config_auth().secret_key):
+    client.cookies.set(get_config_auth().cookie_name, jwt.encode(payload, clau, algorithm=get_config_auth().algorithm))
 
 
 # ---------------------------------------------------------------- contrasenyes
@@ -159,11 +158,11 @@ def test_login_correcte_posa_cookie_httponly_amb_les_dades_del_usuari(client, es
     resp = _login(client, escenari["noms"]["admin_a"])
     assert resp.status_code == 200
     cookie = resp.headers["set-cookie"]
-    assert cookie.startswith(f"{COOKIE_NAME}=")
+    assert cookie.startswith(f"{get_config_auth().cookie_name}=")
     assert "HttpOnly" in cookie
     assert "samesite=lax" in cookie.lower()
 
-    payload = decode_access_token(client.cookies[COOKIE_NAME])
+    payload = decode_access_token(client.cookies[get_config_auth().cookie_name])
     assert payload["sub"] == escenari["noms"]["admin_a"]
     assert payload["institucio"] == escenari["a"]
     assert payload["role"] == "admin"
@@ -176,7 +175,7 @@ def test_login_amb_contrasenya_incorrecta_o_usuari_inexistent_dona_el_mateix_err
     assert dolenta.status_code == inexistent.status_code == 401
     # Mateix missatge: no es pot saber si l'usuari existeix.
     assert dolenta.json() == inexistent.json()
-    assert COOKIE_NAME not in client.cookies
+    assert get_config_auth().cookie_name not in client.cookies
 
 
 @pytest.mark.parametrize("cas", ["inexistent", "desactivat", "contrasenya dolenta"])
@@ -267,7 +266,7 @@ def test_logout_esborra_la_cookie(client, escenari):
     _entra(client, escenari, "user_a")
     resp = client.post("/api/logout")
     assert resp.status_code == 200
-    assert COOKIE_NAME not in client.cookies
+    assert get_config_auth().cookie_name not in client.cookies
     assert client.get("/prova/user").status_code == 401
 
 
@@ -279,7 +278,7 @@ def test_sense_cookie_dona_401(client, escenari):
 
 
 def test_token_que_no_es_un_jwt_dona_401(client, escenari):
-    client.cookies.set(COOKIE_NAME, "no-es-un-token")
+    client.cookies.set(get_config_auth().cookie_name, "no-es-un-token")
     assert client.get("/prova/user").status_code == 401
 
 
@@ -322,7 +321,7 @@ def test_usuari_desactivat_despres_del_login_perd_l_acces(client, escenari):
 def test_el_rol_surt_de_la_bd_i_no_del_token(client, escenari):
     # Un token vàlid d'un usuari normal que diu "admin" no dona permisos d'admin.
     client.cookies.set(
-        COOKIE_NAME,
+        get_config_auth().cookie_name,
         create_access_token(
             {
                 "sub": escenari["noms"]["user_a"],
@@ -338,7 +337,7 @@ def test_el_rol_surt_de_la_bd_i_no_del_token(client, escenari):
 
 def test_usuari_normal_no_pot_canviar_d_institucio_amb_el_token(client, escenari):
     client.cookies.set(
-        COOKIE_NAME,
+        get_config_auth().cookie_name,
         create_access_token(
             {
                 "sub": escenari["noms"]["user_a"],
@@ -549,16 +548,15 @@ def test_superadmin_no_pot_canviar_a_una_institucio_inexistent(client, escenari)
 
 
 @pytest.fixture
-def delegacio(monkeypatch):
-    monkeypatch.setattr(serveis_auth, "LOGIN_DELEGACIO_USUARIS", frozenset({"user_demo", "admin_demo"}))
-    monkeypatch.setattr(serveis_auth, "LOGIN_DELEGACIO_URL", "/demo/")
+def delegacio(config_auth_de_prova):
+    config_auth_de_prova(LOGIN_DELEGACIO_USUARIS="user_demo,admin_demo", LOGIN_DELEGACIO_URL="/demo/")
 
 
 def test_login_d_un_usuari_delegat_indica_on_ha_d_anar_sense_obrir_sessio(client, escenari, delegacio):
     resp = client.post("/api/login", json={"username": "user_demo", "password": "qualsevol"})
     assert resp.status_code == 200
     assert resp.json() == {"ok": False, "redirect": "/demo/"}
-    assert COOKIE_NAME not in client.cookies
+    assert get_config_auth().cookie_name not in client.cookies
 
 
 def test_un_nom_delegat_queda_reservat_encara_que_existeixi_aqui(client, escenari, delegacio):
@@ -577,7 +575,7 @@ def test_un_nom_delegat_queda_reservat_encara_que_existeixi_aqui(client, escenar
         crea.close()
     resp = _login(client, "admin_demo")
     assert resp.json()["redirect"] == "/demo/"
-    assert COOKIE_NAME not in client.cookies
+    assert get_config_auth().cookie_name not in client.cookies
 
 
 def test_la_resta_d_usuaris_entren_com_sempre_amb_delegacio_activa(client, escenari, delegacio):
@@ -618,20 +616,19 @@ def test_la_delegacio_pot_ser_al_mateix_domini_o_a_un_subdomini(url):
     assert _importa_config_amb_delegacio(url).returncode == 0
 
 
-def test_la_delegacio_a_una_altra_adreca_indica_l_adreca(client, escenari, monkeypatch):
+def test_la_delegacio_a_una_altra_adreca_indica_l_adreca(client, escenari, config_auth_de_prova):
     # Una demo en un subdomini: el frontend hi porta l'usuari sense enviar-hi la contrasenya
-    monkeypatch.setattr(serveis_auth, "LOGIN_DELEGACIO_USUARIS", frozenset({"user_demo"}))
-    monkeypatch.setattr(serveis_auth, "LOGIN_DELEGACIO_URL", "https://demo.gestor.exemple/")
+    config_auth_de_prova(LOGIN_DELEGACIO_USUARIS="user_demo", LOGIN_DELEGACIO_URL="https://demo.gestor.exemple/")
     resp = client.post("/api/login", json={"username": "user_demo", "password": "qualsevol"})
     assert resp.json() == {"ok": False, "redirect": "https://demo.gestor.exemple/"}
-    assert COOKIE_NAME not in client.cookies
+    assert get_config_auth().cookie_name not in client.cookies
 
 
 # ------------------------------------------------------ nom de la galeta
 
 
-def test_el_nom_de_la_galeta_es_configurable(client, escenari, monkeypatch):
-    monkeypatch.setattr(security, "COOKIE_NAME", "gestor_token_demo")
+def test_el_nom_de_la_galeta_es_configurable(client, escenari, config_auth_de_prova):
+    config_auth_de_prova(COOKIE_NAME="gestor_token_demo")
     _entra(client, escenari, "user_a")
     assert "gestor_token_demo" in client.cookies
     assert "gestor_token" not in client.cookies
@@ -741,7 +738,7 @@ def test_els_testimonis_d_abans_d_aquest_canvi_continuen_valent(client, escenari
     # val mentre l'usuari no hagi tancat cap sessió, així que desplegar el
     # canvi no fa sortir ningú.
     client.cookies.set(
-        COOKIE_NAME,
+        get_config_auth().cookie_name,
         create_access_token(
             {
                 "sub": escenari["noms"]["user_a"],

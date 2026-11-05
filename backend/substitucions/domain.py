@@ -23,7 +23,7 @@ TIPUS_ABSENCIA_REAL = ("ABSENCIA", "SERVEI")
 
 
 class DiaEscolar:
-    def __init__(self, db, data: str, institucio: str = None, horari=None):
+    def __init__(self, db, data: str, institucio: str = None, horari=None, *, carregador_horari=None):
         self.data = data
         self.institucio = institucio
         self.files = SubstitucioRepository.get_by_date(db, data)
@@ -46,6 +46,7 @@ class DiaEscolar:
             if hora and professor and sub.get("tipus_absencia") in TIPUS_ABSENCIA_REAL:
                 self.absents_per_hora[hora].add(professor)
 
+        self._carregador_horari = carregador_horari
         self._horari = horari
         self._horari_carregat = horari is not None
 
@@ -53,6 +54,11 @@ class DiaEscolar:
     def horari(self):
         """L'horari vigent aquell dia, o None si no es pot carregar."""
         if not self._horari_carregat:
+            if self._carregador_horari is not None:
+                # La tria manual conserva els errors del Dia que ha rebut.
+                self._horari = self._carregador_horari()
+                self._horari_carregat = True
+                return self._horari
             self._horari_carregat = True
             try:
                 self._horari = get_horari(self.institucio, data_iso=self.data)
@@ -134,21 +140,32 @@ class DiaEscolar:
                 resultat.setdefault(vig["hora"], set()).add(vig["vigilant"])
         return resultat
 
-    def motius_substitut(self, substitut: str, hora: str) -> list:
+    def motius_substitut(
+        self, substitut: str, hora: str, *, nomes=None, classe_sense_assignatura: bool = False
+    ) -> list:
         """Per què `substitut` no pot fer una substitució a `hora` (llista buida
         si pot). Cada motiu: {"motiu": "vigilancia" | "baixa" | "absent"} o
         {"motiu": "classe", "classe_assignatura", "classe_grup"}: té classe i el
         seu grup no està sense classe ni ell alliberat (un examen no l'allibera)."""
+        # La tria manual valida per fases per conservar la precedència dels errors.
+        # Històricament també rebutja classes amb grup però sense assignatura.
+        nomes = {"vigilancia", "baixa", "absent", "classe"} if nomes is None else nomes
         motius = []
-        if substitut in self.vigilants_per_hora.get(hora, set()):
+        if "vigilancia" in nomes and substitut in self.vigilants_per_hora.get(hora, set()):
             motius.append({"motiu": "vigilancia"})
-        if substitut in self.baixes:
+        if "baixa" in nomes and substitut in self.baixes:
             motius.append({"motiu": "baixa"})
-        if substitut in self.absents_per_hora.get(hora, set()):
+        if "absent" in nomes and substitut in self.absents_per_hora.get(hora, set()):
             motius.append({"motiu": "absent"})
+        if "classe" not in nomes:
+            return motius
         activitat = self.activitat(substitut, hora)
         grup, assignatura = activitat.get("grup", ""), activitat.get("assignatura", "")
-        if grup and assignatura and not sense_classe(substitut, grup, self.alliberats.get(hora, [])):
+        if (
+            (grup.strip() if classe_sense_assignatura else grup)
+            and (assignatura or classe_sense_assignatura)
+            and not sense_classe(substitut, grup, self.alliberats.get(hora, []))
+        ):
             motius.append({"motiu": "classe", "classe_assignatura": assignatura, "classe_grup": grup})
         return motius
 

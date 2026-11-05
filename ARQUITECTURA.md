@@ -348,9 +348,16 @@ set_auth_cookie(response, testimoni_de_sessio(user, current_user.institucio))
 l'estructura nova, amb un arnès de caracterització que comprova que les
 respostes no canvien.
 
+La configuració d'autenticació és `config.auth.ConfigAuth`, una dataclass
+immutable carregada i validada amb `carrega_config_auth(env)`. Els consumidors
+fan servir `get_config_auth()`; els tests substitueixen aquest únic objecte
+amb una configuració validada. `auth.security.get_auth_token` centralitza la
+lectura del nom de galeta, també per a `main.py`.
+
 Mòduls migrats: `auth/` (entrar, sessió, perfil propi), `usuaris/` (gestió
 d'usuaris de l'admin i el superadmin) i `prioritats/` (categories i pesos de
-prioritat, «No substituir» i la seva càrrega a memòria, `carrega_prioritats`),
+prioritat, «No substituir» i la seva càrrega pública a memòria,
+`prioritats.memoria.carrega_prioritats`, independent d'auth i HTTP),
 `grups/` (dos routers: `router`, `/api/grups/*`, per a qualsevol usuari, la
 gestió de cada dia; `router_admin`, només admins, amb les URL de sempre:
 `/api/grups-amagats` i `/api/prioritats/activitats-alliberables`; la
@@ -388,6 +395,18 @@ amb `fetes_del_curs_per_substitut`):
   natural (`per_comptador`).
 - `franges_de_l_horari`: les franges de les versions de l'XML vigents a
   l'interval (unió pel nom).
+
+La visibilitat carrega els alliberats amb
+`GrupsAlliberatsRepository.get_entre_dates`: marques i canvis de període en
+bloc, resolució comuna a `grups/alliberaments.py` i horari reutilitzat entre
+canvis de versió (`helpers.horaris_per_dates`), amb les absències cobertes
+aplicades a cada data. La memòria d'aquesta operació s'acaba amb la petició.
+
+La pantalla demana `GET /api/estadistiques/batch`: els cinc recomptes,
+les franges i la llista de professors dels informes, amb un sol context
+comú. Les rutes individuals es conserven i comparteixen els càlculs purs.
+El frontend comparteix peticions encara en curs i descarta respostes
+antigues; els detalls i els PDF conserven les seves peticions.
 
 Dos tests guardians (`tests/test_recomptes_un_sol_lloc.py`): la web i els
 informes donen el mateix per al mateix interval, i ni `estadistiques/` ni

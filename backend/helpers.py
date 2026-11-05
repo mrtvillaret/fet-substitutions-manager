@@ -6,7 +6,8 @@ Funcions auxiliars compartides pel backend
 
 import logging
 import os
-from datetime import datetime
+from bisect import bisect_right
+from datetime import datetime, timedelta
 from typing import Dict, Optional
 
 from sqlalchemy.orm import Session
@@ -158,6 +159,40 @@ def _del_dia(horari: GestorHorariWeb, institucio: str, data_iso: str) -> GestorH
 
     with get_data_db_session(institucio) as db:
         return sense_absents_coberts(horari, absents_coberts(db, data_iso))
+
+
+def horaris_per_dates(db: Session):
+    """Lector d'horaris per a una operació d'interval. Reutilitza l'XML
+    entre canvis de versió, però aplica les absències cobertes de cada dia.
+    També respecta els forats i el fallback a la versió més propera."""
+    from absencia_coberta.services import vista_per_data
+
+    versions = XMLVersionRepository.list_all(db)
+    limits = sorted(
+        {
+            d.isoformat()
+            for v in versions
+            for d in (v.data_inici, v.data_fi + timedelta(days=1) if v.data_fi else None)
+            if d is not None
+        }
+    )
+    vista = vista_per_data(db)
+    horaris = {}
+
+    def horari_de(data):
+        tram = bisect_right(limits, data)
+        if tram not in horaris:
+            try:
+                h = get_horari(data_iso=data)
+                horaris[tram] = getattr(h, "sencer", h)
+            except MissingXmlError as error:
+                horaris[tram] = error
+        h = horaris[tram]
+        if isinstance(h, MissingXmlError):
+            raise h
+        return vista(h, data)
+
+    return horari_de
 
 
 def get_gestors(institucio: str = None, *, data_iso: str, horari=None):

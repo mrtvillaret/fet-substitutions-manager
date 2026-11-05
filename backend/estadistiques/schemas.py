@@ -200,3 +200,14 @@ class FrangesResponse(BaseModel):
 class HoresResponse(BaseModel):
     periode: Periode
     hores: list[str]
+
+
+class BatchResponse(BaseModel):
+    resum: ResumResponse
+    professors: ProfessorsResponse
+    temporal: TemporalResponse
+    classes: ClassesResponse
+    taula: TaulaProfessorsResponse
+    hores: list[str]
+    hores_triades: list[str]
+    professors_informe: list[str]

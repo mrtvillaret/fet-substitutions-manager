@@ -18,6 +18,7 @@ from recomptes.services import (
     balanc_per_professor,
     cobertura,
     dades_professors,
+    detalls_professors,
     en_ordre_de_franges,
     franges_de_l_horari,
     grup_de,
@@ -89,11 +90,18 @@ def _reals(db: Session, data_inici: str, data_final: str, hores: Hores = None) -
 
 
 def resum(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+    return _resum(
+        data_inici,
+        data_final,
+        absencies_i_serveis(_reals(db, data_inici, data_final, hores)),
+        vigilancies_entre(db, data_inici, data_final, hores)[1],
+    )
+
+
+def _resum(data_inici: str, data_final: str, absencies: list[dict], v: dict) -> dict:
     """La cobertura de les absències i els serveis (com la portada de
     l'informe de direcció) i les vigilàncies."""
-    c = cobertura(absencies_i_serveis(_reals(db, data_inici, data_final, hores)))
-
-    _, v = vigilancies_entre(db, data_inici, data_final, hores)
+    c = cobertura(absencies)
 
     return {
         "periode": {"data_inici": data_inici, "data_final": data_final},
@@ -121,28 +129,45 @@ def resum(db: Session, data_inici: str, data_final: str, hores: Hores = None) ->
 
 
 def professors(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+    return _professors(
+        data_inici,
+        data_final,
+        absencies_i_serveis(_reals(db, data_inici, data_final, hores)),
+        substitucions_fetes(db, data_inici, data_final, hores),
+    )
+
+
+def _professors(data_inici: str, data_final: str, absencies: list[dict], fetes: list[dict]) -> dict:
     """Els rànquings: absències i serveis (com l'informe de direcció) i
     substitucions fetes."""
-    reals = _reals(db, data_inici, data_final, hores)
 
     return {
         "periode": {"data_inici": data_inici, "data_final": data_final},
         "professors_absents": [
             {"professor": p["nom"], "absencies": p["absencies"], "serveis": p["serveis"], "total": p["total"]}
-            for p in professors_absencies(absencies_i_serveis(reals))[:10]
+            for p in professors_absencies(absencies)[:10]
         ],
-        "top_substituts": [
-            {"professor": p["nom"], "total": p["total"]}
-            for p in professors_substitucions(substitucions_fetes(db, data_inici, data_final, hores))[:10]
-        ],
+        "top_substituts": [{"professor": p["nom"], "total": p["total"]} for p in professors_substitucions(fetes)[:10]],
     }
 
 
 def temporal(db: Session, institucio: str, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+    return _temporal(
+        data_inici,
+        data_final,
+        absencies_i_serveis(_reals(db, data_inici, data_final, hores)),
+        vigilancies_entre(db, data_inici, data_final, hores)[0],
+        franges_de_l_horari(db, institucio, data_inici, data_final),
+    )
+
+
+def _temporal(
+    data_inici: str, data_final: str, absencies: list[dict], vigilancies: list[dict], franges: list[str]
+) -> dict:
     """Per dia de la setmana i per hora: les hores a cobrir i les cobertes (de
     les absències i els serveis, com la taula dia × hora de l'informe) i les
     vigilàncies."""
-    per_hora, per_dia_hora = per_dia_i_hora(absencies_i_serveis(_reals(db, data_inici, data_final, hores)))
+    per_hora, per_dia_hora = per_dia_i_hora(absencies)
     per_dia = {i: {"a_cobrir": 0, "cobertes": 0} for i in range(len(DIES_SETMANA))}
     for (dia, _hora), v in per_dia_hora.items():
         per_dia[dia]["a_cobrir"] += v["absencies"]
@@ -150,7 +175,7 @@ def temporal(db: Session, institucio: str, data_inici: str, data_final: str, hor
 
     vigs_per_dia = {dia: 0 for dia in DIES_SETMANA}
     vigs_per_hora = {}
-    for vig in vigilancies_entre(db, data_inici, data_final, hores)[0]:
+    for vig in vigilancies:
         hora = normalitzar_hora((vig["hora"] or "").strip())
         vigs_per_dia[_dia_setmana(_data(vig))] += 1
         if hora:
@@ -176,12 +201,7 @@ def temporal(db: Session, institucio: str, data_inici: str, data_final: str, hor
             }
             for i, dia in enumerate(DIES_SETMANA)
         ],
-        "hores": [
-            _hora(hora)
-            for hora in en_ordre_de_franges(
-                set(per_hora) | set(vigs_per_hora), franges_de_l_horari(db, institucio, data_inici, data_final)
-            )
-        ],
+        "hores": [_hora(hora) for hora in en_ordre_de_franges(set(per_hora) | set(vigs_per_hora), franges)],
         "totals": {
             "a_cobrir": sum(v["a_cobrir"] for v in per_dia.values()),
             "cobertes": sum(v["cobertes"] for v in per_dia.values()),
@@ -207,9 +227,13 @@ def _absencies_per_grup(
 
 
 def classes(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+    return _classes(data_inici, data_final, absencies_i_serveis(_reals(db, data_inici, data_final, hores)))
+
+
+def _classes(data_inici: str, data_final: str, absencies: list[dict]) -> dict:
     """Per grup: hores a cobrir, cobertes i percentatge (com l'informe de
     direcció), l'assignatura més afectada i el professor més absent."""
-    absencies = _absencies_per_grup(db, data_inici, data_final, hores=hores)
+    absencies = [s for s in absencies if grup_de(s)]
     assignatures, professors = {}, {}
     for s in absencies:
         grup = grup_de(s)
@@ -295,17 +319,27 @@ def classes_detall(db: Session, data_inici: str, data_final: str, grups: list[st
 
 
 def taula_professors(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+    return _taula_professors(
+        data_inici,
+        data_final,
+        absencies_i_serveis(_reals(db, data_inici, data_final, hores)),
+        substitucions_fetes(db, data_inici, data_final, hores),
+        vigilancies_entre(db, data_inici, data_final, hores)[1],
+    )
+
+
+def _taula_professors(
+    data_inici: str, data_final: str, absencies: list[dict], fetes: list[dict], vigilancies: dict
+) -> dict:
     """Per professor: absències, serveis, substitucions fetes, vigilàncies
     fetes i balanç."""
-    reals = _reals(db, data_inici, data_final, hores)
-    _, vigilancies = vigilancies_entre(db, data_inici, data_final, hores)
     return {
         "periode": {"data_inici": data_inici, "data_final": data_final},
         "professors": [
             {"professor": p.pop("nom"), **p}
             for p in balanc_per_professor(
-                absencies_i_serveis(reals),
-                substitucions_fetes(db, data_inici, data_final, hores),
+                absencies,
+                fetes,
                 vigilancies["fetes_per_professor"],
             )
         ],
@@ -395,4 +429,25 @@ def franges(db: Session, dia: str, hora: str, data_inici: str, data_final: str, 
             }
             for n in sorted(per_nombre)
         ],
+    }
+
+
+def batch(db: Session, institucio: str, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+    """Tots els recomptes de la pantalla amb un sol context de lectura.
+    Les rutes individuals conserven els mateixos càlculs i resultats."""
+    franges = franges_de_l_horari(db, institucio, data_inici, data_final)
+    # La pantalla retirava del filtre les hores inexistents abans de comptar.
+    hores = ([h for h in franges if h in hores] or None) if hores is not None else None
+    absencies = absencies_i_serveis(_reals(db, data_inici, data_final, hores))
+    fetes = substitucions_fetes(db, data_inici, data_final, hores)
+    vigs, resultat_vigs = vigilancies_entre(db, data_inici, data_final, hores)
+    return {
+        "resum": _resum(data_inici, data_final, absencies, resultat_vigs),
+        "professors": _professors(data_inici, data_final, absencies, fetes),
+        "temporal": _temporal(data_inici, data_final, absencies, vigs, franges),
+        "classes": _classes(data_inici, data_final, absencies),
+        "taula": _taula_professors(data_inici, data_final, absencies, fetes, resultat_vigs),
+        "hores": franges,
+        "hores_triades": list(hores or []),
+        "professors_informe": [p["nom"] for p in detalls_professors(absencies, fetes)],
     }

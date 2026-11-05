@@ -39,20 +39,6 @@ def valida_interval(data_inici: str, data_final: str) -> None:
 # ===== Les substitucions que compten =====
 
 
-class AlliberatsPerData(dict):
-    """Alliberats efectius de cada data (els del dia més els per període),
-    calculats només per a les dates que es consulten."""
-
-    def __init__(self, db: Session):
-        super().__init__()
-        self.db = db
-
-    def __missing__(self, data):
-        valor = GrupsAlliberatsRepository.get_by_date(self.db, data) if data else {}
-        self[data] = valor
-        return valor
-
-
 def a_les_hores(hora: str, hores: Collection[str] | None) -> bool:
     """Si la fila és d'una de les `hores` (franges de l'horari, normalitzades);
     sense `hores`, totes."""
@@ -67,12 +53,14 @@ def substitucions_reals(
     els tipus, per data i per ordre de creació: d'aquí surten les absències i
     la cobertura. Amb `hores`, només les d'aquestes franges."""
     no_sub = set(NoSubstituirRepository.get_all(db))
-    alliberats_per_data = AlliberatsPerData(db)
+    files = [
+        s for s in RecomptesRepository.substitucions_entre(db, data_inici, data_final) if a_les_hores(s["hora"], hores)
+    ]
+    alliberats_per_data = GrupsAlliberatsRepository.get_entre_dates(db, [s["data"] for s in files])
     return [
         s
-        for s in RecomptesRepository.substitucions_entre(db, data_inici, data_final)
-        if a_les_hores(s["hora"], hores)
-        and es_visible_a_substitucions(s, no_sub, alliberats_per_data[s.get("data", "")].get(s.get("hora", ""), []))
+        for s in files
+        if es_visible_a_substitucions(s, no_sub, alliberats_per_data[s.get("data", "")].get(s.get("hora", ""), []))
     ]
 
 
@@ -417,12 +405,21 @@ def dades_professors(
     Les absències i els serveis (absencies_i_serveis) i les substitucions
     fetes de tots els tipus (substitucions_fetes), com a l'informe de
     direcció. Amb `hores`, només les d'aquestes franges."""
+    return detalls_professors(
+        absencies_i_serveis(substitucions_reals(db, data_inici, data_final, hores)),
+        substitucions_fetes(db, data_inici, data_final, hores),
+        professor,
+    )
+
+
+def detalls_professors(absencies: list[dict], fetes: list[dict], professor: str = None) -> list[dict]:
+    """El mateix detall per a les rutes individuals, els informes i el lot."""
     per_absent = defaultdict(list)
     per_substitut = defaultdict(list)
-    for s in absencies_i_serveis(substitucions_reals(db, data_inici, data_final, hores)):
+    for s in absencies:
         if prof := nom_absent(s):
             per_absent[prof].append(s)
-    for s in substitucions_fetes(db, data_inici, data_final, hores):
+    for s in fetes:
         per_substitut[nom_substitut(s)].append(s)
 
     tots = sorted(set(per_absent.keys()) | set(per_substitut.keys()), key=ordre_alfabetic)

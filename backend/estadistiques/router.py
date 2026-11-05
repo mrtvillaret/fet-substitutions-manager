@@ -9,6 +9,7 @@ from auth.dependencies import get_current_user
 from dependencies import get_db
 from estadistiques import services
 from estadistiques.schemas import (
+    BatchResponse,
     ClassesDetallResponse,
     ClassesResponse,
     DetallProfessorResponse,
@@ -120,3 +121,14 @@ def get_hores_estadistiques(
 ):
     """Les franges de l'horari a l'interval, per al filtre per hores."""
     return services.hores_de_l_horari(db, current_user.institucio, *services.interval(data_inici, data_final))
+
+
+@router.get("/batch", response_model=BatchResponse)
+def get_estadistiques_batch(
+    hores: HoresTriades,
+    data_inici: Optional[DataISO] = None,
+    data_final: Optional[DataISO] = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return services.batch(db, current_user.institucio, *services.interval(data_inici, data_final), hores)

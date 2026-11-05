@@ -357,3 +357,62 @@ def test_un_error_llegint_els_canvis_per_periode_no_es_calla():
 
     with pytest.raises(RuntimeError):
         AlliberamentsPeriodeRepository.darrers(SessioQueFalla(), DILLUNS[1])
+
+
+@pytest.mark.parametrize("avui", ["2026-04-20", "2026-04-21"])
+def test_un_periode_passat_preserva_historial_i_revisa_nomes_des_d_avui(avui, rellotge_fix):
+    from datetime import datetime, timezone
+
+    from database import get_data_db_session
+    from grups.repositories import AlliberamentsPeriodeRepository
+    from substitucions.repositories import SubstitucioRepository
+
+    centre = nova_institucio(amb_xml=True)
+    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    crea_usuari(nom, centre, "admin")
+    rellotge_fix.moment = datetime.fromisoformat(avui).replace(tzinfo=timezone.utc)
+    client = entra(client_per(APP), nom)
+    _canvi(client, "professor", "Prof 1", ["10:00"], DILLUNS[0])
+    for data in DILLUNS[:3]:
+        resp = client.put(
+            f"/api/substitucions/{data}/absencies/Prof 15",
+            json={"hores_absencia": ["10:00"], "updated_at_map": {}},
+        )
+        assert resp.status_code == 200, resp.text
+        resp = client.put(f"/api/substitucions/{data}/10:00/Prof 15", json={"substitut": "Prof 1", "force": True})
+        assert resp.status_code == 200, resp.text
+    with get_data_db_session(centre) as db:
+        abans = {data: SubstitucioRepository.get_by_date(db, data) for data in DILLUNS[:3]}
+    resultat = _canvi(client, "professor", "Prof 1", ["10:00"], DILLUNS[0], alliberat=False)
+    assert sorted({f["data"] for f in resultat["substituts_trets"]}) == [d for d in DILLUNS[:3] if d >= avui]
+    with get_data_db_session(centre) as db:
+        canvis = AlliberamentsPeriodeRepository.canvis(db)
+        assert len(canvis) == 1
+        assert canvis[0]["des_de"] == DILLUNS[0]
+        for data in DILLUNS[:3]:
+            files = SubstitucioRepository.get_by_date(db, data)
+            if data < avui:
+                assert files == abans[data]
+            else:
+                assert all(f["substitut"] != "Prof 1" for f in files)
+
+
+@pytest.mark.parametrize("des_de", ["2026-04-13", "2026-04-20", "2026-04-27"])
+def test_dates_afectades_exclou_historial_i_inclou_dies_amb_nomes_vigilancia(db_session, rellotge_fix, des_de):
+    from datetime import datetime, timezone
+
+    from grups.repositories import AlliberamentsPeriodeRepository
+    from substitucions.repositories import SubstitucioRepository
+    from vigilancies.repositories import VigilanciaRepository
+
+    rellotge_fix.moment = datetime(2026, 4, 20, 12, tzinfo=timezone.utc)
+    for data in DILLUNS[:2]:
+        SubstitucioRepository.create(db_session, {"data": data, "hora": "10:00", "professor_absent": "Prof 15"})
+    for data in [DILLUNS[2], "2026-04-21"]:
+        VigilanciaRepository.create(
+            db_session, data, {"hora": "10:00", "tipus": "examen", "grups": "Grup", "aula": "Aula", "nivell": "Nivell"}
+        )
+    db_session.flush()
+    assert AlliberamentsPeriodeRepository.dates_afectades(db_session, des_de, 0) == [
+        d for d in DILLUNS[:3] if d >= max(des_de, "2026-04-20")
+    ]

@@ -23,10 +23,10 @@ import rellotge
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user, require_admin
 from auth.router import router as auth_router
-from auth.security import decode_access_token, registra_renovacio_sessio
+from auth.security import decode_access_token, get_auth_token, registra_renovacio_sessio
 from auth.services import crea_usuaris_inicials
 from centres.router import router as centres_router
-from config.auth import COOKIE_NAME, IS_DEVELOPMENT
+from config.auth import get_config_auth
 from configuracio.router import router as configuracio_router
 from configuracio_examens.router import router as config_examens_router
 from cursos.router import router as cursos_router
@@ -42,6 +42,7 @@ from horari.router import router_admin as horari_admin_router
 from pdf import informes as informes_pdf
 from pdf.router import router as pdf_router
 from planificador.router import router as planificador_router
+from prioritats.memoria import carrega_prioritats
 from prioritats.router import router as prioritats_router
 from rate_limit import limit_superat, limiter
 from substitucions.router import router as substitucions_router
@@ -66,7 +67,6 @@ def _inicialitzar_prioritats():
     """Carrega prioritats des de la BD en iniciar el backend"""
     from config.settings import config
     from database import get_data_db_session
-    from prioritats.services import carrega_prioritats
 
     try:
         institucio = os.getenv("APP_INSTITUCIO") or config.global_data.get("institucio") or "exemple"
@@ -85,9 +85,9 @@ app = FastAPI(
     title="Gestor Substitucions API",
     description="API REST per gestionar substitucions i vigilàncies",
     version="1.0.0",
-    docs_url="/docs" if IS_DEVELOPMENT else None,
-    redoc_url="/redoc" if IS_DEVELOPMENT else None,
-    openapi_url="/openapi.json" if IS_DEVELOPMENT else None,
+    docs_url="/docs" if get_config_auth().is_development else None,
+    redoc_url="/redoc" if get_config_auth().is_development else None,
+    openapi_url="/openapi.json" if get_config_auth().is_development else None,
 )
 
 
@@ -123,7 +123,7 @@ def _log_request(request: Request, duration_ms: int, status_code: int) -> None:
     username = "-"
     role = "-"
     instit = "-"
-    token = request.cookies.get(COOKIE_NAME)
+    token = get_auth_token(request)
     if token:
         try:
             payload = decode_access_token(token)
@@ -152,7 +152,7 @@ app.add_middleware(SlowAPIMiddleware)
 # mateix domini, i cap altre origen ha de poder fer crides amb la sessió.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"] if IS_DEVELOPMENT else [],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"] if get_config_auth().is_development else [],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

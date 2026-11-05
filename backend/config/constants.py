@@ -20,7 +20,7 @@ except ImportError:
 # ── Prioritats i activitats que no se substitueixen, per institució ──
 #
 # Cada institució té les seves (es carreguen de la seva BD amb
-# prioritats.services.carrega_prioritats). Els noms públics de sota
+# prioritats.memoria.carrega_prioritats). Els noms públics de sota
 # (PRIORITATS, NO_SUBST, ...) són vistes: objectes fixos que, cada cop que es
 # consulten, mostren les dades de la institució de la petició en curs
 # (config.context). Així:

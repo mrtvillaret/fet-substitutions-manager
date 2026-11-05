@@ -7,7 +7,6 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from absencia_coberta.services import absencia_coberta_de, missatge_absencia_coberta
-from core.alliberats import sense_classe
 from errors_domini import Conflicte, ErrorDeDomini, NoTrobat, NoValid
 from grups.repositories import GrupsAlliberatsRepository
 from parametres import data_iso
@@ -21,7 +20,6 @@ from substitucions.generacio import genera_substitucions_dia
 from substitucions.prioritat import MillorsSubstituts, text_tipus_substitut
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import es_vigilancia_absent
-from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 
@@ -111,6 +109,25 @@ def actualitza_absencies(db: Session, dia: Dia, data: str, professor: str, updat
     }
 
 
+def _rebutja_motius_manual(motius: list, substitut: str, hora: str) -> None:
+    """Tradueix els motius comuns als codis i textos històrics de la tria manual."""
+    for motiu in motius:
+        match motiu["motiu"]:
+            case "vigilancia":
+                raise NoValid(f"❌ {substitut} ja està assignat com a VIGILANT a les {hora}", codi="substitut_vigilant")
+            case "absent":
+                raise NoValid(f"❌ {substitut} està ABSENT a les {hora}!", codi="substitut_absent")
+            case "baixa":
+                raise NoValid(
+                    f"❌ {substitut} té una ABSÈNCIA COBERTA aquell dia!", codi="substitut_amb_absencia_coberta"
+                )
+            case "classe":
+                raise NoValid(
+                    f"⚠️ {substitut} té CLASSE a les {hora} ({motiu['classe_assignatura']}, {motiu['classe_grup']})",
+                    codi="substitut_amb_classe",
+                )
+
+
 def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor: str, update) -> dict:
     """Assignació manual amb les mateixes comprovacions i ordre que el router antic."""
     avisos = []
@@ -167,12 +184,10 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
                 codi="activitat_no_substituible",
             )
 
-        vigilants_ocupats = set(VigilanciaRepository.get_vigilants_per_hora(db, data, hora))
-        if substitut_normalitzat in vigilants_ocupats:
-            raise NoValid(
-                f"❌ {substitut_normalitzat} ja està assignat com a VIGILANT a les {hora}",
-                codi="substitut_vigilant",
-            )
+        estat = DiaEscolar(db, data, dia.institucio, carregador_horari=lambda: dia.horari)
+        _rebutja_motius_manual(
+            estat.motius_substitut(substitut_normalitzat, hora, nomes={"vigilancia"}), substitut_normalitzat, hora
+        )
 
         for sub in substitucions_list:
             if (
@@ -188,42 +203,22 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
                     codi="substitut_repetit",
                 )
 
-        absents_reals_per_hora = {}
-        for sub in substitucions_list:
-            h = sub.get("hora", "")
-            prof_absent = sub.get("professor_absent", "")
-            tipus_abs = sub.get("tipus_absencia", "")
-            if h and prof_absent and tipus_abs in ("ABSENCIA", "SERVEI"):
-                if h not in absents_reals_per_hora:
-                    absents_reals_per_hora[h] = set()
-                absents_reals_per_hora[h].add(prof_absent)
-
-        if substitut_normalitzat in absents_reals_per_hora.get(hora, set()):
-            raise NoValid(
-                f"❌ {substitut_normalitzat} està ABSENT a les {hora}!",
-                codi="substitut_absent",
-            )
+        _rebutja_motius_manual(
+            estat.motius_substitut(substitut_normalitzat, hora, nomes={"absent"}), substitut_normalitzat, hora
+        )
 
         try:
-            horari = dia.horari
-            if substitut_normalitzat in horari.absents_coberts:
-                raise NoValid(
-                    f"❌ {substitut_normalitzat} té una ABSÈNCIA COBERTA aquell dia!",
-                    codi="substitut_amb_absencia_coberta",
-                )
-            dia_name = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
-            activitat_sub = horari.get_activitat(dia_name, hora, substitut_normalitzat)
-            if activitat_sub:
-                assignatura_sub = activitat_sub.get("assignatura", "")
-                grup_sub = activitat_sub.get("grup", "")
-                if grup_sub and grup_sub.strip():
-                    grups_alliberats_data = GrupsAlliberatsRepository.get_by_date(db, data)
-                    grups_alliberats_hora = grups_alliberats_data.get(hora, [])
-                    if not sense_classe(substitut_normalitzat, grup_sub, grups_alliberats_hora):
-                        raise NoValid(
-                            f"⚠️ {substitut_normalitzat} té CLASSE a les {hora} ({assignatura_sub}, {grup_sub})",
-                            codi="substitut_amb_classe",
-                        )
+            # Mateix horari i mateix tractament dels errors de càrrega que abans.
+            if estat.horari is None:
+                raise ValueError("Horari no disponible")
+            _rebutja_motius_manual(
+                estat.motius_substitut(substitut_normalitzat, hora, nomes={"baixa"}), substitut_normalitzat, hora
+            )
+            _rebutja_motius_manual(
+                estat.motius_substitut(substitut_normalitzat, hora, nomes={"classe"}, classe_sense_assignatura=True),
+                substitut_normalitzat,
+                hora,
+            )
         except ErrorDeDomini:
             raise
         except Exception:

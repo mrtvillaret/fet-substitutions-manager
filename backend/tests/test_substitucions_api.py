@@ -761,3 +761,60 @@ def test_la_llista_es_pot_ordenar_per_professor_absent_dins_de_cada_hora(client)
     assert absents("curs") == ["Prof 15", "Prof 1"]  # 3-ESO-A, 3-ESO-C
     assert absents("professor") == ["Prof 1", "Prof 15"]
     assert client.get(URL, params={"ordre": "nom"}).status_code == 400
+
+
+@pytest.mark.parametrize(
+    "motiu,codi,missatge",
+    [
+        ("vigilancia", "substitut_vigilant", "❌ Prof 21 ja està assignat com a VIGILANT a les 10:00"),
+        ("absent", "substitut_absent", "❌ Prof 21 està ABSENT a les 10:00!"),
+        ("baixa", "substitut_amb_absencia_coberta", "❌ Prof 21 té una ABSÈNCIA COBERTA aquell dia!"),
+        ("classe", "substitut_amb_classe", "⚠️ Prof 21 té CLASSE a les 10:00 (Matèria, Grup)"),
+    ],
+)
+def test_assignacio_manual_consulta_la_regla_unica(client, monkeypatch, motiu, codi, missatge):
+    _marca_absencia(client, hores=["10:00"])
+    original = domain.DiaEscolar.motius_substitut
+    errors = []
+    error_original = services.NoValid
+
+    def error(missatge, *, codi):
+        errors.append((codi, missatge))
+        return error_original(missatge, codi=codi)
+
+    monkeypatch.setattr(services, "NoValid", error)
+
+    def regla(self, substitut, hora, **opcions):
+        if substitut == "Prof 21":
+            if motiu not in opcions.get("nomes", {motiu}):
+                return []
+            return [{"motiu": motiu, "classe_assignatura": "Matèria", "classe_grup": "Grup"}]
+        return original(self, substitut, hora, **opcions)
+
+    monkeypatch.setattr(domain.DiaEscolar, "motius_substitut", regla)
+    resp = _assigna(client, "10:00", "Prof 21")
+    assert resp.status_code == 400
+    assert errors == [(codi, missatge)]
+    assert resp.json()["detail"] == missatge
+    assert _sub(client, "10:00")["substitut"] == ""
+
+
+@pytest.mark.parametrize("grup", ["Grup", "   "])
+def test_tria_manual_conserva_les_classes_sense_assignatura(client, monkeypatch, grup):
+    _marca_absencia(client, hores=["10:00"])
+    original = GestorHorariWeb.get_activitat
+
+    def activitat(self, dia, hora, professor):
+        if professor == "Prof 21" and hora == "10:00":
+            return {"assignatura": "", "grup": grup, "aula": ""}
+        return original(self, dia, hora, professor)
+
+    monkeypatch.setattr(GestorHorariWeb, "get_activitat", activitat)
+    resp = _assigna(client, "10:00", "Prof 21")
+    if grup.strip():
+        assert resp.status_code == 400
+        assert resp.json() == {"detail": "⚠️ Prof 21 té CLASSE a les 10:00 (, Grup)"}
+        assert _sub(client, "10:00")["substitut"] == ""
+    else:
+        assert resp.status_code == 200, resp.text
+        assert _sub(client, "10:00")["substitut"] == "Prof 21"

@@ -2,10 +2,11 @@
   <!-- Un camp que es mostra com a text i només crea el desplegable quan s'hi
        fa clic (o s'hi prem Retorn). Una taula amb molts camps així és lleugera:
        crear-hi tots els desplegables de cop era el que la feia lenta. -->
-  <div class="camp-desplegable" :class="`camp-desplegable--${aspecte}`">
+  <div class="camp-desplegable" :class="`camp-desplegable--${aspecte}`" @wheel.capture="rodeta">
     <Dropdown :filterInputProps="{ 'aria-label': $t('common.filterOptions') }"
       v-if="actiu"
       ref="desplegable"
+      :pt="{ panel: { onWheelCapture: rodeta } }"
       :modelValue="modelValue"
       :options="options"
       :optionLabel="optionLabel"
@@ -39,6 +40,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import Dropdown from 'primevue/dropdown'
+import { rodaSenseCanviarValor } from './rodetaDesplegable.js'
 
 const props = defineProps({
   modelValue: { type: [String, Number, null], default: null },
@@ -57,6 +59,9 @@ const emit = defineEmits(['update:modelValue', 'change'])
 
 const actiu = ref(false)
 const desplegable = ref(null)
+// La captura s'executa abans dels gestors del widget, també al panell que
+// PrimeVue teletransporta al body. No interfereix amb teclat ni tacte.
+const rodeta = (event) => rodaSenseCanviarValor(event, desplegable.value)
 // El text sencer en passar-hi per damunt (a la cel·la es pot tallar amb «…»)
 const titol = computed(() => (props.text || (buit.value ? '' : String(props.modelValue))) || props.etiqueta)
 const buit = computed(() => props.modelValue === null || props.modelValue === undefined || props.modelValue === '')

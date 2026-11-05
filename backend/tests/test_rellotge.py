@@ -7,7 +7,7 @@ import pytest
 
 import rellotge
 from auth.security import create_access_token, decode_access_token
-from config.auth import ALGORITHM, SECRET_KEY
+from config.auth import get_config_auth
 from serveis.dia import Dia
 
 
@@ -35,14 +35,18 @@ def test_es_mantenen_les_validacions_temporals_de_pyjwt(rellotge_fix, camp, desp
     ara = int(rellotge_fix.moment.timestamp())
     payload = {"sub": "usuari_de_prova", "exp": ara + 60}
     payload[camp] = ara + desplacament if isinstance(desplacament, int) else desplacament
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(payload, get_config_auth().secret_key, algorithm=get_config_auth().algorithm)
     with pytest.raises(error):
         decode_access_token(token)
 
 
 def test_els_limits_nbf_i_exp_inclouen_el_segon_correcte(rellotge_fix):
     ara = int(rellotge_fix.moment.timestamp())
-    token = jwt.encode({"sub": "prova", "iat": ara, "nbf": ara, "exp": ara + 1}, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(
+        {"sub": "prova", "iat": ara, "nbf": ara, "exp": ara + 1},
+        get_config_auth().secret_key,
+        algorithm=get_config_auth().algorithm,
+    )
     assert decode_access_token(token)["sub"] == "prova"
     rellotge_fix.avanca(seconds=1)
     with pytest.raises(jwt.ExpiredSignatureError):
@@ -50,7 +54,9 @@ def test_els_limits_nbf_i_exp_inclouen_el_segon_correcte(rellotge_fix):
 
 
 def test_el_rellotge_no_evita_la_comprovacio_de_signatura(rellotge_fix):
-    token = jwt.encode({"sub": "prova"}, "una-altra-clau-de-prova-amb-mida-suficient", algorithm=ALGORITHM)
+    token = jwt.encode(
+        {"sub": "prova"}, "una-altra-clau-de-prova-amb-mida-suficient", algorithm=get_config_auth().algorithm
+    )
     with pytest.raises(jwt.InvalidSignatureError):
         decode_access_token(token)
 
