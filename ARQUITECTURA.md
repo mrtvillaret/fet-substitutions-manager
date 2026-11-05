@@ -149,6 +149,7 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │                                                                  │
 │  CAPA D'ACCÉS A DADES                                            │
 │  ├── database.py          ← sessions SQLAlchemy (auth + dades)   │
+│  ├── schema_migrations/   ← Alembic, base congelada i validació │
 │  ├── repositories.py      ← CRUD genèric (UserRepo, ConfigRepo…) │
 │  ├── models.py            ← models SQLAlchemy (taules principals)│
 │  └── schemas.py           ← models Pydantic (request/response)   │
@@ -206,11 +207,35 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
                          │
                     ./data/
                     ├── auth.db
+                    ├── config.json (o APP_CONFIG_PATH)
                     └── {institucio}/
                         ├── gestor.db
                         ├── *.xml  (horari FET)
                         └── exports/
 ```
+
+## Esquemes i configuració persistent
+
+`database.py` delega la inicialització a `schema_migrations/runner.py`.
+La base `0001_base` conté SQL congelat per a auth i dades, separat dels models
+vius. Abans d’estampar una BD existent es compara tot l’esquema amb la base,
+amb les variants conegudes dels antics ALTER i la taula històrica opcional
+`exam_schedules` comprovada exactament. El stamp només afegeix metadades de
+versió; no modifica files. Una BD nova crea la base, s’estampa i aplica les
+revisions següents. Una BD existent amb revisions pendents es rebutja fins
+que l’operador executa `python -m scripts.migra_esquemes` amb el servei aturat.
+L’script rep camins explícits, valida tota la llista en només lectura i exigeix
+una carpeta de còpies per aplicar; cada BD es migra en una transacció SQLite
+explícita. Les inicialitzacions concurrents se serialitzen dins del procés i
+amb el bloqueig de SQLite entre processos.
+
+La configuració global mutable va a `APP_CONFIG_PATH` o, per defecte,
+`DATA_DIR/config.json`. El fitxer antic `backend/config/config.json` només
+es llegeix si encara falta el nou; qualsevol desat va al camí nou. Les
+configuracions de cada centre continuen a la seva BD i el perfil PDF
+versionat és un recurs estàtic de només lectura. El contenidor executa el
+backend amb UID/GID `10001:10001`; els volums de dades han de tenir permisos
+per a aquest usuari. Procediment, demo, còpies i reversió: [DESPLEGAMENT.md](DESPLEGAMENT.md).
 
 ## Vista de substitucions
 
@@ -395,7 +420,8 @@ l'avís perquè l'usuari ho revisi.
 .env.example          ← plantilla variables d'entorn
 docker-compose.yml.example ← plantilla Docker Compose
 Caddyfile.example     ← plantilla reverse proxy (HTTPS automàtic)
-backend/Dockerfile    ← imatge backend
+DESPLEGAMENT.md       ← migracions, permisos, còpies i reversió
+backend/Dockerfile    ← imatge backend (UID/GID 10001:10001)
 frontend/Dockerfile   ← imatge frontend (Nginx)
 frontend/nginx.conf   ← config Nginx del frontend
 scripts/setup-server.sh      ← configuració inicial del servidor
@@ -485,5 +511,7 @@ Conflictes de vigilàncies: `vigilancies/analisi.py` conté l’anàlisi pura
 `analitza_vigilancies(DiaEscolar)` i la selecció per files. Es publica amb
 `ProblemaVigilancia` a `GET /api/vigilancies/{data}/analisi` i a la revisió
 PDF (`problemes_vigilancies`). `pdf/generacio.py` injecta els missatges als
-renderitzadors, també per dia als intervals; `pdf/engine.py` només imprimeix.
+renderitzadors, també per dia als intervals, excloent la gravetat `informacio`;
+`pdf/engine.py` només imprimeix. Els composables PDF separen els informatius
+dels avisos i `InformatiusPdf.vue` els presenta plegats als dos diàlegs.
 La pantalla carrega l’anàlisi amb les files i descarta respostes antigues.

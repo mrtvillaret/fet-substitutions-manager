@@ -129,6 +129,7 @@
       v-model:pdfConfig="pdfConfig"
       :validacions="validacions"
       :warningsFiltrats="warningsFiltrats"
+      :informatius-filtrats="informatiusFiltrats"
       :totalIssuesFiltrats="totalIssuesFiltrats"
       :reassignChanges="reassignChanges"
       :reassignantProblematics="reassignantProblematics"
@@ -341,6 +342,7 @@ const {
   reassignantProblematics,
   reassignChanges,
   validacions,
+  informatiusFiltrats,
   warningsFiltrats,
   totalIssuesFiltrats,
   pdfConfig,

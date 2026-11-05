@@ -1,0 +1,400 @@
+{
+  "tables": [
+    [
+      "CREATE TABLE abreviatures_grups (\n\tid INTEGER NOT NULL, \n\tgrups_originals VARCHAR NOT NULL, \n\tabreviatura VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (grups_originals)\n)",
+      "CREATE INDEX idx_abreviatura ON abreviatures_grups (abreviatura)"
+    ],
+    [
+      "CREATE TABLE alliberaments_periode (\n\tid INTEGER NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tclau VARCHAR NOT NULL, \n\tdia_setmana VARCHAR NOT NULL, \n\thora VARCHAR NOT NULL, \n\tdes_de DATE NOT NULL, \n\talliberat BOOLEAN NOT NULL, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_alliberaments_periode_clau ON alliberaments_periode (tipus, clau)",
+      "CREATE INDEX idx_alliberaments_periode_dia ON alliberaments_periode (dia_setmana, hora)"
+    ],
+    [
+      "CREATE TABLE assignatures (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tnivell_id INTEGER NOT NULL, \n\tordre INTEGER, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(nivell_id) REFERENCES nivells (id) ON DELETE CASCADE\n)",
+      "CREATE UNIQUE INDEX idx_assignatura_nivell ON assignatures (nom, nivell_id)"
+    ],
+    [
+      "CREATE TABLE assignatures_prioritat (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tcategoria_id INTEGER NOT NULL, \n\tpes INTEGER, \n\tordre INTEGER, \n\tauto_assignada BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(categoria_id) REFERENCES categories_prioritat (id) ON DELETE CASCADE\n)",
+      "CREATE INDEX idx_assignatura_categoria ON assignatures_prioritat (categoria_id)",
+      "CREATE INDEX idx_assignatura_prioritat ON assignatures_prioritat (assignatura)"
+    ],
+    [
+      "CREATE TABLE aules (\n\tid INTEGER NOT NULL, \n\tcodi VARCHAR NOT NULL, \n\tnom VARCHAR NOT NULL, \n\ttipus VARCHAR, \n\tcapacitat INTEGER, \n\tordre INTEGER, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (codi)\n)"
+    ],
+    [
+      "CREATE TABLE categories_prioritat (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tordre INTEGER NOT NULL, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (ordre)\n)"
+    ],
+    [
+      "CREATE TABLE configuracio (\n\tclau VARCHAR NOT NULL, \n\tvalor TEXT, \n\ttipus VARCHAR, \n\tdescripcio TEXT, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (clau)\n)",
+      "CREATE INDEX idx_configuracio_clau ON configuracio (clau)"
+    ],
+    [
+      "CREATE TABLE configuracio_examens (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tgrup VARCHAR NOT NULL, \n\ttitular VARCHAR, \n\taula VARCHAR, \n\tordre INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_config_examens_assignatura ON configuracio_examens (assignatura)",
+      "CREATE INDEX idx_config_examens_grup ON configuracio_examens (grup)",
+      "CREATE INDEX idx_config_examens_titular ON configuracio_examens (titular)"
+    ],
+    [
+      "CREATE TABLE cursos (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tdata_inici DATE NOT NULL, \n\tdata_fi DATE, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_cursos_data_inici ON cursos (data_inici)"
+    ],
+    [
+      "CREATE TABLE exam_costos_professors (\n\tid INTEGER NOT NULL, \n\tprofessor VARCHAR, \n\ttipus VARCHAR NOT NULL, \n\tpes INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_exam_cost_professor ON exam_costos_professors (professor)",
+      "CREATE INDEX idx_exam_cost_tipus ON exam_costos_professors (tipus)"
+    ],
+    [
+      "CREATE TABLE exam_pesos_optimitzacio (\n\tid INTEGER NOT NULL, \n\tclau VARCHAR NOT NULL, \n\tvalor INTEGER NOT NULL, \n\tdescripcio TEXT, \n\tupdated_at DATETIME, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (clau)\n)"
+    ],
+    [
+      "CREATE TABLE exam_preferencies (\n\tid INTEGER NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tassignatures TEXT NOT NULL, \n\tpes INTEGER, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_exam_preferencia_tipus ON exam_preferencies (tipus)"
+    ],
+    [
+      "CREATE TABLE exam_restriccions (\n\tid INTEGER NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tclau VARCHAR, \n\tconfiguracio TEXT, \n\tpes INTEGER, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_exam_restriccio_clau ON exam_restriccions (clau)",
+      "CREATE INDEX idx_exam_restriccio_tipus ON exam_restriccions (tipus)"
+    ],
+    [
+      "CREATE TABLE grups (\n\tid INTEGER NOT NULL, \n\tcodi VARCHAR NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tnivell_id INTEGER NOT NULL, \n\tes_combinat BOOLEAN, \n\tgrups_components TEXT, \n\tordre INTEGER, \n\tactiu BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (codi), \n\tFOREIGN KEY(nivell_id) REFERENCES nivells (id) ON DELETE CASCADE\n)"
+    ],
+    [
+      "CREATE TABLE grups_alliberats (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\tgrups VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_grups_alliberats_data ON grups_alliberats (data)",
+      "CREATE INDEX idx_grups_alliberats_data_hora ON grups_alliberats (data, hora)"
+    ],
+    [
+      "CREATE TABLE grups_amagats (\n\tid INTEGER NOT NULL, \n\tgrup VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (grup)\n)"
+    ],
+    [
+      "CREATE TABLE nivells (\n\tid INTEGER NOT NULL, \n\tcodi VARCHAR NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tordre INTEGER NOT NULL, \n\tactiu BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (codi)\n)"
+    ],
+    [
+      "CREATE TABLE no_substituir (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (assignatura)\n)"
+    ],
+    [
+      "CREATE TABLE professors (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tactiu BOOLEAN, \n\tprimera_aparicio DATE, \n\tultima_aparicio DATE, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (nom)\n)",
+      "CREATE INDEX idx_professors_actiu ON professors (actiu)",
+      "CREATE INDEX idx_professors_nom ON professors (nom)"
+    ],
+    [
+      "CREATE TABLE professors_baixa (\n\tid INTEGER NOT NULL, \n\tprofessor VARCHAR NOT NULL, \n\tdata_inici DATE NOT NULL, \n\tdata_final DATE NOT NULL, \n\tmotiu VARCHAR, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_baixa_dates ON professors_baixa (data_inici, data_final)",
+      "CREATE INDEX idx_professor_baixa ON professors_baixa (professor)"
+    ],
+    [
+      "CREATE TABLE propostes_descartades (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tgrup VARCHAR NOT NULL, \n\ttitular VARCHAR, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE UNIQUE INDEX idx_proposta_descartada ON propostes_descartades (assignatura, grup, titular)"
+    ],
+    [
+      "CREATE TABLE substitucions (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\tprofessor_absent VARCHAR NOT NULL, \n\tassignatura VARCHAR, \n\tgrup VARCHAR, \n\taula VARCHAR, \n\tsubstitut VARCHAR, \n\ttipus_substitut VARCHAR, \n\ttipus_absencia VARCHAR, \n\tcomentaris TEXT, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_substitucions_data ON substitucions (data)",
+      "CREATE INDEX idx_substitucions_professor ON substitucions (professor_absent)",
+      "CREATE INDEX idx_substitucions_substitut ON substitucions (substitut)"
+    ],
+    [
+      "CREATE TABLE users (\n\tid INTEGER NOT NULL, \n\tusername VARCHAR NOT NULL, \n\tpassword_hash VARCHAR NOT NULL, \n\tinstitucio VARCHAR NOT NULL, \n\trole VARCHAR, \n\tactive BOOLEAN, \n\tversio_sessio INTEGER DEFAULT '0' NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (username)\n)"
+    ],
+    [
+      "CREATE TABLE vigilancies (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tgrups VARCHAR NOT NULL, \n\taula VARCHAR NOT NULL, \n\tvigilant VARCHAR, \n\tcomentaris TEXT, \n\tnivell VARCHAR NOT NULL, \n\tordre INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_vigilancies_data ON vigilancies (data)",
+      "CREATE INDEX idx_vigilancies_data_hora ON vigilancies (data, hora)",
+      "CREATE INDEX idx_vigilancies_data_nivell ON vigilancies (data, nivell)",
+      "CREATE INDEX idx_vigilancies_vigilant ON vigilancies (vigilant)"
+    ],
+    [
+      "CREATE TABLE xml_versions (\n\tid INTEGER NOT NULL, \n\tpath VARCHAR NOT NULL, \n\tdata_inici DATE NOT NULL, \n\tdata_fi DATE, \n\thash_contingut VARCHAR, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_xml_versions_fi ON xml_versions (data_fi)",
+      "CREATE INDEX idx_xml_versions_inici ON xml_versions (data_inici)"
+    ],
+    [
+      "CREATE TABLE vigilancies (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tgrups VARCHAR NOT NULL, \n\taula VARCHAR NOT NULL, \n\tvigilant VARCHAR, \n\tcomentaris TEXT, \n\tnivell VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_vigilancies_data ON vigilancies (data)",
+      "CREATE INDEX idx_vigilancies_data_hora ON vigilancies (data, hora)",
+      "CREATE INDEX idx_vigilancies_data_nivell ON vigilancies (data, nivell)",
+      "CREATE INDEX idx_vigilancies_vigilant ON vigilancies (vigilant)"
+    ],
+    [
+      "CREATE TABLE exam_schedules (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR, \n\tdata_generacio DATETIME, \n\tdies_seleccionats TEXT NOT NULL, \n\thorari_resultat TEXT NOT NULL, \n\tcost_total INTEGER, \n\tsubstitucions_eso INTEGER, \n\tconflictes_detectats TEXT, \n\tusuari_generador VARCHAR, \n\testat VARCHAR, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)"
+    ],
+    [
+      "CREATE TABLE users (\n\tid INTEGER NOT NULL, \n\tusername VARCHAR NOT NULL, \n\tpassword_hash VARCHAR NOT NULL, \n\tinstitucio VARCHAR NOT NULL, \n\trole VARCHAR, \n\tactive BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (username)\n)"
+    ],
+    [
+      "CREATE TABLE configuracio (\n\tclau VARCHAR NOT NULL, \n\tvalor TEXT, \n\ttipus VARCHAR, \n\tdescripcio TEXT, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (clau)\n)"
+    ],
+    [
+      "CREATE TABLE configuracio_assignatures (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tgrup VARCHAR, \n\taula VARCHAR, \n\ttitular VARCHAR NOT NULL, \n\tordre INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_config_assignatures ON configuracio_assignatures (assignatura, grup, aula)"
+    ],
+    [
+      "CREATE TABLE substitucions (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\tprofessor_absent VARCHAR NOT NULL, \n\tassignatura VARCHAR, \n\tgrup VARCHAR, \n\tsubstitut VARCHAR, \n\ttipus_substitut VARCHAR, \n\ttipus_absencia VARCHAR, \n\tcomentaris TEXT, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_substitucions_data ON substitucions (data)",
+      "CREATE INDEX idx_substitucions_professor ON substitucions (professor_absent)",
+      "CREATE INDEX idx_substitucions_substitut ON substitucions (substitut)"
+    ],
+    [
+      "CREATE TABLE abreviatures_grups (\n\tid INTEGER NOT NULL, \n\tgrups_origen VARCHAR NOT NULL, \n\tgrup_abreviat VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (grups_origen)\n)"
+    ],
+    [
+      "CREATE TABLE abreviatures_grups (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            grups_origen TEXT NOT NULL,\n            grup_abreviat TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE(grups_origen)\n        )"
+    ],
+    [
+      "CREATE TABLE assignatures (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            nom TEXT NOT NULL,\n            nivell_id INTEGER NOT NULL,\n            ordre INTEGER,\n            activa BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (nivell_id) REFERENCES nivells(id) ON DELETE CASCADE,\n            UNIQUE(nom, nivell_id)\n        )"
+    ],
+    [
+      "CREATE TABLE aules (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            codi TEXT UNIQUE NOT NULL,\n            nom TEXT NOT NULL,\n            tipus TEXT,\n            capacitat INTEGER,\n            ordre INTEGER,\n            activa BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )"
+    ],
+    [
+      "CREATE TABLE configuracio (\n            clau TEXT PRIMARY KEY,\n            valor TEXT,\n            tipus TEXT DEFAULT 'string',\n            descripcio TEXT,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )"
+    ],
+    [
+      "CREATE TABLE configuracio_assignatures (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            assignatura TEXT NOT NULL,\n            grup TEXT,\n            aula TEXT,\n            titular TEXT NOT NULL,\n            ordre INTEGER DEFAULT 0,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )",
+      "CREATE INDEX idx_config_assignatures ON configuracio_assignatures(assignatura, grup, aula)"
+    ],
+    [
+      "CREATE TABLE grups (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            codi TEXT UNIQUE NOT NULL,\n            nom TEXT NOT NULL,\n            nivell_id INTEGER NOT NULL,\n            es_combinat BOOLEAN DEFAULT 0,\n            grups_components TEXT,\n            ordre INTEGER,\n            actiu BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (nivell_id) REFERENCES nivells(id) ON DELETE CASCADE\n        )"
+    ],
+    [
+      "CREATE TABLE grups_alliberats (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            data DATE NOT NULL,\n            hora TEXT NOT NULL,\n            grups TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE(data, hora, grups)\n        )",
+      "CREATE INDEX idx_grups_alliberats_data ON grups_alliberats(data)",
+      "CREATE INDEX idx_grups_alliberats_data_hora ON grups_alliberats(data, hora)"
+    ],
+    [
+      "CREATE TABLE nivells (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            codi TEXT UNIQUE NOT NULL,\n            nom TEXT NOT NULL,\n            ordre INTEGER NOT NULL,\n            actiu BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )"
+    ],
+    [
+      "CREATE TABLE substitucions (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            data DATE NOT NULL,\n            hora TEXT NOT NULL,\n            professor_absent TEXT NOT NULL,\n            assignatura TEXT,\n            grup TEXT,\n            substitut TEXT,\n            tipus_substitut TEXT,\n            tipus_absencia TEXT,\n            comentaris TEXT,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )",
+      "CREATE INDEX idx_substitucions_data ON substitucions(data)",
+      "CREATE INDEX idx_substitucions_professor ON substitucions(professor_absent)",
+      "CREATE INDEX idx_substitucions_substitut ON substitucions(substitut)"
+    ],
+    [
+      "CREATE TABLE vigilancies (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            data DATE NOT NULL,\n            hora TEXT NOT NULL,\n            tipus TEXT NOT NULL,\n            grups TEXT NOT NULL,\n            aula TEXT NOT NULL,\n            vigilant TEXT,\n            comentaris TEXT,\n            nivell TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )",
+      "CREATE INDEX idx_vigilancies_data ON vigilancies(data)",
+      "CREATE INDEX idx_vigilancies_data_hora ON vigilancies(data, hora)",
+      "CREATE INDEX idx_vigilancies_data_nivell ON vigilancies(data, nivell)",
+      "CREATE INDEX idx_vigilancies_vigilant ON vigilancies(vigilant)"
+    ],
+    [
+      "\n                    CREATE TABLE exam_costos_professors (\n                        id INTEGER PRIMARY KEY AUTOINCREMENT,\n                        professor VARCHAR,\n                        tipus VARCHAR NOT NULL,\n                        pes INTEGER DEFAULT 100,\n                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP\n                    )\n                ",
+      "CREATE INDEX idx_exam_cost_professor ON exam_costos_professors (professor)",
+      "CREATE INDEX idx_exam_cost_tipus ON exam_costos_professors (tipus)"
+    ],
+    [
+      "CREATE TABLE exam_restriccions (\n\tid INTEGER NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tclau VARCHAR, \n\tconfiguracio TEXT, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, pes INTEGER DEFAULT 100, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_exam_restriccio_clau ON exam_restriccions (clau)",
+      "CREATE INDEX idx_exam_restriccio_tipus ON exam_restriccions (tipus)"
+    ],
+    [
+      "CREATE TABLE substitucions (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\tprofessor_absent VARCHAR NOT NULL, \n\tassignatura VARCHAR, \n\tgrup VARCHAR, \n\tsubstitut VARCHAR, \n\ttipus_substitut VARCHAR, \n\ttipus_absencia VARCHAR, \n\tcomentaris TEXT, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, aula VARCHAR, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_substitucions_data ON substitucions (data)",
+      "CREATE INDEX idx_substitucions_professor ON substitucions (professor_absent)",
+      "CREATE INDEX idx_substitucions_substitut ON substitucions (substitut)"
+    ],
+    [
+      "CREATE TABLE vigilancies (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tgrups VARCHAR NOT NULL, \n\taula VARCHAR NOT NULL, \n\tvigilant VARCHAR, \n\tcomentaris TEXT, \n\tnivell VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, ordre INTEGER, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_vigilancies_data ON vigilancies (data)",
+      "CREATE INDEX idx_vigilancies_data_hora ON vigilancies (data, hora)",
+      "CREATE INDEX idx_vigilancies_data_nivell ON vigilancies (data, nivell)",
+      "CREATE INDEX idx_vigilancies_vigilant ON vigilancies (vigilant)"
+    ],
+    [
+      "CREATE TABLE users (\n\tid INTEGER NOT NULL, \n\tusername VARCHAR NOT NULL, \n\tpassword_hash VARCHAR NOT NULL, \n\tinstitucio VARCHAR NOT NULL, \n\trole VARCHAR, \n\tactive BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, versio_sessio INTEGER NOT NULL DEFAULT 0, \n\tPRIMARY KEY (id), \n\tUNIQUE (username)\n)"
+    ],
+    [
+      "CREATE TABLE substitucions (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            data DATE NOT NULL,\n            hora TEXT NOT NULL,\n            professor_absent TEXT NOT NULL,\n            assignatura TEXT,\n            grup TEXT,\n            substitut TEXT,\n            tipus_substitut TEXT,\n            tipus_absencia TEXT,\n            comentaris TEXT,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        , aula VARCHAR)",
+      "CREATE INDEX idx_substitucions_data ON substitucions(data)",
+      "CREATE INDEX idx_substitucions_professor ON substitucions(professor_absent)",
+      "CREATE INDEX idx_substitucions_substitut ON substitucions(substitut)"
+    ],
+    [
+      "CREATE TABLE vigilancies (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            data DATE NOT NULL,\n            hora TEXT NOT NULL,\n            tipus TEXT NOT NULL,\n            grups TEXT NOT NULL,\n            aula TEXT NOT NULL,\n            vigilant TEXT,\n            comentaris TEXT,\n            nivell TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        , ordre INTEGER)",
+      "CREATE INDEX idx_vigilancies_data ON vigilancies(data)",
+      "CREATE INDEX idx_vigilancies_data_hora ON vigilancies(data, hora)",
+      "CREATE INDEX idx_vigilancies_data_nivell ON vigilancies(data, nivell)",
+      "CREATE INDEX idx_vigilancies_vigilant ON vigilancies(vigilant)"
+    ],
+    [
+      "CREATE TABLE assignatures_prioritat (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tcategoria_id INTEGER NOT NULL, \n\tpes INTEGER, \n\tordre INTEGER, \n\tauto_assignada BOOLEAN DEFAULT '0', \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(categoria_id) REFERENCES categories_prioritat (id) ON DELETE CASCADE\n)",
+      "CREATE INDEX idx_assignatura_categoria ON assignatures_prioritat (categoria_id)",
+      "CREATE INDEX idx_assignatura_prioritat ON assignatures_prioritat (assignatura)"
+    ],
+    [
+      "CREATE TABLE assignatures_prioritat (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tcategoria_id INTEGER NOT NULL, \n\tpes INTEGER, \n\tordre INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, auto_assignada BOOLEAN DEFAULT 0, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(categoria_id) REFERENCES categories_prioritat (id) ON DELETE CASCADE\n)",
+      "CREATE INDEX idx_assignatura_categoria ON assignatures_prioritat (categoria_id)",
+      "CREATE INDEX idx_assignatura_prioritat ON assignatures_prioritat (assignatura)"
+    ],
+    [
+      "CREATE TABLE configuracio (\n            clau TEXT PRIMARY KEY,\n            valor TEXT,\n            tipus TEXT DEFAULT 'string',\n            descripcio TEXT,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )",
+      "CREATE INDEX idx_configuracio_clau ON configuracio (clau)"
+    ]
+  ],
+  "data_table_sets": [
+    [
+      "abreviatures_grups",
+      "alliberaments_periode",
+      "assignatures",
+      "assignatures_prioritat",
+      "aules",
+      "categories_prioritat",
+      "configuracio",
+      "configuracio_examens",
+      "cursos",
+      "exam_costos_professors",
+      "exam_pesos_optimitzacio",
+      "exam_preferencies",
+      "exam_restriccions",
+      "grups",
+      "grups_alliberats",
+      "grups_amagats",
+      "nivells",
+      "no_substituir",
+      "professors",
+      "professors_baixa",
+      "propostes_descartades",
+      "substitucions",
+      "vigilancies",
+      "xml_versions"
+    ],
+    [
+      "abreviatures_grups",
+      "assignatures",
+      "assignatures_prioritat",
+      "aules",
+      "categories_prioritat",
+      "configuracio",
+      "configuracio_examens",
+      "cursos",
+      "exam_costos_professors",
+      "exam_pesos_optimitzacio",
+      "exam_preferencies",
+      "exam_restriccions",
+      "grups",
+      "grups_alliberats",
+      "grups_amagats",
+      "nivells",
+      "no_substituir",
+      "professors",
+      "professors_baixa",
+      "propostes_descartades",
+      "substitucions",
+      "vigilancies",
+      "xml_versions"
+    ],
+    [
+      "abreviatures_grups",
+      "assignatures",
+      "assignatures_prioritat",
+      "aules",
+      "categories_prioritat",
+      "configuracio",
+      "configuracio_examens",
+      "cursos",
+      "exam_costos_professors",
+      "exam_pesos_optimitzacio",
+      "exam_preferencies",
+      "exam_restriccions",
+      "grups",
+      "grups_alliberats",
+      "grups_amagats",
+      "nivells",
+      "no_substituir",
+      "professors",
+      "professors_baixa",
+      "substitucions",
+      "vigilancies",
+      "xml_versions"
+    ],
+    [
+      "abreviatures_grups",
+      "assignatures",
+      "assignatures_prioritat",
+      "aules",
+      "categories_prioritat",
+      "configuracio",
+      "configuracio_examens",
+      "cursos",
+      "exam_costos_professors",
+      "exam_pesos_optimitzacio",
+      "exam_preferencies",
+      "exam_restriccions",
+      "grups",
+      "grups_alliberats",
+      "nivells",
+      "no_substituir",
+      "professors",
+      "professors_baixa",
+      "substitucions",
+      "vigilancies",
+      "xml_versions"
+    ],
+    [
+      "abreviatures_grups",
+      "assignatures",
+      "assignatures_prioritat",
+      "aules",
+      "categories_prioritat",
+      "configuracio",
+      "configuracio_examens",
+      "exam_costos_professors",
+      "exam_pesos_optimitzacio",
+      "exam_preferencies",
+      "exam_restriccions",
+      "grups",
+      "grups_alliberats",
+      "nivells",
+      "no_substituir",
+      "professors",
+      "professors_baixa",
+      "substitucions",
+      "vigilancies",
+      "xml_versions"
+    ],
+    [
+      "abreviatures_grups",
+      "assignatures",
+      "assignatures_prioritat",
+      "aules",
+      "categories_prioritat",
+      "configuracio",
+      "configuracio_examens",
+      "grups",
+      "grups_alliberats",
+      "nivells",
+      "no_substituir",
+      "professors",
+      "professors_baixa",
+      "substitucions",
+      "vigilancies",
+      "xml_versions"
+    ],
+    [
+      "abreviatures_grups",
+      "assignatures",
+      "assignatures_prioritat",
+      "aules",
+      "categories_prioritat",
+      "configuracio",
+      "configuracio_examens",
+      "grups",
+      "grups_alliberats",
+      "nivells",
+      "no_substituir",
+      "professors_baixa",
+      "substitucions",
+      "vigilancies"
+    ],
+    [
+      "abreviatures_grups",
+      "assignatures",
+      "aules",
+      "configuracio",
+      "grups",
+      "grups_alliberats",
+      "nivells",
+      "substitucions",
+      "vigilancies"
+    ]
+  ]
+}

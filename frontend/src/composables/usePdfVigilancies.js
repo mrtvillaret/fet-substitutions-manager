@@ -38,11 +38,15 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
   )
 
   const warningsVigFiltrats = computed(() =>
-    problemesVigFiltrats.value.filter(p => p.gravetat !== 'important').map(p => p.missatge)
+    problemesVigFiltrats.value.filter(p => p.gravetat === 'avis').map(p => p.missatge)
+  )
+
+  const informatiusVigFiltrats = computed(() =>
+    problemesVigFiltrats.value.filter(p => p.gravetat === 'informacio').map(p => p.missatge)
   )
 
   const totalVigFiltrats = computed(() =>
-    conflictesVigFiltrats.value.length + warningsVigFiltrats.value.length
+    conflictesVigFiltrats.value.length + warningsVigFiltrats.value.length + informatiusVigFiltrats.value.length
   )
 
   const pdfConfig = ref({
@@ -371,5 +375,5 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
     }
   }
 
-  return { confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval }
+  return { informatiusVigFiltrats, confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval }
 }

@@ -570,6 +570,7 @@
         "warnings": "⚠️ AVISOS:",
         "appliedChanges": "🔄 CAMBIOS APLICADOS:",
         "totalIssues": "Total: {count} problema detectado | Total: {count} problemas detectados",
+        "showInformational": "Mostrar {count} informativo | Mostrar {count} informativos",
         "confirmImportant": "Confirmo que quiero imprimir con problemas importantes.",
         "continueQuestion": "🔍 ¿Quieres continuar con la exportación del PDF?",
         "reassign": "Reasignar"

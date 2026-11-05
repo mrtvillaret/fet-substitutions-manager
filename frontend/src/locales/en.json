@@ -570,6 +570,7 @@
         "warnings": "⚠️ WARNINGS:",
         "appliedChanges": "🔄 APPLIED CHANGES:",
         "totalIssues": "Total: {count} issue detected | Total: {count} issues detected",
+        "showInformational": "Show {count} informational notice | Show {count} informational notices",
         "confirmImportant": "I confirm that I want to print with important issues.",
         "continueQuestion": "🔍 Do you want to continue with the PDF export?",
         "reassign": "Reassign"

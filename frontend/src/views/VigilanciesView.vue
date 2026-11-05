@@ -225,6 +225,7 @@
       :validacions-vig="validacionsVig"
       :conflictes-vig-filtrats="conflictesVigFiltrats"
       :warnings-vig-filtrats="warningsVigFiltrats"
+      :informatius-vig-filtrats="informatiusVigFiltrats"
       :generant-p-d-f="generantPDF"
       :opcions-nivells-pdf-dia="opcionsNivellsPdfDia"
       :opcions-nivells-pdf-interval="opcionsNivellsPdfInterval"
@@ -315,7 +316,7 @@ const dataFormatada = computed(() => {
   })
 })
 
-const { confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval } = usePdfVigilancies({
+const { informatiusVigFiltrats, confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval } = usePdfVigilancies({
   dataISO, dataTreball, nivells, vigilancies, toast, t
 })
 

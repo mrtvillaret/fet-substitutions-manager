@@ -757,8 +757,7 @@ def test_una_auth_db_antiga_rep_la_columna_nova_sense_perdre_usuaris(tmp_path):
     import sqlite3
 
     from sqlalchemy import create_engine
-
-    from database import _ensure_users_versio_sessio_column
+    from suport_database_antic import _ensure_users_versio_sessio_column
 
     ruta = tmp_path / "auth_antiga.db"
     con = sqlite3.connect(ruta)

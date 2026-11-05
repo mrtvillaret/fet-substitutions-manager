@@ -17,10 +17,11 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import create_engine
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
+from suport_database_antic import _ensure_vigilancies_ordre_column
 from test_scheduler_publicar import DATA as DATA_PUBLICAR
 from test_scheduler_publicar import _examen, _publica
 
-from database import _ensure_vigilancies_ordre_column, get_data_db_session
+from database import get_data_db_session
 from models import Vigilancia
 from pdf import router as pdf
 from planificador import router as scheduler

@@ -68,3 +68,26 @@ test('PDF complet amb importants exigeix confirmar abans de descarregar',async()
  await p.generarPDFComplet();assert.equal(p.confirmacioImportants.value,false)
  await p.continuarPDF();assert.equal(p.links.length,1)
 })
+
+
+test('PDF complet: informatius separats dels avisos per gravetat', async () => {
+  const p = prepara({ validacio: {conflicts: [], warnings: ['Classe coberta', 'Avís útil'], total: 2,
+    problemes_vigilancies: [{gravetat: 'informacio', missatge: 'Classe coberta'}]} })
+  await p.generarPDFComplet()
+  assert.deepEqual(p.warningsFiltrats.value, ['Avís útil'])
+  assert.deepEqual(p.informatiusFiltrats.value, ['Classe coberta'])
+  assert.equal(p.totalIssuesFiltrats.value, 2)
+  assert.equal(p.mostrarDialogValidacions.value, true)
+})
+
+test('PDF complet: només informatius també obre la revisió i permet continuar', async () => {
+  const p = prepara({validacio:{conflicts:[], warnings:['Activitat sense grup'], total:1,
+    problemes_vigilancies:[{gravetat:'informacio',missatge:'Activitat sense grup'}]}})
+  await p.generarPDFComplet()
+  assert.deepEqual(p.warningsFiltrats.value, [])
+  assert.deepEqual(p.informatiusFiltrats.value, ['Activitat sense grup'])
+  assert.equal(p.totalIssuesFiltrats.value, 1)
+  assert.equal(p.mostrarDialogValidacions.value, true)
+  await p.continuarPDF()
+  assert.equal(p.links.length, 1)
+})

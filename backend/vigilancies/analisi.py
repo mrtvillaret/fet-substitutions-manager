@@ -199,17 +199,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
                     efectiu,
                     grup,
                 )
-        elif (assig or grup) and sense_classe(efectiu, grup, dia.alliberats.get(hora, [])):
-            afegeix(
-                "alliberat",
-                "informacio",
-                [v],
-                _("ℹ️ {hora}: Vigilant {vigilant} alliberat manualment").format(hora=hora, vigilant=efectiu),
-                efectiu,
-                grup,
-                efectiva=efectiu,
-            )
-        elif assig and not grup:
+        elif assig and not grup and not sense_classe(efectiu, grup, dia.alliberats.get(hora, [])):
             from config.constants import PRIORITATS
 
             if assig not in PRIORITATS:

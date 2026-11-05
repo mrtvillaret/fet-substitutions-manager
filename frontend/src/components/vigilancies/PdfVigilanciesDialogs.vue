@@ -23,6 +23,8 @@
           </ul>
         </div>
 
+        <InformatiusPdf :missatges="informatiusVigFiltrats" />
+
         <div v-if="conflictesVigFiltrats.length > 0" class="confirmacio-importants">
           <Checkbox v-model="confirmacioImportants" :binary="true" :inputId="prefixEtiquetes + '-confirma-importants'" />
           <label :for="prefixEtiquetes + '-confirma-importants'">{{ $t('substitutions.dialogs.pdfValidation.confirmImportant') }}</label>
@@ -166,6 +168,7 @@
 </template>
 
 <script setup>
+import InformatiusPdf from '../InformatiusPdf.vue'
 import { useId } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
@@ -187,6 +190,7 @@ defineProps({
   validacionsVig: Object,
   conflictesVigFiltrats: Array,
   warningsVigFiltrats: Array,
+  informatiusVigFiltrats: { type: Array, required: true },
   generantPDF: Boolean,
   opcionsNivellsPdfDia: Array,
   opcionsNivellsPdfInterval: Array,

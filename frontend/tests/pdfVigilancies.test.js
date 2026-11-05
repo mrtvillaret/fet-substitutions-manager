@@ -17,7 +17,7 @@ function prepara(validacio = { conflicts: [], warnings: [] }) {
 test('PDF vigilàncies: opcions de nivell, preferències i retorn de validacions filtrades', async()=>{
   const p=prepara({conflicts:['Aula ocupada','Absent'],warnings:['Vigilant amb classe','Altre'],problemes_vigilancies:[{tipus:'sense_aula',gravetat:'important',files:['1'],missatge:'Aula ocupada'},{tipus:'classe_coberta',gravetat:'informacio',files:['1'],missatge:'Vigilant amb classe'}]})
   await p.mostrarDialegPDF();assert.deepEqual(p.pdfConfig.value.nivells,['N1',SENSE_NIVELL]);assert.equal(p.pdfConfig.value.showHours,true)
-  await p.generarPDF();assert.deepEqual(p.conflictesVigFiltrats.value,['Aula ocupada']);assert.deepEqual(p.warningsVigFiltrats.value,['Vigilant amb classe']);assert.equal(p.mostrarDialogValidacionsVig.value,true)
+  await p.generarPDF();assert.deepEqual(p.conflictesVigFiltrats.value,['Aula ocupada']);assert.deepEqual(p.warningsVigFiltrats.value,[]);assert.deepEqual(p.informatiusVigFiltrats.value,['Vigilant amb classe']);assert.equal(p.mostrarDialogValidacionsVig.value,true)
   p.cancelarPDFVig();assert.equal(p.mostrarDialogPDF.value,true);assert.deepEqual(p.links,[])
 })
 test('PDF vigilàncies: descàrrega del dia amb nom i paràmetres originals',async()=>{
@@ -52,4 +52,19 @@ test('PDF amb importants exigeix confirmar, i cada revisió reinicia la confirma
  await p.mostrarDialegPDF();await p.generarPDF()
  assert.equal(p.confirmacioImportants.value,false)
  await p.continuarPDFVig();assert.equal(p.links.length,1)
+})
+
+test('PDF vigilàncies: només informatius, sense límit i filtrats pels nivells triats', async () => {
+  const problemes = Array.from({length: 21}, (_, i) => ({tipus:'activitat_sense_grup', gravetat:'informacio', files:['1'], missatge:`Informatiu ${i}`}))
+  problemes.push({tipus:'classe_coberta', gravetat:'informacio', files:['exclosa'], missatge:'No incloure'})
+  const p = prepara({conflicts:[], warnings:problemes.map(p => p.missatge), problemes_vigilancies:problemes})
+  await p.mostrarDialegPDF();await p.generarPDF()
+  assert.equal(p.informatiusVigFiltrats.value.length, 21)
+  assert.deepEqual(p.warningsVigFiltrats.value, [])
+  assert.deepEqual(p.conflictesVigFiltrats.value, [])
+  assert.equal(p.validacionsVig.value.has_critical, false)
+  assert.equal(p.mostrarDialogValidacionsVig.value, true)
+  assert.deepEqual(p.links, [])
+  await p.continuarPDFVig()
+  assert.equal(p.links.length, 1)
 })

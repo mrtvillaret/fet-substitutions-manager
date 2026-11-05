@@ -16,9 +16,19 @@ RUN pip install --no-cache-dir --only-binary=:all: -r /app/requirements.txt
 
 COPY . /app
 
+# UID/GID estables per als volums. El codi continua sent de root; l’aplicació
+# només escriu dades. Els bind mounts existents s’han de preparar al servidor
+# seguint DESPLEGAMENT.md: la propietat de la imatge no canvia la del volum.
+RUN groupadd --gid 10001 gestor \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin gestor \
+    && mkdir -p /app/data \
+    && chown 10001:10001 /app/data
+
 ENV DATA_DIR=/app/data \
     AUTH_DB_PATH=/app/data/auth.db \
     APP_INSTITUCIO=exemple
+
+USER 10001:10001
 
 EXPOSE 8000
 

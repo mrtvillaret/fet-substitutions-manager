@@ -1,0 +1,757 @@
+{
+  "tables": {
+    "abreviatures_grups_ae68b58e": [
+      "CREATE TABLE abreviatures_grups (\n\tid INTEGER NOT NULL, \n\tgrups_originals VARCHAR NOT NULL, \n\tabreviatura VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (grups_originals)\n)",
+      "CREATE INDEX idx_abreviatura ON abreviatures_grups (abreviatura)"
+    ],
+    "alliberaments_periode_192639b8": [
+      "CREATE TABLE alliberaments_periode (\n\tid INTEGER NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tclau VARCHAR NOT NULL, \n\tdia_setmana VARCHAR NOT NULL, \n\thora VARCHAR NOT NULL, \n\tdes_de DATE NOT NULL, \n\talliberat BOOLEAN NOT NULL, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_alliberaments_periode_clau ON alliberaments_periode (tipus, clau)",
+      "CREATE INDEX idx_alliberaments_periode_dia ON alliberaments_periode (dia_setmana, hora)"
+    ],
+    "assignatures_1f201c21": [
+      "CREATE TABLE assignatures (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tnivell_id INTEGER NOT NULL, \n\tordre INTEGER, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(nivell_id) REFERENCES nivells (id) ON DELETE CASCADE\n)",
+      "CREATE UNIQUE INDEX idx_assignatura_nivell ON assignatures (nom, nivell_id)"
+    ],
+    "assignatures_prioritat_0db464f0": [
+      "CREATE TABLE assignatures_prioritat (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tcategoria_id INTEGER NOT NULL, \n\tpes INTEGER, \n\tordre INTEGER, \n\tauto_assignada BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(categoria_id) REFERENCES categories_prioritat (id) ON DELETE CASCADE\n)",
+      "CREATE INDEX idx_assignatura_categoria ON assignatures_prioritat (categoria_id)",
+      "CREATE INDEX idx_assignatura_prioritat ON assignatures_prioritat (assignatura)"
+    ],
+    "aules_ee3ef4e6": [
+      "CREATE TABLE aules (\n\tid INTEGER NOT NULL, \n\tcodi VARCHAR NOT NULL, \n\tnom VARCHAR NOT NULL, \n\ttipus VARCHAR, \n\tcapacitat INTEGER, \n\tordre INTEGER, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (codi)\n)"
+    ],
+    "categories_prioritat_34bfd7a5": [
+      "CREATE TABLE categories_prioritat (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tordre INTEGER NOT NULL, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (ordre)\n)"
+    ],
+    "configuracio_0319a5b0": [
+      "CREATE TABLE configuracio (\n\tclau VARCHAR NOT NULL, \n\tvalor TEXT, \n\ttipus VARCHAR, \n\tdescripcio TEXT, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (clau)\n)",
+      "CREATE INDEX idx_configuracio_clau ON configuracio (clau)"
+    ],
+    "configuracio_examens_1f4b37d4": [
+      "CREATE TABLE configuracio_examens (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tgrup VARCHAR NOT NULL, \n\ttitular VARCHAR, \n\taula VARCHAR, \n\tordre INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_config_examens_assignatura ON configuracio_examens (assignatura)",
+      "CREATE INDEX idx_config_examens_grup ON configuracio_examens (grup)",
+      "CREATE INDEX idx_config_examens_titular ON configuracio_examens (titular)"
+    ],
+    "cursos_dfa62e8e": [
+      "CREATE TABLE cursos (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tdata_inici DATE NOT NULL, \n\tdata_fi DATE, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_cursos_data_inici ON cursos (data_inici)"
+    ],
+    "exam_costos_professors_635b81e0": [
+      "CREATE TABLE exam_costos_professors (\n\tid INTEGER NOT NULL, \n\tprofessor VARCHAR, \n\ttipus VARCHAR NOT NULL, \n\tpes INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_exam_cost_professor ON exam_costos_professors (professor)",
+      "CREATE INDEX idx_exam_cost_tipus ON exam_costos_professors (tipus)"
+    ],
+    "exam_pesos_optimitzacio_575d86b1": [
+      "CREATE TABLE exam_pesos_optimitzacio (\n\tid INTEGER NOT NULL, \n\tclau VARCHAR NOT NULL, \n\tvalor INTEGER NOT NULL, \n\tdescripcio TEXT, \n\tupdated_at DATETIME, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (clau)\n)"
+    ],
+    "exam_preferencies_7d34a227": [
+      "CREATE TABLE exam_preferencies (\n\tid INTEGER NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tassignatures TEXT NOT NULL, \n\tpes INTEGER, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_exam_preferencia_tipus ON exam_preferencies (tipus)"
+    ],
+    "exam_restriccions_9d07862a": [
+      "CREATE TABLE exam_restriccions (\n\tid INTEGER NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tclau VARCHAR, \n\tconfiguracio TEXT, \n\tpes INTEGER, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_exam_restriccio_clau ON exam_restriccions (clau)",
+      "CREATE INDEX idx_exam_restriccio_tipus ON exam_restriccions (tipus)"
+    ],
+    "grups_9d1c7e7f": [
+      "CREATE TABLE grups (\n\tid INTEGER NOT NULL, \n\tcodi VARCHAR NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tnivell_id INTEGER NOT NULL, \n\tes_combinat BOOLEAN, \n\tgrups_components TEXT, \n\tordre INTEGER, \n\tactiu BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (codi), \n\tFOREIGN KEY(nivell_id) REFERENCES nivells (id) ON DELETE CASCADE\n)"
+    ],
+    "grups_alliberats_efbee40b": [
+      "CREATE TABLE grups_alliberats (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\tgrups VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_grups_alliberats_data ON grups_alliberats (data)",
+      "CREATE INDEX idx_grups_alliberats_data_hora ON grups_alliberats (data, hora)"
+    ],
+    "grups_amagats_090f3fdc": [
+      "CREATE TABLE grups_amagats (\n\tid INTEGER NOT NULL, \n\tgrup VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (grup)\n)"
+    ],
+    "nivells_560d795a": [
+      "CREATE TABLE nivells (\n\tid INTEGER NOT NULL, \n\tcodi VARCHAR NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tordre INTEGER NOT NULL, \n\tactiu BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (codi)\n)"
+    ],
+    "no_substituir_174ec231": [
+      "CREATE TABLE no_substituir (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (assignatura)\n)"
+    ],
+    "professors_2f255d17": [
+      "CREATE TABLE professors (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR NOT NULL, \n\tactiu BOOLEAN, \n\tprimera_aparicio DATE, \n\tultima_aparicio DATE, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (nom)\n)",
+      "CREATE INDEX idx_professors_actiu ON professors (actiu)",
+      "CREATE INDEX idx_professors_nom ON professors (nom)"
+    ],
+    "professors_baixa_e0317b79": [
+      "CREATE TABLE professors_baixa (\n\tid INTEGER NOT NULL, \n\tprofessor VARCHAR NOT NULL, \n\tdata_inici DATE NOT NULL, \n\tdata_final DATE NOT NULL, \n\tmotiu VARCHAR, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_baixa_dates ON professors_baixa (data_inici, data_final)",
+      "CREATE INDEX idx_professor_baixa ON professors_baixa (professor)"
+    ],
+    "propostes_descartades_d0d541ec": [
+      "CREATE TABLE propostes_descartades (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tgrup VARCHAR NOT NULL, \n\ttitular VARCHAR, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE UNIQUE INDEX idx_proposta_descartada ON propostes_descartades (assignatura, grup, titular)"
+    ],
+    "substitucions_531df0ba": [
+      "CREATE TABLE substitucions (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\tprofessor_absent VARCHAR NOT NULL, \n\tassignatura VARCHAR, \n\tgrup VARCHAR, \n\taula VARCHAR, \n\tsubstitut VARCHAR, \n\ttipus_substitut VARCHAR, \n\ttipus_absencia VARCHAR, \n\tcomentaris TEXT, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_substitucions_data ON substitucions (data)",
+      "CREATE INDEX idx_substitucions_professor ON substitucions (professor_absent)",
+      "CREATE INDEX idx_substitucions_substitut ON substitucions (substitut)"
+    ],
+    "users_efe90f94": [
+      "CREATE TABLE users (\n\tid INTEGER NOT NULL, \n\tusername VARCHAR NOT NULL, \n\tpassword_hash VARCHAR NOT NULL, \n\tinstitucio VARCHAR NOT NULL, \n\trole VARCHAR, \n\tactive BOOLEAN, \n\tversio_sessio INTEGER DEFAULT '0' NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (username)\n)"
+    ],
+    "vigilancies_9c6c17e9": [
+      "CREATE TABLE vigilancies (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tgrups VARCHAR NOT NULL, \n\taula VARCHAR NOT NULL, \n\tvigilant VARCHAR, \n\tcomentaris TEXT, \n\tnivell VARCHAR NOT NULL, \n\tordre INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_vigilancies_data ON vigilancies (data)",
+      "CREATE INDEX idx_vigilancies_data_hora ON vigilancies (data, hora)",
+      "CREATE INDEX idx_vigilancies_data_nivell ON vigilancies (data, nivell)",
+      "CREATE INDEX idx_vigilancies_vigilant ON vigilancies (vigilant)"
+    ],
+    "xml_versions_05c303d5": [
+      "CREATE TABLE xml_versions (\n\tid INTEGER NOT NULL, \n\tpath VARCHAR NOT NULL, \n\tdata_inici DATE NOT NULL, \n\tdata_fi DATE, \n\thash_contingut VARCHAR, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_xml_versions_fi ON xml_versions (data_fi)",
+      "CREATE INDEX idx_xml_versions_inici ON xml_versions (data_inici)"
+    ],
+    "vigilancies_130a75ca": [
+      "CREATE TABLE vigilancies (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tgrups VARCHAR NOT NULL, \n\taula VARCHAR NOT NULL, \n\tvigilant VARCHAR, \n\tcomentaris TEXT, \n\tnivell VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_vigilancies_data ON vigilancies (data)",
+      "CREATE INDEX idx_vigilancies_data_hora ON vigilancies (data, hora)",
+      "CREATE INDEX idx_vigilancies_data_nivell ON vigilancies (data, nivell)",
+      "CREATE INDEX idx_vigilancies_vigilant ON vigilancies (vigilant)"
+    ],
+    "exam_schedules_cd02ece9": [
+      "CREATE TABLE exam_schedules (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR, \n\tdata_generacio DATETIME, \n\tdies_seleccionats TEXT NOT NULL, \n\thorari_resultat TEXT NOT NULL, \n\tcost_total INTEGER, \n\tsubstitucions_eso INTEGER, \n\tconflictes_detectats TEXT, \n\tusuari_generador VARCHAR, \n\testat VARCHAR, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)"
+    ],
+    "users_09ed37ec": [
+      "CREATE TABLE users (\n\tid INTEGER NOT NULL, \n\tusername VARCHAR NOT NULL, \n\tpassword_hash VARCHAR NOT NULL, \n\tinstitucio VARCHAR NOT NULL, \n\trole VARCHAR, \n\tactive BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (username)\n)"
+    ],
+    "configuracio_f8328c00": [
+      "CREATE TABLE configuracio (\n\tclau VARCHAR NOT NULL, \n\tvalor TEXT, \n\ttipus VARCHAR, \n\tdescripcio TEXT, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (clau)\n)"
+    ],
+    "configuracio_assignatures_dd559c80": [
+      "CREATE TABLE configuracio_assignatures (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tgrup VARCHAR, \n\taula VARCHAR, \n\ttitular VARCHAR NOT NULL, \n\tordre INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_config_assignatures ON configuracio_assignatures (assignatura, grup, aula)"
+    ],
+    "substitucions_71d3ca89": [
+      "CREATE TABLE substitucions (\n\tid INTEGER NOT NULL, \n\tdata DATE NOT NULL, \n\thora VARCHAR NOT NULL, \n\tprofessor_absent VARCHAR NOT NULL, \n\tassignatura VARCHAR, \n\tgrup VARCHAR, \n\tsubstitut VARCHAR, \n\ttipus_substitut VARCHAR, \n\ttipus_absencia VARCHAR, \n\tcomentaris TEXT, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_substitucions_data ON substitucions (data)",
+      "CREATE INDEX idx_substitucions_professor ON substitucions (professor_absent)",
+      "CREATE INDEX idx_substitucions_substitut ON substitucions (substitut)"
+    ],
+    "abreviatures_grups_d433733b": [
+      "CREATE TABLE abreviatures_grups (\n\tid INTEGER NOT NULL, \n\tgrups_origen VARCHAR NOT NULL, \n\tgrup_abreviat VARCHAR NOT NULL, \n\tcreated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (grups_origen)\n)"
+    ],
+    "abreviatures_grups_5acdb90e": [
+      "CREATE TABLE abreviatures_grups (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            grups_origen TEXT NOT NULL,\n            grup_abreviat TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE(grups_origen)\n        )"
+    ],
+    "assignatures_82aefa46": [
+      "CREATE TABLE assignatures (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            nom TEXT NOT NULL,\n            nivell_id INTEGER NOT NULL,\n            ordre INTEGER,\n            activa BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (nivell_id) REFERENCES nivells(id) ON DELETE CASCADE,\n            UNIQUE(nom, nivell_id)\n        )"
+    ],
+    "aules_60e96f17": [
+      "CREATE TABLE aules (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            codi TEXT UNIQUE NOT NULL,\n            nom TEXT NOT NULL,\n            tipus TEXT,\n            capacitat INTEGER,\n            ordre INTEGER,\n            activa BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )"
+    ],
+    "configuracio_e458778a": [
+      "CREATE TABLE configuracio (\n            clau TEXT PRIMARY KEY,\n            valor TEXT,\n            tipus TEXT DEFAULT 'string',\n            descripcio TEXT,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )"
+    ],
+    "configuracio_assignatures_49df0100": [
+      "CREATE TABLE configuracio_assignatures (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            assignatura TEXT NOT NULL,\n            grup TEXT,\n            aula TEXT,\n            titular TEXT NOT NULL,\n            ordre INTEGER DEFAULT 0,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )",
+      "CREATE INDEX idx_config_assignatures ON configuracio_assignatures(assignatura, grup, aula)"
+    ],
+    "grups_03482241": [
+      "CREATE TABLE grups (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            codi TEXT UNIQUE NOT NULL,\n            nom TEXT NOT NULL,\n            nivell_id INTEGER NOT NULL,\n            es_combinat BOOLEAN DEFAULT 0,\n            grups_components TEXT,\n            ordre INTEGER,\n            actiu BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (nivell_id) REFERENCES nivells(id) ON DELETE CASCADE\n        )"
+    ],
+    "grups_alliberats_27739fdd": [
+      "CREATE TABLE grups_alliberats (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            data DATE NOT NULL,\n            hora TEXT NOT NULL,\n            grups TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE(data, hora, grups)\n        )",
+      "CREATE INDEX idx_grups_alliberats_data ON grups_alliberats(data)",
+      "CREATE INDEX idx_grups_alliberats_data_hora ON grups_alliberats(data, hora)"
+    ],
+    "nivells_74cda21c": [
+      "CREATE TABLE nivells (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            codi TEXT UNIQUE NOT NULL,\n            nom TEXT NOT NULL,\n            ordre INTEGER NOT NULL,\n            actiu BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )"
+    ],
+    "substitucions_b02e635b": [
+      "CREATE TABLE substitucions (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            data DATE NOT NULL,\n            hora TEXT NOT NULL,\n            professor_absent TEXT NOT NULL,\n            assignatura TEXT,\n            grup TEXT,\n            substitut TEXT,\n            tipus_substitut TEXT,\n            tipus_absencia TEXT,\n            comentaris TEXT,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )",
+      "CREATE INDEX idx_substitucions_data ON substitucions(data)",
+      "CREATE INDEX idx_substitucions_professor ON substitucions(professor_absent)",
+      "CREATE INDEX idx_substitucions_substitut ON substitucions(substitut)"
+    ],
+    "vigilancies_25f8d8b3": [
+      "CREATE TABLE vigilancies (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            data DATE NOT NULL,\n            hora TEXT NOT NULL,\n            tipus TEXT NOT NULL,\n            grups TEXT NOT NULL,\n            aula TEXT NOT NULL,\n            vigilant TEXT,\n            comentaris TEXT,\n            nivell TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )",
+      "CREATE INDEX idx_vigilancies_data ON vigilancies(data)",
+      "CREATE INDEX idx_vigilancies_data_hora ON vigilancies(data, hora)",
+      "CREATE INDEX idx_vigilancies_data_nivell ON vigilancies(data, nivell)",
+      "CREATE INDEX idx_vigilancies_vigilant ON vigilancies(vigilant)"
+    ],
+    "exam_costos_professors_script": [
+      "\n                    CREATE TABLE exam_costos_professors (\n                        id INTEGER PRIMARY KEY AUTOINCREMENT,\n                        professor VARCHAR,\n                        tipus VARCHAR NOT NULL,\n                        pes INTEGER DEFAULT 100,\n                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP\n                    )\n                ",
+      "CREATE INDEX idx_exam_cost_professor ON exam_costos_professors (professor)",
+      "CREATE INDEX idx_exam_cost_tipus ON exam_costos_professors (tipus)"
+    ],
+    "exam_restriccions_alter_pes": [
+      "CREATE TABLE exam_restriccions (\n\tid INTEGER NOT NULL, \n\ttipus VARCHAR NOT NULL, \n\tclau VARCHAR, \n\tconfiguracio TEXT, \n\tactiva BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, pes INTEGER DEFAULT 100, \n\tPRIMARY KEY (id)\n)",
+      "CREATE INDEX idx_exam_restriccio_clau ON exam_restriccions (clau)",
+      "CREATE INDEX idx_exam_restriccio_tipus ON exam_restriccions (tipus)"
+    ]
+  },
+  "snapshots": [
+    {
+      "id": "c6d664a826f6",
+      "sources": [
+        "privat:32f15ca",
+        "privat:3516af4",
+        "privat:6e933d5",
+        "privat:7e824b6",
+        "privat:f477512",
+        "públic:3eea962",
+        "públic:52894ea",
+        "públic:76ee649",
+        "públic:88f92dc"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "alliberaments_periode": "alliberaments_periode_192639b8",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_635b81e0",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "grups_amagats": "grups_amagats_090f3fdc",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "propostes_descartades": "propostes_descartades_d0d541ec",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_efe90f94",
+        "vigilancies": "vigilancies_9c6c17e9",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "eb40374110f3",
+      "sources": [
+        "privat:0350804",
+        "privat:0d53e5a",
+        "privat:38564c0",
+        "privat:6ddde55",
+        "privat:fb91277",
+        "públic:5d7daf7",
+        "públic:b86a6a0",
+        "públic:bb45897",
+        "públic:e1cf677"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "alliberaments_periode": "alliberaments_periode_192639b8",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_635b81e0",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "grups_amagats": "grups_amagats_090f3fdc",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "propostes_descartades": "propostes_descartades_d0d541ec",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_efe90f94",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "bac50eb1925d",
+      "sources": [
+        "privat:0384304",
+        "privat:79b1ac6",
+        "privat:ff54d78",
+        "públic:29cd776",
+        "públic:2bb2cbf",
+        "públic:d5ea6dc"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "alliberaments_periode": "alliberaments_periode_192639b8",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_635b81e0",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "exam_schedules": "exam_schedules_cd02ece9",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "grups_amagats": "grups_amagats_090f3fdc",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "propostes_descartades": "propostes_descartades_d0d541ec",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_efe90f94",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "8d49a8961ef8",
+      "sources": [
+        "privat:0f360af",
+        "públic:ad86017"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_635b81e0",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "exam_schedules": "exam_schedules_cd02ece9",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "grups_amagats": "grups_amagats_090f3fdc",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "propostes_descartades": "propostes_descartades_d0d541ec",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_efe90f94",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "edd0eb4c9183",
+      "sources": [
+        "privat:729c49a",
+        "privat:a93e62b",
+        "privat:b4c27f8",
+        "privat:e01b734",
+        "públic:e01b734"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_635b81e0",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "exam_schedules": "exam_schedules_cd02ece9",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "grups_amagats": "grups_amagats_090f3fdc",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "propostes_descartades": "propostes_descartades_d0d541ec",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_09ed37ec",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "6c4946f585e4",
+      "sources": [
+        "privat:9410f15",
+        "privat:e81b662",
+        "públic:9410f15"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_635b81e0",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "exam_schedules": "exam_schedules_cd02ece9",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "grups_amagats": "grups_amagats_090f3fdc",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_09ed37ec",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "70999f863fd2",
+      "sources": [
+        "privat:92e4f3e",
+        "privat:c6ce602",
+        "privat:ce2a88d",
+        "privat:e3e3b06",
+        "públic:92e4f3e",
+        "públic:ce2a88d"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_635b81e0",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "exam_schedules": "exam_schedules_cd02ece9",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_09ed37ec",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "84307b7a54c5",
+      "sources": [
+        "privat:2268f97",
+        "privat:8b36bd9",
+        "privat:993ad8a",
+        "privat:a41e08d",
+        "privat:f6302e2",
+        "privat:fa10a04",
+        "públic:2268f97"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "exam_costos_professors": "exam_costos_professors_635b81e0",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "exam_schedules": "exam_schedules_cd02ece9",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_09ed37ec",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "0e40f4b77252",
+      "sources": [
+        "privat:1016df4",
+        "privat:174f1ea",
+        "privat:47c3c4e",
+        "privat:99d85ca",
+        "privat:a2366fa",
+        "privat:e9a498a",
+        "privat:fa10a04"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_09ed37ec",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "46718dd335ec",
+      "sources": [
+        "privat:0460089",
+        "privat:23adb80",
+        "privat:297ee3e",
+        "privat:348154b",
+        "privat:38633bc",
+        "privat:3da066b",
+        "privat:47c3c4e",
+        "privat:58f1100",
+        "privat:6473fbf",
+        "privat:7bf2e8c",
+        "privat:91c791a",
+        "privat:95af466",
+        "privat:9a73628",
+        "privat:c6904d4",
+        "privat:c69b1c5",
+        "privat:c773e99",
+        "privat:d92c7ad",
+        "privat:ea5c225",
+        "privat:fbc7810"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_f8328c00",
+        "configuracio_assignatures": "configuracio_assignatures_dd559c80",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "substitucions": "substitucions_71d3ca89",
+        "vigilancies": "vigilancies_130a75ca"
+      }
+    },
+    {
+      "id": "cc78e8ef68e7",
+      "sources": [
+        "privat:1084477",
+        "privat:2bbbe4c",
+        "privat:6473fbf",
+        "privat:7fba4b8",
+        "privat:8c6f299",
+        "privat:8e29137",
+        "privat:8e5022b",
+        "privat:91c791a",
+        "privat:c69b1c5",
+        "privat:fbc7810"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "substitucions": "substitucions_71d3ca89",
+        "users": "users_09ed37ec",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "b6bcceaa3e03",
+      "sources": [
+        "privat:348154b",
+        "privat:3da066b"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_assignatures": "configuracio_assignatures_dd559c80",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "substitucions": "substitucions_71d3ca89",
+        "users": "users_09ed37ec",
+        "vigilancies": "vigilancies_130a75ca",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "314aab24a34f",
+      "sources": [
+        "privat:0460089",
+        "privat:297ee3e",
+        "privat:58f1100",
+        "privat:7bf2e8c",
+        "privat:c6904d4",
+        "privat:c773e99",
+        "privat:d92c7ad",
+        "privat:ea5c225"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_f8328c00",
+        "configuracio_assignatures": "configuracio_assignatures_dd559c80",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "substitucions": "substitucions_71d3ca89",
+        "users": "users_09ed37ec",
+        "vigilancies": "vigilancies_130a75ca"
+      }
+    },
+    {
+      "id": "92be0a411c40",
+      "sources": [
+        "privat:415652f",
+        "privat:cb1ab02"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_d433733b",
+        "assignatures": "assignatures_1f201c21",
+        "aules": "aules_ee3ef4e6",
+        "configuracio": "configuracio_f8328c00",
+        "configuracio_assignatures": "configuracio_assignatures_dd559c80",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "nivells": "nivells_560d795a",
+        "substitucions": "substitucions_71d3ca89",
+        "vigilancies": "vigilancies_130a75ca"
+      }
+    },
+    {
+      "id": "json_sqlite",
+      "sources": [
+        "privat:a19e83e (migrate_to_sqlite.py)"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_5acdb90e",
+        "assignatures": "assignatures_82aefa46",
+        "aules": "aules_60e96f17",
+        "configuracio": "configuracio_e458778a",
+        "configuracio_assignatures": "configuracio_assignatures_49df0100",
+        "grups": "grups_03482241",
+        "grups_alliberats": "grups_alliberats_27739fdd",
+        "nivells": "nivells_74cda21c",
+        "substitucions": "substitucions_b02e635b",
+        "vigilancies": "vigilancies_25f8d8b3"
+      }
+    },
+    {
+      "id": "restriccions_script",
+      "sources": [
+        "privat:fa10a04/f6302e2"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "alliberaments_periode": "alliberaments_periode_192639b8",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_script",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_9d07862a",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "grups_amagats": "grups_amagats_090f3fdc",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "propostes_descartades": "propostes_descartades_d0d541ec",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_efe90f94",
+        "vigilancies": "vigilancies_9c6c17e9",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    },
+    {
+      "id": "restriccions_alter",
+      "sources": [
+        "privat:fa10a04/f6302e2"
+      ],
+      "tables": {
+        "abreviatures_grups": "abreviatures_grups_ae68b58e",
+        "alliberaments_periode": "alliberaments_periode_192639b8",
+        "assignatures": "assignatures_1f201c21",
+        "assignatures_prioritat": "assignatures_prioritat_0db464f0",
+        "aules": "aules_ee3ef4e6",
+        "categories_prioritat": "categories_prioritat_34bfd7a5",
+        "configuracio": "configuracio_0319a5b0",
+        "configuracio_examens": "configuracio_examens_1f4b37d4",
+        "cursos": "cursos_dfa62e8e",
+        "exam_costos_professors": "exam_costos_professors_script",
+        "exam_pesos_optimitzacio": "exam_pesos_optimitzacio_575d86b1",
+        "exam_preferencies": "exam_preferencies_7d34a227",
+        "exam_restriccions": "exam_restriccions_alter_pes",
+        "grups": "grups_9d1c7e7f",
+        "grups_alliberats": "grups_alliberats_efbee40b",
+        "grups_amagats": "grups_amagats_090f3fdc",
+        "nivells": "nivells_560d795a",
+        "no_substituir": "no_substituir_174ec231",
+        "professors": "professors_2f255d17",
+        "professors_baixa": "professors_baixa_e0317b79",
+        "propostes_descartades": "propostes_descartades_d0d541ec",
+        "substitucions": "substitucions_531df0ba",
+        "users": "users_efe90f94",
+        "vigilancies": "vigilancies_9c6c17e9",
+        "xml_versions": "xml_versions_05c303d5"
+      }
+    }
+  ]
+}

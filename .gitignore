@@ -136,3 +136,6 @@ backend/migrations/
 backend/routes/horaris_dist.py
 backend/test_api.py
 data/exemple/gestor.db
+
+# Configuració global mutable, fora del codi
+data/config.json

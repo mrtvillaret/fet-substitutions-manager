@@ -21,9 +21,14 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
     has_critical: false
   })
 
+  const informatiusFiltrats = computed(() =>
+    (validacions.value.problemes_vigilancies || []).filter(p => p.gravetat === 'informacio').map(p => p.missatge)
+  )
+
   const warningsFiltrats = computed(() => {
     const warnings = validacions.value.warnings || []
     return warnings.filter((warning) => {
+      if (informatiusFiltrats.value.includes(warning)) return false
       const text = (warning || '').trim().toLowerCase()
       if (!text.startsWith('⚠️')) return true
       return !(text.includes('prioritat') || text.includes('prioridad') || text.includes('priority'))
@@ -32,7 +37,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
 
   const totalIssuesFiltrats = computed(() => {
     const conflicts = validacions.value.conflicts || []
-    return conflicts.length + warningsFiltrats.value.length
+    return conflicts.length + warningsFiltrats.value.length + informatiusFiltrats.value.length
   })
   // Mida de la lletra de la taula del dia (routes/pdf.py, MIDES_LLETRA)
   const pdfConfig = ref({
@@ -290,5 +295,5 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
   }
 
 
-  return { confirmacioImportants, mostrarDialogPDF, mostrarDialogValidacions, generantPDF, reassignantProblematics, reassignChanges, validacions, warningsFiltrats, totalIssuesFiltrats, pdfConfig, mostrarDialegPDF, carregarPreferenciesPdf, generarPDFComplet, continuarPDF, cancelarPDF, reassignarProblematics }
+  return { informatiusFiltrats, confirmacioImportants, mostrarDialogPDF, mostrarDialogValidacions, generantPDF, reassignantProblematics, reassignChanges, validacions, warningsFiltrats, totalIssuesFiltrats, pdfConfig, mostrarDialegPDF, carregarPreferenciesPdf, generarPDFComplet, continuarPDF, cancelarPDF, reassignarProblematics }
 }

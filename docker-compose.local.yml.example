@@ -15,6 +15,7 @@ services:
       context: ./backend
     env_file:
       - ./.env
+    # El volum necessita propietat 10001:10001; vegeu DESPLEGAMENT.md.
     volumes:
       - ./data:/app/data
     restart: unless-stopped

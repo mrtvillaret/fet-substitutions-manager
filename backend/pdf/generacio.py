@@ -234,7 +234,9 @@ def genera_pdf_complet(
     if mostra_conflictes:
         # L'avís del límit d'encadenades és de gestió: pantalla i revisió prèvia.
         # No afegeix contingut a la taula impresa ni als seus avisos.
-        avisos_gestio = set(validacio["avisos_encadenades"])
+        avisos_gestio = set(validacio["avisos_encadenades"]) | {
+            p["missatge"] for p in validacio["problemes_vigilancies"] if p["gravetat"] == "informacio"
+        }
         conflictes = (validacio.get("conflicts") or []) + [
             avis for avis in (validacio.get("warnings") or []) if avis not in avisos_gestio
         ]
@@ -284,6 +286,7 @@ def genera_pdf_vigilancies(
         conflictes=[
             p["missatge"]
             for p in selecciona_problemes(analitza_vigilancies(DiaEscolar(db, data, dia.institucio)), vigilancies_list)
+            if p["gravetat"] != "informacio"
         ],
     )
     return PdfGenerat(exporter.export_dir, nom)
@@ -415,6 +418,7 @@ def _avisos_interval(db, institucio, dates, vigilancies):
         if not files:
             continue
         problemes = selecciona_problemes(analitza_vigilancies(DiaEscolar(db, data, institucio)), files)
+        problemes = [p for p in problemes if p["gravetat"] != "informacio"]
         if problemes:
             avisos.append(DateContext.from_iso(data).full_format + ":")
             avisos.extend(p["missatge"] for p in problemes)

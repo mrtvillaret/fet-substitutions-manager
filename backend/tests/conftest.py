@@ -31,6 +31,8 @@ atexit.register(shutil.rmtree, os.environ["DATA_DIR"], ignore_errors=True)
 # ja definides. Així el .env de desenvolupament no pot redirigir els tests a
 # l'auth.db de veritat.
 os.environ["AUTH_DB_PATH"] = os.path.join(os.environ["DATA_DIR"], "auth.db")
+# La configuració global tampoc no pot heretar un camí extern dels tests.
+os.environ["APP_CONFIG_PATH"] = os.path.join(os.environ["DATA_DIR"], "config.json")
 
 import pytest
 

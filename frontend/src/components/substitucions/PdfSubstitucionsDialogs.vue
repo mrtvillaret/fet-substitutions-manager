@@ -49,6 +49,8 @@
           {{ $t('substitutions.dialogs.pdfValidation.totalIssues', { count: totalIssuesFiltrats }, totalIssuesFiltrats) }}
         </p>
 
+        <InformatiusPdf :missatges="informatiusFiltrats" />
+
         <div v-if="validacions.conflicts?.length > 0" class="confirmacio-importants">
           <Checkbox v-model="confirmacioImportants" :binary="true" :inputId="prefixEtiquetes + '-confirma-importants'" />
           <label :for="prefixEtiquetes + '-confirma-importants'">{{ $t('substitutions.dialogs.pdfValidation.confirmImportant') }}</label>
@@ -134,6 +136,7 @@
 </template>
 
 <script setup>
+import InformatiusPdf from '../InformatiusPdf.vue'
 import { useId } from 'vue'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
@@ -150,6 +153,7 @@ const pdfConfig = defineModel('pdfConfig', { required: true })
 defineProps({
   validacions: { type: Object, required: true },
   warningsFiltrats: { type: Array, required: true },
+  informatiusFiltrats: { type: Array, required: true },
   totalIssuesFiltrats: { type: Number, required: true },
   reassignChanges: { type: Array, required: true },
   reassignantProblematics: { type: Boolean, required: true },

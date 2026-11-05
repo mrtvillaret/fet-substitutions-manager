@@ -1,6 +1,7 @@
 """Mateixa anàlisi a pantalla, revisió i documents; cobertures reals."""
 
 import subprocess
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -177,3 +178,98 @@ def test_avisos_amb_text_d_usuari_no_s_interpreten_com_html():
         assert r.status_code == 200, r.text[:200]
         text = subprocess.run(["pdftotext", "-", "-"], input=r.content, capture_output=True, check=True).stdout.decode()
         assert "Prova <font" in text
+
+
+@pytest.mark.parametrize("grup,marca", [("G2", "G2"), ("G2", "professor:Prof 1"), ("", "professor:Prof 1")])
+def test_alliberat_no_es_un_problema(grup, marca):
+    from vigilancies.analisi import analitza_vigilancies
+
+    dia = dia_fals(
+        [vig()], activitats={"Prof 1": {"assignatura": "Activitat", "grup": grup}}, alliberats={"10:00": [marca]}
+    )
+    assert analitza_vigilancies(dia) == []
+
+
+@pytest.mark.parametrize("tipus_info,professor", [("classe_coberta", "Prof 30"), ("activitat_sense_grup", "Prof 22")])
+def test_informatius_es_conserven_a_la_revisio_pero_no_als_tres_pdf(tipus_info, professor):
+    import uuid
+
+    from models import Substitucio
+
+    centre = nova_institucio(amb_xml=True)
+    nom = "info_" + uuid.uuid4().hex[:8]
+    crea_usuari(nom, centre, "admin")
+    client = entra(client_per(crea_app(router, pdf_router)), nom)
+    data = "2026-04-20"
+    assert (
+        client.post(
+            f"/api/vigilancies/{data}",
+            json={
+                "hora": "10:00",
+                "tipus": "Prova",
+                "grups": "1-ESO-A",
+                "aula": "A1",
+                "vigilant": professor,
+                "nivell": "1-ESO",
+            },
+        ).status_code
+        == 200
+    )
+    ps = client.get(f"/api/vigilancies/{data}/analisi").json()
+    classe = next((p for p in ps if p["tipus"] == "classe_sense_cobertura"), None)
+    # Una segona fila garanteix que els avisos segueixen impresos.
+    assert (
+        client.post(
+            f"/api/vigilancies/{data}",
+            json={
+                "hora": "10:00",
+                "tipus": "Prova",
+                "grups": "1-ESO-B",
+                "aula": "A1",
+                "vigilant": "",
+                "nivell": "1-ESO",
+            },
+        ).status_code
+        == 200
+    )
+    from grups.repositories import GrupsAlliberatsRepository
+
+    with get_data_db_session(centre) as db:
+        GrupsAlliberatsRepository.set_for_date(db, data, {"10:00": ["professor:Prof 15"]})
+        db.commit()
+    if classe:
+        with get_data_db_session(centre) as db:
+            db.add(
+                Substitucio(
+                    data=date.fromisoformat(data),
+                    hora="10:00",
+                    professor_absent="Prof 30",
+                    grup=classe["grup"],
+                    substitut="Prof 15",
+                    tipus_absencia="VIGILANCIA",
+                )
+            )
+            db.commit()
+    ps = client.get(f"/api/vigilancies/{data}/analisi").json()
+    infos = [p for p in ps if p["gravetat"] == "informacio"]
+    assert any(p["tipus"] == tipus_info for p in infos), ps
+    assert any(p["gravetat"] == "avis" for p in ps), ps
+    assert client.get(f"/api/pdf/{data}/validacions").json()["problemes_vigilancies"] == ps
+    for ruta in [
+        f"/api/pdf/vigilancies/{data}",
+        f"/api/pdf/complete/{data}",
+        f"/api/pdf/vigilancies/interval?data_inici={data}&data_final={data}",
+    ]:
+        r = client.get(ruta)
+        assert r.status_code == 200, r.text
+        text = subprocess.run(["pdftotext", "-", "-"], input=r.content, capture_output=True, check=True).stdout.decode()
+        text = " ".join(text.split())
+        for p in ps:
+            missatge = p["missatge"]
+            if p["gravetat"] != "informacio":
+                missatge = missatge.split(" ", 1)[1]
+            assert (" ".join(missatge.removeprefix("10:00: ").split()) in text) == (p["gravetat"] != "informacio"), (
+                ruta,
+                p,
+                text,
+            )

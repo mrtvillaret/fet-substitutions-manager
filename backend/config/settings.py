@@ -14,11 +14,15 @@ log = logging.getLogger(__name__)
 class Config:
     """Configuració global i localització dels centres del backend web"""
 
-    def __init__(self):
+    def __init__(self, *, legacy_config_file=None):
         # ===== CONFIG GLOBAL =====
         base_dir = Path(__file__).resolve().parents[1]
-        self.global_config_file = base_dir / "config" / "config.json"
-        self.global_config_file.parent.mkdir(exist_ok=True)
+        data_root = Path(os.getenv("DATA_DIR", base_dir.parent / "data"))
+        self.global_config_file = Path(os.getenv("APP_CONFIG_PATH", data_root / "config.json"))
+        # Compatibilitat de lectura mentre es trasllada la configuració antiga.
+        self.legacy_global_config_file = (
+            Path(legacy_config_file) if legacy_config_file is not None else base_dir / "config" / "config.json"
+        )
 
         self.global_defaults = {
             "institucio": None,  # None = auto-detectar o mostrar diàleg
@@ -35,8 +39,9 @@ class Config:
 
     def load_global(self):
         """Carrega configuració global"""
-        if self.global_config_file.exists():
-            with open(self.global_config_file, "r", encoding="utf-8") as f:
+        source = self.global_config_file if self.global_config_file.exists() else self.legacy_global_config_file
+        if source.exists():
+            with open(source, "r", encoding="utf-8") as f:
                 data = json.load(f)
             self.global_data = {**self.global_defaults, **data}
         else:
@@ -45,6 +50,7 @@ class Config:
 
     def save_global(self):
         """Desa configuració global"""
+        self.global_config_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.global_config_file, "w", encoding="utf-8") as f:
             json.dump(self.global_data, f, indent=2, ensure_ascii=False)
 
@@ -54,7 +60,10 @@ class Config:
 
     def __setattr__(self, key, value):
         """Les claus de la configuració global van a global_data"""
-        if key in {"global_config_file", "global_defaults", "global_data"} or key not in self.global_defaults:
+        if (
+            key in {"global_config_file", "legacy_global_config_file", "global_defaults", "global_data"}
+            or key not in self.global_defaults
+        ):
             object.__setattr__(self, key, value)
         else:
             self.global_data[key] = value

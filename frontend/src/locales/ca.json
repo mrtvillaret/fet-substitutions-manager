@@ -573,6 +573,7 @@
         "warnings": "⚠️ AVISOS:",
         "appliedChanges": "🔄 CANVIS APLICATS:",
         "totalIssues": "Total: {count} problema detectat | Total: {count} problemes detectats",
+        "showInformational": "Mostra'n {count} d'informatiu | Mostra'n {count} d'informatius",
         "confirmImportant": "Confirmo que vull imprimir amb problemes importants.",
         "continueQuestion": "🔍 Vols continuar amb l'exportació del PDF?",
         "reassign": "Reassigna"

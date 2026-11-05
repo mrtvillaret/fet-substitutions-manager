@@ -1,0 +1,9 @@
+{
+  "data": [
+    "CREATE TABLE exam_schedules (\n\tid INTEGER NOT NULL, \n\tnom VARCHAR, \n\tdata_generacio DATETIME, \n\tdies_seleccionats TEXT NOT NULL, \n\thorari_resultat TEXT NOT NULL, \n\tcost_total INTEGER, \n\tsubstitucions_eso INTEGER, \n\tconflictes_detectats TEXT, \n\tusuari_generador VARCHAR, \n\testat VARCHAR, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+    "CREATE TABLE configuracio_assignatures (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tgrup VARCHAR, \n\taula VARCHAR, \n\ttitular VARCHAR NOT NULL, \n\tordre INTEGER, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+    "CREATE INDEX idx_config_assignatures ON configuracio_assignatures (assignatura, grup, aula)",
+    "CREATE TABLE users (\n\tid INTEGER NOT NULL, \n\tusername VARCHAR NOT NULL, \n\tpassword_hash VARCHAR NOT NULL, \n\tinstitucio VARCHAR NOT NULL, \n\trole VARCHAR, \n\tactive BOOLEAN, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id), \n\tUNIQUE (username)\n)"
+  ],
+  "auth": []
+}

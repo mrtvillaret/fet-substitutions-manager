@@ -194,8 +194,13 @@ cobertura efectiva i missatge traduït. Pantalla, revisió prèvia i els dos
 PDF que inclouen vigilàncies fan servir aquests mateixos problemes. En filtrar
 nivells es conserven els conflictes amb files d’altres nivells si afecten la
 tria. Els avisos de l’interval es calculen per dia amb la mateixa funció.
-L’exportació d’interval no té diàleg de revisió prèvia: els problemes es
-mostren només impresos dins del PDF.
+L’alliberament d’un vigilant no genera cap problema informatiu. Als dos
+diàlegs previs del PDF, els informatius es mostren plegats dins de
+«Mostra'n N d'informatius»,
+amb el recompte complet i sense límit. S'hi pot continuar sense confirmar.
+Els dos PDF diaris amb vigilàncies i el d'interval només imprimeixen els
+problemes importants i els avisos; mai els informatius. L'interval es
+continua descarregant directament, sense diàleg de revisió prèvia.
 
 Una fila de cobertura buida no cobreix la classe. El substitut de classe ha
 de ser present, sense classe pendent i sense una altra feina simultània.
@@ -206,4 +211,4 @@ les absències es continuen comprovant per hora. Desar continua permès.
 Als PDF diaris, imprimir amb problemes importants requereix marcar la
 confirmació explícita del diàleg. La confirmació es reinicia en cada revisió
 i cancel·lació; els avisos i la informació no l’exigeixen. L’interval
-continua descarregant directament amb els problemes impresos.
+continua descarregant directament amb els importants i avisos impresos.
