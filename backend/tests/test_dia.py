@@ -1,5 +1,5 @@
 """
-serveis.dia.Dia: un dia per a un centre i l'horari (XML) vigent aquell dia.
+horari.domain.Dia: un dia per a un centre i l'horari (XML) vigent aquell dia.
 """
 
 from datetime import date
@@ -8,7 +8,7 @@ import pytest
 from suport_rellotge import AVUI
 from suport_xml import amb_horari_futur, dia, professor_que_plega
 
-from serveis.dia import Dia
+from horari.domain import Dia
 
 
 @pytest.fixture
@@ -39,3 +39,26 @@ def test_els_gestors_son_nous_a_cada_crida(centre):
     d = Dia(dia(1), centre)
     assert d.gestors()[0] is not d.gestors()[0]
     assert d.gestors()[1] is d.horari  # l'horari sí (memòria cau)
+
+
+def test_una_sola_lectura_de_versio_i_horari_per_dia(centre, monkeypatch):
+    from horari import domain as modul
+    from horari.repositories import XMLVersionRepository
+
+    lectures = {"versio": 0, "horari": 0}
+    vigent, get_horari = XMLVersionRepository.vigent, modul.get_horari
+
+    def versio(*args, **kwargs):
+        lectures["versio"] += 1
+        return vigent(*args, **kwargs)
+
+    def horari(*args, data_iso, **kwargs):
+        lectures["horari"] += 1
+        return get_horari(*args, data_iso=data_iso, **kwargs)
+
+    monkeypatch.setattr(XMLVersionRepository, "vigent", versio)
+    monkeypatch.setattr(modul, "get_horari", horari)
+    d = Dia(dia(1), centre)
+    assert d.gestors()[1] is d.horari
+    assert d.xml_path and d.versio_des_de
+    assert lectures == {"versio": 1, "horari": 1}

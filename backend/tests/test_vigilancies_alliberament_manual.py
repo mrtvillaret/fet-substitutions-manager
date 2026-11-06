@@ -3,8 +3,9 @@
 import pytest
 from test_vigilancies_assignacio import DATA, URL, _centre, _pendents, _titulars, _vigilants
 
-from core.alliberats import clau_professor
 from database import get_data_db_session
+from grups.disponibilitat import clau_professor
+from horari.domain import Dia
 from substitucions.domain import DiaEscolar
 from vigilancies.analisi import analitza_vigilancies
 
@@ -47,7 +48,7 @@ def test_examen_no_allibera_automatic_ni_revisio_ni_selector(marca):
     )
     # Sense fila de cobertura, la revisió ha de veure la classe real.
     with get_data_db_session(centre) as db:
-        dia = DiaEscolar(db, DATA, centre)
+        dia = DiaEscolar(db, Dia.de_text(DATA, centre))
         dia.files = []
         problemes = analitza_vigilancies(dia)
         assert any(p["tipus"] == "classe_sense_cobertura" for p in problemes) == (marca is None)

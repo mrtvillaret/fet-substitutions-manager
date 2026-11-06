@@ -1348,3 +1348,11 @@ msgstr "ℹ️ {hora}: Sorvegliante {vigilant} ha un’attività senza gruppo ({
 #: substitucions/encadenades.py
 msgid "L'encadenada de les {hora} la cobreix {substitut}, que deixa sense cobrir {activitat}"
 msgstr "La sostituzione concatenata delle {hora} è coperta da {substitut}, che lascia scoperta {activitat}"
+
+#: horari/services.py
+msgid "L'XML d'horari ha de contenir almenys un professor, un dia i una hora"
+msgstr "L'XML dell'orario deve contenere almeno un docente, un giorno e un'ora"
+
+#: substitucions/services.py
+msgid "❌ {substitut} no és un professor de l’horari d’aquell dia"
+msgstr "❌ {substitut} non è un docente dell'orario di quel giorno"

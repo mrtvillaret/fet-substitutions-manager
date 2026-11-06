@@ -53,11 +53,11 @@ from suport_planificador import alliberaments
 from auth import security
 from config.auth import get_config_auth
 from config.settings import config
+from configuracio.repositories import ConfiguracioRepository
 from database import DATA_BASE_DIR, AuthSessionLocal, get_data_db_session
-from helpers import avui, get_horari, invalidar_horari
+from horari.context import avui, get_horari, invalidar_horari
 from models import User
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 DATA = "2026-10-26"  # dilluns amb substitucions i vigilàncies (les crea _prepara)
 DIA_A_PURGAR = "2026-09-07"  # amb substitucions, perquè la purga hi tingui què esborrar
@@ -946,7 +946,7 @@ def entorn():
         _prepara(clients["admin_a"], "MARCAA")
         _prepara(clients["admin_b"], "MARCAB")
         # La primera càrrega de l'horari d'avui sincronitza la taula de professors
-        # (helpers.get_horari): que no ho faci la primera ruta de l'inventari que el llegeixi
+        # (horari.context.get_horari): que no ho faci la primera ruta de l'inventari que el llegeixi
         for centre in (a, b):
             invalidar_horari(centre)
             get_horari(centre, data_iso=avui())

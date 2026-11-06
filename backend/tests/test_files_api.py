@@ -18,11 +18,11 @@ from suport_api import (
 )
 from suport_rellotge import AVUI
 
+from configuracio.repositories import ConfiguracioRepository
 from database import DATA_BASE_DIR, get_data_db_session, get_data_dir_for_institucio
 from horari import router as horari
 from horari.repositories import XMLVersionRepository
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 APP = crea_app(horari.router_admin)
 URL = "/api/files/upload-xml"
@@ -159,7 +159,7 @@ def test_el_nom_del_fitxer_no_permet_escriure_fora_de_la_institucio(client, cent
     xml_altre = get_data_dir_for_institucio(altre) / "teachers.xml"
     abans = xml_altre.read_bytes()
 
-    resp = _puja(client, nom=nom_maliciós.format(altre=altre), contingut=b"<fals/>")
+    resp = _puja(client, nom=nom_maliciós.format(altre=altre), contingut=XML)
     assert resp.status_code == 200
     assert resp.json()["filename"] == "teachers.xml" or resp.json()["filename"].endswith(".xml")
 

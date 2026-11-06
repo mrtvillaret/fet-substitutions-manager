@@ -15,16 +15,16 @@ from dataclasses import dataclass, field
 
 from configuracio_examens.repositories import MasterConfigRepository
 from database import get_data_db_session
+from dates import parse_date
 from errors_domini import NoValid
 from errors_servidor import registra_excepcio
 from grups.repositories import GrupsAlliberatsRepository
+from horari.domain import Dia
+from horari.hores import normalitzar_hora
 from planificador.config import carrega_config
 from planificador.services import cursos_anteriors
-from repositories import parse_date
 from scheduler_engine.core.constraints import detectar_nivell_grup
-from serveis.dia import Dia
 from substitucions.repositories import SubstitucioRepository
-from utils.hores import normalitzar_hora
 from vigilancies.assignacio import titulars_de
 from vigilancies.domain import nivell_obligatori
 from vigilancies.repositories import VigilanciaRepository
@@ -317,7 +317,7 @@ def publica(payload, institucio: str, avui: str) -> dict:
     """Publica l'horari generat com a vigilàncies (i grups sense classe) de
     cada data; opcionalment hi posa els titulars. En prova (`dry_run`) o si
     falla algun dia, no desa res."""
-    horari = payload.horari
+    horari = payload.horari.model_dump(exclude_unset=True, by_alias=True)
     setmanes = payload.setmanes
     grups_sense_classe = payload.grups_sense_classe or []
     opcions = payload.opcions
@@ -330,7 +330,7 @@ def publica(payload, institucio: str, avui: str) -> dict:
 
     dates_horari = [d.get("data") for d in horari["dies"] if isinstance(d, dict) and d.get("data")]
     dates_horari += [v for setmana in setmanes for v in setmana.values() if isinstance(v, str)]
-    with get_data_db_session(institucio) as db:
+    with get_data_db_session(institucio, lectura=True) as db:
         anterior = cursos_anteriors(db, dates_horari, avui)
     if anterior:
         raise NoValid(

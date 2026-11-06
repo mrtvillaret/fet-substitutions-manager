@@ -6,8 +6,8 @@ absent. Després es treuen els substituts que ja no poden ser-ho.
 
 from datetime import datetime
 
-from helpers import get_gestors
 from substitucions.cobertures import refresca_cobertures
+from substitucions.context import get_gestors
 from substitucions.domain import treu_substituts_no_valids
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import sincronitzar_vigilancies_absents
@@ -42,7 +42,7 @@ def desa_absencies(
     les hores donades; None vol dir que aquell tipus no es toca. `gestors`:
     (horari, absencies) si ja es tenen."""
     if gestors is None:
-        _, horari, _, absencies = get_gestors(data_iso=data)
+        _, horari, _, absencies = get_gestors(db.info.get("institucio"), data_iso=data)
     else:
         horari, absencies = gestors
     if dia_name is None:

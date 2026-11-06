@@ -46,9 +46,9 @@ def test_recarrega_bd_buida_dona_tot_buit(db_session):
 def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     # Aquests mòduls fan "from config.constants import ..." en carregar-se:
     # la recàrrega ha d'omplir els mateixos objectes, no crear-ne de nous.
-    import core.absencies
-    import core.vigilancia_assignacio
     import pdf.disponibles
+    import substitucions.necessitats
+    import vigilancies.prioritats
 
     cat = CategoriaPrioritatRepository.create(db_session, "Guàrdies", ordre=0, activa=True)
     AssignaturaPrioritatRepository.create(db_session, "Guàrdia", cat, pes=4)
@@ -57,9 +57,9 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     carrega_prioritats(db_session)
 
     assert dict(constants.PRIORITATS) == {"Guàrdia": 4}  # ja cap mòdul no la importa en carregar-se
-    for modul in (core.vigilancia_assignacio, pdf.disponibles):
+    for modul in (vigilancies.prioritats, pdf.disponibles):
         assert modul.ORDRE_PRIORITATS == [["Guàrdia"]], modul.__name__
-    assert core.absencies.NO_SUBST == {"Reunió"}
+    assert substitucions.necessitats.NO_SUBST == {"Reunió"}
 
 
 def test_recarrega_construeix_ordre_i_pesos(db_session):

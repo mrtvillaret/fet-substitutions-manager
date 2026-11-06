@@ -17,6 +17,7 @@ from suport_rellotge import AVUI
 
 from absencia_coberta.repositories import AbsenciaCobertaRepository
 from absencia_coberta.router import router as absencia_coberta_router
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session
 from models import ConfiguracioExamen, Grup, GrupAlliberat, Nivell
 from planificador import router as scheduler
@@ -28,7 +29,6 @@ from planificador.repositories import (
     SCHEDULER_NIVELLS_KEY,
 )
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 

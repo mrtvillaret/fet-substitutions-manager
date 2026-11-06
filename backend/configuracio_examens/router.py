@@ -45,7 +45,7 @@ from configuracio_examens.schemas import (
 )
 from dependencies import dia_de_la_planificacio, get_db
 from errors_domini import MissingXmlError
-from serveis.dia import Dia
+from horari.domain import Dia
 
 router = APIRouter(prefix="/api/config", tags=["Configuració Exàmens"])
 

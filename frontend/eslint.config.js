@@ -30,12 +30,6 @@ export default [
     },
   },
   {
-    // La plantilla és externa (<template src>) i ESLint no veu què s'hi fa
-    // servir: totes les variables del script semblen sense ús.
-    files: ['src/views/SchedulerView.vue'],
-    rules: { 'no-unused-vars': 'off' },
-  },
-  {
     // El botó d'acceptar de les confirmacions d'esborrar, sempre vermell i
     // des d'un sol lloc: useConfirmaEsborrar (composables/useConfirmaEsborrar.js).
     files: ['src/**/*.{js,vue}'],

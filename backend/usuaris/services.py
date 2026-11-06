@@ -10,16 +10,16 @@ from auth.repositories import UserRepository
 from auth.security import hash_password
 from auth.services import comprova_no_protegit, valida_contrasenya
 from config.settings import config
-from database import get_data_db_session
+from configuracio.repositories import ConfiguracioRepository
+from database import get_data_db_session, inicia_escriptura
 from errors_domini import Conflicte, NoPermes, NoTrobat, NoValid
 from models import User
-from repositories import ConfiguracioRepository
 
 
 def _noms_visibles(institucions) -> dict[str, str]:
     noms = {}
     for institucio in institucions:
-        with get_data_db_session(institucio) as data_db:
+        with get_data_db_session(institucio, lectura=True) as data_db:
             noms[institucio] = ConfiguracioRepository.nom_visible_institucio(data_db, institucio)
     return noms
 
@@ -117,6 +117,7 @@ def _comprova_que_el_centre_conserva_un_admin(db: Session, user: User, despres: 
 def crea_usuari(
     db: Session, current_user: UsuariActual, username: str, password: str, institucio: Optional[str], role: str
 ) -> User:
+    inicia_escriptura(db)
     role = role or Rol.USER
     _comprova_rol(role)
     institucio = institucio or current_user.institucio
@@ -141,6 +142,7 @@ def edita_usuari(db: Session, current_user: UsuariActual, user_id: int, canvis: 
     siguin None no es toquen). Retorna l'usuari i si cal renovar el testimoni
     de qui fa la petició: l'admin que es canvia la seva contrasenya no surt de
     la sessió (les altres, sí: una contrasenya nova les tanca totes)."""
+    inicia_escriptura(db)
     user = _usuari_a_gestionar(db, user_id)
     if user.role == Rol.SUPER_ADMIN:
         raise NoPermes("No es pot editar el superadmin", codi="superadmin_intocable")
@@ -185,6 +187,7 @@ def edita_usuari(db: Session, current_user: UsuariActual, user_id: int, canvis: 
 
 
 def desactiva_usuari(db: Session, current_user: UsuariActual, user_id: int) -> None:
+    inicia_escriptura(db)
     user = _usuari_a_gestionar(db, user_id)
     if user.role == Rol.SUPER_ADMIN:
         raise NoPermes("No es pot desactivar el superadmin", codi="superadmin_intocable")
@@ -200,6 +203,7 @@ def desactiva_usuari(db: Session, current_user: UsuariActual, user_id: int) -> N
 
 def elimina_usuari(db: Session, current_user: UsuariActual, user_id: int) -> None:
     """Només el superadmin (la ruta ho exigeix)."""
+    inicia_escriptura(db)
     user = _usuari_a_gestionar(db, user_id)
     if user.role == Rol.SUPER_ADMIN:
         raise NoPermes("No es pot eliminar el superadmin", codi="superadmin_intocable")

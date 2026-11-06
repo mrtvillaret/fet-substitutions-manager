@@ -740,3 +740,11 @@ msgstr "ℹ️ {hora}: Invigilator {vigilant} has an activity without a group ({
 #: substitucions/encadenades.py
 msgid "L'encadenada de les {hora} la cobreix {substitut}, que deixa sense cobrir {activitat}"
 msgstr "The chained substitution at {hora} is covered by {substitut}, leaving {activitat} uncovered"
+
+#: horari/services.py
+msgid "L'XML d'horari ha de contenir almenys un professor, un dia i una hora"
+msgstr "The timetable XML must contain at least one teacher, one day and one hour"
+
+#: substitucions/services.py
+msgid "❌ {substitut} no és un professor de l’horari d’aquell dia"
+msgstr "❌ {substitut} is not a teacher in that day's timetable"

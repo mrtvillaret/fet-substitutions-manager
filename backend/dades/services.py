@@ -26,11 +26,11 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from configuracio.repositories import ConfiguracioRepository
 from dades.repositories import ProfessorsRepository, PurgaRepository
 from database import get_data_dir_for_institucio, get_export_dir_for_institucio
 from errors_domini import NoValid
 from horari.repositories import XMLVersionRepository
-from repositories import ConfiguracioRepository
 
 log = logging.getLogger(__name__)
 
@@ -287,7 +287,7 @@ def executar_purga(
                 carpeta = data_dir.resolve()
                 fpath = (carpeta / v.path).resolve()
                 if not fpath.is_relative_to(carpeta):
-                    # Només els fitxers del centre (com a helpers._resolve_xml_path)
+                    # Només els fitxers del centre (com a horari.context._resolve_xml_path)
                     errors.append(f"XML {v.path}: fora de la carpeta del centre, no s'esborra")
                 else:
                     fitxers_xml.append((fpath, v.path))

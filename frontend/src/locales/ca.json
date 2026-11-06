@@ -638,7 +638,8 @@
       "classe": "té classe amb {grup}",
       "absent": "és absent",
       "baixa": "té una absència coberta",
-      "vigilancia": "vigila un examen"
+      "vigilancia": "vigila un examen",
+      "fora_horari": "no és a l’horari d’aquell dia"
     },
     "table": {
       "rowsInBlock": "{count} substitució | {count} substitucions",

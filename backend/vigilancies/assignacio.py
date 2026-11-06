@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from repositories import ConfiguracioRepository
+from configuracio.repositories import ConfiguracioRepository
 
 VIGILANCIES_AFINITATS_KEY = "vigilancies_afinitats"
 AULA_ENLLAC = "ENLLAÇ"

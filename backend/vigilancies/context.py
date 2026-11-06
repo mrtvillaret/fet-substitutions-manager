@@ -4,6 +4,15 @@ Contains all non-UI logic for exam vigilance assignment.
 """
 
 import logging
+from datetime import datetime
+
+from sqlalchemy.orm import Session
+
+from configuracio_examens.repositories import ConfiguracioExamenRepository
+from grups.repositories import GrupsAlliberatsRepository
+from horari.context import _get_institucio_actual
+from substitucions.context import get_gestors
+from substitucions.repositories import SubstitucioRepository
 
 log = logging.getLogger(__name__)
 
@@ -77,3 +86,60 @@ class VigilanciaCore:
             return False
 
         return True
+
+
+def get_vigilancia_core(data: str, db: Session = None, institucio: str = None, *, horari=None) -> VigilanciaCore:
+    """Crea i configura VigilanciaCore per una data específica"""
+    instit = institucio or _get_institucio_actual()
+
+    core = VigilanciaCore()
+
+    # Obtenir gestors
+    _, horari, alliberats, _ = get_gestors(instit, data_iso=data, horari=horari)
+
+    # Validar que tenim sessió de base de dades (obligatori)
+    if not db:
+        raise ValueError("get_vigilancia_core() requereix sessió de base de dades (db)")
+
+    # Carregar configuració d'exàmens des de SQLite
+    assignatures_config = ConfiguracioExamenRepository.get_all_as_dict(db)
+    date_obj = datetime.strptime(data, "%Y-%m-%d")
+
+    substitucions_data = SubstitucioRepository.get_by_date(db, data)
+    absents = {}
+    absents_tipus = {}
+
+    for sub in substitucions_data:
+        professor = sub.get("professor_absent", "")
+        hora = sub.get("hora", "")
+        tipus_abs = sub.get("tipus_absencia", "") or "ABSENCIA"
+
+        if tipus_abs in ["VIGILANCIA", "ENCADENADA"]:
+            continue
+
+        if professor and hora:
+            if professor not in absents:
+                absents[professor] = []
+                absents_tipus[professor] = tipus_abs
+            if hora not in absents[professor]:
+                absents[professor].append(hora)
+
+    # Grups sense classe (Des de SQLite)
+    grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
+
+    # Dia de la setmana
+    weekday_idx = date_obj.weekday()
+    dia_name = horari.get_dia_name(weekday_idx)
+
+    # Configurar core
+    core.set_config(
+        assignatures_config=assignatures_config,
+        professors=sorted(horari.professors),
+        absents_actuals=absents,
+        horari_gestor=horari,
+        alliberats_gestor=alliberats,
+        grups_sense_classe=grups_sense_classe,
+        dia_actual=dia_name,
+    )
+
+    return core

@@ -62,13 +62,12 @@ class GestorHorariWeb:
             self._grups_amagats = set()
             return self._grups_amagats
         try:
-            with get_data_db_session(self.institucio) as db:
+            with get_data_db_session(self.institucio, lectura=True) as db:
                 self._grups_amagats = set(GrupsAmagatsRepository.get_all(db))
                 return self._grups_amagats
         except Exception as e:
-            log.warning(f"⚠️  Error carregant grups amagats de BD: {e}")
-            self._grups_amagats = set()
-            return self._grups_amagats
+            log.exception(f"⚠️  Error carregant grups amagats de BD: {e}")
+            raise
 
     def _carregar_abreviatures_bd(self) -> Dict[str, str]:
         """Carrega abreviatures des de la base de dades SQLite"""
@@ -82,15 +81,15 @@ class GestorHorariWeb:
             self._abreviatures_cache = {}
             return self._abreviatures_cache
         try:
-            with get_data_db_session(self.institucio) as db:
+            with get_data_db_session(self.institucio, lectura=True) as db:
                 abreviatures_list = AbreviaturaGrupRepository.get_all(db)
                 # Convertir a diccionari {grups_originals: abreviatura}
                 self._abreviatures_cache = {item["grups_originals"]: item["abreviatura"] for item in abreviatures_list}
                 log.debug(f"✅ Carregades {len(self._abreviatures_cache)} abreviatures de grups des de BD")
                 return self._abreviatures_cache
         except Exception as e:
-            log.warning(f"⚠️  Error carregant abreviatures de BD: {e}")
-            return {}
+            log.exception(f"⚠️  Error carregant abreviatures de BD: {e}")
+            raise
 
     def _normalitzar_llista_grups(self, grups_string: str) -> str:
         """Normalitza una llista de grups separats per comes ordenant-los alfabèticament"""

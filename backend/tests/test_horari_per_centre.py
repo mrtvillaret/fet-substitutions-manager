@@ -58,7 +58,7 @@ def test_les_abreviatures_del_planificador_son_les_del_centre_de_la_peticio():
     # utils/grups_utils (l'informe de professors per franja del planificador)
     # agafava les abreviatures del centre per defecte del servidor
     from config.context import fixa_institucio_peticio
-    from utils.grups_utils import aplicar_abreviatura_grup
+    from grups.abreviatures import aplicar_abreviatura_grup
 
     centres = []
     for abreviatura in ("1-ESO-X", "1-ESO-Y"):
@@ -83,8 +83,8 @@ def test_canviar_les_abreviatures_buida_la_memoria_cau_del_planificador_del_cent
     # centre per defecte: després d'editar una abreviatura, l'informe feia
     # servir l'antiga fins que es reiniciava el servidor
     from config.context import fixa_institucio_peticio
+    from grups import abreviatures as grups_utils
     from grups.router import router_admin as grups_admin_router
-    from utils import grups_utils
 
     app = crea_app()
     app.include_router(grups_admin_router, dependencies=[Depends(require_admin)])
@@ -119,8 +119,8 @@ def test_canviar_les_abreviatures_buida_la_memoria_cau_del_planificador_del_cent
 
 def test_canviar_les_abreviatures_nomes_buida_l_horari_del_centre():
     # Abans es buidava la memòria cau de l'horari de tots els centres
-    import helpers
     from grups.router import router_admin as grups_admin_router
+    from horari import context as horari_context
 
     app = crea_app()
     app.include_router(grups_admin_router, dependencies=[Depends(require_admin)])
@@ -129,20 +129,20 @@ def test_canviar_les_abreviatures_nomes_buida_l_horari_del_centre():
     usuari = f"admin_{uuid.uuid4().hex[:8]}"
     crea_usuari(usuari, centre, "admin")
     client = entra(client_per(app), usuari)
-    de_l_altre = helpers.get_horari(altre, data_iso=DATA)
-    del_centre = helpers.get_horari(centre, data_iso=DATA)
+    de_l_altre = horari_context.get_horari(altre, data_iso=DATA)
+    del_centre = horari_context.get_horari(centre, data_iso=DATA)
 
     creada = client.post(
         "/api/config/abreviatures", json={"grups_originals": "1-ESO-A,1-ESO-B", "abreviatura": "1-ESO-X"}
     )
     assert creada.status_code == 200
-    assert helpers.get_horari(altre, data_iso=DATA) is de_l_altre
-    assert helpers.get_horari(centre, data_iso=DATA) is not del_centre
+    assert horari_context.get_horari(altre, data_iso=DATA) is de_l_altre
+    assert horari_context.get_horari(centre, data_iso=DATA) is not del_centre
 
     for metode, cos in (("put", {"abreviatura": "1-ESO-Y"}), ("delete", None)):
-        de_l_altre = helpers.get_horari(altre, data_iso=DATA)
+        de_l_altre = horari_context.get_horari(altre, data_iso=DATA)
         resposta = getattr(client, metode)(
             f"/api/config/abreviatures/{creada.json()['id']}", **({"json": cos} if cos else {})
         )
         assert resposta.status_code == 200
-        assert helpers.get_horari(altre, data_iso=DATA) is de_l_altre
+        assert horari_context.get_horari(altre, data_iso=DATA) is de_l_altre

@@ -35,9 +35,31 @@ def _create_engine(db_path: Path):
         # (p.ex. nivell -> grups/assignatures) no fan res.
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA busy_timeout=30000")
         cursor.close()
 
+    @event.listens_for(engine, "begin")
+    def _comenca_transaccio(connection):
+        opcions = connection.get_execution_options()
+        if not opcions.get("sqlite_lectura", False) and not opcions.get("sqlite_manual_begin", False):
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+
     return engine
+
+
+def inicia_escriptura(db: Session) -> None:
+    """Rellegir les regles dins d'una transacció d'escriptura, també a auth.
+
+    Auth havia llegit l'usuari per autenticar-lo. Allibera aquella lectura
+    abans de reservar l'escriptura; mai descarta mutacions pendents.
+    """
+    bind = db.get_bind()
+    if bind.get_execution_options().get("sqlite_lectura", False):
+        if db.new or db.dirty or db.deleted:
+            raise RuntimeError("No es pot canviar una sessió amb canvis pendents a escriptura")
+        db.rollback()
+        db.bind = bind.execution_options(sqlite_lectura=False)
+    db.connection()  # l'esdeveniment begin obté el bloqueig abans de validar
 
 
 def get_auth_db_path() -> Path:
@@ -88,17 +110,19 @@ def get_engine_for_institucio(institucio: str):
 
 
 def get_auth_db() -> Session:
-    db = AuthSessionLocal()
+    # Autenticar només llegeix. Els serveis que muten auth criden
+    # inicia_escriptura abans de tornar a llegir usuaris i regles.
+    db = AuthSessionLocal(bind=AUTH_ENGINE.execution_options(sqlite_lectura=True))
     try:
         yield db
     finally:
         db.close()
 
 
-def get_data_db(institucio: str):
-    engine = get_engine_for_institucio(institucio)
+def get_data_db(institucio: str, *, lectura: bool = False):
+    engine = get_engine_for_institucio(institucio).execution_options(sqlite_lectura=lectura)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
+    db = SessionLocal(info={"institucio": institucio})
     try:
         yield db
     finally:
@@ -115,10 +139,10 @@ def get_auth_db_session():
 
 
 @contextmanager
-def get_data_db_session(institucio: str):
-    engine = get_engine_for_institucio(institucio)
+def get_data_db_session(institucio: str, *, lectura: bool = False):
+    engine = get_engine_for_institucio(institucio).execution_options(sqlite_lectura=lectura)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
+    db = SessionLocal(info={"institucio": institucio})
     try:
         yield db
     finally:

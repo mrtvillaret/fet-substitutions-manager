@@ -70,7 +70,7 @@ SOLUCIONS_INICIALS_A_COMPARAR = 10
 # reinicis curts que pocs de llargs (cada un acaba en un mínim local diferent)
 REINICIS = 12
 ITERACIONS_SENSE_MILLORA = 2000
-# Temps màxim per començar reinicis nous (un centre gran no ha d'esperar massa)
+# Temps màxim del recuit, comprovat també dins de cada reinici
 SEGONS_MAXIMS_REINICIS = 20
 
 
@@ -847,7 +847,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
 
         inici_sa = time.monotonic()
         for reinici in range(reinicis):
-            if reinici > 0 and time.monotonic() - inici_sa > SEGONS_MAXIMS_REINICIS:
+            if reinici > 0 and time.monotonic() - inici_sa >= SEGONS_MAXIMS_REINICIS:
                 if verbose:
                     print(f"   ⏱️ Temps esgotat després de {reinici} reinicis")
                 break
@@ -877,8 +877,12 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             t, it = self.temperatura_inicial, 0
             sense_millora = 0
 
-            while t > self.temperatura_final and it < _max_iter:
+            while (
+                t > self.temperatura_final and it < _max_iter and time.monotonic() - inici_sa < SEGONS_MAXIMS_REINICIS
+            ):
                 for _ in range(_iter_per_t):
+                    if time.monotonic() - inici_sa >= SEGONS_MAXIMS_REINICIS:
+                        break
                     sv = self._generar_veí(sa)
 
                     # Probabilitat d'acceptació

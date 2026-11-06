@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta
 import rellotge
 from absencia_coberta.repositories import AbsenciaCobertaRepository
 from errors_domini import NoTrobat
+from horari.domain import Dia
 from noms import nom_net
 from substitucions.absencies import desa_absencies
 from substitucions.cobertures import refresca_cobertures
@@ -43,14 +44,13 @@ def _dies_afectats(db, data_inici: str, data_final: str, avui: date) -> list:
     return sorted(d.isoformat() for d in dates)
 
 
-def _gestors_amb_absencies_pendents(db, institucio: str, data_iso: str):
-    """Gestors del dia que veuen també la transacció actual."""
-    from helpers import get_gestors, get_horari
-
-    horari = get_horari(institucio, data_iso=data_iso)
-    horari_sencer = getattr(horari, "sencer", horari)
-    horari_pendent = sense_absents_coberts(horari_sencer, absents_coberts(db, data_iso))
-    return get_gestors(institucio, data_iso=data_iso, horari=horari_pendent)
+def _dia_amb_absencies_pendents(db, institucio: str, data_iso: str) -> Dia:
+    """Dia amb l'horari que veu també la transacció actual."""
+    dia = Dia.de_text(data_iso, institucio)
+    horari_sencer = dia.horari_amb_tothom
+    # La mateixa memòria cau de Dia.horari, amb la vista dels canvis pendents.
+    dia.__dict__["horari"] = sense_absents_coberts(horari_sencer, absents_coberts(db, data_iso))
+    return dia
 
 
 def aplica_absencia_coberta(
@@ -65,7 +65,8 @@ def aplica_absencia_coberta(
         return canvis
 
     for d in _dies_afectats(db, data_inici, data_final, avui or rellotge.avui()):
-        gestors = _gestors_amb_absencies_pendents(db, institucio, d)
+        dia = _dia_amb_absencies_pendents(db, institucio, d)
+        gestors = dia.gestors()
         _, horari, _, absencies = gestors
         hores_absent = sorted(
             {
@@ -85,7 +86,7 @@ def aplica_absencia_coberta(
                 hores_servei=[],
                 gestors=(horari, absencies),
                 gestors_cobertures=gestors,
-                dia_escolar=DiaEscolar(db, d, horari=horari),
+                dia_escolar=DiaEscolar(db, dia),
             )
             canvis["absencies_esborrades"] += [{"data": d, "hora": h} for h in hores_absent]
             canvis["substituts_trets"] += resposta.get("substituts_trets", [])
@@ -102,7 +103,7 @@ def aplica_absencia_coberta(
         for hora in sorted(hores_vigilancia):
             refresca_cobertures(d, hora, db, gestors=gestors)
 
-        dia_escolar = DiaEscolar(db, d, horari=horari)
+        dia_escolar = DiaEscolar(db, dia)
         canvis["substituts_trets"] += [{**fila, "data": d} for fila in treu_substituts_no_valids(db, d, dia_escolar)]
 
     return canvis
@@ -172,7 +173,7 @@ def absencies_cobertes_del_dia(institucio: str, data_iso: str, professors) -> li
     [{professor, data_final}], per nom."""
     from database import get_data_db_session
 
-    with get_data_db_session(institucio) as db:
+    with get_data_db_session(institucio, lectura=True) as db:
         absencies = AbsenciaCobertaRepository.get_all(db)
     resultat = []
     for professor in sorted(professors):
@@ -192,7 +193,6 @@ def classes_sense_substitut(institucio: str, professor: str, data_inici: str, da
     Cada classe surt un cop per dia de la setmana i horari: {dia, hora, grup,
     assignatura}."""
     from errors_domini import MissingXmlError
-    from serveis.dia import Dia
 
     professor = nom_net(professor or "")
     try:

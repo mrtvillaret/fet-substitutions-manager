@@ -7,7 +7,8 @@ importa, perquè dins de cada hora surten en l'ordre en què s'afegeixen.
 import logging
 from collections import defaultdict
 
-from core.alliberats import sense_classe
+from grups.disponibilitat import sense_classe
+from horari.domain import Dia
 from i18n_setup import translate
 from substitucions.domain import DiaEscolar
 from substitucions.encadenades import avisos_encadenades
@@ -108,7 +109,7 @@ def _clau_hora(text: str):
 def valida_dia(db, data: str, institucio: str, avisos_prioritat) -> dict:
     """`avisos_prioritat(dia)`: els avisos de substituts
     que es podrien canviar per un altre de més prioritat."""
-    dia = DiaEscolar(db, data, institucio)
+    dia = DiaEscolar(db, Dia.de_text(data, institucio))
     conflicts, warnings = [], []
 
     problemes = analitza_vigilancies(dia)

@@ -9,6 +9,7 @@ Optimitzacions implementades:
 """
 
 import random
+import time
 from collections import Counter, defaultdict
 from typing import Dict, List, Set, Tuple
 
@@ -28,6 +29,8 @@ from scheduler_engine.core.scoring import calcular_cost_slot
 from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA
 from scheduler_engine.estadistiques import aplicar_estadistiques
 from scheduler_engine.generators.v2_intents import GeneradorV2Intents
+
+SEGONS_MAXIMS_BACKTRACK = 20
 
 # Mapa de nivells a índexs per bitmask
 NIVELL_TO_BIT = {
@@ -61,6 +64,9 @@ def _get_nivell_mask(sessions: List[Dict]) -> int:
 
 
 class GeneradorV2Backtrack(GeneradorV2Intents):
+    def _temps_esgotat(self):
+        return time.monotonic() >= getattr(self, "_termini_bt", float("inf"))
+
     def generar_horari_optimitzat(
         self,
         data_inici: str = None,
@@ -96,6 +102,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         shuffle_top_n=0,
         **kwargs,
     ):
+        self._termini_bt = time.monotonic() + SEGONS_MAXIMS_BACKTRACK
         if dies_utilitzar is None:
             from scheduler_engine.defaults import DIES_SETMANA
 
@@ -117,18 +124,16 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         if seeds_count < 1:
             seeds_count = 1
 
-        if random_seed is None:
-            seed_rng = random.SystemRandom()
-            seeds = [seed_rng.randrange(0, 1_000_000_000) for _ in range(seeds_count)]
-        else:
-            seed_rng = random.Random(random_seed)
-            seeds = [seed_rng.randrange(0, 1_000_000_000) for _ in range(seeds_count)]
+        seed_rng = random.SystemRandom() if random_seed is None else random.Random(random_seed)
 
         self._incompatibilitats_bt = []
         best_cost = float("inf")
         best_solutions = []
 
-        for seed in seeds:
+        for _ in range(seeds_count):
+            if self._temps_esgotat():
+                break
+            seed = seed_rng.randrange(0, 1_000_000_000)
             sols = self._backtrack_with_seed(seed, dies_utilitzar, max_solucions, max_nodes, shuffle_top_n)
             if not sols:
                 continue
@@ -144,6 +149,8 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
 
         resultats = []
         for cost, s_occ in totes_solucions or []:
+            if resultats and self._temps_esgotat():
+                break
             h = self._construir_horari_desde_slots(s_occ, None, dies_utilitzar)
             h["metadata"].update({"cost_total": cost, "motor": "v2-backtrack"})
             resultats.append(h)
@@ -184,11 +191,15 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         # =============================================================
         items_info = []
         for item in items:
+            if self._temps_esgotat():
+                return []
             slots_costs = {}
             # Professors comptats a cada franja (per no tornar-los a comptar si un
             # altre bloc de la mateixa franja els fa deixar la mateixa classe)
             slots_claus = {}
             for sk in slots_disp:
+                if self._temps_esgotat():
+                    return []
                 _idx = sk.rfind("_")
                 prefix, h = sk[:_idx], sk[_idx + 1 :]
                 d, data_iso_bt = _parse_prefix(prefix)  # d = dia_nom per restriccions
@@ -255,9 +266,13 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             # Detectar raó principal per cada ítem exclòs (primera vegada, les seeds posteriors ometen)
             if not self._incompatibilitats_bt:
                 for item in exclosos_items:
+                    if self._temps_esgotat():
+                        return []
                     nom = item.get("nom", "?")
                     raons: Counter = Counter()
                     for sk in slots_disp:
+                        if self._temps_esgotat():
+                            return []
                         _idx_sk = sk.rfind("_")
                         prefix_sk, h_sk = sk[:_idx_sk], sk[_idx_sk + 1 :]
                         d_sk, _ = _parse_prefix(prefix_sk)
@@ -286,9 +301,13 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         compat_matrix = [[True] * num_items_valid for _ in range(num_items_valid)]
 
         for i in range(num_items_valid):
+            if self._temps_esgotat():
+                return []
             item_i = items_info[i]
             mask_i = item_i["nivell_mask"]
             for j in range(i + 1, num_items_valid):
+                if self._temps_esgotat():
+                    return []
                 item_j = items_info[j]
                 mask_j = item_j["nivell_mask"]
 
@@ -322,6 +341,8 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         # Reconstruir matriu amb nous índexs
         new_compat = [[True] * num_items_valid for _ in range(num_items_valid)]
         for i, it_i in enumerate(items_info):
+            if self._temps_esgotat():
+                return []
             for j, it_j in enumerate(items_info):
                 old_i, old_j = it_i["id"], it_j["id"]
                 new_compat[i][j] = compat_matrix[old_i][old_j]
@@ -358,6 +379,8 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             assigned_dia, _ = _parse_prefix(assigned_prefix)  # nom del dia
 
             for other_idx in range(assigned_idx + 1, num_items_valid):
+                if self._temps_esgotat():
+                    return changes
                 if item_assigned_slot[other_idx] is not None:
                     continue  # Ja assignat
 
@@ -390,6 +413,8 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 remaining_slots[other_idx] |= removed
 
         def backtrack(idx: int, cost_ac: float):
+            if self._temps_esgotat():
+                return
             nodes[0] += 1
             if nodes[0] > max_nodes or cost_ac >= millor_c[0]:
                 return
@@ -437,6 +462,8 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             ]
 
             for sk, base_cost in slots_to_try:
+                if self._temps_esgotat():
+                    return
                 # Verificar compatibilitat amb bitmask (O(1))
                 if slot_nivell_mask[sk] & nivell_mask:
                     continue  # Conflicte de nivell
@@ -544,7 +571,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             print(f"   ⚠️ Límit de nodes assolit ({max_nodes}), backtrack tallat")
         print(f"   📊 Nodes explorats: {nodes[0]}, solucions trobades: {len(totes_solucions)}")
         # Si no hi ha solucions i hi ha un dead-end contextual, guardar-lo (Fase 3)
-        if not totes_solucions and deepest_deadend[1] and not self._incompatibilitats_bt:
+        if not self._temps_esgotat() and not totes_solucions and deepest_deadend[1] and not self._incompatibilitats_bt:
             label = deepest_deadend[1]
             # Detectar motiu estructural (sense context), igual que v3-SA
             deadend_item = next((ii for ii in items_info if ii["label"] == label), None)

@@ -15,10 +15,10 @@ from sqlalchemy.exc import OperationalError
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from configuracio import router as configuracio
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from models import Configuracio
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 APP = crea_app(configuracio.router)
 URL = "/api/files/upload-logo"
@@ -150,8 +150,12 @@ def _logo_a_la_carpeta(centre):
 def test_si_la_bd_no_es_pot_llegir_es_fa_servir_el_logo_de_la_carpeta(client, centre, monkeypatch, caplog):
     _logo_a_la_carpeta(centre)
 
-    def bd_que_falla(*_args, **_kwargs):
-        raise OperationalError("SELECT", {}, Exception("database is locked"))
+    lectura_real = ConfiguracioRepository.get
+
+    def bd_que_falla(db, clau):
+        if clau == "logo_path":
+            raise OperationalError("SELECT", {}, Exception("database is locked"))
+        return lectura_real(db, clau)
 
     monkeypatch.setattr(ConfiguracioRepository, "get", bd_que_falla)
 

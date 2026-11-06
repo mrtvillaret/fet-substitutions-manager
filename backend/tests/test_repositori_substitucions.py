@@ -50,7 +50,9 @@ def test_esborrar_i_rollback_conserva_la_fila(db_session):
 def test_una_altra_sessio_no_veu_els_canvis_sense_commit(db_session):
     creada = SubstitucioRepository.create(db_session, _fila())
 
-    Sessio = sessionmaker(autocommit=False, autoflush=False, bind=db_session.bind)
+    Sessio = sessionmaker(
+        autocommit=False, autoflush=False, bind=db_session.bind.execution_options(sqlite_lectura=True)
+    )
     with Sessio() as altra:
         assert SubstitucioRepository.get_by_date(altra, DATA) == []
 

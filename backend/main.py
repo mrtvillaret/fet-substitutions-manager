@@ -26,6 +26,7 @@ from auth.router import router as auth_router
 from auth.security import decode_access_token, get_auth_token, registra_renovacio_sessio
 from auth.services import crea_usuaris_inicials
 from centres.router import router as centres_router
+from config.access_log import configure_access_logger, request_route
 from config.auth import get_config_auth
 from configuracio.router import router as configuracio_router
 from configuracio_examens.router import router as config_examens_router
@@ -51,8 +52,7 @@ from vigilancies.router import router as vigilancies_router
 from vigilancies.router import router_admin as vigilancies_admin_router
 
 log = logging.getLogger(__name__)
-access_logger = logging.getLogger("uvicorn.error")
-access_logger.setLevel(logging.INFO)
+access_logger = configure_access_logger()
 
 # Crear taules si no existeixen
 create_auth_tables()
@@ -70,7 +70,7 @@ def _inicialitzar_prioritats():
 
     try:
         institucio = os.getenv("APP_INSTITUCIO") or config.global_data.get("institucio") or "exemple"
-        with get_data_db_session(institucio) as db:
+        with get_data_db_session(institucio, lectura=True) as db:
             carrega_prioritats(db)
     except Exception as e:
         log.warning(f"⚠️  No s'han pogut carregar prioritats des de BD: {e}")
@@ -133,13 +133,10 @@ def _log_request(request: Request, duration_ms: int, status_code: int) -> None:
         except Exception:
             pass
 
-    path = request.url.path
-    query = request.url.query
-    full_path = f"{path}?{query}" if query else path
-    ip = request.client.host if request.client else "-"
+    path = request_route(request)
     timestamp = rellotge.ara().strftime("%Y-%m-%d %H:%M:%S")
     access_logger.info(
-        f"{timestamp} | {username} ({role}@{instit}) | {ip} | {request.method} {full_path} | {status_code} | {duration_ms}ms"
+        f"{timestamp} | {username} ({role}@{instit}) | {request.method} {path} | {status_code} | {duration_ms}ms"
     )
 
 

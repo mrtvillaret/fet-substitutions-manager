@@ -1,7 +1,7 @@
 """
 Absència coberta: un professor absent que té un substitut extern a l'XML.
 Durant el període, l'absent queda fora de tot. La regla es resol en un sol
-punt: l'horari d'una data (helpers.get_horari, per on passa Dia) ja no el
+punt: l'horari d'una data (horari.context.get_horari, per on passa Dia) ja no el
 té (absencia_coberta.services.sense_absents_coberts).
 """
 
@@ -11,7 +11,7 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parent.parent
 
 # Peces per saber qui té una absència coberta: només les pot fer servir el
-# mòdul (i el punt únic de helpers.get_horari, que crida les seves funcions)
+# mòdul (i el punt únic de horari.context.get_horari, que crida les seves funcions)
 PROHIBIT = re.compile(
     r"\b(AbsenciaCobertaRepository|absents_coberts_en|PROFESSORS_BAIXA|professors_de_baixa|esta_de_baixa|GestorBaixes)\b"
 )

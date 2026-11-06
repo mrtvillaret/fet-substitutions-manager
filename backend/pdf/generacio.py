@@ -10,18 +10,18 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from core.alliberats import sense_classe
+from dates import data_completa, parse_date
+from grups.disponibilitat import sense_classe
 from grups.repositories import GrupsAlliberatsRepository
+from horari.domain import Dia
 from i18n_setup import translate
 from pdf.domain import FormatPdfNoValid, IntervalNoValid, MidaPdfNoValida, OpcionsPdf, PdfGenerat, SenseVigilancies
 from pdf.engine import PDFCompletExporter
 from pdf.validacions import valida_dia
 from prioritats.repositories import NoSubstituirRepository
-from serveis.dia import Dia
 from substitucions.domain import DiaEscolar
 from substitucions.prioritat import MillorsSubstituts
 from substitucions.repositories import SubstitucioRepository
-from utils.date_context import DateContext
 from vigilancies.analisi import analitza_vigilancies, selecciona_problemes
 from vigilancies.repositories import VigilanciaRepository
 from vigilancies.services import en_ordre
@@ -71,7 +71,7 @@ def validacions(db: Session, data: str, institucio: str, dia_peticio: Dia) -> di
 # ===== Peces comunes =====
 
 
-def _exportador(hores: list, opcions: OpcionsPdf) -> PDFCompletExporter:
+def _exportador(hores: list, opcions: OpcionsPdf, institucio: str) -> PDFCompletExporter:
     """L'exportador, amb el seu directori temporal, i les opcions comunes:
     columnes de comentaris i d'hores, compressió, format (taula del dia o una
     secció per hora) i mida de la lletra. Sense mida: ×1,2 per hores (la
@@ -84,7 +84,7 @@ def _exportador(hores: list, opcions: OpcionsPdf) -> PDFCompletExporter:
         mida_lletra = 1.0 if opcions.format == "dia" else 1.2
     if mida_lletra not in MIDES_LLETRA:
         raise MidaPdfNoValida("Mida de lletra desconeguda", codi="mida_lletra")
-    exporter = PDFCompletExporter(hores=hores, export_dir=tempfile.mkdtemp())
+    exporter = PDFCompletExporter(hores=hores, export_dir=tempfile.mkdtemp(), institucio=institucio)
     exporter.show_comments_column = opcions.mostra_comentaris
     exporter.show_hours_column = opcions.mostra_hores
     if opcions.compressio:
@@ -202,7 +202,7 @@ def genera_pdf_complet(
     """Substitucions i/o vigilàncies del dia (de tots els nivells), amb els
     conflictes i avisos de les validacions."""
     date_obj = datetime.strptime(data, "%Y-%m-%d")
-    data_text = DateContext.from_iso(data).full_format
+    data_text = data_completa(date_obj)
 
     substitucions_data = substitucions_del_pdf(db, data) if amb_substitucions else []
     vigilancies_list = (
@@ -222,7 +222,7 @@ def genera_pdf_complet(
         # El mateix ordre que la llista de substitucions de la pantalla
         substitucions_data = SubstitucioRepository.ordena(substitucions_data, horari_mgr.hores, ordre=ordre)
 
-    exporter = _exportador(horari_mgr.hores, opcions)
+    exporter = _exportador(horari_mgr.hores, opcions, institucio)
     exporter.espai_a_ma = files_en_blanc and amb_substitucions
     if exporter.espai_a_ma or exporter.format_dia:
         exporter.hores_amb_classe = hores_amb_possible_substitucio(
@@ -268,14 +268,14 @@ def genera_pdf_vigilancies(
     """Les vigilàncies del dia dels nivells triats (tots si no se'n tria cap)
     i, si es vol, les substitucions de vigilància. Els conflictes, els calcula
     la funció comuna d’anàlisi."""
-    data_text = DateContext.from_iso(data).full_format
+    data_text = data_completa(parse_date(data))
     per_nivell = VigilanciaRepository.get_by_date(db, data)
     if not per_nivell:
         raise SenseVigilancies(f"No hi ha vigilàncies per {data}", codi="sense_vigilancies")
     vigilancies_list = vigilancies_dels_nivells(per_nivell, _nivells(nivells), inclou_sense_nivell=inclou_sense_nivell)
 
     horari_mgr = dia.horari
-    exporter = _exportador(horari_mgr.hores, opcions)
+    exporter = _exportador(horari_mgr.hores, opcions, dia.institucio)
     subs_pdf = _substitucions_de_vigilancia(db, data) if amb_substitucions else []
     nom = exporter.exportar(
         substitucions=subs_pdf,
@@ -285,7 +285,7 @@ def genera_pdf_vigilancies(
         tipus_pdf="vigilancies",
         conflictes=[
             p["missatge"]
-            for p in selecciona_problemes(analitza_vigilancies(DiaEscolar(db, data, dia.institucio)), vigilancies_list)
+            for p in selecciona_problemes(analitza_vigilancies(DiaEscolar(db, dia)), vigilancies_list)
             if p["gravetat"] != "informacio"
         ],
     )
@@ -312,11 +312,11 @@ def dates_de_l_interval(data_inici: str, data_final: str, amb_caps_de_setmana: b
 
 def _marca_dia(fila: dict, data: str) -> dict:
     """Una còpia de la fila amb el dia, perquè el renderitzador la posi al seu dia."""
-    return {**fila, "_dia_interval": DateContext.from_iso(data).full_format, "_data_iso": data}
+    return {**fila, "_dia_interval": data_completa(parse_date(data)), "_data_iso": data}
 
 
 def _dia_buit(data: str) -> dict:
-    return {"_dia_interval": DateContext.from_iso(data).full_format, "_data_iso": data, "_empty_day": True}
+    return {"_dia_interval": data_completa(parse_date(data)), "_data_iso": data, "_empty_day": True}
 
 
 def vigilancies_i_substitucions_de_l_interval(
@@ -397,7 +397,7 @@ def genera_pdf_interval(
     if not vigilancies:
         raise SenseVigilancies("No hi ha vigilàncies a l'interval seleccionat", codi="sense_vigilancies")
 
-    exporter = _exportador(horari_mgr.hores, opcions)
+    exporter = _exportador(horari_mgr.hores, opcions, institucio)
     exporter.hores_per_data = {data: horari.hores for data, horari in horaris_per_data.items()}
     exporter.dia_per_pagina = dia_per_pagina
     nom = exporter.exportar(
@@ -417,9 +417,9 @@ def _avisos_interval(db, institucio, dates, vigilancies):
         files = [v for v in vigilancies if v.get("_data_iso") == data and not v.get("_empty_day")]
         if not files:
             continue
-        problemes = selecciona_problemes(analitza_vigilancies(DiaEscolar(db, data, institucio)), files)
+        problemes = selecciona_problemes(analitza_vigilancies(DiaEscolar(db, Dia.de_text(data, institucio))), files)
         problemes = [p for p in problemes if p["gravetat"] != "informacio"]
         if problemes:
-            avisos.append(DateContext.from_iso(data).full_format + ":")
+            avisos.append(data_completa(parse_date(data)) + ":")
             avisos.extend(p["missatge"] for p in problemes)
     return avisos

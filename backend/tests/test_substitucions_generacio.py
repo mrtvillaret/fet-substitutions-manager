@@ -1,5 +1,6 @@
 """Tests de la generació i regeneració de substitucions."""
 
+from horari.domain import Dia
 from substitucions import domain, generacio
 
 
@@ -22,7 +23,9 @@ def test_activitat_fallback_conserva_l_aula_desada(monkeypatch):
     monkeypatch.setattr(domain.GrupsAlliberatsRepository, "get_by_date", lambda db, data: {})
     monkeypatch.setattr(domain.VigilanciaRepository, "get_by_date", lambda db, data: {})
 
-    estat = generacio.llegeix_estat(object(), "2026-04-20", _Horari())
+    dia = Dia.de_text("2026-04-20", "centre_de_prova")
+    dia.__dict__["horari"] = _Horari()
+    estat = domain.DiaEscolar(object(), dia)
 
     assert estat.activitats_fallback[("Prof A", "09:00")] == {
         "assignatura": "Matemàtiques",

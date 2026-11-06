@@ -598,7 +598,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                         grup = (act.get("grup") or "").strip()
                         assig = (act.get("assignatura") or "").strip()
                         if grup:
-                            from utils.grups_utils import aplicar_abreviatura_grup
+                            from grups.abreviatures import aplicar_abreviatura_grup
 
                             grup = aplicar_abreviatura_grup(grup)
                         if any(n in grup for n in self.nivells_actius):

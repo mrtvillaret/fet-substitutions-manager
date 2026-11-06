@@ -12,10 +12,10 @@ from auth.repositories import UserRepository
 from auth.security import hash_fictici, hash_password, verify_password
 from config.auth import get_config_auth
 from config.settings import config
-from database import get_auth_db_session, get_data_db_session
+from configuracio.repositories import ConfiguracioRepository
+from database import get_auth_db_session, get_data_db_session, inicia_escriptura
 from errors_domini import NoPermes, NoTrobat, NoValid
 from models import User
-from repositories import ConfiguracioRepository
 
 LONGITUD_MINIMA_CONTRASENYA = 8
 
@@ -64,7 +64,7 @@ def autentica(db: Session, username: str, contrasenya: str) -> Optional[User]:
 
 def perfil(current_user: UsuariActual) -> dict:
     # De la BD de la institució de l'usuari, no de la del centre per defecte del servidor
-    with get_data_db_session(current_user.institucio) as data_db:
+    with get_data_db_session(current_user.institucio, lectura=True) as data_db:
         idioma = ConfiguracioRepository.get(data_db, "idioma") or "ca"
         display_name = ConfiguracioRepository.nom_visible_institucio(data_db, current_user.institucio)
     return {
@@ -92,6 +92,7 @@ def _nova_versio_de_sessio(user: User) -> int:
 def canvia_contrasenya(db: Session, current_user: UsuariActual, actual: str, nova: str) -> User:
     """Una contrasenya nova tanca les altres sessions; qui crida ha de renovar
     el testimoni de la sessió actual amb l'usuari que es retorna."""
+    inicia_escriptura(db)
     user = _usuari_propi(db, current_user)
     if not verify_password(actual, user.password_hash):
         raise NoValid("Contrasenya actual incorrecta", codi="contrasenya_actual_incorrecta")
@@ -103,6 +104,7 @@ def canvia_contrasenya(db: Session, current_user: UsuariActual, actual: str, nov
 
 def tanca_altres_sessions(db: Session, current_user: UsuariActual) -> User:
     """Com canvia_contrasenya, però sense canviar-la."""
+    inicia_escriptura(db)
     user = _usuari_propi(db, current_user)
     UserRepository.update(db, user, versio_sessio=_nova_versio_de_sessio(user))
     db.commit()

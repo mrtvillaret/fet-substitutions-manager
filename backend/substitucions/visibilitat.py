@@ -4,7 +4,7 @@ cobertura (recomptes/). FUNCIONAMENT.md, apartat 5."""
 
 from collections.abc import Collection
 
-from core.alliberats import sense_classe
+from grups.disponibilitat import sense_classe
 from noms import nom_net
 from substitucions.vigilancia_absent import es_vigilancia_absent
 

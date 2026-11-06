@@ -50,8 +50,20 @@ def client(centre):
     return entra(client_per(APP), nom)
 
 
-def _prepara(client, valor):
+def _prepara(client, valor, centre):
     """Vigilància i substitució amb `valor` a tots els camps de text lliure."""
+    import xml.etree.ElementTree as ET
+
+    from database import get_data_dir_for_institucio
+    from horari.context import invalidar_horari
+
+    # El substitut ha de ser a l'XML. El nom continua portant el text
+    # potencialment perillós que el PDF ha de tractar com a text literal.
+    xml = get_data_dir_for_institucio(centre) / "teachers.xml"
+    arbre = ET.parse(xml)
+    ET.SubElement(arbre.getroot(), "Teacher", name=valor)
+    arbre.write(xml, encoding="utf-8")
+    invalidar_horari(centre)
     resp = client.post(
         f"/api/vigilancies/{DATA}",
         json={
@@ -115,8 +127,8 @@ def test_compta_les_vigilancies_sense_nivell_de_l_interval(client, centre):
 
 @pytest.mark.parametrize("ruta", PDFS)
 @pytest.mark.parametrize("valor", [TEXT_PERILLÓS, IMATGE, MARCATGE])
-def test_el_text_dels_usuaris_no_trenca_ni_s_interpreta_al_pdf(client, ruta, valor):
-    _prepara(client, valor)
+def test_el_text_dels_usuaris_no_trenca_ni_s_interpreta_al_pdf(client, centre, ruta, valor):
+    _prepara(client, valor, centre)
     resp = client.get(ruta)
     assert resp.status_code == 200, resp.text[:300]
     assert resp.headers["content-type"] == "application/pdf"
@@ -136,8 +148,8 @@ def test_el_text_dels_usuaris_no_trenca_ni_s_interpreta_al_pdf(client, ruta, val
         ),
     ],
 )
-def test_les_descarregues_pdf_porten_un_nom_de_fitxer(client, ruta, prefix):
-    _prepara(client, "Física")
+def test_les_descarregues_pdf_porten_un_nom_de_fitxer(client, centre, ruta, prefix):
+    _prepara(client, "Física", centre)
 
     resposta = client.get(ruta)
 
@@ -273,8 +285,8 @@ def test_format_dia_una_taula_amb_substitucions_i_vigilancies(client):
     ],
 )
 def test_la_capcalera_combinada_i_la_nota_es_tradueixen(client, centre, idioma, etiquetes):
+    from configuracio.repositories import ConfiguracioRepository
     from database import get_data_db_session
-    from repositories import ConfiguracioRepository
 
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "idioma", idioma)
@@ -325,9 +337,9 @@ def test_mida_de_lletra_desconeguda_dona_400(client):
 )
 @pytest.mark.parametrize("opcio", [{"format": "x"}, {"mida_lletra": 3}])
 def test_un_format_o_una_mida_desconeguts_no_deixen_directoris_temporals(
-    client, monkeypatch, tmp_path, ruta, params, opcio
+    client, centre, monkeypatch, tmp_path, ruta, params, opcio
 ):
-    _prepara(client, "Física")
+    _prepara(client, "Física", centre)
     monkeypatch.setattr(generacio.tempfile, "gettempdir", lambda: str(tmp_path))
 
     resposta = client.get(ruta, params={**params, **opcio})

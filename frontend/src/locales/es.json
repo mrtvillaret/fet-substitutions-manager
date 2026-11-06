@@ -635,7 +635,8 @@
       "classe": "tiene clase con {grup}",
       "absent": "está ausente",
       "baixa": "tiene una ausencia cubierta",
-      "vigilancia": "vigila un examen"
+      "vigilancia": "vigila un examen",
+      "fora_horari": "no está en el horario de ese día"
     },
     "table": {
       "rowsInBlock": "{count} sustitución | {count} sustituciones",

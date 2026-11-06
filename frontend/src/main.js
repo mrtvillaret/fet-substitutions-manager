@@ -1,5 +1,4 @@
 import { createApp, watch } from 'vue'
-import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
@@ -20,9 +19,7 @@ import './perill.css'
 import App from './App.vue'
 
 const app = createApp(App)
-const pinia = createPinia()
 
-app.use(pinia)
 app.use(PrimeVue, {
   locale: primeLocales[i18n.global.locale.value] || primeLocales.ca,
   zIndex: { modal: 1200, overlay: 1200, menu: 1200, tooltip: 1100, toast: 1300 }

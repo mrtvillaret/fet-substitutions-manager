@@ -4,13 +4,14 @@ Els repositoris no fan commit (el fa el servei, un cop per operació): només
 flush, perquè les sessions no en fan soles (autoflush=False) i el que ve
 després (refresca_cobertures) ha de veure el canvi."""
 
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
+from dates import parse_date
 from models import Vigilancia
-from repositories import parse_date
 
 
 class VigilanciaRepository:
@@ -79,7 +80,9 @@ class VigilanciaRepository:
         return vig
 
     @staticmethod
-    def update_by_id(db: Session, data: str, vig_id: str, updates: Dict) -> Optional[Vigilancia]:
+    def update_by_id(
+        db: Session, data: str, vig_id: str, updates: Dict, *, updated_at_esperat: str = None
+    ) -> Optional[Vigilancia]:
         """
         Actualitza una vigilància pel seu ID (pot ser integer o compost)
 
@@ -121,6 +124,32 @@ class VigilanciaRepository:
 
         if not vig:
             return None
+
+        if updated_at_esperat is not None:
+            valors = {
+                k: v
+                for k, v in updates.items()
+                if k in {"hora", "tipus", "grups", "aula", "vigilant", "comentaris", "nivell"}
+            }
+            if "vigilant" in valors:
+                valors["vigilant"] = valors["vigilant"] or None
+            if "hora" in valors and valors["hora"] != vig.hora:
+                valors["ordre"] = VigilanciaRepository.seguent_ordre(db, data, valors["hora"])
+            valors = {k: v for k, v in valors.items() if getattr(vig, k) != v}
+            valors = valors or {"updated_at": vig.updated_at}
+            afectades = (
+                db.query(Vigilancia)
+                .filter(
+                    Vigilancia.id == vig.id,
+                    Vigilancia.data == parse_date(data),
+                    Vigilancia.updated_at == datetime.fromisoformat(updated_at_esperat),
+                )
+                .update(valors, synchronize_session=False)
+            )
+            if afectades != 1:
+                return None
+            db.refresh(vig)
+            return vig
 
         # Actualitzar camps
         if "hora" in updates and updates["hora"] != vig.hora:
@@ -178,7 +207,7 @@ class VigilanciaRepository:
         return vig
 
     @staticmethod
-    def delete_by_id(db: Session, data: str, vig_id: str) -> bool:
+    def delete_by_id(db: Session, data: str, vig_id: str, *, updated_at_esperat: str = None) -> bool:
         """
         Elimina una vigilància pel seu ID (pot ser integer o compost)
 
@@ -220,6 +249,18 @@ class VigilanciaRepository:
 
         if not vig:
             return False
+
+        if updated_at_esperat is not None:
+            return (
+                db.query(Vigilancia)
+                .filter(
+                    Vigilancia.id == vig.id,
+                    Vigilancia.data == parse_date(data),
+                    Vigilancia.updated_at == datetime.fromisoformat(updated_at_esperat),
+                )
+                .delete(synchronize_session="fetch")
+                == 1
+            )
 
         db.delete(vig)
         db.flush()

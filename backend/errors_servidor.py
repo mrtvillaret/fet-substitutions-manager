@@ -23,6 +23,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from config.access_log import request_route
 from errors_domini import Conflicte, ErrorDeDomini, NoPermes, NoTrobat, NoValid
 
 logger = logging.getLogger("uvicorn.error")
@@ -40,7 +41,7 @@ def registra_excepcio(missatge: str) -> str:
 
 def _resposta_error_intern(status_code: int, request: Request, detall) -> JSONResponse:
     ref = uuid.uuid4().hex[:8]
-    logger.error("Error %s [ref %s] %s %s: %s", status_code, ref, request.method, request.url.path, detall)
+    logger.error("Error %s [ref %s] %s %s: %s", status_code, ref, request.method, request_route(request), detall)
     return JSONResponse(status_code=status_code, content={"error_ref": ref})
 
 
@@ -62,7 +63,7 @@ async def _gestor_error_de_domini(request: Request, exc: ErrorDeDomini):
 
 
 async def _gestor_no_controlat(request: Request, exc: Exception):
-    logger.exception("Excepció no controlada a %s %s", request.method, request.url.path)
+    logger.exception("Excepció no controlada a %s %s", request.method, request_route(request))
     return _resposta_error_intern(500, request, f"{type(exc).__name__}: {exc}")
 
 

@@ -54,7 +54,10 @@ log = logging.getLogger(__name__)
 class PDFCompletExporter:
     """Exportador de PDF combinat optimitzat"""
 
-    def __init__(self, hores: List[str] = None, export_dir: str = "exports"):
+    def __init__(self, hores: List[str] = None, export_dir: str = "exports", *, institucio: str):
+        if not institucio:
+            raise ValueError("Cal indicar el centre per generar el PDF")
+        self.institucio = institucio
         self.hores = hores if hores is not None else []
         self.export_dir = Path(export_dir)
         self.export_dir.mkdir(parents=True, exist_ok=True)
@@ -195,10 +198,9 @@ class PDFCompletExporter:
             timestamp = rellotge.ara().strftime("%y%m%d_%H%M%S")
 
             if data_iso:
-                from utils.date_context import DateContext
+                from dates import data_compacta, parse_date
 
-                date_ctx = DateContext.from_iso(data_iso)
-                data_curta = date_ctx.datetime.strftime("%y%m%d")
+                data_curta = data_compacta(parse_date(data_iso))
             else:
                 data_curta = rellotge.ara().strftime("%y%m%d")
 
@@ -351,14 +353,12 @@ class PDFCompletExporter:
 
             from PIL import Image
 
+            from configuracio.repositories import ConfiguracioRepository
             from database import get_data_db_session, get_data_dir_for_institucio
-            from helpers import _get_institucio_actual
-            from repositories import ConfiguracioRepository
 
-            # Logo de la institució de la petició (no el de la institució amb
-            # què va arrencar el servidor).
-            institucio = _get_institucio_actual()
-            with get_data_db_session(institucio) as db:
+            # El generador indica explícitament de quin centre és el PDF.
+            institucio = self.institucio
+            with get_data_db_session(institucio, lectura=True) as db:
                 configured_logo = ConfiguracioRepository.get(db, "logo_path")
             logo_path = None
             if configured_logo:

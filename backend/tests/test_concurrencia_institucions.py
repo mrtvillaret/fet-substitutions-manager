@@ -25,9 +25,9 @@ from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_ins
 import i18n_setup
 from auth.dependencies import get_current_user
 from config import constants
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from prioritats.repositories import NoSubstituirRepository
-from repositories import ConfiguracioRepository
 from vigilancies.router import router as vigilancies_router
 
 PETICIONS = 400
@@ -148,7 +148,9 @@ def test_l_idioma_no_es_barreja_entre_institucions(servidor):
     def una(inst):
         estat, cos, _ = _peticio(port, "GET", "/api/prova/textos", galeta=galetes[inst])
         assert estat == 200
-        return json.loads(cos) == esperat[inst]
+        dades = json.loads(cos)
+        assert dades == esperat[inst], {"rebut": dades, "esperat": esperat[inst]}
+        return True
 
     resultats = _en_paral·lel(una, [a if i % 2 == 0 else b for i in range(PETICIONS)])
     assert resultats.count(False) == 0, (

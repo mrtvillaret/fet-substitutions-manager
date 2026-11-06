@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from auth.dependencies import require_admin
 from dependencies import dia_del_calendari, get_db
 from horari import services
+from horari.domain import Dia
 from horari.schemas import (
     AssignaturesResponse,
     ConfigResponse,
@@ -35,7 +36,6 @@ from horari.schemas import (
     XMLVersionUpdate,
 )
 from parametres import DataISO
-from serveis.dia import Dia
 
 router = APIRouter()
 router_admin = APIRouter()
@@ -162,12 +162,14 @@ def get_xml_versions(db: Session = Depends(get_db)):
     response_model=SuccessResponse,
     response_model_exclude_unset=True,
 )
-def update_xml_version(version_id: int, payload: XMLVersionUpdate, db: Session = Depends(get_db)):
+def update_xml_version(
+    version_id: int, payload: XMLVersionUpdate, db: Session = Depends(get_db), current_user=Depends(require_admin)
+):
     """
     Canvia quan comença una versió d'XML. Les dates de fi es recalculen totes
     (el dia abans que comenci la següent): no es poden posar a mà.
     """
-    services.canvia_inici(db, version_id, payload.data_inici)
+    services.canvia_inici(db, current_user.institucio, version_id, payload.data_inici)
     return {"success": True}
 
 

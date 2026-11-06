@@ -6,8 +6,8 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from dates import parse_date
 from models import Substitucio, Vigilancia
-from repositories import parse_date
 
 
 def _fila_substitucio(sub: Substitucio) -> dict[str, Any]:

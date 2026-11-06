@@ -1,4 +1,255 @@
-<template src="./scheduler/SchedulerView.template.html"></template>
+<template>
+  <div class="scheduler-view">
+    <Toast />
+
+    <header class="view-header">
+      <div class="header-left">
+        <Button id="btn-home" icon="pi pi-home" class="p-button-rounded p-button-text p-button-lg" @click="tornarGestor" />
+        <div>
+          <h1>🚀 {{ t('scheduler.view.title') }}</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <Button v-if="result" :label="t('scheduler.view.actions.printPdf')" icon="pi pi-print" class="p-button-text" @click="imprimirHorari" />
+        <Button v-if="result" id="btn-pub-vigs" :label="t('scheduler.publish.publishButton')" icon="pi pi-upload" class="p-button-success" @click="publicarVigilancies" />
+        <Button v-if="intentsLog.length" :label="t('scheduler.view.actions.attempts')" icon="pi pi-chart-line" class="p-button-text" @click="mostrarDialogIntents = true" />
+      </div>
+    </header>
+
+    <div ref="stepperContainerRef" class="stepper-container content-card">
+      <Steps :model="passos" :activeStep="pasActiu" @update:activeStep="pasActiu = $event" :readonly="false" />
+    </div>
+
+    <div class="step-content" v-if="config">
+      <!-- Dates d'un curs anterior -->
+      <Message v-if="(pasActiu === 0 || pasActiu === 4) && cursAnterior" severity="warn" :closable="false">
+        {{ t('scheduler.view.previousCourse', { cursos: cursAnterior.cursos.join(', '), actual: cursAnterior.curs_actual }) }}
+      </Message>
+
+      <!-- Quin horari (XML) es fa servir: el de la primera data planificada -->
+      <Message v-if="(pasActiu === 0 || pasActiu === 4) && horariPlanificacio?.versio_des_de && !horariPlanificacio.sense_dates"
+               severity="info" :closable="false">
+        {{ t('scheduler.view.scheduleUsed', { data: dataAmbAny(horariPlanificacio.data_referencia), desDe: dataAmbAny(horariPlanificacio.versio_des_de) }) }}
+      </Message>
+      <Message v-if="(pasActiu === 0 || pasActiu === 4) && horariPlanificacio?.canvi_horari" severity="warn" :closable="false">
+        {{ t('scheduler.view.scheduleChanges', { canvi: dataAmbAny(horariPlanificacio.canvi_horari), data: dataAmbAny(horariPlanificacio.data_referencia) }) }}
+      </Message>
+
+      <!-- Horari recuperat (l'últim generat o editat) -->
+      <Message v-if="pasActiu === 4 && result && result === resultatRecuperat" severity="info" :closable="false">
+        {{ t('scheduler.view.lastResult', { data: ultimResultatDesat }) }}
+      </Message>
+
+      <!-- PAS 0: CONFIGURACIÓ D'EXÀMENS PER NIVELL -->
+      <SchedulerStepConfig
+        v-if="pasActiu === 0"
+        :config="config"
+        :nivells-actius="genConfig.nivells_actius"
+        :dates-per-nivell-model="datesPerNivellModel"
+        :llista-hores-disponibles="llistaHoresDisponibles"
+        :on-dates-change="onDatesChange"
+        :get-dates-per-nivell-ordenades="getDatesPerNivellOrdenades"
+        :format-data-curta="formatDataCurta"
+        :is-alliberat="isAlliberat"
+        :toggle-alliberat="toggleAlliberat"
+        :is-inici-examen="isIniciExamen"
+        :toggle-inici-examen="toggleIniciExamen"
+        :mostrar-menu-columna="mostrarMenuColumna"
+        :mostrar-menu-fila="mostrarMenuFila"
+        @update:nivellsActius="(value) => { genConfig.nivells_actius = value; onNivellsChange() }"
+      />
+
+      <!-- Menús contextuals per accions ràpides -->
+      <Menu ref="menuFila" :model="menuFilaItems" :popup="true" />
+      <Menu ref="menuColumna" :model="menuColumnaItems" :popup="true" />
+      <ConfirmDialog />
+
+      <!-- Restriccions amb assignatures que ja no existeixen (curs anterior) -->
+      <Message v-if="(pasActiu === 1 || pasActiu === 2) && assignaturesInexistents.length" severity="warn" :closable="false">
+        <div>{{ t('scheduler.view.staleSubjects.text') }} <strong>{{ assignaturesInexistents.join(', ') }}</strong></div>
+        <Button :label="t('scheduler.view.staleSubjects.remove')" icon="pi pi-trash" size="small" severity="warning"  @click="treureAssignaturesInexistents" />
+      </Message>
+
+      <!-- PAS 1: AGRUPACIONS -->
+      <SchedulerStepGroups
+        v-if="pasActiu === 1"
+        :filtre-nivell-agrupacio="filtreNivellAgrupacio"
+        :nivells-filtre-options="nivellsFiltreOptions"
+        :sessions-soltes="sessionsSoltes"
+        :agrupacions-filtrades="agrupacionsFiltrades"
+        :obrir-dialog-agrupacio="obrirDialogAgrupacio"
+        :eliminar-agrupacio="eliminarAgrupacio"
+        @update:filtreNivellAgrupacio="filtreNivellAgrupacio = $event"
+      />
+
+      <!-- PAS 2: RESTRICCIONS -->
+      <SchedulerStepRestrictions
+        v-if="pasActiu === 2"
+        :durada-titular="config?.durada_titular ?? 1"
+        :durada-examen="duradaExamen"
+        :durades-grups="duradesGrups"
+        :obrir-dialog-durada="obrirDialogDurada"
+        :obrir-editar-durada-grup="obrirEditarDuradaGrup"
+        :eliminar-durada-grup="eliminarDuradaGrup"
+        :restriccions-professors="restriccionsProfessors"
+        :restriccions-dies-hores="restriccionsDiesHores"
+        :restriccions-preferencies="restriccionsPreferencies"
+        :restriccions-incompatibilitats="restriccionsIncompatibilitats"
+        :llista-professors="llistaProfessors"
+        :professors-horari-estricte="professorsHorariEstricte"
+        :pesos="pesos"
+        :pesos-info="pesosInfo"
+        :costos-professors="costosProfessors"
+        :costos-info="costosInfo"
+        :costos-professors-individuals="costosProfessorsIndividuals"
+        :to-dom-id="toDomId"
+        :obrir-dialog-professor="obrirDialogProfessor"
+        :eliminar-restriccio="eliminarRestriccio"
+        :obrir-dialog-dia-hora="obrirDialogDiaHora"
+        :obrir-dialog-preferencia-dia="obrirDialogPreferenciaDia"
+        :eliminar-preferencia="eliminarPreferencia"
+        :obrir-dialog-incompatibilitat="obrirDialogIncompatibilitat"
+        :obrir-dialog-cost-professor="obrirDialogCostProfessor"
+        :eliminar-cost-professor="eliminarCostProfessor"
+        @update:professorsHorariEstricte="professorsHorariEstricte = $event"
+        @update:peso="({ key, value }) => { pesos[key] = value }"
+        @update:costGlobal="({ key, value }) => { costosProfessors.globals[key] = value }"
+        @update:duradaTitular="(v) => { if (config) config.durada_titular = v }"
+        @update:duradaExamen="(v) => { duradaExamen = v }"
+      />
+
+      <!-- PAS 3: ANÀLISI -->
+      <SchedulerStepAnalysis
+        v-if="pasActiu === 3"
+        :analisi-loading="analisiLoading"
+        :analisi-result="analisiResult"
+        :analysis-active-index="analysisActiveIndex"
+        :analysis-tab-info="analysisTabInfo"
+        :per-slots-parsed="perSlotsParsed"
+        :per-sessio-parsed="perSessioParsed"
+        :professors-slot-parsed="professorsSlotParsed"
+        :analysis-fila-class="analysisFilaClass"
+        @analitzar="analitzarDisponibilitat"
+        @imprimir="imprimirAnalisi"
+        @update:analysis-active-index="analysisActiveIndex = $event"
+      />
+
+      <!-- PAS 4: RESULTATS -->
+      <SchedulerStepResults
+        v-if="pasActiu === 4"
+        :generating="generating"
+        :result="result"
+        :mode-edicio="modeEdicio"
+        :mostrar-parametres-avancats="mostrarParametresAvancats"
+        :gen-config="genConfig"
+        :motors="motors"
+        :main-params="mainParams"
+        :advanced-params="advancedParams"
+        :recompte-tooltip="recompteTooltip"
+        :recompte-totals-text="recompteTotalsText"
+        :incidencies-count="incidenciesCount"
+        :incidencies-agrupades="incidenciesAgrupades"
+        :logs-incidencies="logsIncidencies"
+        :hores-examen-config="horesExamenConfig"
+        :horaris-per-setmana="horarisPerSetmana"
+        :data-referencia-scheduler="dataReferenciaScheduler"
+        :selected-dates="selectedDates"
+        :format-local-date="formatLocalDate"
+        :get-slot-per-hora="getSlotPerHora"
+        :get-sessions-per-nivell="getSessionsPerNivell"
+        :get-nivell-class="getNivellClass"
+        :get-exams-unics="getExamsUnics"
+        :get-avisos-icons-examen="getAvisosIconsExamen"
+        :get-avisos-title-examen="getAvisosTitleExamen"
+        :format-incident-full="formatIncidentFull"
+        :format-incident-short="formatIncidentShort"
+        :on-horari-actualitzat="onHorariActualitzat"
+        :on-cost-changed="onCostChanged"
+        :pinned-noms="pinnedNoms"
+        :on-pin-changed="onPinChanged"
+        :on-clear-pins="clearAllPins"
+        @generar="generarHorari"
+        @update:modeEdicio="modeEdicio = $event"
+        @update:mostrarParametresAvancats="mostrarParametresAvancats = $event"
+        @update:genConfigField="({ key, value }) => { genConfig[key] = value }"
+      />
+    </div>
+
+    <SchedulerDialogs
+      :mostrar-dialog-durada="mostrarDialogDurada"
+      :editant-durada-id="editantDuradaId"
+      :formulari-durada="formulariDurada"
+      :desar-dialog-durada="desarDialogDurada"
+      :mostrar-dialog-professor="mostrarDialogProfessor"
+      :professor-editant-id="professorEditantId"
+      :formulari-professor="formulariProfessor"
+      :mostrar-dialog-dia-hora="mostrarDialogDiaHora"
+      :dia-hora-editant-id="diaHoraEditantId"
+      :formulari-dia-hora="formulariDiaHora"
+      :mostrar-dialog-preferencia-dia="mostrarDialogPreferenciaDia"
+      :preferencia-editant-id="preferenciaEditantId"
+      :formulari-preferencia="formulariPreferencia"
+      :mostrar-dialog-incompatibilitat="mostrarDialogIncompatibilitat"
+      :incompat-editant-id="incompatEditantId"
+      :formulari-incompat="formulariIncompat"
+      :mostrar-dialog-agrupacio="mostrarDialogAgrupacio"
+      :agrupacio-editant-id="agrupacioEditantId"
+      :formulari-agrupacio="formulariAgrupacio"
+      :mostrar-dialog-cost-professor="mostrarDialogCostProfessor"
+      :cost-professor-editant-id="costProfessorEditantId"
+      :formulari-cost-professor="formulariCostProfessor"
+      :mostrar-dialog-intents="mostrarDialogIntents"
+      :mostrar-dialog-incompat="mostrarDialogIncompat"
+      :llista-professors="llistaProfessors"
+      :llista-sessions="llistaSessions"
+      :dies-setmana="diesSetmana"
+      :llista-hores-disponibles="llistaHoresDisponibles"
+      :tipus-preferencia-dia="tipusPreferenciaDia"
+      :sessions-filtrades="sessionsFiltrades"
+      :intents-log="intentsLog"
+      :best-intent="bestIntent"
+      :incompatibilitats="incompatibilitats.map(m => tradueixMissatge(m, t))"
+      :incompat-error-msg="tradueixMissatge(incompatErrorMsg, t)"
+      :explicacio-no-disponible="explicacioNoDisponible"
+      :desar-dialog-professor="desarDialogProfessor"
+      :desar-dialog-dia-hora="desarDialogDiaHora"
+      :desar-dialog-preferencia-dia="desarDialogPreferenciaDia"
+      :desar-dialog-incompatibilitat="desarDialogIncompatibilitat"
+      :desar-dialog-agrupacio="desarDialogAgrupacio"
+      :desar-dialog-cost-professor="desarDialogCostProfessor"
+      @update:formulariDurada="formulariDurada = $event"
+      @update:formulariProfessor="formulariProfessor = $event"
+      @update:formulariDiaHora="formulariDiaHora = $event"
+      @update:formulariPreferencia="formulariPreferencia = $event"
+      @update:formulariIncompat="formulariIncompat = $event"
+      @update:formulariAgrupacio="formulariAgrupacio = $event"
+      @update:formulariCostProfessor="formulariCostProfessor = $event"
+      @update:mostrarDialogDurada="mostrarDialogDurada = $event"
+      @update:mostrarDialogProfessor="mostrarDialogProfessor = $event"
+      @update:mostrarDialogDiaHora="mostrarDialogDiaHora = $event"
+      @update:mostrarDialogPreferenciaDia="mostrarDialogPreferenciaDia = $event"
+      @update:mostrarDialogIncompatibilitat="mostrarDialogIncompatibilitat = $event"
+      @update:mostrarDialogAgrupacio="mostrarDialogAgrupacio = $event"
+      @update:mostrarDialogCostProfessor="mostrarDialogCostProfessor = $event"
+      @update:mostrarDialogIntents="mostrarDialogIntents = $event"
+      @update:mostrarDialogIncompat="mostrarDialogIncompat = $event"
+    />
+
+    <PublicarVigilanciesDialog
+      v-model:visible="mostrarPublicarDialog"
+      :horari="result?.horari"
+      :setmanes="publicarSetmanes"
+      @publicat="onPublicat"
+    />
+
+    <footer class="footer-nav">
+      <Button :label="t('scheduler.view.actions.previous')" icon="pi pi-chevron-left" text @click="pasAnterior" :disabled="pasActiu === 0 || loading" />
+      <div class="spacer"></div>
+      <Button id="btn-save" :label="t('scheduler.view.actions.saveChanges')" icon="pi pi-save" outlined :loading="savingRestr" @click="desarTotAlBackend" />
+      <Button :label="t('scheduler.view.actions.next')" icon="pi pi-chevron-right" iconPos="right" @click="pasSeguent" :disabled="pasActiu === 4 || loading" />
+    </footer>
+  </div>
+</template>
 
 <script setup>
 import { tradueixMissatge } from './scheduler/missatges.js'
@@ -23,7 +274,7 @@ import SchedulerStepGroups from './scheduler/steps/SchedulerStepGroups.vue'
 import SchedulerStepRestrictions from './scheduler/steps/SchedulerStepRestrictions.vue'
 import SchedulerStepResults from './scheduler/steps/SchedulerStepResults.vue'
 import { parsePerSessioReport, parsePerSlotsReport, parseProfessorsSlotReport } from './scheduler/analysisParsers'
-import { getExamsUnics, normalizeText } from './scheduler/textUtils'
+import { getExamsUnics } from './scheduler/textUtils'
 import { formatDateLocal, toDomId, isSameDay, parseIsoLocal as _parseIsoLocal, formatLocalDate, getWeekNumber } from './scheduler/dateUtils'
 import { buildId, extreuNivell as _extreuNivell } from './scheduler/idUtils'
 import { formatIncidentFull as formatIncidentFullRaw, formatIncidentShort as formatIncidentShortRaw } from './scheduler/incidentFormatters'
@@ -287,7 +538,7 @@ const carregarAssignaturesInexistents = async () => {
   try {
     const { data } = await apiPlanificador.restriccions()
     assignaturesInexistents.value = data.assignatures_inexistents || []
-  } catch (err) {
+  } catch {
     assignaturesInexistents.value = []
   }
 }
@@ -297,7 +548,7 @@ const treureAssignaturesInexistents = async () => {
     aplicarRestriccions(data.restriccions)
     assignaturesInexistents.value = []
     toast.add({ severity: 'success', summary: t('scheduler.view.staleSubjects.removed', { count: data.trets.length }, data.trets.length), life: 4000 })
-  } catch (err) {
+  } catch {
     toast.add({ severity: 'error', summary: t('common.error') })
   }
 }
@@ -315,7 +566,7 @@ const recuperarUltimResultat = async () => {
       resultatRecuperat.value = data.resultat
       ultimResultatDesat.value = new Date(data.desat).toLocaleString(locale.value)
     }
-  } catch (err) {
+  } catch {
     // Sense horari recuperat, la pantalla funciona igual
   }
 }
@@ -336,7 +587,7 @@ watch(selectedDates, (dates) => {
       horariPlanificacio.value = horari
       // Amb un altre horari, els professors, grups i hores són uns altres
       if (anterior && horari.data_referencia !== anterior) await carregarDadesHorari(horari.data_referencia)
-    } catch (err) {
+    } catch {
       // Sense aquesta informació no es mostra l'avís; la resta funciona igual
     }
     if (!llista.length) {
@@ -346,7 +597,7 @@ watch(selectedDates, (dates) => {
     try {
       const { data } = await apiPlanificador.cursDates({ params: { dates: llista.join(',') } })
       cursAnterior.value = data.curs_anterior
-    } catch (err) {
+    } catch {
       cursAnterior.value = null
     }
   }, 300)
@@ -374,7 +625,6 @@ const clearAllPins = async () => {
 
 // Dies de la setmana (font única)
 const diesSetmana = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres']
-const diesCurts = diesSetmana.map(nom => ({ curt: nom.slice(0, 2), nom }))
 const dayLabels = computed(() => ({
   Dilluns: t('scheduler.days.monday'),
   Dimarts: t('scheduler.days.tuesday'),
@@ -434,12 +684,6 @@ const horesGraella = computed(() => {
   return llistaHoresDisponibles.value.filter(h => seleccionades.has(h))
 })
 const {
-  getHoresGraellaPerNivell,
-  onHoresNivellChange,
-  resetHoresNivell,
-  isSlotEnabledPerNivell,
-  toggleNivellSlot,
-  resetNivellSlots,
   serialitzarSlotsValidsPerNivell,
 } = useSchedulerSlotsConfig({
   horesPerNivell,
@@ -684,10 +928,8 @@ const _desarTotAlBackendRef = ref(null)
 const {
   carregarDades,
   carregarDadesHorari,
-  carregarSessions,
   onNivellsChange,
   generarHorari,
-  recalcularCostVisualitzacio,
   analitzarDisponibilitat,
 } = useSchedulerApi({
   t,
@@ -797,14 +1039,6 @@ const {
 })
 _desarTotAlBackendRef.value = desarTotAlBackend
 
-const showSessioTitle = (sessio) => {
-  if (!sessio?.nom) return false
-  if (!Array.isArray(sessio.examens) || sessio.examens.length !== 1) return true
-  const sessioNom = normalizeText(sessio.nom)
-  const examNom = normalizeText(sessio.examens[0]?.assignatura || '')
-  return sessioNom !== examNom
-}
-
 const formatIncidentFull = (group, incident) => formatIncidentFullRaw(group, incident, t)
 const formatIncidentShort = (group, incident) => formatIncidentShortRaw(group, incident, t)
 
@@ -893,7 +1127,6 @@ const {
   logsEnllacos,
   logsIncidencies,
   incidenciesCount,
-  incidenciesStats,
   bestIntent,
   horesExamenConfig,
   getSlotPerHora,
@@ -918,14 +1151,9 @@ const {
   getDayLabel,
 })
 const {
-  getAvisosExamen,
-  getEnllacosExamen,
   getAvisosIconsExamen,
   getAvisosTitleExamen,
-  getSessioClass,
-  getIncidentIcon,
   getNivellClass,
-  incidenciesDetallades,
 } = useSchedulerIncidencies({
   t,
   logsIncidencies,

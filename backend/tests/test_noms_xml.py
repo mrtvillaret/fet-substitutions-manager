@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 from suport_api import XML_EXEMPLE
 
-from horari_web import GestorHorariWeb
+from horari.lector import GestorHorariWeb
 from scheduler_engine.core.horaris_xml import horaris_professors
 
 BACKEND = Path(__file__).resolve().parent.parent

@@ -7,7 +7,7 @@ from substitucions.prioritat import MillorsSubstituts
 
 
 class DiaDeProva:
-    dia = "Dilluns"
+    nom_del_dia = "Dilluns"
     files = []
     alliberats = defaultdict(set)
     absents_per_hora = defaultdict(set)

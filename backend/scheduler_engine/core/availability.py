@@ -4,9 +4,9 @@ Lògica unificada per analitzar la disponibilitat dels professors.
 
 from typing import Any, Dict, List, Optional, Set, Union
 
+from horari.hores import normalitzar_hora as _normalitzar_hora
 from scheduler_engine.core.constraints import detectar_nivell_grup
 from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
-from utils.hores import normalitzar_hora as _normalitzar_hora
 
 
 def analitzar_disponibilitat_sessio(

@@ -11,6 +11,7 @@ Dos modes:
 
 import logging
 
+from horari.domain import Dia
 from prioritats.repositories import NoSubstituirRepository
 from substitucions.domain import DiaEscolar
 from substitucions.repositories import SubstitucioRepository
@@ -28,10 +29,6 @@ TIPUS_COBERTURA_VIGILANCIA = ("VIGILANCIA", "VIGILANCIA_ABSENT")
 
 def clau_fila(sub: dict) -> str:
     return f"{sub.get('professor_absent', '')}|{sub.get('hora', '')}|{sub.get('assignatura', '')}|{sub.get('grup', '')}"
-
-
-def llegeix_estat(db, data: str, horari) -> DiaEscolar:
-    return DiaEscolar(db, data, horari=horari)
 
 
 def _ocupats(estat: DiaEscolar) -> dict:
@@ -132,7 +129,7 @@ def _desa_hores_sense_substitucio(db, estat: DiaEscolar, horari, files_motor: li
         for hora in hores:
             if hora in hores_desades.get(professor, set()):
                 continue
-            activitat = horari.get_activitat(estat.dia, hora, professor) or {}
+            activitat = horari.get_activitat(estat.nom_del_dia, hora, professor) or {}
             SubstitucioRepository.create(
                 db,
                 {
@@ -187,7 +184,7 @@ def _resum(db, estat: DiaEscolar, files_motor: list, regenerar_tot: bool, avisos
     verb = "Regenerades" if regenerar_tot else "Generades"
     return {
         "success": True,
-        "message": f"{verb} substitucions per {estat.dia}: {assignades} assignades, {pendents} sense cobertura",
+        "message": f"{verb} substitucions per {estat.nom_del_dia}: {assignades} assignades, {pendents} sense cobertura",
         "total": assignades + pendents,
         "assignades": assignades,
         "pendents": pendents,
@@ -197,18 +194,18 @@ def _resum(db, estat: DiaEscolar, files_motor: list, regenerar_tot: bool, avisos
     }
 
 
-def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir: bool = True, rng=None) -> dict:
-    """Genera i desa les substitucions d'un dia. `gestors`: el que retorna
-    helpers.get_gestors. Amb `omplir=False` no es tria cap substitut nou, ni
-    per al motor (GestorSubstitucions.assignar_substitucions) ni per a les
+def genera_substitucions_dia(db, dia: Dia, regenerar_tot: bool, omplir: bool = True, rng=None) -> dict:
+    """Genera i desa les substitucions del Dia. Amb `omplir=False` no es tria
+    cap substitut nou, ni per al motor (GestorSubstitucions.assignar_substitucions) ni per a les
     vigilàncies d'un vigilant absent."""
-    substitucions_mgr, horari, alliberats, _ = gestors
-    estat = llegeix_estat(db, data, horari)
+    data = dia.iso
+    substitucions_mgr, horari, alliberats, _ = dia.gestors()
+    estat = DiaEscolar(db, dia)
     # Les files amb substitut es conserven (només en mode pendents)
     desats = {} if regenerar_tot else {clau_fila(s): s for s in estat.files if s.get("substitut")}
 
     resultat_motor = substitucions_mgr.assignar_substitucions(
-        dia=estat.dia,
+        dia=estat.nom_del_dia,
         absents=estat.absents,
         grups_sense_classe=estat.grups,
         professors_ocupats_examens=_ocupats(estat),
@@ -229,7 +226,7 @@ def genera_substitucions_dia(db, data: str, gestors, regenerar_tot: bool, omplir
         assignar_vigilancies_absents_pendents(
             db,
             data,
-            estat.dia,
+            estat.nom_del_dia,
             alliberats,
             estat.absents,
             estat.vigilants,

@@ -13,12 +13,12 @@ import uuid
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session
 from models import Nivell
 from planificador import router as scheduler
 from planificador.repositories import SCHEDULER_ALLIBERAMENTS_KEY, SCHEDULER_NIVELLS_KEY
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 APP = crea_app(scheduler.router)
 URL = "/api/scheduler/config"

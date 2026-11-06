@@ -1,6 +1,6 @@
 """
 L'horari (XML) sempre es demana per a una data, i les rutes hi arriben
-només a través de serveis.dia.Dia (amb les dependències de dependencies.py). Quan la data era opcional,
+només a través de horari.domain.Dia (amb les dependències de dependencies.py). Quan la data era opcional,
 una crida que se n'oblidava no fallava: agafava un altre horari en silenci i
 l'error no es veia fins que hi havia un horari nou pujat amb data futura.
 Ara la data és obligatòria (data_iso=...; per a avui, avui()) i aquest test

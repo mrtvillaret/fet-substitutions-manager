@@ -6,6 +6,7 @@ generar, analitzar i recalcular el cost: es llegeix d'un sol lloc.
 from dataclasses import dataclass
 
 import rellotge
+from configuracio.repositories import ConfiguracioRepository
 from configuracio_examens.repositories import ConfiguracioExamenRepository
 from database import get_data_db_session
 from horari.repositories import XMLVersionRepository
@@ -27,7 +28,6 @@ from planificador.repositories import (
     llegeix_json,
 )
 from prioritats.repositories import NoSubstituirRepository
-from repositories import ConfiguracioRepository
 from scheduler_engine.defaults import DEFAULT_DURADA_TITULAR
 
 
@@ -106,7 +106,7 @@ def _config_dels_motors(assignacions) -> dict:
 
 
 def carrega_config(institucio: str) -> ConfigPlanificador:
-    with get_data_db_session(institucio) as db:
+    with get_data_db_session(institucio, lectura=True) as db:
         durada = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
         durada_titular = int(durada) if durada else DEFAULT_DURADA_TITULAR
         durada_examen = _positiu(ConfiguracioRepository.get(db, SCHEDULER_DURADA_EXAMEN_KEY)) or durada_titular
@@ -164,7 +164,7 @@ def horari_de_la_planificacio(institucio: str, dates: list | None = None) -> dic
         dates = cfg.dates(None, cfg.nivells_actius())
     dates = sorted(d for d in (dates or []) if d)
     referencia = dates[0] if dates else rellotge.avui().isoformat()
-    with get_data_db_session(institucio) as db:
+    with get_data_db_session(institucio, lectura=True) as db:
         versions = {}
         for d in dates or [referencia]:
             versio = XMLVersionRepository.vigent(db, d)

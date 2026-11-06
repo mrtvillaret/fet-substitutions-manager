@@ -27,10 +27,10 @@ from suport_api import (
 
 from database import get_data_db_session
 from grups.repositories import GrupsAlliberatsRepository
-from horari_web import GestorHorariWeb
+from horari.domain import Dia
+from horari.lector import GestorHorariWeb
 from prioritats.repositories import NoSubstituirRepository
 from rate_limit import limiter
-from serveis.dia import Dia
 from substitucions import domain, services
 from substitucions import router as substitucions
 from substitucions.repositories import SubstitucioRepository
@@ -618,9 +618,9 @@ def test_dia_escolar_registra_la_traca_si_no_pot_carregar_l_horari(db_session, m
     def horari_que_falla(*_args, **_kwargs):
         raise RuntimeError("error simulat de càrrega")
 
-    monkeypatch.setattr(domain, "get_horari", horari_que_falla)
+    monkeypatch.setattr(Dia, "horari", property(horari_que_falla))
 
-    dia = domain.DiaEscolar(db_session, DATA, "centre_de_prova")
+    dia = domain.DiaEscolar(db_session, Dia.de_text(DATA, "centre_de_prova"))
 
     assert dia.horari is None
     assert _te_exc_info(caplog, "No s'ha pogut carregar l'horari del dia")
@@ -770,6 +770,7 @@ def test_la_llista_es_pot_ordenar_per_professor_absent_dins_de_cada_hora(client)
         ("absent", "substitut_absent", "❌ Prof 21 està ABSENT a les 10:00!"),
         ("baixa", "substitut_amb_absencia_coberta", "❌ Prof 21 té una ABSÈNCIA COBERTA aquell dia!"),
         ("classe", "substitut_amb_classe", "⚠️ Prof 21 té CLASSE a les 10:00 (Matèria, Grup)"),
+        ("fora_horari", "substitut_fora_horari", "❌ Prof 21 no és un professor de l’horari d’aquell dia"),
     ],
 )
 def test_assignacio_manual_consulta_la_regla_unica(client, monkeypatch, motiu, codi, missatge):
@@ -818,3 +819,64 @@ def test_tria_manual_conserva_les_classes_sense_assignatura(client, monkeypatch,
     else:
         assert resp.status_code == 200, resp.text
         assert _sub(client, "10:00")["substitut"] == "Prof 21"
+
+
+@pytest.mark.parametrize(
+    "idioma,text",
+    [
+        ("ca", "❌ Prof inventat no és un professor de l’horari d’aquell dia"),
+        ("es", "❌ Prof inventat no es un profesor del horario de ese día"),
+        ("en", "❌ Prof inventat is not a teacher in that day's timetable"),
+        ("it", "❌ Prof inventat non è un docente dell'orario di quel giorno"),
+    ],
+)
+def test_no_es_pot_assignar_un_nom_fora_de_l_horari(client, centre, idioma, text):
+    from configuracio.repositories import ConfiguracioRepository
+
+    _marca_absencia(client, hores=["10:00"])
+    with get_data_db_session(centre) as db:
+        ConfiguracioRepository.set(db, "idioma", idioma)
+    abans = _sub(client, "10:00")
+    resp = _assigna(client, "10:00", "Prof inventat", force=True)
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == text
+    assert _sub(client, "10:00") == abans
+
+
+def test_la_regla_comprova_l_xml_de_la_data_i_no_toca_les_files_existents():
+    from suport_xml import amb_horari_futur, dia, professor_que_plega
+
+    from config.context import fixa_institucio_peticio
+    from models import Substitucio
+
+    centre = amb_horari_futur()
+    professor = professor_que_plega()
+    fixa_institucio_peticio(centre)
+    try:
+        with get_data_db_session(centre) as db:
+            db.add(Substitucio(data=dia(10), hora="10:00", professor_absent=ABSENT, substitut=professor))
+            db.commit()
+            abans = SubstitucioRepository.get_by_date(db, dia(10).isoformat())
+            actual = domain.DiaEscolar(db, Dia(dia(1), centre), estricte=True)
+            futur = domain.DiaEscolar(db, Dia(dia(10), centre), estricte=True)
+            assert actual.motius_substitut(professor, "10:00", nomes={"fora_horari"}) == []
+            assert futur.motius_substitut(professor, "10:00", nomes={"fora_horari"}) == [{"motiu": "fora_horari"}]
+            assert domain.substituts_no_valids(db, dia(10).isoformat(), futur)[0]["motiu"] == "fora_horari"
+            assert SubstitucioRepository.get_by_date(db, dia(10).isoformat()) == abans
+    finally:
+        fixa_institucio_peticio(None)
+
+
+def test_el_limit_d_ultim_professor_no_esborra_la_pertinenca_a_l_xml(client, centre):
+    from configuracio.repositories import ConfiguracioRepository
+    from horari.context import invalidar_horari
+
+    with get_data_db_session(centre) as db:
+        ConfiguracioRepository.set(db, "ultim_professor_subs", "Prof 3")
+    invalidar_horari(centre)
+    dia = Dia.de_text(DATA, centre)
+    with get_data_db_session(centre) as db:
+        estat = domain.DiaEscolar(db, dia, estricte=True)
+        assert "Prof 21" not in dia.horari.professors
+        assert "Prof 21" in dia.horari.tots_professors
+        assert estat.motius_substitut("Prof 21", "10:00", nomes={"fora_horari"}) == []

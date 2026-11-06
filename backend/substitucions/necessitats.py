@@ -36,14 +36,11 @@ class GestorAbsencies:
         # Assegura que dia està en format nom dia XML, no ISO
         if isinstance(dia, str) and len(dia) == 10 and "-" in dia:
             # Rebut format ISO (2025-08-11), converteix a nom dia XML
-            from utils.date_context import DateContext
+            from dates import parse_date
 
-            try:
-                weekday_idx = DateContext.from_iso(dia).weekday_index
-                dia = self.horari.get_dia_name(weekday_idx)
-                logger.info(_("   🔄 Convertit dia ISO a nom XML: '{}'").format(dia))
-            except Exception as e:
-                logger.error(_("⚠️ Error en convertir dia ISO: {}").format(e))
+            weekday_idx = parse_date(dia).weekday()
+            dia = self.horari.get_dia_name(weekday_idx)
+            logger.info(_("   🔄 Convertit dia ISO a nom XML: '{}'").format(dia))
 
         substitucions = []
         absents_tipus = absents_tipus or {}

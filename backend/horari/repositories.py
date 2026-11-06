@@ -1,16 +1,16 @@
-"""Consultes de les versions de l'XML de cada centre.
+"""Consultes de les versions de l'XML i del professorat històric de cada centre.
 
 Els repositoris no fan commit: el fa qui crida, un cop per operació."""
 
 from datetime import date, timedelta
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 import rellotge
+from dates import parse_date
 from models import Configuracio, XMLVersion
-from repositories import parse_date
 
 
 class XMLVersionRepository:
@@ -110,3 +110,51 @@ class XMLVersionRepository:
                     clau="xml_horari_path", valor=valor, tipus="string", descripcio="Path del fitxer XML de FET"
                 )
             )
+
+
+class ProfessorRepository:
+    """Repositori per gestionar professors històrics"""
+
+    @staticmethod
+    def existeix(db: Session, nom: str) -> bool:
+        from models import Professor
+
+        return db.query(Professor).filter_by(nom=nom).first() is not None
+
+    @staticmethod
+    def sync_from_xml(db: Session, professors_xml: List[str], data_sync=None) -> Dict[str, int]:
+        """Sincronitza professors amb l'XML (actiu/inactiu)"""
+
+        from models import Professor
+
+        data_avui = data_sync or rellotge.avui()
+        professors_noms = {nom.strip() for nom in professors_xml if nom and nom.strip()}
+
+        existing = {p.nom: p for p in db.query(Professor).all()}
+
+        nous = 0
+        reactivats = 0
+        desactivats = 0
+
+        # Afegir o reactivar professors presents a l'XML
+        for nom in professors_noms:
+            prof = existing.get(nom)
+            if prof:
+                if not prof.actiu:
+                    prof.actiu = True
+                    reactivats += 1
+                if not prof.primera_aparicio:
+                    prof.primera_aparicio = data_avui
+                prof.ultima_aparicio = data_avui
+            else:
+                db.add(Professor(nom=nom, actiu=True, primera_aparicio=data_avui, ultima_aparicio=data_avui))
+                nous += 1
+
+        # Marcar inactius els que ja no hi són
+        for nom, prof in existing.items():
+            if nom not in professors_noms and prof.actiu:
+                prof.actiu = False
+                prof.ultima_aparicio = data_avui
+                desactivats += 1
+
+        return {"nous": nous, "reactivats": reactivats, "desactivats": desactivats, "total_xml": len(professors_noms)}

@@ -86,7 +86,7 @@ def _migrate_connection(connection, kind, *, allow_upgrade):
 def initialize_database(engine, kind):
     # BEGIN explícit: sqlite3 legacy no inicia transacció amb DDL. IMMEDIATE
     # serialitza també dos workers que intentin crear/stampar la mateixa BD.
-    with engine.connect() as connection:
+    with engine.connect().execution_options(sqlite_manual_begin=True) as connection:
         try:
             connection.exec_driver_sql("BEGIN IMMEDIATE")
             migrate_connection(connection, kind)

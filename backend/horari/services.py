@@ -20,14 +20,17 @@ from sqlalchemy.orm import Session
 
 import rellotge
 from absencia_coberta.services import absencies_cobertes_del_dia
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from errors_domini import MissingXmlError, NoTrobat, NoValid
-from helpers import invalidar_horari
+from horari.context import invalidar_horari
+from horari.domain import Dia
+from horari.lector import GestorHorariWeb
 from horari.repositories import XMLVersionRepository
+from horari.sincronitzacio import sincronitza_professors
+from i18n_setup import translate as _
 from noms import nom_net
 from parametres import data_iso
-from repositories import ConfiguracioRepository
-from serveis.dia import Dia
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +89,7 @@ def tots_els_professors(dia: Dia) -> dict:
         root = tree.getroot()
 
         # En ORDRE del document XML (és l'ordre que fa servir el límit
-        # ultim_professor_subs a horari_web.py), amb el nom cru (amb els espais
+        # ultim_professor_subs a horari.lector.py), amb el nom cru (amb els espais
         # inicials, que a FET distingeixen secundària de primària) i el net.
         professors_ordenats = []
         for teacher in root.findall("Teacher"):
@@ -249,6 +252,15 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
         except (SafeET.ParseError, DefusedXmlException):
             raise NoValid("El fitxer no és un XML d'horari vàlid", codi="xml_no_valid") from None
 
+        # El mateix lector que utilitza el dia ha d'entendre l'estructura.
+        # Sense centre no aplica ni límits ni configuració de grups.
+        horari = GestorHorariWeb(file_path)
+        if not horari.professors or not any(horari.dies) or not any(horari.hores):
+            raise NoValid(
+                _("L'XML d'horari ha de contenir almenys un professor, un dia i una hora"),
+                codi="xml_estructura_incompleta",
+            )
+
         # Actualitzar configuració amb el nou path i versionar XML
         with get_data_db_session(institucio) as db:
             hash_contingut = _sha256(file_path)
@@ -280,7 +292,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
 
             # Si és el mateix XML que l'actual, no crear nova versió
             if current_version and current_version.hash_contingut == hash_contingut:
-                XMLVersionRepository.encadena(db)
+                _encadena_i_sincronitza(db, institucio)
                 db.commit()
                 return {
                     "success": True,
@@ -300,7 +312,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
                     db, path=stored_prev_path, data_inici=date(2000, 1, 1), hash_contingut=previous_hash
                 )
                 if previous_hash == hash_contingut:
-                    XMLVersionRepository.encadena(db)
+                    _encadena_i_sincronitza(db, institucio)
                     db.commit()
 
                     return {
@@ -320,7 +332,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
             XMLVersionRepository.create(db, path=stored_path, data_inici=vigent_des_de, hash_contingut=hash_contingut)
             # L'anterior es tanca el dia abans que entri en vigor la nova; el
             # punter "actual" només es mou si la nova ja és vigent avui
-            XMLVersionRepository.encadena(db)
+            _encadena_i_sincronitza(db, institucio)
             db.commit()
             es_vigent_avui = vigent_des_de <= rellotge.avui()
 
@@ -343,6 +355,11 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
 
 
 # ---------------------------------------------------------------- versions
+
+
+def _encadena_i_sincronitza(db: Session, institucio: str) -> None:
+    XMLVersionRepository.encadena(db)
+    sincronitza_professors(db, institucio)
 
 
 def llista_versions(db: Session) -> dict:
@@ -368,7 +385,7 @@ def _versio(db: Session, version_id: int):
     return versio
 
 
-def canvia_inici(db: Session, version_id: int, data_inici: Optional[str]) -> None:
+def canvia_inici(db: Session, institucio: str, version_id: int, data_inici: Optional[str]) -> None:
     """Canvia quan comença una versió; les dates de fi es recalculen totes (el
     dia abans que comenci la següent): no es poden posar a mà."""
     versio = _versio(db, version_id)
@@ -380,7 +397,7 @@ def canvia_inici(db: Session, version_id: int, data_inici: Optional[str]) -> Non
         raise NoValid("Ja hi ha una altra versió d'XML que comença aquest dia", codi="versio_xml_mateix_dia")
 
     versio.data_inici = nova
-    XMLVersionRepository.encadena(db)
+    _encadena_i_sincronitza(db, institucio)
     db.commit()
 
 
@@ -390,7 +407,7 @@ def esborra_versio(db: Session, institucio: str, version_id: int) -> None:
     versio = _versio(db, version_id)
     path = versio.path
     XMLVersionRepository.delete(db, versio)
-    XMLVersionRepository.encadena(db)
+    _encadena_i_sincronitza(db, institucio)
     db.commit()
     # Després del commit: si fallés, la versió hi seria i el fitxer també
     if path and not XMLVersionRepository.fa_servir(db, path):
@@ -399,7 +416,7 @@ def esborra_versio(db: Session, institucio: str, version_id: int) -> None:
 
 def _esborra_fitxer_del_centre(institucio: str, path: str) -> None:
     """Només un fitxer de dins de la carpeta del centre (com
-    helpers._resolve_xml_path); el que no hi és, no es toca."""
+    horari.context._resolve_xml_path); el que no hi és, no es toca."""
     carpeta = get_data_dir_for_institucio(institucio).resolve()
     fitxer = (carpeta / path).resolve()
     if not fitxer.is_relative_to(carpeta):

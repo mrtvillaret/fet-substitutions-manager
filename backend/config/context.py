@@ -8,8 +8,8 @@ ContextVar té un valor propi per a cada petició (cada tasca d'asyncio, i els
 fils on s'executa el codi síncron en copien el context).
 
 La fixa get_current_user un cop validat l'usuari. Fora d'una petició (arrencada,
-scripts, tests unitaris) no té valor i qui la llegeix fa servir el seu valor
-per defecte.
+scripts, tests unitaris) no té valor: qui necessita un centre l'ha de passar
+explícitament o fixar-lo al context. No se'n tria cap per defecte en llegir l'horari.
 """
 
 from contextvars import ContextVar

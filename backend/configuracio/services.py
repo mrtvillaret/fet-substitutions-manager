@@ -12,12 +12,12 @@ from sqlalchemy.orm import Session
 
 from auth.domain import Rol, UsuariActual
 from config.settings import config
+from configuracio.repositories import ConfiguracioRepository
 from configuracio.schemas import SettingsUpdate
 from database import get_data_db_session, get_data_dir_for_institucio
 from errors_domini import NoPermes, NoTrobat, NoValid
-from helpers import invalidar_horari
-from repositories import ConfiguracioRepository
-from serveis.dia import Dia
+from horari.context import invalidar_horari
+from horari.domain import Dia
 
 log = logging.getLogger(__name__)
 
@@ -171,7 +171,7 @@ def logo_del_centre(institucio: str) -> tuple[str, str]:
     # (cami_logo); qualsevol altre error és del codi i no es calla
     logo_configurat = None
     try:
-        with get_data_db_session(institucio) as db:
+        with get_data_db_session(institucio, lectura=True) as db:
             logo_configurat = ConfiguracioRepository.get(db, "logo_path")
     except SQLAlchemyError:
         log.warning("No s'ha pogut llegir logo_path del centre; es busca el logo a la carpeta", exc_info=True)

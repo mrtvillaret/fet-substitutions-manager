@@ -9,11 +9,11 @@ from sqlalchemy import event
 from suport_api import nova_institucio
 
 from config.context import fixa_institucio_peticio
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from grups.repositories import GrupsAlliberatsRepository
 from horari.repositories import XMLVersionRepository
 from models import AbsenciaCoberta, AlliberamentPeriode, GrupAlliberat
-from repositories import ConfiguracioRepository
 
 
 @pytest.fixture

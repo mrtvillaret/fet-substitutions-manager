@@ -21,8 +21,8 @@ from configuracio_examens.repositories import (
     PropostaDescartadaRepository,
 )
 from errors_domini import NoValid
+from horari.repositories import ProfessorRepository
 from noms import neteja_noms
-from repositories import ProfessorRepository
 
 CSV_COLUMNES = ["nivell", "assignatura", "grup", "titular", "aula"]
 

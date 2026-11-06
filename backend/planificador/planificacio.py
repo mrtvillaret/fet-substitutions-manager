@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from errors_domini import NoValid
+from horari.domain import Dia
 from planificador.alliberaments import (
     _hores_lectives_des_de_xml,
     extreure_hores_examen_des_alliberaments,
@@ -26,7 +27,6 @@ from planificador.config import (
 )
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
 from scheduler_engine.defaults import DIES_SETMANA
-from serveis.dia import Dia
 
 
 @dataclass

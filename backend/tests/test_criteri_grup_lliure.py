@@ -24,7 +24,7 @@ from suport_api import (
 
 from database import get_data_db_session
 from grups.repositories import GrupsAlliberatsRepository
-from horari_web import GestorHorariWeb
+from horari.lector import GestorHorariWeb
 from pdf import router as pdf
 from rate_limit import limiter
 from substitucions import router as substitucions

@@ -26,24 +26,29 @@ def _prepara_institucio(institucio: str) -> str:
     Retorna l'idioma, que fixa get_current_user: s'executa en un fil i una
     ContextVar fixada aquí no arribaria a la ruta."""
     import config.constants as constants
+    from configuracio.repositories import ConfiguracioRepository
     from database import get_data_db_session
-    from repositories import ConfiguracioRepository
 
     idioma = config.global_data.get("idioma", "ca")
     try:
         import i18n_setup
 
-        with get_data_db_session(institucio) as db:
+        with get_data_db_session(institucio, lectura=True) as db:
             idioma = ConfiguracioRepository.get(db, "idioma") or idioma
         i18n_setup.carrega_idioma(idioma)
     except Exception:
         log.warning("No s'ha pogut carregar l'idioma del centre", exc_info=True)
     if not constants.te_prioritats(institucio):
         try:
-            with get_data_db_session(institucio) as db:
+            with get_data_db_session(institucio, lectura=True) as db:
                 carrega_prioritats(db)
         except Exception:
             log.warning("No s'han pogut carregar les prioritats de %s", institucio, exc_info=True)
+    # Abans que la ruta obri la seva sessió de dades; una lectura d'horari
+    # no ha d'obrir una sessió paral·lela que escrigui al mateix centre.
+    from horari.sincronitzacio import sincronitza_un_cop_al_dia
+
+    sincronitza_un_cop_al_dia(institucio)
     return idioma
 
 

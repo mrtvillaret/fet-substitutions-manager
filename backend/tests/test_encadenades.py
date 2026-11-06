@@ -329,7 +329,7 @@ def test_no_avisa_quan_no_deixa_activitat_encadenable(centre, exclusio):
     ],
 )
 def test_avis_encadenada_en_l_idioma_del_centre(centre, idioma, inici):
-    from repositories import ConfiguracioRepository
+    from configuracio.repositories import ConfiguracioRepository
 
     institucio, client = centre
     _absent_i_genera(client)

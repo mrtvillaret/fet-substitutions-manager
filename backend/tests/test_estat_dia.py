@@ -1,8 +1,9 @@
-"""Caracteritza les dues lectures del dia abans d'unificar-ne la classe."""
+"""Estat compartit per la generació i la validació de substitucions."""
 
 import pytest
 
-from substitucions import domain, generacio
+from horari.domain import Dia
+from substitucions import domain
 
 
 class Horari:
@@ -30,13 +31,16 @@ def estat(monkeypatch):
     monkeypatch.setattr(domain.SubstitucioRepository, "get_by_date", lambda *_: files)
     monkeypatch.setattr(domain.GrupsAlliberatsRepository, "get_by_date", lambda *_: {"09": ["G1", "G1"]})
     monkeypatch.setattr(domain.VigilanciaRepository, "get_by_date", lambda *_: vigilancies)
-    return object(), Horari()
+    dia = Dia.de_text("2026-04-20", "centre_de_prova")
+    dia.__dict__["horari"] = Horari()
+    return object(), dia
 
 
 def test_generacio_conserva_els_filtres_l_ordre_i_els_valors_originals(estat):
-    db, horari = estat
-    dia = generacio.llegeix_estat(db, "2026-04-20", horari)
-    assert dia.dia == "Dilluns"
+    db, context = estat
+    dia = domain.DiaEscolar(db, context)
+    assert dia.dia is context
+    assert dia.nom_del_dia == "Dilluns"
     assert dia.absents == {"Prof A": ["09", "10"], "Prof B": ["09"], "Prof C": ["09"]}
     assert dia.absents_tipus == {"Prof A": "SERVEI", "Prof B": "ABSENCIA", "Prof C": "ALTRE"}
     assert dia.activitats_fallback[("Prof A", "09")]["aula"] == "A1"
@@ -45,13 +49,8 @@ def test_generacio_conserva_els_filtres_l_ordre_i_els_valors_originals(estat):
 
 
 def test_validacio_conserva_els_seus_filtres_i_noms_nets(estat):
-    db, horari = estat
-    dia = domain.DiaEscolar(db, "2026-04-20", horari=horari)
+    db, context = estat
+    dia = domain.DiaEscolar(db, context)
     assert dict(dia.absents_per_hora) == {"09": {"Prof A"}, "10": {"Prof A"}}
     assert dict(dia.vigilants_per_hora) == {"09": {"Prof V"}}
     assert dia.alliberats == {"09": ["G1", "G1"]}
-
-
-def test_generacio_i_validacio_comparteixen_la_mateixa_classe(estat):
-    db, horari = estat
-    assert type(generacio.llegeix_estat(db, "2026-04-20", horari)) is domain.DiaEscolar

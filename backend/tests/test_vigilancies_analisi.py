@@ -20,7 +20,7 @@ def dia_fals(vigs, files=(), activitats=None, absents=None, alliberats=None, hor
         absents_per_hora=absents or {},
         alliberats=alliberats or {},
         baixes=set(),
-        dia="Dilluns",
+        nom_del_dia="Dilluns",
         horari=SimpleNamespace(hores=["09:00", "10:00", "11:00"], get_jornada_professor=lambda *_: ("09:00", "11:00"))
         if horari
         else None,
@@ -96,7 +96,7 @@ def test_fila_antiga_sense_hora_te_avis_i_la_tria_conserva_conflictes_amb_altres
 def test_api_i_els_dos_pdf_imprimeixen_exactament_els_mateixos_avisos(idioma):
     import uuid
 
-    from repositories import ConfiguracioRepository
+    from configuracio.repositories import ConfiguracioRepository
 
     centre = nova_institucio(amb_xml=True)
     with get_data_db_session(centre) as db:

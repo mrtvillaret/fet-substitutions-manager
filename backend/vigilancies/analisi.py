@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 
-from core.alliberats import sense_classe
+from grups.disponibilitat import sense_classe
 from i18n_setup import translate as _
 from substitucions.domain import DiaEscolar
 
@@ -216,7 +216,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
                 )
         # La mateixa comprovació de jornada a totes les presentacions.
         hores = dia.horari.hores
-        primera, ultima = dia.horari.get_jornada_professor(dia.dia, efectiu)
+        primera, ultima = dia.horari.get_jornada_professor(dia.nom_del_dia, efectiu)
         if hora in hores and primera in hores and ultima in hores:
             if hores.index(hora) < hores.index(primera):
                 afegeix(

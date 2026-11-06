@@ -8,6 +8,7 @@ import re
 from sqlalchemy.orm import Session
 
 from planificador.repositories import CostProfessorRepository, RestriccioRepository, carrega_json
+from planificador.schemas import Restriccions
 from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS
 
 
@@ -102,6 +103,9 @@ def llegeix(db: Session) -> dict:
 def desa(db: Session, payload: dict) -> None:
     """Substitueix les restriccions desades per les de `payload` (sense
     commit), cadascuna amb el seu pes."""
+
+    # Abans de cap esborrat, també per a les crides internes sense router.
+    payload = Restriccions.model_validate(payload).model_dump(exclude_unset=True)
 
     def _coerce_pes(value, default=100):
         if isinstance(value, list):

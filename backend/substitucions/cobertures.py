@@ -7,7 +7,7 @@ les vigilàncies, les absències o els alliberats.
 from datetime import datetime
 
 from grups.repositories import GrupsAlliberatsRepository
-from helpers import get_gestors
+from substitucions.context import get_gestors
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import crear_vigilancia_absent
 from vigilancies.repositories import VigilanciaRepository
@@ -90,7 +90,7 @@ def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
     if not vigilants:
         return
 
-    substitucions_mgr, horari, _, _ = gestors or get_gestors(data_iso=data)
+    substitucions_mgr, horari, _, _ = gestors or get_gestors(db.info.get("institucio"), data_iso=data)
     date_obj = datetime.strptime(data, "%Y-%m-%d")
     dia_name = horari.get_dia_name(date_obj.weekday())
 

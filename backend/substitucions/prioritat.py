@@ -32,7 +32,7 @@ def text_tipus_substitut(tipus: str, detall: str) -> str:
 
 class MillorsSubstituts:
     def __init__(self, dia: DiaEscolar, gestors, rng=None):
-        """`gestors`: el que retorna helpers.get_gestors per a aquell dia."""
+        """`gestors`: el que retorna substitucions.context.get_gestors per a aquell dia."""
         self.dia = dia
         self.motor, _, self.alliberats, _ = gestors
         self.rng = rng
@@ -53,7 +53,9 @@ class MillorsSubstituts:
         actual = (sub.get("substitut") or "").strip()
         if not hora or not actual:
             return None
-        disponibles = self.alliberats.get_tots_disponibles(self.dia.dia, hora, set(self.dia.alliberats.get(hora, [])))
+        disponibles = self.alliberats.get_tots_disponibles(
+            self.dia.nom_del_dia, hora, set(self.dia.alliberats.get(hora, []))
+        )
         tipus_per_professor = {prof: tipus for prof, tipus, _ in disponibles}
         tipus_actual = tipus_per_professor.get(actual, tipus_real((sub.get("tipus_substitut") or "").strip()))
         categoria_actual = self.motor._obtenir_categoria(tipus_actual)

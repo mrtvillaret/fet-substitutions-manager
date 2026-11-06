@@ -46,7 +46,8 @@ def _carrega(language: str):
         else:
             logging.warning(f"No s'ha pogut carregar cap traducció per a '{language}'. S'utilitzarà el text original.")
     except Exception as e:
-        logging.error(f"S'ha produït un error en carregar les traduccions: {e}")
+        logging.exception(f"S'ha produït un error en carregar les traduccions: {e}")
+        raise
     _traductors[language] = traductor
     return traductor
 

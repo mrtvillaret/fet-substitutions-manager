@@ -40,9 +40,9 @@ from grups.schemas import (
     NovaAbreviaturaRequest,
     ReforcResponse,
 )
+from horari.domain import Dia
 from noms import NomNet
 from parametres import DataISO
-from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/grups", tags=["Grups Sense Classe"])
 router_admin = APIRouter()

@@ -635,7 +635,8 @@
       "classe": "has class with {grup}",
       "absent": "is absent",
       "baixa": "has a covered absence",
-      "vigilancia": "is supervising an exam"
+      "vigilancia": "is supervising an exam",
+      "fora_horari": "is not in that day's timetable"
     },
     "table": {
       "rowsInBlock": "{count} substitution | {count} substitutions",

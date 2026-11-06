@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 import rellotge
 from errors_domini import NoValid
+from horari.hores import normalitzar_hora
 from noms import ordre_alfabetic
 from recomptes.services import (
     absencies_i_serveis,
@@ -34,7 +35,6 @@ from recomptes.services import (
     valida_interval,
     vigilancies_entre,
 )
-from utils.hores import normalitzar_hora
 
 # Les franges de l'horari triades al filtre per hores (normalitzades); None: totes
 Hores = Collection[str] | None

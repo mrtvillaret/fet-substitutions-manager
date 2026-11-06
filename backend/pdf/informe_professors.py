@@ -25,10 +25,10 @@ from reportlab.platypus import (
 )
 
 import rellotge
+from horari.hores import normalitzar_hora as _normalitzar_hora
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
 from pdf.dies import dies_capcalera
-from utils.hores import normalitzar_hora as _normalitzar_hora
 
 C_NAVY = colors.HexColor("#1e3a5f")
 C_TEAL = colors.HexColor("#16a085")

@@ -6,7 +6,7 @@ from typing import Annotated, List, Optional
 from fastapi import Depends, HTTPException, Query
 from pydantic import AfterValidator
 
-from utils.hores import normalitzar_hora
+from horari.hores import normalitzar_hora
 
 
 def data_iso(valor: str) -> date:

@@ -30,7 +30,7 @@ def test_vigilant_absent_te_un_sol_problema_important(tipus, tmp_path):
 
 @pytest.mark.parametrize("mida, cos, marge", [(1.0, 10, 4), (1.2, 12, 4), (1.35, 13.5, 6)])
 def test_la_taula_del_dia_fa_servir_la_mida_de_lletra(tmp_path, mida, cos, marge):
-    exporter = PDFCompletExporter(hores=["10:00"], export_dir=str(tmp_path))
+    exporter = PDFCompletExporter(hores=["10:00"], export_dir=str(tmp_path), institucio="centre_de_prova")
     exporter.mida_lletra = mida
     dades = {
         "10:00": {
@@ -53,7 +53,7 @@ def test_la_taula_del_dia_fa_servir_la_mida_de_lletra(tmp_path, mida, cos, marge
 
 def test_a_la_llista_de_conflictes_l_hora_surt_un_sol_cop(tmp_path):
     # L'hora ja és al títol del grup («HORA 09:00:»): les línies no la repeteixen
-    exporter = PDFCompletExporter(hores=["09:00"], export_dir=str(tmp_path))
+    exporter = PDFCompletExporter(hores=["09:00"], export_dir=str(tmp_path), institucio="centre_de_prova")
     taula = exporter._crear_taula_conflictes(["• 09:00: Prof 12 té dues substitucions", "09:00: Prof 3 és absent"])
     textos = [str(fila[0].text) for fila in taula._cellvalues]
     assert sum("09:00" in t for t in textos) == 1, textos

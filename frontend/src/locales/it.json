@@ -638,7 +638,8 @@
       "classe": "ha lezione con {grup}",
       "absent": "è assente",
       "baixa": "ha un'assenza coperta",
-      "vigilancia": "sorveglia un esame"
+      "vigilancia": "sorveglia un esame",
+      "fora_horari": "non è nell'orario di quel giorno"
     },
     "table": {
       "rowsInBlock": "{count} supplenza | {count} supplenze",

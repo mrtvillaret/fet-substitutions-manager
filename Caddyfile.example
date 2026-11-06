@@ -1,15 +1,33 @@
-{
-    # Log intern de Caddy: hi van, entre altres, les peticions que no són de
-    # cap lloc (robots que proven l'adreça del servidor). Tampoc amb la IP sencera.
-    log default {
-        format filter {
-            request>remote_ip ip_mask 24 48
-            request>client_ip ip_mask 24 48
-            request>headers>X-Forwarded-For delete
-            wrap json
+# Els filtres s'encadenen per aplicar diverses substitucions a request>uri.
+# Cada capa és compatible amb Caddy sense multi_regexp.
+(format-registres) {
+    format filter {
+        request>remote_ip ip_mask 24 48
+        request>client_ip ip_mask 24 48
+        request>headers>X-Forwarded-For delete
+        request>uri regexp "[?].*$" ""
+        wrap filter {
+            # Substitucions: absències, hores-professor i assignació manual;
+            # Estadístiques: detall del professor.
+            request>uri regexp "^(/api/(?:substitucions/[^/?]+/[^/?]+|estadistiques/professor)/)[^?]+$" "${1}{professor}"
+            wrap filter {
+                request>uri regexp "^(/api/config/assignatures/[^/?]+/)[^?]+$" "${1}{nom}"
+                wrap filter {
+                    request>uri regexp "^(/api/prioritats/no-substituir/)[^?]+$" "${1}{assignatura}"
+                    wrap json
+                }
+            }
         }
     }
 }
+
+{
+    # El filtre també s'aplica als errors interns de Caddy amb una petició.
+    log default {
+        import format-registres
+    }
+}
+
 
 el-teu-domini.exemple.com {
     encode zstd gzip
@@ -23,22 +41,17 @@ el-teu-domini.exemple.com {
     # El `docker-compose.yml.example` ja hi munta `./logs/caddy`.
     #
     # Les adreces IP es desen escapçades (vegeu `format filter`), de manera que
-    # el registre no identifica ningú. Es conserva 90 dies (2160 h): ajusteu el
-    # termini al que decidiu al vostre centre, o comenteu aquest bloc.
+    # el registre no identifica ningú. Els fitxers rotats es conserven com a màxim 30 dies (720 h),
+    # també limitats a 10 còpies. El filtre treu la query i els noms de la URI.
     log {
         output file /var/log/caddy/access.log {
             roll_size 10MiB
             roll_keep 10
-            roll_keep_for 2160h
+            roll_keep_for 720h
         }
         # Sense l'adreça IP sencera: només la xarxa (83.45.127.19 → 83.45.127.0),
         # que no identifica ningú i permet comptar visites aproximades.
-        format filter {
-            request>remote_ip ip_mask 24 48
-            request>client_ip ip_mask 24 48
-            request>headers>X-Forwarded-For delete
-            wrap json
-        }
+        import format-registres
     }
 
     header {

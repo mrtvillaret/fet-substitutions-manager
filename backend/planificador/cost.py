@@ -9,6 +9,8 @@ from collections import defaultdict
 from types import SimpleNamespace
 
 from errors_domini import NoValid
+from horari.domain import Dia
+from horari.hores import normalitzar_hora as _normalitzar_hora
 from planificador.alliberaments import extreure_hores_examen_des_alliberaments
 from planificador.config import aplica_restriccions_derivades, carrega_config
 from planificador.planificacio import xml_del_dia
@@ -22,8 +24,6 @@ from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_tex
 from scheduler_engine.core.scoring import pes_professor
 from scheduler_engine.estadistiques import recalcular_cost_i_breakdown
 from scheduler_engine.validacio import ValidadorHorari
-from serveis.dia import Dia
-from utils.hores import normalitzar_hora as _normalitzar_hora
 
 
 def _substitucio(prof, hora, dia, item):
@@ -169,7 +169,7 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
     regenerar-lo); el desa com a últim horari. L'horari (XML) és el de la data
     de referència de la petició o, si no n'hi ha, la de l'horari; si tampoc,
     el del planificador (`dia_planificacio`)."""
-    horari = payload.horari
+    horari = payload.horari.model_dump(exclude_unset=True, by_alias=True)
     if not horari or not horari.get("dies"):
         raise NoValid("L'horari no conté dies", codi="horari_sense_dies")
 

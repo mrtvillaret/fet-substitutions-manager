@@ -6,6 +6,7 @@ Usat per tots els motors (V2 greedy, V2 backtrack, V3 SA).
 from collections import defaultdict
 from typing import Dict
 
+from horari.hores import normalitzar_hora as _normalitzar_hora
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.constraints import calcular_penalitzacio_total_professors
 from scheduler_engine.core.context import SchedulerContext
@@ -15,7 +16,6 @@ from scheduler_engine.core.durada import (
 )
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.scoring import calcular_cost_slot, costos_professors_analisi
-from utils.hores import normalitzar_hora as _normalitzar_hora
 
 
 def calcular_estadistiques_horari(horari: Dict) -> Dict:

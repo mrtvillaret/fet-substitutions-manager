@@ -1,8 +1,8 @@
 """Peticions i respostes de l'API del planificador d'exàmens."""
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from noms import NomNet
 from parametres import DataISO
@@ -16,25 +16,33 @@ TipusCost = Literal["substitucio", "abans_jornada", "despres_jornada", "no_treba
 
 
 class SchedulerGenerateRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     data_inici: DataISO
     data_final: Optional[DataISO] = None
     selected_dates: Optional[List[DataISO]] = None
     dies_utilitzar: Optional[List[str]] = None
     nivells_actius: Optional[List[str]] = None
-    max_dies: int = 5
+    max_dies: int = Field(default=5, gt=0)
     motor: str = "v3"
     estrategia: str = "ponderada"
-    epsilon: float = 0.2
-    max_intents_validacio: int = 250
-    max_iteracions: Optional[int] = None
-    iteracions_per_temperatura: Optional[int] = None
-    temperatura_inicial: Optional[float] = None
-    temperatura_final: Optional[float] = None
-    factor_refredament: Optional[float] = None
+    epsilon: float = Field(default=0.2, ge=0, le=1)
+    max_intents_validacio: int = Field(default=250, gt=0)
+    max_iteracions: Optional[int] = Field(default=None, ge=0)
+    iteracions_per_temperatura: Optional[int] = Field(default=None, gt=0)
+    temperatura_inicial: Optional[float] = Field(default=None, ge=0)
+    temperatura_final: Optional[float] = Field(default=None, ge=0)
+    factor_refredament: Optional[float] = Field(default=None, ge=0)
     random_seed: Optional[int] = None
-    seeds_count: Optional[int] = None
-    max_nodes: Optional[int] = None
+    seeds_count: Optional[int] = Field(default=None, le=50)
+    max_nodes: Optional[int] = Field(default=None, ge=0, le=10_000_000)
     shuffle_top_n: Optional[int] = None
+
+    @model_validator(mode="after")
+    def comprova_coherencia(self):
+        if self.data_final and self.data_final < self.data_inici:
+            raise ValueError("La data final no pot ser anterior a la inicial")
+        return self
 
 
 class MarquesHora(BaseModel):
@@ -45,7 +53,7 @@ class MarquesHora(BaseModel):
 class AlliberamentsNivell(BaseModel):
     """Les hores sense classe d'un nivell marcades al calendari."""
 
-    durada: Optional[int] = None
+    durada: Optional[int] = Field(default=None, gt=0)
     dates: List[DataISO] = []
     config: Dict[DataISO, Dict[str, MarquesHora]] = {}  # data → hora → marques
 
@@ -55,15 +63,15 @@ class DuradaGrup(BaseModel):
 
     nom: str = ""
     assignatures: List[NomNet] = []  # «Assignatura (nivell)»
-    durada: int = 1
-    durada_examen: Optional[int] = None
+    durada: int = Field(default=1, gt=0)
+    durada_examen: Optional[int] = Field(default=None, gt=0)
 
 
 class ConfigPlanificadorRequest(BaseModel):
     """Només es desen els camps que hi són."""
 
-    durada_titular: int = None
-    durada_examen: int = None
+    durada_titular: int = Field(default=None, gt=0)
+    durada_examen: int = Field(default=None, gt=0)
     nivells_actius: List[str] = None
     alliberaments_per_nivell: Dict[str, AlliberamentsNivell] = None
     durades_grups: List[DuradaGrup] = None
@@ -100,10 +108,75 @@ class Preferencies(BaseModel):
     mateix_slot: List[Preferencia] = []
 
 
+class _RestriccioInterna(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class AgrupacioRestriccio(_RestriccioInterna):
+    nom: str = ""
+    assignatures: List[NomNet]
+    pes: int = 100
+
+
+class SlotProhibit(_RestriccioInterna):
+    assignatures: List[NomNet]
+    dia: str = ""
+    hora: str = ""
+
+
+class LimitDiesProfessor(_RestriccioInterna):
+    assignatures: List[NomNet]
+    dies_restringits: List[str] = []
+    max_examens: int = 0
+    pes_penalitzacio: int = 0
+
+
+class DiesExclosos(_RestriccioInterna):
+    assignatures: List[NomNet]
+    dies: List[str]
+    pes: int = 100
+
+
+class RestriccionsDures(_RestriccioInterna):
+    # També s'admeten les llistes històriques que llegeixen els motors.
+    no_mateix_dia: List[List[NomNet] | NomNet] = []
+    no_mateix_slot: Dict[str, List[NomNet] | int] = {}
+    mateix_slot: List[AgrupacioRestriccio | List[NomNet]] = []
+    assignatures_dia_fix: Dict[NomNet, str | int] = {}
+    assignatures_hora_fix: Dict[NomNet, str | int] = {}
+    assignatures_slot_prohibit: List[SlotProhibit] = []
+    professors_horari_estricte: List[NomNet] = []
+    professors_limit_dies_especifics: Dict[NomNet, LimitDiesProfessor | int] = {}
+    slots_valids_per_nivell: Dict[str, Dict[str, List[str]] | int] = {}
+    combinacions_permeses: List[AgrupacioRestriccio | List[NomNet]] = []
+    assignatures_dies_exclosos: List[DiesExclosos] = []
+
+    @field_validator(
+        "no_mateix_slot",
+        "assignatures_dia_fix",
+        "assignatures_hora_fix",
+        "professors_limit_dies_especifics",
+        "slots_valids_per_nivell",
+        mode="before",
+    )
+    @classmethod
+    def comprova_pesos_separats(cls, valor):
+        # `_pes_<clau>` és un enter; la resta de claus tenen la forma del tipus.
+        # Una unió sola acceptaria un enter on s'espera una llista o un dia.
+        if isinstance(valor, dict):
+            for clau, contingut in valor.items():
+                if isinstance(clau, str) and clau.startswith("_pes_"):
+                    if type(contingut) is not int:
+                        raise ValueError("El pes separat ha de ser un enter")
+                elif type(contingut) is int:
+                    raise ValueError("Un enter només és vàlid en una clau de pes _pes_…")
+        return valor
+
+
 class Restriccions(BaseModel):
     """Només es desen els camps que hi són (desar-les les substitueix totes)."""
 
-    restriccions_dures: Dict[str, Any] = {}  # per tipus (no_mateix_dia, mateix_slot...)
+    restriccions_dures: RestriccionsDures = Field(default_factory=RestriccionsDures)
     preferencies: Preferencies = Preferencies()
     pesos_optimitzacio: Dict[str, int] = {}
     costos_professors: Optional[CostosProfessorsRequest] = None
@@ -119,8 +192,45 @@ class SchedulerPublicarOpcions(BaseModel):
     auto_assign_titulars: bool = True
 
 
+class _ModelHorari(BaseModel):
+    # La pantalla conserva metadades del motor, anàlisis i identificadors
+    # d'edició (p. ex. _uid). No es perden en validar ni en tornar al domini.
+    model_config = ConfigDict(extra="allow")
+
+
+class ExamenHorari(_ModelHorari):
+    professor: Optional[NomNet] = None
+    grup: Optional[str] = None
+    assignatura: Optional[NomNet] = None
+    aula: Optional[NomNet] = None
+
+
+class SessioHorari(_ModelHorari):
+    id: Optional[str] = None
+    nom: Optional[str] = None
+    nom_base: Optional[str] = None
+    curs: Optional[str] = None
+    examens: List[ExamenHorari] = Field(default_factory=list)
+
+
+class FranjaHorari(_ModelHorari):
+    hora: str
+    sessions_simultanees: List[SessioHorari] = Field(default_factory=list)
+
+
+class DiaHorari(_ModelHorari):
+    dia: str
+    data: Optional[DataISO] = None
+    sessions: List[FranjaHorari] = Field(default_factory=list)
+
+
+class HorariPlanificat(_ModelHorari):
+    dies: List[DiaHorari] = Field(default_factory=list)
+    metadata: Optional[dict] = None
+
+
 class SchedulerPublicarRequest(BaseModel):
-    horari: dict  # Resultat del scheduler (result.horari)
+    horari: HorariPlanificat  # Resultat del scheduler (result.horari)
     setmanes: List[Dict[str, DataISO]]  # [{"Dilluns": "2026-02-02", "Dimarts": "2026-02-03"}, ...]
     grups_sense_classe: List[str] = []  # Grups que no tenen classe (per crear GrupAlliberat)
     opcions: SchedulerPublicarOpcions = SchedulerPublicarOpcions()
@@ -128,7 +238,7 @@ class SchedulerPublicarRequest(BaseModel):
 
 
 class HorariRecalcularRequest(BaseModel):
-    horari: dict  # Estructura completa de l'horari (dies -> sessions -> ...)
+    horari: HorariPlanificat  # Estructura completa de l'horari
     data_referencia: Optional[DataISO] = None  # Data per carregar l'XML d'horaris
     selected_dates: Optional[List[DataISO]] = None
 

@@ -14,9 +14,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
+from horari.domain import Dia
 from noms import NomNet
 from parametres import DataISO
-from serveis.dia import Dia
 from vigilancies import services
 from vigilancies.schemas import (
     AfinitatsDesadesResponse,

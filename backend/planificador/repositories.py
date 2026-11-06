@@ -8,8 +8,8 @@ import json
 
 from sqlalchemy.orm import Session
 
+from configuracio.repositories import ConfiguracioRepository
 from models import ExamCostProfessor, ExamRestriccio
-from repositories import ConfiguracioRepository
 
 # Claus de la configuració del planificador (taula configuracio)
 SCHEDULER_DATES_KEY = "scheduler_selected_dates"

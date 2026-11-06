@@ -5,8 +5,8 @@ un examen i les franges vàlides de cada nivell."""
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
+from horari.hores import normalitzar_hora as _normalitzar_hora
 from scheduler_engine.core.normalitzacio import normalitzar_dia
-from utils.hores import normalitzar_hora as _normalitzar_hora
 
 
 def _selected_dates_from_alliberaments(alliberaments_cfg: dict, nivells_actius: list[str] | None = None) -> list[str]:

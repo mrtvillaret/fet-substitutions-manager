@@ -13,12 +13,12 @@ import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
 
+from configuracio.repositories import ConfiguracioRepository
 from planificador import publicacio
 from planificador.alliberaments import _hores_lectives_des_de_xml
 from planificador.repositories import CostProfessorRepository
 from planificador.router import router
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 APP = crea_app(router)
 DATA = "2026-04-20"  # dilluns

@@ -1,6 +1,6 @@
 """Resolució dels alliberaments del dia i dels períodes, sense consultes."""
 
-from core.alliberats import activitats_de, clau_ocupat, clau_professor, ocupats_de
+from grups.disponibilitat import activitats_de, clau_ocupat, clau_professor, ocupats_de
 
 
 def resol_alliberats(result, horari, data, darrers, per_defecte):

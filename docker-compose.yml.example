@@ -7,6 +7,9 @@ services:
     # El volum necessita propietat 10001:10001; vegeu DESPLEGAMENT.md.
     volumes:
       - ./data:/app/data
+      # Opcional: amb ACCESS_LOG_PATH=/var/log/gestor/access.log a l'entorn,
+      # preparar logs/backend amb propietat 10001:10001 i descomentar:
+      # - ./logs/backend:/var/log/gestor
     restart: unless-stopped
     logging:
       driver: json-file

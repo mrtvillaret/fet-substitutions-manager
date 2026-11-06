@@ -1,8 +1,8 @@
 # Com funciona l'aplicació i com es compta cada cosa
 
 Esquema del domini: d'on surt cada dada, quines files de substitució hi ha i què
-compta cada pantalla, PDF i informe. Les regles detallades són a `CLAUDE.md`
-(«Regles del domini»); aquí només el mapa. Si una regla canvia, canvia aquí també.
+compta cada pantalla, PDF i informe. Les regles detallades són a
+`ARQUITECTURA.md` («Regles de funcionament»); aquí només el mapa. Si una regla canvia, canvia aquí també.
 
 ## 1. Les entrades
 
@@ -128,7 +128,7 @@ fan servir el mateix filtre, i la capçalera diu quines hores s'han triat. La ta
 Ordre: els rànquings van per comptador i els empats, per ordre alfabètic natural
 (`noms.ordre_alfabetic`), a la web i al PDF; els selectors de professor, alfabètics.
 
-## 6. Criteris decidits (29/10 i 30/10/2026)
+## 6. Criteris dels recomptes
 
 Un vigilant que falta es pot resoldre de dues maneres: reassignant la vigilància
 (pantalla Vigilàncies, sense cap substitució) o posant substitut a la fila
@@ -144,8 +144,7 @@ Un vigilant que falta es pot resoldre de dues maneres: reassignant la vigilànci
   cobreix), aquella hora no compta; si l'activitat s'ha de cobrir, compta com una classe.
 - **Substitucions fetes**: la feina de cada professor. Les files amb substitut, de
   qualsevol tipus (també `ENCADENADA`, `VIGILANCIA` i `VIGILANCIA_ABSENT`), sense els
-  filtres de «No substituir» ni d'alliberats: si té substitut, algú hi ha anat (a les BD
-  locals, cap fila amb substitut no és de «No substituir» ni d'un absent alliberat). Qui
+  filtres de «No substituir» ni d'alliberats: si té substitut, algú hi ha anat. Qui
   cobreix una absència en fa una, i qui cobreix l'encadenada que deixa també. El
   «(n/total)» del desplegable de substituts compta les mateixes, les del curs: n, a
   aquell dia de la setmana i hora; total, al curs.
@@ -169,13 +168,13 @@ Un vigilant que falta es pot resoldre de dues maneres: reassignant la vigilànci
 - Els recomptes de la web i dels informes surten d'un sol lloc compartit i donen el
   mateix per al mateix interval.
 
-## 7. Aplicat (30/10/2026) i pendent
+## 7. On s'apliquen
 
 Els criteris dels apartats 5 i 6 s'apliquen a la pantalla Estadístiques i als dos
 informes PDF, amb els recomptes al mòdul comú `recomptes/` (vegeu `ARQUITECTURA.md`).
-El filtre per hores també s'aplica als informes PDF (decidit el 30/10/2026). La regla de
-quines files es veuen a Substitucions (apartat 5) la fan servir la pantalla (backend; el
-frontend ja no filtra pel seu compte) i els recomptes.
+El filtre per hores també s'aplica als informes PDF. La regla de quines files es veuen
+a Substitucions (apartat 5) la calcula el backend, i la fan servir la pantalla i els
+recomptes.
 
 ## Alliberament per a vigilàncies
 

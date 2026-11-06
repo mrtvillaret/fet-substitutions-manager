@@ -9,9 +9,9 @@ from datetime import timedelta
 from suport_api import XML_EXEMPLE, nova_institucio
 from suport_rellotge import AVUI
 
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from models import XMLVersion
-from repositories import ConfiguracioRepository
 
 
 def dia(dies):

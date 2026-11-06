@@ -8,8 +8,9 @@ from typing import Dict, List
 from sqlalchemy.orm import Session
 
 import rellotge
+from configuracio.repositories import ConfiguracioRepository
+from dates import parse_date
 from models import AlliberamentPeriode, GrupAlliberat, Substitucio, Vigilancia
-from repositories import ConfiguracioRepository, parse_date
 
 
 class AlliberamentsPeriodeRepository:
@@ -118,10 +119,10 @@ class GrupsAlliberatsRepository:
         professor alliberat)."""
         result = GrupsAlliberatsRepository.get_dia_by_date(db, data)
         from errors_domini import MissingXmlError
-        from helpers import get_horari
+        from horari.context import get_horari
 
         try:
-            horari = get_horari(data_iso=data)
+            horari = get_horari(db.info.get("institucio"), data_iso=data)
         except MissingXmlError:
             return result  # sense horari no hi ha activitats ni períodes a resoldre
         from grups.alliberaments import resol_alliberats
@@ -141,7 +142,7 @@ class GrupsAlliberatsRepository:
         i un horari per versió de l'XML. Memòria només d'aquesta crida."""
         from errors_domini import MissingXmlError
         from grups.alliberaments import resol_alliberats
-        from helpers import horaris_per_dates
+        from horari.context import horaris_per_dates
 
         dates = sorted(set(dates))
         if not dates:

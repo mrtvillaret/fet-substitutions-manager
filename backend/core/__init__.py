@@ -1,1 +1,0 @@
-"""Mòduls core del sistema"""

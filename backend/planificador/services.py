@@ -11,6 +11,7 @@ import json
 from sqlalchemy.orm import Session
 
 import rellotge
+from configuracio.repositories import ConfiguracioRepository
 from configuracio_examens.repositories import ConfiguracioExamenRepository, MasterConfigRepository
 from cursos.repositories import CursRepository
 from database import get_data_db_session
@@ -32,7 +33,6 @@ from planificador.repositories import (
     RestriccioRepository,
     llegeix_json,
 )
-from repositories import ConfiguracioRepository
 from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
 
 # ---------------------------------------------------------------- motors

@@ -8,7 +8,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 # Evitem imports estàtics per no quedar-nos amb valors stale
-from core.alliberats import sense_classe
+from grups.disponibilitat import sense_classe
 from substitucions.encadenades import activitat_encadenada
 
 log = logging.getLogger(__name__)
@@ -134,14 +134,11 @@ class GestorSubstitucions:
 
         # Converteix dia de format ISO a nom del dia XML si cal
         if isinstance(dia, str) and len(dia) == 10 and "-" in dia:
-            from utils.date_context import DateContext
+            from dates import parse_date
 
-            try:
-                weekday_idx = DateContext.from_iso(dia).weekday_index
-                dia = self.horari.get_dia_name(weekday_idx)
-                logger.info(_("   🔄 Convertit dia ISO a nom XML: '{}'").format(dia))
-            except Exception as e:
-                logger.error(_("⚠️ Error en convertir dia ISO: {}").format(e))
+            weekday_idx = parse_date(dia).weekday()
+            dia = self.horari.get_dia_name(weekday_idx)
+            logger.info(_("   🔄 Convertit dia ISO a nom XML: '{}'").format(dia))
 
         # Guarda info dels professors ocupats i substitucions existents
         self.professors_ocupats_examens = professors_ocupats_examens or {}

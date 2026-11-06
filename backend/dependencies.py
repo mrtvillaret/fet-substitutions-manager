@@ -10,16 +10,16 @@ Dependències compartides de les rutes: la BD de dades de l'usuari i el dia
 
 from typing import Optional
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
 from auth.dependencies import get_current_user
 from database import get_data_db
+from horari.domain import Dia
 from parametres import DataISO
-from serveis.dia import Dia
 
 
-def get_db(current_user=Depends(get_current_user)):
-    yield from get_data_db(current_user.institucio)
+def get_db(request: Request, current_user=Depends(get_current_user)):
+    yield from get_data_db(current_user.institucio, lectura=request.method in {"GET", "HEAD", "OPTIONS"})
 
 
 def dia_de_la_peticio(data: DataISO, current_user=Depends(get_current_user)) -> Dia:

@@ -7,8 +7,9 @@ import pytest
 from suport_xml import amb_horari_futur, amb_versions, dia, professor_que_plega
 
 from database import get_data_db_session
-from helpers import avui, get_horari, get_xml_path_for_date
+from horari.context import avui, get_xml_path_for_date
 from horari.repositories import XMLVersionRepository
+from horari.sincronitzacio import sincronitza_un_cop_al_dia
 from models import Professor
 
 
@@ -27,7 +28,7 @@ def test_amb_data_es_fa_servir_el_d_aquella_data(amb_futur):
 
 
 def test_un_professor_que_plega_amb_l_horari_futur_continua_actiu_fins_aleshores(amb_futur):
-    get_horari(amb_futur, data_iso=avui())  # sincronitza els professors amb l'horari sense data
+    sincronitza_un_cop_al_dia(amb_futur)  # explícit, com a la primera petició del dia
     with get_data_db_session(amb_futur) as db:
         prof = db.query(Professor).filter(Professor.nom == professor_que_plega()).one()
         assert prof.actiu

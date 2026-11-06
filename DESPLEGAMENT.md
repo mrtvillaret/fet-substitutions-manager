@@ -1,13 +1,14 @@
-# Fase 4: desplegament de la infraestructura
+# Actualitzar una instal·lació existent
 
-Aquest document prepara un desplegament posterior. El treball de codi no aplica
-res al servidor. L’altre agent farà aquests passos amb l’usuari, fora de l’horari
-escolar i després de les comprovacions d’activitat habituals. No desplegar si hi
-ha cap centre treballant. No mostrar dades dels centres, secrets ni registres.
+Passos per actualitzar un servidor que ja té l'aplicació en marxa a la versió
+amb migracions d'esquema, contenidor sense root i configuració a la carpeta de
+dades. Feu-ho fora de l'horari en què els centres hi treballen, i comproveu
+abans que no hi ha ningú connectat. No mostreu dades dels centres, secrets ni
+registres.
 
 ## Com funciona el codi
 
-- `0001_base` congela l’esquema canònic del 04/11/2026 per a auth i dades.
+- `0001_base` congela l’esquema canònic inicial per a auth i dades.
   Les BD noves creen aquesta base i arriben a `0003_esquema_canonic`. Cap
   revisió no importa els models vius.
 - `--comprova` valida en només lectura, abans de qualsevol còpia o escriptura,
@@ -16,8 +17,7 @@ ha cap centre treballant. No mostrar dades dels centres, secrets ni registres.
   estrictament amb el canònic: ordre de columnes, tipus, nul·labilitat, defaults,
   PK, unicitat, índexs, col·lacions, FK, checks i objectes SQL. No es normalitza
   la comparació per amagar diferències. Una 0003 amb un ALTER històric es rebutja.
-- L’inventari de tot l’historial privat i públic local és a
-  `backend/tests/ESQUEMES_HISTORICS.md`; els DDL de producció són a
+- Les estructures de versions anteriors que es reconeixen són a
   `backend/schema_migrations/historical_schema.json`. Només s’admeten les
   formes exactes i els conjunts de taules documentats, incloses mescles que
   l’antic `create_all` podia deixar en actualitzar. No s’executa codi antic.
@@ -92,7 +92,7 @@ PROD_AUTH="$PROD_DATA/auth.db"
 DEMO_AUTH="$DEMO_DATA/auth.db"
 DEMO_SNAPSHOT="$APP_ROOT/demo_reset/demo/gestor.db"
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
-BACKUP_DIR="/ruta/absoluta/copies/fase4-$RUN_ID"
+BACKUP_DIR="/ruta/absoluta/copies/actualitzacio-$RUN_ID"
 ```
 
 La carpeta de còpies ha de ser fora d’APP_ROOT i accessible només a l’operador.
@@ -153,8 +153,8 @@ stamp ni preparacions amb versions anteriors.
 
 ## Actualitzar codi, configuració i permisos
 
-Fer el flux autoritzat de revisió/fetch/pull del repositori públic segons la guia
-del projecte. Després, amb els backends encara aturats:
+Actualitzeu el codi (`git fetch`, reviseu els canvis i `git pull`). Després, amb
+els backends encara aturats:
 
 ```bash
 # Instal·lar les còpies antigues només si no hi ha ja configuració al volum.
@@ -218,7 +218,7 @@ MOUNTS=(-v "$PROD_DATA:$PROD_DATA" -v "$DEMO_DATA:$DEMO_DATA"
 docker compose -p "$PROD_PROJECT" -f "$PROD_COMPOSE" run --rm --no-deps --user 10001:10001 \
   "${MOUNTS[@]}" --entrypoint python "$PROD_SERVICE" \
   -m scripts.migra_esquemes --comprova "${DB_ARGS[@]}"
-# Ensenyar el resultat numèric i esperar l’autorització del desplegament.
+# Reviseu el resultat de la comprovació abans d'aplicar la migració.
 docker compose -p "$PROD_PROJECT" -f "$PROD_COMPOSE" run --rm --no-deps --user 10001:10001 \
   "${MOUNTS[@]}" --entrypoint python "$PROD_SERVICE" \
   -m scripts.migra_esquemes --aplica --backup-dir /copies "${DB_ARGS[@]}"
@@ -248,13 +248,13 @@ sense compartir IP ni dades dels registres. No cal cap canvi al frontend.
 Comprovar també una còpia **temporal** de la instantània amb el mateix mecanisme
 de reset i `--comprova`: ha de mantenir la revisió i els permisos. Reactivar el
 reset i les tasques periòdiques exactament com estaven només després d’aquesta
-validació. Conservar la còpia completa fins que l’usuari doni la fase per validada.
+validació. Conserveu la còpia completa fins que hàgiu validat l'actualització.
 
 ## Desfer el desplegament
 
 1. Aturar altre cop els dos backends i el reset. No permetre escriptures mentre
    es restaura. Si hi ha hagut activitat des del desplegament, fer-ne una còpia
-   separada abans i decidir amb l’usuari com conservar-la: restaurar perd els
+   separada abans i decidir com conservar-la: restaurar perd els
    canvis posteriors a la còpia.
 2. Mostrar abans el llistat de fitxers que se sobreescriuran o retiraran. Inclou
    els `config.json` nous i qualsevol `.db-wal`/`.db-shm` creat després de la
@@ -297,7 +297,7 @@ docker compose -p "$DEMO_PROJECT" -f "$DEMO_COMPOSE" -f "$BACKUP_DIR/rollback-de
 ```
 
 Comprovar 200, entrada i dades del centre de prova; reactivar el reset anterior.
-Conservar aquests tags locals fins que s’hagi validat la fase; no fer neteja
+Conserveu aquests tags locals fins que s'hagi validat l'actualització; no feu neteja
 d’imatges durant la finestra de desplegament.
 No executar `alembic downgrade base`: es nega a esborrar les taules. La reversió
 segura és la còpia completa.
@@ -308,3 +308,41 @@ amb `down_revision` apuntant a l’anterior, usar `op`/SQL congelat i discrimina
 base ni importar els models actuals des d’una revisió. Afegir tests d’upgrade,
 rollback i creació nova; el guardià dels models/base s’haurà d’adaptar a l’esquema
 vigent quan canviï l’esquema canònic.
+
+## Registres d’accés i retenció de 30 dies
+
+El backend registra data i hora, usuari, rol, centre, mètode HTTP, plantilla de
+la ruta, codi de resposta i durada. Per exemple, la ruta queda com
+`/api/substitucions/{data}/{hora}/{professor}`: no hi desa els valors dels
+paràmetres, la query ni la IP. Uvicorn no genera un segon registre d’accés.
+Els errors que indiquen la ruta també fan servir la plantilla; les traces de
+diagnòstic continuen al registre d’errors de la consola.
+
+Sense `ACCESS_LOG_PATH`, els resums continuen a la consola del backend. Per
+conservar-los en un fitxer independent, cal configurar
+`ACCESS_LOG_PATH=/var/log/gestor/access.log`. El backend rota el fitxer diàriament
+a mitjanit UTC i en conserva 30 còpies; no duplica aquests resums a la consola.
+
+Caddy desa l’accés a `/var/log/caddy/access.log` (volum `./logs/caddy`), amb les
+IP escapçades, sense query i amb els segments de professor i assignatura
+substituïts per `{professor}`, `{nom}` o `{assignatura}`. El filtre compartit
+cobreix Substitucions (absències, hores i assignació), Estadístiques (detall)
+i les assignatures de Configuració i Prioritats. Els fitxers rotats tenen un
+termini màxim de `720h` (30 dies) i un màxim de 10 còpies. La sintaxi de filtratge
+i de retenció és la de la [documentació de Caddy](https://caddyserver.com/docs/caddyfile/directives/log).
+
+Canvis que cal fer al servidor en actualitzar una instal·lació existent:
+
+1. Crear `logs/backend` i donar-hi propietat `10001:10001`, l’UID/GID del backend.
+2. Afegir la variable `ACCESS_LOG_PATH` indicada a l’entorn del backend i el volum
+   `./logs/backend:/var/log/gestor` al servei `backend` (hi ha el comentari a
+   `docker-compose.yml.example`). El fitxer ha de ser escrivible per aquest UID.
+3. Incorporar el filtre i `roll_keep_for 720h` de `Caddyfile.example` al Caddyfile
+   del servidor, conservant el domini i els altres ajustos propis. Mantenir el
+   volum de Caddy existent.
+4. Validar el Caddyfile amb `caddy validate --config /etc/caddy/Caddyfile`, i
+   reiniciar Caddy quan es desplegui: els canvis de rotació d’un fitxer ja obert
+   necessiten reinici. Recrear el backend perquè rebi la variable i el volum.
+
+La retenció de la consola sense `ACCESS_LOG_PATH` continua depenent del sistema
+que la recull (a l’exemple de Compose, rotació per mida de Docker).

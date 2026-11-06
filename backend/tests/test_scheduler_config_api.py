@@ -13,11 +13,11 @@ from suport_planificador import (
     configura,
 )
 
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session
-from helpers import invalidar_horari
+from horari.context import invalidar_horari
 from planificador.config import carrega_config
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 
 @pytest.fixture(autouse=True)
@@ -126,6 +126,90 @@ def test_desar_les_restriccions_substitueix_les_anteriors(client):
     _desa_restriccions(client, mateix_slot=[AGRUPACIO], no_mateix_slot={"Prof X": INCOMPATIBLES})
     dures = _desa_restriccions(client, mateix_slot=[], no_mateix_slot={})
     assert (dures["mateix_slot"], dures["no_mateix_slot"]) == ([], {})
+
+
+@pytest.mark.parametrize(
+    "dures",
+    [
+        {"tipus_desconegut": []},
+        {"no_mateix_dia": "incorrecte"},
+        {"no_mateix_dia": [[{}]]},
+        {"no_mateix_slot": {"Grup": 80}},
+        {"no_mateix_slot": {"_pes_Grup": [80]}},
+        {"mateix_slot": [{"assignatures": "Català (1-BAT)"}]},
+        {"mateix_slot": [{"assigantures": ["Català (1-BAT)"]}]},
+        {"assignatures_dia_fix": {"Català (1-BAT)": []}},
+        {"assignatures_hora_fix": {"Català (1-BAT)": 9}},
+        {"assignatures_slot_prohibit": ["Dilluns"]},
+        {"assignatures_slot_prohibit": [{"assignatures": ["Català"], "hora": []}]},
+        {"professors_horari_estricte": [{}]},
+        {"professors_limit_dies_especifics": {"Prof 1": {"assignatures": "Català"}}},
+        {"professors_limit_dies_especifics": {"Prof 1": {"assignatures": [], "max_examens": "molts"}}},
+        {"slots_valids_per_nivell": {"1-BAT": {"Dilluns": "09:00"}}},
+        {"combinacions_permeses": [{"assignatures": [1]}]},
+        {"assignatures_dies_exclosos": [{"assignatures": ["Català"], "dies": "Dilluns"}]},
+        {"assignatures_dies_exclosos": [{"assignatura": "Català", "dies": ["Dilluns"], "pes": 50}]},
+    ],
+)
+def test_restriccions_mal_formades_no_esborren_les_anteriors(centre, dures):
+    from planificador.restriccions import llegeix
+
+    institucio, client = centre
+    _desa_restriccions(client, mateix_slot=[AGRUPACIO])
+    with get_data_db_session(institucio, lectura=True) as db:
+        abans = llegeix(db)
+    resp = client.put("/api/scheduler/restriccions", json={"restriccions": {"restriccions_dures": dures}})
+    with get_data_db_session(institucio, lectura=True) as db:
+        assert llegeix(db) == abans
+    assert resp.status_code == 422, resp.text
+
+
+def test_totes_les_formes_internes_es_desen_i_es_poden_tornar_a_enviar(client):
+    dures = _desa_restriccions(
+        client,
+        no_mateix_dia=[INCOMPATIBLES],
+        no_mateix_slot={"Grup": INCOMPATIBLES, "_pes_Grup": 80},
+        mateix_slot=[AGRUPACIO],
+        assignatures_dia_fix={"Català (1-BAT)": "Dilluns", "_pes_Català (1-BAT)": 90},
+        assignatures_hora_fix={"Català (1-BAT)": "09:00", "_pes_Català (1-BAT)": 100},
+        assignatures_slot_prohibit=[{"assignatures": INCOMPATIBLES, "dia": "", "hora": "09:00"}],
+        professors_horari_estricte=["Prof 1"],
+        professors_limit_dies_especifics={
+            "Prof 1": {
+                "assignatures": INCOMPATIBLES,
+                "dies_restringits": ["Dilluns"],
+                "max_examens": 0,
+                "pes_penalitzacio": 50,
+            }
+        },
+        slots_valids_per_nivell={"1-BAT": {"Dilluns": ["09:00"]}},
+        combinacions_permeses=[AGRUPACIO],
+        assignatures_dies_exclosos=[{"assignatures": INCOMPATIBLES, "dies": ["Dimarts"], "pes": 80}],
+    )
+    assert dures["assignatures_slot_prohibit"] == [{"assignatures": INCOMPATIBLES, "dia": "", "hora": "09:00"}]
+    assert dures["professors_limit_dies_especifics"]["Prof 1"]["max_examens"] == 0
+    assert dures["assignatures_dies_exclosos"][0]["pes"] == 80
+    assert _desa_restriccions(client) == dures
+
+
+def test_la_crida_interna_valida_abans_de_cap_esborrat(centre, monkeypatch):
+    from pydantic import ValidationError
+
+    from planificador.repositories import RestriccioRepository
+    from planificador.restriccions import desa, llegeix
+
+    institucio, client = centre
+    _desa_restriccions(client, mateix_slot=[AGRUPACIO])
+    with get_data_db_session(institucio) as db:
+        abans = llegeix(db)
+
+        def prohibit(*args):
+            pytest.fail("No es pot arribar a esborrar amb restriccions mal formades")
+
+        monkeypatch.setattr(RestriccioRepository, "esborra_totes", prohibit)
+        with pytest.raises(ValidationError):
+            desa(db, {"restriccions_dures": {"no_mateix_dia": "incorrecte"}})
+        assert llegeix(db) == abans
 
 
 def test_una_agrupacio_no_pot_barrejar_nivells(client):

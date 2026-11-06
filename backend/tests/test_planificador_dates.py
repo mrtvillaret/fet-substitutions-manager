@@ -17,10 +17,10 @@ from suport_api import crea_app, crea_usuari, entra, nova_institucio
 from cursos.repositories import CursRepository
 from database import get_data_db_session
 from dependencies import dia_d_avui, dia_de_la_planificacio
+from horari.domain import Dia
 from planificador import planificacio
 from planificador.router import router
 from rate_limit import limiter
-from serveis.dia import Dia
 
 APP = crea_app(router)
 DATA = "2026-04-20"  # dilluns, curs 2025-2026

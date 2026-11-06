@@ -19,6 +19,8 @@ if str(BACKEND_DIR) not in sys.path:
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-nomes-per-als-tests")
 os.environ.setdefault("ENVIRONMENT", "development")
+# Els tests mai no han d'obrir un fitxer de registres configurat fora del test.
+os.environ.pop("ACCESS_LOG_PATH", None)
 # xdist executa cada worker en un procés: cadascun rep una carpeta, auth.db,
 # variables d'entorn i globals de l'aplicació propis. El nom del worker al
 # prefix fa visible l'aïllament si una prova falla.

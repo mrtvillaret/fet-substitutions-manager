@@ -12,11 +12,11 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from configuracio_examens.repositories import ConfiguracioExamenRepository, MasterConfigRepository
-from core.alliberats import sense_classe
 from errors_domini import Conflicte, NoTrobat, NoValid
+from grups.disponibilitat import sense_classe
 from grups.repositories import GrupsAlliberatsRepository
+from horari.domain import Dia
 from ordre_curs import clau_curs
-from serveis.dia import Dia
 from substitucions.cobertures import refresca_cobertures
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.assignacio import (
@@ -571,7 +571,18 @@ def edita(db: Session, data: str, vig_id: str, edicio) -> str | None:
     if not edicio.force:
         _comprova_versio(vig_abans, edicio.updated_at, "Falta el camp updated_at per comprovar conflictes")
 
-    vig_updated = VigilanciaRepository.update_by_id(db, data, vig_id, updates)
+    vig_updated = VigilanciaRepository.update_by_id(
+        db,
+        data,
+        vig_id,
+        updates,
+        updated_at_esperat=None if edicio.force else edicio.updated_at,
+    )
+    if vig_updated is None and not edicio.force:
+        anterior = _payload(vig_abans)
+        db.rollback()
+        actual = VigilanciaRepository.get_by_id(db, data, str(anterior["id"]))
+        raise ConflicteVigilancia(_payload(actual) if actual else anterior)
 
     if not vig_updated:
         raise NoTrobat("Vigilància no trobada", codi="vigilancia_no_trobada")
@@ -594,7 +605,12 @@ def esborra(db: Session, data: str, vig_id: str, updated_at: str = None, force: 
     if not force:
         _comprova_versio(vig_abans, updated_at, "Falta el paràmetre updated_at per comprovar conflictes")
 
-    if not VigilanciaRepository.delete_by_id(db, data, vig_id):
+    if not VigilanciaRepository.delete_by_id(db, data, vig_id, updated_at_esperat=None if force else updated_at):
+        if not force:
+            anterior = _payload(vig_abans)
+            db.rollback()
+            actual = VigilanciaRepository.get_by_id(db, data, str(anterior["id"]))
+            raise ConflicteVigilancia(_payload(actual) if actual else anterior)
         raise NoTrobat("Vigilància no trobada", codi="vigilancia_no_trobada")
 
     if vig_abans and vig_abans.hora:
@@ -873,4 +889,4 @@ def analisi(db: Session, dia: Dia) -> list[dict]:
     from substitucions.domain import DiaEscolar
     from vigilancies.analisi import analitza_vigilancies
 
-    return analitza_vigilancies(DiaEscolar(db, dia.iso, dia.institucio))
+    return analitza_vigilancies(DiaEscolar(db, dia))

@@ -8,12 +8,12 @@ import uuid
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
-import helpers
 from config.settings import config
 from configuracio import router as configuracio
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session
+from horari import context as horari_context
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 APP = crea_app(configuracio.router)
 URL = "/api/settings"
@@ -77,13 +77,16 @@ def test_desar_la_configuracio_no_escriu_a_la_bd_del_centre_per_defecte(config_g
 def test_canviar_l_ultim_professor_nomes_buida_l_horari_del_centre():
     # Abans es buidava la memòria cau de l'horari de tots els centres
     centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
-    del_centre, de_l_altre = helpers.get_horari(centre, data_iso=DILLUNS), helpers.get_horari(altre, data_iso=DILLUNS)
+    del_centre, de_l_altre = (
+        horari_context.get_horari(centre, data_iso=DILLUNS),
+        horari_context.get_horari(altre, data_iso=DILLUNS),
+    )
 
     resposta = _client(centre).put(URL, json={"ultim_professor_subs": "Prof 12"})
 
     assert resposta.status_code == 200, resposta.text
-    assert helpers.get_horari(altre, data_iso=DILLUNS) is de_l_altre
-    nou = helpers.get_horari(centre, data_iso=DILLUNS)
+    assert horari_context.get_horari(altre, data_iso=DILLUNS) is de_l_altre
+    nou = horari_context.get_horari(centre, data_iso=DILLUNS)
     assert nou is not del_centre and "Prof 13" not in nou.professors
 
 

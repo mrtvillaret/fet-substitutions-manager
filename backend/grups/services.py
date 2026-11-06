@@ -10,7 +10,10 @@ from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
-from core.alliberats import (
+from configuracio.repositories import ConfiguracioRepository
+from errors_domini import Conflicte, MissingXmlError, NoTrobat, NoValid
+from grups.abreviatures import invalidar_cache_abreviatures
+from grups.disponibilitat import (
     activitats_de,
     clau_activitat,
     clau_ocupat,
@@ -19,7 +22,6 @@ from core.alliberats import (
     ocupats_de,
     professors_de,
 )
-from errors_domini import Conflicte, MissingXmlError, NoTrobat, NoValid
 from grups.domain import ActivitatNoConfigurada, PeriodeNoValid
 from grups.repositories import (
     AbreviaturaGrupRepository,
@@ -27,14 +29,12 @@ from grups.repositories import (
     GrupsAlliberatsRepository,
     GrupsAmagatsRepository,
 )
-from helpers import invalidar_horari
+from horari.context import invalidar_horari
+from horari.domain import Dia
 from parametres import data_iso
-from repositories import ConfiguracioRepository
-from serveis.dia import Dia
 from substitucions.cobertures import refresca_cobertures
 from substitucions.domain import treu_substituts_no_valids
 from substitucions.generacio import genera_substitucions_dia
-from utils.grups_utils import invalidar_cache_abreviatures
 from vigilancies.repositories import VigilanciaRepository
 
 # Activitats sense grup que es poden alliberar (p.ex. Reforç, un equip docent):
@@ -62,7 +62,7 @@ def _reconcilia_dia(db: Session, data: str, hores_afectades: set) -> list:
 
     trets = [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data)]
     # Les files que han quedat sense substitut queden pendents: no s'omplen soles.
-    genera_substitucions_dia(db, data, Dia.de_text(data).gestors(), regenerar_tot=False, omplir=False)
+    genera_substitucions_dia(db, Dia.de_text(data, db.info.get("institucio")), regenerar_tot=False, omplir=False)
 
     # Reconciliar les cobertures de vigilància (Tipus B) de les hores afectades.
     # En alliberar un grup, un professor que abans "calia substituir" pot quedar alliberat
@@ -106,7 +106,7 @@ def afegeix_canvi_periode(
     if not clau or not hores:
         raise PeriodeNoValid("Cal indicar qui i a quines hores", codi="periode_incomplet")
 
-    horari = Dia.de_text(data).horari
+    horari = Dia.de_text(data, db.info.get("institucio")).horari
     if dia_setmana:
         dia = dia_setmana.strip()
         dies = {horari.get_dia_name(i): i for i in range(7) if horari.get_dia_name(i) in horari.dies}

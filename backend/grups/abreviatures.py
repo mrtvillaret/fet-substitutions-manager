@@ -20,8 +20,8 @@ _abreviatures_cache: Dict[str, Dict[str, str]] = {}
 
 
 def _get_institucio_actual() -> str:
-    """El centre de la petició en curs (fora d'una petició, el per defecte)."""
-    from helpers import _get_institucio_actual as institucio_actual
+    """El centre de la petició en curs; fora, cal passar-lo explícitament."""
+    from horari.context import _get_institucio_actual as institucio_actual
 
     return institucio_actual()
 
@@ -51,30 +51,30 @@ def normalitzar_llista_grups(grups_string: str) -> str:
     return ",".join(sorted(grups))
 
 
-def carregar_abreviatures_grups() -> Dict[str, str]:
+def carregar_abreviatures_grups(institucio: Optional[str] = None) -> Dict[str, str]:
     """
     Llegeix les abreviatures de grups des de SQLite de la institució actual.
 
     Returns:
         Diccionari amb abreviatures: {"ESO1A,ESO1B": "ESO1AB", ...}
-        Retorna diccionari buit si no hi ha abreviatures o error.
+        Retorna diccionari buit si no hi ha abreviatures; propaga els errors.
     """
     from database import get_data_db_session
     from grups.repositories import AbreviaturaGrupRepository
 
-    instit = _get_institucio_actual()
+    instit = institucio or _get_institucio_actual()
     try:
-        with get_data_db_session(instit) as db:
+        with get_data_db_session(instit, lectura=True) as db:
             abreviatures_list = AbreviaturaGrupRepository.get_all(db)
             abreviatures = {a["grups_originals"]: a["abreviatura"] for a in abreviatures_list}
             log.debug(_("✅ Carregades {} abreviatures de grups des de BD").format(len(abreviatures)))
             return abreviatures
     except Exception as e:
-        log.warning(_("⚠️ Error en carregar abreviatures de BD: {}").format(e))
-        return {}
+        log.exception(_("⚠️ Error en carregar abreviatures de BD: {}").format(e))
+        raise
 
 
-def get_abreviatures_cached() -> Dict[str, str]:
+def get_abreviatures_cached(institucio: Optional[str] = None) -> Dict[str, str]:
     """
     Obté les abreviatures amb cache per evitar lectures repetides del fitxer.
 
@@ -82,10 +82,10 @@ def get_abreviatures_cached() -> Dict[str, str]:
         Diccionari amb abreviatures cached
     """
     global _abreviatures_cache
-    instit = _get_institucio_actual()
+    instit = institucio or _get_institucio_actual()
 
     if instit not in _abreviatures_cache:
-        _abreviatures_cache[instit] = carregar_abreviatures_grups()
+        _abreviatures_cache[instit] = carregar_abreviatures_grups(instit)
 
     return _abreviatures_cache[instit]
 

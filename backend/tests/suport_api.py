@@ -15,6 +15,7 @@ from slowapi.errors import RateLimitExceeded
 from auth.repositories import UserRepository
 from auth.router import router as auth_router
 from auth.security import hash_password, registra_renovacio_sessio
+from configuracio.repositories import ConfiguracioRepository
 from database import (
     AuthSessionLocal,
     create_auth_tables,
@@ -24,7 +25,6 @@ from database import (
 from errors_servidor import registra_gestors_errors
 from models import AssignaturaPrioritat, CategoriaPrioritat
 from rate_limit import limit_superat, limiter
-from repositories import ConfiguracioRepository
 
 CONTRASENYA = "contrasenya-de-prova"
 XML_EXEMPLE = Path(__file__).resolve().parents[2] / "data" / "exemple" / "teachers.xml"

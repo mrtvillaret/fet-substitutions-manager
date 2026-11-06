@@ -8,7 +8,7 @@ import pytest
 import rellotge
 from auth.security import create_access_token, decode_access_token
 from config.auth import get_config_auth
-from serveis.dia import Dia
+from horari.domain import Dia
 
 
 def test_canviar_el_dia_i_l_hora_arriba_al_domini_i_al_testimoni(rellotge_fix):

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from auth.dependencies import get_current_user, require_admin
 from dependencies import dia_d_avui, dia_de_la_planificacio, get_db
+from horari.domain import Dia
 from parametres import data_iso
 from planificador import cost, generacio, publicacio, services
 from planificador.config import horari_de_la_planificacio
@@ -41,7 +42,6 @@ from planificador.schemas import (
     SchedulerPublicarRequest,
     SchedulerRestriccionsRequest,
 )
-from serveis.dia import Dia
 
 router = APIRouter(prefix="/api/scheduler", tags=["Scheduler"], dependencies=[Depends(require_admin)])
 

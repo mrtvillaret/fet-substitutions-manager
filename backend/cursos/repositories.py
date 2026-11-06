@@ -8,8 +8,8 @@ from typing import List, Optional
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
+from dates import parse_date
 from models import Curs
-from repositories import parse_date
 
 
 class CursRepository:

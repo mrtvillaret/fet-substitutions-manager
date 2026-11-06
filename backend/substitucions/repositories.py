@@ -1,13 +1,14 @@
 """Repositori de substitucions."""
 
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
+from dates import parse_date
 from models import Substitucio
 from ordre_curs import clau_curs, natural
-from repositories import parse_date
 
 
 class SubstitucioRepository:
@@ -162,11 +163,26 @@ class SubstitucioRepository:
         return sub
 
     @staticmethod
-    def update(db: Session, sub_id: int, updates: Dict) -> Optional[Substitucio]:
+    def update(db: Session, sub_id: int, updates: Dict, *, updated_at_esperat: str = None) -> Optional[Substitucio]:
         """Actualitza una substitució"""
         sub = db.query(Substitucio).filter(Substitucio.id == sub_id).first()
         if not sub:
             return None
+
+        if updated_at_esperat is not None:
+            # El predicat i l'escriptura són una única operació de la BD.
+            valors = {k: v for k, v in updates.items() if hasattr(sub, k) and getattr(sub, k) != v}
+            # Un canvi buit també comprova la versió i conserva el timestamp.
+            valors = valors or {"updated_at": sub.updated_at}
+            afectades = (
+                db.query(Substitucio)
+                .filter(Substitucio.id == sub_id, Substitucio.updated_at == datetime.fromisoformat(updated_at_esperat))
+                .update(valors, synchronize_session=False)
+            )
+            if afectades != 1:
+                return None
+            db.refresh(sub)
+            return sub
 
         for key, value in updates.items():
             if hasattr(sub, key):

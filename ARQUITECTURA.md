@@ -9,14 +9,13 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 ┌──────────────────────────────────────────────────────────────────┐
 │                        FRONTEND (Vue 3)                          │
 │                                                                  │
-│  main.js → App.vue (i18n, PrimeVue, Pinia) — navegació per tabs  │
+│  main.js → App.vue (i18n, PrimeVue) — navegació per tabs  │
 │                                                                  │
 │  VISTES PRINCIPALS                                               │
 │  ├── SubstitucionsView.vue                                       │
 │  ├── VigilanciesView.vue                                         │
 │  ├── GrupsView.vue                                               │
 │  └── SchedulerView.vue                                           │
-│        ├── SchedulerView.template.html  ← template extern        │
 │        ├── SchedulerView.css                                     │
 │        ├── useSchedulerApi.js           ← crides API             │
 │        ├── useSchedulerResults.js       ← processa resultats     │
@@ -116,22 +115,23 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │        └── repositories.py  ← claus de configuració, restriccions│
 │                               i costos                           │
 │                                                                  │
-│  SERVEIS (serveis/): la lògica que criden les rutes              │
-│  └── dia.py             ← Dia: una data d'un centre i el seu     │
-│                           horari XML (versió vigent aquell dia)  │
+│  CONTEXT DEL DIA                                                │
+│  ├── horari/domain.py       ← Dia: data, centre i XML vigent     │
+│  ├── horari/context.py      ← resolució i memòria cau d’horaris  │
+│  └── substitucions/context.py ← gestors nous per petició         │
 │                                                                  │
 │  CAPA DE LÒGICA DE NEGOCI                                        │
-│  ├── horari_web.py                ← GestorHorariWeb (parser XML  │
+│  ├── horari/lector.py                ← GestorHorariWeb (parser XML  │
 │  │                                  FET + abreviatures BD;       │
-│  │                                  singleton via helpers.       │
-│  │                                  get_horari())                │
-│  ├── core/alliberats.py           ← grups, professors i          │
+│  │                                  memòria cau a horari/        │
+│  │                                  context.py: get_horari())     │
+│  ├── grups/disponibilitat.py           ← grups, professors i          │
 │  │                                  activitats alliberats;       │
 │  │                                  sense_classe (qui no té      │
 │  │                                  classe a una hora)           │
-│  ├── core/absencies.py            ← filtre absències reals       │
-│  ├── core/vigilancia_core.py      ← lògica vigilàncies           │
-│  └── core/vigilancia_assignacio.py                               │
+│  ├── substitucions/necessitats.py            ← filtre absències reals       │
+│  ├── vigilancies/context.py      ← lògica vigilàncies           │
+│  └── vigilancies/prioritats.py                               │
 │                                                                  │
 │  SCHEDULER ENGINE (planificador exàmens)                         │
 │  ├── factory.py                   ← selecciona motor             │
@@ -150,7 +150,7 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  CAPA D'ACCÉS A DADES                                            │
 │  ├── database.py          ← sessions SQLAlchemy (auth + dades)   │
 │  ├── schema_migrations/   ← Alembic, base congelada i validació │
-│  ├── repositories.py      ← CRUD genèric (UserRepo, ConfigRepo…) │
+│  ├── */repositories.py    ← consultes pròpies de cada mòdul     │
 │  ├── models.py            ← models SQLAlchemy (taules principals)│
 │  └── schemas.py           ← models Pydantic (request/response)   │
 │                                                                  │
@@ -181,7 +181,6 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  ├── dependencies.py      ← Depends FastAPI: get_db (la BD de la │
 │  │                           institució de l'usuari) i el Dia    │
 │  │                           (calendari / planificació / avui)   │
-│  ├── helpers.py           ← utils generals                       │
 │  ├── i18n_setup.py        ← traduccions backend (PDF)            │
 │  ├── rate_limit.py        ← limitació de peticions               │
 │  ├── errors_servidor.py   ← errors no previstos: es registren    │
@@ -192,10 +191,9 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  │                           comuns de les rutes                 │
 │  ├── errors_domini.py     ← errors de les regles (NoTrobat,      │
 │  │                           NoPermes, NoValid, Conflicte)       │
-│  └── utils/                                                      │
-│        ├── hores.py / date_context.py                            │
-│        ├── grups_utils.py                                        │
-│        └── exception_chain.py                                    │
+│  ├── dates.py             ← lectura i format de dates           │
+│  ├── horari/hores.py      ← normalització de franges             │
+│  ├── grups/abreviatures.py ← abreviatures dels grups             │
 └──────────────────────────────────────────────────────────────────┘
                          │
                ┌─────────┴─────────┐
@@ -255,11 +253,8 @@ es mantenen a la vista. Les responsabilitats extretes són:
 `TaulaSubstitucions` i `FilaSubstitucio` continuen gestionant la taula i les
 accions tàctils; no hi ha cap format nou per al mòbil. Els composables criden
 `api/` i reben refs i callbacks de coordinació; no en dupliquen l'estat.
-La caracterització prèvia és a `frontend/tests/*Substitucions.test.js` i,
-fora del repositori, `../arnesos/arnes_frontend_vistes/` (Chrome a 1440 px i
-390 px tàctil, mateix DOM normalitzat, estils calculats i peticions).
 
-## Vigilàncies i configuració d'exàmens (bloc 7, 03/11/2026)
+## Vigilàncies i configuració d'exàmens
 
 `VigilanciesView.vue` coordina la data, la càrrega de configuració i de files,
 la taula existent i cinc composables: `usePdfVigilancies`,
@@ -283,14 +278,6 @@ A `components/examens/` hi ha les sis pestanyes (`NivellsExamens`,
 (renom i dependències compartides) i `ImportacioExamensDialogs` (propostes i
 resums). Els selectors CSS existents tenen una única font a
 `configuracioExamens.css`, importada amb scope per les peces que la fan servir.
-No s'han canviat les classes ni els estils.
-
-Caracterització: 27 tests nous del frontend sobre els blocs originals abans
-d'extreure'ls i els composables després; al navegador, càrrega, edició, PDF,
-catàlegs i importacions amb un centre temporal i l'XML d'exemple, a 1440 px i
-390 px tàctil. L'arnès i les referències són fora del repositori, a
-`../arnesos/arnes_frontend_vistes/`; l'auditoria compara també 188 declaracions
-i watchers i les plantilles mogudes amb els originals.
 
 ## Flux típic d'una petició
 
@@ -343,11 +330,6 @@ user = services.canvia_contrasenya(db, current_user, payload.current_password, p
 set_auth_cookie(response, testimoni_de_sessio(user, current_user.institucio))
 ```
 
-**Estructura antiga.** `routes/` (rutes amb consultes i lògica barrejades),
-`serveis/` i `core/` són l'organització anterior. Es buiden mòdul a mòdul cap a
-l'estructura nova, amb un arnès de caracterització que comprova que les
-respostes no canvien.
-
 La configuració d'autenticació és `config.auth.ConfigAuth`, una dataclass
 immutable carregada i validada amb `carrega_config_auth(env)`. Els consumidors
 fan servir `get_config_auth()`; els tests substitueixen aquest únic objecte
@@ -374,6 +356,13 @@ informe a `services.py` i les consultes a `repositories.py`; els
 renderitzadors amb ReportLab, a `engine.py`, `informe_direccio.py` i
 `informe_professors.py`), `recomptes/` i `estadistiques/`.
 
+`DiaEscolar.dia` és el `Dia` rebut; `nom_del_dia` és el nom del dia a l'XML.
+L'horari es llegeix només des del `Dia`, amb càrrega diferida i errors
+propagats en mode estricte. En aplicar una absència coberta, el mateix `Dia`
+conserva la vista de l'horari amb els canvis pendents de la transacció.
+`dates.py` ofereix `data_completa` i `data_compacta` per mostrar una `date`
+o `datetime`; el dia de la setmana s'obté amb `weekday()`.
+
 ### Recomptes en un sol lloc
 
 Què compta cada xifra és a `FUNCIONAMENT.md` (apartats 5 i 6). El càlcul és a
@@ -399,7 +388,7 @@ amb `fetes_del_curs_per_substitut`):
 La visibilitat carrega els alliberats amb
 `GrupsAlliberatsRepository.get_entre_dates`: marques i canvis de període en
 bloc, resolució comuna a `grups/alliberaments.py` i horari reutilitzat entre
-canvis de versió (`helpers.horaris_per_dates`), amb les absències cobertes
+canvis de versió (`horari.context.horaris_per_dates`), amb les absències cobertes
 aplicades a cada data. La memòria d'aquesta operació s'acaba amb la petició.
 
 La pantalla demana `GET /api/estadistiques/batch`: els cinc recomptes,
@@ -452,12 +441,13 @@ scripts/sync-server.sh.example ← sincronització codi al servidor
 Les decisions de negoci viuen en un sol lloc i les fan servir totes les parts
 (generació, assignació a mà, validacions del PDF i «Reassigna»):
 
-- **Qui té classe a una hora** — `core/alliberats.sense_classe`: un professor
+- **Qui té classe a una hora** — `grups/disponibilitat.sense_classe`: un professor
   queda lliure si el grup de la seva classe és, exactament, un dels marcats
   sense classe aquella hora, o si ell mateix està alliberat (directament o per
   una activitat alliberada). Una agrupació («ESO1AB», «A,B») només queda lliure
-  si es marca l'agrupació. Per a substitucions, que el grup tingui un examen no
-  allibera el professor; per a vigilàncies, sí.
+  si es marca l'agrupació. Un examen o una fila de vigilància no l'alliberen
+  mai, ni per a substitucions ni per a vigilàncies: l'alliberament per examen
+  es marca a mà.
 - **Quan un substitut ja no pot ser-ho** — `DiaEscolar.motius_substitut`: vigila
   un examen a aquella hora, està de baixa, és absent o hi té classe.
 - **Qui assigna substituts** — només els botons «Genera pendents» (omple les
@@ -483,7 +473,7 @@ Les decisions de negoci viuen en un sol lloc i les fan servir totes les parts
   servidor i amb còpia: `scripts/esborra_centre.py`.
 - **Absència coberta** (abans «baixa») — `absencia_coberta/`: l'absent té les
   classes cobertes a l'XML. Durant el període, l'horari de cada data ja no el
-  té (`sense_absents_coberts`, cridat des de `helpers.get_horari`, per on passa
+  té (`sense_absents_coberts`, cridat des de `horari.context.get_horari`, per on passa
   `Dia`): ni substitueix, ni és substituït, ni vigila, ni surt com a
   disponible; ho vigila `tests/test_absencia_coberta_punt_unic.py`. En desar-la,
   d'avui endavant, se li esborren les absències i se'l treu de vigilant i de

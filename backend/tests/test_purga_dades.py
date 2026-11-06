@@ -200,7 +200,7 @@ def test_l_analisi_detalla_les_baixes_i_avisa_de_les_que_surten_de_l_interval(ad
 def _planificador(centre, dates, dies_horari, desat="2026-03-20T10:00:00"):
     import json
 
-    from repositories import ConfiguracioRepository
+    from configuracio.repositories import ConfiguracioRepository
 
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "scheduler_selected_dates", json.dumps(dates), tipus="json")
@@ -220,7 +220,7 @@ def _planificador(centre, dates, dies_horari, desat="2026-03-20T10:00:00"):
 def _config_planificador(centre):
     import json
 
-    from repositories import ConfiguracioRepository
+    from configuracio.repositories import ConfiguracioRepository
 
     with get_data_db_session(centre) as db:
         dates = ConfiguracioRepository.get(db, "scheduler_selected_dates")

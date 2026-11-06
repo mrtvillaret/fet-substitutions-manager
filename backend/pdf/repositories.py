@@ -5,8 +5,9 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from configuracio.repositories import ConfiguracioRepository
+from dates import parse_date
 from models import AbsenciaCoberta
-from repositories import ConfiguracioRepository, parse_date
 
 
 class PreferenciesPdfRepository:

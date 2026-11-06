@@ -12,11 +12,11 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_xml import amb_versions, dia
 
 from auth.dependencies import require_admin
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from horari import router as horari
 from models import XMLVersion
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 APP = crea_app()
 APP.include_router(horari.router_admin, dependencies=[Depends(require_admin)])  # com a main.py

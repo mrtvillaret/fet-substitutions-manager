@@ -13,9 +13,9 @@ from auth.dependencies import require_admin
 from auth.repositories import UserRepository
 from centres import router as centres
 from config.settings import config
+from configuracio.repositories import ConfiguracioRepository
 from database import DATA_BASE_DIR, AuthSessionLocal, get_data_db_session
 from rate_limit import limiter
-from repositories import ConfiguracioRepository
 
 APP = crea_app()
 APP.include_router(centres.router, dependencies=[Depends(require_admin)])  # com a main.py

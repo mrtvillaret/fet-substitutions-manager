@@ -9,7 +9,7 @@ de qualsevol canvi futur, encara que algun comportament no sigui ideal.
 """
 
 from config import constants
-from core.vigilancia_core import VigilanciaCore
+from vigilancies.context import VigilanciaCore
 
 
 def _nucli(**overrides):

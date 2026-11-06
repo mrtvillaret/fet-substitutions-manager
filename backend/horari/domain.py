@@ -13,14 +13,10 @@ from functools import cached_property
 
 import rellotge
 from database import get_data_db_session
-from helpers import (
-    _get_institucio_actual,
-    get_gestors,
-    get_horari,
-    get_vigilancia_core,
-    get_xml_path_for_date,
-)
+from horari.context import _get_institucio_actual, _resolve_xml_path, get_horari
 from horari.repositories import XMLVersionRepository
+from substitucions.context import get_gestors
+from vigilancies.context import get_vigilancia_core
 
 
 @dataclass(frozen=True)
@@ -45,7 +41,7 @@ class Dia:
     @cached_property
     def horari(self):
         """L'horari vigent aquest dia (MissingXmlError si no n'hi ha cap)."""
-        return get_horari(self.institucio, data_iso=self.iso)
+        return get_horari(self.institucio, data_iso=self.iso, xml_path=self.xml_path)
 
     @property
     def horari_amb_tothom(self):
@@ -57,20 +53,20 @@ class Dia:
     def gestors(self):
         """(substitucions, horari, alliberats, absències) d'aquest dia: nous a
         cada crida, perquè cada petició hi fixa el seu estat."""
-        return get_gestors(self.institucio, data_iso=self.iso)
+        return get_gestors(self.institucio, data_iso=self.iso, horari=self.horari)
 
     def vigilancia_core(self, db):
         """El nucli de vigilàncies d'aquest dia (titulars, disponibles)."""
-        return get_vigilancia_core(self.iso, db, self.institucio)
+        return get_vigilancia_core(self.iso, db, self.institucio, horari=self.horari)
 
-    @property
+    @cached_property
     def xml_path(self):
-        return get_xml_path_for_date(self.institucio, self.iso)
+        return _resolve_xml_path(self.institucio, self.iso, versio=self.versio)
 
     @cached_property
     def versio(self):
         """La versió de l'XML vigent aquest dia (o la més propera), o None."""
-        with get_data_db_session(self.institucio) as db:
+        with get_data_db_session(self.institucio, lectura=True) as db:
             versio = XMLVersionRepository.vigent(db, self.iso)
             if versio is not None:
                 db.expunge(versio)

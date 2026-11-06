@@ -9,16 +9,16 @@ from sqlalchemy.orm import Session
 from auth.domain import Rol, UsuariActual
 from auth.repositories import UserRepository
 from config.settings import config
+from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from errors_domini import Conflicte, NoTrobat, NoValid
-from repositories import ConfiguracioRepository
 
 # Només en crear-lo: un nom més llarg pot fallar al sistema de fitxers
 LLARGADA_MAXIMA_NOM = 64
 
 
 def _nom_visible(slug: str) -> str:
-    with get_data_db_session(slug) as db:
+    with get_data_db_session(slug, lectura=True) as db:
         return ConfiguracioRepository.nom_visible_institucio(db, slug)
 
 

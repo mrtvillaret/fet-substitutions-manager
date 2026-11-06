@@ -7,11 +7,13 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from absencia_coberta.services import absencia_coberta_de, missatge_absencia_coberta
+from database import inicia_escriptura
 from errors_domini import Conflicte, ErrorDeDomini, NoTrobat, NoValid
 from grups.repositories import GrupsAlliberatsRepository
+from horari.domain import Dia
+from i18n_setup import translate as _
 from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
-from serveis.dia import Dia
 from substitucions import _consultes
 from substitucions.absencies import desa_absencies
 from substitucions.domain import DiaEscolar, treu_substituts_no_valids
@@ -55,7 +57,7 @@ def genera_substitucions(
     omplir: bool,
 ) -> dict:
     data_iso(data)
-    resultat = genera_substitucions_dia(db, data, dia.gestors(), regenerar_tot, omplir, rng=_atzar())
+    resultat = genera_substitucions_dia(db, dia, regenerar_tot, omplir, rng=_atzar())
     db.commit()
     return resultat
 
@@ -92,6 +94,20 @@ def actualitza_absencies(db: Session, dia: Dia, data: str, professor: str, updat
             codi="professor_amb_absencia_coberta",
         )
 
+    if not update.force and update.updated_at_map:
+        # Els UPDATE sense canvi comproven les versions i retenen el bloqueig
+        # d'escriptura fins al commit de tota l'operació d'absències.
+        for sub in substitucions_list:
+            if sub.get("professor_absent") != professor or es_vigilancia_absent(sub):
+                continue
+            esperat = update.updated_at_map.get(sub.get("hora"))
+            if esperat and SubstitucioRepository.update(db, int(sub["id"]), {}, updated_at_esperat=esperat) is None:
+                db.rollback()
+                actuals = [
+                    s for s in SubstitucioRepository.get_by_date(db, data) if s.get("professor_absent") == professor
+                ]
+                raise ConflicteSubstitucions(actuals)
+
     resultat = desa_absencies(
         db,
         data,
@@ -113,6 +129,11 @@ def _rebutja_motius_manual(motius: list, substitut: str, hora: str) -> None:
     """Tradueix els motius comuns als codis i textos històrics de la tria manual."""
     for motiu in motius:
         match motiu["motiu"]:
+            case "fora_horari":
+                raise NoValid(
+                    _("❌ {substitut} no és un professor de l’horari d’aquell dia").format(substitut=substitut),
+                    codi="substitut_fora_horari",
+                )
             case "vigilancia":
                 raise NoValid(f"❌ {substitut} ja està assignat com a VIGILANT a les {hora}", codi="substitut_vigilant")
             case "absent":
@@ -130,6 +151,7 @@ def _rebutja_motius_manual(motius: list, substitut: str, hora: str) -> None:
 
 def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor: str, update) -> dict:
     """Assignació manual amb les mateixes comprovacions i ordre que el router antic."""
+    inicia_escriptura(db)
     avisos = []
     substitucions_list = SubstitucioRepository.get_by_date(db, data)
     if update.id is not None:
@@ -184,7 +206,7 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
                 codi="activitat_no_substituible",
             )
 
-        estat = DiaEscolar(db, data, dia.institucio, carregador_horari=lambda: dia.horari)
+        estat = DiaEscolar(db, dia, estricte=True)
         _rebutja_motius_manual(
             estat.motius_substitut(substitut_normalitzat, hora, nomes={"vigilancia"}), substitut_normalitzat, hora
         )
@@ -213,6 +235,9 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
                 raise ValueError("Horari no disponible")
             _rebutja_motius_manual(
                 estat.motius_substitut(substitut_normalitzat, hora, nomes={"baixa"}), substitut_normalitzat, hora
+            )
+            _rebutja_motius_manual(
+                estat.motius_substitut(substitut_normalitzat, hora, nomes={"fora_horari"}), substitut_normalitzat, hora
             )
             _rebutja_motius_manual(
                 estat.motius_substitut(substitut_normalitzat, hora, nomes={"classe"}, classe_sense_assignatura=True),
@@ -253,7 +278,19 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
     if update.comentaris is not None:
         updates["comentaris"] = update.comentaris
 
-    updated_sub = SubstitucioRepository.update(db, int(substitucio_actual["id"]), updates)
+    updated_sub = SubstitucioRepository.update(
+        db,
+        int(substitucio_actual["id"]),
+        updates,
+        updated_at_esperat=None if update.force else update.updated_at,
+    )
+    if updated_sub is None and not update.force:
+        db.rollback()
+        actual = next(
+            (s for s in SubstitucioRepository.get_by_date(db, data) if s["id"] == substitucio_actual["id"]),
+            substitucio_actual,
+        )
+        raise ConflicteSubstitucions(actual)
     encadenades = reconcilia_encadenades(db, data)
     db.commit()
     return {
@@ -278,8 +315,7 @@ def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:
     rng = _atzar()
     resultat_generacio = genera_substitucions_dia(
         db,
-        data,
-        dia.gestors(),
+        dia,
         regenerar_tot=False,
         rng=rng,
     )
@@ -288,7 +324,7 @@ def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:
 
     try:
         with db.begin_nested():
-            millors = MillorsSubstituts(DiaEscolar(db, data), dia.gestors(), rng=rng)
+            millors = MillorsSubstituts(DiaEscolar(db, dia), dia.gestors(), rng=rng)
             for sub in substitucions_despres:
                 millor = millors.millor(sub)
                 if millor and sub.get("id"):

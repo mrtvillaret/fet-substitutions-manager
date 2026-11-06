@@ -18,10 +18,10 @@ from sqlalchemy.orm import Session
 
 import i18n_setup
 from config.constants import ORDRE_PRIORITATS, PRIORITATS
+from configuracio.repositories import ConfiguracioRepository
 from grups.repositories import GrupsAlliberatsRepository
+from horari.domain import Dia
 from i18n_setup import setup_translation, translate
-from repositories import ConfiguracioRepository
-from serveis.dia import Dia
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 
