@@ -1,12 +1,12 @@
 """Validació dels paràmetres comuns de les rutes."""
 
 from datetime import date, datetime
-from typing import Annotated, List, Optional
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query
 from pydantic import AfterValidator
 
-from horari.hores import normalitzar_hora
+from textos import normalitzar_hora
 
 
 def data_iso(valor: str) -> date:
@@ -30,9 +30,9 @@ DataISO = Annotated[str, AfterValidator(_comprova_data_iso)]
 
 
 def hores_triades(
-    hores: Optional[List[str]] = Query(None),
-    hores_bracket: Optional[List[str]] = Query(None, alias="hores[]"),
-) -> Optional[frozenset[str]]:
+    hores: list[str] | None = Query(None),
+    hores_bracket: list[str] | None = Query(None, alias="hores[]"),
+) -> frozenset[str] | None:
     """El filtre per hores d'Estadístiques i dels informes: les franges de
     l'horari triades (`hores=08:00&hores=PATI`, o `hores[]=` com les envia
     axios). Sense cap, totes."""
@@ -41,4 +41,4 @@ def hores_triades(
 
 
 #   def ruta(hores: HoresTriades) -> frozenset de franges, o None (totes)
-HoresTriades = Annotated[Optional[frozenset[str]], Depends(hores_triades)]
+HoresTriades = Annotated[frozenset[str] | None, Depends(hores_triades)]

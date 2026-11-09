@@ -3,6 +3,7 @@ no es poden complir, el diagnòstic d'incompatibilitats, les sessions que han
 quedat sense col·locar i el recompte per nivell."""
 
 from collections import defaultdict
+from datetime import datetime as _dt
 
 from scheduler_engine.core.constraints import es_slot_valid_per_nivell, viola_restriccio_dia_hora_fixos
 from scheduler_engine.core.date_mapping import DIES_CAT
@@ -160,7 +161,6 @@ def _precheck_incompatibilitats_deterministes(
       3) Per nivell, unió de slots possibles >= nombre d'items
     Si falla, l'error arriba a qui el crida (generacio.py genera igualment).
     """
-    from datetime import datetime as _dt
 
     hores_examen = list(getattr(gen, "hores_examen", []) or [])
     if not dies_utilitzar or not hores_examen:

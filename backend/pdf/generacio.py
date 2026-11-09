@@ -6,23 +6,27 @@ petició: el PDF no es desa al servidor) i retorna un PdfGenerat."""
 
 import logging
 import tempfile
+from dataclasses import asdict, replace
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from dates import data_completa, parse_date
 from grups.disponibilitat import sense_classe
-from grups.repositories import GrupsAlliberatsRepository
+from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import translate
 from pdf.domain import FormatPdfNoValid, IntervalNoValid, MidaPdfNoValida, OpcionsPdf, PdfGenerat, SenseVigilancies
 from pdf.engine import PDFCompletExporter
+from pdf.files import SubstitucioPdf, VigilanciaPdf
 from pdf.validacions import valida_dia
 from prioritats.repositories import NoSubstituirRepository
 from substitucions.domain import DiaEscolar
+from substitucions.files import FilaSubstitucio
 from substitucions.prioritat import MillorsSubstituts
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.analisi import analitza_vigilancies, selecciona_problemes
+from vigilancies.files import FilaVigilancia
 from vigilancies.repositories import VigilanciaRepository
 from vigilancies.services import en_ordre
 
@@ -46,17 +50,15 @@ def validacions(db: Session, data: str, institucio: str, dia_peticio: Dia) -> di
             millors = MillorsSubstituts(dia, dia_peticio.gestors())
             avisos = []
             for sub in dia.files:
-                if sub.get("separador"):
-                    continue
                 millor = millors.millor(sub)
                 if millor:
                     prof, tipus, _, tipus_actual = millor
                     avisos.append(
                         translate("• {time}: {prof} ({type_disp}) disponible en lloc de {sub} ({type_curr})").format(
-                            time=sub.get("hora", ""),
+                            time=sub.hora,
                             prof=prof,
                             type_disp=tipus,
-                            sub=sub.get("substitut", ""),
+                            sub=sub.substitut,
                             type_curr=tipus_actual,
                         )
                     )
@@ -99,8 +101,8 @@ def _nivells(nivells: str) -> list[str]:
     return [n.strip() for n in nivells.split(",") if n.strip()] if nivells else []
 
 
-def _substitucions_de_vigilancia(db: Session, data: str) -> list[dict]:
-    return [s for s in SubstitucioRepository.get_by_date(db, data) if s.get("tipus_absencia", "") in TIPUS_VIGILANCIA]
+def _substitucions_de_vigilancia(db: Session, data: str) -> list[FilaSubstitucio]:
+    return [s for s in SubstitucioRepository.get_by_date(db, data) if s.tipus_absencia in TIPUS_VIGILANCIA]
 
 
 # ===== PDF complet del dia =====
@@ -127,21 +129,21 @@ def hores_amb_possible_substitucio(horari_mgr, dia_name: str, no_substituir) -> 
 def omple_aula_substitucions(substitucions_data: list, horari_mgr, date_obj: datetime) -> None:
     """Omple l'aula de les substitucions si falta (només per al PDF)."""
     dia_name = horari_mgr.get_dia_name(date_obj.weekday())
-    for sub in substitucions_data:
-        if sub.get("aula"):
+    for index, sub in enumerate(substitucions_data):
+        if sub.aula:
             continue
-        hora = sub.get("hora", "")
-        professor = sub.get("professor_absent", "") or sub.get("professor", "")
+        hora = sub.hora
+        professor = sub.professor_absent or ""
         if not hora or not professor:
             continue
         activitat = horari_mgr.get_activitat(dia_name, hora, professor)
         if activitat:
             aula = activitat.get("aula", "")
             if aula:
-                sub["aula"] = aula
+                substitucions_data[index] = replace(sub, aula=aula)
 
 
-def es_substitucio_del_pdf(sub: dict, grups_sense_classe: dict, no_substituir) -> bool:
+def es_substitucio_del_pdf(sub: FilaSubstitucio, grups_sense_classe: dict, no_substituir) -> bool:
     """Les substitucions que surten al PDF del dia:
     - les de vigilant absent, sempre (el grup pot estar alliberat perquè fa
       examen, però igualment cal el substitut);
@@ -149,18 +151,18 @@ def es_substitucio_del_pdf(sub: dict, grups_sense_classe: dict, no_substituir) -
       sense classe ni ell alliberat);
     - les que no tenen grup, si l'activitat no és a «No substituir» i el
       professor no estava alliberat (p.ex. un reforç alliberat)."""
-    if sub.get("tipus_absencia", "") == "VIGILANCIA_ABSENT":
+    if sub.tipus_absencia == "VIGILANCIA_ABSENT":
         return True
-    grup = sub.get("grup", "")
-    grups_hora = grups_sense_classe.get(sub.get("hora", ""), [])
-    professor = sub.get("professor_absent") or sub.get("professor", "")
+    grup = sub.grup
+    grups_hora = grups_sense_classe.get(sub.hora, [])
+    professor = sub.professor_absent or ""
     if grup and grup.strip():
         return not sense_classe(professor, grup, grups_hora)
-    return sub.get("assignatura", "") not in no_substituir and not sense_classe(professor, "", grups_hora)
+    return sub.assignatura not in no_substituir and not sense_classe(professor, "", grups_hora)
 
 
-def substitucions_del_pdf(db: Session, data: str) -> list[dict]:
-    grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
+def substitucions_del_pdf(db: Session, data: str) -> list[FilaSubstitucio]:
+    grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
     no_substituir = NoSubstituirRepository.get_all(db)
     return [
         sub
@@ -170,8 +172,8 @@ def substitucions_del_pdf(db: Session, data: str) -> list[dict]:
 
 
 def vigilancies_dels_nivells(
-    per_nivell: dict, nivells: list[str], *, inclou_sense_nivell: bool | None = None
-) -> list[dict]:
+    per_nivell: dict[str, list[FilaVigilancia]], nivells: list[str], *, inclou_sense_nivell: bool | None = None
+) -> list[FilaVigilancia]:
     """Les vigilàncies d'un dia (`per_nivell`, com les retorna el repositori)
     dels `nivells` (totes si no se'n diu cap), en l'ordre de la pantalla dins
     de cada hora."""
@@ -310,13 +312,17 @@ def dates_de_l_interval(data_inici: str, data_final: str, amb_caps_de_setmana: b
     return dates
 
 
-def _marca_dia(fila: dict, data: str) -> dict:
+def _marca_substitucio(fila: FilaSubstitucio, data: str) -> SubstitucioPdf:
+    return SubstitucioPdf(**{**asdict(fila), "dia_interval": data_completa(parse_date(data)), "data_iso": data})
+
+
+def _marca_dia(fila: FilaVigilancia, data: str) -> VigilanciaPdf:
     """Una còpia de la fila amb el dia, perquè el renderitzador la posi al seu dia."""
-    return {**fila, "_dia_interval": data_completa(parse_date(data)), "_data_iso": data}
+    return VigilanciaPdf(**{**asdict(fila), "dia_interval": data_completa(parse_date(data)), "data_iso": data})
 
 
-def _dia_buit(data: str) -> dict:
-    return {"_dia_interval": data_completa(parse_date(data)), "_data_iso": data, "_empty_day": True}
+def _dia_buit(data: str) -> VigilanciaPdf:
+    return VigilanciaPdf(dia_interval=data_completa(parse_date(data)), data_iso=data, dia_buit=True)
 
 
 def vigilancies_i_substitucions_de_l_interval(
@@ -326,7 +332,7 @@ def vigilancies_i_substitucions_de_l_interval(
     amb_dies_buits: bool,
     amb_substitucions: bool,
     inclou_sense_nivell: bool | None = None,
-) -> tuple[list[dict], list[dict]]:
+) -> tuple[list[VigilanciaPdf], list[SubstitucioPdf]]:
     """Les vigilàncies de cada dia dels nivells triats i (si es volen) les
     substitucions de vigilància, marcades amb el seu dia. Un dia sense
     vigilàncies d'aquests nivells no hi surt, ni amb les seves substitucions,
@@ -348,7 +354,7 @@ def vigilancies_i_substitucions_de_l_interval(
         else:
             continue
         if amb_substitucions:
-            substitucions.extend(_marca_dia(sub, data) for sub in _substitucions_de_vigilancia(db, data))
+            substitucions.extend(_marca_substitucio(sub, data) for sub in _substitucions_de_vigilancia(db, data))
     return vigilancies, substitucions
 
 
@@ -414,7 +420,7 @@ def genera_pdf_interval(
 def _avisos_interval(db, institucio, dates, vigilancies):
     avisos = []
     for data in dates:
-        files = [v for v in vigilancies if v.get("_data_iso") == data and not v.get("_empty_day")]
+        files = [v for v in vigilancies if v.data_iso == data and not v.dia_buit]
         if not files:
             continue
         problemes = selecciona_problemes(analitza_vigilancies(DiaEscolar(db, Dia.de_text(data, institucio))), files)

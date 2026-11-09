@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 
@@ -54,12 +55,12 @@ export function useAfinitatsExamens({ toast, t }) {
       })
     } catch (error) {
       console.error('Error desant afinitats:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('examConfig.errors.saveAffinities'),
         life: 3000
-      })
+      }))
     }
   }
 

@@ -10,16 +10,16 @@ substitut no es posa sol) i la que ja no cal s'esborra.
 
 import logging
 import re
-from typing import Optional
 
 from config import constants
 from i18n_setup import translate
+from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
 
 log = logging.getLogger(__name__)
 
 
-def activitat_encadenada(tipus_substitut: str) -> Optional[str]:
+def activitat_encadenada(tipus_substitut: str) -> str | None:
     """L'activitat que deixa un substitut, si cal una encadenada; si no, None.
     `tipus_substitut` és el text desat a la fila: l'activitat va entre
     parèntesis («disponible (Guàrdia)»); un alliberat («alliberat (tenia…)»)
@@ -43,23 +43,23 @@ def reconcilia_encadenades(db, data: str) -> dict:
     files = SubstitucioRepository.get_by_date(db, data)
     cal = set()
     for fila in files:
-        if fila.get("tipus_absencia") == "ENCADENADA":
+        if fila.tipus_absencia == "ENCADENADA":
             continue
-        substitut = (fila.get("substitut") or "").strip()
-        activitat = activitat_encadenada(fila.get("tipus_substitut") or "")
+        substitut = (fila.substitut or "").strip()
+        activitat = activitat_encadenada(fila.tipus_substitut or "")
         if substitut and activitat:
-            cal.add((fila.get("hora"), substitut, activitat))
+            cal.add((fila.hora, substitut, activitat))
 
     resum = {"creades": 0, "esborrades": 0}
     hi_son = set()
     for fila in files:
-        if fila.get("tipus_absencia") != "ENCADENADA":
+        if fila.tipus_absencia != "ENCADENADA":
             continue
-        clau = (fila.get("hora"), fila.get("professor_absent"), fila.get("assignatura"))
+        clau = (fila.hora, fila.professor_absent, fila.assignatura)
         if clau in cal and clau not in hi_son:
             hi_son.add(clau)
         else:
-            SubstitucioRepository.delete(db, int(fila["id"]))
+            SubstitucioRepository.delete(db, int(fila.id))
             resum["esborrades"] += 1
 
     for hora, professor, activitat in sorted(cal - hi_son):
@@ -81,7 +81,7 @@ def reconcilia_encadenades(db, data: str) -> dict:
     return resum
 
 
-def avisos_encadenades(files: list[dict]) -> list[str]:
+def avisos_encadenades(files: list[FilaSubstitucio]) -> list[str]:
     """Avisa de l'activitat que deixa qui cobreix una encadenada.
 
     Només lectura: es manté el límit d'un nivell. La mateixa regla
@@ -89,14 +89,14 @@ def avisos_encadenades(files: list[dict]) -> list[str]:
     """
     avisos = []
     for fila in files:
-        if fila.get("tipus_absencia") != "ENCADENADA":
+        if fila.tipus_absencia != "ENCADENADA":
             continue
-        substitut = (fila.get("substitut") or "").strip()
-        activitat = activitat_encadenada(fila.get("tipus_substitut") or "")
+        substitut = (fila.substitut or "").strip()
+        activitat = activitat_encadenada(fila.tipus_substitut or "")
         if substitut and activitat:
             avisos.append(
                 translate(
                     "L'encadenada de les {hora} la cobreix {substitut}, que deixa sense cobrir {activitat}"
-                ).format(hora=fila.get("hora", ""), substitut=substitut, activitat=activitat)
+                ).format(hora=fila.hora, substitut=substitut, activitat=activitat)
             )
     return avisos

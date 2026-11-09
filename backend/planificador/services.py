@@ -8,6 +8,7 @@ cost.py; publicar-lo com a vigilàncies, a publicacio.py."""
 
 import json
 
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 import rellotge
@@ -16,7 +17,6 @@ from configuracio_examens.repositories import ConfiguracioExamenRepository, Mast
 from cursos.repositories import CursRepository
 from database import get_data_db_session
 from errors_domini import NoValid
-from noms import nom_net
 from planificador import restriccions as regles
 from planificador.alliberaments import extreure_hores_examen_des_alliberaments
 from planificador.examens import examens, nivells_master
@@ -34,13 +34,14 @@ from planificador.repositories import (
     llegeix_json,
 )
 from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
+from scheduler_engine.factory import get_motors_info
+from textos import nom_net
 
 # ---------------------------------------------------------------- motors
 
 
 def motors() -> dict:
     """Els motors disponibles amb els seus paràmetres i valors per defecte."""
-    from scheduler_engine.factory import get_motors_info
 
     return {"motors": get_motors_info()}
 
@@ -96,6 +97,7 @@ def dates(db: Session) -> list:
 
 def desa_dates(db: Session, dates: list) -> None:
     ConfiguracioRepository.set(db, SCHEDULER_DATES_KEY, json.dumps(dates or []), tipus="json")
+    db.commit()
 
 
 # ---------------------------------------------------------------- exàmens
@@ -210,7 +212,6 @@ def desa_ultim_resultat(institucio: str, horari: dict, dies_utilitzar: list | No
         if dies_utilitzar is None:
             anterior = llegeix_json(db, SCHEDULER_ULTIM_RESULTAT_KEY, {}) or {}
             dies_utilitzar = (anterior.get("resultat") or {}).get("dies_utilitzar")
-        from fastapi.encoders import jsonable_encoder
 
         ConfiguracioRepository.set(
             db,
@@ -226,6 +227,7 @@ def desa_ultim_resultat(institucio: str, horari: dict, dies_utilitzar: list | No
             ),
             tipus="json",
         )
+        db.commit()
 
 
 # ---------------------------------------------------------------- cursos

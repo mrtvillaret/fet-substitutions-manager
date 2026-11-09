@@ -2,9 +2,12 @@
 Gestió d'absències de professors
 """
 
-from typing import Dict, List
+import logging
 
 from config.constants import NO_SUBST
+from dates import parse_date
+from i18n_setup import _
+from substitucions.files import PropostaSubstitucio
 
 
 class GestorAbsencies:
@@ -16,10 +19,10 @@ class GestorAbsencies:
     def get_substitucions_necessaries(
         self,
         dia: str,
-        absents: Dict[str, List[str]],
-        absents_tipus: Dict[str, str] = None,
-        activitats_fallback: Dict = None,
-    ) -> List[Dict]:
+        absents: dict[str, list[str]],
+        absents_tipus: dict[str, str] = None,
+        activitats_fallback: dict = None,
+    ) -> list[PropostaSubstitucio]:
         """
         Calcula quines substitucions calen segons les absències
         Args:
@@ -28,7 +31,6 @@ class GestorAbsencies:
             absents_tipus: {professor: tipus_absencia} - 'SERVEI' o 'ABSENCIA'
         Returns: [{professor, hora, assignatura, grup, tipus_absencia}, ...]
         """
-        import logging
 
         logger = logging.getLogger(__name__)
         logger.debug(f"🟢 get_substitucions_necessaries() START: dia='{dia}', absents={len(absents)}")
@@ -36,7 +38,6 @@ class GestorAbsencies:
         # Assegura que dia està en format nom dia XML, no ISO
         if isinstance(dia, str) and len(dia) == 10 and "-" in dia:
             # Rebut format ISO (2025-08-11), converteix a nom dia XML
-            from dates import parse_date
 
             weekday_idx = parse_date(dia).weekday()
             dia = self.horari.get_dia_name(weekday_idx)
@@ -77,23 +78,23 @@ class GestorAbsencies:
                     # Determina tipus_absencia: el tipus del professor té prioritat absoluta
                     tipus_absencia = tipus_professor  # 'SERVEI' o 'ABSENCIA' segons el checkbox
 
-                    sub = {
-                        "professor": professor,
-                        "professor_absent": professor,
-                        "hora": hora,
-                        "assignatura": assignatura,
-                        "grup": grup,
-                        "aula": aula,
-                        "substitut": "",
-                        "tipus_substitut": "",
-                        "tipus_absencia": tipus_absencia,
-                    }
+                    sub = PropostaSubstitucio(
+                        professor=professor,
+                        professor_absent=professor,
+                        hora=hora,
+                        assignatura=assignatura,
+                        grup=grup,
+                        aula=aula,
+                        substitut="",
+                        tipus_substitut="",
+                        tipus_absencia=tipus_absencia,
+                    )
                     substitucions.append(sub)
 
         logger.debug(f"🟢 get_substitucions_necessaries() END: retorna {len(substitucions)} substitucions")
         return substitucions
 
-    def _necessita_substitucio(self, activitat: Dict) -> bool:
+    def _necessita_substitucio(self, activitat: dict) -> bool:
         """Comprova si una activitat necessita substitució"""
         assignatura = activitat.get("assignatura", "")
 

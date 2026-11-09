@@ -5,8 +5,6 @@ operació, perquè una operació amb diverses escriptures sigui atòmica. flush
 envia els canvis a la BD dins de la transacció (l'id d'un usuari nou ja hi
 és) sense desar-los encara."""
 
-from typing import Optional
-
 from sqlalchemy.orm import Session
 
 from models import User
@@ -16,11 +14,11 @@ class UserRepository:
     """Repositori per gestionar usuaris"""
 
     @staticmethod
-    def get_by_username(db: Session, username: str) -> Optional[User]:
+    def get_by_username(db: Session, username: str) -> User | None:
         return db.query(User).filter(User.username == username).first()
 
     @staticmethod
-    def get_by_id(db: Session, user_id: int) -> Optional[User]:
+    def get_by_id(db: Session, user_id: int) -> User | None:
         return db.query(User).filter(User.id == user_id).first()
 
     @staticmethod

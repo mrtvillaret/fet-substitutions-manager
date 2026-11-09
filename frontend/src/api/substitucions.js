@@ -7,8 +7,8 @@ export const llistaAmb = async (client, data, ordre) =>
   (await client.get(base(data), { params: { ordre }, _silent: true })).data
 export const llista = async (data, ordre) => llistaAmb(clientApi, data, ordre)
 
-export const llistaSimpleAmb = async (client, data) => (await client.get(base(data))).data
-export const llistaSimple = async (data) => llistaSimpleAmb(clientApi, data)
+export const llistaSimpleAmb = async (client, data, ...opcions) => (await client.get(base(data), ...opcions)).data
+export const llistaSimple = async (data, ...opcions) => llistaSimpleAmb(clientApi, data, ...opcions)
 
 export const llistaTotesAmb = async (client, data, { silent = false } = {}) => {
   const url = `${base(data)}?include_all=true`

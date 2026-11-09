@@ -2,29 +2,29 @@
 Lògica unificada per analitzar la disponibilitat dels professors.
 """
 
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any
 
-from horari.hores import normalitzar_hora as _normalitzar_hora
 from scheduler_engine.core.constraints import detectar_nivell_grup
 from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
+from textos import normalitzar_hora as _normalitzar_hora
 
 
 def analitzar_disponibilitat_sessio(
-    sessio: Union[Dict, Any],
+    sessio: dict | Any,
     dia: str,
     hora: str,
-    horaris_professors: Dict,
-    totes_hores: List[str],
-    nivells_actius: List[str],
+    horaris_professors: dict,
+    totes_hores: list[str],
+    nivells_actius: list[str],
     durada_titular: int = 1,
-    no_substituir_norm: Set[str] = None,
-    sessions_al_slot: List[Union[Dict, Any]] = None,
-    hores_override: Optional[List[str]] = None,
-    alliberaments_per_nivell: Optional[Dict] = None,
-    data_iso: Optional[str] = None,
-    hores_supervisio: Optional[List[str]] = None,
-    horaris_professors_norm: Optional[Dict] = None,
-) -> Dict:
+    no_substituir_norm: set[str] = None,
+    sessions_al_slot: list[dict | Any] = None,
+    hores_override: list[str] | None = None,
+    alliberaments_per_nivell: dict | None = None,
+    data_iso: str | None = None,
+    hores_supervisio: list[str] | None = None,
+    horaris_professors_norm: dict | None = None,
+) -> dict:
     """
     Analitza la disponibilitat dels professors d'una sessió en un slot determinat.
 
@@ -103,7 +103,7 @@ def analitzar_disponibilitat_sessio(
         # Comprovar si està alliberat (clau 'a')
         return hora_config.get("a", False) is True
 
-    def _detectar_nivell_del_grup(grup: str) -> Optional[str]:
+    def _detectar_nivell_del_grup(grup: str) -> str | None:
         """
         Detecta quin nivell correspon a un grup.
         Per exemple: "1-BATX-A" -> "1-BATX"

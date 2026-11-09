@@ -1,7 +1,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
 import { ambDataTreball, dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
-import { missatgeDError } from '../errorsApi'
+import { missatgeDError, avisaError, marcaAvisat, esErrorSilencios } from '../errorsApi'
 import clientHttp from '../api/client'
 import * as apiUsuaris from '../api/usuaris'
 import { configuracio as configuracioHorari } from '../api/horari'
@@ -161,12 +161,14 @@ export function useAplicacio(dependents) {
             loginError.value = error.response?.data?.detail === 'Sessió tancada'
               ? t('app.login.sessionClosed') : t('app.login.sessionExpired')
           }
+          const esEntrada = String(error.config?.url || '').split('?')[0].endsWith('/api/login')
+          if (autenticat.value || !esEntrada) marcaAvisat(error)
           netejarToken()
           return Promise.reject(error)
         }
-        if (!error.config?._silent) {
+        if (!esErrorSilencios(error)) {
           const msg = await missatgeDError(error, t)
-          toast.add({ severity: 'error', summary: t('app.errors.title'), detail: msg, life: 5000 })
+          avisaError(error, () => toast.add({ severity: 'error', summary: t('app.errors.title'), detail: msg, life: 5000 }))
         }
         return Promise.reject(error)
       }
@@ -198,12 +200,12 @@ export function useAplicacio(dependents) {
     loginLoading.value = true
     try {
       const credencials = { username: loginUser.value, password: loginPass.value }
-      const response = await apiUsuaris.entra(credencials)
+      const response = await apiUsuaris.entra(credencials, { _silent: true })
       const delegacio = response.data?.redirect
       if (delegacio && esRutaLocal(delegacio)) {
         // L'usuari és d'una altra instal·lació del mateix domini (p.ex. la demo a
         // /demo/): s'hi entra amb les mateixes credencials i s'hi va.
-        await apiUsuaris.entraDelegacio(delegacio, credencials, { baseURL: '' })
+        await apiUsuaris.entraDelegacio(delegacio, credencials, { baseURL: '', _silent: true })
         window.location.href = delegacio
         return
       }
@@ -223,31 +225,33 @@ export function useAplicacio(dependents) {
       await carregarPerfil()
       await carregarConfig()
     } catch (error) {
-      const status = error.response?.status
-      if (status === 429) {
-        const retryAfter = parseInt(error.response?.headers?.['retry-after'], 10)
-        loginRetrySeconds.value = Number.isFinite(retryAfter) ? retryAfter : 60
-        loginError.value = t('app.login.rateLimitWithWait', { seconds: loginRetrySeconds.value })
-
-        if (loginRetryTimer) {
-          clearInterval(loginRetryTimer)
-        }
-
-        loginRetryTimer = setInterval(() => {
-          if (loginRetrySeconds.value === null) return
-          loginRetrySeconds.value -= 1
-          if (loginRetrySeconds.value <= 0) {
-            clearInterval(loginRetryTimer)
-            loginRetryTimer = null
-            loginRetrySeconds.value = null
-            loginError.value = ''
-            return
-          }
+      avisaError(error, () => {
+        const status = error.response?.status
+        if (status === 429) {
+          const retryAfter = parseInt(error.response?.headers?.['retry-after'], 10)
+          loginRetrySeconds.value = Number.isFinite(retryAfter) ? retryAfter : 60
           loginError.value = t('app.login.rateLimitWithWait', { seconds: loginRetrySeconds.value })
-        }, 1000)
-      } else {
-        loginError.value = t('app.login.error')
-      }
+
+          if (loginRetryTimer) {
+            clearInterval(loginRetryTimer)
+          }
+
+          loginRetryTimer = setInterval(() => {
+            if (loginRetrySeconds.value === null) return
+            loginRetrySeconds.value -= 1
+            if (loginRetrySeconds.value <= 0) {
+              clearInterval(loginRetryTimer)
+              loginRetryTimer = null
+              loginRetrySeconds.value = null
+              loginError.value = ''
+              return
+            }
+            loginError.value = t('app.login.rateLimitWithWait', { seconds: loginRetrySeconds.value })
+          }, 1000)
+        } else {
+          loginError.value = t('app.login.error')
+        }
+      })
     } finally {
       loginLoading.value = false
     }

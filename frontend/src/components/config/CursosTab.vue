@@ -89,6 +89,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -130,8 +131,8 @@ const cursForm = ref({ id: null, nom: '', data_inici: null })
 const carregarCursosAmbToast = async () => {
   try {
     await carregarCursos()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: t('config.courses.loadError'), life: 3000 })
+  } catch (errorCapturat) {
+    avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error'), detail: t('config.courses.loadError'), life: 3000 }))
   }
 }
 
@@ -168,7 +169,7 @@ const desarCurs = async () => {
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
   } catch (error) {
     const detail = error?.response?.data?.detail || t('config.courses.saveError')
-    toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 })
+    avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 }))
   } finally {
     desantCurs.value = false
   }
@@ -186,8 +187,8 @@ const eliminarCurs = (curs) => {
         await carregarAvisosXml()
         emit('cursos-canviats')
         toast.add({ severity: 'success', summary: t('common.deleted'), life: 2000 })
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
+      } catch (errorCapturat) {
+        avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error'), life: 3000 }))
       }
     }
   })

@@ -69,6 +69,25 @@ canvis del dia (alliberats, absències, absència coberta)
                              (motius_substitut) i la fila queda pendent amb avís
 ```
 
+### Com es tria el substitut
+
+1. **Categoria.** Guanya la categoria activa de Prioritats de més prioritat que
+   té algun candidat lliure a aquella hora (no absent, no vigilant, no ocupat).
+2. **Quota per franja.** Dins d'aquesta categoria es miren les últimes 10
+   substitucions guardades de la mateixa franja (dia de la setmana i hora) i
+   categoria. Cadascuna compta 1/pes per a qui la va fer, amb el pes actual de la
+   seva activitat (sense pes, o amb pes zero o negatiu, compta 1). Surt el candidat
+   amb menys torns.
+3. **Empats** a l'atzar, amb probabilitat proporcional al pes.
+
+Amb pesos 3-3-1 i tots lliures, cada 7 substitucions d'una franja surten 3, 3 i 1
+en ordre aleatori. Compten totes les files guardades (també els canvis manuals i
+els dies futurs ja generats), excepte les del dia que es genera. Les tries d'una
+mateixa generació es tenen en compte l'una després de l'altra. Com que només es
+miren les 10 últimes, un professor nou o que torna d'una baixa entra al
+repartiment sense acumular-ne moltes de seguides. Regenerar un dia dona el mateix
+resultat, llevat dels empats.
+
 ## 5. Què compta cada sortida
 
 **Quines files es veuen a la pantalla Substitucions** ho decideix una sola regla

@@ -9,8 +9,6 @@ no cal cap flag d'"actiu": el curs es resol per la data on es treballa.
 Llegir-los, qualsevol usuari; crear-los, editar-los i esborrar-los, només admins.
 """
 
-from typing import List
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -22,13 +20,13 @@ from dependencies import get_db
 router = APIRouter(prefix="/api/cursos", tags=["cursos"])
 
 
-@router.get("", response_model=List[CursResponse], response_model_exclude_unset=True)
+@router.get("", response_model=list[CursResponse], response_model_exclude_unset=True)
 def llistar_cursos(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """Llista de cursos (més recent primer), amb la data_fi ja derivada."""
     return services.llista(db)
 
 
-@router.get("/validacio-xml", response_model=List[AvisXmlCursResponse], response_model_exclude_unset=True)
+@router.get("/validacio-xml", response_model=list[AvisXmlCursResponse], response_model_exclude_unset=True)
 def validacio_xml(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """Cursos que arrencarien amb l'horari d'un curs anterior.
 

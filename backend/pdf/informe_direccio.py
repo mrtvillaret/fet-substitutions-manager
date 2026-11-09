@@ -150,7 +150,7 @@ def _header_block(
     if logo_path and Path(logo_path).exists():
         MAX_H = 1.8 * cm
         MAX_W = 4.0 * cm
-        from PIL import Image as PILImage
+        from PIL import Image as PILImage  # noqa: PLC0415 — Pillow només es carrega quan l’informe té logo.
 
         with PILImage.open(logo_path) as pil_img:
             img_w, img_h = pil_img.size

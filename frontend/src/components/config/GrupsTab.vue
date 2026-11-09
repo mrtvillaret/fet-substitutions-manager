@@ -162,6 +162,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -239,12 +240,12 @@ const detectarGrupsXML = async (silent = false) => {
   } catch (error) {
     console.error('Error detectant grups:', error)
     if (!silent) {
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('config.errors.detectGroups'),
         life: 3000
-      })
+      }))
     }
   }
 }
@@ -281,12 +282,12 @@ const desarGrupsAmagats = async () => {
     })
   } catch (error) {
     console.error('Error desant grups amagats:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.groups.hiddenSaveError'),
       life: 3000
-    })
+    }))
   } finally {
     desantAmagats.value = false
   }
@@ -337,12 +338,12 @@ const desarAbreviatura = async () => {
     cancelarAbreviatura()
   } catch (error) {
     console.error('Error desant abreviatura:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.errors.saveAbbrev'),
       life: 3000
-    })
+    }))
   }
 }
 
@@ -375,12 +376,12 @@ const eliminarAbreviatura = async (id) => {
     abreviatures.value = resposta.abreviatures
   } catch (error) {
     console.error('Error eliminant abreviatura:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.errors.deleteAbbrev'),
       life: 3000
-    })
+    }))
   }
 }
 

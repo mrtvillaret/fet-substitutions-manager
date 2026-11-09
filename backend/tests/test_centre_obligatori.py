@@ -7,6 +7,7 @@ from config import context
 from config.settings import config
 from errors_domini import NoValid
 from grups import abreviatures
+from grups.lectures import AlliberatsDelDia
 from horari import context as horari
 from horari.domain import Dia
 from substitucions.context import get_gestors
@@ -73,12 +74,11 @@ def test_la_sessio_identifica_el_centre_sense_dependre_del_context(monkeypatch, 
     from contextlib import contextmanager
 
     from database import get_data_db, get_data_db_session
-    from grups.repositories import GrupsAlliberatsRepository
 
     centre = nova_institucio(amb_xml=True)
     monkeypatch.setattr(context, "_institucio", context.ContextVar("sessio_sense_context", default=None))
     factoria = contextmanager(get_data_db) if generador else get_data_db_session
     with factoria(centre, lectura=True) as db:
         assert db.info.get("institucio") == centre
-        assert GrupsAlliberatsRepository.get_by_date(db, DATA) == {}
-        assert GrupsAlliberatsRepository.get_entre_dates(db, [DATA]) == {DATA: {}}
+        assert AlliberatsDelDia.get_by_date(db, DATA) == {}
+        assert AlliberatsDelDia.get_entre_dates(db, [DATA]) == {DATA: {}}

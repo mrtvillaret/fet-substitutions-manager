@@ -1,7 +1,5 @@
 """Entrades i sortides de les rutes d'auth i del perfil."""
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 
@@ -25,7 +23,7 @@ class CanviInstitucioRequest(BaseModel):
 class LoginResponse(BaseModel):
     ok: bool
     # Només quan l'usuari és d'una altra instal·lació (delegació del login)
-    redirect: Optional[str] = None
+    redirect: str | None = None
 
 
 class OkResponse(BaseModel):

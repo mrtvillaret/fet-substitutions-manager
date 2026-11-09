@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 import { ruta } from '../basePath.js'
@@ -108,7 +109,7 @@ export function useImportacioExamens({ toast, t, confirm, carregarAssignacions }
       propostesSeleccionades.value = propostes.value.filter(p => !p.ja_existeix && !p.descartada)
     } catch (error) {
       console.error('Error generant propostes d\'importació:', error)
-      toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.import.errorPreview'), life: 3000 })
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.import.errorPreview'), life: 3000 }))
       mostrarDialegImport.value = false
     } finally {
       carregantPropostes.value = false
@@ -149,7 +150,7 @@ export function useImportacioExamens({ toast, t, confirm, carregarAssignacions }
       mostrarResumPrevi.value = true
     } catch (error) {
       console.error('Error calculant el resum previ:', error)
-      toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.import.errorPreview'), life: 3000 })
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.import.errorPreview'), life: 3000 }))
     } finally {
       calculantResumPrevi.value = false
     }
@@ -170,7 +171,7 @@ export function useImportacioExamens({ toast, t, confirm, carregarAssignacions }
     } catch (error) {
       console.error('Error calculant el resum previ del CSV:', error)
       const detail = error.response?.data?.detail || t('examConfig.import.errorPreview')
-      toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 })
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 }))
     }
   }
 
@@ -206,7 +207,7 @@ export function useImportacioExamens({ toast, t, confirm, carregarAssignacions }
     } catch (error) {
       console.error('Error important:', error)
       const detail = error.response?.data?.detail || t('examConfig.import.errorApply')
-      toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 })
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 }))
     } finally {
       important.value = false
     }

@@ -139,6 +139,24 @@
         />
       </div>
       <small class="field-hint">{{ $t('config.system.xmlEffectiveHint') }}</small>
+      <Message v-if="avisosPujada?.avisos.length" severity="info" :closable="false" class="xml-avis-pujada">
+        <p>{{ $t('config.system.xmlReviewSummary', avisosPujada.recomptes) }}</p>
+        <p>{{ $t('config.system.xmlReviewInfo') }}</p>
+        <details :key="avisosPujada" :open="avisosPujada.avisos.length <= 8">
+          <summary>{{ $t('config.system.xmlReviewDetails') }}</summary>
+          <section v-for="(avisos, data) in avisosPujadaPerDia" :key="data">
+            <strong>{{ dataAmbAny(data) }}</strong>
+            <ul>
+              <li v-for="(avis, index) in avisos" :key="index">
+                <template v-if="avis.motiu">
+                  {{ avis.hora }} · {{ avis.professor }}: {{ $t(`substitutions.substitutsTrets.${avis.motiu}`, { grup: avis.grup }) }}
+                </template>
+                <template v-else>{{ avis.missatge }}</template>
+              </li>
+            </ul>
+          </section>
+        </details>
+      </Message>
     </div>
 
     <!-- Versions XML -->
@@ -253,6 +271,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -349,6 +368,12 @@ const {
 
 // Data de vigència del pròxim XML que es pugi (null = avui)
 const xmlVigentDesDe = ref(null)
+const avisosPujada = ref(null)
+const avisosPujadaPerDia = computed(() => {
+  const dies = {}
+  for (const avis of avisosPujada.value?.avisos || []) (dies[avis.data] ||= []).push(avis)
+  return dies
+})
 
 const getSettingsSnapshot = () => JSON.stringify({
   institucio: settings.value.institucio || '',
@@ -422,12 +447,12 @@ const carregarSettings = async () => {
     actualitzarSnapshot()
   } catch (error) {
     console.error('Error carregant configuració:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: t('config.errors.loadConfig'),
       life: 3000
-    })
+    }))
   } finally {
     loading.value = false
   }
@@ -440,12 +465,12 @@ const carregarXmlVersions = async () => {
     xmlVersions.value = resposta.versions || []
   } catch (error) {
     console.error('Error carregant versions XML:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: t('config.errors.loadXmlVersions'),
       life: 3000
-    })
+    }))
   } finally {
     xmlVersionsLoading.value = false
   }
@@ -488,12 +513,12 @@ const desarXmlVersion = async (version) => {
     await carregarXmlVersions()
   } catch (error) {
     console.error('Error desant versió XML:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.errors.saveXmlVersion'),
       life: 3000
-    })
+    }))
   }
 }
 
@@ -516,12 +541,12 @@ const eliminarXmlVersion = async (version) => {
         await carregarXmlVersions()
       } catch (error) {
         console.error('Error eliminant versió XML:', error)
-        toast.add({
+        avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
           detail: error.response?.data?.detail || t('config.errors.deleteXmlVersion'),
           life: 3000
-        })
+        }))
       }
     }
   })
@@ -549,12 +574,12 @@ const pujarLogo = async (event) => {
     })
   } catch (error) {
     console.error('Error pujant logo:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.errors.uploadLogo'),
       life: 3000
-    })
+    }))
   } finally {
     event.target.value = ''
   }
@@ -584,12 +609,12 @@ const desar = async () => {
     // Mantindre obert: permet continuar configurant
   } catch (error) {
     console.error('Error desant configuració:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.errors.saveConfig'),
       life: 3000
-    })
+    }))
   } finally {
     desant.value = false
   }
@@ -615,6 +640,7 @@ const pujarXML = async (event) => {
     })
 
     const resposta = await apiConfiguracio.pujaXml(formData)
+    avisosPujada.value = resposta
 
     // El path "actual" només canvia si la versió nova ja és vigent avui.
     // Si s'ha programat per a un curs futur, l'horari vigent segueix sent l'anterior.
@@ -645,12 +671,12 @@ const pujarXML = async (event) => {
     }
   } catch (error) {
     console.error('Error pujant XML:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.errors.uploadXml'),
       life: 3000
-    })
+    }))
   }
 }
 
@@ -660,6 +686,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.xml-avis-pujada { overflow-wrap: anywhere; }
+.xml-avis-pujada summary { cursor: pointer; }
+.xml-avis-pujada section { margin-top: 0.75rem; }
+.xml-avis-pujada ul { padding-left: 1.25rem; }
+
 .loading {
   display: flex;
   flex-direction: column;

@@ -2,8 +2,6 @@
 són estrictes: un camp obligatori que falta o d'un tipus que no toca, 422.
 Un text buit (o de només espais, en un nom) continua sent 400 als serveis."""
 
-from typing import List, Optional, Union
-
 from pydantic import BaseModel
 
 from noms import NomNet
@@ -27,7 +25,7 @@ class NovaAssignaturaRequest(BaseModel):
 
 class NouNivellRequest(BaseModel):
     codi: str
-    nom: Optional[str] = None  # sense nom: el codi
+    nom: str | None = None  # sense nom: el codi
 
 
 class NouGrupRequest(BaseModel):
@@ -41,20 +39,20 @@ class NovaAulaRequest(BaseModel):
 class AssignacioRequest(BaseModel):
     assignatura: NomNet
     grup: str
-    titular: Optional[NomNet] = None  # buit = sense titular
-    aula: Optional[NomNet] = None  # buit = sense aula
+    titular: NomNet | None = None  # buit = sense titular
+    aula: NomNet | None = None  # buit = sense aula
     ordre: int = 0
 
 
 class EdicioAssignacioRequest(BaseModel):
     """Només el titular i l'aula (buits = cap)."""
 
-    titular: Optional[NomNet] = None
-    aula: Optional[NomNet] = None
+    titular: NomNet | None = None
+    aula: NomNet | None = None
 
 
 class EsborrarAssignacionsRequest(BaseModel):
-    ids: List[int] = []
+    ids: list[int] = []
     tot: bool = False  # totes
 
 
@@ -62,26 +60,26 @@ class PropostaRequest(BaseModel):
     """Una proposta d'importació. Si falta l'assignatura, el grup o el nivell,
     no s'importa i es diu als avisos."""
 
-    assignatura: Optional[NomNet] = None
-    grup: Optional[str] = None
-    nivell: Optional[str] = None
-    titular: Optional[NomNet] = None
-    aula: Optional[NomNet] = None
+    assignatura: NomNet | None = None
+    grup: str | None = None
+    nivell: str | None = None
+    titular: NomNet | None = None
+    aula: NomNet | None = None
 
 
 class PropostaDescartadaRequest(BaseModel):
-    assignatura: Optional[NomNet] = None
-    grup: Optional[str] = None
-    titular: Optional[NomNet] = None
+    assignatura: NomNet | None = None
+    grup: str | None = None
+    titular: NomNet | None = None
 
 
 class ImpacteRequest(BaseModel):
-    propostes: List[PropostaRequest] = []
+    propostes: list[PropostaRequest] = []
     overwrite: bool = False  # «Sobreescriu»
 
 
 class ImportacioRequest(ImpacteRequest):
-    descartades: List[PropostaDescartadaRequest] = []
+    descartades: list[PropostaDescartadaRequest] = []
 
 
 class MissatgeResponse(BaseModel):
@@ -102,19 +100,19 @@ class AssignacionsQueHoFanServirResponse(BaseModel):
 
 
 class NivellsResponse(BaseModel):
-    nivells: List[str]
+    nivells: list[str]
 
 
 class AssignaturesResponse(BaseModel):
-    assignatures: List[str]
+    assignatures: list[str]
 
 
 class GrupsResponse(BaseModel):
-    grups: List[str]
+    grups: list[str]
 
 
 class AulesResponse(BaseModel):
-    aules: List[str]
+    aules: list[str]
 
 
 class Assignacio(BaseModel):
@@ -123,19 +121,19 @@ class Assignacio(BaseModel):
     grup: str
     titular: str  # "" = sense titular
     aula: str  # "" = sense aula
-    ordre: Union[int, str]  # l'API encara accepta un ordre de text (E7)
+    ordre: int | str  # l'API encara accepta un ordre de text (E7)
 
 
 class AssignacionsResponse(BaseModel):
-    assignacions: List[Assignacio]
+    assignacions: list[Assignacio]
 
 
 class AssignacioObsoleta(Assignacio):
-    motius: List[str]  # "grup" i/o "titular"
+    motius: list[str]  # "grup" i/o "titular"
 
 
 class AssignacionsObsoletesResponse(BaseModel):
-    assignacions: List[AssignacioObsoleta]
+    assignacions: list[AssignacioObsoleta]
 
 
 class CreacioResponse(BaseModel):
@@ -160,20 +158,20 @@ class Proposta(BaseModel):
 
 
 class PropostesResponse(BaseModel):
-    propostes: List[Proposta]
-    nivells_valids: List[str]
+    propostes: list[Proposta]
+    nivells_valids: list[str]
 
 
 class ImpacteResponse(BaseModel):
     """El que crearia (resum previ) o ha creat una importació."""
 
-    nivells_creats: List[str]
-    grups_creats: List[str]
-    assignatures_creades: List[str]
-    aules_creades: List[str]
-    assignacions_creades: List[str]
+    nivells_creats: list[str]
+    grups_creats: list[str]
+    assignatures_creades: list[str]
+    aules_creades: list[str]
+    assignacions_creades: list[str]
     ja_existien: int
-    avisos: List[str]
+    avisos: list[str]
 
 
 class ImportacioResponse(ImpacteResponse):

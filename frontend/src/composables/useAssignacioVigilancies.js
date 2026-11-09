@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed } from 'vue'
 import * as apiVigilancies from '../api/vigilancies.js'
 
@@ -30,12 +31,12 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
       await carregarVigilancies()
     } catch (err) {
       console.error('Error posant el titular:', err)
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: err.response?.status === 409 ? t('vigilancies.freeHourOwners.conflict') : (err.response?.data?.detail || t('vigilancies.errors.assignOwners')),
         life: 5000
-      })
+      }))
       await carregarVigilancies()
     } finally {
       posantTitular.value = null
@@ -61,12 +62,12 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
       await carregarVigilancies()
     } catch (err) {
       console.error('Error assignant titulars:', err)
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: err.response?.data?.detail || t('vigilancies.errors.assignOwners'),
         life: 5000
-      })
+      }))
     } finally {
       assignantTitulars.value = false
     }
@@ -120,12 +121,12 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
               })
             } catch (err) {
               console.error('Error assignant disponibles:', err)
-              toast.add({
+              avisaError(err, () => toast.add({
                 severity: 'error',
                 summary: t('common.error'),
                 detail: err.response?.data?.detail || t('vigilancies.errors.assignAvailable'),
                 life: 5000
-              })
+              }))
             } finally {
               assignantPendents.value = false
             }
@@ -144,12 +145,12 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
 
     } catch (err) {
       console.error('Error assignant alliberats:', err)
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: err.response?.data?.detail || t('vigilancies.errors.assignFree'),
         life: 5000
-      })
+      }))
       assignantPendents.value = false
     }
   }
@@ -175,12 +176,12 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
           await carregarVigilancies()
         } catch (err) {
           console.error('Error netejant assignacions:', err)
-          toast.add({
+          avisaError(err, () => toast.add({
             severity: 'error',
             summary: t('common.error'),
             detail: t('vigilancies.errors.clear'),
             life: 3000
-          })
+          }))
         }
       }
     })
@@ -222,12 +223,12 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
       vigilancies.value = await apiVigilancies.llista(dataISO.value)
     } catch (err) {
       console.error('Error ordenant vigilàncies:', err)
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('vigilancies.errors.sort'),
         life: 3000
-      })
+      }))
     } finally {
       ordenant.value = false
     }

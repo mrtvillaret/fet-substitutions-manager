@@ -1445,3 +1445,7 @@ msgstr "El XML de horario debe contener al menos un profesor, un día y una hora
 #: substitucions/services.py
 msgid "❌ {substitut} no és un professor de l’horari d’aquell dia"
 msgstr "❌ {substitut} no es un profesor del horario de ese día"
+
+# Vigilant fora de l’XML vigent del dia.
+msgid "❌ {hora}: {vigilant} no és a l’horari d’aquell dia"
+msgstr "❌ {hora}: {vigilant} no está en el horario de ese día"

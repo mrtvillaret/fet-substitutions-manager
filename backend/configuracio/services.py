@@ -4,7 +4,6 @@ nom visible, dates d'Estadístiques, últim professor), els idiomes i el logo.""
 import io
 import logging
 import os
-from typing import Optional
 
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
@@ -147,10 +146,11 @@ def desa_logo(institucio: str, nom_fitxer: str, contingut: bytes) -> str:
         ConfiguracioRepository.set(
             db, "logo_path", file_path, tipus="string", descripcio="Path del logo de la institució"
         )
+        db.commit()
     return file_path
 
 
-def cami_logo(institucio: str, logo_configurat: Optional[str]) -> Optional[str]:
+def cami_logo(institucio: str, logo_configurat: str | None) -> str | None:
     """El fitxer del logo del centre, o None si no en té: el desat a la
     configuració (logo_path) o, si no n'hi ha cap, un logo.png/.jpg de la
     carpeta de dades."""

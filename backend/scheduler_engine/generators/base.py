@@ -4,7 +4,6 @@ import os
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Dict, List
 
 from scheduler_engine.core.context import SchedulerContext
 from scheduler_engine.core.durada import (
@@ -28,14 +27,14 @@ class GeneradorSessionsExamensBase(ABC):
         horari_xml_path: str,
         restriccions_path: str = None,
         ultim_professor: str = "",
-        nivells_actius: List[str] = None,
-        hores_examen: List[str] = None,
-        hores_per_nivell: Dict[str, List[str]] = None,
+        nivells_actius: list[str] = None,
+        hores_examen: list[str] = None,
+        hores_per_nivell: dict[str, list[str]] = None,
         durada_titular: int = 1,
         no_substituir: set = None,
-        alliberaments_per_nivell: Dict = None,
-        durades_per_sessio: Dict[str, int] = None,
-        durades_examen_per_sessio: Dict[str, int] = None,
+        alliberaments_per_nivell: dict = None,
+        durades_per_sessio: dict[str, int] = None,
+        durades_examen_per_sessio: dict[str, int] = None,
     ):
         self.config_path = config_examens_path
         self.horari_xml_path = horari_xml_path
@@ -63,16 +62,16 @@ class GeneradorSessionsExamensBase(ABC):
         self.sessions_per_id = {}
 
     @abstractmethod
-    def generar_horari_optimitzat(self, **kwargs) -> Dict:
+    def generar_horari_optimitzat(self, **kwargs) -> dict:
         pass
 
     def _carregar_config(self):
-        with open(self.config_path, "r", encoding="utf-8") as f:
+        with open(self.config_path, encoding="utf-8") as f:
             self.config = json.load(f)
 
     def _carregar_restriccions_raw(self) -> dict:
         if self.restriccions_path and os.path.exists(self.restriccions_path):
-            with open(self.restriccions_path, "r", encoding="utf-8") as f:
+            with open(self.restriccions_path, encoding="utf-8") as f:
                 return json.load(f)
         return dict(DEFAULT_RESTRICCIONS)
 
@@ -102,7 +101,7 @@ class GeneradorSessionsExamensBase(ABC):
             return self.restriccions_raw
         return self._carregar_restriccions_raw()
 
-    def build_context(self, dies_utilitzar: List[str]) -> SchedulerContext:
+    def build_context(self, dies_utilitzar: list[str]) -> SchedulerContext:
         return SchedulerContext(
             sessions_per_nivell=self.sessions_per_nivell,
             restriccions=self.get_restriccions(),
@@ -159,7 +158,7 @@ class GeneradorSessionsExamensBase(ABC):
 
     def _get_hores_ocupades(
         self, hora_inici: str, nivell: str | None = None, sessio_nom: str | None = None
-    ) -> List[str]:
+    ) -> list[str]:
         if hora_inici not in self.totes_hores:
             return [hora_inici]
         if sessio_nom:
@@ -171,7 +170,7 @@ class GeneradorSessionsExamensBase(ABC):
         idx = self.totes_hores.index(hora_inici)
         return self.totes_hores[idx : min(idx + durada, len(self.totes_hores))]
 
-    def get_all_sessions(self) -> List[Dict]:
+    def get_all_sessions(self) -> list[dict]:
         res = []
         for n in self.nivells_actius:
             res.extend(self.sessions_per_nivell.get(n, []))
@@ -180,7 +179,7 @@ class GeneradorSessionsExamensBase(ABC):
     def get_total_sessions_count(self) -> int:
         return len(self.get_all_sessions())
 
-    def _get_mateix_slot_grups_amb_noms(self) -> List[dict]:
+    def _get_mateix_slot_grups_amb_noms(self) -> list[dict]:
         """Extrau els grups amb els seus noms definits per l'usuari."""
         restriccions = self._carregar_restriccions_raw()
         grups_raw = restriccions.get("restriccions_dures", {}).get("mateix_slot", [])
@@ -195,7 +194,7 @@ class GeneradorSessionsExamensBase(ABC):
                 grups.append({"nom": "", "assignatures": grup})
         return grups
 
-    def _construir_items_mateix_slot(self, sessions_pendents: List[Dict]) -> List[Dict]:
+    def _construir_items_mateix_slot(self, sessions_pendents: list[dict]) -> list[dict]:
         """
         Agrupa sessions que han d'anar al same slot (mateix_slot) usant normalització robusta.
         """
@@ -271,7 +270,7 @@ class GeneradorSessionsExamensBase(ABC):
                 items.append(item)
         return items
 
-    def _assign_item_id(self, item: Dict) -> None:
+    def _assign_item_id(self, item: dict) -> None:
         """Assigna un item_id estable i el propaga a les sessions de l'ítem."""
         sessions = item.get("sessions", [])
         base = "|".join(sorted(f"{s.get('id') or s.get('nom')}::{s.get('curs') or ''}" for s in sessions))
@@ -283,7 +282,7 @@ class GeneradorSessionsExamensBase(ABC):
             s["item_id"] = item_id
             s["item_label"] = item.get("nom") or item_id
 
-    def preparar_particio_nivells(self, slots_disponibles: int) -> List[Dict]:
+    def preparar_particio_nivells(self, slots_disponibles: int) -> list[dict]:
         """Garanteix que cada nivell té els seus exàmens agrupats en 'paquets' únics (sense fusionar forçat)."""
         tots_els_items = []
         restriccions = self._carregar_restriccions_raw()

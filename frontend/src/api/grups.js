@@ -7,8 +7,8 @@ export const reforc = (activitat, data) => reforcAmb(clientApi, activitat, data)
 export const desaPeriodeAmb = async (client, cos) => (await client.post('/api/grups/periode', cos)).data
 export const desaPeriode = (cos) => desaPeriodeAmb(clientApi, cos)
 
-export const llistaAmb = async (client, data) => (await client.get(`/api/grups/${data}`)).data
-export const llista = (data) => llistaAmb(clientApi, data)
+export const llistaAmb = async (client, data, ...opcions) => (await client.get(`/api/grups/${data}`, ...opcions)).data
+export const llista = (data, ...opcions) => llistaAmb(clientApi, data, ...opcions)
 
 export const desaAmb = async (client, data, cos) => (await client.put(`/api/grups/${data}`, cos)).data
 export const desa = (data, cos) => desaAmb(clientApi, data, cos)

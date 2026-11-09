@@ -11,7 +11,7 @@ from suport_api import nova_institucio
 from config.context import fixa_institucio_peticio
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
-from grups.repositories import GrupsAlliberatsRepository
+from grups.lectures import AlliberatsDelDia
 from horari.repositories import XMLVersionRepository
 from models import AbsenciaCoberta, AlliberamentPeriode, GrupAlliberat
 
@@ -77,18 +77,18 @@ def escenari():
 
 def test_interval_identic_a_dia_a_dia_en_366_dates(escenari):
     db, dates = escenari
-    esperat = {d: GrupsAlliberatsRepository.get_by_date(db, d) for d in dates}
-    resultat = GrupsAlliberatsRepository.get_entre_dates(db, list(reversed(dates)) + dates[:5])
+    esperat = {d: AlliberatsDelDia.get_by_date(db, d) for d in dates}
+    resultat = AlliberatsDelDia.get_entre_dates(db, list(reversed(dates)) + dates[:5])
     # Empremta obtinguda amb el codi anterior, abans de la refactorització.
     assert hashlib.sha256(json.dumps(esperat, ensure_ascii=False, sort_keys=True).encode()).hexdigest() == (
         "bfcfeb175c7621d044aec22e1164536434ca83c61ae5d2786987e6a631e4da48"
     )
     assert resultat == esperat  # també l'ordre i els duplicats de cada llista
-    assert GrupsAlliberatsRepository.get_entre_dates(db, []) == {}
+    assert AlliberatsDelDia.get_entre_dates(db, []) == {}
     # Una nova petició veu les marques noves: cap memòria cau persistent.
     db.add(GrupAlliberat(data=date(2026, 3, 2), hora="09:00", grups="nou"))
     db.commit()
-    assert "nou" in GrupsAlliberatsRepository.get_entre_dates(db, ["2026-03-02"])["2026-03-02"]["09:00"]
+    assert "nou" in AlliberatsDelDia.get_entre_dates(db, ["2026-03-02"])["2026-03-02"]["09:00"]
 
 
 def test_les_consultes_no_creixen_amb_els_dies(escenari):
@@ -102,7 +102,7 @@ def test_les_consultes_no_creixen_amb_els_dies(escenari):
 
         event.listen(db.bind, "before_cursor_execute", compta)
         try:
-            GrupsAlliberatsRepository.get_entre_dates(db, dies)
+            AlliberatsDelDia.get_entre_dates(db, dies)
         finally:
             event.remove(db.bind, "before_cursor_execute", compta)
         return len(sql)

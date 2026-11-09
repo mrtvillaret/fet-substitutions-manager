@@ -90,8 +90,8 @@ def _prof_26_substitut(client, centre):
     )
     assert resp.status_code == 200, resp.text
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f["hora"] == HORA)
-        SubstitucioRepository.update(db, int(fila["id"]), {"substitut": PROFESSOR})
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.hora == HORA)
+        SubstitucioRepository.update(db, int(fila.id), {"substitut": PROFESSOR})
         db.commit()
 
 

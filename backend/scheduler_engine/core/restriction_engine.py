@@ -11,7 +11,6 @@ NO reimplementa lògica: delega sempre a constraints.py.
 
 import re as _re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set
 
 from scheduler_engine.core.constraints import (
     viola_combinacions_permeses,
@@ -58,7 +57,7 @@ class RestrictionEngine:
         dures = restriccions.get("restriccions_dures", {})
         pe = dures.get("professors_horari_estricte", [])
         if isinstance(pe, dict):
-            self.professors_estrictes: List[str] = [k for k in pe.keys() if not k.startswith("_")]
+            self.professors_estrictes: list[str] = [k for k in pe.keys() if not k.startswith("_")]
         else:
             self.professors_estrictes = list(pe or [])
 
@@ -68,15 +67,15 @@ class RestrictionEngine:
 
     def check_hard(
         self,
-        sessio: Dict,
+        sessio: dict,
         dia: str,
         hora: str,
         prefix: str,
-        sessions_dia: List[Dict],
-        sessions_slot: List[Dict],
-        dia_sessions: Optional[Dict] = None,
-        analisi: Optional[Dict] = None,
-    ) -> Optional[ViolationResult]:
+        sessions_dia: list[dict],
+        sessions_slot: list[dict],
+        dia_sessions: dict | None = None,
+        analisi: dict | None = None,
+    ) -> ViolationResult | None:
         """
         Retorna la primera restricció dura violada, o None si el slot és vàlid.
 
@@ -138,7 +137,7 @@ class RestrictionEngine:
 
         # 6. Professors estrictes (requereix analisi pre-computada)
         if analisi and self.professors_estrictes:
-            estrictes_afectats: Set[str] = (
+            estrictes_afectats: set[str] = (
                 {i["professor"] for i in analisi.get("abans_jornada", [])}
                 | {i["professor"] for i in analisi.get("despres_jornada", [])}
                 | {i["professor"] for i in analisi.get("no_treballa_dia", [])}

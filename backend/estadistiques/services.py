@@ -6,13 +6,11 @@ Les substitucions es llegeixen amb el repositori dels recomptes
 
 from collections.abc import Collection
 from datetime import date, timedelta
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
 import rellotge
 from errors_domini import NoValid
-from horari.hores import normalitzar_hora
 from noms import ordre_alfabetic
 from recomptes.services import (
     absencies_i_serveis,
@@ -35,6 +33,9 @@ from recomptes.services import (
     valida_interval,
     vigilancies_entre,
 )
+from substitucions.files import FilaSubstitucio
+from textos import normalitzar_hora
+from vigilancies.files import FilaVigilancia
 
 # Les franges de l'horari triades al filtre per hores (normalitzades); None: totes
 Hores = Collection[str] | None
@@ -54,7 +55,7 @@ class HoraNoValida(NoValid):
     pass
 
 
-def interval(data_inici: Optional[str], data_final: Optional[str]) -> tuple[str, str]:
+def interval(data_inici: str | None, data_final: str | None) -> tuple[str, str]:
     """L'interval demanat; sense dates, els últims 30 dies fins avui."""
     if not data_final:
         data_final = rellotge.ara().strftime("%Y-%m-%d")
@@ -64,8 +65,8 @@ def interval(data_inici: Optional[str], data_final: Optional[str]) -> tuple[str,
     return data_inici, data_final
 
 
-def _data(s: dict) -> date:
-    return date.fromisoformat(s["data"])
+def _data(s: FilaSubstitucio) -> date:
+    return date.fromisoformat(s.data)
 
 
 def _dia_setmana(data: date) -> str:
@@ -73,7 +74,7 @@ def _dia_setmana(data: date) -> str:
     return DIES_SETMANA[dia_idx] if dia_idx < len(DIES_SETMANA) else "Altres"
 
 
-def _normalitzar_dia(dia: str) -> Optional[str]:
+def _normalitzar_dia(dia: str) -> str | None:
     if not dia:
         return None
     dia_clean = dia.strip().lower()
@@ -83,7 +84,7 @@ def _normalitzar_dia(dia: str) -> Optional[str]:
     return None
 
 
-def _reals(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> list[dict]:
+def _reals(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> list[FilaSubstitucio]:
     """Les substitucions de l'interval amb els filtres de tots els recomptes
     («No substituir» i qui té classe), com els informes."""
     return substitucions_reals(db, data_inici, data_final, hores)
@@ -98,7 +99,7 @@ def resum(db: Session, data_inici: str, data_final: str, hores: Hores = None) ->
     )
 
 
-def _resum(data_inici: str, data_final: str, absencies: list[dict], v: dict) -> dict:
+def _resum(data_inici: str, data_final: str, absencies: list[FilaSubstitucio], v: dict) -> dict:
     """La cobertura de les absències i els serveis (com la portada de
     l'informe de direcció) i les vigilàncies."""
     c = cobertura(absencies)
@@ -137,7 +138,9 @@ def professors(db: Session, data_inici: str, data_final: str, hores: Hores = Non
     )
 
 
-def _professors(data_inici: str, data_final: str, absencies: list[dict], fetes: list[dict]) -> dict:
+def _professors(
+    data_inici: str, data_final: str, absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio]
+) -> dict:
     """Els rànquings: absències i serveis (com l'informe de direcció) i
     substitucions fetes."""
 
@@ -162,7 +165,11 @@ def temporal(db: Session, institucio: str, data_inici: str, data_final: str, hor
 
 
 def _temporal(
-    data_inici: str, data_final: str, absencies: list[dict], vigilancies: list[dict], franges: list[str]
+    data_inici: str,
+    data_final: str,
+    absencies: list[FilaSubstitucio],
+    vigilancies: list[FilaVigilancia],
+    franges: list[str],
 ) -> dict:
     """Per dia de la setmana i per hora: les hores a cobrir i les cobertes (de
     les absències i els serveis, com la taula dia × hora de l'informe) i les
@@ -176,8 +183,8 @@ def _temporal(
     vigs_per_dia = {dia: 0 for dia in DIES_SETMANA}
     vigs_per_hora = {}
     for vig in vigilancies:
-        hora = normalitzar_hora((vig["hora"] or "").strip())
-        vigs_per_dia[_dia_setmana(_data(vig))] += 1
+        hora = normalitzar_hora((vig.hora or "").strip())
+        vigs_per_dia[_dia_setmana(date.fromisoformat(vig.data))] += 1
         if hora:
             vigs_per_hora[hora] = vigs_per_hora.get(hora, 0) + 1
 
@@ -217,7 +224,7 @@ def _top(comptadors: dict) -> tuple[str, int] | None:
 
 def _absencies_per_grup(
     db: Session, data_inici: str, data_final: str, grups: set | None = None, hores: Hores = None
-) -> list[dict]:
+) -> list[FilaSubstitucio]:
     """Les absències i els serveis amb grup (`grups`: només aquests)."""
     return [
         s
@@ -230,14 +237,14 @@ def classes(db: Session, data_inici: str, data_final: str, hores: Hores = None) 
     return _classes(data_inici, data_final, absencies_i_serveis(_reals(db, data_inici, data_final, hores)))
 
 
-def _classes(data_inici: str, data_final: str, absencies: list[dict]) -> dict:
+def _classes(data_inici: str, data_final: str, absencies: list[FilaSubstitucio]) -> dict:
     """Per grup: hores a cobrir, cobertes i percentatge (com l'informe de
     direcció), l'assignatura més afectada i el professor més absent."""
     absencies = [s for s in absencies if grup_de(s)]
     assignatures, professors = {}, {}
     for s in absencies:
         grup = grup_de(s)
-        for comptadors, nom in ((assignatures, (s["assignatura"] or "").strip()), (professors, nom_absent(s))):
+        for comptadors, nom in ((assignatures, (s.assignatura or "").strip()), (professors, nom_absent(s))):
             if nom:
                 del_grup = comptadors.setdefault(grup, {})
                 del_grup[nom] = del_grup.get(nom, 0) + 1
@@ -268,25 +275,23 @@ def classes_detall(db: Session, data_inici: str, data_final: str, grups: list[st
 
     resultats = []
     per_assignatura, per_professor, per_substitut, per_grup = {}, {}, {}, {}
-    files = sorted(
-        _absencies_per_grup(db, data_inici, data_final, grups_set, hores), key=lambda f: (f["data"], f["hora"])
-    )
+    files = sorted(_absencies_per_grup(db, data_inici, data_final, grups_set, hores), key=lambda f: (f.data, f.hora))
     for s in files:
-        hora = (s["hora"] or "").strip()
+        hora = (s.hora or "").strip()
         grup = grup_de(s)
-        assignatura = (s["assignatura"] or "").strip()
-        professor = (s["professor_absent"] or "").strip()
-        substitut = (s["substitut"] or "").strip()
+        assignatura = (s.assignatura or "").strip()
+        professor = (s.professor_absent or "").strip()
+        substitut = (s.substitut or "").strip()
         resultats.append(
             {
-                "data": s["data"],
+                "data": s.data,
                 "dia_setmana": _dia_setmana(_data(s)),
                 "hora": hora,
                 "grup": grup,
                 "assignatura": assignatura,
                 "professor_absent": professor,
                 "substitut": substitut,
-                "tipus_substitut": (s["tipus_substitut"] or "").strip(),
+                "tipus_substitut": (s.tipus_substitut or "").strip(),
             }
         )
         if assignatura:
@@ -329,7 +334,7 @@ def taula_professors(db: Session, data_inici: str, data_final: str, hores: Hores
 
 
 def _taula_professors(
-    data_inici: str, data_final: str, absencies: list[dict], fetes: list[dict], vigilancies: dict
+    data_inici: str, data_final: str, absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio], vigilancies: dict
 ) -> dict:
     """Per professor: absències, serveis, substitucions fetes, vigilàncies
     fetes i balanç."""
@@ -353,14 +358,14 @@ def detall_professor(db: Session, professor: str, data_inici: str, data_final: s
     absencies = trobat[0]["absencies"] if trobat else []
     fetes = trobat[0]["substitucions_fetes"] if trobat else []
 
-    def _fila(s: dict) -> dict:
+    def _fila(s: FilaSubstitucio) -> dict:
         return {
-            "data": s["data"],
+            "data": s.data,
             "dia_setmana": _dia_setmana(_data(s)),
-            "hora": (s["hora"] or "").strip(),
-            "grup": s["grup"] or "",
-            "assignatura": s["assignatura"] or "",
-            "tipus_absencia": s["tipus_absencia"] or "",
+            "hora": (s.hora or "").strip(),
+            "grup": s.grup or "",
+            "assignatura": s.assignatura or "",
+            "tipus_absencia": s.tipus_absencia or "",
         }
 
     def _per_data(files: list[dict]) -> list[dict]:
@@ -369,13 +374,13 @@ def detall_professor(db: Session, professor: str, data_inici: str, data_final: s
     return {
         "periode": {"data_inici": data_inici, "data_final": data_final},
         "professor": professor,
-        "absencies": _per_data([{**_fila(s), "substitut": s["substitut"] or ""} for s in absencies]),
+        "absencies": _per_data([{**_fila(s), "substitut": s.substitut or ""} for s in absencies]),
         "substitucions": _per_data(
             [
                 {
                     **_fila(s),
-                    "professor_absent": s["professor_absent"] or "",
-                    "tipus_substitut": s["tipus_substitut"] or "",
+                    "professor_absent": s.professor_absent or "",
+                    "tipus_substitut": s.tipus_substitut or "",
                 }
                 for s in fetes
             ]
@@ -402,8 +407,8 @@ def franges(db: Session, dia: str, hora: str, data_inici: str, data_final: str, 
 
     slots = {}
     for s in substitucions_fetes(db, data_inici, data_final, hores):
-        if _dia_setmana(_data(s)) == dia_normalitzat and (s["hora"] or "").strip() == hora:
-            slots.setdefault(f"{s['data']}|{hora}", []).append(nom_substitut(s))
+        if _dia_setmana(_data(s)) == dia_normalitzat and (s.hora or "").strip() == hora:
+            slots.setdefault(f"{s.data}|{hora}", []).append(nom_substitut(s))
 
     per_nombre = {}
     total_subs = 0

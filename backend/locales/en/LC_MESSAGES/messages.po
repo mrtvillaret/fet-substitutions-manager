@@ -748,3 +748,7 @@ msgstr "The timetable XML must contain at least one teacher, one day and one hou
 #: substitucions/services.py
 msgid "❌ {substitut} no és un professor de l’horari d’aquell dia"
 msgstr "❌ {substitut} is not a teacher in that day's timetable"
+
+# Vigilant fora de l’XML vigent del dia.
+msgid "❌ {hora}: {vigilant} no és a l’horari d’aquell dia"
+msgstr "❌ {hora}: {vigilant} is not in that day's timetable"

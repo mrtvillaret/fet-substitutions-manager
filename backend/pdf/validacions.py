@@ -12,17 +12,18 @@ from horari.domain import Dia
 from i18n_setup import translate
 from substitucions.domain import DiaEscolar
 from substitucions.encadenades import avisos_encadenades
+from substitucions.files import FilaSubstitucio
 from vigilancies.analisi import analitza_vigilancies
 
 log = logging.getLogger(__name__)
 
 
-def _cobertura_ja_analitzada(sub: dict, problemes: list) -> bool:
+def _cobertura_ja_analitzada(sub: FilaSubstitucio, problemes: list) -> bool:
     """Evita duplicar els problemes de classes/vigilants que ha revisat l'anàlisi comuna.
     Les files antigues sense cap vigilància associada es revisen com abans.
     """
-    return sub.get("tipus_absencia") in ("VIGILANCIA", "VIGILANCIA_ABSENT") and any(
-        p["professor"] == sub.get("professor_absent") and p["hora"] == sub.get("hora") for p in problemes
+    return sub.tipus_absencia in ("VIGILANCIA", "VIGILANCIA_ABSENT") and any(
+        p["professor"] == sub.professor_absent and p["hora"] == sub.hora for p in problemes
     )
 
 
@@ -31,8 +32,8 @@ def _substituts_repetits(dia: DiaEscolar, warnings: list, problemes: list) -> No
     for sub in dia.files:
         if _cobertura_ja_analitzada(sub, problemes):
             continue
-        if sub.get("hora", "") and sub.get("substitut", ""):
-            substituts_per_hora[sub["hora"]].append(sub["substitut"])
+        if sub.hora and sub.substitut:
+            substituts_per_hora[sub.hora].append(sub.substitut)
     for hora, substituts in substituts_per_hora.items():
         for substitut in set(substituts):
             count = substituts.count(substitut)
@@ -49,14 +50,14 @@ def _absencies_sense_substitut(dia: DiaEscolar, conflicts: list, problemes: list
     for sub in dia.files:
         if _cobertura_ja_analitzada(sub, problemes):
             continue
-        hora, grup = sub.get("hora", ""), sub.get("grup", "")
-        prof_absent = sub.get("professor_absent", "")
-        if (sub.get("substitut") or "").strip() or not grup.strip():
+        hora, grup = sub.hora, sub.grup
+        prof_absent = sub.professor_absent
+        if (sub.substitut or "").strip() or not grup.strip():
             continue
         if not sense_classe(prof_absent, grup, dia.alliberats.get(hora, [])):
             conflicts.append(
                 translate("❌ {hora}: {prof_absent} ({assignatura}, {grup}) sense substitut").format(
-                    hora=hora, prof_absent=prof_absent, assignatura=sub.get("assignatura", ""), grup=grup
+                    hora=hora, prof_absent=prof_absent, assignatura=sub.assignatura, grup=grup
                 )
             )
 
@@ -65,15 +66,15 @@ def _baixes_i_substituts_no_valids(dia: DiaEscolar, conflicts: list, warnings: l
     # Substituts que ja no poden fer la substitució (la mateixa regla que
     # «Reassignar problemàtics»). Les cobertures de vigilàncies ja les comprova analitza_vigilancies.
     motius = [
-        (sub, dia.motius_substitut(sub["substitut"].strip(), sub.get("hora", "")))
+        (sub, dia.motius_substitut(sub.substitut.strip(), sub.hora))
         for sub in dia.files
-        if (sub.get("substitut") or "").strip() and not _cobertura_ja_analitzada(sub, problemes)
+        if (sub.substitut or "").strip() and not _cobertura_ja_analitzada(sub, problemes)
     ]
     for sub, mots in motius:
         if any(m["motiu"] == "baixa" for m in mots):
             warnings.append(
                 translate("🔄 {hora}: {substitut} té una absència coberta però és assignat com a substitut").format(
-                    hora=sub.get("hora", ""), substitut=sub["substitut"]
+                    hora=sub.hora, substitut=sub.substitut
                 )
             )
     for sub, mots in motius:
@@ -81,14 +82,14 @@ def _baixes_i_substituts_no_valids(dia: DiaEscolar, conflicts: list, warnings: l
             if m["motiu"] == "absent":
                 conflicts.append(
                     translate("❌ {hora}: Substitut {substitut} està absent!").format(
-                        hora=sub.get("hora", ""), substitut=sub["substitut"]
+                        hora=sub.hora, substitut=sub.substitut
                     )
                 )
             elif m["motiu"] == "classe":
                 warnings.append(
                     translate("⚠️ {hora}: Substitut {substitut} té classe ({assignatura_sub}, {grup_sub})").format(
-                        hora=sub.get("hora", ""),
-                        substitut=sub["substitut"],
+                        hora=sub.hora,
+                        substitut=sub.substitut,
                         assignatura_sub=m["classe_assignatura"],
                         grup_sub=m["classe_grup"],
                     )

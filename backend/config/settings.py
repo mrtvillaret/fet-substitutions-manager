@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 class Config:
     """Configuració global i localització dels centres del backend web"""
 
-    def __init__(self, *, legacy_config_file=None):
+    def __init__(self, *, legacy_config_file=None, desa_si_falta=True):
         # ===== CONFIG GLOBAL =====
         base_dir = Path(__file__).resolve().parents[1]
         data_root = Path(os.getenv("DATA_DIR", base_dir.parent / "data"))
@@ -29,7 +29,7 @@ class Config:
             "idioma": self._detect_system_language(),
         }
         self.global_data = {}
-        self.load_global()
+        self.load_global(desa_si_falta=desa_si_falta)
 
         # ===== ENV VARIABLES OVERRIDE (per al backend web) =====
         # Si hi ha variables d'entorn definides, prioritzar-les sobre el JSON
@@ -37,22 +37,31 @@ class Config:
             self.global_data["institucio"] = os.getenv("APP_INSTITUCIO")
             log.debug(f"🌐 Institucio override des d'ENV: {os.getenv('APP_INSTITUCIO')}")
 
-    def load_global(self):
+    def load_global(self, *, desa_si_falta=True):
         """Carrega configuració global"""
         source = self.global_config_file if self.global_config_file.exists() else self.legacy_global_config_file
         if source.exists():
-            with open(source, "r", encoding="utf-8") as f:
+            with open(source, encoding="utf-8") as f:
                 data = json.load(f)
             self.global_data = {**self.global_defaults, **data}
         else:
             self.global_data = self.global_defaults.copy()
-            self.save_global()
+            if desa_si_falta:
+                self.save_global()
+
+    def inicialitza_fitxer(self):
+        """En arrencar: el fitxer inicial, amb els valors previs als overrides."""
+        if not self.global_config_file.exists() and not self.legacy_global_config_file.exists():
+            self._desa_global(self.global_defaults)
 
     def save_global(self):
         """Desa configuració global"""
+        self._desa_global(self.global_data)
+
+    def _desa_global(self, dades):
         self.global_config_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.global_config_file, "w", encoding="utf-8") as f:
-            json.dump(self.global_data, f, indent=2, ensure_ascii=False)
+            json.dump(dades, f, indent=2, ensure_ascii=False)
 
     def __getattr__(self, key):
         """Les claus de la configuració global, com a atributs"""
@@ -140,4 +149,4 @@ class Config:
 
 
 # Instància global
-config = Config()
+config = Config(desa_si_falta=False)

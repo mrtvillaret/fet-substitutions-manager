@@ -27,6 +27,8 @@ from test_vigilancies_api import (  # noqa: F401  (fixtures)
 
 from config import constants
 from substitucions import vigilancia_absent
+from substitucions.assignacio import QuotaFranja
+from substitucions.files import FilaSubstitucio
 
 CLASSE = ("10:00", "Prof 15", "Anglès")
 
@@ -88,16 +90,23 @@ def test_vigilancia_absent_tria_a_l_atzar_dins_la_categoria(monkeypatch):
         def get_tots_disponibles(self, dia, hora, grups):
             return [
                 ("Primer candidat", "Guàrdia", "Guàrdia"),
-                ("Segon candidat", "Guàrdia", "Guàrdia"),
+                ("Segon candidat", "Pares", "Pares"),
             ]
 
     class AtzarControlat:
-        def choice(self, candidats):
-            return candidats[-1]
+        def choices(self, candidats, *, weights, k):
+            assert weights == [3, 1]
+            assert k == 1
+            return [candidats[-1]]
 
-    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia", "Pares"}])
+    monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 3, "Pares": 1})
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(vigilancia_absent.SubstitucioRepository, "get_by_date", lambda db, data: files)
+    monkeypatch.setattr(
+        vigilancia_absent.SubstitucioRepository,
+        "get_by_date",
+        lambda db, data: [FilaSubstitucio(**f) for f in files],
+    )
     monkeypatch.setattr(
         vigilancia_absent.SubstitucioRepository,
         "update",
@@ -111,13 +120,14 @@ def test_vigilancia_absent_tria_a_l_atzar_dins_la_categoria(monkeypatch):
         {"Prof absent": ["10:00"]},
         {},
         rng=AtzarControlat(),
+        quota=QuotaFranja(),
     )
 
     assert assignades == 1
     assert actualitzacions == [
         {
             "substitut": "Segon candidat",
-            "tipus_substitut": "disponible (Guàrdia)",
+            "tipus_substitut": "disponible (Pares)",
         }
     ]
 

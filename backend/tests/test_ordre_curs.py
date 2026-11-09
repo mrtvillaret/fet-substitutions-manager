@@ -8,7 +8,9 @@ i els PDF, que fan servir aquestes dues.
 import pytest
 
 from ordre_curs import clau_curs
+from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
+from vigilancies.files import FilaVigilancia
 from vigilancies.services import clau_automatica
 
 
@@ -45,12 +47,12 @@ def test_el_nivell_de_la_fila_mana_sobre_el_del_grup():
 
 def test_substitucions_dins_de_cada_hora_per_curs_i_professor():
     files = [
-        {"hora": "10:00", "professor_absent": "Prof 9", "grup": "2-ESO-A"},
-        {"hora": "10:00", "professor_absent": "Prof 3", "grup": "1-ESO-A"},
-        {"hora": "10:00", "professor_absent": "Prof 1", "grup": "2-BATX-A"},
-        {"hora": "10:00", "professor_absent": "Prof 2", "grup": "1-ESO-A"},
+        FilaSubstitucio(**{"hora": "10:00", "professor_absent": "Prof 9", "grup": "2-ESO-A"}),
+        FilaSubstitucio(**{"hora": "10:00", "professor_absent": "Prof 3", "grup": "1-ESO-A"}),
+        FilaSubstitucio(**{"hora": "10:00", "professor_absent": "Prof 1", "grup": "2-BATX-A"}),
+        FilaSubstitucio(**{"hora": "10:00", "professor_absent": "Prof 2", "grup": "1-ESO-A"}),
     ]
-    ordre = [(f["grup"], f["professor_absent"]) for f in SubstitucioRepository.ordena(files, ["10:00"])]
+    ordre = [(f.grup, f.professor_absent) for f in SubstitucioRepository.ordena(files, ["10:00"])]
     assert ordre == [("2-BATX-A", "Prof 1"), ("1-ESO-A", "Prof 2"), ("1-ESO-A", "Prof 3"), ("2-ESO-A", "Prof 9")]
 
 
@@ -62,7 +64,8 @@ def test_vigilancies_per_curs_aula_i_creacio():
         {"id": 4, "nivell": "1-ESO", "grups": "1-ESO-A", "aula": "A1"},
         {"id": 5, "nivell": "", "grups": "1-BATX-A", "aula": ""},
     ]
-    assert [v["id"] for v in sorted(vigs, key=clau_automatica)] == [5, 2, 4, 3, 1]
+    vigs = [FilaVigilancia(**v) for v in vigs]
+    assert [v.id for v in sorted(vigs, key=clau_automatica)] == [5, 2, 4, 3, 1]
 
 
 @pytest.mark.parametrize(
@@ -76,13 +79,13 @@ def test_tots_dos_ordres_amb_l_encadenada_sota_la_seva_substitucio(ordre, espera
     # Prof 7 fa una guàrdia i substitueix Prof 3: la seva encadenada (pendent) va
     # just a sota de la substitució de Prof 3, en tots dos ordres
     files = [
-        {"hora": "10:00", "professor_absent": "Prof 9", "grup": "1-ESO-A"},
-        {"hora": "10:00", "professor_absent": "Prof 7", "grup": "", "tipus_absencia": "ENCADENADA"},
-        {"hora": "10:00", "professor_absent": "Prof 3", "grup": "2-BATX-A", "substitut": "Prof 7"},
-        {"hora": "10:00", "professor_absent": "Prof 2", "grup": "4-ESO-A"},
+        FilaSubstitucio(**{"hora": "10:00", "professor_absent": "Prof 9", "grup": "1-ESO-A"}),
+        FilaSubstitucio(**{"hora": "10:00", "professor_absent": "Prof 7", "grup": "", "tipus_absencia": "ENCADENADA"}),
+        FilaSubstitucio(**{"hora": "10:00", "professor_absent": "Prof 3", "grup": "2-BATX-A", "substitut": "Prof 7"}),
+        FilaSubstitucio(**{"hora": "10:00", "professor_absent": "Prof 2", "grup": "4-ESO-A"}),
     ]
     ordenades = SubstitucioRepository.ordena(files, ["10:00"], ordre=ordre)
-    assert [f["professor_absent"] for f in ordenades] == esperat
+    assert [f.professor_absent for f in ordenades] == esperat
 
 
 def test_un_ordre_desconegut_no_s_accepta():

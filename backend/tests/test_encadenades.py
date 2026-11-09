@@ -24,6 +24,7 @@ from pdf.router import router as pdf_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
 from substitucions import router as substitucions
+from substitucions.files import FilaSubstitucio
 
 APP = crea_app(pdf_router)
 APP.include_router(prioritats_router, dependencies=[Depends(require_admin)])  # com a main.py
@@ -233,7 +234,9 @@ def test_l_ordre_posa_cada_encadenada_sota_la_seva_substitucio():
     from substitucions.repositories import SubstitucioRepository
 
     def fila(hora, absent, grup, substitut="", tipus="ABSENCIA"):
-        return {"hora": hora, "professor_absent": absent, "grup": grup, "substitut": substitut, "tipus_absencia": tipus}
+        return FilaSubstitucio(
+            **{"hora": hora, "professor_absent": absent, "grup": grup, "substitut": substitut, "tipus_absencia": tipus}
+        )
 
     files = [
         fila("10:00", "Prof 9", "", "Prof 4", "ENCADENADA"),
@@ -242,7 +245,7 @@ def test_l_ordre_posa_cada_encadenada_sota_la_seva_substitucio():
         fila("10:00", "Prof 15", "3-ESO-A", "Prof 2"),
         fila("10:00", "Prof 7", "10-ESO-A"),
     ]
-    ordre = [(f["hora"], f["professor_absent"]) for f in SubstitucioRepository.ordena(files, ["09:00", "10:00"])]
+    ordre = [(f.hora, f.professor_absent) for f in SubstitucioRepository.ordena(files, ["09:00", "10:00"])]
     assert ordre == [
         ("09:00", "Prof 3"),
         ("10:00", "Prof 15"),  # 3-ESO-A

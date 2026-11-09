@@ -1,6 +1,6 @@
 """
 Regla dels noms en llegir l'XML de FET: els noms de professors, assignatures,
-aules i etiquetes es netegen en un sol punt (noms.nom_net), però l'ordre
+aules i etiquetes es netegen en un sol punt (textos.nom_net), però l'ordre
 continua sent el de l'XML i el filtre de l'«últim professor» talla pel mateix
 lloc. Els espais del davant dels professors (que FET fa servir per ordenar-los
 per nivells) no formen part del nom.

@@ -8,8 +8,9 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from config import constants
 from configuracio_examens.repositories import ConfiguracioExamenRepository
-from grups.repositories import GrupsAlliberatsRepository
+from grups.lectures import AlliberatsDelDia
 from horari.context import _get_institucio_actual
 from substitucions.context import get_gestors
 from substitucions.repositories import SubstitucioRepository
@@ -57,12 +58,11 @@ class VigilanciaCore:
 
     def get_categoria_prioritat(self, tipus_activitat: str) -> int:
         """Retorna l'índex de categoria segons ORDRE_PRIORITATS."""
-        from config.constants import ORDRE_PRIORITATS
 
-        for i, categoria in enumerate(ORDRE_PRIORITATS):
+        for i, categoria in enumerate(constants.ORDRE_PRIORITATS):
             if tipus_activitat in categoria:
                 return i
-        return len(ORDRE_PRIORITATS)
+        return len(constants.ORDRE_PRIORITATS)
 
     def is_activitat_auto_assignable(self, tipus_activitat: str) -> bool:
         """
@@ -72,17 +72,15 @@ class VigilanciaCore:
         if not tipus_activitat:
             return False
 
-        from config.constants import CATEGORIES_ACTIVES, ORDRE_PRIORITATS, PRIORITATS
-
         # Fallback defensiu si encara no s'han carregat categories des de BD.
-        if not ORDRE_PRIORITATS:
-            return tipus_activitat == "alliberat" or tipus_activitat in PRIORITATS
+        if not constants.ORDRE_PRIORITATS:
+            return tipus_activitat == "alliberat" or tipus_activitat in constants.PRIORITATS
 
         categoria = self.get_categoria_prioritat(tipus_activitat)
-        if categoria >= len(ORDRE_PRIORITATS):
+        if categoria >= len(constants.ORDRE_PRIORITATS):
             return False
 
-        if categoria < len(CATEGORIES_ACTIVES) and not CATEGORIES_ACTIVES[categoria]:
+        if categoria < len(constants.CATEGORIES_ACTIVES) and not constants.CATEGORIES_ACTIVES[categoria]:
             return False
 
         return True
@@ -110,9 +108,9 @@ def get_vigilancia_core(data: str, db: Session = None, institucio: str = None, *
     absents_tipus = {}
 
     for sub in substitucions_data:
-        professor = sub.get("professor_absent", "")
-        hora = sub.get("hora", "")
-        tipus_abs = sub.get("tipus_absencia", "") or "ABSENCIA"
+        professor = sub.professor_absent
+        hora = sub.hora
+        tipus_abs = sub.tipus_absencia or "ABSENCIA"
 
         if tipus_abs in ["VIGILANCIA", "ENCADENADA"]:
             continue
@@ -125,7 +123,7 @@ def get_vigilancia_core(data: str, db: Session = None, institucio: str = None, *
                 absents[professor].append(hora)
 
     # Grups sense classe (Des de SQLite)
-    grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
+    grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
 
     # Dia de la setmana
     weekday_idx = date_obj.weekday()

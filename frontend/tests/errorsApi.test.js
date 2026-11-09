@@ -30,10 +30,11 @@ test('sense resposta, error de connexió', async () => {
   assert.equal(await missatgeDError({}, t), 'app.errors.connection')
 })
 
-test("l'interceptor ja ha avisat dels errors de l'API, però no dels silenciosos ni dels altres", async () => {
-  const { jaAvisat } = await import('../src/errorsApi.js')
-  assert.equal(jaAvisat({ isAxiosError: true, config: {}, response: { status: 400 } }), true)
-  assert.equal(jaAvisat({ isAxiosError: true, config: {} }), true)  // sense connexió
-  assert.equal(jaAvisat({ isAxiosError: true, config: { _silent: true }, response: { status: 400 } }), false)
+test("jaAvisat reflecteix un avís real, també per als errors de xarxa", async () => {
+  const { jaAvisat, marcaAvisat } = await import('../src/errorsApi.js')
+  const error = { isAxiosError: true, config: {} }
+  assert.equal(jaAvisat(error), false)
+  marcaAvisat(error)
+  assert.equal(jaAvisat(error), true)
   assert.equal(jaAvisat(new TypeError('URL.createObjectURL')), false)
 })

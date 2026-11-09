@@ -2,16 +2,14 @@
 assignatures, grups i aules), les assignacions de titulars i les propostes
 d'importació descartades.
 
-Les altes (add_*, create) no fan commit, perquè una importació sigui tot o
-res: el fa qui crida. Els canvis de nom i els esborrats d'un sol element
-encara el fan."""
+Cap operació no fa commit: el servei tanca la transacció sencera."""
 
-from typing import Any, Dict, List
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from models import AbreviaturaGrup, Assignatura, Aula, Grup, Nivell
+from models import AbreviaturaGrup, Assignatura, Aula, ConfiguracioExamen, Grup, Nivell, PropostaDescartada
 
 
 class MasterConfigRepository:
@@ -23,7 +21,7 @@ class MasterConfigRepository:
         return {codi for (codi,) in db.query(Grup.codi).all()}
 
     @staticmethod
-    def nivell_per_grup(db: Session) -> Dict[str, str]:
+    def nivell_per_grup(db: Session) -> dict[str, str]:
         """{grup: codi del seu nivell}."""
         return dict(db.query(Grup.codi, Nivell.codi).join(Nivell, Grup.nivell_id == Nivell.id))
 
@@ -36,7 +34,7 @@ class MasterConfigRepository:
         db.query(Nivell).delete()
 
     @staticmethod
-    def get_master_config(db: Session) -> Dict[str, Any]:
+    def get_master_config(db: Session) -> dict[str, Any]:
         """Retorna master config en format JSON compatible"""
         # Nivells amb assignatures i grups
         nivells_dict = {}
@@ -69,7 +67,7 @@ class MasterConfigRepository:
     # ===== NIVELLS =====
 
     @staticmethod
-    def get_nivells(db: Session) -> List[str]:
+    def get_nivells(db: Session) -> list[str]:
         """Retorna tots els codis de nivells ordenats"""
         nivells = db.query(Nivell).filter(Nivell.actiu.is_(True)).order_by(Nivell.ordre).all()
         return [n.codi for n in nivells]
@@ -102,7 +100,7 @@ class MasterConfigRepository:
         return True
 
     @staticmethod
-    def get_assignatures_per_nivell(db: Session, nivell_codi: str) -> List[str]:
+    def get_assignatures_per_nivell(db: Session, nivell_codi: str) -> list[str]:
         """Retorna assignatures d'un nivell ordenades"""
         nivell = db.query(Nivell).filter(Nivell.codi == nivell_codi).first()
         if not nivell:
@@ -139,7 +137,6 @@ class MasterConfigRepository:
     def rename_assignatura(db: Session, nivell_codi: str, nom_antic: str, nou_nom: str) -> bool:
         """Reanomena una assignatura i propaga el canvi a les assignacions d'exàmens
         dels grups del seu nivell"""
-        from models import ConfiguracioExamen
 
         nivell = db.query(Nivell).filter(Nivell.codi == nivell_codi).first()
         if not nivell:
@@ -171,7 +168,7 @@ class MasterConfigRepository:
             ConfiguracioExamen.assignatura == nom_antic, ConfiguracioExamen.grup.in_(grups_del_nivell)
         ).update({"assignatura": nou_nom}, synchronize_session=False)
 
-        db.commit()
+        db.flush()
         return True
 
     @staticmethod
@@ -187,11 +184,11 @@ class MasterConfigRepository:
             return False
 
         db.delete(assignatura)
-        db.commit()
+        db.flush()
         return True
 
     @staticmethod
-    def get_grups_per_nivell(db: Session, nivell_codi: str) -> List[str]:
+    def get_grups_per_nivell(db: Session, nivell_codi: str) -> list[str]:
         """Retorna grups d'un nivell ordenats"""
         nivell = db.query(Nivell).filter(Nivell.codi == nivell_codi).first()
         if not nivell:
@@ -202,7 +199,7 @@ class MasterConfigRepository:
         return [g.codi for g in grups]
 
     @staticmethod
-    def grups_actius_del_nivell(db: Session, nivell_codi: str) -> List[str]:
+    def grups_actius_del_nivell(db: Session, nivell_codi: str) -> list[str]:
         nivell = db.query(Nivell).filter(Nivell.codi == nivell_codi).first()
         if not nivell:
             return []
@@ -231,7 +228,6 @@ class MasterConfigRepository:
     @staticmethod
     def rename_grup(db: Session, codi_antic: str, nou_codi: str) -> bool:
         """Reanomena un grup i propaga el canvi a les assignacions d'exàmens"""
-        from models import ConfiguracioExamen
 
         grup = db.query(Grup).filter(Grup.codi == codi_antic).first()
         if not grup:
@@ -250,7 +246,7 @@ class MasterConfigRepository:
         # 2. Propagar a assignacions d'exàmens
         db.query(ConfiguracioExamen).filter(ConfiguracioExamen.grup == codi_antic).update({"grup": nou_codi})
 
-        db.commit()
+        db.flush()
         return True
 
     @staticmethod
@@ -265,7 +261,7 @@ class MasterConfigRepository:
         return True
 
     @staticmethod
-    def get_aules(db: Session) -> List[str]:
+    def get_aules(db: Session) -> list[str]:
         """Retorna totes les aules ordenades"""
         aules = db.query(Aula).order_by(Aula.ordre).all()
         return [a.codi for a in aules]
@@ -289,7 +285,6 @@ class MasterConfigRepository:
     @staticmethod
     def rename_aula(db: Session, codi_antic: str, nou_codi: str) -> bool:
         """Reanomena una aula i propaga el canvi a les assignacions d'exàmens"""
-        from models import ConfiguracioExamen
 
         aula = db.query(Aula).filter(Aula.codi == codi_antic).first()
         if not aula:
@@ -308,7 +303,7 @@ class MasterConfigRepository:
         # 2. Propagar a assignacions d'exàmens
         db.query(ConfiguracioExamen).filter(ConfiguracioExamen.aula == codi_antic).update({"aula": nou_codi})
 
-        db.commit()
+        db.flush()
         return True
 
     @staticmethod
@@ -319,7 +314,7 @@ class MasterConfigRepository:
             return False
 
         db.delete(aula)
-        db.commit()
+        db.flush()
         return True
 
 
@@ -334,7 +329,6 @@ class ConfiguracioExamenRepository:
     @staticmethod
     def existeix(db: Session, assignatura: str, grup: str, titular) -> bool:
         """Si ja hi ha una assignació amb aquesta assignatura, grup i titular."""
-        from models import ConfiguracioExamen
 
         return (
             db.query(ConfiguracioExamen).filter_by(assignatura=assignatura, grup=grup, titular=titular).first()
@@ -344,7 +338,6 @@ class ConfiguracioExamenRepository:
     @staticmethod
     def compta(db: Session, grups=None, aula: str = None) -> int:
         """Quantes assignacions tenen un d'aquests grups o aquesta aula."""
-        from models import ConfiguracioExamen
 
         q = db.query(ConfiguracioExamen)
         if grups is not None:
@@ -356,7 +349,6 @@ class ConfiguracioExamenRepository:
     @staticmethod
     def delete_per_grups(db: Session, grups) -> int:
         """Esborra les d'aquests grups (sense commit); quantes."""
-        from models import ConfiguracioExamen
 
         return (
             db.query(ConfiguracioExamen)
@@ -367,21 +359,18 @@ class ConfiguracioExamenRepository:
     @staticmethod
     def delete_ids(db: Session, ids) -> int:
         """Esborra les d'aquests ids (sense commit); quantes."""
-        from models import ConfiguracioExamen
 
         return db.query(ConfiguracioExamen).filter(ConfiguracioExamen.id.in_(ids)).delete(synchronize_session=False)
 
     @staticmethod
     def delete_all(db: Session) -> int:
         """Les esborra totes (sense commit); quantes."""
-        from models import ConfiguracioExamen
 
         return db.query(ConfiguracioExamen).delete()
 
     @staticmethod
-    def get_all(db: Session) -> List[Dict]:
+    def get_all(db: Session) -> list[dict]:
         """Retorna totes les assignacions"""
-        from models import ConfiguracioExamen
 
         assignacions = (
             db.query(ConfiguracioExamen).order_by(ConfiguracioExamen.assignatura, ConfiguracioExamen.ordre).all()
@@ -400,9 +389,8 @@ class ConfiguracioExamenRepository:
         ]
 
     @staticmethod
-    def get_all_as_dict(db: Session) -> Dict[str, Any]:
+    def get_all_as_dict(db: Session) -> dict[str, Any]:
         """Retorna assignacions en format compatible amb el core de vigilàncies."""
-        from models import ConfiguracioExamen
 
         assignacions = db.query(ConfiguracioExamen).all()
         result = {"assignatures": {}}
@@ -421,7 +409,6 @@ class ConfiguracioExamenRepository:
     @staticmethod
     def create(db: Session, assignatura: str, grup: str, titular: str = None, aula: str = None, ordre: int = 0) -> int:
         """Crea una nova assignació"""
-        from models import ConfiguracioExamen
 
         nova_assignacio = ConfiguracioExamen(
             assignatura=assignatura,
@@ -440,7 +427,6 @@ class ConfiguracioExamenRepository:
     @staticmethod
     def update(db: Session, assignacio_id: int, titular: str = None, aula: str = None) -> bool:
         """Actualitza una assignació"""
-        from models import ConfiguracioExamen
 
         assignacio = db.query(ConfiguracioExamen).filter(ConfiguracioExamen.id == assignacio_id).first()
 
@@ -452,13 +438,12 @@ class ConfiguracioExamenRepository:
         if aula is not None:
             assignacio.aula = aula if aula else None
 
-        db.commit()
+        db.flush()
         return True
 
     @staticmethod
     def delete(db: Session, assignacio_id: int) -> bool:
         """Elimina una assignació"""
-        from models import ConfiguracioExamen
 
         assignacio = db.query(ConfiguracioExamen).filter(ConfiguracioExamen.id == assignacio_id).first()
 
@@ -466,7 +451,7 @@ class ConfiguracioExamenRepository:
             return False
 
         db.delete(assignacio)
-        db.commit()
+        db.flush()
         return True
 
 
@@ -481,14 +466,12 @@ class PropostaDescartadaRepository:
     @staticmethod
     def get_totes(db: Session) -> set:
         """Retorna el conjunt de (assignatura, grup, titular) descartats."""
-        from models import PropostaDescartada
 
         return {(p.assignatura, p.grup, p.titular) for p in db.query(PropostaDescartada).all()}
 
     @staticmethod
     def marca(db: Session, assignatura: str, grup: str, titular) -> None:
         """Marca una proposta com a descartada (idempotent)."""
-        from models import PropostaDescartada
 
         existent = db.query(PropostaDescartada).filter_by(assignatura=assignatura, grup=grup, titular=titular).first()
         if not existent:
@@ -497,13 +480,11 @@ class PropostaDescartadaRepository:
     @staticmethod
     def elimina(db: Session, assignatura: str, grup: str, titular) -> None:
         """Treu una proposta de la llista de descartades (p.ex. si l'usuari la torna a marcar)."""
-        from models import PropostaDescartada
 
         db.query(PropostaDescartada).filter_by(assignatura=assignatura, grup=grup, titular=titular).delete()
 
     @staticmethod
     def elimina_totes(db: Session) -> None:
         """Buida tota la llista de descartades (p.ex. amb l'opció 'Sobreescriu')."""
-        from models import PropostaDescartada
 
         db.query(PropostaDescartada).delete()

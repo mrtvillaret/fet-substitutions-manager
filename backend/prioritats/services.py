@@ -2,8 +2,6 @@
 que fan servir el motor de substitucions i el de vigilàncies per triar
 substituts, «No substituir», i la seva càrrega a memòria (config.constants)."""
 
-from typing import Optional
-
 from sqlalchemy.orm import Session
 
 from errors_domini import Conflicte, NoTrobat, NoValid
@@ -48,7 +46,7 @@ def llista_no_substituir(db: Session) -> list[str]:
     return NoSubstituirRepository.get_all(db)
 
 
-def afegeix_no_substituir(db: Session, assignatura: Optional[str]) -> int:
+def afegeix_no_substituir(db: Session, assignatura: str | None) -> int:
     """El text buit s'accepta (hi ha activitats sense nom a l'XML)."""
     if not assignatura and assignatura != "":
         raise NoValid("Assignatura requerida", codi="assignatura_requerida")

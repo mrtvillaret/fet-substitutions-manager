@@ -17,16 +17,16 @@ Regles:
   es deixa editar a mà a la taula de revisió.
 """
 
-import re
 from collections import Counter, defaultdict
-from typing import Dict, List, Set
 
-from noms import nom_net
+from nivells import deriva_nivell
+from substitucions.repositories import SubstitucioRepository
+from textos import nom_net
+from vigilancies.repositories import VigilanciaRepository
 
 # Sufix de subgrup real: només lletres A-D (convenció dels centres), amb o
 # sense guionet abans (les convencions de nom varien per centre: "1-ESO-A"
 # a un centre, "ESO1A" a un altre). Mai paraules senceres com "BATX".
-_GRUP_LLETRES_PATTERN = re.compile(r"^(.*?)-?([A-D]{1,4})$")
 
 
 def normalitza_assignatura(subject: str) -> str:
@@ -34,29 +34,13 @@ def normalitza_assignatura(subject: str) -> str:
     return nom_net(subject or "")
 
 
-def deriva_nivell(grup: str) -> str:
-    """Nivell d'un codi de grup: '1-ESO-A' -> '1-ESO'; '1-BATX' -> '1-BATX'.
-
-    Una classe amb alumnes de diversos grups sense abreviatura definida
-    ('1-BAT-A,1-BAT-B') té el nivell comú dels grups ('1-BAT'); si no en
-    tenen cap de comú, es deixa tal qual.
-    """
-    if "," in grup:
-        nivells = {deriva_nivell(part.strip()) for part in grup.split(",") if part.strip()}
-        return nivells.pop() if len(nivells) == 1 else grup
-    m = _GRUP_LLETRES_PATTERN.match(grup)
-    if m:
-        return m.group(1)
-    return grup
-
-
-def generar_propostes(horari) -> List[Dict]:
+def generar_propostes(horari) -> list[dict]:
     """
     horari: GestorHorariWeb ja carregat (horari.horari[dia][hora][professor] = dades)
 
     Retorna una llista de propostes úniques {assignatura, grup, titular, aula, nivell}.
     """
-    combos: Dict[tuple, Counter] = defaultdict(Counter)
+    combos: dict[tuple, Counter] = defaultdict(Counter)
 
     for dia_hores in horari.horari.values():
         for professors_hora in dia_hores.values():
@@ -87,12 +71,10 @@ def generar_propostes(horari) -> List[Dict]:
     return propostes
 
 
-def nivells_amb_substitucions(db) -> Set[str]:
+def nivells_amb_substitucions(db) -> set[str]:
     """Nivells que realment s'utilitzen al centre (apareixen a l'històric de
     substitucions/vigilàncies), per descartar Infantil/Primària o altres
     etapes que l'XML conté però que no fan servir aquest mòdul."""
-    from substitucions.repositories import SubstitucioRepository
-    from vigilancies.repositories import VigilanciaRepository
 
     grups_historics = SubstitucioRepository.grups_usats(db) | VigilanciaRepository.grups_usats(db)
 

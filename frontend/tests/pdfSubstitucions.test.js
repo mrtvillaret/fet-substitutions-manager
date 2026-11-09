@@ -28,7 +28,7 @@ test('PDF: preferències, filtratge dels avisos i retorn del diàleg de validaci
   assert.equal(p.generantPDF.value, false)
   assert.deepEqual(p.warningsFiltrats.value, ['avís útil'])
   assert.equal(p.totalIssuesFiltrats.value, 2)
-  assert.deepEqual(p.peticions, [['preferencies', { _silent: true }], ['validacions', '2026-04-20']])
+  assert.deepEqual(p.peticions, [['preferencies'], ['validacions', '2026-04-20']])
   p.cancelarPDF()
   assert.equal(p.mostrarDialogPDF.value, true)
   assert.equal(p.mostrarDialogValidacions.value, false)

@@ -4109,3 +4109,7 @@ msgstr "absent"
 #: pdf/engine.py
 msgid "absent (servei)"
 msgstr "absent (servei)"
+
+# Vigilant fora de l’XML vigent del dia.
+msgid "❌ {hora}: {vigilant} no és a l’horari d’aquell dia"
+msgstr "❌ {hora}: {vigilant} no és a l’horari d’aquell dia"

@@ -2,7 +2,7 @@
 Lògica unificada per al càlcul de costos i penalitzacions.
 """
 
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any
 
 from scheduler_engine.core.constraints import (
     _percent_penalty,
@@ -29,7 +29,7 @@ TIPUS_COST_PROFESSOR = {
 }
 
 
-def pes_professor(restriccions: Dict, professor: str, tipus: str) -> int:
+def pes_professor(restriccions: dict, professor: str, tipus: str) -> int:
     """Cost d'una incidència d'un professor: el seu cost individual si en té,
     si no el global del centre."""
     costos = restriccions.get("costos_professors") or {}
@@ -40,8 +40,8 @@ def pes_professor(restriccions: Dict, professor: str, tipus: str) -> int:
 
 
 def costos_professors_analisi(
-    analisi: Dict, hora: str, restriccions: Dict, ja_comptats: Optional[Set[tuple]] = None
-) -> Dict[tuple, int]:
+    analisi: dict, hora: str, restriccions: dict, ja_comptats: set[tuple] | None = None
+) -> dict[tuple, int]:
     """{(tipus, professor, hora): cost} de les incidències dels professors, una
     sola vegada per professor i hora.
 
@@ -64,17 +64,17 @@ def costos_professors_analisi(
 
 
 def calcular_cost_slot(
-    sessio: Union[Dict, Any],
+    sessio: dict | Any,
     dia: str,
     hora: str,
-    analisi: Dict,
-    restriccions: Dict,
-    sessions_dia: Optional[List[Union[Dict, Any]]] = None,
-    sessions_slot: Optional[List[Union[Dict, Any]]] = None,
+    analisi: dict,
+    restriccions: dict,
+    sessions_dia: list[dict | Any] | None = None,
+    sessions_slot: list[dict | Any] | None = None,
     include_limit_dies: bool = True,
     data_iso: str = "",
-    ja_comptats: Optional[Set[tuple]] = None,
-) -> Dict:
+    ja_comptats: set[tuple] | None = None,
+) -> dict:
     """
     Calcula el cost total i el desglossament de penalitzacions per col·locar
     una sessió en un dia i hora concrets.

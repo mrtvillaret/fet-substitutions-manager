@@ -3,25 +3,24 @@
 Els repositoris no fan commit: el fa qui crida, un cop per operació."""
 
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 import rellotge
 from dates import parse_date
-from models import Configuracio, XMLVersion
+from models import Configuracio, Professor, XMLVersion
 
 
 class XMLVersionRepository:
     """Gestió d'històric d'XMLs per data"""
 
     @staticmethod
-    def list_all(db: Session) -> List[XMLVersion]:
+    def list_all(db: Session) -> list[XMLVersion]:
         return db.query(XMLVersion).order_by(XMLVersion.data_inici).all()
 
     @staticmethod
-    def get(db: Session, version_id: int) -> Optional[XMLVersion]:
+    def get(db: Session, version_id: int) -> XMLVersion | None:
         return db.query(XMLVersion).filter(XMLVersion.id == version_id).first()
 
     @staticmethod
@@ -43,11 +42,11 @@ class XMLVersionRepository:
         db.delete(versio)
 
     @staticmethod
-    def get_current(db: Session) -> Optional[XMLVersion]:
+    def get_current(db: Session) -> XMLVersion | None:
         return db.query(XMLVersion).filter(XMLVersion.data_fi.is_(None)).order_by(XMLVersion.data_inici.desc()).first()
 
     @staticmethod
-    def vigent(db: Session, data: str = None) -> Optional[XMLVersion]:
+    def vigent(db: Session, data: str = None) -> XMLVersion | None:
         """La versió vigent a `data` (per defecte avui). Si aquell dia no en
         cobreix cap: la primera que comenci després (p. ex. només s'ha pujat
         l'horari d'un curs que encara no ha començat) o, si no, la darrera."""
@@ -62,7 +61,7 @@ class XMLVersionRepository:
         )
 
     @staticmethod
-    def get_for_date(db: Session, data: str) -> Optional[XMLVersion]:
+    def get_for_date(db: Session, data: str) -> XMLVersion | None:
         data_obj = parse_date(data)
         return (
             db.query(XMLVersion)
@@ -117,15 +116,12 @@ class ProfessorRepository:
 
     @staticmethod
     def existeix(db: Session, nom: str) -> bool:
-        from models import Professor
 
         return db.query(Professor).filter_by(nom=nom).first() is not None
 
     @staticmethod
-    def sync_from_xml(db: Session, professors_xml: List[str], data_sync=None) -> Dict[str, int]:
+    def sync_from_xml(db: Session, professors_xml: list[str], data_sync=None) -> dict[str, int]:
         """Sincronitza professors amb l'XML (actiu/inactiu)"""
-
-        from models import Professor
 
         data_avui = data_sync or rellotge.avui()
         professors_noms = {nom.strip() for nom in professors_xml if nom and nom.strip()}

@@ -3,8 +3,8 @@ de dates, i els noms dels professors a totes les taules on surten.
 
 Els repositoris no fan commit: el fa qui crida, un cop per operació."""
 
+from collections.abc import Iterable
 from datetime import date
-from typing import Dict, Iterable, List, Optional, Set
 
 from sqlalchemy.orm import Session
 
@@ -24,7 +24,7 @@ class PurgaRepository:
     """Les files d'un interval [data_inici, data_final] (inclòs)."""
 
     @staticmethod
-    def _per_interval(db: Session, data_inici: date, data_final: date) -> Dict:
+    def _per_interval(db: Session, data_inici: date, data_final: date) -> dict:
         # Substitucions, vigilàncies i grups alliberats, per la columna `data`;
         # les absències cobertes que se solapen amb l'interval
         return {
@@ -41,18 +41,18 @@ class PurgaRepository:
         }
 
     @staticmethod
-    def compta(db: Session, data_inici: date, data_final: date) -> Dict[str, int]:
+    def compta(db: Session, data_inici: date, data_final: date) -> dict[str, int]:
         return {nom: q.count() for nom, q in PurgaRepository._per_interval(db, data_inici, data_final).items()}
 
     @staticmethod
-    def esborra(db: Session, data_inici: date, data_final: date) -> Dict[str, int]:
+    def esborra(db: Session, data_inici: date, data_final: date) -> dict[str, int]:
         return {
             nom: q.delete(synchronize_session=False)
             for nom, q in PurgaRepository._per_interval(db, data_inici, data_final).items()
         }
 
     @staticmethod
-    def absencies_cobertes(db: Session, data_inici: date, data_final: date) -> List[AbsenciaCoberta]:
+    def absencies_cobertes(db: Session, data_inici: date, data_final: date) -> list[AbsenciaCoberta]:
         """Les que toquen alguna data de l'interval, per data d'inici."""
         return (
             db.query(AbsenciaCoberta)
@@ -62,17 +62,17 @@ class PurgaRepository:
         )
 
     @staticmethod
-    def versions_xml(db: Session, ids: Iterable[int]) -> List[XMLVersion]:
+    def versions_xml(db: Session, ids: Iterable[int]) -> list[XMLVersion]:
         return db.query(XMLVersion).filter(XMLVersion.id.in_(list(ids))).all()
 
     @staticmethod
-    def paths_xml_excepte(db: Session, ids: Iterable[int]) -> Set[str]:
+    def paths_xml_excepte(db: Session, ids: Iterable[int]) -> set[str]:
         """Els fitxers de les versions que es queden."""
         return {v.path for v in db.query(XMLVersion).filter(~XMLVersion.id.in_(list(ids))).all()}
 
     @staticmethod
     def canvia_configuracio(db: Session, clau: str, valor: str) -> None:
-        # Sense ConfiguracioRepository.set, que fa commit: tot va en el commit de la purga
+        # Tot va en el commit de la purga
         db.query(Configuracio).filter(Configuracio.clau == clau).update(
             {Configuracio.valor: valor}, synchronize_session=False
         )
@@ -86,16 +86,16 @@ class ProfessorsRepository:
     """Els professors de la BD (l'històric) i el seu nom a tots els registres."""
 
     @staticmethod
-    def llista(db: Session) -> List[Professor]:
+    def llista(db: Session) -> list[Professor]:
         """Actius primer, i per nom."""
         return db.query(Professor).order_by(Professor.actiu.desc(), Professor.nom).all()
 
     @staticmethod
-    def get_by_nom(db: Session, nom: str) -> Optional[Professor]:
+    def get_by_nom(db: Session, nom: str) -> Professor | None:
         return db.query(Professor).filter(Professor.nom == nom).first()
 
     @staticmethod
-    def reanomena_registres(db: Session, nom_actual: str, nom_nou: str) -> Dict[str, int]:
+    def reanomena_registres(db: Session, nom_actual: str, nom_nou: str) -> dict[str, int]:
         """Canvia el nom a totes les taules on surt; quantes files de cada."""
         return {
             "substitucions_absent": db.query(Substitucio)

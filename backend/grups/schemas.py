@@ -1,7 +1,5 @@
 """Schemas de les rutes de grups (entrades i respostes)."""
 
-from typing import Dict, List, Optional
-
 from pydantic import BaseModel
 
 from noms import NomNet
@@ -11,28 +9,28 @@ from substitucions.schemas import SubstitutTretResponse
 
 
 class AlliberatsDia(BaseModel):
-    grups: Dict[str, List[str]] = {}  # {hora: [grups sense classe]}
-    professors: Dict[str, List[NomNet]] = {}  # {hora: [professors alliberats]}
-    activitats: Dict[str, List[NomNet]] = {}  # {hora: [activitats alliberades]}
-    ocupats: Dict[str, List[NomNet]] = {}  # {hora: [reforços sense alumnes que aquell dia sí en tenen]}
+    grups: dict[str, list[str]] = {}  # {hora: [grups sense classe]}
+    professors: dict[str, list[NomNet]] = {}  # {hora: [professors alliberats]}
+    activitats: dict[str, list[NomNet]] = {}  # {hora: [activitats alliberades]}
+    ocupats: dict[str, list[NomNet]] = {}  # {hora: [reforços sense alumnes que aquell dia sí en tenen]}
 
 
 class CanviPeriode(BaseModel):
     tipus: str  # professor (l'únic tipus que hi ha)
     clau: str  # nom del professor
-    hores: List[str]
+    hores: list[str]
     data: str  # a partir d'aquest dia
     alliberat: bool = True
     dia_setmana: str = ""  # el dia de la setmana (per defecte, el de `data`)
 
 
 class GrupsAmagatsRequest(BaseModel):
-    grups: List[NomNet]  # la llista sencera (reemplaça l'anterior)
+    grups: list[NomNet]  # la llista sencera (reemplaça l'anterior)
 
 
 class ActivitatsAlliberables(BaseModel):
-    activitats: List[NomNet]
-    per_defecte: List[NomNet] = []  # alliberades fins que tenen alumnes (p.ex. Reforç)
+    activitats: list[NomNet]
+    per_defecte: list[NomNet] = []  # alliberades fins que tenen alumnes (p.ex. Reforç)
 
 
 # ===== Respostes =====
@@ -41,7 +39,7 @@ class ActivitatsAlliberables(BaseModel):
 class CanviPeriodeResponse(BaseModel):
     success: bool
     dia_setmana: str
-    substituts_trets: List[SubstitutTretResponse]
+    substituts_trets: list[SubstitutTretResponse]
 
 
 class CanviDeFranja(BaseModel):
@@ -53,14 +51,14 @@ class FranjaReforc(BaseModel):
     dia: str
     hora: str
     amb_alumnes: bool
-    des_de: Optional[str]
-    historial: List[CanviDeFranja]
+    des_de: str | None
+    historial: list[CanviDeFranja]
 
 
 class ReforcResponse(BaseModel):
-    dies: List[str]
-    hores: List[str]
-    professors: Dict[str, List[FranjaReforc]]  # {professor: franges de la setmana}
+    dies: list[str]
+    hores: list[str]
+    professors: dict[str, list[FranjaReforc]]  # {professor: franges de la setmana}
 
 
 class AlliberatPerPeriode(BaseModel):
@@ -75,23 +73,23 @@ class ProfessorDeReforc(BaseModel):
 
 
 class DiaResponse(BaseModel):
-    hores: List[str]
-    grups_disponibles: List[str]
-    grups_seleccionats_per_hora: Dict[str, List[str]]
-    professors_per_grup_hora: Dict[str, Dict[str, List[str]]]  # {hora: {grup: [professors]}}
-    professors_alliberats_per_hora: Dict[str, List[str]]
-    activitats_per_hora: Dict[str, Dict[str, List[str]]]  # {activitat: {hora: [professors]}}
-    activitats_seleccionades_per_hora: Dict[str, List[str]]
-    periode: Dict[str, List[AlliberatPerPeriode]]  # {hora: alliberats per període}
+    hores: list[str]
+    grups_disponibles: list[str]
+    grups_seleccionats_per_hora: dict[str, list[str]]
+    professors_per_grup_hora: dict[str, dict[str, list[str]]]  # {hora: {grup: [professors]}}
+    professors_alliberats_per_hora: dict[str, list[str]]
+    activitats_per_hora: dict[str, dict[str, list[str]]]  # {activitat: {hora: [professors]}}
+    activitats_seleccionades_per_hora: dict[str, list[str]]
+    periode: dict[str, list[AlliberatPerPeriode]]  # {hora: alliberats per període}
     dia_setmana: str
-    activitats_per_defecte: List[str]
-    reforcs_per_hora: Dict[str, Dict[str, List[ProfessorDeReforc]]]  # {activitat: {hora: [...]}}
-    ocupats_per_hora: Dict[str, List[str]]
+    activitats_per_defecte: list[str]
+    reforcs_per_hora: dict[str, dict[str, list[ProfessorDeReforc]]]  # {activitat: {hora: [...]}}
+    ocupats_per_hora: dict[str, list[str]]
 
 
 class DiaDesatResponse(BaseModel):
     success: bool
-    substituts_trets: List[SubstitutTretResponse]
+    substituts_trets: list[SubstitutTretResponse]
     message: str
     total_hores: int
     total_grups: int
@@ -99,7 +97,7 @@ class DiaDesatResponse(BaseModel):
 
 
 class GrupsAmagatsResponse(BaseModel):
-    grups: List[str]
+    grups: list[str]
 
 
 class GrupsAmagatsDesatsResponse(BaseModel):
@@ -108,15 +106,15 @@ class GrupsAmagatsDesatsResponse(BaseModel):
 
 
 class ActivitatsAlliberablesResponse(BaseModel):
-    activitats: List[str]
-    per_defecte: List[str]
-    disponibles: List[str]
+    activitats: list[str]
+    per_defecte: list[str]
+    disponibles: list[str]
 
 
 class ActivitatsAlliberablesDesadesResponse(BaseModel):
     success: bool
-    activitats: List[str]
-    per_defecte: List[str]
+    activitats: list[str]
+    per_defecte: list[str]
 
 
 class Abreviatura(BaseModel):
@@ -126,7 +124,7 @@ class Abreviatura(BaseModel):
 
 
 class AbreviaturesResponse(BaseModel):
-    abreviatures: List[Abreviatura]
+    abreviatures: list[Abreviatura]
 
 
 class AbreviaturaCreadaResponse(BaseModel):
@@ -148,5 +146,5 @@ class NovaAbreviaturaRequest(BaseModel):
 class EdicioAbreviaturaRequest(BaseModel):
     """Els camps que no hi són es mantenen."""
 
-    grups_originals: Optional[str] = None
-    abreviatura: Optional[str] = None
+    grups_originals: str | None = None
+    abreviatura: str | None = None

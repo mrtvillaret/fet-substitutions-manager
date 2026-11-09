@@ -13,6 +13,7 @@ Escenari base, dilluns 20/04/2026, Prof 15 absent:
 
 import contextlib
 import io
+import random
 import uuid
 
 import pytest
@@ -257,9 +258,9 @@ def test_generar_desempata_amb_l_atzar_injectat(client, monkeypatch):
         def __init__(self):
             self.crides = []
 
-        def choice(self, candidats):
+        def choices(self, candidats, *, weights, k):
             self.crides.append(list(candidats))
-            return candidats[-1]
+            return [candidats[-1]]
 
     rng = AtzarControlat()
     monkeypatch.setattr(services, "_atzar", lambda: rng)
@@ -270,6 +271,53 @@ def test_generar_desempata_amb_l_atzar_injectat(client, monkeypatch):
     assert resp.status_code == 200
     assert len(rng.crides[0]) == 3
     assert _sub(client, "10:00")["substitut"] == rng.crides[0][-1][0]
+
+
+@pytest.mark.parametrize("operacio", ["pendents", "regenera", "reassigna", "millora"])
+def test_assignacio_aplica_els_pesos_de_la_bd(monkeypatch, operacio):
+    centre = nova_institucio(
+        amb_xml=True, prioritats=[("Candidats", [("Guàrdia", 3), ("Pares", 1)]), ("Inferior", ["ED"])]
+    )
+    client = _admin_de(centre)
+    with get_data_db_session(centre) as db:
+        for activitat in ["Guàrdia", "Pares", "ED"]:
+            NoSubstituirRepository.create(db, activitat)
+        db.commit()
+
+    class AtzarRegistrat(random.Random):
+        def __init__(self):
+            super().__init__(20261108)
+            self.crides = []
+
+        def choices(self, candidats, *, weights, k):
+            resultat = super().choices(candidats, weights=weights, k=k)
+            self.crides.append((list(candidats), list(weights), resultat[0]))
+            return resultat
+
+    rng = AtzarRegistrat()
+    monkeypatch.setattr(services, "_atzar", lambda: rng)
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    if operacio in {"reassigna", "millora"}:
+        if operacio == "millora":
+            # Disponible en una categoria inferior: el canvia la millora final.
+            assert _assigna(client, "10:00", "Prof 13").status_code == 200
+        resp = client.post(f"{URL}/reassign-problematics")
+    else:
+        resp = client.post(f"{URL}/generar", params={"regenerar_tot": operacio == "regenera"})
+
+    assert resp.status_code == 200, resp.text
+    candidats, pesos, escollit = rng.crides[0]
+    assert {c[0]: pes for c, pes in zip(candidats, pesos, strict=True)} == {
+        "Prof 3": 3,
+        "Prof 21": 3,
+        "Prof 28": 3,
+        "Prof 37": 1,
+    }
+    assert _sub(client, "10:00")["substitut"] == escollit[0]
+    with get_data_db_session(centre) as db:
+        fila = next(s for s in SubstitucioRepository.get_by_date(db, DATA) if s.professor_absent == ABSENT)
+        assert fila.substitut == escollit[0]
+        assert fila.tipus_substitut == f"disponible ({escollit[1]})"
 
 
 def test_qui_deixa_una_guardia_per_substituir_genera_una_substitucio_encadenada(client):
@@ -315,9 +363,9 @@ def test_generar_dues_vegades_conserva_l_estat_de_totes_les_files(client, monkey
     estat_inicial = projeccio()
 
     class AtzarQueCanviariaElsSubstituts:
-        def choice(self, candidats):
+        def choices(self, candidats, *, weights, k):
             ocupats = {fila[4] for fila in estat_inicial if fila[4]}
-            return next((candidat for candidat in candidats if candidat[0] not in ocupats), candidats[-1])
+            return [next((candidat for candidat in candidats if candidat[0] not in ocupats), candidats[-1])]
 
     monkeypatch.setattr(services, "_atzar", AtzarQueCanviariaElsSubstituts)
     segona = client.post(f"{URL}/generar")
@@ -377,13 +425,13 @@ def test_assignar_amb_id_actualitza_la_fila_exacta_encara_que_updated_at_no_coin
         )
         db.commit()
         files = SubstitucioRepository.get_by_date(db, DATA)
-        absencia = next(f for f in files if f["tipus_absencia"] == "ABSENCIA")
-        vigilancia = next(f for f in files if f["tipus_absencia"] == "VIGILANCIA_ABSENT")
+        absencia = next(f for f in files if f.tipus_absencia == "ABSENCIA")
+        vigilancia = next(f for f in files if f.tipus_absencia == "VIGILANCIA_ABSENT")
 
     resp = client.put(
         f"{URL}/10:00/{ABSENT}",
         json={
-            "id": vigilancia["id"],
+            "id": vigilancia.id,
             "substitut": "Prof 21",
             "updated_at": "2000-01-01T00:00:00",
             "force": True,
@@ -392,9 +440,9 @@ def test_assignar_amb_id_actualitza_la_fila_exacta_encara_que_updated_at_no_coin
     assert resp.status_code == 200, resp.text
 
     with get_data_db_session(centre) as db:
-        files = {f["id"]: f for f in SubstitucioRepository.get_by_date(db, DATA)}
-    assert files[absencia["id"]]["substitut"] == ""
-    assert files[vigilancia["id"]]["substitut"] == "Prof 21"
+        files = {f.id: f for f in SubstitucioRepository.get_by_date(db, DATA)}
+    assert files[absencia.id].substitut == ""
+    assert files[vigilancia.id].substitut == "Prof 21"
 
 
 def test_substitucio_inexistent_dona_404(client):
@@ -529,8 +577,8 @@ def test_reassignar_treu_substituts_que_ara_tenen_classe(client, centre):
     # Prof 1 té classe a les 10:00: l'API no el deixaria assignar, així que es
     # desa directament, com si l'horari hagués canviat després d'assignar-lo.
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f["hora"] == "10:00")
-        SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "Prof 1"})
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.hora == "10:00")
+        SubstitucioRepository.update(db, int(fila.id), {"substitut": "Prof 1"})
         db.commit()
     resp = client.post(f"{URL}/reassign-problematics")
     assert resp.status_code == 200
@@ -665,8 +713,8 @@ def test_reassignar_no_allibera_per_tenir_el_grup_d_examen(client, centre):
     _vigilancia_del_grup_de_prof_1(centre)
     _marca_absencia(client, hores=["10:00"])
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f["hora"] == "10:00")
-        SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "Prof 1"})
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.hora == "10:00")
+        SubstitucioRepository.update(db, int(fila.id), {"substitut": "Prof 1"})
         db.commit()
     assert client.post(f"{URL}/reassign-problematics").json()["cleared"] == 1
     assert _sub(client, "10:00")["substitut"] != "Prof 1"
@@ -836,6 +884,7 @@ def test_no_es_pot_assignar_un_nom_fora_de_l_horari(client, centre, idioma, text
     _marca_absencia(client, hores=["10:00"])
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "idioma", idioma)
+        db.commit()
     abans = _sub(client, "10:00")
     resp = _assigna(client, "10:00", "Prof inventat", force=True)
     assert resp.status_code == 400, resp.text
@@ -873,6 +922,7 @@ def test_el_limit_d_ultim_professor_no_esborra_la_pertinenca_a_l_xml(client, cen
 
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "ultim_professor_subs", "Prof 3")
+        db.commit()
     invalidar_horari(centre)
     dia = Dia.de_text(DATA, centre)
     with get_data_db_session(centre) as db:

@@ -3,6 +3,7 @@
 from collections import defaultdict
 
 from config import constants
+from substitucions.files import FilaSubstitucio
 from substitucions.prioritat import MillorsSubstituts
 
 
@@ -38,11 +39,13 @@ def test_reassignar_una_guardia_tria_l_alliberat_i_no_el_primer_que_la_millora(m
     millors = MillorsSubstituts(DiaDeProva(), gestors)
 
     millor = millors.millor(
-        {
-            "hora": "09:00",
-            "substitut": "Prof Guàrdia",
-            "tipus_substitut": "disponible (Guàrdia)",
-        }
+        FilaSubstitucio(
+            **{
+                "hora": "09:00",
+                "substitut": "Prof Guàrdia",
+                "tipus_substitut": "disponible (Guàrdia)",
+            }
+        )
     )
 
     assert millor[:3] == ("Prof Alliberat", "alliberat", "tenia classe")

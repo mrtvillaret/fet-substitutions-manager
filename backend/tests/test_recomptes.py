@@ -5,20 +5,23 @@ partir d'una llista de substitucions.
 
 from pdf.services import MESOS
 from recomptes import services
+from substitucions.files import FilaSubstitucio
 
 MESOS_CA = MESOS["ca"]
 
 
 def _sub(data, tipus="ABSENCIA", absent="Prof 1", substitut="", grup="1-ESO-A", hora="08:00", assignatura="Català"):
-    return {
-        "data": data,
-        "hora": hora,
-        "professor_absent": absent,
-        "substitut": substitut,
-        "grup": grup,
-        "assignatura": assignatura,
-        "tipus_absencia": tipus,
-    }
+    return FilaSubstitucio(
+        **{
+            "data": data,
+            "hora": hora,
+            "professor_absent": absent,
+            "substitut": substitut,
+            "grup": grup,
+            "assignatura": assignatura,
+            "tipus_absencia": tipus,
+        }
+    )
 
 
 def test_una_sola_regla_decideix_quines_files_es_veuen_a_substitucions():
@@ -55,7 +58,7 @@ def test_els_informes_nomes_compten_absencies_i_serveis():
     tipus = ["ABSENCIA", "SERVEI", "VIGILANCIA_ABSENT", "VIGILANCIA", "ENCADENADA"]
     subs = [_sub("2026-03-02", tipus=t, substitut="Prof 5") for t in tipus]
 
-    assert [s["tipus_absencia"] for s in services.absencies_i_serveis(subs)] == ["ABSENCIA", "SERVEI"]
+    assert [s.tipus_absencia for s in services.absencies_i_serveis(subs)] == ["ABSENCIA", "SERVEI"]
 
 
 def test_resum():

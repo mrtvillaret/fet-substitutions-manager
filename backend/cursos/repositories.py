@@ -3,7 +3,6 @@
 Els repositoris no fan commit: el fa qui crida, un cop per operació."""
 
 from datetime import date, timedelta
-from typing import List, Optional
 
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
@@ -32,11 +31,11 @@ class CursRepository:
         db.flush()
 
     @staticmethod
-    def list_all(db: Session) -> List[Curs]:
+    def list_all(db: Session) -> list[Curs]:
         return db.query(Curs).order_by(Curs.data_inici.desc()).all()
 
     @staticmethod
-    def get(db: Session, curs_id: int) -> Optional[Curs]:
+    def get(db: Session, curs_id: int) -> Curs | None:
         return db.query(Curs).filter(Curs.id == curs_id).first()
 
     @staticmethod
@@ -48,7 +47,7 @@ class CursRepository:
         return q.first() is not None
 
     @staticmethod
-    def get_for_date(db: Session, data: str) -> Optional[Curs]:
+    def get_for_date(db: Session, data: str) -> Curs | None:
         """Curs al qual pertany una data. Cap si la data és anterior al primer curs."""
         data_obj = parse_date(data)
         return (
@@ -67,7 +66,7 @@ class CursRepository:
         return nou
 
     @staticmethod
-    def update(db: Session, curs_id: int, nom: str, data_inici: date) -> Optional[Curs]:
+    def update(db: Session, curs_id: int, nom: str, data_inici: date) -> Curs | None:
         curs = CursRepository.get(db, curs_id)
         if not curs:
             return None

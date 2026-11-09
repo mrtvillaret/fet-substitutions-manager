@@ -7,7 +7,7 @@ python -m scripts.migra_esquemes --aplica --backup-dir /copies/fase4 --data /dad
 import argparse
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -50,7 +50,7 @@ def run(databases, *, apply=False, backup_dir=None):
                 states.append(database_state(connection, kind))
         finally:
             engine.dispose()
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
     for number, ((kind, path), state) in enumerate(zip(databases, states, strict=True), 1):
         if apply and state != "vigent":
             backup_database(path, backup_dir / f"{timestamp}_{number}_{kind}.db")

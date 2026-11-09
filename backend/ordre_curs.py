@@ -8,7 +8,7 @@ anomeni els nivells («1-ESO», «ESO1»). Després, pel grup.
 
 import re
 
-from configuracio_examens.propostes import deriva_nivell
+from nivells import deriva_nivell
 
 
 def natural(text: str) -> list:

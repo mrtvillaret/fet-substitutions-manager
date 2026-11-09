@@ -7,12 +7,16 @@ from jwt import ExpiredSignatureError, PyJWTError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+import config.constants as constants
+import i18n_setup
 from auth import security
 from auth.domain import Rol, UsuariActual
 from auth.repositories import UserRepository
 from config.context import fixa_institucio_peticio
 from config.settings import config
-from database import get_auth_db
+from configuracio.repositories import ConfiguracioRepository
+from database import get_auth_db, get_data_db_session
+from horari.sincronitzacio import sincronitza_un_cop_al_dia
 from prioritats.memoria import carrega_prioritats
 
 log = logging.getLogger(__name__)
@@ -25,14 +29,9 @@ def _prepara_institucio(institucio: str) -> str:
     idioma i prioritats (es carreguen un cop per institució i es recorden).
     Retorna l'idioma, que fixa get_current_user: s'executa en un fil i una
     ContextVar fixada aquí no arribaria a la ruta."""
-    import config.constants as constants
-    from configuracio.repositories import ConfiguracioRepository
-    from database import get_data_db_session
 
     idioma = config.global_data.get("idioma", "ca")
     try:
-        import i18n_setup
-
         with get_data_db_session(institucio, lectura=True) as db:
             idioma = ConfiguracioRepository.get(db, "idioma") or idioma
         i18n_setup.carrega_idioma(idioma)
@@ -46,7 +45,6 @@ def _prepara_institucio(institucio: str) -> str:
             log.warning("No s'han pogut carregar les prioritats de %s", institucio, exc_info=True)
     # Abans que la ruta obri la seva sessió de dades; una lectura d'horari
     # no ha d'obrir una sessió paral·lela que escrigui al mateix centre.
-    from horari.sincronitzacio import sincronitza_un_cop_al_dia
 
     sincronitza_un_cop_al_dia(institucio)
     return idioma
@@ -119,7 +117,6 @@ async def get_current_user(request: Request, db: Session = Depends(get_auth_db))
     user = await run_in_threadpool(_valida_usuari, request, db)
     fixa_institucio_peticio(user.institucio)
     idioma = await run_in_threadpool(_prepara_institucio, user.institucio)
-    import i18n_setup
 
     i18n_setup.setup_translation(idioma)
     return user

@@ -1,6 +1,6 @@
 """Dates i límits JWT amb el mateix rellotge, sense esperar temps real."""
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import jwt
 import pytest
@@ -12,7 +12,7 @@ from horari.domain import Dia
 
 
 def test_canviar_el_dia_i_l_hora_arriba_al_domini_i_al_testimoni(rellotge_fix):
-    rellotge_fix.moment = datetime(2032, 2, 29, 18, tzinfo=timezone.utc)
+    rellotge_fix.moment = datetime(2032, 2, 29, 18, tzinfo=UTC)
     assert rellotge.avui() == date(2032, 2, 29)
     assert Dia.avui("centre_de_prova").data == date(2032, 2, 29)
     token = create_access_token({"sub": "usuari_de_prova"})
@@ -62,5 +62,5 @@ def test_el_rellotge_no_evita_la_comprovacio_de_signatura(rellotge_fix):
 
 
 def test_es_preserva_el_fus_utc_i_el_format_local(rellotge_fix):
-    assert rellotge.ara(timezone.utc).utcoffset() == timedelta(0)
+    assert rellotge.ara(UTC).utcoffset() == timedelta(0)
     assert rellotge.ara().tzinfo is None

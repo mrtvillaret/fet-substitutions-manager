@@ -148,6 +148,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -185,7 +186,7 @@ async function carregarProfessors() {
     const data = await apiDades.professors()
     professors.value = data.professors || []
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 5000 })
+    avisaError(e, () => toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 5000 }))
   }
 }
 
@@ -220,7 +221,7 @@ async function anonimitzar() {
     nomNou.value = ''
     await carregarProfessors()
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 6000 })
+    avisaError(e, () => toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 6000 }))
   } finally {
     carregantAnon.value = false
   }
@@ -313,7 +314,7 @@ async function analitzar() {
     })
     manifest.value = data
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 5000 })
+    avisaError(e, () => toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 5000 }))
   } finally {
     carregant.value = false
   }
@@ -347,7 +348,7 @@ async function purgar() {
     manifest.value = null
     toast.add({ severity: 'success', summary: t('config.dataManagement.successSummary'), detail: t('config.dataManagement.successDetail', { n: data.total_bd }, data.total_bd), life: 6000 })
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 6000 })
+    avisaError(e, () => toast.add({ severity: 'error', summary: t('config.dataManagement.errorSummary'), detail: e.response?.data?.detail || String(e), life: 6000 }))
   } finally {
     carregant.value = false
   }

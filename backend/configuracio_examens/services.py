@@ -4,23 +4,22 @@ assignatures i grups de cada nivell, aules) i les assignacions de titulars.
 La configuració d'exàmens no es sincronitza mai amb l'XML: pot ser diferent
 a propòsit (p. ex. un grup que no és a l'horari)."""
 
-from typing import Dict, List, Optional
-
 from sqlalchemy.orm import Session
 
 from configuracio_examens.repositories import ConfiguracioExamenRepository, MasterConfigRepository
 from errors_domini import NoTrobat, NoValid
 from grups.repositories import AbreviaturaGrupRepository
-from noms import neteja_noms, nom_net
+from noms import neteja_noms
+from textos import nom_net
 
 # ---------------------------------------------------------------- nivells
 
 
-def nivells(db: Session) -> List[str]:
+def nivells(db: Session) -> list[str]:
     return MasterConfigRepository.get_nivells(db)
 
 
-def afegeix_nivell(db: Session, codi: Optional[str], nom: Optional[str]) -> None:
+def afegeix_nivell(db: Session, codi: str | None, nom: str | None) -> None:
     if not codi:
         raise NoValid("Codi de nivell requerit", codi="nivell_sense_codi")
     if not MasterConfigRepository.add_nivell(db, codi, nom):
@@ -35,7 +34,7 @@ def afegeix_nivell(db: Session, codi: Optional[str], nom: Optional[str]) -> None
 # crear. Les d'una aula no s'esborren mai: una assignació sense aula és vàlida.
 
 
-def _grups_del_nivell(db: Session, codi: str) -> List[str]:
+def _grups_del_nivell(db: Session, codi: str) -> list[str]:
     if codi not in MasterConfigRepository.get_nivells(db):
         raise NoTrobat("Nivell no trobat", codi="nivell_no_trobat")
     return MasterConfigRepository.get_grups_per_nivell(db, codi)
@@ -72,11 +71,11 @@ def esborra_nivell(db: Session, codi: str, amb_assignacions: bool = False) -> in
 # ---------------------------------------------------------------- assignatures
 
 
-def assignatures(db: Session, nivell: str) -> List[str]:
+def assignatures(db: Session, nivell: str) -> list[str]:
     return MasterConfigRepository.get_assignatures_per_nivell(db, nivell)
 
 
-def afegeix_assignatura(db: Session, nivell: str, nom: Optional[str]) -> None:
+def afegeix_assignatura(db: Session, nivell: str, nom: str | None) -> None:
     if not nom:
         raise NoValid("Nom d'assignatura requerit", codi="assignatura_sense_nom")
     if not MasterConfigRepository.add_assignatura(db, nivell, nom):
@@ -88,21 +87,23 @@ def reanomena_assignatura(db: Session, nivell: str, nom: str, nou_nom: str) -> N
     """També a les assignacions amb aquesta assignatura."""
     if not MasterConfigRepository.rename_assignatura(db, nivell, nom, nou_nom):
         raise NoValid("No s'ha pogut reanomenar l'assignatura", codi="assignatura_no_reanomenada")
+    db.commit()
 
 
 def esborra_assignatura(db: Session, nivell: str, nom: str) -> None:
     if not MasterConfigRepository.delete_assignatura(db, nivell, nom):
         raise NoTrobat("Assignatura no trobada", codi="assignatura_no_trobada")
+    db.commit()
 
 
 # ---------------------------------------------------------------- grups
 
 
-def grups(db: Session, nivell: str) -> List[str]:
+def grups(db: Session, nivell: str) -> list[str]:
     return MasterConfigRepository.get_grups_per_nivell(db, nivell)
 
 
-def afegeix_grup(db: Session, nivell: str, codi: Optional[str]) -> None:
+def afegeix_grup(db: Session, nivell: str, codi: str | None) -> None:
     if not codi:
         raise NoValid("Codi de grup requerit", codi="grup_sense_codi")
     if not MasterConfigRepository.add_grup(db, nivell, codi):
@@ -114,6 +115,7 @@ def reanomena_grup(db: Session, codi: str, nou_codi: str) -> None:
     """També a les assignacions amb aquest grup."""
     if not MasterConfigRepository.rename_grup(db, codi, nou_codi):
         raise NoValid("No s'ha pogut reanomenar el grup", codi="grup_no_reanomenat")
+    db.commit()
 
 
 def esborra_grup(db: Session, codi: str, amb_assignacions: bool = False) -> int:
@@ -130,11 +132,11 @@ def esborra_grup(db: Session, codi: str, amb_assignacions: bool = False) -> int:
 # ---------------------------------------------------------------- aules
 
 
-def aules(db: Session) -> List[str]:
+def aules(db: Session) -> list[str]:
     return MasterConfigRepository.get_aules(db)
 
 
-def afegeix_aula(db: Session, codi: Optional[str]) -> str:
+def afegeix_aula(db: Session, codi: str | None) -> str:
     """Retorna el codi net."""
     codi = nom_net(codi)
     if not codi:
@@ -149,6 +151,7 @@ def reanomena_aula(db: Session, codi: str, nou_codi: str) -> None:
     """També a les assignacions amb aquesta aula."""
     if not MasterConfigRepository.rename_aula(db, codi, nou_codi):
         raise NoValid("No s'ha pogut reanomenar l'aula", codi="aula_no_reanomenada")
+    db.commit()
 
 
 def esborra_aula(db: Session, codi: str) -> int:
@@ -156,17 +159,18 @@ def esborra_aula(db: Session, codi: str) -> int:
     assignacions = ConfiguracioExamenRepository.compta(db, aula=codi)
     if not MasterConfigRepository.delete_aula(db, codi):
         raise NoTrobat("Aula no trobada", codi="aula_no_trobada")
+    db.commit()
     return assignacions
 
 
 # ---------------------------------------------------------------- assignacions
 
 
-def assignacions(db: Session) -> List[Dict]:
+def assignacions(db: Session) -> list[dict]:
     return ConfiguracioExamenRepository.get_all(db)
 
 
-def assignacions_obsoletes(db: Session, horari) -> List[Dict]:
+def assignacions_obsoletes(db: Session, horari) -> list[dict]:
     """Assignacions amb un grup o un titular que no són a `horari` (l'XML del
     planificador). El nom de l'assignatura no es té en compte: es pot haver
     canviat a mà (p.ex. "1.1 Prof 7" per a una franja d'optatives). Un grup
@@ -202,7 +206,7 @@ def assignacions_obsoletes(db: Session, horari) -> List[Dict]:
     return obsoletes
 
 
-def crea_assignacio(db: Session, dades: Dict) -> tuple:
+def crea_assignacio(db: Session, dades: dict) -> tuple:
     """L'assignatura i el grup són obligatoris; titular i aula buits = cap.
     Retorna (id, assignatura, grup)."""
     dades = neteja_noms(dades, "assignatura", "titular", "aula")
@@ -217,21 +221,23 @@ def crea_assignacio(db: Session, dades: Dict) -> tuple:
     return assignacio_id, assignatura, grup
 
 
-def edita_assignacio(db: Session, assignacio_id: int, dades: Dict) -> None:
+def edita_assignacio(db: Session, assignacio_id: int, dades: dict) -> None:
     """Només el titular i l'aula (buits = cap)."""
     dades = neteja_noms(dades, "titular", "aula")
     titular = dades.get("titular", "") or None
     aula = dades.get("aula", "") or None
     if not ConfiguracioExamenRepository.update(db, assignacio_id, titular, aula):
         raise NoTrobat("Assignació no trobada", codi="assignacio_no_trobada")
+    db.commit()
 
 
 def esborra_assignacio(db: Session, assignacio_id: int) -> None:
     if not ConfiguracioExamenRepository.delete(db, assignacio_id):
         raise NoTrobat("Assignació no trobada", codi="assignacio_no_trobada")
+    db.commit()
 
 
-def esborra_assignacions(db: Session, dades: Dict) -> int:
+def esborra_assignacions(db: Session, dades: dict) -> int:
     """`ids`: les d'aquests ids; `tot: true`: totes. Retorna quantes."""
     if dades.get("tot"):
         eliminades = ConfiguracioExamenRepository.delete_all(db)

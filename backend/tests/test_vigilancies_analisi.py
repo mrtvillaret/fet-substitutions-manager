@@ -1,6 +1,7 @@
 """Mateixa anàlisi a pantalla, revisió i documents; cobertures reals."""
 
 import subprocess
+from dataclasses import replace
 from datetime import date
 from types import SimpleNamespace
 
@@ -9,6 +10,8 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from database import get_data_db_session
 from pdf.router import router as pdf_router
+from substitucions.files import FilaSubstitucio
+from vigilancies.files import FilaVigilancia
 from vigilancies.router import router
 
 
@@ -16,7 +19,7 @@ def dia_fals(vigs, files=(), activitats=None, absents=None, alliberats=None, hor
     activitats = activitats or {}
     return SimpleNamespace(
         vigilancies=vigs,
-        files=list(files),
+        files=[FilaSubstitucio(**f) for f in files],
         absents_per_hora=absents or {},
         alliberats=alliberats or {},
         baixes=set(),
@@ -25,11 +28,12 @@ def dia_fals(vigs, files=(), activitats=None, absents=None, alliberats=None, hor
         if horari
         else None,
         activitat=lambda p, h: activitats.get(p, {}),
+        professor_a_horari=lambda p: True if horari else None,
     )
 
 
 def vig(id="1", vigilant="Prof 1", hora="10:00", aula="A1", grups="G1"):
-    return dict(id=id, vigilant=vigilant, hora=hora, aula=aula, grups=grups, tipus="Prova")
+    return FilaVigilancia(id=id, vigilant=vigilant, hora=hora, aula=aula, grups=grups, tipus="Prova")
 
 
 def test_cobertura_buida_no_amaga_classe_i_una_cobertura_real_la_resol():
@@ -38,7 +42,7 @@ def test_cobertura_buida_no_amaga_classe_i_una_cobertura_real_la_resol():
     sub = dict(hora="10:00", professor_absent="Prof 1", grup="G2", substitut="", tipus_absencia="VIGILANCIA")
     dia = dia_fals([vig()], [sub], {"Prof 1": {"assignatura": "Prova", "grup": "G2"}})
     assert [(p["tipus"], p["gravetat"]) for p in analitza_vigilancies(dia)] == [("classe_sense_cobertura", "important")]
-    sub["substitut"] = "Prof 2"
+    dia.files[0] = replace(dia.files[0], substitut="Prof 2")
     p = analitza_vigilancies(dia)[0]
     assert (p["tipus"], p["gravetat"], p["cobertura_efectiva"], p["files"]) == (
         "classe_coberta",
@@ -65,7 +69,7 @@ def test_absent_cobert_comprova_tambe_el_vigilant_efectiu_sense_doble_feina_fals
     ps = analitza_vigilancies(dia)
     assert {p["tipus"] for p in ps} == {"vigilant_absent_cobert", "classe_sense_cobertura"}
     assert next(p for p in ps if p["tipus"] == "classe_sense_cobertura")["professor"] == "Prof 2"
-    sub["substitut"] = ""
+    dia.files[0] = replace(dia.files[0], substitut="")
     assert [p["tipus"] for p in analitza_vigilancies(dia)] == ["vigilant_absent_sense_cobertura"]
 
 

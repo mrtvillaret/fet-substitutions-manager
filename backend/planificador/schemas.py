@@ -1,6 +1,6 @@
 """Peticions i respostes de l'API del planificador d'exàmens."""
 
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -19,24 +19,24 @@ class SchedulerGenerateRequest(BaseModel):
     model_config = ConfigDict(allow_inf_nan=False)
 
     data_inici: DataISO
-    data_final: Optional[DataISO] = None
-    selected_dates: Optional[List[DataISO]] = None
-    dies_utilitzar: Optional[List[str]] = None
-    nivells_actius: Optional[List[str]] = None
+    data_final: DataISO | None = None
+    selected_dates: list[DataISO] | None = None
+    dies_utilitzar: list[str] | None = None
+    nivells_actius: list[str] | None = None
     max_dies: int = Field(default=5, gt=0)
     motor: str = "v3"
     estrategia: str = "ponderada"
     epsilon: float = Field(default=0.2, ge=0, le=1)
     max_intents_validacio: int = Field(default=250, gt=0)
-    max_iteracions: Optional[int] = Field(default=None, ge=0)
-    iteracions_per_temperatura: Optional[int] = Field(default=None, gt=0)
-    temperatura_inicial: Optional[float] = Field(default=None, ge=0)
-    temperatura_final: Optional[float] = Field(default=None, ge=0)
-    factor_refredament: Optional[float] = Field(default=None, ge=0)
-    random_seed: Optional[int] = None
-    seeds_count: Optional[int] = Field(default=None, le=50)
-    max_nodes: Optional[int] = Field(default=None, ge=0, le=10_000_000)
-    shuffle_top_n: Optional[int] = None
+    max_iteracions: int | None = Field(default=None, ge=0)
+    iteracions_per_temperatura: int | None = Field(default=None, gt=0)
+    temperatura_inicial: float | None = Field(default=None, ge=0)
+    temperatura_final: float | None = Field(default=None, ge=0)
+    factor_refredament: float | None = Field(default=None, ge=0)
+    random_seed: int | None = None
+    seeds_count: int | None = Field(default=None, le=50)
+    max_nodes: int | None = Field(default=None, ge=0, le=10_000_000)
+    shuffle_top_n: int | None = None
 
     @model_validator(mode="after")
     def comprova_coherencia(self):
@@ -53,18 +53,18 @@ class MarquesHora(BaseModel):
 class AlliberamentsNivell(BaseModel):
     """Les hores sense classe d'un nivell marcades al calendari."""
 
-    durada: Optional[int] = Field(default=None, gt=0)
-    dates: List[DataISO] = []
-    config: Dict[DataISO, Dict[str, MarquesHora]] = {}  # data → hora → marques
+    durada: int | None = Field(default=None, gt=0)
+    dates: list[DataISO] = []
+    config: dict[DataISO, dict[str, MarquesHora]] = {}  # data → hora → marques
 
 
 class DuradaGrup(BaseModel):
     """Uns exàmens amb una durada pròpia (hores del titular i de l'examen)."""
 
     nom: str = ""
-    assignatures: List[NomNet] = []  # «Assignatura (nivell)»
+    assignatures: list[NomNet] = []  # «Assignatura (nivell)»
     durada: int = Field(default=1, gt=0)
-    durada_examen: Optional[int] = Field(default=None, gt=0)
+    durada_examen: int | None = Field(default=None, gt=0)
 
 
 class ConfigPlanificadorRequest(BaseModel):
@@ -72,9 +72,9 @@ class ConfigPlanificadorRequest(BaseModel):
 
     durada_titular: int = Field(default=None, gt=0)
     durada_examen: int = Field(default=None, gt=0)
-    nivells_actius: List[str] = None
-    alliberaments_per_nivell: Dict[str, AlliberamentsNivell] = None
-    durades_grups: List[DuradaGrup] = None
+    nivells_actius: list[str] = None
+    alliberaments_per_nivell: dict[str, AlliberamentsNivell] = None
+    durades_grups: list[DuradaGrup] = None
 
 
 class PinItem(BaseModel):
@@ -84,28 +84,28 @@ class PinItem(BaseModel):
 
 
 class SchedulerPinRequest(BaseModel):
-    pins: List[PinItem] = []  # Sessions a fixar
-    unpins: List[NomNet] = []  # Noms de sessions a desfixar
+    pins: list[PinItem] = []  # Sessions a fixar
+    unpins: list[NomNet] = []  # Noms de sessions a desfixar
 
 
 class SchedulerDatesRequest(BaseModel):
-    selected_dates: List[DataISO]
+    selected_dates: list[DataISO]
 
 
 class CostosProfessorsRequest(BaseModel):
-    globals: Dict[TipusCost, int] = {}
-    individuals: Dict[NomNet, Dict[TipusCost, int]] = {}
+    globals: dict[TipusCost, int] = {}
+    individuals: dict[NomNet, dict[TipusCost, int]] = {}
 
 
 class Preferencia(BaseModel):
-    assignatures: List[NomNet] = []  # exàmens, «Assignatura (nivell)»
+    assignatures: list[NomNet] = []  # exàmens, «Assignatura (nivell)»
     pes: int = 75
 
 
 class Preferencies(BaseModel):
-    mateix_dia: List[Preferencia] = []
-    dies_diferents: List[Preferencia] = []
-    mateix_slot: List[Preferencia] = []
+    mateix_dia: list[Preferencia] = []
+    dies_diferents: list[Preferencia] = []
+    mateix_slot: list[Preferencia] = []
 
 
 class _RestriccioInterna(BaseModel):
@@ -114,42 +114,42 @@ class _RestriccioInterna(BaseModel):
 
 class AgrupacioRestriccio(_RestriccioInterna):
     nom: str = ""
-    assignatures: List[NomNet]
+    assignatures: list[NomNet]
     pes: int = 100
 
 
 class SlotProhibit(_RestriccioInterna):
-    assignatures: List[NomNet]
+    assignatures: list[NomNet]
     dia: str = ""
     hora: str = ""
 
 
 class LimitDiesProfessor(_RestriccioInterna):
-    assignatures: List[NomNet]
-    dies_restringits: List[str] = []
+    assignatures: list[NomNet]
+    dies_restringits: list[str] = []
     max_examens: int = 0
     pes_penalitzacio: int = 0
 
 
 class DiesExclosos(_RestriccioInterna):
-    assignatures: List[NomNet]
-    dies: List[str]
+    assignatures: list[NomNet]
+    dies: list[str]
     pes: int = 100
 
 
 class RestriccionsDures(_RestriccioInterna):
     # També s'admeten les llistes històriques que llegeixen els motors.
-    no_mateix_dia: List[List[NomNet] | NomNet] = []
-    no_mateix_slot: Dict[str, List[NomNet] | int] = {}
-    mateix_slot: List[AgrupacioRestriccio | List[NomNet]] = []
-    assignatures_dia_fix: Dict[NomNet, str | int] = {}
-    assignatures_hora_fix: Dict[NomNet, str | int] = {}
-    assignatures_slot_prohibit: List[SlotProhibit] = []
-    professors_horari_estricte: List[NomNet] = []
-    professors_limit_dies_especifics: Dict[NomNet, LimitDiesProfessor | int] = {}
-    slots_valids_per_nivell: Dict[str, Dict[str, List[str]] | int] = {}
-    combinacions_permeses: List[AgrupacioRestriccio | List[NomNet]] = []
-    assignatures_dies_exclosos: List[DiesExclosos] = []
+    no_mateix_dia: list[list[NomNet] | NomNet] = []
+    no_mateix_slot: dict[str, list[NomNet] | int] = {}
+    mateix_slot: list[AgrupacioRestriccio | list[NomNet]] = []
+    assignatures_dia_fix: dict[NomNet, str | int] = {}
+    assignatures_hora_fix: dict[NomNet, str | int] = {}
+    assignatures_slot_prohibit: list[SlotProhibit] = []
+    professors_horari_estricte: list[NomNet] = []
+    professors_limit_dies_especifics: dict[NomNet, LimitDiesProfessor | int] = {}
+    slots_valids_per_nivell: dict[str, dict[str, list[str]] | int] = {}
+    combinacions_permeses: list[AgrupacioRestriccio | list[NomNet]] = []
+    assignatures_dies_exclosos: list[DiesExclosos] = []
 
     @field_validator(
         "no_mateix_slot",
@@ -178,9 +178,9 @@ class Restriccions(BaseModel):
 
     restriccions_dures: RestriccionsDures = Field(default_factory=RestriccionsDures)
     preferencies: Preferencies = Preferencies()
-    pesos_optimitzacio: Dict[str, int] = {}
-    costos_professors: Optional[CostosProfessorsRequest] = None
-    pesos_percentatge: Dict[str, int] = {}
+    pesos_optimitzacio: dict[str, int] = {}
+    costos_professors: CostosProfessorsRequest | None = None
+    pesos_percentatge: dict[str, int] = {}
 
 
 class SchedulerRestriccionsRequest(BaseModel):
@@ -199,48 +199,48 @@ class _ModelHorari(BaseModel):
 
 
 class ExamenHorari(_ModelHorari):
-    professor: Optional[NomNet] = None
-    grup: Optional[str] = None
-    assignatura: Optional[NomNet] = None
-    aula: Optional[NomNet] = None
+    professor: NomNet | None = None
+    grup: str | None = None
+    assignatura: NomNet | None = None
+    aula: NomNet | None = None
 
 
 class SessioHorari(_ModelHorari):
-    id: Optional[str] = None
-    nom: Optional[str] = None
-    nom_base: Optional[str] = None
-    curs: Optional[str] = None
-    examens: List[ExamenHorari] = Field(default_factory=list)
+    id: str | None = None
+    nom: str | None = None
+    nom_base: str | None = None
+    curs: str | None = None
+    examens: list[ExamenHorari] = Field(default_factory=list)
 
 
 class FranjaHorari(_ModelHorari):
     hora: str
-    sessions_simultanees: List[SessioHorari] = Field(default_factory=list)
+    sessions_simultanees: list[SessioHorari] = Field(default_factory=list)
 
 
 class DiaHorari(_ModelHorari):
     dia: str
-    data: Optional[DataISO] = None
-    sessions: List[FranjaHorari] = Field(default_factory=list)
+    data: DataISO | None = None
+    sessions: list[FranjaHorari] = Field(default_factory=list)
 
 
 class HorariPlanificat(_ModelHorari):
-    dies: List[DiaHorari] = Field(default_factory=list)
-    metadata: Optional[dict] = None
+    dies: list[DiaHorari] = Field(default_factory=list)
+    metadata: dict | None = None
 
 
 class SchedulerPublicarRequest(BaseModel):
     horari: HorariPlanificat  # Resultat del scheduler (result.horari)
-    setmanes: List[Dict[str, DataISO]]  # [{"Dilluns": "2026-02-02", "Dimarts": "2026-02-03"}, ...]
-    grups_sense_classe: List[str] = []  # Grups que no tenen classe (per crear GrupAlliberat)
+    setmanes: list[dict[str, DataISO]]  # [{"Dilluns": "2026-02-02", "Dimarts": "2026-02-03"}, ...]
+    grups_sense_classe: list[str] = []  # Grups que no tenen classe (per crear GrupAlliberat)
     opcions: SchedulerPublicarOpcions = SchedulerPublicarOpcions()
     dry_run: bool = False  # Si True, calcula estadístiques sense escriure a la BD
 
 
 class HorariRecalcularRequest(BaseModel):
     horari: HorariPlanificat  # Estructura completa de l'horari
-    data_referencia: Optional[DataISO] = None  # Data per carregar l'XML d'horaris
-    selected_dates: Optional[List[DataISO]] = None
+    data_referencia: DataISO | None = None  # Data per carregar l'XML d'horaris
+    selected_dates: list[DataISO] | None = None
 
 
 # ---------------------------------------------------------------- respostes
@@ -251,11 +251,11 @@ class ExitResponse(BaseModel):
 
 
 class MotorsResponse(BaseModel):
-    motors: List[dict]  # id, etiqueta, paràmetres i valors per defecte de cada motor
+    motors: list[dict]  # id, etiqueta, paràmetres i valors per defecte de cada motor
 
 
 class ConfigPlanificadorResponse(BaseModel):
-    nivells: List[str]
+    nivells: list[str]
     hores_examen: list
     durada_titular: int
     durada_examen: int
@@ -267,17 +267,17 @@ class ConfigPlanificadorResponse(BaseModel):
 
 class RestriccionsResponse(BaseModel):
     restriccions: dict
-    assignatures_inexistents: List[str]
+    assignatures_inexistents: list[str]
 
 
 class AssignaturesTretesResponse(BaseModel):
-    trets: List[str]
+    trets: list[str]
     restriccions: dict
 
 
 class CostosProfessors(BaseModel):
-    globals: Dict[str, int]
-    individuals: Dict[str, Dict[str, int]]
+    globals: dict[str, int]
+    individuals: dict[str, dict[str, int]]
 
 
 class CostosProfessorsResponse(BaseModel):
@@ -291,26 +291,26 @@ class DatesResponse(BaseModel):
 class HorariPlanificacioResponse(BaseModel):
     data_referencia: str
     sense_dates: bool
-    versio_des_de: Optional[str]
-    canvi_horari: Optional[str]  # data en què comença un altre horari dins les dates
+    versio_des_de: str | None
+    canvi_horari: str | None  # data en què comença un altre horari dins les dates
 
 
 class CursAnterior(BaseModel):
-    cursos: List[str]
+    cursos: list[str]
     curs_actual: str
 
 
 class CursDatesResponse(BaseModel):
-    curs_anterior: Optional[CursAnterior]
+    curs_anterior: CursAnterior | None
 
 
 class GeneracioResponse(BaseModel):
     """Viable: dies_utilitzar i horari; no viable: status «ok» i l'horari amb
     el motiu a les metadades."""
 
-    horari: Optional[dict]
-    dies_utilitzar: Optional[list] = None
-    status: Optional[str] = None
+    horari: dict | None
+    dies_utilitzar: list | None = None
+    status: str | None = None
 
 
 class AnalisiResponse(BaseModel):
@@ -322,15 +322,15 @@ class AnalisiResponse(BaseModel):
 class PublicacioResponse(BaseModel):
     success: bool
     dry_run: bool
-    dates_processades: List[str]
+    dates_processades: list[str]
     vigilancies_creades: int
     vigilancies_actualitzades: int
     vigilancies_sense_canvis: int
     vigilancies_eliminades: int
     grups_alliberats_creats: int
     titulars_assignats: int
-    errors: Optional[List[str]]
-    avisos: Optional[list]
+    errors: list[str] | None
+    avisos: list | None
 
 
 class CostFranja(BaseModel):
@@ -338,15 +338,15 @@ class CostFranja(BaseModel):
     cost: int | float
     breakdown: dict
     conflicte_nivell: bool
-    avisos: List[str]
-    item_avisos: Dict[str, List[str]]  # els avisos de cada examen (per _uid i per item_id)
+    avisos: list[str]
+    item_avisos: dict[str, list[str]]  # els avisos de cada examen (per _uid i per item_id)
 
 
 class RecalculResponse(BaseModel):
     cost_total: int | float
     cost_breakdown: dict
     cost_breakdown_details: dict
-    slots: List[CostFranja]
+    slots: list[CostFranja]
     valid: bool  # False si hi ha conflictes de nivell
-    logs: List[str]
+    logs: list[str]
     stats: dict

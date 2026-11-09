@@ -1,7 +1,6 @@
 """Esquemes d'entrada i de sortida de les rutes dels cursos."""
 
 from datetime import date
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -14,8 +13,8 @@ class CursInput(BaseModel):
 class CursResponse(BaseModel):
     id: int
     nom: str
-    data_inici: Optional[str]
-    data_fi: Optional[str]  # derivada pel sistema; None = últim curs (obert)
+    data_inici: str | None
+    data_fi: str | None  # derivada pel sistema; None = últim curs (obert)
 
 
 class AvisXmlCursResponse(BaseModel):

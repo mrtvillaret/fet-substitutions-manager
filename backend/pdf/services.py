@@ -12,8 +12,7 @@ from sqlalchemy.orm import Session
 
 from configuracio.repositories import ConfiguracioRepository
 from horari.domain import Dia
-from horari.hores import normalitzar_hora
-from pdf.repositories import InformesRepository
+from pdf.repositories import InformesRepository, PreferenciesPdfRepository
 from recomptes.services import (
     absencies_i_serveis,
     dades_professors,
@@ -30,6 +29,8 @@ from recomptes.services import (
     substitucions_fetes,
     substitucions_reals,
 )
+from textos import normalitzar_hora
+from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 
@@ -187,3 +188,19 @@ def hores_xml(institucio: str, data: str) -> list:
     except Exception:
         log.warning("No s'ha pogut calcular l'ordre de les hores", exc_info=True)
     return hores
+
+
+def desa_preferencies(db: Session, preferencies: dict) -> None:
+    """Totes les preferències PDF es desen en una sola transacció."""
+    PreferenciesPdfRepository.update(db, preferencies)
+    db.commit()
+
+
+def preferencies(db) -> dict:
+    """Preferències del PDF del centre de la sessió."""
+    return PreferenciesPdfRepository.get_all(db)
+
+
+def compta_vigilancies_sense_nivell(db, data_inici, data_final) -> int:
+    """Recompte per al selector de nivells del PDF."""
+    return VigilanciaRepository.compta_sense_nivell(db, data_inici, data_final)

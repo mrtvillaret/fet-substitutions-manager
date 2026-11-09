@@ -7,7 +7,7 @@ export const idiomes = () => idiomesAmb(clientApi)
 export const versionsXmlAmb = async (client) => (await client.get('/api/settings/xml-versions')).data
 export const versionsXml = () => versionsXmlAmb(clientApi)
 export const logoAmb = async (client, ts) =>
-  (await client.get('/api/files/logo', { responseType: 'blob', params: { ts }, _silent: true })).data
+  (await client.get('/api/files/logo', { responseType: 'blob', params: { ts }, _silent: [404] })).data
 export const logo = (ts) => logoAmb(clientApi, ts)
 export const editaVersioXmlAmb = async (client, id, cos) =>
   (await client.put(`/api/settings/xml-versions/${id}`, cos)).data

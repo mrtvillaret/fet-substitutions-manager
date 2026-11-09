@@ -6,11 +6,13 @@ Versió corregida amb totes les restriccions i agrupament modular.
 import math
 import random
 import re
+import re as _re
 import time
+from collections import Counter as _Counter
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime as _dt
 
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.constraints import (
@@ -38,13 +40,14 @@ from scheduler_engine.defaults import (
 from scheduler_engine.domain.models import Item, Sessio, Slot
 from scheduler_engine.estadistiques import aplicar_estadistiques
 from scheduler_engine.generators.base import GeneradorSessionsExamensBase
+from scheduler_engine.informe import log
 
 
 @dataclass
 class Restriccio:
     tipus: str
     pes: int
-    dades: Dict = field(default_factory=dict)
+    dades: dict = field(default_factory=dict)
 
     @property
     def es_dura(self) -> bool:
@@ -53,10 +56,10 @@ class Restriccio:
 
 @dataclass
 class Solucio:
-    assignacions: Dict[str, Slot]  # item_id -> Slot
+    assignacions: dict[str, Slot]  # item_id -> Slot
     cost: float = 0.0
-    violacions: List[Dict] = field(default_factory=list)
-    cost_per_slot: Dict[str, float] = field(default_factory=dict)  # slot_key -> cost
+    violacions: list[dict] = field(default_factory=list)
+    cost_per_slot: dict[str, float] = field(default_factory=dict)  # slot_key -> cost
     cost_global: float = 0.0  # cost de restriccions globals (pref_mateix_slot, no_mateix_dia...)
 
 
@@ -83,8 +86,8 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         horari_xml_path: str,
         restriccions_path: str = None,
         ultim_professor: str = "",
-        nivells_actius: List[str] = None,
-        hores_examen: List[str] = None,
+        nivells_actius: list[str] = None,
+        hores_examen: list[str] = None,
         hores_per_nivell: dict = None,
         durada_titular: int = 1,
         no_substituir: set = None,
@@ -109,15 +112,15 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         )
 
         self.restriccions_raw = {}
-        self.sessions: List[Sessio] = []
-        self.sessions_per_id: Dict[str, Sessio] = {}
-        self.slots: List[Slot] = []
-        self.items: List[Item] = []
-        self.items_per_id: Dict[str, Item] = {}
-        self.sessio_item_map: Dict[str, Dict[str, str]] = {}
-        self.restriccions_obj: List[Restriccio] = []
+        self.sessions: list[Sessio] = []
+        self.sessions_per_id: dict[str, Sessio] = {}
+        self.slots: list[Slot] = []
+        self.items: list[Item] = []
+        self.items_per_id: dict[str, Item] = {}
+        self.sessio_item_map: dict[str, dict[str, str]] = {}
+        self.restriccions_obj: list[Restriccio] = []
         self.no_substituir_norm = {normalitzar_text(a) for a in self.no_substituir if a}
-        self._sessio_dict_cache: Dict[str, Dict] = {}
+        self._sessio_dict_cache: dict[str, dict] = {}
 
         self.temperatura_inicial = DEFAULT_SA_PARAMS["temperatura_inicial"]
         self.temperatura_final = DEFAULT_SA_PARAMS["temperatura_final"]
@@ -126,7 +129,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         self.max_iteracions = DEFAULT_SA_PARAMS["max_iteracions"]
         self.intents_solucio_inicial = DEFAULT_SA_PARAMS.get("intents_solucio_inicial", 50)
 
-    def _check_fixos_viables(self) -> List[dict]:
+    def _check_fixos_viables(self) -> list[dict]:
         """Comprova que les assignatures amb dia/hora fix tenen algun slot disponible."""
         restriccions = self.get_restriccions()
         dures = restriccions.get("restriccions_dures", {})
@@ -135,8 +138,6 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         if not dia_fix and not hora_fix:
             return []
 
-        import re as _re
-
         _re_iso = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
         slots_set_dia = {(normalitzar_dia(s.dia), s.hora) for s in self.slots}
         slots_set_iso = {(s.data, s.hora) for s in self.slots if s.data}
@@ -144,7 +145,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         iso_set = {s.data for s in self.slots if s.data}
         hours_set = {s.hora for s in self.slots}
 
-        missing: List[dict] = []
+        missing: list[dict] = []
         for s in self.sessions:
             s_dict = self._sessio_to_dict(s)
             d = get_restriccio_val(dia_fix, s_dict)
@@ -292,8 +293,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         self.pes_despres_jornada_global = cp.get("despres_jornada", DEFAULT_COST_PROFESSORS["despres_jornada"])
         self.pes_no_treballa_global = cp.get("no_treballa_dia", DEFAULT_COST_PROFESSORS["no_treballa_dia"])
 
-    def crear_slots(self, dies_utilitzar: List[str]):
-        from datetime import datetime as _dt
+    def crear_slots(self, dies_utilitzar: list[str]):
 
         self.slots = []
         bloq = {r.dades["slot"] for r in self.restriccions_obj if r.tipus == "slot_bloquejat"}
@@ -315,7 +315,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
 
     def _pre_agrupar_sessions(self):
         """Agrupa sessions en items usant la lògica unificada de la base."""
-        print("🔗 Pre-agrupant sessions (SA)...")
+        log.info("🔗 Pre-agrupant sessions (SA)...")
         sessions_per_nivell = {}
         id_to_sessio = {}
         for s in self.sessions:
@@ -337,7 +337,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 return label
             return re.sub(r"\s*\(\d+\s*assig.*\)$", "", label, flags=re.IGNORECASE).strip()
 
-        def _label_from_group(sessions: List[Dict]) -> Optional[str]:
+        def _label_from_group(sessions: list[dict]) -> str | None:
             if not sessions or not grups_ms_amb_noms:
                 return None
             for nom_grup, grup_set in grups_ms_amb_noms:
@@ -382,7 +382,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         self.items_per_id = {it.id: it for it in self.items}
 
         # Pre-computar tots els dicts de sessió (evita reconstruir-los milions de vegades)
-        self._sessio_dict_cache: Dict[str, Dict] = {}
+        self._sessio_dict_cache: dict[str, dict] = {}
         for s in self.sessions:
             item_info = self.sessio_item_map.get(s.id, {})
             self._sessio_dict_cache[s.id] = {
@@ -398,7 +398,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         # Viabilitat per nivell: cada nivell ha de cabre en els slots disponibles
         return all(count <= len(self.slots) for count in counts_per_nivell.values())
 
-    def _sessio_to_dict(self, s: Sessio) -> Dict:
+    def _sessio_to_dict(self, s: Sessio) -> dict:
         return self._sessio_dict_cache.get(s.id) or {
             "id": s.id,
             "nom": s.nom,
@@ -407,13 +407,13 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             "examens": s.examens,
         }
 
-    def _item_to_dict(self, item: Item) -> Dict:
+    def _item_to_dict(self, item: Item) -> dict:
         return {"sessions": [self._sessio_to_dict(s) for s in item.sessions]}
 
-    def _build_compat_precomp(self, sol: Solucio, exclude_item_id: str) -> Dict:
+    def _build_compat_precomp(self, sol: Solucio, exclude_item_id: str) -> dict:
         """Pre-computa les taules de lookup per a _slot_compatible (O(N) una vegada)."""
-        slot_sessions: Dict[str, List] = defaultdict(list)  # slot_key → [{'sessio': dict}]
-        dia_sessions: Dict[str, List] = defaultdict(list)  # dia_key → [dict]  (totes les sessions del dia)
+        slot_sessions: dict[str, list] = defaultdict(list)  # slot_key → [{'sessio': dict}]
+        dia_sessions: dict[str, list] = defaultdict(list)  # dia_key → [dict]  (totes les sessions del dia)
         for iid, sl in sol.assignacions.items():
             if iid == exclude_item_id:
                 continue
@@ -425,7 +425,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 dia_sessions[dia_key].append(sd)
         return {"slot_sessions": slot_sessions, "dia_sessions": dia_sessions}
 
-    def _slot_compatible(self, sol: Solucio, item: Item, slot: Slot, _precomp: Optional[Dict] = None) -> bool:
+    def _slot_compatible(self, sol: Solucio, item: Item, slot: Slot, _precomp: dict | None = None) -> bool:
         """Respecta la regla d'or: un sol ítem per nivell al mateix slot.
         Si _precomp és present, usa les taules pre-computades (evita O(N) per crida)."""
         if _precomp is not None:
@@ -503,13 +503,11 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         return True
 
     def _calcular_cost_slot_unic(
-        self, slot_key: str, items_al_slot: List[Item], sessions_per_dia: Dict[str, List[Dict]]
-    ) -> Tuple[float, List[Dict]]:
+        self, slot_key: str, items_al_slot: list[Item], sessions_per_dia: dict[str, list[dict]]
+    ) -> tuple[float, list[dict]]:
         """Calcula el cost d'un únic slot. Retorna (cost, violacions)."""
         if not items_al_slot:
             return 0.0, []
-
-        from datetime import datetime as _dt
 
         restriccions = self.get_restriccions()
         prefix, hora = slot_key.split("_", 1)
@@ -596,16 +594,16 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
 
         return cost_slot, violacions_slot
 
-    def calcular_cost(self, sol: Solucio) -> Tuple[float, List[Dict]]:
+    def calcular_cost(self, sol: Solucio) -> tuple[float, list[dict]]:
         """Calcula el cost total usant el scoring unificat del core."""
         cost_total = 0.0
-        violacions: List[Dict] = []
+        violacions: list[dict] = []
         sol.cost_per_slot = {}
 
         # Agrupar items per slot i sessions per dia
         # Clau de dia: data ISO si disponible (evita confondre dos dimarts de setmanes diferents)
-        items_per_slot: Dict[str, List[Item]] = defaultdict(list)
-        sessions_per_dia: Dict[str, List[Dict]] = defaultdict(list)
+        items_per_slot: dict[str, list[Item]] = defaultdict(list)
+        sessions_per_dia: dict[str, list[dict]] = defaultdict(list)
         for iid, slot in sol.assignacions.items():
             it = self.items_per_id[iid]
             items_per_slot[slot.key].append(it)
@@ -632,7 +630,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
 
         return cost_total, violacions
 
-    def _avaluar_restriccio(self, sol: Solucio, r: Restriccio) -> Tuple[float, List[Dict]]:
+    def _avaluar_restriccio(self, sol: Solucio, r: Restriccio) -> tuple[float, list[dict]]:
         if r.tipus == "dia_fix":
             for iid, sl in sol.assignacions.items():
                 it = self.items_per_id[iid]
@@ -756,7 +754,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         sol_buida = Solucio(assignacions={})
         self.items_mobils = []
         self.items_congelats_ids = set()
-        self._slot_congelat_per_item: Dict[str, Optional[Slot]] = {}
+        self._slot_congelat_per_item: dict[str, Slot | None] = {}
         for it in self.items:
             compat = [s for s in self.slots if self._slot_compatible(sol_buida, it, s)]
             if len(compat) <= 1:
@@ -804,24 +802,24 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         n_con = len(self.items_congelats_ids)
         n_mob = len(self.items_mobils)
         if verbose:
-            print(f"🔥 Iniciant Simulated Annealing ({reinicis} reinicis)... [{n_con} fixats, {n_mob} mòbils]")
+            log.info(f"🔥 Iniciant Simulated Annealing ({reinicis} reinicis)... [{n_con} fixats, {n_mob} mòbils]")
 
         # Cas ràpid: sense ítems mòbils → construir solució directament dels slots ja calculats
         if n_mob == 0:
             if verbose:
-                print("   ⚡ Tot fixat: construint solució directament (sense SA)")
+                log.info("   ⚡ Tot fixat: construint solució directament (sense SA)")
             sol = Solucio(assignacions={})
             for it in self.items:
                 slot = self._slot_congelat_per_item.get(it.id)
                 if slot is None:
                     if verbose:
-                        print(f"   ✗ Infactible: cap slot per a '{it.id}'")
+                        log.info(f"   ✗ Infactible: cap slot per a '{it.id}'")
                     self._item_infactible = it
                     return None
                 # Comprovar restriccions dures contra els ítems ja assignats
                 if not self._slot_compatible(sol, it, slot):
                     if verbose:
-                        print(f"   ✗ Infactible: '{it.id}' a {slot.key} viola restricció dura")
+                        log.info(f"   ✗ Infactible: '{it.id}' a {slot.key} viola restricció dura")
                     self._item_infactible = it
                     return None
                 sol.assignacions[it.id] = slot
@@ -849,28 +847,28 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         for reinici in range(reinicis):
             if reinici > 0 and time.monotonic() - inici_sa >= SEGONS_MAXIMS_REINICIS:
                 if verbose:
-                    print(f"   ⏱️ Temps esgotat després de {reinici} reinicis")
+                    log.info(f"   ⏱️ Temps esgotat després de {reinici} reinicis")
                 break
             if reinici > 0 and verbose:
-                print(f"\n🔄 Reinici {reinici + 1}/{reinicis}...")
+                log.info(f"\n🔄 Reinici {reinici + 1}/{reinicis}...")
 
             # Solució inicial
             sa = self._generar_solucio_inicial()
             if sa is None:
                 if verbose:
-                    print("   ⚠️ No s'ha pogut generar solució inicial")
+                    log.info("   ⚠️ No s'ha pogut generar solució inicial")
                 continue
 
             ms = deepcopy(sa)
 
             violacions_dures = len([v for v in ms.violacions if v.get("pes", 0) >= 100])
             if verbose:
-                print(f"   Solució inicial: cost={sa.cost:.2f}, {violacions_dures} violacions dures")
+                log.info(f"   Solució inicial: cost={sa.cost:.2f}, {violacions_dures} violacions dures")
 
             # Si ja és viable i hi ha poques sessions mòbils, podem acabar aviat
             if violacions_dures == 0 and n_mob <= 1:
                 if verbose:
-                    print(f"   ✨ Solució inicial viable amb {n_mob} mòbil(s), saltant SA")
+                    log.info(f"   ✨ Solució inicial viable amb {n_mob} mòbil(s), saltant SA")
                 millor_global = ms
                 break
 
@@ -899,7 +897,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                             ms = deepcopy(sa)
                             sense_millora = 0
                             if verbose:
-                                print(f"   ✅ Nova millor: cost={ms.cost:.2f} (T={t:.2f})")
+                                log.info(f"   ✅ Nova millor: cost={ms.cost:.2f} (T={t:.2f})")
                         else:
                             sense_millora += 1
                     else:
@@ -913,11 +911,11 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 # Condició t < 100 evita tallar l'exploració a T alta (on la solució no ha convergit)
                 if sense_millora > ITERACIONS_SENSE_MILLORA and ms.cost < 100000 and t < 100:
                     if verbose:
-                        print(f"   ⚡ Early stopping: {sense_millora} iter sense millora, T={t:.2f}")
+                        log.info(f"   ⚡ Early stopping: {sense_millora} iter sense millora, T={t:.2f}")
                     break
 
             if verbose:
-                print(f"   Reinici {reinici + 1}: {it} iteracions, cost={ms.cost:.2f}")
+                log.info(f"   Reinici {reinici + 1}: {it} iteracions, cost={ms.cost:.2f}")
 
             # Actualitzar millor global. Es fan tots els reinicis, encara que
             # el primer ja sigui viable: cada reinici parteix d'una solució
@@ -926,7 +924,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 millor_global = deepcopy(ms)
 
         if verbose and millor_global:
-            print(f"✅ SA completat. Millor cost: {millor_global.cost:.2f}")
+            log.info(f"✅ SA completat. Millor cost: {millor_global.cost:.2f}")
 
         return millor_global
 
@@ -1063,7 +1061,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         # DELTA COST: només recalcular slots afectats
         if moviment_fet and slots_afectats:
             # Construir sessions_per_dia (necessari per scoring)
-            sessions_per_dia: Dict[str, List[Dict]] = defaultdict(list)
+            sessions_per_dia: dict[str, list[dict]] = defaultdict(list)
             for iid, slot in nv.assignacions.items():
                 it = self.items_per_id[iid]
                 dia_key = slot.data if slot.data else normalitzar_dia(slot.dia)
@@ -1071,7 +1069,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                     sessions_per_dia[dia_key].append(self._sessio_to_dict(s))
 
             # Construir items_per_slot per als slots afectats
-            items_per_slot: Dict[str, List[Item]] = defaultdict(list)
+            items_per_slot: dict[str, list[Item]] = defaultdict(list)
             for iid, slot in nv.assignacions.items():
                 if slot.key in slots_afectats:
                     items_per_slot[slot.key].append(self.items_per_id[iid])
@@ -1177,9 +1175,8 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             }
         return self._solucio_a_horari(ms, dies_utilitzar, data_inici)
 
-    def _detectar_motiu_item_infactible(self, item) -> Optional[str]:
+    def _detectar_motiu_item_infactible(self, item) -> str | None:
         """Retorna la restricció principal que bloqueja l'ítem en tots els slots individuals."""
-        from collections import Counter as _Counter
 
         engine = getattr(self, "engine", None) or RestrictionEngine(self.get_restriccions(), self.nivells_actius)
         raons: _Counter = _Counter()
@@ -1195,7 +1192,6 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         return None
 
     def _solucio_a_horari(self, sol, du, di):
-        from datetime import datetime as _dt
 
         s2s = defaultdict(list)
         for iid, sl in sol.assignacions.items():

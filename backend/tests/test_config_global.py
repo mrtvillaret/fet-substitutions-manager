@@ -66,3 +66,16 @@ def test_explicit_path_and_environment_override(paths, tmp_path, monkeypatch):
     assert not default_target.exists()
     assert legacy.read_bytes() == before
     assert json.loads(target.read_text())["institucio"] == "centre_entorn"
+
+
+def test_carrega_diferida_conserva_el_fitxer_inicial_i_l_override(paths, monkeypatch):
+    legacy, target = paths
+    monkeypatch.setenv("APP_INSTITUCIO", "centre_entorn")
+    config = Config(legacy_config_file=legacy, desa_si_falta=False)
+    assert not target.exists()
+    assert config.institucio == "centre_entorn"
+    config.inicialitza_fitxer()
+    assert json.loads(target.read_text()) == config.global_defaults
+    abans = target.read_bytes()
+    config.inicialitza_fitxer()
+    assert target.read_bytes() == abans

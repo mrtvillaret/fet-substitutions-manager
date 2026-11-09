@@ -111,6 +111,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../errorsApi.js'
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as apiUsuaris from '../api/usuaris'
@@ -198,13 +199,13 @@ const guardarPassword = async () => {
     await apiUsuaris.canviaContrasenya({
       current_password: currentPassword.value,
       new_password: newPassword.value
-    })
+    }, { _silent: true })
     successMessage.value = t('profile.passwordUpdated')
     currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
   } catch (error) {
-    errorMessage.value = error.response?.data?.detail || t('profile.passwordError')
+    avisaError(error, () => { errorMessage.value = error.response?.data?.detail || t('profile.passwordError') })
   } finally {
     saving.value = false
   }
@@ -239,10 +240,10 @@ const tancarAltresSessions = async () => {
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    await apiUsuaris.tancaAltresSessions()
+    await apiUsuaris.tancaAltresSessions(undefined, { _silent: true })
     successMessage.value = t('profile.otherSessionsClosed')
   } catch (error) {
-    errorMessage.value = error.response?.data?.detail || t('profile.otherSessionsError')
+    avisaError(error, () => { errorMessage.value = error.response?.data?.detail || t('profile.otherSessionsError') })
   } finally {
     tancantSessions.value = false
   }
@@ -258,11 +259,11 @@ const canviarInstitucio = async () => {
   try {
     await apiUsuaris.canviaCentre({
       institucio: institucioSeleccionada.value
-    })
+    }, { _silent: true })
     successMessage.value = t('profile.institutionSwitched')
     emit('institucio-canviada')
   } catch (error) {
-    errorMessage.value = error.response?.data?.detail || t('profile.institutionError')
+    avisaError(error, () => { errorMessage.value = error.response?.data?.detail || t('profile.institutionError') })
   } finally {
     canviantInstitucio.value = false
   }

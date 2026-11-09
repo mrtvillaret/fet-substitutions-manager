@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref } from 'vue'
 import * as apiVigilancies from '../api/vigilancies.js'
 import { adaptaVigilanciaAlNivell } from '../vigilanciesNivell.js'
@@ -65,7 +66,7 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
         comentaris: vigilancia.comentaris,
         nivell: nivellNormalitzat,
         updated_at: vigilancia.updated_at
-      })
+      }, { _silent: true })
 
       if (resposta?.updated_at) {
         vigilancia.updated_at = resposta.updated_at
@@ -111,12 +112,12 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
         })
         return
       }
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('vigilancies.errors.update'),
         life: 3000
-      })
+      }))
       // Recarregar per restaurar estat original
       await carregarVigilancies()
     }
@@ -149,7 +150,7 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
         let errors = 0
         await Promise.all(llistaAEliminar.map(async (vig) => {
           try {
-            await apiVigilancies.esborra(dataISO.value, vig.id, { updatedAt: vig.updated_at })
+            await apiVigilancies.esborra(dataISO.value, vig.id, { updatedAt: vig.updated_at, silent: true })
           } catch {
             errors++
           }
@@ -176,7 +177,7 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
 
   const eliminarVigilancia = async (vigilancia) => {
     try {
-      await apiVigilancies.esborra(dataISO.value, vigilancia.id, { updatedAt: vigilancia.updated_at })
+      await apiVigilancies.esborra(dataISO.value, vigilancia.id, { updatedAt: vigilancia.updated_at, silent: true })
 
       toast.add({
         severity: 'success',
@@ -199,12 +200,12 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
         })
         return
       }
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('vigilancies.errors.delete'),
         life: 3000
-      })
+      }))
     }
   }
 
@@ -239,7 +240,7 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
       if (nova?.id) ressalta(nova.id)
     } catch (err) {
       console.error('Error creant vigilància:', err)
-      toast.add({ severity: 'error', summary: t('common.error'), detail: t('vigilancies.errors.create'), life: 3000 })
+      avisaError(err, () => toast.add({ severity: 'error', summary: t('common.error'), detail: t('vigilancies.errors.create'), life: 3000 }))
     } finally {
       creantVigilancia.value = false
     }
@@ -280,12 +281,12 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
       if (nova?.id) ressalta(nova.id)
     } catch (err) {
       console.error('Error creant vigilància:', err)
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('vigilancies.errors.create'),
         life: 3000
-      })
+      }))
     }
   }
 
@@ -300,12 +301,12 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
       await recarregaLlistat() // desar l'ordre canvia els updated_at
     } catch (err) {
       console.error('Error desant l\'ordre:', err)
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: err.response?.status === 409 ? 'warn' : 'error',
         summary: err.response?.status === 409 ? t('common.warning') : t('common.error'),
         detail: err.response?.status === 409 ? t('vigilancies.messages.orderChanged') : t('vigilancies.errors.order'),
         life: 4000
-      })
+      }))
       await carregarVigilancies()
     }
   }

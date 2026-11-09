@@ -5,10 +5,12 @@ Centralitza configuració d'estils ReportLab usats en tots els exportadors PDF
 
 import json
 import logging
+import os
 from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import TableStyle
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +33,6 @@ class PDFStyleFactory:
     @staticmethod
     def _load_pdf_config():
         """Carrega configuració PDF completa des del pdf.json amb cache intelligent"""
-        import os
 
         try:
             # Try multiple possible paths
@@ -55,7 +56,7 @@ class PDFStyleFactory:
                     return PDFStyleFactory._config_cache
 
                 # Load and cache config
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     config = json.load(f)
                     PDFStyleFactory._config_cache = config
                     PDFStyleFactory._config_last_modified = current_mtime
@@ -175,7 +176,6 @@ class PDFStyleFactory:
     @staticmethod
     def get_table_styles():
         """Retorna estils estandarditzats per taules"""
-        from reportlab.platypus import TableStyle
 
         pdf_config = PDFStyleFactory._load_pdf_config()
         fonts = pdf_config.get("font_sizes", {})

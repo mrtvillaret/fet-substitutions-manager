@@ -34,7 +34,7 @@ def test_actualitzar_i_rollback_conserva_el_valor_anterior(db_session):
     SubstitucioRepository.update(db_session, creada.id, {"substitut": "Substitut de prova"})
     db_session.rollback()
 
-    assert SubstitucioRepository.get_by_date(db_session, DATA)[0]["substitut"] == ""
+    assert SubstitucioRepository.get_by_date(db_session, DATA)[0].substitut == ""
 
 
 def test_esborrar_i_rollback_conserva_la_fila(db_session):

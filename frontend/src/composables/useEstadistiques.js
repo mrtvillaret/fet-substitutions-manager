@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, watch, computed } from 'vue'
 import * as apiConfiguracio from '../api/configuracio'
 import * as apiEstadistiques from '../api/estadistiques'
@@ -191,12 +192,12 @@ export function useEstadistiques(dependents) {
       } catch (error) {
         if (versio !== versioCarrega) return
         console.error('Error carregant estadístiques:', error)
-        toast.add({
+        avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
           detail: t('stats.errors.load'),
           life: 3000
-        })
+        }))
       } finally {
         if (versio === versioCarrega) {
           loading.value = false
@@ -254,12 +255,12 @@ export function useEstadistiques(dependents) {
       frangesData.value = resp.data
     } catch (error) {
       console.error('Error carregant franges:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('stats.errors.slots'),
         life: 3000
-      })
+      }))
     } finally {
       frangesLoading.value = false
     }
@@ -276,12 +277,12 @@ export function useEstadistiques(dependents) {
       professorDetail.value = resp.data
     } catch (error) {
       console.error('Error carregant detall professor:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('stats.errors.teacherDetail'),
         life: 3000
-      })
+      }))
     } finally {
       detailLoading.value = false
     }
@@ -324,12 +325,12 @@ export function useEstadistiques(dependents) {
       classesDetailData.value = resp.data
     } catch (error) {
       console.error('Error carregant detall classes:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('stats.errors.classesDetail'),
         life: 3000
-      })
+      }))
     } finally {
       classesDetailLoading.value = false
     }

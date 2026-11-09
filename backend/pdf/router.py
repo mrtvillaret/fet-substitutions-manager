@@ -12,7 +12,6 @@ Només HTTP: els casos d'ús són a pdf/generacio.py i pdf/disponibles.py.
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
@@ -24,9 +23,8 @@ from auth.dependencies import get_current_user
 from dependencies import dia_de_la_peticio, get_db
 from horari.domain import Dia
 from parametres import DataISO, data_iso
-from pdf import disponibles, generacio
+from pdf import disponibles, generacio, services
 from pdf.domain import OpcionsPdf
-from pdf.repositories import PreferenciesPdfRepository
 from pdf.schemas import (
     DesatResponse,
     PDFPreferencesRequest,
@@ -35,7 +33,6 @@ from pdf.schemas import (
     VigilanciesSenseNivellResponse,
 )
 from substitucions.schemas import OrdreSubstitucions
-from vigilancies.repositories import VigilanciaRepository
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF"])
 
@@ -45,7 +42,7 @@ def get_pdf_preferences(current_user=Depends(get_current_user), db: Session = De
     """
     Retorna les preferències PDF desades per institució
     """
-    return PreferenciesPdfRepository.get_all(db)
+    return services.preferencies(db)
 
 
 @router.put("/preferences", response_model=DesatResponse)
@@ -55,7 +52,7 @@ def update_pdf_preferences(
     """
     Desa les preferències PDF per institució
     """
-    PreferenciesPdfRepository.update(db, prefs.model_dump())
+    services.desa_preferencies(db, prefs.model_dump())
 
     return {"success": True}
 
@@ -102,7 +99,7 @@ def generar_pdf_complet(
     show_conflicts: bool = True,
     blank_rows: bool = False,
     format: str = "hores",  # "hores" (una secció per hora) o "dia" (una taula per al dia)
-    mida_lletra: Optional[float] = None,  # normal (1), gran (1.2) o molt gran (1.35); sense: veure _exportador
+    mida_lletra: float | None = None,  # normal (1), gran (1.2) o molt gran (1.35); sense: veure _exportador
     ordre: OrdreSubstitucions = "curs",  # les substitucions dins de cada hora, com a la pantalla
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -144,7 +141,7 @@ def comptar_vigilancies_sense_nivell(
     current_user=Depends(get_current_user),
 ):
     """Recompte per mostrar l'opció «Sense nivell» al selector del PDF."""
-    return {"sense_nivell": VigilanciaRepository.compta_sense_nivell(db, data_inici, data_final)}
+    return {"sense_nivell": services.compta_vigilancies_sense_nivell(db, data_inici, data_final)}
 
 
 @router.get("/vigilancies/interval")
@@ -152,7 +149,7 @@ def generar_pdf_interval(
     data_inici: DataISO,
     data_final: DataISO,
     nivells: str = "",
-    inclou_sense_nivell: Optional[bool] = None,
+    inclou_sense_nivell: bool | None = None,
     include_weekends: bool = False,
     include_empty_days: bool = False,
     compress: bool = False,
@@ -160,7 +157,7 @@ def generar_pdf_interval(
     show_hours: bool = False,
     include_substitucions: bool = False,
     format: str = "hores",  # dins de cada dia: "hores" (una secció per hora) o "dia" (una taula)
-    mida_lletra: Optional[float] = None,
+    mida_lletra: float | None = None,
     dia_per_pagina: bool = False,  # cada dia en una pàgina nova
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -196,13 +193,13 @@ def generar_pdf_interval(
 def generar_pdf_vigilancies(
     data: DataISO,
     nivells: str = "",  # Comma-separated: "1-BATX,2-BATX"
-    inclou_sense_nivell: Optional[bool] = None,
+    inclou_sense_nivell: bool | None = None,
     compress: bool = False,
     show_comments: bool = True,
     show_hours: bool = False,
     include_substitucions: bool = False,
     format: str = "hores",  # "hores" (una secció per hora) o "dia" (una taula per al dia)
-    mida_lletra: Optional[float] = None,
+    mida_lletra: float | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -229,7 +226,7 @@ def generar_pdf_vigilancies(
 
 @router.post("/disponibles-tots-dies")
 def generar_pdf_disponibles_tots_dies(
-    data_inici: Optional[DataISO] = Body(None, embed=True),
+    data_inici: DataISO | None = Body(None, embed=True),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):

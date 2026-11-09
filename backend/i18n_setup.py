@@ -1,4 +1,3 @@
-import builtins
 import gettext
 import logging
 import os
@@ -78,11 +77,8 @@ def translate(text: str) -> str:
     return _carrega(idioma_actual())(text)
 
 
-# Alguns mòduls fan servir `_` directament (sense importar-la): abans
-# gettext.install() la desava a builtins en cada canvi d'idioma. Ara és
-# sempre `translate`, que tria l'idioma de la petició.
+# Import explícit: la funció tria l'idioma de la petició.
 _ = translate
-builtins._ = translate
 
 
 def __getattr__(nom):

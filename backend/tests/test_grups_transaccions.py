@@ -1,7 +1,7 @@
 """Els canvis d'alliberats i la reconciliació formen una sola transacció."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,7 +26,7 @@ def centre():
 
 @pytest.fixture
 def client(centre, rellotge_fix):
-    rellotge_fix.moment = datetime(2026, 4, 20, 12, tzinfo=timezone.utc)
+    rellotge_fix.moment = datetime(2026, 4, 20, 12, tzinfo=UTC)
     nom = f"admin_{uuid.uuid4().hex[:8]}"
     crea_usuari(nom, centre, "admin")
     client_sense_excepcions = TestClient(APP, base_url="https://testserver", raise_server_exceptions=False)
@@ -59,7 +59,7 @@ def _bolcat(centre):
                 )
                 for fila in periode
             ],
-            "substitucions": sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila["id"]),
+            "substitucions": sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila.id),
         }
 
 

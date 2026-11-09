@@ -25,10 +25,10 @@ from reportlab.platypus import (
 )
 
 import rellotge
-from horari.hores import normalitzar_hora as _normalitzar_hora
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
 from pdf.dies import dies_capcalera
+from textos import normalitzar_hora as _normalitzar_hora
 
 C_NAVY = colors.HexColor("#1e3a5f")
 C_TEAL = colors.HexColor("#16a085")
@@ -297,14 +297,14 @@ def _grid_horari(absencies: list, subs_fetes: list, hores_xml: list) -> list:
     sub_grid = defaultdict(int)
 
     for a in absencies:
-        dia = _dia_setmana(a["data"])
-        hora = _normalitzar_hora(a.get("hora", "") or "")
+        dia = _dia_setmana(a.data)
+        hora = _normalitzar_hora(a.hora or "")
         if dia in DIES_ORDRE and hora:
             abs_grid[(dia, hora)] += 1
 
     for s in subs_fetes:
-        dia = _dia_setmana(s["data"])
-        hora = _normalitzar_hora(s.get("hora", "") or "")
+        dia = _dia_setmana(s.data)
+        hora = _normalitzar_hora(s.hora or "")
         if dia in DIES_ORDRE and hora:
             sub_grid[(dia, hora)] += 1
 
@@ -419,16 +419,16 @@ def _taula_absencies(absencies: list) -> list:
     headers = [_("Data"), _("Dia"), _("Hora"), _("Grup"), _("Assignatura"), _("Tipus"), _("Substitut")]
     rows = [headers]
     style_cmds = []
-    for r_idx, a in enumerate(sorted(absencies, key=lambda x: (x["data"], x.get("hora", ""))), start=1):
-        tipus_lbl, tipus_color = TIPUS_LABELS.get(a["tipus_absencia"], (a["tipus_absencia"], C_GREY_TXT))
-        substitut = (a.get("substitut") or "").strip()
+    for r_idx, a in enumerate(sorted(absencies, key=lambda x: (x.data, x.hora)), start=1):
+        tipus_lbl, tipus_color = TIPUS_LABELS.get(a.tipus_absencia, (a.tipus_absencia, C_GREY_TXT))
+        substitut = (a.substitut or "").strip()
         rows.append(
             [
-                _fmt_data(a["data"]),
-                _dia_setmana(a["data"])[:3],
-                a.get("hora", ""),
-                a.get("grup", "") or "—",
-                a.get("assignatura", "") or "—",
+                _fmt_data(a.data),
+                _dia_setmana(a.data)[:3],
+                a.hora,
+                a.grup or "—",
+                a.assignatura or "—",
                 tipus_lbl,
                 substitut or _("Pendent"),
             ]
@@ -507,16 +507,16 @@ def _taula_substitucions_fetes(subs: list) -> list:
     headers = [_("Data"), _("Dia"), _("Hora"), _("Grup"), _("Assignatura"), _("Professor absent"), _("Tipus")]
     rows = [headers]
     style_cmds = []
-    for r_idx, s in enumerate(sorted(subs, key=lambda x: (x["data"], x.get("hora", ""))), start=1):
-        tipus_lbl, tipus_color = TIPUS_LABELS.get(s["tipus_absencia"], (s["tipus_absencia"], C_GREY_TXT))
+    for r_idx, s in enumerate(sorted(subs, key=lambda x: (x.data, x.hora)), start=1):
+        tipus_lbl, tipus_color = TIPUS_LABELS.get(s.tipus_absencia, (s.tipus_absencia, C_GREY_TXT))
         rows.append(
             [
-                _fmt_data(s["data"]),
-                _dia_setmana(s["data"])[:3],
-                s.get("hora", ""),
-                s.get("grup", "") or "—",
-                s.get("assignatura", "") or "—",
-                s.get("professor_absent", "") or "—",
+                _fmt_data(s.data),
+                _dia_setmana(s.data)[:3],
+                s.hora,
+                s.grup or "—",
+                s.assignatura or "—",
+                s.professor_absent or "—",
                 tipus_lbl,
             ]
         )
@@ -600,10 +600,10 @@ def generar_informe_professors_pdf(
         absencies = p["absencies"]
         subs_fetes = p["substitucions_fetes"]
 
-        abs_normals = [a for a in absencies if a["tipus_absencia"] == "ABSENCIA"]
-        serveis = [a for a in absencies if a["tipus_absencia"] == "SERVEI"]
-        cobertes = [a for a in absencies if (a.get("substitut") or "").strip()]
-        pendents = [a for a in absencies if not (a.get("substitut") or "").strip()]
+        abs_normals = [a for a in absencies if a.tipus_absencia == "ABSENCIA"]
+        serveis = [a for a in absencies if a.tipus_absencia == "SERVEI"]
+        cobertes = [a for a in absencies if (a.substitut or "").strip()]
+        pendents = [a for a in absencies if not (a.substitut or "").strip()]
 
         story += _capçalera_professor(nom, periode, timestamp, hores_triades)
         story += _kpi_professor(

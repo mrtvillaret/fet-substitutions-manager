@@ -3,35 +3,33 @@ Exportador de PDF combinat: Substitucions + Vigilàncies organitzat per hores
 VERSIÓ OPTIMITZADA I AMB FORMAT DE CONFLICTES MILLORAT
 """
 
-import html
 import logging
+import re
+import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 import rellotge
+from configuracio.repositories import ConfiguracioRepository
+from database import get_data_db_session, get_data_dir_for_institucio
+from dates import data_compacta, parse_date
 from export.pdf_images import pdf_images
 from export.pdf_styles import PDFStyleFactory
 
 # import emoji
 from i18n_setup import translate as _
+from pdf.files import SubstitucioPdf, VigilanciaPdf
+from pdf.text import _text
+from substitucions.files import FilaSubstitucio
+from vigilancies.files import FilaVigilancia
 
 from .taula import SUBSTITUCIONS, VIGILANCIES, contingut_del_dia
-
-
-def _text(valor) -> str:
-    """Text de les dades (noms, aules, comentaris...) apte per a un Paragraph.
-
-    ReportLab interpreta etiquetes dins dels Paragraph (<b>, <font>, <img
-    src=...>): sense escapar, un "<" escrit per un usuari trencava el PDF i un
-    <img> li feia llegir fitxers del servidor."""
-    return html.escape(str(valor or ""), quote=False)
 
 
 # PDF Constants
@@ -54,7 +52,7 @@ log = logging.getLogger(__name__)
 class PDFCompletExporter:
     """Exportador de PDF combinat optimitzat"""
 
-    def __init__(self, hores: List[str] = None, export_dir: str = "exports", *, institucio: str):
+    def __init__(self, hores: list[str] = None, export_dir: str = "exports", *, institucio: str):
         if not institucio:
             raise ValueError("Cal indicar el centre per generar el PDF")
         self.institucio = institucio
@@ -78,7 +76,7 @@ class PDFCompletExporter:
         self.hyphen_lang = None
         self.hyphen_language_code = None
         try:
-            import pyphen
+            import pyphen  # noqa: PLC0415 — Dependència opcional: ImportError conserva el PDF sense partició.
 
             if self.hyphenation_config.get("enabled", False):
                 self.hyphen_language_code = self.hyphenation_config.get("language", "ca")
@@ -108,7 +106,7 @@ class PDFCompletExporter:
         self.dia_per_pagina = False
 
     @staticmethod
-    def _combinada(tipus_pdf: str, substitucions: List[Dict]) -> bool:
+    def _combinada(tipus_pdf: str, substitucions: list[FilaSubstitucio]) -> bool:
         """Substitucions i vigilàncies a la mateixa taula: el PDF complet, i el
         de vigilàncies quan porta les substitucions de vigilància."""
         if tipus_pdf == "complet":
@@ -133,13 +131,14 @@ class PDFCompletExporter:
         if not hasattr(self, "_auto_compression_active"):
             self._auto_compression_active = False
 
-    def _generate_filename(self, data_iso: str, subs_reals: List[Dict], vigilancies_reals: List[Dict]) -> str:
+    def _generate_filename(
+        self, data_iso: str, subs_reals: list[FilaSubstitucio], vigilancies_reals: list[FilaVigilancia]
+    ) -> str:
         """Generate PDF filename"""
         return self.PDFTypeResolver.get_filename(data_iso, subs_reals, vigilancies_reals)
 
     def _create_document(self, filename: str, compact_mode: bool):
         """Create and configure PDF document"""
-        from reportlab.lib.pagesizes import A4
 
         output_path = self.export_dir / filename
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -161,9 +160,10 @@ class PDFCompletExporter:
             rightMargin=right_margin,
         ), output_path
 
-    def _generate_titles(self, tipus_pdf: str, data_text: str, subs_reals: List[Dict], vigilancies_reals: List[Dict]):
+    def _generate_titles(
+        self, tipus_pdf: str, data_text: str, subs_reals: list[FilaSubstitucio], vigilancies_reals: list[FilaVigilancia]
+    ):
         """Generate PDF titles"""
-        from reportlab.platypus import Paragraph
 
         # Títol principal
         titol_principal = self.PDFTypeResolver.get_title(tipus_pdf, subs_reals, vigilancies_reals)
@@ -194,12 +194,12 @@ class PDFCompletExporter:
         """Resolves PDF type, filename and title"""
 
         @staticmethod
-        def get_filename(data_iso: str, subs_reals: List[Dict], vigilancies_reals: List[Dict]) -> str:
+        def get_filename(
+            data_iso: str, subs_reals: list[FilaSubstitucio], vigilancies_reals: list[FilaVigilancia]
+        ) -> str:
             timestamp = rellotge.ara().strftime("%y%m%d_%H%M%S")
 
             if data_iso:
-                from dates import data_compacta, parse_date
-
                 data_curta = data_compacta(parse_date(data_iso))
             else:
                 data_curta = rellotge.ara().strftime("%y%m%d")
@@ -214,7 +214,9 @@ class PDFCompletExporter:
                 return f"{data_curta}_document_buit_{timestamp}.pdf"
 
         @staticmethod
-        def get_title(tipus_pdf: str, subs_reals: List[Dict], vigilancies_reals: List[Dict]) -> str:
+        def get_title(
+            tipus_pdf: str, subs_reals: list[FilaSubstitucio], vigilancies_reals: list[FilaVigilancia]
+        ) -> str:
             if tipus_pdf == "substitucions":
                 return _("SUBSTITUCIONS")
             elif tipus_pdf == "vigilancies":
@@ -236,10 +238,10 @@ class PDFCompletExporter:
 
     def exportar(
         self,
-        substitucions: List[Dict],
-        vigilancies: List[Dict],
+        substitucions: list[FilaSubstitucio],
+        vigilancies: list[FilaVigilancia],
         data_text: str,
-        conflictes: List[str] = None,
+        conflictes: list[str] = None,
         data_iso: str = None,
         tipus_pdf: str = "auto",
     ) -> str:
@@ -252,12 +254,12 @@ class PDFCompletExporter:
             self._setup_document_config(tipus_pdf)
 
             # Process data
-            subs_reals = [s for s in substitucions if not s.get("separador")] if substitucions else []
+            subs_reals = [s for s in substitucions if not getattr(s, "separador", False)] if substitucions else []
 
             # Filtra encadenades si és PDF només de vigilàncies
             if tipus_pdf in ["vigilancies", "vigilancies_interval"]:
                 # Elimina substitucions encadenades (grup buit + assignatura amb valor)
-                subs_reals = [s for s in subs_reals if not (s.get("grup", "") == "" and s.get("assignatura", "") != "")]
+                subs_reals = [s for s in subs_reals if not (s.grup == "" and s.assignatura != "")]
 
             vigilancies_reals = vigilancies
 
@@ -314,8 +316,6 @@ class PDFCompletExporter:
 
             # Secció de conflictes - SEMPRE en salt de pàgina (no compten per al càlcul de compressió)
             if conflictes:
-                from reportlab.platypus import PageBreak
-
                 story.append(PageBreak())  # Salt de pàgina sempre per conflictes
 
                 story.append(Paragraph(_("<b>CONFLICTES DETECTATS:</b>"), self.styles["Heading2"]))
@@ -340,8 +340,6 @@ class PDFCompletExporter:
             return filename
 
         except Exception as e:
-            import traceback
-
             log.warning(_("❌ Error en generar PDF: {error}").format(error=e))
             traceback.print_exc()
             return ""
@@ -349,12 +347,7 @@ class PDFCompletExporter:
     def _add_logo_to_page(self, canvas, doc):
         """Afegeix logo al marge superior esquerre de cada pàgina si existeix"""
         try:
-            from pathlib import Path
-
-            from PIL import Image
-
-            from configuracio.repositories import ConfiguracioRepository
-            from database import get_data_db_session, get_data_dir_for_institucio
+            from PIL import Image  # noqa: PLC0415 — El try del logo conserva la resta del PDF si falla la importació.
 
             # El generador indica explícitament de quin centre és el PDF.
             institucio = self.institucio
@@ -397,11 +390,10 @@ class PDFCompletExporter:
             # Si hi ha error, simplement no mostra el logo
             log.warning(f"⚠️ No s'ha pogut carregar el logo: {e}")
 
-    def _crear_taula_conflictes(self, conflictes: List[str]) -> Table:
+    def _crear_taula_conflictes(self, conflictes: list[str]) -> Table:
         """Crea taula de conflictes amb millor format i text wrapping"""
         avisos_header = _("⚠️ AVÍS: Hi ha professors de major prioritat disponibles:")
         conflictes = [c for c in conflictes if c.strip() != avisos_header]
-        from reportlab.platypus import Paragraph, Table, TableStyle
 
         # Get current colors dynamically
         profile_colors = self._get_profile_colors()
@@ -453,7 +445,6 @@ class PDFCompletExporter:
             labels_per_hora = {}
             for conflicte in conflictes:
                 # Extreure hora del conflicte amb regex per més robustesa
-                import re
 
                 hora_match = re.search(r"(\d{1,2}:\d{2}):", conflicte)
                 if hora_match:
@@ -530,30 +521,32 @@ class PDFCompletExporter:
     def _pot_tenir_substitucions(self, hora: str) -> bool:
         return self.hores_amb_classe is None or hora in self.hores_amb_classe
 
-    def _organitzar_dades_per_hora(self, substitucions: List[Dict], vigilancies: List[Dict]) -> Dict:
+    def _organitzar_dades_per_hora(
+        self, substitucions: list[FilaSubstitucio], vigilancies: list[FilaVigilancia]
+    ) -> dict:
         """Organitza substitucions i vigilàncies per hora"""
         dades_per_hora = defaultdict(lambda: {"substitucions": [], "vigilancies": []})
 
         for sub in substitucions:
-            if hora := sub.get("hora", ""):
+            if hora := sub.hora:
                 dades_per_hora[hora]["substitucions"].append(sub)
 
         for vig in vigilancies:
-            if hora := vig.get("hora", ""):
+            if hora := vig.hora:
                 dades_per_hora[hora]["vigilancies"].append(vig)
 
         return dades_per_hora
 
-    def _sort_vigilancies_by_date(self, vigilancies: List[Dict]) -> tuple:
+    def _sort_vigilancies_by_date(self, vigilancies: list[VigilanciaPdf]) -> tuple:
         """Sort vigilancies by date and return organized data"""
         vigilancies_per_dia = defaultdict(lambda: defaultdict(list))
         dia_iso_map = {}
 
         for vig in vigilancies:
-            dia = vig.get("_dia_interval", "Dia desconegut")
-            data_iso = vig.get("_data_iso", "")
-            hora = vig.get("hora", "")
-            if vig.get("_empty_day"):
+            dia = vig.dia_interval
+            data_iso = vig.data_iso
+            hora = vig.hora
+            if vig.dia_buit:
                 if data_iso:
                     dia_iso_map[dia] = data_iso
                 # Ensure day exists even without hours
@@ -570,10 +563,8 @@ class PDFCompletExporter:
 
         return vigilancies_per_dia, dies_ordenats
 
-    def _generate_day_section(self, dia: str, hores_dia: Dict, subs_dia: Dict = None) -> List:
+    def _generate_day_section(self, dia: str, hores_dia: dict, subs_dia: dict = None) -> list:
         """Un dia de l'interval: el títol i, a sota, el format triat."""
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import Paragraph
 
         data_iso = getattr(self, "_data_interval_per_titol", {}).get(dia)
         hores_per_data = getattr(self, "hores_per_data", {})
@@ -599,10 +590,9 @@ class PDFCompletExporter:
         return story
 
     def _generar_contingut_interval_vigilancies(
-        self, vigilancies: List[Dict], substitucions: List[Dict] = None
-    ) -> List:
+        self, vigilancies: list[VigilanciaPdf], substitucions: list[SubstitucioPdf] | None = None
+    ) -> list:
         """Genera contingut per interval de vigilàncies: dies consecutius + format exacte"""
-        from collections import defaultdict
 
         story = []
 
@@ -614,14 +604,13 @@ class PDFCompletExporter:
         if substitucions:
             subs_per_dia = defaultdict(lambda: defaultdict(list))
             for sub in substitucions:
-                dia = sub.get("_dia_interval", "")
-                hora = sub.get("hora", "")
+                dia = sub.dia_interval
+                hora = sub.hora
                 if dia and hora:
                     subs_per_dia[dia][hora].append(sub)
             substitucions_per_dia = dict(subs_per_dia)
 
         # Cada dia, amb el seu títol (i, si es demana, en una pàgina nova)
-        from reportlab.platypus import PageBreak
 
         for n, dia in enumerate(dies_ordenats):
             if n and self.dia_per_pagina:

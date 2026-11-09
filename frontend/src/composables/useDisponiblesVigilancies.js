@@ -71,7 +71,7 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     }
   }
 
-  const carregarDisponiblesPerLlista = async (llistaVigilancies = [], { substitueix = false, alhora = null, data = dataISO.value, vigent = () => true } = {}) => {
+  const carregarDisponiblesPerLlista = async (llistaVigilancies = [], { substitueix = false, alhora = null, silent = false, data = dataISO.value, vigent = () => true } = {}) => {
     const id = versioDia
     const actual = () => id === versioDia && data === dataISO.value && vigent()
     if (!actual()) return
@@ -115,7 +115,7 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
       return
     }
 
-    const results = await apiVigilancies.disponiblesEnBloc(data, queries)
+    const results = await apiVigilancies.disponiblesEnBloc(data, queries, ...(silent ? [{ _silent: true }] : []))
     if (!actual()) return
     const novaCache = substitueix ? {} : { ...disponiblesPerHora.value }
     for (const [key, value] of Object.entries(results)) {

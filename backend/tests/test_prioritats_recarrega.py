@@ -66,8 +66,8 @@ def test_una_baixa_nova_es_te_en_compte_de_seguida(client, centre):
     )
     assert resp.status_code == 200, resp.text
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f["hora"] == "10:00")
-        SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "Prof 3"})
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.hora == "10:00")
+        SubstitucioRepository.update(db, int(fila.id), {"substitut": "Prof 3"})
         db.commit()
     assert not _avis_baixa(client)
 

@@ -3,7 +3,7 @@
 import logging
 import re
 import shlex
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
@@ -89,7 +89,7 @@ def test_fitxer_diari_conserva_trenta_copies_temporals(tmp_path, monkeypatch):
     assert handler.interval == 86400
     assert handler.backupCount == 30
     assert not logger.propagate
-    inici = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    inici = datetime(2026, 1, 1, tzinfo=UTC)
     ara = [inici.timestamp()]
     monkeypatch.setattr("logging.handlers.time.time", lambda: ara[0])
     try:
@@ -109,13 +109,20 @@ CADDYFILE = Path(__file__).resolve().parents[2] / "Caddyfile.example"
 
 
 def _uri_caddy(uri):
+    dins_uri = False
     for line in CADDYFILE.read_text().splitlines():
-        if not line.strip().startswith("request>uri regexp "):
+        tokens = shlex.split(line, comments=True)
+        if tokens == ["request>uri", "multi_regexp", "{"]:
+            dins_uri = True
             continue
-        tokens = shlex.split(line)
-        if tokens[:2] != ["request>uri", "regexp"]:
+        if dins_uri and tokens == ["}"]:
+            dins_uri = False
+        if dins_uri and tokens[:1] == ["regexp"]:
+            pattern, replacement = tokens[1:]
+        elif tokens[:2] == ["request>uri", "regexp"]:
+            pattern, replacement = tokens[2:]
+        else:
             continue
-        pattern, replacement = tokens[2:]
         uri = re.sub(
             pattern,
             lambda m, replacement=replacement: re.sub(r"\$\{(\d+)\}", lambda g: m.group(int(g[1])), replacement),

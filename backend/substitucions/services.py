@@ -6,20 +6,23 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from absencia_coberta.services import absencia_coberta_de, missatge_absencia_coberta
+from absencia_coberta.domain import absencia_coberta_de, missatge_absencia_coberta
 from database import inicia_escriptura
 from errors_domini import Conflicte, ErrorDeDomini, NoTrobat, NoValid
-from grups.repositories import GrupsAlliberatsRepository
+from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import translate as _
 from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from substitucions import _consultes
 from substitucions.absencies import desa_absencies
-from substitucions.domain import DiaEscolar, treu_substituts_no_valids
+from substitucions.assignacio import QuotaFranja
+from substitucions.domain import DiaEscolar
 from substitucions.encadenades import reconcilia_encadenades
+from substitucions.files import FilaSubstitucio
 from substitucions.generacio import genera_substitucions_dia
 from substitucions.prioritat import MillorsSubstituts, text_tipus_substitut
+from substitucions.reconciliacio import treu_substituts_no_valids
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import es_vigilancia_absent
 
@@ -29,7 +32,7 @@ log = logging.getLogger(__name__)
 class ConflicteSubstitucions(Conflicte):
     """Conflicte optimista que inclou la versió actual per a la pantalla."""
 
-    def __init__(self, current_data: dict | list[dict]):
+    def __init__(self, current_data: FilaSubstitucio | list[FilaSubstitucio]):
         super().__init__(
             "Aquest registre ha estat modificat per un altre usuari",
             codi="substitucio_modificada",
@@ -44,7 +47,7 @@ disponibles_en_bloc = _consultes.disponibles_en_bloc
 
 
 def _atzar():
-    """Atzar dels desempats; els tests poden injectar-hi un generador."""
+    """Atzar dels empats de quota; els tests poden injectar-hi un generador."""
     return random
 
 
@@ -77,12 +80,12 @@ def actualitza_absencies(db: Session, dia: Dia, data: str, professor: str, updat
     if not update.force and update.updated_at_map:
         conflictes = []
         for sub in substitucions_list:
-            if sub.get("professor_absent") != professor or es_vigilancia_absent(sub):
+            if sub.professor_absent != professor or es_vigilancia_absent(sub):
                 continue
-            hora_sub = sub.get("hora")
+            hora_sub = sub.hora
             if hora_sub in update.updated_at_map:
                 client_updated_at = update.updated_at_map.get(hora_sub)
-                server_updated_at = sub.get("updated_at")
+                server_updated_at = sub.updated_at
                 if client_updated_at and server_updated_at and client_updated_at != server_updated_at:
                     conflictes.append(sub)
         if conflictes:
@@ -98,14 +101,12 @@ def actualitza_absencies(db: Session, dia: Dia, data: str, professor: str, updat
         # Els UPDATE sense canvi comproven les versions i retenen el bloqueig
         # d'escriptura fins al commit de tota l'operació d'absències.
         for sub in substitucions_list:
-            if sub.get("professor_absent") != professor or es_vigilancia_absent(sub):
+            if sub.professor_absent != professor or es_vigilancia_absent(sub):
                 continue
-            esperat = update.updated_at_map.get(sub.get("hora"))
-            if esperat and SubstitucioRepository.update(db, int(sub["id"]), {}, updated_at_esperat=esperat) is None:
+            esperat = update.updated_at_map.get(sub.hora)
+            if esperat and SubstitucioRepository.update(db, int(sub.id), {}, updated_at_esperat=esperat) is None:
                 db.rollback()
-                actuals = [
-                    s for s in SubstitucioRepository.get_by_date(db, data) if s.get("professor_absent") == professor
-                ]
+                actuals = [s for s in SubstitucioRepository.get_by_date(db, data) if s.professor_absent == professor]
                 raise ConflicteSubstitucions(actuals)
 
     resultat = desa_absencies(
@@ -155,13 +156,13 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
     avisos = []
     substitucions_list = SubstitucioRepository.get_by_date(db, data)
     if update.id is not None:
-        substitucio_actual = next((sub for sub in substitucions_list if sub.get("id") == update.id), None)
+        substitucio_actual = next((sub for sub in substitucions_list if sub.id == update.id), None)
         if substitucio_actual is None:
             raise NoTrobat(
                 f"No s'ha trobat la substitució amb identificador {update.id} per al dia {data}",
                 codi="substitucio_id_no_trobat",
             )
-        if substitucio_actual.get("hora") != hora or substitucio_actual.get("professor_absent") != professor:
+        if substitucio_actual.hora != hora or substitucio_actual.professor_absent != professor:
             raise NoValid(
                 "La substitució indicada no correspon a la data, l'hora i el professor de la URL",
                 codi="substitucio_id_no_concorda",
@@ -170,10 +171,10 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
         substitucio_actual = None
         primera_coincidencia = None
         for sub in substitucions_list:
-            if sub.get("hora") == hora and sub.get("professor_absent") == professor:
+            if sub.hora == hora and sub.professor_absent == professor:
                 if primera_coincidencia is None:
                     primera_coincidencia = sub
-                if update.updated_at and sub.get("updated_at") == update.updated_at:
+                if update.updated_at and sub.updated_at == update.updated_at:
                     substitucio_actual = sub
                     break
         if substitucio_actual is None:
@@ -191,13 +192,13 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
                 "Falta el camp updated_at per comprovar conflictes",
                 codi="falta_updated_at",
             )
-        if substitucio_actual.get("updated_at") and update.updated_at != substitucio_actual.get("updated_at"):
+        if substitucio_actual.updated_at and update.updated_at != substitucio_actual.updated_at:
             raise ConflicteSubstitucions(substitucio_actual)
 
     if update.substitut and update.substitut.strip():
         substitut_normalitzat = update.substitut.strip()
         files_a_alliberar = []
-        assignatura_actual = substitucio_actual.get("assignatura", "")
+        assignatura_actual = substitucio_actual.assignatura
         no_substituir = NoSubstituirRepository.get_all(db)
 
         if assignatura_actual in no_substituir:
@@ -213,15 +214,15 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
 
         for sub in substitucions_list:
             if (
-                sub.get("hora") == hora
-                and sub.get("substitut") == substitut_normalitzat
-                and not (sub.get("hora") == hora and sub.get("professor_absent") == professor)
+                sub.hora == hora
+                and sub.substitut == substitut_normalitzat
+                and not (sub.hora == hora and sub.professor_absent == professor)
             ):
                 if update.moure:
                     files_a_alliberar.append(sub)
                     continue
                 raise NoValid(
-                    f"❌ {substitut_normalitzat} ja està assignat com a SUBSTITUT per {sub.get('professor_absent')} ({sub.get('assignatura')}, {sub.get('grup')}) a les {hora}",
+                    f"❌ {substitut_normalitzat} ja està assignat com a SUBSTITUT per {sub.professor_absent} ({sub.assignatura}, {sub.grup}) a les {hora}",
                     codi="substitut_repetit",
                 )
 
@@ -252,8 +253,8 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
 
     alliberades = []
     for fila in files_a_alliberar if update.substitut and update.substitut.strip() else []:
-        SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "", "tipus_substitut": ""})
-        alliberades.append({k: fila.get(k, "") for k in ("hora", "professor_absent", "assignatura", "grup")})
+        SubstitucioRepository.update(db, int(fila.id), {"substitut": "", "tipus_substitut": ""})
+        alliberades.append({k: getattr(fila, k) for k in ("hora", "professor_absent", "assignatura", "grup")})
 
     updates = {}
     if update.substitut is not None:
@@ -264,7 +265,7 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
             try:
                 _, horari, alliberats, _ = dia.gestors()
                 dia_name = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
-                grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
+                grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
                 grups_hora = set(grups_sense_classe.get(hora, []))
                 disponibles_hora = alliberats.get_tots_disponibles(dia_name, hora, grups_hora)
                 tipus_map = {prof: (tipus, detall) for prof, tipus, detall in disponibles_hora}
@@ -280,14 +281,14 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
 
     updated_sub = SubstitucioRepository.update(
         db,
-        int(substitucio_actual["id"]),
+        int(substitucio_actual.id),
         updates,
         updated_at_esperat=None if update.force else update.updated_at,
     )
     if updated_sub is None and not update.force:
         db.rollback()
         actual = next(
-            (s for s in SubstitucioRepository.get_by_date(db, data) if s["id"] == substitucio_actual["id"]),
+            (s for s in SubstitucioRepository.get_by_date(db, data) if s.id == substitucio_actual.id),
             substitucio_actual,
         )
         raise ConflicteSubstitucions(actual)
@@ -308,33 +309,33 @@ def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:
     if not substitucions_data:
         raise NoTrobat(f"No hi ha substitucions per {data}", codi="dia_sense_substitucions")
 
-    substituts_abans = {
-        str(sub.get("id")): (sub.get("substitut") or "").strip() for sub in substitucions_data if sub.get("id")
-    }
+    substituts_abans = {str(sub.id): (sub.substitut or "").strip() for sub in substitucions_data if sub.id}
     cleared = len(treu_substituts_no_valids(db, data))
     rng = _atzar()
+    quota = QuotaFranja(SubstitucioRepository.historial_quota(db, data))
     resultat_generacio = genera_substitucions_dia(
         db,
         dia,
         regenerar_tot=False,
         rng=rng,
+        quota=quota,
     )
     avisos = list(resultat_generacio.get("avisos", []))
     substitucions_despres = SubstitucioRepository.get_by_date(db, data)
 
     try:
         with db.begin_nested():
-            millors = MillorsSubstituts(DiaEscolar(db, dia), dia.gestors(), rng=rng)
+            millors = MillorsSubstituts(DiaEscolar(db, dia), dia.gestors(), rng=rng, quota=quota)
             for sub in substitucions_despres:
                 millor = millors.millor(sub)
-                if millor and sub.get("id"):
+                if millor and sub.id:
                     professor, tipus, detall, _ = millor
                     SubstitucioRepository.update(
                         db,
-                        int(sub["id"]),
+                        int(sub.id),
                         {"substitut": professor, "tipus_substitut": text_tipus_substitut(tipus, detall)},
                     )
-                    millors.canvia((sub.get("hora") or "").strip(), (sub.get("substitut") or "").strip(), professor)
+                    millors.canvia((sub.hora or "").strip(), (sub.substitut or "").strip(), professor)
             reconcilia_encadenades(db, data)
             substitucions_despres = SubstitucioRepository.get_by_date(db, data)
     except Exception:
@@ -344,18 +345,18 @@ def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:
 
     canvis = []
     for sub in substitucions_despres:
-        sub_id = str(sub.get("id")) if sub.get("id") else ""
+        sub_id = str(sub.id) if sub.id else ""
         if not sub_id:
             continue
         abans = substituts_abans.get(sub_id, "")
-        despres = (sub.get("substitut") or "").strip()
+        despres = (sub.substitut or "").strip()
         if abans != despres and (abans or despres):
             canvis.append(
                 {
-                    "hora": sub.get("hora", ""),
-                    "professor_absent": sub.get("professor_absent", ""),
-                    "assignatura": sub.get("assignatura", ""),
-                    "grup": sub.get("grup", ""),
+                    "hora": sub.hora,
+                    "professor_absent": sub.professor_absent,
+                    "assignatura": sub.assignatura,
+                    "grup": sub.grup,
                     "abans": abans,
                     "despres": despres,
                 }

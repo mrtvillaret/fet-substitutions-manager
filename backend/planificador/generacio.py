@@ -9,6 +9,7 @@ from datetime import datetime
 
 from errors_domini import NoValid
 from errors_servidor import registra_excepcio
+from grups.abreviatures import aplicar_abreviatura_grup
 from planificador.diagnostic import (
     _afegir_recompte_nivells,
     _diagnosticar_incompatibilitats,
@@ -20,6 +21,8 @@ from planificador.schemas import SchedulerGenerateRequest
 from planificador.services import desa_ultim_resultat
 from scheduler_engine.core.missatges import missatge, unics
 from scheduler_engine.core.normalitzacio import normalitzar_dia
+from scheduler_engine.informe import captura_informe
+from scheduler_engine.validacio import ValidadorHorari
 
 PARAMETRES_V3 = (
     "temperatura_inicial",
@@ -165,9 +168,7 @@ def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
             if motor == "v3" and getattr(payload, k, None) is not None
         }
 
-        from captura_sortida import captura_stdout
-
-        with captura_stdout() as sortida:
+        with captura_informe() as sortida:
             gen, metode = pla.motor(motor, **parametres)
             try:
                 incompatibilitats = _precheck_incompatibilitats_deterministes(
@@ -206,7 +207,6 @@ def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
                 return {"status": "ok", "horari": horari}
 
             # Incidències: les del motor, la sortida capturada i la validació
-            from scheduler_engine.validacio import ValidadorHorari
 
             validacio = ValidadorHorari(horari, pla.restriccions, pla.cfg.no_substituir).validar()
             logs = [linia.strip() for linia in meta.get("logs", []) if linia.strip()]
@@ -244,5 +244,7 @@ def analitza(payload: SchedulerGenerateRequest, institucio: str) -> dict:
         return {
             "per_slots": gen.generar_informe_per_slots(matriu_costos, dies_analisi),
             "per_sessio": gen.generar_informe_disponibilitat(matriu_costos, dies_analisi),
-            "professors_slot": gen.generar_informe_professors_per_slot(dies_analisi),
+            "professors_slot": gen.generar_informe_professors_per_slot(
+                dies_analisi, aplicar_abreviatura_grup=aplicar_abreviatura_grup
+            ),
         }

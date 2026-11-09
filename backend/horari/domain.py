@@ -7,7 +7,7 @@ Un dia per a un centre i l'horari (XML) que hi correspon.
 (dependencies.py): el dia de la petició, el del calendari o el del planificador.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from functools import cached_property
 
@@ -15,6 +15,7 @@ import rellotge
 from database import get_data_db_session
 from horari.context import _get_institucio_actual, _resolve_xml_path, get_horari
 from horari.repositories import XMLVersionRepository
+from models import XMLVersion
 from substitucions.context import get_gestors
 from vigilancies.context import get_vigilancia_core
 
@@ -23,6 +24,7 @@ from vigilancies.context import get_vigilancia_core
 class Dia:
     data: date
     institucio: str
+    versio_xml: XMLVersion | None = field(default=None, kw_only=True, repr=False, compare=False)
 
     @classmethod
     def avui(cls, institucio: str) -> "Dia":
@@ -66,6 +68,8 @@ class Dia:
     @cached_property
     def versio(self):
         """La versió de l'XML vigent aquest dia (o la més propera), o None."""
+        if self.versio_xml is not None:
+            return self.versio_xml
         with get_data_db_session(self.institucio, lectura=True) as db:
             versio = XMLVersionRepository.vigent(db, self.iso)
             if versio is not None:

@@ -1,7 +1,5 @@
 """Consultes de la configuració general del centre."""
 
-from typing import Dict, Optional
-
 from sqlalchemy.orm import Session
 
 from models import Configuracio
@@ -11,13 +9,13 @@ class ConfiguracioRepository:
     """Operacions per configuració general"""
 
     @staticmethod
-    def get_all_as_dict(db: Session) -> Dict[str, str]:
+    def get_all_as_dict(db: Session) -> dict[str, str]:
         """Retorna tota la configuració com a diccionari"""
         configs = db.query(Configuracio).all()
         return {c.clau: c.valor for c in configs}
 
     @staticmethod
-    def get(db: Session, clau: str) -> Optional[str]:
+    def get(db: Session, clau: str) -> str | None:
         """Obté un valor de configuració"""
         config = db.query(Configuracio).filter(Configuracio.clau == clau).first()
         return config.valor if config else None
@@ -30,13 +28,12 @@ class ConfiguracioRepository:
 
     @staticmethod
     def set(db: Session, clau: str, valor: str, tipus: str = "string", descripcio: str = ""):
-        """Estableix un valor de configuració i en fa commit."""
+        """Estableix un valor de configuració, sense tancar la transacció."""
         ConfiguracioRepository.desa(db, clau, valor, tipus=tipus, descripcio=descripcio)
-        db.commit()
 
     @staticmethod
     def desa(db: Session, clau: str, valor: str, tipus: str = "string", descripcio: str = ""):
-        """Com set, però sense commit: per desar diversos valors d'un cop."""
+        """Desa un valor amb flush; el servei decideix quan fer commit."""
         config = db.query(Configuracio).filter(Configuracio.clau == clau).first()
 
         if config:

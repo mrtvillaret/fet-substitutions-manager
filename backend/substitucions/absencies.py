@@ -8,7 +8,7 @@ from datetime import datetime
 
 from substitucions.cobertures import refresca_cobertures
 from substitucions.context import get_gestors
-from substitucions.domain import treu_substituts_no_valids
+from substitucions.reconciliacio import treu_substituts_no_valids
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import sincronitzar_vigilancies_absents
 from vigilancies.repositories import VigilanciaRepository
@@ -21,9 +21,9 @@ def canvia_tipus_cobertures(db, data: str, professor: str, hores, de: str, a: st
     professor vigila un examen) o una ABSENCIA (el professor és absent)."""
     canviades = set()
     for sub in SubstitucioRepository.get_by_date(db, data):
-        if sub.get("professor_absent") == professor and sub.get("hora") in hores and sub.get("tipus_absencia") == de:
-            SubstitucioRepository.update(db, int(sub["id"]), {"tipus_absencia": a})
-            canviades.add((sub.get("hora"), sub.get("assignatura", ""), sub.get("grup", "")))
+        if sub.professor_absent == professor and sub.hora in hores and sub.tipus_absencia == de:
+            SubstitucioRepository.update(db, int(sub.id), {"tipus_absencia": a})
+            canviades.add((sub.hora, sub.assignatura, sub.grup))
     return canviades
 
 
@@ -62,9 +62,7 @@ def desa_absencies(
     for tipus, hores_noves_tipus in types_a_processar:
         # Hores antigues FILTRADES per aquest tipus concret (evita interferències entre tipus)
         hores_antigues_tipus = set(
-            sub.get("hora")
-            for sub in substitucions_list
-            if sub.get("professor_absent") == professor and sub.get("tipus_absencia") == tipus
+            sub.hora for sub in substitucions_list if sub.professor_absent == professor and sub.tipus_absencia == tipus
         )
 
         hores_a_eliminar_tipus = hores_antigues_tipus - hores_noves_tipus
@@ -79,11 +77,11 @@ def desa_absencies(
         canvia_tipus_cobertures(db, data, professor, hores_vigilant, tipus, "VIGILANCIA")
         for sub in substitucions_list:
             if (
-                sub.get("professor_absent") == professor
-                and sub.get("tipus_absencia") == tipus
-                and sub.get("hora") in hores_a_eliminar_tipus - hores_vigilant
+                sub.professor_absent == professor
+                and sub.tipus_absencia == tipus
+                and sub.hora in hores_a_eliminar_tipus - hores_vigilant
             ):
-                SubstitucioRepository.delete(db, int(sub["id"]))
+                SubstitucioRepository.delete(db, int(sub.id))
         if hores_vigilant:
             for hora_vigilant in hores_vigilant:
                 refresca_cobertures(data, hora_vigilant, db, gestors=gestors_cobertures)
@@ -100,23 +98,23 @@ def desa_absencies(
             subs_generades = absencies.get_substitucions_necessaries(dia_name, absents_nous, absents_nous_tipus)
 
             for sub in subs_generades:
-                if (sub.get("hora"), sub.get("assignatura", ""), sub.get("grup", "")) in ja_cobertes:
+                if (sub.hora, sub.assignatura, sub.grup) in ja_cobertes:
                     continue
                 sub_data = {
                     "data": data,
-                    "hora": sub.get("hora", ""),
-                    "professor_absent": sub.get("professor_absent", ""),
-                    "assignatura": sub.get("assignatura", ""),
-                    "grup": sub.get("grup", ""),
-                    "aula": sub.get("aula", ""),
-                    "substitut": sub.get("substitut", ""),
-                    "tipus_substitut": sub.get("tipus_substitut", ""),
-                    "tipus_absencia": sub.get("tipus_absencia", ""),
-                    "comentaris": sub.get("comentaris", ""),
+                    "hora": sub.hora,
+                    "professor_absent": sub.professor_absent,
+                    "assignatura": sub.assignatura,
+                    "grup": sub.grup,
+                    "aula": sub.aula,
+                    "substitut": sub.substitut,
+                    "tipus_substitut": sub.tipus_substitut,
+                    "tipus_absencia": sub.tipus_absencia,
+                    "comentaris": sub.comentaris,
                 }
                 SubstitucioRepository.create(db, sub_data)
 
-            hores_amb_substitucio = {sub.get("hora") for sub in subs_generades} | {h for h, _, _ in ja_cobertes}
+            hores_amb_substitucio = {sub.hora for sub in subs_generades} | {h for h, _, _ in ja_cobertes}
             for hora in hores_a_afegir_tipus:
                 if hora not in hores_amb_substitucio:
                     activitat = horari.get_activitat(dia_name, hora, professor)

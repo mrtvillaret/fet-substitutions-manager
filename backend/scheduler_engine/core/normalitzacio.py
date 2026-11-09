@@ -2,6 +2,8 @@
 Funcions de normalització de text i noms.
 """
 
+import re as _re
+from datetime import datetime as _dt
 from functools import lru_cache
 
 # Mapejat de noms de dies entre idiomes (clau normalitzada → variants)
@@ -40,7 +42,6 @@ _DIES_CAT = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte"
 
 def iso_a_dia_nom(data_iso: str) -> str:
     """Converteix data ISO (YYYY-MM-DD) a nom de dia en català."""
-    from datetime import datetime as _dt
 
     try:
         return _DIES_CAT[_dt.strptime(data_iso, "%Y-%m-%d").weekday()]
@@ -50,11 +51,8 @@ def iso_a_dia_nom(data_iso: str) -> str:
 
 def format_dia_label(dia: str) -> str:
     """Formata dia per display: nom de dia o 'Dilluns (12/01)' si ISO."""
-    import re as _re
 
     if _re.match(r"^\d{4}-\d{2}-\d{2}$", dia):
-        from datetime import datetime as _dt
-
         try:
             dt = _dt.strptime(dia, "%Y-%m-%d")
             return f"{_DIES_CAT[dt.weekday()]} ({dt.strftime('%d/%m')})"
@@ -65,7 +63,6 @@ def format_dia_label(dia: str) -> str:
 
 def dia_nom_per_horari(dia: str) -> str:
     """Retorna nom de dia per lookup en horaris (converteix ISO si cal)."""
-    import re as _re
 
     if _re.match(r"^\d{4}-\d{2}-\d{2}$", dia):
         return normalitzar_dia(iso_a_dia_nom(dia))

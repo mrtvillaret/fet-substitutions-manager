@@ -10,8 +10,9 @@ En lloc, calcula dates viables per ítem cridant directament RestrictionEngine.c
 """
 
 import re as _re
+from collections import defaultdict
+from collections import defaultdict as _dd
 from datetime import datetime as _dt
-from typing import Dict, List, Optional, Set, Tuple
 
 from scheduler_engine.core.constraints import _pes_obligatori, sessio_in_group
 from scheduler_engine.core.date_mapping import DIES_CAT
@@ -64,9 +65,9 @@ class InfeasibilityDiagnostic:
     def __init__(
         self,
         restriccions: dict,
-        dies_efectius: List[Tuple[str, str]],  # [(dia_nom, prefix_data)]
-        hores_examen: List[str],
-        nivells_actius: List[str],
+        dies_efectius: list[tuple[str, str]],  # [(dia_nom, prefix_data)]
+        hores_examen: list[str],
+        nivells_actius: list[str],
     ):
         self.restriccions = restriccions
         self.dies_efectius = dies_efectius  # [(dia_nom, prefix)]
@@ -78,7 +79,7 @@ class InfeasibilityDiagnostic:
     # API pública
     # ------------------------------------------------------------------
 
-    def run(self, items: List[dict]) -> List[dict]:
+    def run(self, items: list[dict]) -> list[dict]:
         """
         Retorna una llista de missatges d'incompatibilitat útils.
 
@@ -89,8 +90,8 @@ class InfeasibilityDiagnostic:
             return []
 
         # Calcular dates viables per ítem (sense context d'altres ítems)
-        dates_per_item: Dict[str, Set[str]] = {}
-        causa_per_item: Dict[str, str] = {}
+        dates_per_item: dict[str, set[str]] = {}
+        causa_per_item: dict[str, str] = {}
         for item in items:
             label = _item_label(item)
             dates, causa = self._dates_viables(item)
@@ -98,16 +99,15 @@ class InfeasibilityDiagnostic:
             if not dates:
                 causa_per_item[label] = causa
 
-        msgs: List[dict] = []
+        msgs: list[dict] = []
 
         def add(msg: dict):
             if msg not in msgs:
                 msgs.append(msg)
 
         # 1. Ítems sense cap slot viable — agrupar per nivell+causa (evita 19 línies iguals)
-        from collections import defaultdict
 
-        sense_slot_per_nivell_causa: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
+        sense_slot_per_nivell_causa: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
         for item in items:
             label = _item_label(item)
             if not dates_per_item.get(label):
@@ -144,11 +144,11 @@ class InfeasibilityDiagnostic:
     # Helpers privats
     # ------------------------------------------------------------------
 
-    def _slots_viables(self, item: dict) -> Set[str]:
+    def _slots_viables(self, item: dict) -> set[str]:
         """Les hores (prefix_hora) on l'ítem es pot col·locar sense context
         d'altres ítems."""
         sessions = item.get("sessions") or []
-        slots: Set[str] = set()
+        slots: set[str] = set()
         for dia_nom, prefix in self.dies_efectius:
             for hora in self.hores_examen:
                 if not any(
@@ -160,7 +160,7 @@ class InfeasibilityDiagnostic:
                     slots.add(f"{prefix}_{hora}")
         return slots
 
-    def _dates_viables(self, item: dict) -> Tuple[Set[str], str]:
+    def _dates_viables(self, item: dict) -> tuple[set[str], str]:
         """
         Retorna (dates_on_hi_ha_slot_valid, causa_principal_si_cap_data).
 
@@ -169,8 +169,8 @@ class InfeasibilityDiagnostic:
         Retorna la causa MÉS FREQÜENT entre tots els slots bloquejats.
         """
         sessions = item.get("sessions") or []
-        dates: Set[str] = set()
-        causa_counts: Dict[str, int] = {}
+        dates: set[str] = set()
+        causa_counts: dict[str, int] = {}
 
         for dia_nom, prefix in self.dies_efectius:
             for hora in self.hores_examen:
@@ -201,13 +201,12 @@ class InfeasibilityDiagnostic:
         causa = max(causa_counts, key=causa_counts.get) if causa_counts else "desconeguda"
         return dates, causa
 
-    def _check_no_mateix_dia(self, items: List[dict], dates_per_item: Dict[str, Set[str]], add) -> None:
+    def _check_no_mateix_dia(self, items: list[dict], dates_per_item: dict[str, set[str]], add) -> None:
         """
         Detecta problemes amb restriccions 'no_mateix_dia':
         - Parelles d'ítems que no es poden separar en dies distints
         - Grups on el nombre d'ítems supera el nombre de dies disponibles
         """
-        from collections import defaultdict as _dd
 
         dures = self.restriccions.get("restriccions_dures", {})
         no_mateix_dia_cfg = dures.get("no_mateix_dia", [])
@@ -215,7 +214,7 @@ class InfeasibilityDiagnostic:
             return
 
         # Mapa dia_fix per assignatura (valor pot ser data ISO o nom de dia)
-        dia_fix_cfg: Dict[str, str] = {}
+        dia_fix_cfg: dict[str, str] = {}
         raw_dia_fix = dures.get("assignatures_dia_fix") or {}
         if isinstance(raw_dia_fix, dict):
             for k, v in raw_dia_fix.items():
@@ -240,7 +239,7 @@ class InfeasibilityDiagnostic:
             referencia = {"index": idx, "assignatures": assignatures}
 
             # Trobar ítems del grup
-            items_grup: List[Tuple[str, Set[str]]] = []
+            items_grup: list[tuple[str, set[str]]] = []
             for item in items:
                 for s in item.get("sessions") or []:
                     if sessio_in_group(_sessio_to_dict(s), assignatures):
@@ -255,7 +254,7 @@ class InfeasibilityDiagnostic:
 
             # Detecció directa: ítems del grup amb dia_fix al mateix dia
             # (funciona fins i tot quan dates_per_item és buit per alliberaments)
-            fixes_per_label: Dict[str, str] = {}
+            fixes_per_label: dict[str, str] = {}
             for item in items:
                 for s in item.get("sessions") or []:
                     s_dict = _sessio_to_dict(s)
@@ -269,7 +268,7 @@ class InfeasibilityDiagnostic:
                         fixes_per_label[label] = date_fix
                     break
 
-            per_data: Dict[str, List[str]] = _dd(list)
+            per_data: dict[str, list[str]] = _dd(list)
             for label, date_fix in fixes_per_label.items():
                 per_data[date_fix].append(label)
             for date_fix, conflicting in per_data.items():
@@ -302,7 +301,7 @@ class InfeasibilityDiagnostic:
                         dates_fmt = ", ".join(sorted(dates_b)[:3])
                         add(missatge("examen_dies_solapats", **referencia, nom=lbl_b, altre=lbl_a, dies=dates_fmt))
 
-    def _check_no_mateix_slot(self, items: List[dict], slots_per_item: Dict[str, Set[str]], add) -> None:
+    def _check_no_mateix_slot(self, items: list[dict], slots_per_item: dict[str, set[str]], add) -> None:
         """Detecta grups no_mateix_slot que no hi caben: dos ítems limitats a
         la mateixa hora única, o més ítems que hores possibles entre tots."""
         dures = self.restriccions.get("restriccions_dures", {})
@@ -321,7 +320,7 @@ class InfeasibilityDiagnostic:
             referencia = {"grup": grup_nom, "assignatures": assignatures}
 
             # Els ítems sense cap hora possible ja surten com a «sense cap slot»
-            items_grup: List[Tuple[str, Set[str]]] = []
+            items_grup: list[tuple[str, set[str]]] = []
             for item in items:
                 if any(sessio_in_group(_sessio_to_dict(s), assignatures) for s in (item.get("sessions") or [])):
                     slots = slots_per_item[_item_label(item)]
@@ -345,14 +344,13 @@ class InfeasibilityDiagnostic:
             if not parelles and len(items_grup) > len(hores_conjunt):
                 add(missatge("hores_insuficients", **referencia, count=len(items_grup), hores=len(hores_conjunt)))
 
-    def _check_capacitat(self, items: List[dict], slots_per_item: Dict[str, Set[str]], add) -> None:
+    def _check_capacitat(self, items: list[dict], slots_per_item: dict[str, set[str]], add) -> None:
         """Detecta nivells amb més ítems que hores possibles (la unió de les
         de tots els ítems del nivell). Exclou els ítems sense cap hora, que ja
         surten per separat."""
-        from collections import defaultdict
 
-        items_per_nivell: Dict[str, int] = defaultdict(int)
-        slots_per_nivell: Dict[str, Set[str]] = defaultdict(set)
+        items_per_nivell: dict[str, int] = defaultdict(int)
+        slots_per_nivell: dict[str, set[str]] = defaultdict(set)
 
         for item in items:
             sessions = item.get("sessions") or []
@@ -378,9 +376,9 @@ class InfeasibilityDiagnostic:
 
 
 def construir_dies_efectius(
-    dies_utilitzar: List[str],
-    dia_a_data_iso: Optional[Dict] = None,
-) -> List[Tuple[str, str]]:
+    dies_utilitzar: list[str],
+    dia_a_data_iso: dict | None = None,
+) -> list[tuple[str, str]]:
     """
     Converteix la llista de dies_utilitzar en parelles (dia_nom, prefix).
     Suporta tant dates ISO com noms de dia.
@@ -389,7 +387,7 @@ def construir_dies_efectius(
     tenir llistes per suportar múltiples ocurrències del mateix dia de la setmana).
     Així el diagnòstic comprova TOTES les dates, igual que el motor.
     """
-    result: List[Tuple[str, str]] = []
+    result: list[tuple[str, str]] = []
     for d in dies_utilitzar or []:
         if _is_iso(d):
             try:

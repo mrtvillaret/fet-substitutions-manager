@@ -184,7 +184,9 @@ def _text_pdf(contingut: bytes) -> str:
     ],
 )
 def test_el_curs_de_la_vigilancia_es_el_nivell_sense_deduccions(vigilancia, esperat):
-    assert taula.curs_vigilancia(vigilancia) == esperat
+    from vigilancies.files import FilaVigilancia
+
+    assert taula.curs_vigilancia(FilaVigilancia(**vigilancia)) == esperat
 
 
 def test_l_informe_de_direccio_no_llegeix_la_configuracio_d_examens(centre, monkeypatch):
@@ -525,7 +527,7 @@ def test_els_informes_llegeixen_les_substitucions_per_data(centre):
         db.commit()
         files = RecomptesRepository.substitucions_entre(db, "2026-03-01", "2026-03-31")
 
-    assert [(f["data"], f["professor_absent"]) for f in files] == [("2026-03-02", "Prof 1"), ("2026-03-03", "Prof 2")]
+    assert [(f.data, f.professor_absent) for f in files] == [("2026-03-02", "Prof 1"), ("2026-03-03", "Prof 2")]
 
 
 def test_l_informe_d_un_professor_nomes_inclou_aquell_professor(centre):
@@ -640,9 +642,9 @@ def test_l_informe_per_professor_absencies_i_serveis_i_fetes_de_tots_els_tipus(c
         dades = {p["nom"]: p for p in services.dades_professors(db, DATA, DATA)}
 
     assert set(dades) == {"Prof 1", "Prof 5", "Prof 6", "Prof 7"}
-    assert [s["tipus_absencia"] for s in dades["Prof 1"]["absencies"]] == ["ABSENCIA"]
-    assert [s["hora"] for s in dades["Prof 5"]["substitucions_fetes"]] == ["08:00", "11:30"]
-    assert [s["tipus_absencia"] for s in dades["Prof 7"]["substitucions_fetes"]] == ["ENCADENADA"]
+    assert [s.tipus_absencia for s in dades["Prof 1"]["absencies"]] == ["ABSENCIA"]
+    assert [s.hora for s in dades["Prof 5"]["substitucions_fetes"]] == ["08:00", "11:30"]
+    assert [s.tipus_absencia for s in dades["Prof 7"]["substitucions_fetes"]] == ["ENCADENADA"]
 
 
 def test_l_informe_per_professor_va_per_ordre_alfabetic_natural(centre):

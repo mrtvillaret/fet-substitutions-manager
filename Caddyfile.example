@@ -1,26 +1,22 @@
-# Els filtres s'encadenen per aplicar diverses substitucions a request>uri.
-# Cada capa és compatible amb Caddy sense multi_regexp.
+# Filtre dels registres: IP escapçada, sense query i sense els noms de
+# professor o assignatura de la URI. Comproveu-lo en desplegar amb una petició
+# de prova (DESPLEGAMENT.md): una configuració vàlida no vol dir que filtri.
 (format-registres) {
     format filter {
         request>remote_ip ip_mask 24 48
         request>client_ip ip_mask 24 48
         request>headers>X-Forwarded-For delete
-        request>uri regexp "[?].*$" ""
-        wrap filter {
+        request>uri multi_regexp {
+            regexp "[?].*$" ""
             # Substitucions: absències, hores-professor i assignació manual;
             # Estadístiques: detall del professor.
-            request>uri regexp "^(/api/(?:substitucions/[^/?]+/[^/?]+|estadistiques/professor)/)[^?]+$" "${1}{professor}"
-            wrap filter {
-                request>uri regexp "^(/api/config/assignatures/[^/?]+/)[^?]+$" "${1}{nom}"
-                wrap filter {
-                    request>uri regexp "^(/api/prioritats/no-substituir/)[^?]+$" "${1}{assignatura}"
-                    wrap json
-                }
-            }
+            regexp "^(/api/(?:substitucions/[^/]+/[^/]+|estadistiques/professor)/).+$" "${1}{professor}"
+            regexp "^(/api/config/assignatures/[^/]+/).+$" "${1}{nom}"
+            regexp "^(/api/prioritats/no-substituir/).+$" "${1}{assignatura}"
         }
+        wrap json
     }
 }
-
 {
     # El filtre també s'aplica als errors interns de Caddy amb una petició.
     log default {

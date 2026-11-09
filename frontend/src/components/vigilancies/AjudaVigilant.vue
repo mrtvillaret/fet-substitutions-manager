@@ -31,6 +31,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../../errorsApi.js'
 import { nextTick, onBeforeUnmount, ref } from 'vue'
 import OverlayPanel from 'primevue/overlaypanel'
 import { useAjudaVigilant } from '../../composables/useAjudaVigilant'
@@ -75,8 +76,8 @@ const mostra = async (event) => {
   error.value = false
   try {
     ajuda.value = await carrega(props.data, props.hora, props.nom)
-  } catch {
-    error.value = true
+  } catch (errorCapturat) {
+    avisaError(errorCapturat, () => { error.value = true })
   } finally {
     carregant.value = false
   }

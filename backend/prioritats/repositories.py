@@ -3,8 +3,6 @@
 Els repositoris no fan commit: el fa el servei, un cop per operació (com a
 auth/repositories.py)."""
 
-from typing import Dict, List
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -15,11 +13,11 @@ class CategoriaPrioritatRepository:
     """Categories de prioritat"""
 
     @staticmethod
-    def ordenades(db: Session) -> List[CategoriaPrioritat]:
+    def ordenades(db: Session) -> list[CategoriaPrioritat]:
         return db.query(CategoriaPrioritat).order_by(CategoriaPrioritat.ordre).all()
 
     @staticmethod
-    def get_all(db: Session) -> List[Dict]:
+    def get_all(db: Session) -> list[dict]:
         """Totes les categories ordenades per ordre"""
         return [
             {"id": c.id, "nom": c.nom, "ordre": c.ordre, "activa": c.activa}
@@ -49,11 +47,11 @@ class AssignaturaPrioritatRepository:
     """Assignatures dins de les categories de prioritat"""
 
     @staticmethod
-    def totes(db: Session) -> List[AssignaturaPrioritat]:
+    def totes(db: Session) -> list[AssignaturaPrioritat]:
         return db.query(AssignaturaPrioritat).all()
 
     @staticmethod
-    def get_all(db: Session) -> List[Dict]:
+    def get_all(db: Session) -> list[dict]:
         """Totes les assignatures, en l'ordre de la categoria i el seu"""
         assignatures = (
             db.query(AssignaturaPrioritat)
@@ -97,7 +95,7 @@ class NoSubstituirRepository:
     """Activitats que no se substitueixen"""
 
     @staticmethod
-    def get_all(db: Session) -> List[str]:
+    def get_all(db: Session) -> list[str]:
         return [a.assignatura for a in db.query(NoSubstituir).all()]
 
     @staticmethod

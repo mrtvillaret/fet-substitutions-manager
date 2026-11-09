@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed } from 'vue'
 import * as apiSubstitucions from '../api/substitucions.js'
 import { llista as llistaVigilancies } from '../api/vigilancies.js'
@@ -89,7 +90,7 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
         apiSubstitucions.llista(data, ordreFiles.value),
         apiSubstitucions.llistaTotes(data, { silent: true }),
         obtenirVigilanciesCount(data),
-        apiPdf.validacions(data)
+        apiPdf.validacions(data, { _silent: true })
       ])
       if (idCarrega !== idCarregaSubstitucions) return
 
@@ -116,7 +117,7 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
       totesAbsencies.value = []
       vigilanciesCount.value = 0
       avisosEncadenades.value = []
-      errorCarregaSubstitucions.value = true
+      avisaError(error, () => { errorCarregaSubstitucions.value = true })
     } finally {
       if (idCarrega === idCarregaSubstitucions) loading.value = false
     }

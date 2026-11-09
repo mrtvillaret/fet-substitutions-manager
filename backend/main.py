@@ -12,6 +12,7 @@ load_dotenv()
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,11 +29,12 @@ from auth.services import crea_usuaris_inicials
 from centres.router import router as centres_router
 from config.access_log import configure_access_logger, request_route
 from config.auth import get_config_auth
+from config.settings import config
 from configuracio.router import router as configuracio_router
 from configuracio_examens.router import router as config_examens_router
 from cursos.router import router as cursos_router
 from dades.router import router as dades_router
-from database import create_auth_tables
+from database import create_auth_tables, get_data_db_session
 from errors_domini import MissingXmlError
 from errors_servidor import registra_gestors_errors
 from estadistiques.router import router as estadistiques_router
@@ -52,21 +54,12 @@ from vigilancies.router import router as vigilancies_router
 from vigilancies.router import router_admin as vigilancies_admin_router
 
 log = logging.getLogger(__name__)
-access_logger = configure_access_logger()
-
-# Crear taules si no existeixen
-create_auth_tables()
-crea_usuaris_inicials()
-
-# Les taules de dades (exam_*, etc.) es creen automàticament
-# dins de get_data_db_session() la primera vegada que s'usa
+access_logger = logging.getLogger("uvicorn.error")
 
 
 # Carregar prioritats des de la BD (per web, no usem JSON)
 def _inicialitzar_prioritats():
     """Carrega prioritats des de la BD en iniciar el backend"""
-    from config.settings import config
-    from database import get_data_db_session
 
     try:
         institucio = os.getenv("APP_INSTITUCIO") or config.global_data.get("institucio") or "exemple"
@@ -77,11 +70,23 @@ def _inicialitzar_prioritats():
         log.warning("   Es faran servir les constants del JSON per defecte")
 
 
-_inicialitzar_prioritats()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Inicialitza els recursos persistents només quan arrenca el servidor."""
+
+    global access_logger
+    config.inicialitza_fitxer()
+    access_logger = configure_access_logger()
+    create_auth_tables()
+    crea_usuaris_inicials()
+    _inicialitzar_prioritats()
+    yield
+
 
 # Fora de desenvolupament no es publica ni la documentació interactiva ni
 # l'esquema OpenAPI: donen el mapa complet de l'API a qui no ha entrat.
 app = FastAPI(
+    lifespan=lifespan,
     title="Gestor Substitucions API",
     description="API REST per gestionar substitucions i vigilàncies",
     version="1.0.0",

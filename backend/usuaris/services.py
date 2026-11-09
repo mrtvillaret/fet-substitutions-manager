@@ -1,8 +1,6 @@
 """Regles de la gestió d'usuaris: qui pot veure, crear, editar, desactivar i
 esborrar quins usuaris."""
 
-from typing import Optional
-
 from sqlalchemy.orm import Session
 
 from auth.domain import Rol, UsuariActual
@@ -24,7 +22,7 @@ def _noms_visibles(institucions) -> dict[str, str]:
     return noms
 
 
-def fitxa(user: User, nom_visible: Optional[str] = None) -> dict:
+def fitxa(user: User, nom_visible: str | None = None) -> dict:
     """L'usuari tal com el veu la pantalla d'usuaris."""
     if nom_visible is None:
         nom_visible = _noms_visibles([user.institucio])[user.institucio]
@@ -71,7 +69,7 @@ def _comprova_mateixa_institucio(user: User, current_user: UsuariActual) -> None
         raise NoPermes("No pots editar usuaris d'una altra institució", codi="usuari_d_una_altra_institucio")
 
 
-def _comprova_nom_lliure(db: Session, username: str, excepte: Optional[User] = None) -> None:
+def _comprova_nom_lliure(db: Session, username: str, excepte: User | None = None) -> None:
     altre = UserRepository.get_by_username(db, username)
     if altre and altre is not excepte:
         raise Conflicte("Ja existeix un usuari amb aquest nom", codi="nom_d_usuari_repetit")
@@ -83,7 +81,7 @@ def _comprova_que_no_es_treu_a_si_mateix(user: User, current_user: UsuariActual,
         raise NoPermes(f"No et pots {accio} a tu mateix", codi=f"{accio}_se")
 
 
-def _comprova_que_el_centre_conserva_un_admin(db: Session, user: User, despres: Optional[dict]) -> None:
+def _comprova_que_el_centre_conserva_un_admin(db: Session, user: User, despres: dict | None) -> None:
     """Regla única: cap operació pot deixar un centre sense cap admin actiu.
 
     `despres` és com quedarà l'usuari ({"active", "role", "institucio"}), o
@@ -115,7 +113,7 @@ def _comprova_que_el_centre_conserva_un_admin(db: Session, user: User, despres: 
 
 
 def crea_usuari(
-    db: Session, current_user: UsuariActual, username: str, password: str, institucio: Optional[str], role: str
+    db: Session, current_user: UsuariActual, username: str, password: str, institucio: str | None, role: str
 ) -> User:
     inicia_escriptura(db)
     role = role or Rol.USER

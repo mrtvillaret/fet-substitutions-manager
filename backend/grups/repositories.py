@@ -3,14 +3,14 @@ alliberaments per període i els grups amagats.
 
 Els repositoris no fan commit: el fa qui crida, un cop per operació."""
 
-from typing import Dict, List
+import json
 
 from sqlalchemy.orm import Session
 
 import rellotge
 from configuracio.repositories import ConfiguracioRepository
 from dates import parse_date
-from models import AlliberamentPeriode, GrupAlliberat, Substitucio, Vigilancia
+from models import AbreviaturaGrup, AlliberamentPeriode, GrupAlliberat, GrupAmagat, Substitucio, Vigilancia
 
 
 class AlliberamentsPeriodeRepository:
@@ -21,7 +21,7 @@ class AlliberamentsPeriodeRepository:
     TIPUS = ("professor",)
 
     @staticmethod
-    def darrers(db: Session, data: str, dia_setmana: str = None) -> Dict[tuple, AlliberamentPeriode]:
+    def darrers(db: Session, data: str, dia_setmana: str = None) -> dict[tuple, AlliberamentPeriode]:
         """{(tipus, clau, dia_setmana, hora): darrer canvi fet fins a `data`}
         (d'un dia de la setmana, si s'indica). La taula sempre hi és: es crea
         en obrir la BD (database.create_data_tables)."""
@@ -35,7 +35,7 @@ class AlliberamentsPeriodeRepository:
         return darrer
 
     @staticmethod
-    def estats(db: Session, data: str, dia_setmana: str) -> Dict[str, List[Dict]]:
+    def estats(db: Session, data: str, dia_setmana: str) -> dict[str, list[dict]]:
         """{hora: [{tipus, clau, des_de}]} del que està alliberat per període
         en una data (que és un `dia_setmana`)."""
         darrer = {
@@ -49,7 +49,7 @@ class AlliberamentsPeriodeRepository:
         return result
 
     @staticmethod
-    def canvis(db: Session, tipus: str = None, clau: str = None) -> List[Dict]:
+    def canvis(db: Session, tipus: str = None, clau: str = None) -> list[dict]:
         q = db.query(AlliberamentPeriode)
         if tipus:
             q = q.filter(AlliberamentPeriode.tipus == tipus)
@@ -70,7 +70,7 @@ class AlliberamentsPeriodeRepository:
 
     @staticmethod
     def afegeix(
-        db: Session, tipus: str, clau: str, dia_setmana: str, hores: List[str], des_de: str, alliberat: bool
+        db: Session, tipus: str, clau: str, dia_setmana: str, hores: list[str], des_de: str, alliberat: bool
     ) -> None:
         # Un sol canvi per (qui, dia, hora, data): el nou substitueix el que hi hagués
         for hora in hores:
@@ -94,7 +94,7 @@ class AlliberamentsPeriodeRepository:
         db.flush()
 
     @staticmethod
-    def dates_afectades(db: Session, des_de: str, dia_setmana: int) -> List[str]:
+    def dates_afectades(db: Session, des_de: str, dia_setmana: int) -> list[str]:
         """Les dates que un canvi per període pot afectar: a partir de
         `des_de` i mai abans d'avui (rellotge injectable), les del dia de la
         setmana `dia_setmana` (0 = dilluns) que ja tenen alguna substitució o
@@ -112,41 +112,8 @@ class GrupsAlliberatsRepository:
     """Operacions per grups alliberats"""
 
     @staticmethod
-    def get_by_date(db: Session, data: str) -> Dict[str, List[str]]:
-        """Alliberats efectius per hora en una data: els marcats aquell dia més
-        els que vénen d'un alliberament per període; les activitats alliberades
-        es resolen als professors que les fan (perquè compti com qualsevol
-        professor alliberat)."""
-        result = GrupsAlliberatsRepository.get_dia_by_date(db, data)
-        from errors_domini import MissingXmlError
-        from horari.context import get_horari
-
-        try:
-            horari = get_horari(db.info.get("institucio"), data_iso=data)
-        except MissingXmlError:
-            return result  # sense horari no hi ha activitats ni períodes a resoldre
-        from grups.alliberaments import resol_alliberats
-
-        dia = horari.get_dia_name(parse_date(data).weekday())
-        return resol_alliberats(
-            result,
-            horari,
-            parse_date(data),
-            AlliberamentsPeriodeRepository.darrers(db, data, dia),
-            set(GrupsAlliberatsRepository.activitats_per_defecte(db)),
-        )
-
-    @staticmethod
-    def get_entre_dates(db: Session, dates: list[str]) -> dict[str, dict[str, list[str]]]:
-        """Els alliberats de les dates demanades, amb consultes per interval
-        i un horari per versió de l'XML. Memòria només d'aquesta crida."""
-        from errors_domini import MissingXmlError
-        from grups.alliberaments import resol_alliberats
-        from horari.context import horaris_per_dates
-
-        dates = sorted(set(dates))
-        if not dates:
-            return {}
+    def llegeix_interval(db: Session, dates: list[str]):
+        """Marques i canvis de període, en l’ordre històric de lectura."""
         resultat = {d: {} for d in dates}
         files = (
             db.query(GrupAlliberat)
@@ -166,26 +133,11 @@ class GrupsAlliberatsRepository:
             .order_by(AlliberamentPeriode.des_de, AlliberamentPeriode.id)
             .all()
         )
-        per_defecte = set(GrupsAlliberatsRepository.activitats_per_defecte(db))
-        horaris = horaris_per_dates(db)
-        darrers, index = {}, 0
-        for data in dates:
-            data_obj = parse_date(data)
-            while index < len(canvis) and canvis[index].des_de <= data_obj:
-                c = canvis[index]
-                darrers[(c.tipus, c.clau, c.dia_setmana, c.hora)] = c
-                index += 1
-            try:
-                horari = horaris(data)
-            except MissingXmlError:
-                continue  # com la lectura d'un dia: només les marques manuals
-            resultat[data] = resol_alliberats(resultat[data], horari, data_obj, darrers, per_defecte)
-        return resultat
+        return resultat, canvis
 
     @staticmethod
-    def activitats_per_defecte(db: Session) -> List[str]:
+    def activitats_per_defecte(db: Session) -> list[str]:
         """Activitats alliberables que estan alliberades fins que tenen alumnes."""
-        import json
 
         try:
             return [
@@ -195,7 +147,7 @@ class GrupsAlliberatsRepository:
             return []
 
     @staticmethod
-    def get_dia_by_date(db: Session, data: str) -> Dict[str, List[str]]:
+    def get_dia_by_date(db: Session, data: str) -> dict[str, list[str]]:
         """Només el que s'ha marcat aquell dia (sense els alliberaments per període)"""
         grups = db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).all()
 
@@ -208,7 +160,7 @@ class GrupsAlliberatsRepository:
         return result
 
     @staticmethod
-    def files_del_dia(db: Session, data: str) -> List[GrupAlliberat]:
+    def files_del_dia(db: Session, data: str) -> list[GrupAlliberat]:
         """Els grups marcats aquell dia (sense els dels períodes)."""
         return db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).all()
 
@@ -221,7 +173,7 @@ class GrupsAlliberatsRepository:
         db.add(GrupAlliberat(data=parse_date(data), hora=hora, grups=grup))
 
     @staticmethod
-    def set_for_date(db: Session, data: str, grups_per_hora: Dict[str, List[str]]):
+    def set_for_date(db: Session, data: str, grups_per_hora: dict[str, list[str]]):
         """Estableix grups alliberats per una data (substitueix existents)"""
         # Eliminar existents
         db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).delete()
@@ -239,16 +191,14 @@ class GrupsAmagatsRepository:
     """Grups que el centre amaga (llista d'exclusió; buida = es mostren tots)."""
 
     @staticmethod
-    def get_all(db: Session) -> List[str]:
+    def get_all(db: Session) -> list[str]:
         """Llista dels grups amagats (buida si no se n'amaga cap)."""
-        from models import GrupAmagat
 
         return [g.grup for g in db.query(GrupAmagat).order_by(GrupAmagat.grup).all()]
 
     @staticmethod
-    def set_all(db: Session, grups: List[str]) -> int:
+    def set_all(db: Session, grups: list[str]) -> int:
         """Reemplaça la llista d'amagats sencera per la donada."""
-        from models import GrupAmagat
 
         db.query(GrupAmagat).delete()
         vistos = set()
@@ -265,9 +215,8 @@ class AbreviaturaGrupRepository:
     """Repositori per gestionar abreviatures de grups"""
 
     @staticmethod
-    def get_all(db: Session) -> List[Dict]:
+    def get_all(db: Session) -> list[dict]:
         """Retorna totes les abreviatures"""
-        from models import AbreviaturaGrup
 
         abreviatures = db.query(AbreviaturaGrup).all()
 
@@ -276,7 +225,6 @@ class AbreviaturaGrupRepository:
     @staticmethod
     def id_per_grups(db: Session, grups_originals: str):
         """L'id de l'abreviatura d'aquests grups, o None."""
-        from models import AbreviaturaGrup
 
         fila = db.query(AbreviaturaGrup.id).filter(AbreviaturaGrup.grups_originals == grups_originals).first()
         return fila[0] if fila else None
@@ -284,7 +232,6 @@ class AbreviaturaGrupRepository:
     @staticmethod
     def id_per_abreviatura(db: Session, abreviatura: str):
         """L'id de l'abreviatura amb aquest text, o None."""
-        from models import AbreviaturaGrup
 
         fila = db.query(AbreviaturaGrup.id).filter(AbreviaturaGrup.abreviatura == abreviatura).first()
         return fila[0] if fila else None
@@ -292,12 +239,11 @@ class AbreviaturaGrupRepository:
     @staticmethod
     def create(db: Session, grups_originals: str, abreviatura: str) -> int:
         """Crea una nova abreviatura"""
-        from models import AbreviaturaGrup
 
         nova_abrev = AbreviaturaGrup(grups_originals=grups_originals, abreviatura=abreviatura)
 
         db.add(nova_abrev)
-        db.commit()
+        db.flush()
         db.refresh(nova_abrev)
 
         return nova_abrev.id
@@ -305,7 +251,6 @@ class AbreviaturaGrupRepository:
     @staticmethod
     def update(db: Session, abreviatura_id: int, grups_originals: str = None, abreviatura: str = None) -> bool:
         """Actualitza una abreviatura"""
-        from models import AbreviaturaGrup
 
         abrev = db.query(AbreviaturaGrup).filter(AbreviaturaGrup.id == abreviatura_id).first()
 
@@ -317,13 +262,12 @@ class AbreviaturaGrupRepository:
         if abreviatura is not None:
             abrev.abreviatura = abreviatura
 
-        db.commit()
+        db.flush()
         return True
 
     @staticmethod
     def delete(db: Session, abreviatura_id: int) -> bool:
         """Elimina una abreviatura"""
-        from models import AbreviaturaGrup
 
         abrev = db.query(AbreviaturaGrup).filter(AbreviaturaGrup.id == abreviatura_id).first()
 
@@ -331,16 +275,15 @@ class AbreviaturaGrupRepository:
             return False
 
         db.delete(abrev)
-        db.commit()
+        db.flush()
         return True
 
     @staticmethod
     def delete_all(db: Session) -> int:
         """Elimina totes les abreviatures"""
-        from models import AbreviaturaGrup
 
         count = db.query(AbreviaturaGrup).delete()
-        db.commit()
+        db.flush()
         return count
 
 

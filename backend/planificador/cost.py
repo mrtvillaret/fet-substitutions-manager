@@ -10,7 +10,6 @@ from types import SimpleNamespace
 
 from errors_domini import NoValid
 from horari.domain import Dia
-from horari.hores import normalitzar_hora as _normalitzar_hora
 from planificador.alliberaments import extreure_hores_examen_des_alliberaments
 from planificador.config import aplica_restriccions_derivades, carrega_config
 from planificador.planificacio import xml_del_dia
@@ -24,6 +23,7 @@ from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_tex
 from scheduler_engine.core.scoring import pes_professor
 from scheduler_engine.estadistiques import recalcular_cost_i_breakdown
 from scheduler_engine.validacio import ValidadorHorari
+from textos import normalitzar_hora as _normalitzar_hora
 
 
 def _substitucio(prof, hora, dia, item):

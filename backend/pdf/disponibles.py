@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 import i18n_setup
 from config.constants import ORDRE_PRIORITATS, PRIORITATS
 from configuracio.repositories import ConfiguracioRepository
-from grups.repositories import GrupsAlliberatsRepository
+from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import setup_translation, translate
 from substitucions.repositories import SubstitucioRepository
@@ -86,9 +86,9 @@ def ocupacio_del_dia(db: Session, dia_iso: str) -> tuple[dict, dict]:
     absents = defaultdict(set)
     ocupats = defaultdict(set)
     for sub in SubstitucioRepository.get_by_date(db, dia_iso):
-        h = sub.get("hora", "")
-        substitut = sub.get("substitut", "")
-        absent = sub.get("professor_absent", "")
+        h = sub.hora
+        substitut = sub.substitut
+        absent = sub.professor_absent
         if h and substitut:
             ocupats[h].add(substitut)
         if h and absent:
@@ -96,8 +96,8 @@ def ocupacio_del_dia(db: Session, dia_iso: str) -> tuple[dict, dict]:
     try:
         for nivell_vigs in VigilanciaRepository.get_by_date(db, dia_iso).values():
             for vig in nivell_vigs:
-                h = vig.get("hora", "")
-                vigilant = vig.get("vigilant", "")
+                h = vig.hora
+                vigilant = vig.vigilant
                 if h and vigilant:
                     ocupats[h].add(vigilant)
     except Exception:
@@ -189,7 +189,7 @@ def _full_del_dia(db: Session, institucio: str, dia: date, estils: _Estils) -> l
     _, horari_mgr, alliberats_mgr, _ = Dia.de_text(dia_iso, institucio).gestors()
     dia_name_xml = nom_dia_xml(horari_mgr, dia)
     absents, ocupats = ocupacio_del_dia(db, dia_iso)
-    grups_alliberats = GrupsAlliberatsRepository.get_by_date(db, dia_iso)
+    grups_alliberats = AlliberatsDelDia.get_by_date(db, dia_iso)
 
     blocs = []
     for hora in horari_mgr.hores:

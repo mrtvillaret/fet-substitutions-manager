@@ -27,6 +27,7 @@ from auth.dependencies import get_current_user
 from config import constants
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
+from i18n_setup import _
 from prioritats.repositories import NoSubstituirRepository
 from vigilancies.router import router as vigilancies_router
 
@@ -44,7 +45,7 @@ def no_substituir(_usuari=Depends(get_current_user)):
 
 @_textos.get("/api/prova/textos")
 def textos(_usuari=Depends(get_current_user)):
-    return {"dia": i18n_setup.translate("Dilluns"), "idioma": i18n_setup.CURRENT_LANGUAGE, "builtins": _("Professor")}  # noqa: F821  (la `_` global que fan servir alguns mòduls)
+    return {"dia": i18n_setup.translate("Dilluns"), "idioma": i18n_setup.CURRENT_LANGUAGE, "traduccio": _("Professor")}
 
 
 def _port_lliure():
@@ -79,6 +80,7 @@ def servidor():
             NoSubstituirRepository.create(db, activitat)
             db.commit()
             ConfiguracioRepository.set(db, "idioma", idioma)
+            db.commit()
 
     port = _port_lliure()
     srv = uvicorn.Server(
@@ -141,8 +143,8 @@ def test_les_prioritats_no_es_barregen_entre_institucions(servidor):
 def test_l_idioma_no_es_barreja_entre_institucions(servidor):
     port, a, b, galetes = servidor
     esperat = {
-        a: {"dia": "Dilluns", "idioma": "ca", "builtins": "Professor"},
-        b: {"dia": "Lunes", "idioma": "es", "builtins": "Profesor"},
+        a: {"dia": "Dilluns", "idioma": "ca", "traduccio": "Professor"},
+        b: {"dia": "Lunes", "idioma": "es", "traduccio": "Profesor"},
     }
 
     def una(inst):

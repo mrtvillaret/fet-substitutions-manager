@@ -27,6 +27,7 @@ TEXTOS = {
 def test_xml_sense_estructura_es_rebutja_sense_desar_cap_versio(client, centre, idioma, xml):
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "idioma", idioma)
+        db.commit()
     resposta = _puja(client, contingut=xml)
     assert resposta.status_code == 400, resposta.text
     assert resposta.json()["detail"] == TEXTOS[idioma]

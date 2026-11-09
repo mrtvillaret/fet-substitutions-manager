@@ -1,12 +1,12 @@
 """
-absents_coberts_en (absencia_coberta/services.py): la funció única que diu qui té una absència coberta
+absents_coberts_en (absencia_coberta/domain.py): la funció única que diu qui té una absència coberta
 en una data. Abans era copiada a deu llocs, i una sola baixa amb dates mal
 escrites aturava el bucle: els professors que venien després no comptaven.
 """
 
 from datetime import date, datetime
 
-from absencia_coberta.services import absents_coberts_en
+from absencia_coberta.domain import absents_coberts_en
 
 BAIXES = [
     {"professor": "Prof 1", "data_inici": "2026-04-01", "data_final": "2026-04-30"},

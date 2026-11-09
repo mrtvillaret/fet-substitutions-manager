@@ -1,9 +1,9 @@
 """Rellotge determinista: dia fix i avanç mínim per distingir les escriptures."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from threading import Lock
 
-ARA = datetime(2026, 11, 4, 12, tzinfo=timezone.utc)
+ARA = datetime(2026, 11, 4, 12, tzinfo=UTC)
 AVUI = ARA.date()
 
 

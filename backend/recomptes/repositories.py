@@ -1,19 +1,20 @@
 """Les consultes dels recomptes."""
 
 from datetime import date, datetime
-from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from dates import parse_date
 from models import Substitucio, Vigilancia
+from substitucions.files import FilaSubstitucio
+from vigilancies.files import FilaVigilancia
 
 
-def _fila_substitucio(sub: Substitucio) -> dict[str, Any]:
+def _fila_substitucio(sub: Substitucio) -> FilaSubstitucio:
     """Una substitució sencera, amb els valors tal com són a la taula: les
     dates en text ISO i els moments de creació i de modificació com els desa
-    SQLAlchemy (els recomptes treballen amb diccionaris de text)."""
+    SQLAlchemy (els recomptes conserven el format SQL històric)."""
     fila = {}
     for columna in Substitucio.__table__.columns:
         valor = getattr(sub, columna.key)
@@ -22,12 +23,12 @@ def _fila_substitucio(sub: Substitucio) -> dict[str, Any]:
         elif isinstance(valor, date):
             valor = valor.isoformat()
         fila[columna.name] = valor
-    return fila
+    return FilaSubstitucio(**fila)
 
 
 class RecomptesRepository:
     @staticmethod
-    def substitucions_entre(db: Session, data_inici: str, data_final: str) -> list[dict[str, Any]]:
+    def substitucions_entre(db: Session, data_inici: str, data_final: str) -> list[FilaSubstitucio]:
         """Totes les substitucions de l'interval (els dos dies inclosos), per
         data i, dins de cada dia, en l'ordre en què es van crear (l'ordre
         decideix els empats dels rànquings de l'informe)."""
@@ -51,7 +52,7 @@ class RecomptesRepository:
         return query.order_by(Substitucio.data, Substitucio.id)
 
     @staticmethod
-    def amb_substitut_entre(db: Session, data_inici: str | None, data_final: str | None) -> list[dict[str, Any]]:
+    def amb_substitut_entre(db: Session, data_inici: str | None, data_final: str | None) -> list[FilaSubstitucio]:
         """Les files amb substitut de l'interval, senceres."""
         return [
             _fila_substitucio(sub)
@@ -61,17 +62,17 @@ class RecomptesRepository:
     @staticmethod
     def franges_amb_substitut_entre(
         db: Session, data_inici: str | None, data_final: str | None
-    ) -> list[dict[str, Any]]:
+    ) -> list[FilaSubstitucio]:
         """Les mateixes files, només amb el substitut, la data (text ISO) i
         l'hora: el que cal per comptar-les per franja, sense llegir-les
         senceres."""
         files = RecomptesRepository._amb_substitut(
             db, data_inici, data_final, Substitucio.substitut, Substitucio.data, Substitucio.hora
         )
-        return [{"substitut": s, "data": d.isoformat(), "hora": h} for s, d, h in files]
+        return [FilaSubstitucio(substitut=s, data=d.isoformat(), hora=h) for s, d, h in files]
 
     @staticmethod
-    def vigilancies_entre(db: Session, data_inici: str, data_final: str) -> list[dict[str, Any]]:
+    def vigilancies_entre(db: Session, data_inici: str, data_final: str) -> list[FilaVigilancia]:
         """Les vigilàncies d'examen de l'interval: data (text ISO), hora i
         vigilant, per data, hora i ordre."""
         files = (
@@ -80,4 +81,4 @@ class RecomptesRepository:
             .order_by(Vigilancia.data, Vigilancia.hora, Vigilancia.ordre, Vigilancia.id)
             .all()
         )
-        return [{"data": v.data.isoformat(), "hora": v.hora, "vigilant": v.vigilant} for v in files]
+        return [FilaVigilancia(data=v.data.isoformat(), hora=v.hora, vigilant=v.vigilant) for v in files]

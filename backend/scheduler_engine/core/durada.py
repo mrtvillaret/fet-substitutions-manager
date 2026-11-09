@@ -2,14 +2,12 @@
 Helpers per gestionar la durada d'examen per nivell i per sessió.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from scheduler_engine.core.constraints import detectar_nivell_grup
 
 
-def get_durada_per_nivell(
-    nivell: Optional[str], alliberaments_per_nivell: Optional[Dict[str, Any]], default: int
-) -> int:
+def get_durada_per_nivell(nivell: str | None, alliberaments_per_nivell: dict[str, Any] | None, default: int) -> int:
     """Retorna la durada per nivell si existeix, o el default."""
     if not nivell or not alliberaments_per_nivell:
         return default
@@ -31,10 +29,10 @@ def get_durada_per_nivell(
 
 
 def get_durada_per_sessio_key(
-    sessio_nom: Optional[str],
-    nivell: Optional[str],
-    durades_per_sessio: Optional[Dict[str, int]],
-    alliberaments_per_nivell: Optional[Dict[str, Any]],
+    sessio_nom: str | None,
+    nivell: str | None,
+    durades_per_sessio: dict[str, int] | None,
+    alliberaments_per_nivell: dict[str, Any] | None,
     default: int,
 ) -> int:
     """Prioritat: durades_per_sessio > default global (durada_titular).
@@ -55,7 +53,7 @@ def get_durada_per_sessio_key(
     return default
 
 
-def detectar_nivell_sessio(sessio: Any, nivells_actius: list[str]) -> Optional[str]:
+def detectar_nivell_sessio(sessio: Any, nivells_actius: list[str]) -> str | None:
     """Detecta el nivell d'una sessio a partir del camp curs o dels grups."""
     if not sessio:
         return None

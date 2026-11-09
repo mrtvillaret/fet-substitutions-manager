@@ -117,7 +117,7 @@ def test_un_substitut_no_es_pot_assignar_a_dues_files_simultanies(monkeypatch):
     )
     assert sorted(resultat.values()) == ["ok", "substitut_repetit"], resultat
     with get_data_db_session(centre) as db:
-        assert sum(s["substitut"] == "Prof 21" for s in SubstitucioRepository.get_by_date(db, DATA)) == 1
+        assert sum(s.substitut == "Prof 21" for s in SubstitucioRepository.get_by_date(db, DATA)) == 1
 
 
 @pytest.mark.parametrize("accio", ["desactivar", "esborrar", "treure_rol", "canviar_centre"])

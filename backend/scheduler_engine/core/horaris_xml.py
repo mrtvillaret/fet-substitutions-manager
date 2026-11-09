@@ -1,8 +1,7 @@
 """Lectura de l'horari dels professors des de l'XML de FET."""
 
-from horari.hores import normalitzar_hora
-from noms import nom_net
 from scheduler_engine.core.normalitzacio import normalitzar_dia
+from textos import nom_net, normalitzar_hora
 
 
 def horaris_professors(root, ultim_professor: str = "", normalitza_hores: bool = False) -> dict:

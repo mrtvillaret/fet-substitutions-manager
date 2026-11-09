@@ -53,6 +53,7 @@ def _desa(centre, nivells, alliberaments):
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(nivells), tipus="json")
         ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(alliberaments), tipus="json")
+        db.commit()
 
 
 def test_la_configuracio_torna_els_nivells_seleccionats(client, centre):

@@ -30,7 +30,7 @@ test('configuració conserva lectures, blob, multipart i cossos', async () => {
   await comprova(config.idiomesAmb, [], { idiomes: ['ca'] }, ['get', '/api/settings/idiomes'])
   await comprova(config.versionsXmlAmb, [], { versions: [] }, ['get', '/api/settings/xml-versions'])
   await comprova(config.logoAmb, [123], 'blob', [
-    'get', '/api/files/logo', { responseType: 'blob', params: { ts: 123 }, _silent: true }
+    'get', '/api/files/logo', { responseType: 'blob', params: { ts: 123 }, _silent: [404] }
   ])
   await comprova(config.editaVersioXmlAmb, [7, { data_inici: null }], {}, [
     'put', '/api/settings/xml-versions/7', { data_inici: null }

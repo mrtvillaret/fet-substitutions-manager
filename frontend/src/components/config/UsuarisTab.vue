@@ -150,6 +150,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -253,12 +254,12 @@ const carregarUsuaris = async () => {
     users.value = response.data || []
   } catch (error) {
     console.error('Error carregant usuaris:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: t('config.users.loadError'),
       life: 3000
-    })
+    }))
   } finally {
     usersLoading.value = false
   }
@@ -354,12 +355,12 @@ const desarUsuari = async () => {
     resetUsuariForm()
   } catch (error) {
     console.error('Error desant usuari:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.users.saveError'),
       life: 3000
-    })
+    }))
   }
 }
 
@@ -382,12 +383,12 @@ const desactivarUsuari = (user) => {
         await carregarUsuaris()
       } catch (error) {
         console.error('Error desactivant usuari:', error)
-        toast.add({
+        avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
           detail: error.response?.data?.detail || t('config.users.deleteError'),
           life: 3000
-        })
+        }))
       }
     }
   })
@@ -412,12 +413,12 @@ const eliminarUsuari = (user) => {
         await carregarUsuaris()
       } catch (error) {
         console.error('Error eliminant usuari:', error)
-        toast.add({
+        avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
           detail: error.response?.data?.detail || t('config.users.deleteError'),
           life: 3000
-        })
+        }))
       }
     }
   })

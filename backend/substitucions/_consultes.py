@@ -5,13 +5,14 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from grups.repositories import GrupsAlliberatsRepository
+from config import constants
+from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from recomptes.services import fetes_del_curs_per_substitut
 from substitucions.repositories import SubstitucioRepository
-from substitucions.schemas import SubstitucioResponse
+from substitucions.schemas import SubstitucioResponse, resposta_substitucio
 from substitucions.visibilitat import es_visible_a_substitucions
 from vigilancies.repositories import VigilanciaRepository
 
@@ -32,34 +33,18 @@ def llista_substitucions(
 
     if include_all:
         for sub in substitucions_list:
-            if sub.get("tipus_absencia") == "ENCADENADA":
+            if sub.tipus_absencia == "ENCADENADA":
                 continue
-            result.append(_resposta_substitucio(sub))
+            result.append(resposta_substitucio(sub))
     else:
-        grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
+        grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
         no_substituir = set(NoSubstituirRepository.get_all(db))
 
         for sub in substitucions_list:
-            if es_visible_a_substitucions(sub, no_substituir, grups_sense_classe.get(sub.get("hora", ""), [])):
-                result.append(_resposta_substitucio(sub))
+            if es_visible_a_substitucions(sub, no_substituir, grups_sense_classe.get(sub.hora, [])):
+                result.append(resposta_substitucio(sub))
 
     return SubstitucioRepository.ordena(result, horari.hores, valor=getattr, ordre=ordre)
-
-
-def _resposta_substitucio(sub: dict) -> SubstitucioResponse:
-    return SubstitucioResponse(
-        id=sub["id"],
-        hora=sub.get("hora", ""),
-        professor_absent=sub.get("professor_absent", ""),
-        assignatura=sub.get("assignatura", ""),
-        grup=sub.get("grup", ""),
-        aula=sub.get("aula", ""),
-        substitut=sub.get("substitut", None),
-        comentaris=sub.get("comentaris", ""),
-        estat="assignada" if sub.get("substitut") else "pendent",
-        tipus_absencia=sub.get("tipus_absencia", ""),
-        updated_at=sub.get("updated_at"),
-    )
 
 
 def hores_professor(db: Session, dia: Dia, data: str, professor: str) -> dict:
@@ -88,24 +73,23 @@ def hores_professor(db: Session, dia: Dia, data: str, professor: str) -> dict:
 
 def _context_disponibles(db: Session, dia: Dia, data: str) -> dict:
     """Prepara una vegada les dades comunes a totes les hores del dia."""
-    from config.constants import ORDRE_PRIORITATS, get_professor_emoji
 
     data_iso(data)
     vigilants_per_hora = defaultdict(set)
     for files in VigilanciaRepository.get_by_date(db, data).values():
         for vigilancia in files:
-            if vigilancia.get("vigilant"):
-                vigilants_per_hora[vigilancia["hora"]].add(vigilancia["vigilant"])
+            if vigilancia.vigilant:
+                vigilants_per_hora[vigilancia.hora].add(vigilancia.vigilant)
 
     substituts_per_hora = defaultdict(set)
     absents_per_hora = defaultdict(set)
     for sub in SubstitucioRepository.get_by_date(db, data):
-        hora = sub.get("hora")
-        prof_absent = sub.get("professor_absent")
+        hora = sub.hora
+        prof_absent = sub.professor_absent
         if hora and prof_absent:
             absents_per_hora[hora].add(prof_absent)
-        if hora and sub.get("substitut"):
-            substituts_per_hora[hora].add(sub["substitut"])
+        if hora and sub.substitut:
+            substituts_per_hora[hora].add(sub.substitut)
 
     _, horari, alliberats, _ = dia.gestors()
     dia_setmana = datetime.strptime(data, "%Y-%m-%d").weekday()
@@ -114,8 +98,8 @@ def _context_disponibles(db: Session, dia: Dia, data: str) -> dict:
     fetes_per_franja, fetes_total = fetes_del_curs_per_substitut(db, data)
 
     return {
-        "ordre_prioritats": ORDRE_PRIORITATS,
-        "get_professor_emoji": get_professor_emoji,
+        "ordre_prioritats": constants.ORDRE_PRIORITATS,
+        "get_professor_emoji": constants.get_professor_emoji,
         "vigilants_per_hora": vigilants_per_hora,
         "substituts_per_hora": substituts_per_hora,
         "absents_per_hora": absents_per_hora,
@@ -124,7 +108,7 @@ def _context_disponibles(db: Session, dia: Dia, data: str) -> dict:
         "absents_coberts": horari.absents_coberts,
         "dia_setmana": dia_setmana,
         "dia_name": horari.get_dia_name(dia_setmana),
-        "grups_sense_classe": GrupsAlliberatsRepository.get_by_date(db, data),
+        "grups_sense_classe": AlliberatsDelDia.get_by_date(db, data),
         "fetes_per_franja": fetes_per_franja,
         "fetes_total": fetes_total,
     }

@@ -2,14 +2,16 @@
 
 from collections import defaultdict
 
+from config import constants
 from grups.disponibilitat import sense_classe
 from i18n_setup import translate as _
 from substitucions.domain import DiaEscolar
+from vigilancies.files import FilaVigilancia
 
 
-def selecciona_problemes(problemes: list[dict], files: list[dict]) -> list[dict]:
+def selecciona_problemes(problemes: list[dict], files: list[FilaVigilancia]) -> list[dict]:
     """Analitzar sempre el dia sencer; presentar només els problemes que afecten la tria."""
-    ids = {str(v["id"]) for v in files if v.get("id") is not None}
+    ids = {str(v.id) for v in files if v.id is not None}
     return [p for p in problemes if not p["files"] or ids.intersection(p["files"])]
 
 
@@ -26,10 +28,10 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
     absents = defaultdict(set, {h: set(ps) for h, ps in dia.absents_per_hora.items()})
     classes, cobertures = defaultdict(list), defaultdict(list)
     for sub in dia.files:
-        clau = (sub.get("hora", ""), (sub.get("professor_absent") or "").strip())
-        if sub.get("tipus_absencia") == "VIGILANCIA":
+        clau = (sub.hora, (sub.professor_absent or "").strip())
+        if sub.tipus_absencia == "VIGILANCIA":
             classes[clau].append(sub)
-        elif sub.get("tipus_absencia") == "VIGILANCIA_ABSENT":
+        elif sub.tipus_absencia == "VIGILANCIA_ABSENT":
             cobertures[clau].append(sub)
             absents[clau[0]].add(clau[1])
 
@@ -38,28 +40,28 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
         return "" if valor in ("---", "PENDENT") or valor.startswith("-- selecciona") else valor
 
     def afegeix(tipus, gravetat, vigs, missatge, professor="", grup=None, efectiva=None):
-        v = vigs[0] if vigs else {}
+        v = vigs[0] if vigs else FilaVigilancia()
         if tipus in ("classe_coberta", "classe_sense_cobertura"):
             for anterior in resultat:
                 if (anterior["tipus"], anterior["hora"], anterior["professor"], anterior["grup"]) == (
                     tipus,
-                    v.get("hora") or "",
+                    v.hora or "",
                     professor,
                     grup,
                 ):
                     anterior["files"].extend(
-                        str(f["id"]) for f in vigs if f.get("id") is not None and str(f["id"]) not in anterior["files"]
+                        str(f.id) for f in vigs if f.id is not None and str(f.id) not in anterior["files"]
                     )
                     return
         resultat.append(
             {
                 "tipus": tipus,
                 "gravetat": gravetat,
-                "hora": v.get("hora") or "",
-                "files": [str(v["id"]) for v in vigs if v.get("id") is not None],
+                "hora": v.hora or "",
+                "files": [str(v.id) for v in vigs if v.id is not None],
                 "professor": professor,
-                "grup": v.get("grups") or "" if grup is None else grup,
-                "aula": v.get("aula") or "",
+                "grup": v.grups or "" if grup is None else grup,
+                "aula": v.aula or "",
                 "cobertura_efectiva": efectiva,
                 "missatge": missatge.removeprefix("ℹ️ "),
             }
@@ -67,6 +69,16 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
 
     def present(p, hora):
         return p and p not in absents[hora] and p not in dia.baixes
+
+    def comprova_horari(v, professor):
+        if dia.professor_a_horari(professor) is False:
+            afegeix(
+                "vigilant_fora_horari",
+                "important",
+                [v],
+                _("❌ {hora}: {vigilant} no és a l’horari d’aquell dia").format(hora=v.hora or "", vigilant=professor),
+                professor,
+            )
 
     def classe_pendent(p, hora):
         a = dia.activitat(p, hora)
@@ -77,14 +89,14 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
     def cobertura_classe(p, hora):
         a = dia.activitat(p, hora)
         for sub in classes[(hora, p)]:
-            if (sub.get("grup") or "") != (a.get("grup") or ""):
+            if (sub.grup or "") != (a.get("grup") or ""):
                 continue
-            q = nom(sub.get("substitut"))
+            q = nom(sub.substitut)
             if not present(q, hora) or classe_pendent(q, hora):
                 continue
-            if any(nom(v.get("vigilant")) == q and v.get("hora") == hora for v in dia.vigilancies):
+            if any(nom(v.vigilant) == q and v.hora == hora for v in dia.vigilancies):
                 continue
-            if sum(1 for s in dia.files if s.get("hora") == hora and nom(s.get("substitut")) == q) != 1:
+            if sum(1 for s in dia.files if s.hora == hora and nom(s.substitut) == q) != 1:
                 continue
             return q
         return None
@@ -96,7 +108,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
 
     efectius = defaultdict(list)
     for v in dia.vigilancies:
-        hora, p, aula = v.get("hora") or "", nom(v.get("vigilant")), nom(v.get("aula"))
+        hora, p, aula = v.hora or "", nom(v.vigilant), nom(v.aula)
         per_hora[hora].append(v)
         if not hora:
             afegeix(
@@ -104,8 +116,8 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
                 "important",
                 [v],
                 _("❌ Vigilància sense hora ({tipus}, {grup})").format(
-                    tipus=_("VIGILÀNCIA") if v.get("tipus") == "VIGILÀNCIA" else v.get("tipus") or "",
-                    grup=v.get("grups") or "",
+                    tipus=_("VIGILÀNCIA") if v.tipus == "VIGILÀNCIA" else v.tipus or "",
+                    grup=v.grups or "",
                 ),
             )
         if not p:
@@ -114,7 +126,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
                 "important",
                 [v],
                 _("❌ {hora}: {tipus} sense vigilant assignat").format(
-                    hora=hora, tipus=_("VIGILÀNCIA") if v.get("tipus") == "VIGILÀNCIA" else v.get("tipus") or ""
+                    hora=hora, tipus=_("VIGILÀNCIA") if v.tipus == "VIGILÀNCIA" else v.tipus or ""
                 ),
             )
         if not aula:
@@ -123,11 +135,12 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
                 "important",
                 [v],
                 _("🏫 {hora}: {tipus} sense aula assignada").format(
-                    hora=hora, tipus=_("VIGILÀNCIA") if v.get("tipus") == "VIGILÀNCIA" else v.get("tipus") or ""
+                    hora=hora, tipus=_("VIGILÀNCIA") if v.tipus == "VIGILÀNCIA" else v.tipus or ""
                 ),
             )
         if not p or not hora:
             continue
+        comprova_horari(v, p)
         if p in dia.baixes:
             afegeix(
                 "vigilant_exclos",
@@ -142,14 +155,9 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
         efectiu = p
         if p in absents[hora]:
             compatibles = [
-                s
-                for s in cobertures[(hora, p)]
-                if (not s.get("grup") or s.get("grup") == v.get("grups"))
-                and (not s.get("aula") or s.get("aula") == aula)
+                s for s in cobertures[(hora, p)] if (not s.grup or s.grup == v.grups) and (not s.aula or s.aula == aula)
             ]
-            efectiu = next(
-                (nom(s.get("substitut")) for s in compatibles if present(nom(s.get("substitut")), hora)), None
-            )
+            efectiu = next((nom(s.substitut) for s in compatibles if present(nom(s.substitut), hora)), None)
             if not efectiu:
                 afegeix(
                     "vigilant_absent_sense_cobertura",
@@ -172,6 +180,8 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
         efectius[(hora, efectiu)].append(v)
         if dia.horari is None:
             continue
+        if efectiu != p:
+            comprova_horari(v, efectiu)
         a = dia.activitat(efectiu, hora)
         assig, grup = a.get("assignatura") or "", a.get("grup") or ""
         if classe_pendent(efectiu, hora):
@@ -200,9 +210,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
                     grup,
                 )
         elif assig and not grup and not sense_classe(efectiu, grup, dia.alliberats.get(hora, [])):
-            from config.constants import PRIORITATS
-
-            if assig not in PRIORITATS:
+            if assig not in constants.PRIORITATS:
                 afegeix(
                     "activitat_sense_grup",
                     "informacio",
@@ -247,7 +255,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
         for camp, tipus in [("vigilant", "vigilant_repetit"), ("aula", "aula_repetida")]:
             grups = defaultdict(list)
             for v in vigs:
-                valor = nom(v.get(camp))
+                valor = nom(getattr(v, camp))
                 if valor and not (camp == "aula" and valor == "ENLLAÇ"):
                     grups[valor].append(v)
             for valor, files in grups.items():
@@ -263,9 +271,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
     for (hora, p), vigs in efectius.items():
         # Una cobertura de vigilant absent és la seva vigilància, no una segona feina.
         altres = [
-            s
-            for s in dia.files
-            if s.get("hora") == hora and nom(s.get("substitut")) == p and s.get("tipus_absencia") != "VIGILANCIA_ABSENT"
+            s for s in dia.files if s.hora == hora and nom(s.substitut) == p and s.tipus_absencia != "VIGILANCIA_ABSENT"
         ]
         if altres:
             afegeix(
@@ -276,7 +282,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
                 p,
             )
         # Si dues cobertures acaben en el mateix vigilant també hi ha doble feina.
-        originals = {nom(v.get("vigilant")) for v in vigs}
+        originals = {nom(v.vigilant) for v in vigs}
         if len(vigs) > 1 and len(originals) > 1:
             afegeix(
                 "vigilant_efectiu_repetit",

@@ -1,13 +1,11 @@
 """Esquemes d'entrada de les rutes dels centres."""
 
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 
 class InstitucioCreate(BaseModel):
     nom: str
-    display_name: Optional[str] = None
+    display_name: str | None = None
 
 
 class InstitucioUpdate(BaseModel):
@@ -30,7 +28,7 @@ class Centre(BaseModel):
 
 
 class CentresResponse(BaseModel):
-    institucions: List[Centre]
+    institucions: list[Centre]
     actual: str  # el centre de qui ho demana
 
 

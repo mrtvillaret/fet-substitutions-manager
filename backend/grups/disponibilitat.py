@@ -3,7 +3,8 @@ Gestió de professors alliberats millorada amb estadístiques
 """
 
 import logging
-from typing import List, Set, Tuple
+
+from config import constants
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ class GestorAlliberats:
         self.horari = gestor_horari
         self.professors_ocupats_examens = {}  # {hora: set(professors)}
 
-    def get_tots_disponibles(self, dia: str, hora: str, grups_sense_classe: Set[str]) -> List[Tuple[str, str, str]]:
+    def get_tots_disponibles(self, dia: str, hora: str, grups_sense_classe: set[str]) -> list[tuple[str, str, str]]:
         """
         Retorna tots els professors disponibles per substitucions
         Returns: [(professor, tipus, detall), ...]
@@ -134,7 +135,7 @@ class GestorAlliberats:
         """Retorna l'assignatura tal com és, sense mapeig"""
         return assignatura.strip()
 
-    def get_alliberats(self, dia: str, hora: str, grups_sense_classe: Set[str]) -> List[Tuple[str, str, str]]:
+    def get_alliberats(self, dia: str, hora: str, grups_sense_classe: set[str]) -> list[tuple[str, str, str]]:
         """
         Retorna professors alliberats per grups sense classe
         Returns: [(professor, "alliberat", "tenia Assignatura - Grup"), ...]
@@ -162,12 +163,11 @@ class GestorAlliberats:
 
         return alliberats
 
-    def get_disponibles_forat(self, dia: str, hora: str) -> List[Tuple[str, str, str]]:
+    def get_disponibles_forat(self, dia: str, hora: str) -> list[tuple[str, str, str]]:
         """
         Retorna professors amb forat/guàrdia amb el tipus correcte
         Returns: [(professor, tipus_real, assignatura), ...]
         """
-        from config.constants import PRIORITATS
 
         disponibles = []
         hora_data = self.horari.horari.get(dia, {}).get(hora, {})
@@ -178,7 +178,7 @@ class GestorAlliberats:
 
             # Professor disponible si:
             # Té activitat de PRIORITATS (Guàrdia, WEB, Informàtica...) SENSE grup assignat
-            es_prioritat_sense_grup = assignatura in PRIORITATS and not grup
+            es_prioritat_sense_grup = assignatura in constants.PRIORITATS and not grup
 
             if es_prioritat_sense_grup:
                 # Detecta el tipus real segons l'assignatura

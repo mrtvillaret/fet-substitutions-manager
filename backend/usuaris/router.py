@@ -1,8 +1,6 @@
 """Rutes de la gestió d'usuaris (admin i superadmin). El perfil propi és a
 auth/router.py."""
 
-from typing import List
-
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
@@ -17,7 +15,7 @@ from usuaris.schemas import EdicioUsuariRequest, NouUsuariRequest, UsuariRespons
 router = APIRouter(prefix="/api/users", tags=["Usuaris"])
 
 
-@router.get("", response_model=List[UsuariResponse])
+@router.get("", response_model=list[UsuariResponse])
 def list_users(current_user: UsuariActual = Depends(require_admin), db: Session = Depends(get_auth_db)):
     return services.llista_usuaris(db, current_user)
 

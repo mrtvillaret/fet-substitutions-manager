@@ -1,7 +1,7 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed, watch } from 'vue'
 import * as apiPdf from '../api/pdf.js'
 import { dataIso } from '../dates.js'
-import { jaAvisat } from '../errorsApi.js'
 import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions.js'
 import { SENSE_NIVELL, opcionsNivellsPdf, parametresNivellsPdf, seleccioInicialNivellsPdf } from '../vigilanciesPdf.js'
 
@@ -92,7 +92,7 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
 
   const carregarPreferenciesPdf = async () => {
     try {
-      const response = await apiPdf.preferencies({ _silent: true })
+      const response = await apiPdf.preferencies()
       aplicaPreferencies(
         pdfConfig,
         response.data?.vigilancies,
@@ -120,7 +120,7 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
             compress: pdfConfig.value.compress,
             includeSubstitucions: pdfConfig.value.includeSubstitucions
           }
-        }, { _silent: true })
+        })
         return
       }
       if (tipus === 'interval') {
@@ -136,7 +136,7 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
             compress: intervalConfig.value.compress,
             includeSubstitucions: intervalConfig.value.includeSubstitucions
           }
-        }, { _silent: true })
+        })
       }
     } catch (error) {
       console.error('Error desant preferències PDF:', error)
@@ -204,14 +204,12 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
     } catch (err) {
       console.error('Error validant PDF:', err)
       // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-      if (!jaAvisat(err)) {
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
-          life: 5000
-        })
-      }
+      avisaError(err, () => toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
+        life: 5000
+      }))
       generantPDF.value = false
     }
   }
@@ -264,14 +262,12 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
     } catch (err) {
       console.error('Error generant PDF:', err)
       // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-      if (!jaAvisat(err)) {
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
-          life: 5000
-        })
-      }
+      avisaError(err, () => toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
+        life: 5000
+      }))
     } finally {
       generantPDF.value = false
     }
@@ -362,14 +358,12 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
     } catch (err) {
       console.error('Error generant PDF interval:', err)
       // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-      if (!jaAvisat(err)) {
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: err.response?.data?.detail || t('vigilancies.errors.generatePdfInterval'),
-          life: 5000
-        })
-      }
+      avisaError(err, () => toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdfInterval'),
+        life: 5000
+      }))
     } finally {
       generantPDFInterval.value = false
     }

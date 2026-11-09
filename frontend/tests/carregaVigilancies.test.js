@@ -8,7 +8,7 @@ function prepara() {
   const pendent=llista=>()=>new Promise((resolve,reject)=>llista.push({resolve,reject}))
   const dependents={dataISO:ref('2026-04-20'),loading:ref(false),error:ref(null),vigilancies:ref([]),seleccionades:ref([]),substitucionsCount:ref(0),problemes:ref([]),carregarDisponiblesPerLlista:async(files,{vigent,alhora})=>{await new Promise((resolve,reject)=>lots.push({resolve,reject}));if(vigent())alhora()},publicaConfig:c=>configs.push(c),oblidaAjudes:()=>{},t:x=>x}
   const deps={dependents,watch,apiVigilancies:{configuracio:async()=>({}),analisi:async()=>[{tipus:"prova",files:["2"],missatge:"Avís"}],llista:pendent(llistes)},llistaSubstitucions:async()=>[],console:{error:(...a)=>avisos.push(a)}}
-  return {...dependents,...carregaBlocVista('', 'useCarregaVigilancies',[],[],deps),lots,llistes,configs,avisos}
+  return {...dependents,...carregaBlocVista('', 'useCarregaVigilancies',[],[],deps),lots,llistes,configs,avisos,deps}
 }
 const tick=()=>new Promise(r=>setImmediate(r))
 test('Vigilàncies: una resposta antiga de llista o disponibles no publica ni acaba la càrrega nova',async()=>{
@@ -32,4 +32,14 @@ test('Vigilàncies: files i problemes es publiquen junts i no es mostren avisos 
  const inici=p.carregarVigilancies();p.llistes[0].reject(Error('sense anàlisi'));await inici
  assert.deepEqual(p.problemes.value,[])
  assert.equal(p.error.value,'vigilancies.errors.load')
+})
+
+test('Vigilàncies: el recompte secundari conserva l’avís global si falla',async()=>{
+ const p=prepara(),peticions=[]
+ p.deps.llistaSubstitucions=async(...args)=>{peticions.push(args);throw Error('fallada')}
+ // Es torna a crear amb el doble que registra les opcions de la petició.
+ const c=carregaBlocVista('','useCarregaVigilancies',[],[],p.deps)
+ await c.carregarSubstitucionsCount()
+ assert.deepEqual(peticions,[['2026-04-20']])
+ assert.equal(p.error.value,null)
 })

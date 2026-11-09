@@ -2,7 +2,7 @@
 Models SQLAlchemy per a la base de dades SQLite
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     Boolean,
@@ -27,7 +27,7 @@ def ara_utc() -> datetime:
     (obsolet des de Python 3.12). Es manté sense fus a propòsit: les dates ja
     desades i el format d'updated_at (que el frontend compara per detectar
     conflictes) han de continuar sent idèntics."""
-    return rellotge.ara(timezone.utc).replace(tzinfo=None)
+    return rellotge.ara(UTC).replace(tzinfo=None)
 
 
 class Nivell(Base):

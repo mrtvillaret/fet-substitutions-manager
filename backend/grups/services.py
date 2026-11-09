@@ -6,7 +6,6 @@ afectats."""
 
 import json
 from datetime import datetime
-from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
@@ -33,8 +32,8 @@ from horari.context import invalidar_horari
 from horari.domain import Dia
 from parametres import data_iso
 from substitucions.cobertures import refresca_cobertures
-from substitucions.domain import treu_substituts_no_valids
 from substitucions.generacio import genera_substitucions_dia
+from substitucions.reconciliacio import treu_substituts_no_valids
 from vigilancies.repositories import VigilanciaRepository
 
 # Activitats sense grup que es poden alliberar (p.ex. Reforç, un equip docent):
@@ -43,7 +42,7 @@ CLAU_ACTIVITATS_ALLIBERABLES = "activitats_alliberables"
 CLAU_ACTIVITATS_PER_DEFECTE = "activitats_alliberades_per_defecte"
 
 
-def activitats_alliberables(db: Session) -> List[str]:
+def activitats_alliberables(db: Session) -> list[str]:
     try:
         return [a for a in json.loads(ConfiguracioRepository.get(db, CLAU_ACTIVITATS_ALLIBERABLES) or "[]") if a]
     except (ValueError, TypeError):
@@ -73,9 +72,7 @@ def _reconcilia_dia(db: Session, data: str, hores_afectades: set) -> list:
     # perquè el resultat NO depengui de l'ordre d'entrada de dades (abans calia editar
     # l'hora manualment perquè es netegés).
     vig_dict = VigilanciaRepository.get_by_date(db, data)
-    hores_amb_vig = {
-        (v.get("hora") or "").strip() for vigs in vig_dict.values() for v in vigs if (v.get("hora") or "").strip()
-    }
+    hores_amb_vig = {(v.hora or "").strip() for vigs in vig_dict.values() for v in vigs if (v.hora or "").strip()}
     for hora in hores_amb_vig | {h.strip() for h in hores_afectades if h and h.strip()}:
         refresca_cobertures(data, hora, db)
     return trets
@@ -94,7 +91,7 @@ def _reconcilia_dies_afectats(db: Session, des_de: str, dia_setmana: int, hores:
 
 
 def afegeix_canvi_periode(
-    db: Session, tipus: str, clau: str, hores: List[str], data: str, alliberat: bool, dia_setmana: str
+    db: Session, tipus: str, clau: str, hores: list[str], data: str, alliberat: bool, dia_setmana: str
 ) -> dict:
     """A partir de `data`, cada setmana el mateix dia (o `dia_setmana`), a les
     `hores` indicades, el professor queda alliberat (o deixa de ser-ho)."""
@@ -265,10 +262,10 @@ def dades_del_dia(db: Session, dia_peticio: Dia, data: str) -> dict:
 def desa_dia(
     db: Session,
     data: str,
-    grups: Dict[str, List[str]],
-    professors: Dict[str, List[str]],
-    activitats: Dict[str, List[str]],
-    ocupats: Dict[str, List[str]],
+    grups: dict[str, list[str]],
+    professors: dict[str, list[str]],
+    activitats: dict[str, list[str]],
+    ocupats: dict[str, list[str]],
 ) -> dict:
     """Desa el que es marca `data` (substitueix el que hi hagués) i
     reconcilia les substitucions i les cobertures de les hores que canvien.
@@ -309,11 +306,11 @@ def desa_dia(
 # ===== Configuració (admins) =====
 
 
-def grups_amagats(db: Session) -> List[str]:
+def grups_amagats(db: Session) -> list[str]:
     return GrupsAmagatsRepository.get_all(db)
 
 
-def desa_grups_amagats(db: Session, grups: List[str]) -> int:
+def desa_grups_amagats(db: Session, grups: list[str]) -> int:
     """Reemplaça la llista de grups amagats sencera; en retorna quants n'hi ha."""
     total = GrupsAmagatsRepository.set_all(db, grups)
     db.commit()
@@ -347,20 +344,21 @@ def configuracio_activitats_alliberables(db: Session, dia_calendari: Dia) -> dic
     }
 
 
-def desa_activitats_alliberables(db: Session, activitats: List[str], per_defecte: List[str]) -> dict:
+def desa_activitats_alliberables(db: Session, activitats: list[str], per_defecte: list[str]) -> dict:
     """Les activitats alliberables i, d'aquestes, les alliberades fins que
     tenen alumnes (p.ex. Reforç)."""
     activitats = sorted({a.strip() for a in activitats if a and a.strip()})
     per_defecte = sorted({a.strip() for a in per_defecte if a and a.strip() in activitats})
     ConfiguracioRepository.set(db, CLAU_ACTIVITATS_ALLIBERABLES, json.dumps(activitats, ensure_ascii=False), "json")
     ConfiguracioRepository.set(db, CLAU_ACTIVITATS_PER_DEFECTE, json.dumps(per_defecte, ensure_ascii=False), "json")
+    db.commit()
     return {"activitats": activitats, "per_defecte": per_defecte}
 
 
 # ---------------------------------------------------------------- abreviatures
 
 
-def abreviatures(db: Session) -> List[Dict]:
+def abreviatures(db: Session) -> list[dict]:
     return AbreviaturaGrupRepository.get_all(db)
 
 
@@ -389,6 +387,7 @@ def crea_abreviatura(db: Session, institucio: str, grups_originals, abreviatura)
         raise NoValid("Grups originals i abreviatura són obligatoris", codi="abreviatura_incompleta")
     _comprova_que_no_es_repeteix(db, grups_originals, abreviatura)
     abreviatura_id = AbreviaturaGrupRepository.create(db, grups_originals, abreviatura)
+    db.commit()
     _abreviatures_canviades(institucio)
     return abreviatura_id
 
@@ -398,10 +397,12 @@ def edita_abreviatura(db: Session, institucio: str, abreviatura_id: int, grups_o
     _comprova_que_no_es_repeteix(db, grups_originals, abreviatura, excepte=abreviatura_id)
     if not AbreviaturaGrupRepository.update(db, abreviatura_id, grups_originals, abreviatura):
         raise NoTrobat("Abreviatura no trobada", codi="abreviatura_no_trobada")
+    db.commit()
     _abreviatures_canviades(institucio)
 
 
 def esborra_abreviatura(db: Session, institucio: str, abreviatura_id: int) -> None:
     if not AbreviaturaGrupRepository.delete(db, abreviatura_id):
         raise NoTrobat("Abreviatura no trobada", codi="abreviatura_no_trobada")
+    db.commit()
     _abreviatures_canviades(institucio)

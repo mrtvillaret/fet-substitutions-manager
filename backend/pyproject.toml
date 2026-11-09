@@ -6,12 +6,10 @@
 target-version = "py313"
 line-length = 120
 extend-exclude = ["venv*", "data*", "exports"]
-# i18n_setup instal·la la funció de traducció a builtins.
-builtins = ["_"]
 
 [tool.ruff.lint]
-# Regles bàsiques ara (errors, imports, bugbear); UP i SIM, més endavant.
-select = ["E4", "E7", "E9", "F", "I", "B"]
+# Errors, imports, bugbear, tipus moderns i imports interiors controlats pel guardià de capes.
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "PLC0415"]
 ignore = [
     # FastAPI declara les dependències com a valor per defecte: Depends(...).
     "B008",
@@ -22,7 +20,9 @@ quote-style = "double"
 
 [tool.ruff.lint.per-file-ignores]
 # Els fixtures de pytest s'importen i es reben com a paràmetre amb el mateix nom.
-"tests/**" = ["F811"]
+# Els imports locals dels tests poden anar després de fixtures, monkeypatch
+# o recàrregues amb entorn aïllat; la llista estricta és la de producció.
+"tests/**" = ["F811", "PLC0415"]
 # Imports que han d'anar després d'alguna cosa:
 # main.py, després de load_dotenv() (config.auth llegeix l'entorn en importar-se);
 "main.py" = ["E402"]

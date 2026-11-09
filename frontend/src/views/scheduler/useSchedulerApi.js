@@ -1,3 +1,4 @@
+import { avisaError } from '../../errorsApi.js'
 import { tradueixMissatge } from './missatges.js'
 import * as apiPlanificador from '../../api/planificador'
 import { costosDesats } from './costos'
@@ -178,8 +179,8 @@ export const useSchedulerApi = ({
       if (cp?.data) costosProfessors.value = costosDesats(cp.data, costosProfessors.value)
 
       configReady.value = true
-    } catch {
-      toast.add({ severity: 'error', summary: t('common.error') })
+    } catch (errorCapturat) {
+      avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error') }))
     } finally {
       loading.value = false
     }
@@ -264,8 +265,8 @@ export const useSchedulerApi = ({
       if (meta?.viable !== false) {
         await recalcularCostVisualitzacio()
       }
-    } catch {
-      toast.add({ severity: 'error', summary: t('common.error') })
+    } catch (errorCapturat) {
+      avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error') }))
     } finally {
       generating.value = false
     }
@@ -288,8 +289,8 @@ export const useSchedulerApi = ({
       }
       const response = await apiPlanificador.analisi(payload, { timeout: 300000 })
       analisiResult.value = response.data
-    } catch {
-      toast.add({ severity: 'error', summary: t('common.error') })
+    } catch (errorCapturat) {
+      avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error') }))
     } finally {
       analisiLoading.value = false
     }

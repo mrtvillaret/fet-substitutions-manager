@@ -1,7 +1,5 @@
 """Rutes d'Estadístiques: només HTTP. Els recomptes, a services.py."""
 
-from typing import List, Optional
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -29,8 +27,8 @@ router = APIRouter(prefix="/api/estadistiques", tags=["Estadístiques"])
 @router.get("/resum", response_model=ResumResponse)
 def get_resum_estadistiques(
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
 ):
     return services.resum(db, *services.interval(data_inici, data_final), hores)
@@ -39,8 +37,8 @@ def get_resum_estadistiques(
 @router.get("/professors", response_model=ProfessorsResponse)
 def get_estadistiques_professors(
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
 ):
     return services.professors(db, *services.interval(data_inici, data_final), hores)
@@ -49,8 +47,8 @@ def get_estadistiques_professors(
 @router.get("/temporal", response_model=TemporalResponse)
 def get_estadistiques_temporals(
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -60,8 +58,8 @@ def get_estadistiques_temporals(
 @router.get("/classes", response_model=ClassesResponse)
 def get_estadistiques_classes(
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
 ):
     return services.classes(db, *services.interval(data_inici, data_final), hores)
@@ -70,10 +68,10 @@ def get_estadistiques_classes(
 @router.get("/classes/detall", response_model=ClassesDetallResponse)
 def get_estadistiques_classes_detall(
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
-    grups: Optional[List[str]] = Query(None),
-    grups_bracket: Optional[List[str]] = Query(None, alias="grups[]"),
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
+    grups: list[str] | None = Query(None),
+    grups_bracket: list[str] | None = Query(None, alias="grups[]"),
     db: Session = Depends(get_db),
 ):
     return services.classes_detall(db, data_inici, data_final, (grups or []) + (grups_bracket or []), hores)
@@ -82,8 +80,8 @@ def get_estadistiques_classes_detall(
 @router.get("/taula", response_model=TaulaProfessorsResponse)
 def get_estadistiques_taula_professors(
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
 ):
     return services.taula_professors(db, *services.interval(data_inici, data_final), hores)
@@ -93,8 +91,8 @@ def get_estadistiques_taula_professors(
 def get_estadistiques_professor_detall(
     professor: NomNet,
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
 ):
     return services.detall_professor(db, professor, *services.interval(data_inici, data_final), hores)
@@ -105,8 +103,8 @@ def get_resum_franges(
     dia: str,
     hora: str,
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
 ):
     return services.franges(db, dia, hora, *services.interval(data_inici, data_final), hores)
@@ -114,8 +112,8 @@ def get_resum_franges(
 
 @router.get("/hores", response_model=HoresResponse)
 def get_hores_estadistiques(
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -126,8 +124,8 @@ def get_hores_estadistiques(
 @router.get("/batch", response_model=BatchResponse)
 def get_estadistiques_batch(
     hores: HoresTriades,
-    data_inici: Optional[DataISO] = None,
-    data_final: Optional[DataISO] = None,
+    data_inici: DataISO | None = None,
+    data_final: DataISO | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):

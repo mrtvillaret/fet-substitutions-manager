@@ -8,7 +8,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from noms import NomNet, nom_net
+from noms import NomNet
+from textos import nom_net
 
 
 @pytest.mark.parametrize(

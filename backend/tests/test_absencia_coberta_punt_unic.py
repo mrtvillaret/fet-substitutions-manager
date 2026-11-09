@@ -2,7 +2,7 @@
 Absència coberta: un professor absent que té un substitut extern a l'XML.
 Durant el període, l'absent queda fora de tot. La regla es resol en un sol
 punt: l'horari d'una data (horari.context.get_horari, per on passa Dia) ja no el
-té (absencia_coberta.services.sense_absents_coberts).
+té (absencia_coberta.domain.sense_absents_coberts).
 """
 
 import re

@@ -84,15 +84,15 @@ def test_mentre_es_genera_un_horari_les_altres_peticions_responen(servidor):
 def test_la_captura_de_missatges_no_barreja_peticions_simultanies():
     from concurrent.futures import ThreadPoolExecutor
 
-    from captura_sortida import captura_stdout
+    from scheduler_engine.informe import captura_informe, log
 
     barrera = threading.Barrier(4)
 
     def peticio(n):
-        with captura_stdout() as sortida:
+        with captura_informe() as sortida:
             barrera.wait()  # totes quatre capturant alhora
             for i in range(50):
-                print(f"peticio {n} linia {i}")
+                log.info(f"peticio {n} linia {i}")
                 time.sleep(0.001)
         return sortida.getvalue().splitlines()
 

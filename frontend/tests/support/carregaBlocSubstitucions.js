@@ -1,8 +1,10 @@
 import { readFileSync, existsSync } from 'node:fs'
+import { avisaError, marcaAvisat, esErrorSilencios } from '../../src/errorsApi.js'
 
 // Executa el mateix bloc abans de l'extracció i el cos del composable després.
 // Les dependències de navegador i API són dobles explícits, sense xarxa.
 export function carregaBloc(nom, fragments, noms, dependencies) {
+  dependencies = { avisaError, marcaAvisat, esErrorSilencios, ...dependencies }
   const arrel = new URL('../../src/', import.meta.url)
   const fitxer = new URL(`composables/${nom}.js`, arrel)
   let codi

@@ -215,6 +215,7 @@ def _planificador(centre, dates, dies_horari, desat="2026-03-20T10:00:00"):
             ),
             tipus="json",
         )
+        db.commit()
 
 
 def _config_planificador(centre):

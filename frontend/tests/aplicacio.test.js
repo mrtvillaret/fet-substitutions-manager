@@ -25,3 +25,49 @@ test('App: carregarPerfil ignora el 401 a la consola i registra la resta dels er
  assert.equal(p.errors[0][1].response.status,500)
  assert.equal(p.errors[1][1].message,'xarxa')
 })
+
+for (const cas of ['global', 'pantalla', 'sessio', 'xarxa']) {
+ test(`App: regla única dels avisos (${cas})`, async () => {
+  const errorsAvisos = await import('../src/errorsApi.js')
+  const p = prepara()
+  await p.mounted[0]()
+  const error = cas === 'xarxa' ? {config:{}} : {config:{_silent:cas==='pantalla'},response:{status:cas==='sessio'?401:500,data:{}}}
+  await assert.rejects(p.interceptors[0][1](error), e=>e===error)
+  errorsAvisos.avisaError(error,()=>p.avisos.push({detail:'local'}))
+  assert.equal(p.avisos.length,cas==='sessio'?0:1)
+  if(cas==='pantalla')assert.equal(p.avisos[0].detail,'local')
+  else if(cas!=='sessio')assert.equal(p.avisos[0].detail,'error')
+ })
+}
+
+test('App: un 401 d’entrada mostra les credencials errònies una sola vegada', async () => {
+ const p=prepara()
+ await p.mounted[0]()
+ p.autenticat.value=false
+ p.apiUsuaris.entra=async()=>p.interceptors[0][1]({config:{_silent:true,url:'/api/login'},response:{status:401,data:{}}})
+ await p.ferLogin()
+ assert.equal(p.loginError.value,'app.login.error')
+ assert.equal(p.avisos.length,0)
+})
+
+test('App: el 429 d’entrada conserva l’avís concret i el temporitzador sense toast', async () => {
+ const p=prepara()
+ await p.mounted[0]()
+ p.autenticat.value=false
+ p.apiUsuaris.entra=async()=>p.interceptors[0][1]({config:{_silent:true,url:'/api/login'},response:{status:429,headers:{'retry-after':'7'},data:{}}})
+ await p.ferLogin()
+ assert.equal(p.loginError.value,'app.login.rateLimitWithWait')
+ assert.equal(p.loginRetrySeconds.value,7)
+ assert.equal(p.avisos.length,0)
+ p.unmounted[0]()
+})
+
+test('App: peticions pendents amb 401 no afegeixen toasts a la pantalla d’entrada', async () => {
+ const errorsAvisos=await import('../src/errorsApi.js'),p=prepara()
+ await p.mounted[0]()
+ p.autenticat.value=false
+ const error={config:{url:'/api/vigilancies/2026-04-20'},response:{status:401,data:{}}}
+ await assert.rejects(p.interceptors[0][1](error))
+ errorsAvisos.avisaError(error,()=>p.avisos.push({detail:'duplicat'}))
+ assert.equal(p.avisos.length,0)
+})

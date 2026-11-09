@@ -7,6 +7,8 @@ import pytest
 
 from pdf import disponibles, generacio
 from pdf.domain import IntervalNoValid
+from substitucions.files import FilaSubstitucio
+from vigilancies.files import FilaVigilancia
 
 
 def test_les_substitucions_que_surten_al_pdf_del_dia():
@@ -15,7 +17,7 @@ def test_les_substitucions_que_surten_al_pdf_del_dia():
 
     def surt(**camps):
         sub = {"hora": "08:00", "professor_absent": "Prof 1", "grup": "1-ESO-A", "assignatura": "Català", **camps}
-        return generacio.es_substitucio_del_pdf(sub, alliberats, no_substituir)
+        return generacio.es_substitucio_del_pdf(FilaSubstitucio(**sub), alliberats, no_substituir)
 
     assert surt()
     assert not surt(grup="1-ESO-B")  # el grup no tenia classe
@@ -52,18 +54,21 @@ def test_vigilancies_dels_nivells_en_l_ordre_de_la_pantalla():
         "": [{"hora": "09:00", "ordre": 0, "grups": "Antic"}],
     }
 
-    assert [v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, [])] == [
+    per_nivell = {nivell: [FilaVigilancia(**v) for v in files] for nivell, files in per_nivell.items()}
+
+    assert [v.grups for v in generacio.vigilancies_dels_nivells(per_nivell, [])] == [
         "1-ESO-A",
         "Antic",
         "2-BAT-A",
     ]
-    assert [v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"])] == ["2-BAT-A"]
-    assert [
-        v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"], inclou_sense_nivell=True)
-    ] == ["Antic", "2-BAT-A"]
-    assert [
-        v["grups"] for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"], inclou_sense_nivell=False)
-    ] == ["2-BAT-A"]
+    assert [v.grups for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"])] == ["2-BAT-A"]
+    assert [v.grups for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"], inclou_sense_nivell=True)] == [
+        "Antic",
+        "2-BAT-A",
+    ]
+    assert [v.grups for v in generacio.vigilancies_dels_nivells(per_nivell, ["2-BAT"], inclou_sense_nivell=False)] == [
+        "2-BAT-A"
+    ]
 
 
 def test_linies_dels_disponibles_amb_els_absents_i_els_ocupats_ratllats():

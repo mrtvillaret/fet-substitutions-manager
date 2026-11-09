@@ -5,11 +5,12 @@ import os
 from bisect import bisect_right
 from contextlib import nullcontext
 from datetime import timedelta
-from typing import Dict, Optional
 
 from sqlalchemy.orm import Session
 
 import rellotge
+from absencia_coberta.domain import absents_coberts, sense_absents_coberts, vista_per_data
+from config.context import institucio_peticio
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from errors_domini import MissingXmlError, NoValid
@@ -24,7 +25,7 @@ log = logging.getLogger(__name__)
 # absències i substitucions es creen a cada petició (get_gestors): cada petició
 # hi fixa la seva data i els seus vigilants, i compartits entre peticions es
 # podrien trepitjar.
-_horari: Dict[str, GestorHorariWeb] = {}
+_horari: dict[str, GestorHorariWeb] = {}
 _SENSE_VALOR = object()
 
 
@@ -34,7 +35,6 @@ def _cache_key(institucio: str, xml_path: str) -> str:
 
 def _get_institucio_actual() -> str:
     """Centre de la petició; els scripts l'han de passar explícitament."""
-    from config.context import institucio_peticio
 
     institucio = institucio_peticio()
     if not institucio:
@@ -62,7 +62,7 @@ def avui() -> str:
     return rellotge.avui().isoformat()
 
 
-def _resolve_xml_path(institucio: str, data_iso: str, *, versio=_SENSE_VALOR, db=None) -> Optional[str]:
+def _resolve_xml_path(institucio: str, data_iso: str, *, versio=_SENSE_VALOR, db=None) -> str | None:
     if not data_iso:
         # Sense data no se sap quin horari: abans s'agafava un per defecte en
         # silenci i l'error passava desapercebut
@@ -97,7 +97,7 @@ def _resolve_xml_path(institucio: str, data_iso: str, *, versio=_SENSE_VALOR, db
     return xml_path
 
 
-def get_xml_path_for_date(institucio: Optional[str], data_iso: str) -> Optional[str]:
+def get_xml_path_for_date(institucio: str | None, data_iso: str) -> str | None:
     instit = institucio or _get_institucio_actual()
     return _resolve_xml_path(instit, data_iso)
 
@@ -133,8 +133,7 @@ def get_horari(institucio: str = None, *, data_iso: str, xml_path=_SENSE_VALOR) 
 
 def _del_dia(horari: GestorHorariWeb, institucio: str, data_iso: str) -> GestorHorariWeb:
     """L'horari tal com és aquell dia: sense els professors amb una absència
-    coberta (el punt únic de la regla; absencia_coberta.services)."""
-    from absencia_coberta.services import absents_coberts, sense_absents_coberts
+    coberta (el punt únic de la regla; absencia_coberta.domain)."""
 
     with get_data_db_session(institucio, lectura=True) as db:
         return sense_absents_coberts(horari, absents_coberts(db, data_iso))
@@ -144,7 +143,6 @@ def horaris_per_dates(db: Session):
     """Lector d'horaris per a una operació d'interval. Reutilitza l'XML
     entre canvis de versió, però aplica les absències cobertes de cada dia.
     També respecta els forats i el fallback a la versió més propera."""
-    from absencia_coberta.services import vista_per_data
 
     institucio = db.info.get("institucio")
     versions = XMLVersionRepository.list_all(db)

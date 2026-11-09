@@ -6,8 +6,9 @@ les vigilàncies, les absències o els alliberats.
 
 from datetime import datetime
 
-from grups.repositories import GrupsAlliberatsRepository
+from grups.lectures import AlliberatsDelDia
 from substitucions.context import get_gestors
+from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import crear_vigilancia_absent
 from vigilancies.repositories import VigilanciaRepository
@@ -21,7 +22,7 @@ def allibera_substitucions_en_conflicte(data: str, db, hores: set | None = None)
     vigilants_per_hora = {}
     for vigs in VigilanciaRepository.get_by_date(db, data).values():
         for vig in vigs:
-            hora, vigilant = (vig.get("hora") or "").strip(), (vig.get("vigilant") or "").strip()
+            hora, vigilant = (vig.hora or "").strip(), (vig.vigilant or "").strip()
             if hora and vigilant:
                 vigilants_per_hora.setdefault(hora, set()).add(vigilant)
     if not vigilants_per_hora:
@@ -29,9 +30,9 @@ def allibera_substitucions_en_conflicte(data: str, db, hores: set | None = None)
 
     cleared = 0
     for sub in SubstitucioRepository.get_by_date(db, data):
-        sub_id = sub.get("id")
-        hora = (sub.get("hora") or "").strip()
-        substitut = (sub.get("substitut") or "").strip()
+        sub_id = sub.id
+        hora = (sub.hora or "").strip()
+        substitut = (sub.substitut or "").strip()
         if not sub_id or not hora or not substitut:
             continue
         if hores is not None and hora not in hores:
@@ -56,11 +57,11 @@ def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
     existing_map = {}
     for sub in existing_subs:
         key = f"{sub.professor_absent}|{sub.hora}|{sub.assignatura or ''}|{sub.grup or ''}"
-        existing_map[key] = {
-            "substitut": sub.substitut or "",
-            "tipus_substitut": sub.tipus_substitut or "",
-            "comentaris": sub.comentaris or "",
-        }
+        existing_map[key] = FilaSubstitucio(
+            substitut=sub.substitut or "",
+            tipus_substitut=sub.tipus_substitut or "",
+            comentaris=sub.comentaris or "",
+        )
 
     if existing_subs:
         ids_cobertura = [s.id for s in existing_subs]
@@ -94,7 +95,7 @@ def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
     date_obj = datetime.strptime(data, "%Y-%m-%d")
     dia_name = horari.get_dia_name(date_obj.weekday())
 
-    grups_sense_classe = GrupsAlliberatsRepository.get_by_date(db, data)
+    grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
     grups_hora = grups_sense_classe.get(hora, [])
     grups_hora = set(grups_hora) if isinstance(grups_hora, list) else set(grups_hora or [])
 
@@ -107,28 +108,28 @@ def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
     )
 
     for sub in noves:
-        if (sub.get("hora") or "").strip() != hora:
+        if (sub.hora or "").strip() != hora:
             continue
-        key = f"{sub.get('professor_absent', '')}|{sub.get('hora', '')}|{sub.get('assignatura', '')}|{sub.get('grup', '')}"
+        key = f"{sub.professor_absent}|{sub.hora}|{sub.assignatura}|{sub.grup}"
         existent = existing_map.get(key)
-        if existent and existent.get("substitut"):
-            sub["substitut"] = existent.get("substitut", "")
-            sub["tipus_substitut"] = existent.get("tipus_substitut", "")
-            sub["comentaris"] = existent.get("comentaris", "")
+        if existent and existent.substitut:
+            sub.substitut = existent.substitut
+            sub.tipus_substitut = existent.tipus_substitut
+            sub.comentaris = existent.comentaris
 
         SubstitucioRepository.create(
             db,
             {
                 "data": data,
-                "hora": sub.get("hora", ""),
-                "professor_absent": sub.get("professor_absent", ""),
-                "assignatura": sub.get("assignatura", ""),
-                "grup": sub.get("grup", ""),
-                "aula": sub.get("aula", ""),
-                "substitut": sub.get("substitut", ""),
-                "tipus_substitut": sub.get("tipus_substitut", ""),
-                "tipus_absencia": sub.get("tipus_absencia", "VIGILANCIA"),
-                "comentaris": sub.get("comentaris", ""),
+                "hora": sub.hora,
+                "professor_absent": sub.professor_absent,
+                "assignatura": sub.assignatura,
+                "grup": sub.grup,
+                "aula": sub.aula,
+                "substitut": sub.substitut,
+                "tipus_substitut": sub.tipus_substitut,
+                "tipus_absencia": sub.tipus_absencia,
+                "comentaris": sub.comentaris,
             },
         )
 
@@ -140,14 +141,14 @@ def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
     vigilancies_dia = VigilanciaRepository.get_by_date(db, data)
     for nivell_vigs in vigilancies_dia.values():
         for vig in nivell_vigs:
-            vigilant = (vig.get("vigilant") or "").strip()
+            vigilant = (vig.vigilant or "").strip()
             if (
-                vig.get("hora") == hora
+                vig.hora == hora
                 and vigilant in vigilants
                 and vigilant in absents_hora
                 and vigilant not in tipus_a_existents
             ):
-                crear_vigilancia_absent(db, data, vigilant, hora, vig.get("grups", ""), vig.get("aula", ""))
+                crear_vigilancia_absent(db, data, vigilant, hora, vig.grups, vig.aula)
                 tipus_a_existents.add(vigilant)
 
     # Política A: allibera substitucions en conflicte a aquesta mateixa hora.

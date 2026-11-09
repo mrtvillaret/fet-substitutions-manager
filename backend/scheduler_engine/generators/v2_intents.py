@@ -4,8 +4,9 @@ Motor de generació d'horaris V2 - Greedy amb Epsilon.
 
 import copy
 import random
+import re as _re_iso
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from datetime import datetime as _dt2
 
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.constraints import (
@@ -24,10 +25,12 @@ from scheduler_engine.core.normalitzacio import (
     format_dia_label,
     normalitzar_dia,
 )
+from scheduler_engine.core.restriction_engine import RestrictionEngine
 from scheduler_engine.core.scoring import calcular_cost_slot
 from scheduler_engine.defaults import (
     DEFAULT_PES_RESTRICCIO_DURA,
     DEFAULT_PES_ZONA_EXAMEN,
+    DIES_SETMANA,
 )
 from scheduler_engine.estadistiques import (
     aplicar_estadistiques,
@@ -43,8 +46,8 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         horari_xml_path: str,
         restriccions_path: str = None,
         ultim_professor: str = "",
-        nivells_actius: List[str] = None,
-        hores_examen: List[str] = None,
+        nivells_actius: list[str] = None,
+        hores_examen: list[str] = None,
         hores_per_nivell: dict = None,
         durada_titular: int = 1,
         no_substituir: set = None,
@@ -89,14 +92,13 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
 
     def analitzar_disponibilitat_sessio(
         self,
-        sessio: Dict,
+        sessio: dict,
         dia: str,
         hora: str,
-        sessions_al_slot: List[Dict] = None,
-        hores_override: List[str] | None = None,
+        sessions_al_slot: list[dict] = None,
+        hores_override: list[str] | None = None,
         data_iso: str = None,
-    ) -> Dict:
-        from scheduler_engine.core.normalitzacio import normalitzar_dia
+    ) -> dict:
 
         dia_norm = normalitzar_dia(dia)
         if data_iso is None:
@@ -141,15 +143,15 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
 
     def _calcular_cost_sessio(
         self,
-        sessio: Dict,
+        sessio: dict,
         dia: str,
         hora: str,
-        sessions_dia: List = None,
-        sessions_slot: List = None,
-        hores_override: List[str] | None = None,
+        sessions_dia: list = None,
+        sessions_slot: list = None,
+        hores_override: list[str] | None = None,
         data_iso: str = None,
         ja_comptats: set | None = None,
-    ) -> Dict:
+    ) -> dict:
         analisi = self.analitzar_disponibilitat_sessio(
             sessio, dia, hora, sessions_slot, hores_override=hores_override, data_iso=data_iso
         )
@@ -206,13 +208,13 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             "professors_estrictes_violats": resultat_scoring.get("professors_estrictes_violats", []),
         }
 
-    def _te_restriccio_dia_hora_fix(self, nom_sessio: str) -> Tuple[str, str]:
+    def _te_restriccio_dia_hora_fix(self, nom_sessio: str) -> tuple[str, str]:
         dures = self.restriccions.get("restriccions_dures", {})
         return dures.get("assignatures_dia_fix", {}).get(nom_sessio), dures.get("assignatures_hora_fix", {}).get(
             nom_sessio
         )
 
-    def _calcular_penalitzacio_professors_dies(self, sessio: Dict, dia: str, sessions_assignades: Dict) -> int:
+    def _calcular_penalitzacio_professors_dies(self, sessio: dict, dia: str, sessions_assignades: dict) -> int:
         return calcular_penalitzacio_professors_dies(sessio, dia, sessions_assignades, self.restriccions)
 
     def _slot_bloquejat(self, dia: str, hora: str, nivell: str | None = None) -> bool:
@@ -224,7 +226,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                 return True
         return False
 
-    def _analitzar_tots_slots(self, dies_utilitzar: List[str]) -> Dict:
+    def _analitzar_tots_slots(self, dies_utilitzar: list[str]) -> dict:
         """Analitza el cost de cada agrupació a cada possible dia/hora."""
         totes_items = []
         for nivell in self.nivells_actius:
@@ -239,8 +241,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             matriu_costos[nom_item] = {"item": item, "label": label, "curs": curs, "idx": idx, "slots": {}}
 
             for dia in dies_utilitzar:
-                import re as _re_iso
-
                 _is_iso = bool(_re_iso.match(r"^\d{4}-\d{2}-\d{2}$", dia))
                 dia_horari = dia_nom_per_horari(dia)
                 if _is_iso:
@@ -345,7 +345,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
 
         return matriu_costos
 
-    def generar_informe_per_slots(self, matriu_costos: Dict, dies_utilitzar: List[str]) -> str:
+    def generar_informe_per_slots(self, matriu_costos: dict, dies_utilitzar: list[str]) -> str:
         """Genera informe invertit: per cada slot, quines sessions són viables."""
         linies = []
         linies.append("=" * 85)
@@ -435,7 +435,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                     elif num_conflictes == 3 and not te_no_treballa and es_problematica:
                         slots_disponibilitat[dest_key]["acceptables"].append(entrada)
 
-        def _format_entry(entry: Dict) -> str:
+        def _format_entry(entry: dict) -> str:
             parts = []
             subs_detalls = entry.get("subs_detalls", [])
             if subs_detalls:
@@ -493,7 +493,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
 
         return "\n".join(linies)
 
-    def generar_informe_disponibilitat(self, matriu_costos: Dict, dies_utilitzar: List[str]) -> str:
+    def generar_informe_disponibilitat(self, matriu_costos: dict, dies_utilitzar: list[str]) -> str:
         """Informe per sessió: tots els slots amb cost/detall."""
         linies = []
         linies.append("=" * 85)
@@ -564,7 +564,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
 
         return "\n".join(linies)
 
-    def generar_informe_professors_per_slot(self, dies_utilitzar: List[str]) -> str:
+    def generar_informe_professors_per_slot(self, dies_utilitzar: list[str], *, aplicar_abreviatura_grup) -> str:
         linies = []
         linies.append("=" * 85)
         linies.append("👥 INFORME DE PROFESSORS PER SLOT (Hores d'Exàmens)")
@@ -598,8 +598,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                         grup = (act.get("grup") or "").strip()
                         assig = (act.get("assignatura") or "").strip()
                         if grup:
-                            from grups.abreviatures import aplicar_abreviatura_grup
-
                             grup = aplicar_abreviatura_grup(grup)
                         if any(n in grup for n in self.nivells_actius):
                             # Els slots vàlids es defineixen per hora d'inici (🟦), no per hora interna.
@@ -633,7 +631,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
 
         return "\n".join(linies)
 
-    def _format_item_label(self, item: Dict) -> str:
+    def _format_item_label(self, item: dict) -> str:
         return item.get("nom", "group")
 
     def generar_horari_optimitzat(
@@ -641,17 +639,15 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         data_inici: str = None,
         data_inici_iso: str = None,
         max_dies: int = 5,
-        dies_utilitzar: List[str] = None,
-        dia_a_data_iso: Dict[str, List[str]] = None,
+        dies_utilitzar: list[str] = None,
+        dia_a_data_iso: dict[str, list[str]] = None,
         max_intents_validacio: int = 250,
         estrategia: str = "ponderada",
         epsilon: float = 0.2,
         track_intents: bool = False,
         **kwargs,
-    ) -> Dict:
+    ) -> dict:
         if dies_utilitzar is None:
-            from scheduler_engine.defaults import DIES_SETMANA
-
             dies_utilitzar = list(DIES_SETMANA)[:max_dies]
 
         self.selected_dates = sorted(kwargs.get("selected_dates") or [])
@@ -730,7 +726,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         return res
 
     def _generar_un_intent_horari(self, physical_slots, items, estrategia, epsilon):
-        from scheduler_engine.core.restriction_engine import RestrictionEngine
 
         engine = RestrictionEngine(self.restriccions, self.nivells_actius)
 
@@ -753,8 +748,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         # Helper: (dia_nom, data_iso_or_none) des del prefix d'un slot key
         def _parse_prefix(prefix: str):
             try:
-                from datetime import datetime as _dt2
-
                 dt = _dt2.strptime(prefix, "%Y-%m-%d")
                 return _DIES_CAT[dt.weekday()], prefix
             except ValueError:

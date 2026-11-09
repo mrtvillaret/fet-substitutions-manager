@@ -8,6 +8,8 @@ from collections.abc import Sequence as _Sequence
 from collections.abc import Set as _Set
 from pathlib import Path
 
+from config.context import institucio_peticio
+
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 try:
@@ -35,7 +37,6 @@ _PRIORITATS_PER_INSTITUCIO: dict = {}
 
 
 def _dades_actuals() -> dict:
-    from config.context import institucio_peticio
 
     return _PRIORITATS_PER_INSTITUCIO.get(institucio_peticio(), {})
 
@@ -113,21 +114,15 @@ PROFESSOR_TYPE_EMOJIS = {
     "alliberat": "✅",
     # Categoria 1 - Guàrdies
     "guàrdia": "🛡️",
-    "guàrdia-r": "🔁",  # Guàrdia de reforç
-    "guàrdia-t": "📚",  # Guàrdia de tutoria
-    "guàrdia-p": "⛪",  # Guàrdia pastoral
     # Categoria 2 - Activitats específiques
     "web": "💻",
     "informàtica": "🖥️",
     "correcció": "✏️",
     "bat dual": "🎓",
-    # Categoria 3
-    "reforç-a": "⭐",  # Reforç avançat
     # Categoria 4
     "cd": "👨‍💼",  # Cap de departament
     # Categoria 5
     "alumnes": "👥",
-    "alumnes-batx": "👨‍🎓",
     # Categoria 6
     "orientació": "🧭",
     # Categoria 7

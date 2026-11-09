@@ -4,9 +4,10 @@ un examen i les franges vàlides de cada nivell."""
 
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from datetime import datetime as _dt
 
-from horari.hores import normalitzar_hora as _normalitzar_hora
 from scheduler_engine.core.normalitzacio import normalitzar_dia
+from textos import normalitzar_hora as _normalitzar_hora
 
 
 def _selected_dates_from_alliberaments(alliberaments_cfg: dict, nivells_actius: list[str] | None = None) -> list[str]:
@@ -145,7 +146,6 @@ def _build_slots_valids_from_alliberaments(
     Utilitza les dates seleccionades del propi nivell (camp 'dates') per construir
     el mapa dia→data, ja que cada nivell pot tenir exàmens en setmanes diferents.
     """
-    from datetime import datetime as _dt
 
     _DIES_CAT = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte", "Diumenge"]
 

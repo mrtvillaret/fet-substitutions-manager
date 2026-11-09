@@ -2,7 +2,6 @@
 amb la seva BD; un centre desactivat té un fitxer `.inactive`."""
 
 import shutil
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -27,6 +26,7 @@ def _desa_nom_visible(slug: str, nom_visible: str) -> None:
         ConfiguracioRepository.set(
             db, "institucio_display_name", nom_visible, tipus="string", descripcio="Nom visible de la institució"
         )
+        db.commit()
 
 
 def _comprova_existeix(slug: str, include_inactive: bool) -> None:
@@ -48,7 +48,7 @@ def llista(current_user: UsuariActual) -> dict:
     }
 
 
-def crea(nom: str, nom_visible: Optional[str]) -> None:
+def crea(nom: str, nom_visible: str | None) -> None:
     """La carpeta i la BD buida del centre. El nom és el de la carpeta:
     minúscules, xifres, «_», «.» i «-», comença per una lletra o una xifra i
     té com a molt LLARGADA_MAXIMA_NOM caràcters."""

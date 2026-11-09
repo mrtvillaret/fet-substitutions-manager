@@ -2,6 +2,7 @@
 professors: com es llegeixen de la BD i s'hi desen (amb l'estructura que fan
 servir la pantalla i els motors), i els exàmens que hi surten."""
 
+import copy
 import json
 import re
 
@@ -281,7 +282,6 @@ def treu_assignatures(restr: dict, fora: set[str]) -> dict:
     anterior). Les restriccions que es queden sense sentit s'eliminen: una
     agrupació buida; una incompatibilitat, preferència o combinació amb menys
     de dos exàmens; un examen fixat o un límit de professor sense exàmens."""
-    import copy
 
     restr = copy.deepcopy(restr or {})
     dures = restr.setdefault("restriccions_dures", {})

@@ -143,6 +143,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../errorsApi.js'
 import AvisErrorCarrega from '../components/AvisErrorCarrega.vue'
 import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -257,12 +258,12 @@ const generarPendents = async () => {
     mostrarResultatGeneracio(resposta)
   } catch (error) {
     console.error('Error generant substitucions:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: t('substitutions.errors.generatePending'),
       life: 3000
-    })
+    }))
   } finally {
     loading.value = false
   }
@@ -286,12 +287,12 @@ const regenerarTot = async () => {
         mostrarResultatGeneracio(resposta, t('common.regenerated'))
       } catch (error) {
         console.error('Error regenerant substitucions:', error)
-        toast.add({
+        avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
           detail: t('substitutions.errors.regenerateAll'),
           life: 3000
-        })
+        }))
       } finally {
         loading.value = false
       }

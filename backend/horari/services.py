@@ -12,7 +12,7 @@ import uuid
 import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
-from typing import BinaryIO, Optional
+from typing import BinaryIO
 
 import defusedxml.ElementTree as SafeET
 from defusedxml import DefusedXmlException
@@ -29,8 +29,12 @@ from horari.lector import GestorHorariWeb
 from horari.repositories import XMLVersionRepository
 from horari.sincronitzacio import sincronitza_professors
 from i18n_setup import translate as _
-from noms import nom_net
 from parametres import data_iso
+from substitucions.domain import DiaEscolar, substituts_no_valids
+from substitucions.repositories import SubstitucioRepository
+from textos import nom_net
+from vigilancies.analisi import analitza_vigilancies
+from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
 
@@ -106,7 +110,7 @@ def tots_els_professors(dia: Dia) -> dict:
         return {"professors": [], "total": 0, "xml_missing": True}
 
 
-def professors_del_dia(dia: Dia, data: Optional[str]) -> dict:
+def professors_del_dia(dia: Dia, data: str | None) -> dict:
     """Els professors amb el límit de l'últim professor i, amb `data`, a part
     els que hi tenen una absència coberta (amb la data de fi)."""
     try:
@@ -209,7 +213,53 @@ def _relatiu(cami: Path, data_dir: str) -> str:
         return str(cami)
 
 
-def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Optional[str]) -> dict:
+def _avisos_xml(institucio: str, versio=None) -> dict:
+    """Revisa només dies desats del tram de la versió nova; no modifica cap fila.
+
+    Sense versió nova (XML idèntic), no hi ha res a revisar.
+    """
+    avisos = []
+    recomptes = {"dies": 0, "substitucions": 0, "vigilancies": 0}
+    if versio is not None:
+        inici = max(versio.data_inici, rellotge.avui()).isoformat()
+        final = (versio.data_fi or date.max).isoformat()
+        with get_data_db_session(institucio, lectura=True) as db:
+            dates = SubstitucioRepository.dates_entre(db, inici, final) | VigilanciaRepository.dates_entre(
+                db, inici, final
+            )
+            for data in sorted(dates):
+                # El mateix XML nou, també si encara no és vigent avui.
+                dia = Dia(data, institucio, versio_xml=versio)
+                estat = DiaEscolar(db, dia, estricte=True)
+                subs = substituts_no_valids(db, dia.iso, estat)
+                vigs = [p for p in analitza_vigilancies(estat) if p["gravetat"] == "important"]
+                avisos.extend(
+                    {
+                        "data": dia.iso,
+                        "hora": s["hora"],
+                        "professor": s["substitut"],
+                        "motiu": s["motiu"],
+                        "grup": s.get("classe_grup", ""),
+                    }
+                    for s in subs
+                )
+                avisos.extend(
+                    {
+                        "data": dia.iso,
+                        "hora": p["hora"],
+                        "professor": p["professor"],
+                        "tipus": p["tipus"],
+                        "missatge": p["missatge"],
+                    }
+                    for p in vigs
+                )
+                recomptes["dies"] += bool(subs or vigs)
+                recomptes["substitucions"] += len(subs)
+                recomptes["vigilancies"] += len(vigs)
+    return {"avisos": avisos, "recomptes": recomptes}
+
+
+def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str | None) -> dict:
     """
     Desa un XML de FET i el versiona a partir d'una data de vigència.
 
@@ -299,6 +349,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
                     "filename": nom_original,
                     "path": current_version.path,
                     "message": "XML idèntic a l'actual; no s'ha creat nova versió",
+                    **_avisos_xml(institucio),
                 }
 
             # Si no hi ha versions prèvies, crear versió inicial amb l'XML anterior (si existeix)
@@ -320,6 +371,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
                         "filename": nom_original,
                         "path": stored_prev_path,
                         "message": "XML idèntic a l'anterior; s'ha creat la versió inicial",
+                        **_avisos_xml(institucio),
                     }
 
             timestamp = rellotge.ara().strftime("%Y%m%d_%H%M%S")
@@ -329,12 +381,15 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
             shutil.copy2(file_path, history_path)
             stored_path = _relatiu(history_path, data_dir)
 
-            XMLVersionRepository.create(db, path=stored_path, data_inici=vigent_des_de, hash_contingut=hash_contingut)
+            nova_versio = XMLVersionRepository.create(
+                db, path=stored_path, data_inici=vigent_des_de, hash_contingut=hash_contingut
+            )
             # L'anterior es tanca el dia abans que entri en vigor la nova; el
             # punter "actual" només es mou si la nova ja és vigent avui
             _encadena_i_sincronitza(db, institucio)
             db.commit()
             es_vigent_avui = vigent_des_de <= rellotge.avui()
+            db.refresh(nova_versio)
 
         # Invalidar cache del horari per forçar recàrrega del nou XML
         invalidar_horari(institucio)
@@ -347,6 +402,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: Opt
             "data_inici": vigent_des_de.isoformat(),
             "vigent_avui": es_vigent_avui,
             "message": f"Fitxer '{nom_original}' pujat correctament",
+            **_avisos_xml(institucio, nova_versio),
         }
 
     finally:
@@ -385,7 +441,7 @@ def _versio(db: Session, version_id: int):
     return versio
 
 
-def canvia_inici(db: Session, institucio: str, version_id: int, data_inici: Optional[str]) -> None:
+def canvia_inici(db: Session, institucio: str, version_id: int, data_inici: str | None) -> None:
     """Canvia quan comença una versió; les dates de fi es recalculen totes (el
     dia abans que comenci la següent): no es poden posar a mà."""
     versio = _versio(db, version_id)

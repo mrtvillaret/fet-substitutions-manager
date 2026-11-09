@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from 'vue'
 import * as apiGrups from '../api/grups'
 import { dataTreball } from '../dataTreball'
@@ -171,7 +172,7 @@ export function useGrups(dependents) {
     try {
       await carregarReforc()
     } catch (err) {
-      toast.add({ severity: 'error', summary: t('common.error'), detail: err.response?.data?.detail || '', life: 5000 })
+      avisaError(err, () => toast.add({ severity: 'error', summary: t('common.error'), detail: err.response?.data?.detail || '', life: 5000 }))
     }
   }
 
@@ -242,7 +243,7 @@ export function useGrups(dependents) {
       await carregarReforc()
       await recarregarDiaCarregat()
     } catch (err) {
-      toast.add({ severity: 'error', summary: t('common.error'), detail: err.response?.data?.detail || '', life: 5000 })
+      avisaError(err, () => toast.add({ severity: 'error', summary: t('common.error'), detail: err.response?.data?.detail || '', life: 5000 }))
     } finally {
       reforc.desant = false
     }
@@ -329,7 +330,7 @@ export function useGrups(dependents) {
     error.value = null
 
     try {
-      const resposta = await apiGrups.llista(isoDe(data))
+      const resposta = await apiGrups.llista(isoDe(data), { _silent: true })
       dataCarregada.value = data
 
       hores.value = resposta.hores
@@ -348,7 +349,7 @@ export function useGrups(dependents) {
       inicialitzarOcupats(resposta.ocupats_per_hora || {})
     } catch (err) {
       console.error('Error carregant configuració:', err)
-      error.value = t('groups.errors.load')
+      avisaError(err, () => { error.value = t('groups.errors.load') })
     } finally {
       loading.value = false
     }
@@ -439,12 +440,12 @@ export function useGrups(dependents) {
       return true
     } catch (err) {
       console.error('Error desant configuració:', err)
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('groups.errors.save'),
         life: 5000
-      })
+      }))
       return false
     } finally {
       desant.value = false

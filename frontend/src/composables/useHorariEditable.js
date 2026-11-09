@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed, watch, onMounted } from 'vue'
 import * as apiPlanificador from '../api/planificador'
 import { debounce } from 'lodash-es'
@@ -47,12 +48,12 @@ export function useHorariEditable(dependents) {
       emit('pin-changed')
     } catch (err) {
       console.error('Error fixant/desfixant sessió:', err)
-      toast.add({
+      avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('scheduler.editable.toasts.recalcErrorTitle'),
         detail: err.response?.data?.detail || err.message,
         life: 3000
-      })
+      }))
     }
   }
 
@@ -391,12 +392,12 @@ export function useHorariEditable(dependents) {
       })
     } catch (error) {
       console.error('Error recalculant cost:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('scheduler.editable.toasts.recalcErrorTitle'),
         detail: t('scheduler.editable.toasts.recalcErrorDetail'),
         life: 3000
-      })
+      }))
     } finally {
       carregant.value = false
     }

@@ -123,6 +123,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -213,12 +214,12 @@ const desarInstitucio = async () => {
     await carregarInstitucions()
   } catch (error) {
     console.error('Error desant institució:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.institutions.saveError'),
       life: 3000
-    })
+    }))
   }
 }
 
@@ -261,12 +262,12 @@ const executarAccioInstitucio = async () => {
     await carregarInstitucions()
   } catch (error) {
     console.error('Error actualitzant institució:', error)
-    toast.add({
+    avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.detail || t('config.institutions.saveError'),
       life: 3000
-    })
+    }))
   } finally {
     tancarConfirmInstitucio()
   }

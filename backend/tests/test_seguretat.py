@@ -39,8 +39,8 @@ import io
 import os
 import sqlite3
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 import pytest
 from fastapi.routing import APIRoute
@@ -71,12 +71,12 @@ INFERIORS = {USER: [], ADMIN: [USER], SUPER: [USER, ADMIN]}
 @dataclass
 class Ruta:
     grup: str
-    rol: Optional[str]  # el mínim (None: pública)
+    rol: str | None  # el mínim (None: pública)
     url: str  # amb {camps} del context
     kw: dict = field(default_factory=dict)  # json, params, files: textos amb {camps}, o funcions del context
     escriu: tuple = ()  # els centres que canvia: "a" (el de la sessió) o "b" (només les globals)
-    recull: Optional[Callable] = None  # (resposta, context): desa el que necessiten les següents
-    comprova: Optional[Callable] = None  # (client, context): comprovacions pròpies després
+    recull: Callable | None = None  # (resposta, context): desa el que necessiten les següents
+    comprova: Callable | None = None  # (client, context): comprovacions pròpies després
     esperat: int = 200
 
 

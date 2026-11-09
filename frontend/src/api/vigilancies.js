@@ -5,23 +5,25 @@ import clientApi from './client.js'
 const base = (data) => `/api/vigilancies/${data}`
 
 // Les vigilàncies del dia, en l'ordre desat dins de cada hora
-export const llistaAmb = async (client, data) => (await client.get(base(data))).data
-export const llista = async (data) => llistaAmb(clientApi, data)
+export const llistaAmb = async (client, data, ...opcions) => (await client.get(base(data), ...opcions)).data
+export const llista = async (data, ...opcions) => llistaAmb(clientApi, data, ...opcions)
 
 // Crea una vigilància; retorna la fila creada (amb l'id)
 export const creaAmb = async (client, data, fila) => (await client.post(base(data), fila)).data.vigilancia
 export const crea = async (data, fila) => creaAmb(clientApi, data, fila)
 
 // Canvia els camps de `canvis`; retorna la resposta (amb el nou updated_at)
-export const editaAmb = async (client, data, id, canvis) =>
-  (await client.put(`${base(data)}/${id}`, canvis)).data
-export const edita = async (data, id, canvis) => editaAmb(clientApi, data, id, canvis)
+export const editaAmb = async (client, data, id, canvis, ...opcions) =>
+  (await client.put(`${base(data)}/${id}`, canvis, ...opcions)).data
+export const edita = async (data, id, canvis, ...opcions) => editaAmb(clientApi, data, id, canvis, ...opcions)
 
-export const esborraAmb = async (client, data, id, { updatedAt = null, force = false } = {}) => {
+export const esborraAmb = async (client, data, id, { updatedAt = null, force = false, silent = false } = {}) => {
   const params = {}
   if (updatedAt) params.updated_at = updatedAt
   if (force) params.force = true
-  await client.delete(`${base(data)}/${id}`, { params })
+  const opcions = { params }
+  if (silent) opcions._silent = true
+  await client.delete(`${base(data)}/${id}`, opcions)
 }
 export const esborra = async (data, id, opcions) => esborraAmb(clientApi, data, id, opcions)
 
@@ -41,10 +43,10 @@ export const disponibles = async (data, hora, opcions) =>
   disponiblesAmb(clientApi, data, hora, opcions)
 
 // Disponibles per a moltes consultes ({hora, tipus, grups, aula}): {clau: [professors]}
-export const disponiblesEnBlocAmb = async (client, data, queries) =>
-  (await client.post(`${base(data)}/disponibles-batch`, { queries })).data?.results || {}
-export const disponiblesEnBloc = async (data, queries) =>
-  disponiblesEnBlocAmb(clientApi, data, queries)
+export const disponiblesEnBlocAmb = async (client, data, queries, ...opcions) =>
+  (await client.post(`${base(data)}/disponibles-batch`, { queries }, ...opcions)).data?.results || {}
+export const disponiblesEnBloc = async (data, queries, ...opcions) =>
+  disponiblesEnBlocAmb(clientApi, data, queries, ...opcions)
 
 // Tot el que té un professor a una hora (l'ajuda del vigilant)
 export const ajudaVigilantAmb = async (client, data, hora, nom) =>
@@ -85,5 +87,5 @@ export const neteja = async (data) => netejaAmb(clientApi, data)
 
 
 // Conflictes del dia: la mateixa regla que la revisió i els PDF.
-export const analisiAmb = async (client, data) => (await client.get(`${base(data)}/analisi`)).data
-export const analisi = async (data) => analisiAmb(clientApi, data)
+export const analisiAmb = async (client, data, ...opcions) => (await client.get(`${base(data)}/analisi`, ...opcions)).data
+export const analisi = async (data, ...opcions) => analisiAmb(clientApi, data, ...opcions)

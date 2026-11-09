@@ -5,6 +5,62 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 
 ## Mapa de dependències
 
+### Capes del backend i peces compartides
+
+El graf de dependències és acíclic, comptant també els imports interiors i els
+motors del registre dinàmic de `scheduler_engine/factory.py`. Ho comprova el guardià AST
+`tests/test_dependencies_capes.py`, juntament amb les regles següents:
+
+```mermaid
+flowchart TD
+    HTTP["router.py i pdf/informes.py"] --> CASOS["Serveis i casos d’ús"]
+    CASOS --> DOMINI["Domini, lectures i factories del dia"]
+    CASOS --> REPO["repositories.py"]
+    DOMINI --> REPO
+    REPO --> BASE["Base i configuració tècnica"]
+    REPO --> FILES["Valors purs: files del domini"]
+    DOMINI --> FILES
+    HTTP --> TIPUS["Esquemes i dependències HTTP"]
+    MOTOR["scheduler_engine"] --> TEXTOS["textos.py: noms i hores purs"]
+    BASE --> TEXTOS
+```
+
+- Base: `database`, `models`, `noms`, `parametres`, `rellotge`, errors,
+  `i18n_setup` i `config/`; també `dates`, `ordre_curs`, `nivells` i `textos`,
+  que només transformen valors. La validació d’esquemes de `database` és
+  infraestructura de `schema_migrations/`, sense dependències del domini.
+- Repositoris: base, altres repositoris i valors purs de `*/files.py`
+  (dataclasses sense I/O). Cap horari, servei, ruta ni context de petició,
+  tampoc a través de les vistes de `config.constants`. La puresa dels mòduls
+  de files també té guardià.
+- Domini i serveis: sense rutes. El domini no importa `services.py`; els
+  serveis orquestren el domini i els repositoris. Els noms `generacio`,
+  `disponibles`, `importacio`, `cost` i `publicacio` també són casos d’ús.
+- Routers: HTTP, serveis, tipus i dependències. Les preferències i el recompte
+  de vigilàncies sense nivell del PDF passen per `pdf/services.py`.
+- Motor: sense FastAPI, Pydantic, SQLAlchemy, BD ni context de petició. L’única
+  peça compartida amb l’aplicació és `textos.py`, de biblioteca estàndard.
+  L’informe de professors rep explícitament la funció d’abreviatures des de
+  `planificador/generacio.py`; la lògica de cerca i de cost es conserva.
+
+Peces compartides, cadascuna en un únic lloc:
+
+| Peça | Ubicació | Consumidors |
+|---|---|---|
+| Nivell derivat del codi de grup | `nivells.py` | Propostes i ordre de cursos |
+| Escapat de text ReportLab | `pdf/text.py` | Motor PDF i taules |
+| Lectura i vista d’absències cobertes | `absencia_coberta/domain.py` | Horari i serveis |
+| Alliberats efectius per dia i interval | `grups/lectures.py` | DiaEscolar, vigilàncies, PDF i recomptes |
+| Neteja de substituts invàlids | `substitucions/reconciliacio.py` | Serveis d’absències i alliberaments |
+| Noms i hores normalitzats | `textos.py` | Lectors XML, API i motor |
+
+Hi ha vuit imports interiors de producció: tres al PDF (partició
+opcional amb `pyphen` i Pillow quan hi ha logo, al PDF combinat i
+a l’informe de direcció) i cinc al CLI
+d’esborrat (després de validar arguments). Cada línia porta `noqa: PLC0415`
+amb el motiu, que el guardià exigeix exactament. Als tests es permeten imports
+locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                        FRONTEND (Vue 3)                          │
@@ -186,13 +242,13 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 │  ├── errors_servidor.py   ← errors no previstos: es registren    │
 │  │                           amb una referència; l'usuari només  │
 │  │                           rep la referència                   │
-│  ├── noms.py              ← la regla dels noms: nom_net, NomNet  │
+│  ├── noms.py              ← NomNet i ordre alfabètic             │
 │  ├── parametres.py        ← DataISO, HoresTriades: paràmetres    │
 │  │                           comuns de les rutes                 │
 │  ├── errors_domini.py     ← errors de les regles (NoTrobat,      │
 │  │                           NoPermes, NoValid, Conflicte)       │
 │  ├── dates.py             ← lectura i format de dates           │
-│  ├── horari/hores.py      ← normalització de franges             │
+│  ├── textos.py      ← noms i franges purs                        │
 │  ├── grups/abreviatures.py ← abreviatures dels grups             │
 └──────────────────────────────────────────────────────────────────┘
                          │
@@ -211,6 +267,51 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
                         ├── *.xml  (horari FET)
                         └── exports/
 ```
+
+## Files del domini
+
+Les lectures de substitucions i vigilàncies retornen objectes amb atributs,
+sense `.get()`, `__getitem__` ni interfície de diccionari. Les dates i les
+hores són text. Les instantànies de BD són immutables i no estan
+vinculades a l’ORM: els canvis passen pels repositoris i es rellegeixen. Les
+operacions d’escriptura conserven els models ORM i les transaccions existents.
+
+| Objecte | Mòdul | Camps | Ús i mutabilitat |
+|---|---|---|---|
+| `FilaSubstitucio` | `substitucions/files.py` | `id`, `data`, `hora`, `professor_absent`, `assignatura`, `grup`, `aula`, `substitut`, `tipus_substitut`, `tipus_absencia`, `comentaris`, `updated_at`, `created_at` | Instantània immutable del dia o dels recomptes. |
+| `PropostaSubstitucio` | `substitucions/files.py` | `professor_absent`, `hora`, `assignatura`, `grup`, `aula`, `substitut`, `tipus_substitut`, `tipus_absencia`, `comentaris`, `professor`, `separador`, `disponibles`, `conservat` | Mutable: el motor hi assigna substituts i candidats abans de desar. |
+| `FilaVigilancia` | `vigilancies/files.py` | `id`, `hora`, `tipus`, `grups`, `aula`, `vigilant`, `comentaris`, `nivell`, `ordre`, `updated_at`, `data` | Instantània immutable del dia o dels recomptes. |
+| `SubstitucioPdf` | `pdf/files.py` | Els de `FilaSubstitucio`, més `dia_interval` i `data_iso`. | Còpia immutable amb el dia de l’interval. |
+| `VigilanciaPdf` | `pdf/files.py` | Els de `FilaVigilancia`, més `dia_interval`, `data_iso` i `dia_buit`. | Còpia immutable; també representa un dia buit de l’interval. |
+
+Cada camp té tipus i valor per defecte explícits. La lectura diària conserva
+els buits normalitzats; els identificadors diaris són de text. Les
+substitucions dels recomptes conserven l’identificador enter, els `NULL` i els timestamps SQL
+històrics. La projecció de vigilàncies dels recomptes conserva el vigilant
+`NULL` i la data ISO. 
+`SubstitucioRepository.get_by_date` retorna `list[FilaSubstitucio]` i
+`VigilanciaRepository.get_by_date`, `dict[str, list[FilaVigilancia]]`. Els
+recomptes també retornen les files tipades.
+
+La conversió HTTP de substitucions és a `substitucions/schemas.py`:
+`resposta_substitucio` per al llistat i `FilaDesadaResponse` amb atributs per
+als conflictes 409. `resposta_vigilancia` construeix `VigilanciaDelDia`. Els
+esquemes conserven els camps exposats i exclouen les metadades internes.
+Vigilàncies desa un únic identificador (`FilaVigilancia.id`, ID de BD en text).
+El llistat HTTP exposa `id` en text i `db_id` enter, derivats del mateix ID
+a `resposta_vigilancia`. El domini el guarda com a text perquè també
+determina els empats del motor.
+El frontend consumeix `id` per editar, esborrar, ordenar, seleccionar i demanar disponibles; no
+consumeix `db_id` ni genera IDs compostos. El planificador compara directament l’ID únic.
+
+El PDF llegeix atributs; omplir una aula crea una còpia amb `replace`, i les
+metadades d’interval es construeixen només a la capa de presentació.
+
+El guardià `tests/test_files_sense_diccionaris.py` comprova els contractes dels
+repositoris, els accessos per clau (també àlies i vigilàncies agrupades), les
+interfícies i la puresa de `files.py`. Inclou proves negatives sobre
+consumidors reals. Els diccionaris de petició, activitats XML, configuració i
+resultats agregats són estructures diferents i conserven el seu contracte.
 
 ## Esquemes i configuració persistent
 
@@ -455,7 +556,7 @@ Les decisions de negoci viuen en un sol lloc i les fan servir totes les parts
   tot» i «Reassigna» (validació del PDF). Els canvis del dia (grups i professors
   alliberats, estats per període, absències, baixes) no n'assignen cap: treuen
   els que ja no poden ser-ho i la fila queda pendent, amb un avís.
-- **Noms** — `noms.py`: un nom de professor, assignatura o aula és el text
+- **Noms** — `textos.py` (noms purs) i `noms.py` (API): un nom de professor, assignatura o aula és el text
   sense espais al principi ni al final, normalitzat en entrar (lectors de l'XML
   i API amb `NomNet`), amb tests guardians. El buit és vàlid; l'ordre és el de
   l'XML, que es desa tal com es puja. Les dades ja desades es migren amb
@@ -514,6 +615,72 @@ cd backend
 pip install -r requirements-dev.txt
 pytest tests/
 ```
+
+
+### Fluxos de navegador (Playwright)
+
+`frontend/e2e/` conté la configuració i quatre fluxos amb Chromium:
+sessió, canvi de dia (següent/anterior/calendari), assignació de substitut i
+vigilant i descàrrega del PDF del dia. Cadascun s’executa a 1440 × 900 i a
+390 × 844 amb tacte (vuit casos). Les assignacions es comproven també per
+l’API i després de recarregar; `pdfinfo` valida les pàgines del PDF descarregat.
+
+Requisits: Python 3.13, Node 22 i `pdfinfo` (`poppler-utils` a Debian/Ubuntu).
+Des d’un clon, sense cap `.env` ni servidor arrencat:
+
+```bash
+python3 -m venv backend/venv
+backend/venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+# Debian/Ubuntu: sudo apt-get install poppler-utils
+cd frontend
+npm ci
+npx playwright install --with-deps chromium
+npm run e2e
+# Només un dispositiu o un flux:
+npm run e2e -- --project=mobil
+npm run e2e -- --grep 'canvi de dia'
+```
+
+`E2E_PYTHON` permet triar un altre intèrpret amb les dependències del backend.
+`PLAYWRIGHT_BROWSERS_PATH`, si s’utilitza per instal·lar Chromium en una altra
+carpeta, s’ha de conservar també en executar les proves.
+
+Playwright arrenca i atura els serveis als ports locals 8765 i 5183; si ja
+estan ocupats, falla i no reutilitza cap servidor. El backend té un `DATA_DIR`
+nou a la carpeta temporal del sistema (`gestor-e2e-*`), credencials públiques
+de prova a `entorn.js` i cap configuració d’autenticació heretada. El frontend
+també desactiva la lectura de `.env`. La preparació puja exclusivament
+`data/exemple/teachers.xml` i crea prioritats, nivell, absències i vigilàncies
+per l’API. No depèn d’altres fitxers de `data/`.
+Les dades temporals queden al sistema temporal per poder inspeccionar una
+fallada; cada execució en crea de noves. Les dates del navegador són fixes i
+cada dispositiu treballa en dies diferents.
+
+Les proves esperen la pantalla i les respostes HTTP, sense pauses fixes ni
+classes CSS de PrimeVue. Els botons d’icona de la capçalera encara no tenen
+noms accessibles descriptius: s’acoten pel rol `banner` i l’ordre de navegació;
+la resta fa servir rols i noms accessibles. 
+Les captures i traces de fallada són a `frontend/test-results/`, i l’informe
+HTML a `frontend/playwright-report/` (tots dos fora de git). Per obrir-los:
+
+```bash
+cd frontend
+npx playwright show-report
+npx playwright show-trace test-results/<cas>/trace.zip
+```
+
+Executar els e2e, les suites i els arnesos en sèrie.
+
+El job `e2e` de `.github/workflows/ci.yml` s’executa a cada push i pull
+request, després dels jobs `backend` i `frontend`. Instal·la Python 3.13,
+Node 22, `poppler-utils` i només Chromium amb les dependències del sistema;
+la cache del navegador està vinculada al sistema, l’arquitectura i el
+`package-lock.json`. Playwright arrenca tots dos serveis. Si falla, es desa
+`playwright-fallada` amb `test-results/` i `playwright-report/` durant set
+dies. El resum de GitHub Actions registra tant el temps de les proves
+(serveis inclosos) com el del job complet, amb la preparació.
+
+En local, els vuit casos triguen uns 21 s amb els serveis.
 
 
 Conflictes de vigilàncies: `vigilancies/analisi.py` conté l’anàlisi pura

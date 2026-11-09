@@ -1,7 +1,5 @@
 """Schemas de sortida de les rutes d'Estadístiques."""
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 
@@ -128,9 +126,9 @@ class TopNom(BaseModel):
 class ResumClasses(BaseModel):
     total: int
     per_grup: list[TotalGrup]
-    top_assignatura: Optional[TopNom]
-    top_professor: Optional[TopNom]
-    top_substitut: Optional[TopNom]
+    top_assignatura: TopNom | None
+    top_professor: TopNom | None
+    top_substitut: TopNom | None
 
 
 class ClassesDetallResponse(BaseModel):

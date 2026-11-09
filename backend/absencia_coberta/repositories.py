@@ -3,7 +3,6 @@
 Els repositoris no fan commit: el fa el servei, un cop per operació."""
 
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -14,7 +13,7 @@ def _data(text: str):
     return datetime.strptime(text, "%Y-%m-%d").date()
 
 
-def _fitxa(a: AbsenciaCoberta) -> Dict:
+def _fitxa(a: AbsenciaCoberta) -> dict:
     return {
         "id": a.id,
         "professor": a.professor,
@@ -26,12 +25,12 @@ def _fitxa(a: AbsenciaCoberta) -> Dict:
 
 class AbsenciaCobertaRepository:
     @staticmethod
-    def get_all(db: Session) -> List[Dict]:
+    def get_all(db: Session) -> list[dict]:
         """Totes, per data d'inici"""
         return [_fitxa(a) for a in db.query(AbsenciaCoberta).order_by(AbsenciaCoberta.data_inici).all()]
 
     @staticmethod
-    def get_by_id(db: Session, absencia_id: int) -> Optional[Dict]:
+    def get_by_id(db: Session, absencia_id: int) -> dict | None:
         a = db.query(AbsenciaCoberta).filter(AbsenciaCoberta.id == absencia_id).first()
         return _fitxa(a) if a else None
 

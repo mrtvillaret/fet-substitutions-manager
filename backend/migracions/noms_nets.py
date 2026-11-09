@@ -32,7 +32,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 
-from noms import nom_net
+from textos import nom_net
 
 # taula: (columnes de noms, clau de la llista)
 LLISTES = {

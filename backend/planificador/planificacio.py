@@ -27,6 +27,7 @@ from planificador.config import (
 )
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
 from scheduler_engine.defaults import DIES_SETMANA
+from scheduler_engine.factory import crear_motor
 
 
 @dataclass
@@ -45,7 +46,6 @@ class Planificacio:
     def motor(self, nom: str, **parametres):
         """El motor `nom` amb les dades i l'horari dels professors carregats:
         (generador, nom del mètode que genera)."""
-        from scheduler_engine.factory import crear_motor
 
         gen, metode = crear_motor(
             nom,

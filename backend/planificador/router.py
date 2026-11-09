@@ -8,8 +8,6 @@ Les rutes són síncrones: FastAPI les atén en un fil a part i el backend
 continua responent la resta de peticions mentre el motor treballa (segons).
 """
 
-from typing import List, Optional
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -112,18 +110,18 @@ def scheduler_dates_update(payload: SchedulerDatesRequest, db: Session = Depends
     return {"success": True}
 
 
-@router.get("/sessions-info", response_model=List[str])
+@router.get("/sessions-info", response_model=list[str])
 def get_scheduler_sessions_info(nivells: str = None, db: Session = Depends(get_db)):
     return services.examens_dels_nivells(db, nivells)
 
 
-@router.get("/assignatures-actives", response_model=List[str])
+@router.get("/assignatures-actives", response_model=list[str])
 def get_assignatures_actives(db: Session = Depends(get_db)):
     return services.examens_actius(db)
 
 
 @router.get("/horari", response_model=HorariPlanificacioResponse)
-def scheduler_horari(dates: Optional[str] = None, current_user=Depends(get_current_user)):
+def scheduler_horari(dates: str | None = None, current_user=Depends(get_current_user)):
     """Quin horari (XML) fa servir el planificador per a les dates (AAAA-MM-DD
     separades per comes; sense, les desades): la data de referència, des de
     quan és vigent i si dins les dates en comença un altre."""
@@ -131,7 +129,7 @@ def scheduler_horari(dates: Optional[str] = None, current_user=Depends(get_curre
     return horari_de_la_planificacio(current_user.institucio, llista)
 
 
-@router.get("/ultim-resultat", response_model=Optional[dict])
+@router.get("/ultim-resultat", response_model=dict | None)
 def scheduler_ultim_resultat(db: Session = Depends(get_db)):
     """L'últim horari generat o editat ({desat, resultat}), o null."""
     return services.ultim_resultat(db)

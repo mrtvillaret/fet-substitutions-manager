@@ -3,7 +3,6 @@ sessions, canviar d'institució, els usuaris inicials, la contrasenya mínima i
 els usuaris protegits."""
 
 import logging
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -39,14 +38,14 @@ def valida_contrasenya(contrasenya: str) -> None:
         )
 
 
-def delegacio_de_login(username: str) -> Optional[str]:
+def delegacio_de_login(username: str) -> str | None:
     """L'adreça on s'ha d'entrar si l'usuari és d'una altra instal·lació del
     mateix domini; aquí no se'n valida res i el frontend hi reenvia les
     credencials."""
     return get_config_auth().login_delegacio_url if username in get_config_auth().login_delegacio_usuaris else None
 
 
-def autentica(db: Session, username: str, contrasenya: str) -> Optional[User]:
+def autentica(db: Session, username: str, contrasenya: str) -> User | None:
     """L'usuari, si existeix, és actiu i la contrasenya és bona. Si no, None:
     qui crida no ha de saber quina de les tres ha fallat."""
     user = UserRepository.get_by_username(db, username)

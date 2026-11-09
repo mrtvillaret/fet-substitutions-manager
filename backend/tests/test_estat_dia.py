@@ -4,6 +4,8 @@ import pytest
 
 from horari.domain import Dia
 from substitucions import domain
+from substitucions.files import FilaSubstitucio
+from vigilancies.files import FilaVigilancia
 
 
 class Horari:
@@ -27,9 +29,14 @@ def estat(monkeypatch):
         {"professor_absent": "", "hora": "09"},
         {"professor_absent": "Prof E", "hora": ""},
     ]
-    vigilancies = {"09": [{"hora": "09", "vigilant": " Prof V "}, {"hora": "09", "vigilant": ""}]}
-    monkeypatch.setattr(domain.SubstitucioRepository, "get_by_date", lambda *_: files)
-    monkeypatch.setattr(domain.GrupsAlliberatsRepository, "get_by_date", lambda *_: {"09": ["G1", "G1"]})
+    vigilancies = {
+        "09": [
+            FilaVigilancia(**{"hora": "09", "vigilant": " Prof V "}),
+            FilaVigilancia(**{"hora": "09", "vigilant": ""}),
+        ]
+    }
+    monkeypatch.setattr(domain.SubstitucioRepository, "get_by_date", lambda *_: [FilaSubstitucio(**f) for f in files])
+    monkeypatch.setattr(domain.AlliberatsDelDia, "get_by_date", lambda *_: {"09": ["G1", "G1"]})
     monkeypatch.setattr(domain.VigilanciaRepository, "get_by_date", lambda *_: vigilancies)
     dia = Dia.de_text("2026-04-20", "centre_de_prova")
     dia.__dict__["horari"] = Horari()

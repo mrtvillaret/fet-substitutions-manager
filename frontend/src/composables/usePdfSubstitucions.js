@@ -1,7 +1,7 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed } from 'vue'
 import * as apiPdf from '../api/pdf.js'
 import * as apiSubstitucions from '../api/substitucions.js'
-import { jaAvisat } from '../errorsApi.js'
 import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions.js'
 
 // Flux del PDF de substitucions; la data i l'ordre continuen sent els de la vista.
@@ -59,7 +59,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
 
   const carregarPreferenciesPdf = async () => {
     try {
-      const response = await apiPdf.preferencies({ _silent: true })
+      const response = await apiPdf.preferencies()
       aplicarPreferenciesPdf(response.data?.substitucions)
     } catch (error) {
       console.error('Error carregant preferències PDF:', error)
@@ -80,7 +80,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
           format: pdfConfig.value.format,
           midaLletra: pdfConfig.value.midaLletra
         }
-      }, { _silent: true })
+      })
     } catch (error) {
       console.error('Error desant preferències PDF:', error)
     }
@@ -129,14 +129,12 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
     } catch (error) {
       console.error('Error validant PDF:', error)
       // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-      if (!jaAvisat(error)) {
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: error.response?.data?.detail || t('substitutions.errors.validatePdf'),
-          life: 3000
-        })
-      }
+      avisaError(error, () => toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: error.response?.data?.detail || t('substitutions.errors.validatePdf'),
+        life: 3000
+      }))
       generantPDF.value = false
     }
   }
@@ -187,14 +185,12 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
     } catch (error) {
       console.error('Error generant PDF:', error)
       // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-      if (!jaAvisat(error)) {
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: error.response?.data?.detail || t('substitutions.errors.generatePdf'),
-          life: 3000
-        })
-      }
+      avisaError(error, () => toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: error.response?.data?.detail || t('substitutions.errors.generatePdf'),
+        life: 3000
+      }))
     } finally {
       generantPDF.value = false
     }
@@ -269,12 +265,12 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
       })
     } catch (error) {
       console.error('Error reassignant problemàtics:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('substitutions.errors.reassignProblematics'),
         life: 3000
-      })
+      }))
     } finally {
       reassignantProblematics.value = false
     }

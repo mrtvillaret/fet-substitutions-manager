@@ -3,7 +3,8 @@ Factory de motors del scheduler d'exàmens.
 Registre centralitzat de motors amb metadades per l'API.
 """
 
-from typing import Any, List, Tuple
+import importlib
+from typing import Any
 
 from scheduler_engine.defaults import DEFAULT_GREEDY_PARAMS, DEFAULT_SA_PARAMS
 
@@ -153,8 +154,8 @@ def crear_motor(
     xml_path: str,
     restriccions_path: str = None,
     ultim_professor: str = "",
-    nivells_actius: List[str] = None,
-    hores_examen: List[str] = None,
+    nivells_actius: list[str] = None,
+    hores_examen: list[str] = None,
     hores_per_nivell: dict = None,
     durada_titular: int = 1,
     no_substituir: set = None,
@@ -162,7 +163,7 @@ def crear_motor(
     durades_per_sessio: dict = None,
     durades_examen_per_sessio: dict = None,
     **override_params,
-) -> Tuple[Any, str]:
+) -> tuple[Any, str]:
     """
     Crea una instància del motor especificat.
 
@@ -192,8 +193,7 @@ def crear_motor(
     if not motor_info:
         raise ValueError(f"Motor no suportat: {motor_id}. Disponibles: {list(MOTORS.keys())}")
 
-    # Import dinàmic
-    import importlib
+    # Carrega només el motor triat del registre tancat; cap dependència web.
 
     module = importlib.import_module(motor_info["module"])
     cls = getattr(module, motor_info["class_name"])

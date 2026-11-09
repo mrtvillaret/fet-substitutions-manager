@@ -39,7 +39,7 @@ def _marca_absencia(client, professor=ABSENT, hores=None):
 
 def _bolcat(centre):
     with get_data_db_session(centre) as db:
-        return sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila["id"])
+        return sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila.id)
 
 
 def test_generar_desfa_tots_els_canvis_si_falla_despres_de_mutar(client, centre, monkeypatch):
@@ -83,7 +83,7 @@ def test_actualitzar_substitut_desfa_tots_els_canvis_si_falla_la_reconciliacio(c
 
     resposta = client.put(
         f"{URL}/10:00/{ABSENT}",
-        json={"substitut": "Prof 21", "updated_at": fila["updated_at"]},
+        json={"substitut": "Prof 21", "updated_at": fila.updated_at},
     )
     assert resposta.status_code == 500
     assert _bolcat(centre) == abans
@@ -93,7 +93,7 @@ def test_reassignar_desfa_la_neteja_basica_si_falla_abans_del_final(client, cent
     assert _marca_absencia(client).status_code == 200
     with get_data_db_session(centre) as db:
         fila = SubstitucioRepository.get_by_date(db, DATA)[0]
-        SubstitucioRepository.update(db, fila["id"], {"substitut": "Prof 1"})
+        SubstitucioRepository.update(db, fila.id, {"substitut": "Prof 1"})
         db.commit()
     abans = _bolcat(centre)
 
@@ -110,10 +110,10 @@ def test_reassignar_conserva_la_base_i_desfa_tota_la_millora_si_aquesta_falla(cl
     assert _marca_absencia(client, hores=["10:00", "11:30"]).status_code == 200
     with get_data_db_session(centre) as db:
         files = SubstitucioRepository.get_by_date(db, DATA)
-        SubstitucioRepository.update(db, files[0]["id"], {"substitut": "Prof 21"})
-        SubstitucioRepository.update(db, files[1]["id"], {"substitut": "Prof 28"})
+        SubstitucioRepository.update(db, files[0].id, {"substitut": "Prof 21"})
+        SubstitucioRepository.update(db, files[1].id, {"substitut": "Prof 28"})
         db.commit()
-        ids = [fila["id"] for fila in files]
+        ids = [fila.id for fila in files]
 
     def neteja_basica(db, _data):
         SubstitucioRepository.update(db, ids[0], {"substitut": "", "tipus_substitut": ""})
@@ -146,6 +146,6 @@ def test_reassignar_conserva_la_base_i_desfa_tota_la_millora_si_aquesta_falla(cl
     assert resposta.json()["avisos"] == [
         "No s'ha pogut millorar l'assignació segons les prioritats. Revisa les substitucions."
     ]
-    despres = {fila["id"]: fila for fila in _bolcat(centre)}
-    assert despres[ids[0]]["substitut"] == ""
-    assert despres[ids[1]]["substitut"] == "Prof 28"
+    despres = {fila.id: fila for fila in _bolcat(centre)}
+    assert despres[ids[0]].substitut == ""
+    assert despres[ids[1]].substitut == "Prof 28"

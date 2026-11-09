@@ -13,8 +13,6 @@ Rutes de l'horari (XML de FET): només HTTP; la lògica, a services.py.
   comencen, esborrar)
 """
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
@@ -130,7 +128,7 @@ def detectar_assignatures(dia: Dia = Depends(dia_del_calendari)):
     "/api/files/upload-xml", tags=["Fitxers"], response_model=XmlPujatResponse, response_model_exclude_unset=True
 )
 def upload_xml(
-    file: UploadFile = File(...), data_inici: Optional[DataISO] = Form(None), current_user=Depends(require_admin)
+    file: UploadFile = File(...), data_inici: DataISO | None = Form(None), current_user=Depends(require_admin)
 ):
     """
     Puja un fitxer XML de FET i el versiona a partir d'una data de vigència.
@@ -139,6 +137,9 @@ def upload_xml(
     futur sense que passi a ser vigent immediatament: la versió anterior es tanca el dia
     abans, i el punter "actual" (`xml_horari_path`) només es mou si la nova versió ja és
     vigent avui.
+
+    Després de desar-lo, informa de les assignacions que cal revisar amb el nou
+    XML, sense modificar substitucions ni vigilàncies.
     """
     return services.puja_xml(current_user.institucio, file.filename, file.file, data_inici)
 

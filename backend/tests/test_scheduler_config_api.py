@@ -63,6 +63,7 @@ def test_les_durades_nomes_es_llegeixen_dels_grups_de_durada(centre, client):
     # cap centre no el tenia (recompte del 01/11/2026)
     with get_data_db_session(centre[0]) as db:
         ConfiguracioRepository.set(db, "scheduler_durades_per_sessio", '{"Anglès (1-BAT)": 2}', tipus="json")
+        db.commit()
     assert client.get("/api/scheduler/config").json()["durades_grups"] == []
     cfg = carrega_config(centre[0])
     assert (cfg.durades_per_sessio, cfg.durades_examen_per_sessio) == ({}, {})
@@ -410,6 +411,7 @@ def test_un_titular_despres_de_l_ultim_professor_no_es_d_un_curs_anterior(centre
     institucio, client = centre
     with get_data_db_session(institucio) as db:
         ConfiguracioRepository.set(db, "ultim_professor_subs", "Prof 3")
+        db.commit()
     invalidar_horari(institucio)
     client.post("/api/config/assignacions", json={"assignatura": "Filosofia", "grup": "1-BAT-A", "titular": "Prof 7"})
 

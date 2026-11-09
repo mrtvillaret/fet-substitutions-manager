@@ -3,7 +3,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
 
 permissions:
@@ -56,3 +55,73 @@ jobs:
       # Funcions pures (tests/*.test.js, node --test)
       - run: npm test
       - run: npm run build
+
+  e2e:
+    # Cap prova de navegador alhora que les suites.
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
+      E2E_PYTHON: python
+    steps:
+      - name: Inicia la mesura del job
+        id: inici
+        working-directory: ${{ github.workspace }}
+        run: echo "instant=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instal·la les dependències del backend i del frontend
+        run: |
+          python -m pip install -r ../backend/requirements.txt -r ../backend/requirements-dev.txt
+          npm ci
+      - name: Recupera Chromium de la cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-chromium-${{ hashFiles('frontend/package-lock.json') }}
+      - name: Instal·la Chromium i les dependències del sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          npx playwright install --with-deps chromium
+      - name: Executa els vuit casos de navegador
+        run: |
+          inici=$SECONDS
+          codi=0
+          npm run e2e || codi=$?
+          durada=$((SECONDS - inici))
+          printf 'Proves e2e (serveis inclosos): %s s; sortida %s.\n' "$durada" "$codi" >> "$GITHUB_STEP_SUMMARY"
+          exit "$codi"
+      - name: Desa les captures, traces i l'informe si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-fallada
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
+      - name: Resumeix el temps total del job
+        if: always()
+        env:
+          INICI: ${{ steps.inici.outputs.instant }}
+        run: |
+          if [ -n "$INICI" ]; then
+            durada=$(( $(date +%s) - INICI ))
+            printf 'Job e2e (preparació i proves): %s s.\n' "$durada" >> "$GITHUB_STEP_SUMMARY"
+          fi

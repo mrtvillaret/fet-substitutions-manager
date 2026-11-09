@@ -1,14 +1,14 @@
 """Repositori de substitucions."""
 
 from datetime import datetime
-from typing import Dict, List, Optional
 
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from dates import parse_date
 from models import Substitucio
 from ordre_curs import clau_curs, natural
+from substitucions.files import FilaSubstitucio
 
 
 class SubstitucioRepository:
@@ -26,10 +26,10 @@ class SubstitucioRepository:
     ORDRES = ("curs", "professor")
 
     @staticmethod
-    def ordena(files: list, hores: list, valor=lambda fila, camp: fila.get(camp), ordre: str = "curs") -> list:
+    def ordena(files: list, hores: list, valor=getattr, ordre: str = "curs") -> list:
         """Les files en l'ordre per mostrar-les. `hores`: l'ordre de l'horari
         (una hora que no hi és, al final). `valor(fila, camp)`: per a files que
-        no són diccionaris (p.ex. models de Pydantic). `ordre`: un d'ORDRES."""
+        tenen una altra representació (p.ex. models de Pydantic). `ordre`: un d'ORDRES."""
         if ordre not in SubstitucioRepository.ORDRES:
             raise ValueError(f"Ordre desconegut: {ordre}")
 
@@ -71,27 +71,47 @@ class SubstitucioRepository:
         return ordenades
 
     @staticmethod
-    def get_by_date(db: Session, data: str) -> List[Dict]:
-        """Retorna totes les substitucions d'una data"""
+    def get_by_date(db: Session, data: str) -> list[FilaSubstitucio]:
+        """Totes les files del dia, en el mateix ordre i amb els mateixos buits."""
         subs = db.query(Substitucio).filter(Substitucio.data == parse_date(data)).all()
-
         return [
-            {
-                "id": str(sub.id),
-                "data": str(sub.data),
-                "hora": sub.hora,
-                "professor_absent": sub.professor_absent,
-                "assignatura": sub.assignatura or "",
-                "grup": sub.grup or "",
-                "aula": sub.aula or "",
-                "substitut": sub.substitut or "",
-                "tipus_substitut": sub.tipus_substitut or "",
-                "tipus_absencia": sub.tipus_absencia or "",
-                "comentaris": sub.comentaris or "",
-                "updated_at": sub.updated_at.isoformat() if sub.updated_at else None,
-            }
+            FilaSubstitucio(
+                id=str(sub.id),
+                data=str(sub.data),
+                hora=sub.hora,
+                professor_absent=sub.professor_absent,
+                assignatura=sub.assignatura or "",
+                grup=sub.grup or "",
+                aula=sub.aula or "",
+                substitut=sub.substitut or "",
+                tipus_substitut=sub.tipus_substitut or "",
+                tipus_absencia=sub.tipus_absencia or "",
+                comentaris=sub.comentaris or "",
+                updated_at=sub.updated_at.isoformat() if sub.updated_at else None,
+            )
             for sub in subs
         ]
+
+    @staticmethod
+    def historial_quota(db: Session, data: str) -> list[tuple[str, str, str]]:
+        """Una lectura per centre/dia, també dates futures; exclou el mateix dia.
+
+        Projecció mínima en ordre cronològic amb ID com a desempat estable.
+        El domini separa categories i reté només les deu últimes de cadascuna.
+        """
+        dia = parse_date(data)
+        files = (
+            db.query(Substitucio.hora, Substitucio.substitut, Substitucio.tipus_substitut)
+            .filter(
+                Substitucio.data != dia,
+                func.strftime("%w", Substitucio.data) == dia.strftime("%w"),
+                Substitucio.substitut.isnot(None),
+                Substitucio.substitut != "",
+            )
+            .order_by(Substitucio.data, Substitucio.id)
+            .all()
+        )
+        return [(hora, professor, tipus or "") for hora, professor, tipus in files]
 
     @staticmethod
     def dates_entre(db: Session, inici: str, final: str) -> set:
@@ -108,7 +128,7 @@ class SubstitucioRepository:
         return {g for (g,) in files.distinct()}
 
     @staticmethod
-    def get_by_date_hour_and_type(db: Session, data: str, hora: str, tipus_absencia: str) -> List[Substitucio]:
+    def get_by_date_hour_and_type(db: Session, data: str, hora: str, tipus_absencia: str) -> list[Substitucio]:
         """Retorna les files d'una data i hora amb el tipus indicat."""
         return (
             db.query(Substitucio)
@@ -123,7 +143,7 @@ class SubstitucioRepository:
         )
 
     @staticmethod
-    def get_absences_by_date_and_hour(db: Session, data: str, hora: str) -> List[Substitucio]:
+    def get_absences_by_date_and_hour(db: Session, data: str, hora: str) -> list[Substitucio]:
         """Retorna absències i serveis, sense les files derivades."""
         return (
             db.query(Substitucio)
@@ -138,12 +158,12 @@ class SubstitucioRepository:
         )
 
     @staticmethod
-    def delete_by_ids(db: Session, sub_ids: List[int]) -> int:
+    def delete_by_ids(db: Session, sub_ids: list[int]) -> int:
         """Esborra en bloc sense fer commit; la transacció la conserva el servei."""
         return db.query(Substitucio).filter(Substitucio.id.in_(sub_ids)).delete(synchronize_session="fetch")
 
     @staticmethod
-    def create(db: Session, sub_data: Dict) -> Substitucio:
+    def create(db: Session, sub_data: dict) -> Substitucio:
         """Crea una nova substitució"""
         sub = Substitucio(
             data=parse_date(sub_data["data"]),
@@ -163,7 +183,7 @@ class SubstitucioRepository:
         return sub
 
     @staticmethod
-    def update(db: Session, sub_id: int, updates: Dict, *, updated_at_esperat: str = None) -> Optional[Substitucio]:
+    def update(db: Session, sub_id: int, updates: dict, *, updated_at_esperat: str = None) -> Substitucio | None:
         """Actualitza una substitució"""
         sub = db.query(Substitucio).filter(Substitucio.id == sub_id).first()
         if not sub:

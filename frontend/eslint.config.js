@@ -3,9 +3,10 @@
 import js from '@eslint/js'
 import pluginVue from 'eslint-plugin-vue'
 import globals from 'globals'
+import errorUnic from './eslint-rules/errors-unics.js'
 
 export default [
-  { ignores: ['dist/**', '.vite/**'] },
+  { ignores: ['dist/**', '.vite/**', 'test-results/**', 'playwright-report/**'] },
   js.configs.recommended,
   // Regles bàsiques ara; strongly-recommended i recommended, més endavant.
   ...pluginVue.configs['flat/essential'],
@@ -19,7 +20,7 @@ export default [
   },
   {
     // Fitxers de configuració: s'executen amb Node, no al navegador.
-    files: ['*.config.js'],
+    files: ['*.config.js', 'e2e/**/*.js'],
     languageOptions: { globals: { ...globals.node } },
   },
   {
@@ -28,6 +29,11 @@ export default [
       // `({ a, b, ...rest }) => rest` per treure camps d'un objecte.
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
     },
+  },
+  {
+    files: ['src/**/*.{js,vue}'],
+    plugins: { avisos: { rules: { 'error-unic': errorUnic } } },
+    rules: { 'avisos/error-unic': 'error' },
   },
   {
     // El botó d'acceptar de les confirmacions d'esborrar, sempre vermell i

@@ -8,8 +8,6 @@ Rutes de /api/vigilancies (vigilàncies d'examen de cada dia):
 (Els PDF de vigilàncies són a pdf/router.py, /api/pdf/vigilancies/...)
 """
 
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -41,6 +39,7 @@ from vigilancies.schemas import (
     VigilanciaDelDia,
     VigilanciaEditadaResponse,
     VigilanciaRequest,
+    resposta_vigilancia,
 )
 
 router = APIRouter(prefix="/api/vigilancies", tags=["Vigilàncies"])
@@ -63,7 +62,7 @@ def obtenir_config_vigilancies(db: Session = Depends(get_db), dia: Dia = Depends
     return services.config(db, dia)
 
 
-@router.get("/{data}/{hora}/disponibles", response_model=List[ProfessorDisponible])
+@router.get("/{data}/{hora}/disponibles", response_model=list[ProfessorDisponible])
 def obtenir_disponibles_vigilancia(
     data: DataISO,
     hora: str,
@@ -105,10 +104,10 @@ def obtenir_disponibles_vigilancia_batch(
     return {"results": services.disponibles_en_bloc(db, dia, payload.queries)}
 
 
-@router.get("/{data}", response_model=List[VigilanciaDelDia])
+@router.get("/{data}", response_model=list[VigilanciaDelDia])
 def obtenir_vigilancies(data: DataISO, db: Session = Depends(get_db)):
     """Les vigilàncies del dia: llista plana, amb l'id de la BD."""
-    return services.llista(db, data)
+    return [resposta_vigilancia(fila) for fila in services.llista(db, data)]
 
 
 @router.get("/{data}/analisi", response_model=list[ProblemaVigilancia])

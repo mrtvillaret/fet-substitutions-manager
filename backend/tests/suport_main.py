@@ -1,8 +1,8 @@
 """
 L'app sencera (main.app) dins del procés dels tests, amb els permisos de cada
-router tal com són a main.py. En importar-se, main.py carrega el .env i crea
-els usuaris inicials si la taula és buida: aquí el .env no es llegeix (els
-tests tenen el seu entorn, conftest.py) i abans ja hi ha un usuari.
+router tal com són a main.py. Importar no inicialitza dades: les proves
+preparen explícitament un usuari, i aquí el .env no es llegeix (els tests
+tenen el seu entorn, conftest.py).
 """
 
 from unittest import mock

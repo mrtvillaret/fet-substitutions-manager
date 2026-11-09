@@ -11,7 +11,9 @@ Optimitzacions implementades:
 import random
 import time
 from collections import Counter, defaultdict
-from typing import Dict, List, Set, Tuple
+from datetime import datetime as _dt
+from datetime import datetime as _dt2
+from itertools import groupby
 
 from scheduler_engine.core.constraints import (
     _percent_penalty,
@@ -26,9 +28,10 @@ from scheduler_engine.core.missatges import missatge
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.restriction_engine import RestrictionEngine
 from scheduler_engine.core.scoring import calcular_cost_slot
-from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA
+from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA, DIES_SETMANA
 from scheduler_engine.estadistiques import aplicar_estadistiques
 from scheduler_engine.generators.v2_intents import GeneradorV2Intents
+from scheduler_engine.informe import log
 
 SEGONS_MAXIMS_BACKTRACK = 20
 
@@ -52,7 +55,7 @@ NIVELL_TO_BIT = {
 }
 
 
-def _get_nivell_mask(sessions: List[Dict]) -> int:
+def _get_nivell_mask(sessions: list[dict]) -> int:
     """Retorna un bitmask amb els nivells de les sessions."""
     mask = 0
     for s in sessions:
@@ -72,11 +75,11 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         data_inici: str = None,
         data_inici_iso: str = None,
         max_dies: int = 5,
-        dies_utilitzar: List[str] = None,
-        dia_a_data_iso: Dict[str, str] = None,
+        dies_utilitzar: list[str] = None,
+        dia_a_data_iso: dict[str, str] = None,
         max_solucions: int = 100,
         **kwargs,
-    ) -> Dict:
+    ) -> dict:
         solucions = self.generar_totes_solucions_optimes(
             data_inici, data_inici_iso, max_dies, dies_utilitzar, max_solucions, dia_a_data_iso=dia_a_data_iso, **kwargs
         )
@@ -104,8 +107,6 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
     ):
         self._termini_bt = time.monotonic() + SEGONS_MAXIMS_BACKTRACK
         if dies_utilitzar is None:
-            from scheduler_engine.defaults import DIES_SETMANA
-
             dies_utilitzar = list(DIES_SETMANA)[:max_dies]
 
         self.selected_dates = sorted(kwargs.get("selected_dates") or [])
@@ -158,7 +159,6 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         return resultats if resultats else [{"metadata": {"error": missatge("no_viable"), "viable": False}, "dies": []}]
 
     def _backtrack_with_seed(self, seed, dies_utilitzar, max_solucions, max_nodes=100000, shuffle_top_n=0):
-        from datetime import datetime as _dt
 
         def _parse_prefix(prefix: str):
             try:
@@ -184,7 +184,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         if num_items == 0:
             return []
 
-        print(f"🔍 Pre-calculant costos i compatibilitats per {num_items} items...")
+        log.info(f"🔍 Pre-calculant costos i compatibilitats per {num_items} items...")
 
         # =============================================================
         # FASE 1: Pre-calcular costos item-slot i màscares de nivell
@@ -262,7 +262,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             items_info_labels = {ii["label"] for ii in items_info}
             exclosos_items = [item for item in items if item.get("nom", "?") not in items_info_labels]
             exclosos_noms = [it.get("nom", "?") for it in exclosos_items]
-            print(f"   ⚠️ {n_exclosos} items sense cap slot viable (exclosos del backtrack): {exclosos_noms}")
+            log.info(f"   ⚠️ {n_exclosos} items sense cap slot viable (exclosos del backtrack): {exclosos_noms}")
             # Detectar raó principal per cada ítem exclòs (primera vegada, les seeds posteriors ometen)
             if not self._incompatibilitats_bt:
                 for item in exclosos_items:
@@ -296,7 +296,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         # FASE 2: Pre-calcular matriu de compatibilitat entre items
         # =============================================================
         # compat_matrix[i][j] = True si items i i j poden coexistir al mateix slot
-        print(f"   Calculant matriu de compatibilitat {num_items_valid}x{num_items_valid}...")
+        log.info(f"   Calculant matriu de compatibilitat {num_items_valid}x{num_items_valid}...")
 
         compat_matrix = [[True] * num_items_valid for _ in range(num_items_valid)]
 
@@ -325,8 +325,6 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         # Ordenació: items més restringits primer; si shuffle_top_n > 1, barreja dins grups
         items_info.sort(key=lambda x: (len(x["slots_possibles"]), x["millor_cost"]))
         if shuffle_top_n > 0:
-            from itertools import groupby
-
             shuffled_items = []
             for _, grp in groupby(items_info, key=lambda x: (len(x["slots_possibles"]), x["millor_cost"])):
                 g = list(grp)
@@ -348,7 +346,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 new_compat[i][j] = compat_matrix[old_i][old_j]
         compat_matrix = new_compat
 
-        print(f"   ✅ {num_items_valid} items preparats")
+        log.info(f"   ✅ {num_items_valid} items preparats")
 
         # =============================================================
         # FASE 3: Backtracking amb optimitzacions
@@ -369,7 +367,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         # Forward Checking: slots encara possibles per cada item no assignat
         remaining_slots = [set(it["slots_possibles"]) for it in items_info]
 
-        def forward_check(assigned_idx: int, assigned_slot: str) -> List[Tuple[int, Set[str]]]:
+        def forward_check(assigned_idx: int, assigned_slot: str) -> list[tuple[int, set[str]]]:
             """
             Propaga restriccions després d'assignar un item.
             Retorna llista de (item_idx, slots_eliminats) per poder fer undo.
@@ -407,7 +405,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
 
             return changes
 
-        def undo_forward_check(changes: List[Tuple[int, Set[str]]]):
+        def undo_forward_check(changes: list[tuple[int, set[str]]]):
             """Desfà els canvis del forward checking."""
             for other_idx, removed in changes:
                 remaining_slots[other_idx] |= removed
@@ -568,8 +566,8 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         backtrack(0, 0)
 
         if nodes[0] > max_nodes:
-            print(f"   ⚠️ Límit de nodes assolit ({max_nodes}), backtrack tallat")
-        print(f"   📊 Nodes explorats: {nodes[0]}, solucions trobades: {len(totes_solucions)}")
+            log.info(f"   ⚠️ Límit de nodes assolit ({max_nodes}), backtrack tallat")
+        log.info(f"   📊 Nodes explorats: {nodes[0]}, solucions trobades: {len(totes_solucions)}")
         # Si no hi ha solucions i hi ha un dead-end contextual, guardar-lo (Fase 3)
         if not self._temps_esgotat() and not totes_solucions and deepest_deadend[1] and not self._incompatibilitats_bt:
             label = deepest_deadend[1]
@@ -594,7 +592,6 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         return totes_solucions
 
     def _construir_horari_desde_slots(self, slots_occ, data_inici, dies_utilitzar):
-        from datetime import datetime as _dt2
 
         selected = getattr(self, "selected_dates", None) or []
         if selected:

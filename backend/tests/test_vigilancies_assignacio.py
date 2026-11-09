@@ -24,6 +24,7 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 
 from config.context import fixa_institucio_peticio
 from database import get_data_db_session
+from grups.lectures import AlliberatsDelDia
 from grups.repositories import GrupsAlliberatsRepository
 from models import AbreviaturaGrup, CategoriaPrioritat, ConfiguracioExamen, Grup, Nivell
 from prioritats.services import carrega_prioritats
@@ -107,7 +108,7 @@ def _crea(client, grups, tipus="Castellà", aula="A1", nivell=None):
         nom = client.get("/api/users/profile").json()["username"]
         centre = UserRepository.get_by_username(auth, nom).institucio
     with get_data_db_session(centre) as db:
-        marques = GrupsAlliberatsRepository.get_by_date(db, DATA)
+        marques = AlliberatsDelDia.get_by_date(db, DATA)
         marques.setdefault("10:00", []).append(grups)
         GrupsAlliberatsRepository.set_for_date(db, DATA, marques)
         db.commit()

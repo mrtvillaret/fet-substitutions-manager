@@ -1,8 +1,10 @@
 import { readFileSync, existsSync } from 'node:fs'
+import { avisaError, marcaAvisat, esErrorSilencios } from '../../src/errorsApi.js'
 
 // Caracterització: executa els fragments originals abans de moure'ls i el
 // composable real després, amb els mateixos dobles d'API i navegador.
 export function carregaBlocVista(vista, nom, fragments, noms, dependencies) {
+  dependencies = { avisaError, marcaAvisat, esErrorSilencios, ...dependencies }
   const arrel = new URL('../../src/', import.meta.url)
   const fitxer = new URL(`composables/${nom}.js`, arrel)
   if (existsSync(fitxer)) {

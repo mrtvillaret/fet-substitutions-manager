@@ -33,7 +33,7 @@ També hi ha les afinitats de nivells (quins nivells són propers).
 import json
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -43,9 +43,9 @@ VIGILANCIES_AFINITATS_KEY = "vigilancies_afinitats"
 AULA_ENLLAC = "ENLLAÇ"
 
 
-def normalize_vigilancies_afinitats(rows: List[Dict[str, Any]]) -> List[Dict[str, List[str]]]:
+def normalize_vigilancies_afinitats(rows: list[dict[str, Any]]) -> list[dict[str, list[str]]]:
     """Normalitza i valida files d'afinitats."""
-    normalized: List[Dict[str, List[str]]] = []
+    normalized: list[dict[str, list[str]]] = []
     seen_bases = set()
     rows = rows or []
 
@@ -78,7 +78,7 @@ def normalize_vigilancies_afinitats(rows: List[Dict[str, Any]]) -> List[Dict[str
     return normalized
 
 
-def get_vigilancies_afinitats(db: Session) -> List[Dict[str, List[str]]]:
+def get_vigilancies_afinitats(db: Session) -> list[dict[str, list[str]]]:
     """
     Carrega afinitats de BD (sense fallback hardcoded).
     """
@@ -93,7 +93,7 @@ def get_vigilancies_afinitats(db: Session) -> List[Dict[str, List[str]]]:
         return []
 
 
-def save_vigilancies_afinitats(db: Session, rows: List[Dict[str, Any]]) -> List[Dict[str, List[str]]]:
+def save_vigilancies_afinitats(db: Session, rows: list[dict[str, Any]]) -> list[dict[str, list[str]]]:
     normalized = normalize_vigilancies_afinitats(rows)
     ConfiguracioRepository.set(
         db,
@@ -143,7 +143,7 @@ def titulars_de(files_config: list, tipus: str, grups: str, aula: str, abreviatu
     return frozenset(de_laula or titulars), "diversos_titulars"
 
 
-def titular_de(files_config: list, tipus: str, grups: str, aula: str, abreviatures=None, nivells=None) -> Optional[str]:
+def titular_de(files_config: list, tipus: str, grups: str, aula: str, abreviatures=None, nivells=None) -> str | None:
     """El titular, si n'hi ha un de sol (veure titulars_de)."""
     titulars, _ = titulars_de(files_config, tipus, grups, aula, abreviatures, nivells)
     return next(iter(titulars)) if len(titulars) == 1 else None

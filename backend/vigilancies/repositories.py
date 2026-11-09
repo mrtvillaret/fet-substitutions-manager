@@ -5,20 +5,20 @@ flush, perquè les sessions no en fan soles (autoflush=False) i el que ve
 després (refresca_cobertures) ha de veure el canvi."""
 
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from dates import parse_date
 from models import Vigilancia
+from vigilancies.files import FilaVigilancia
 
 
 class VigilanciaRepository:
     """Operacions CRUD per vigilàncies"""
 
     @staticmethod
-    def get_by_date(db: Session, data: str) -> Dict[str, List[Dict]]:
+    def get_by_date(db: Session, data: str) -> dict[str, list[FilaVigilancia]]:
         """Retorna totes les vigilàncies d'una data agrupades per nivell"""
         vigilancies = db.query(Vigilancia).filter(Vigilancia.data == parse_date(data)).order_by(Vigilancia.id).all()
 
@@ -29,19 +29,18 @@ class VigilanciaRepository:
                 result[vig.nivell] = []
 
             result[vig.nivell].append(
-                {
-                    "id": str(vig.id),  # Utilitzar ID real de la base de dades
-                    "db_id": vig.id,  # També incloure per compatibilitat
-                    "hora": vig.hora,
-                    "tipus": vig.tipus,
-                    "grups": vig.grups,
-                    "aula": vig.aula,
-                    "vigilant": vig.vigilant or "",
-                    "comentaris": vig.comentaris or "",
-                    "nivell": vig.nivell,
-                    "ordre": vig.ordre,
-                    "updated_at": vig.updated_at.isoformat() if vig.updated_at else None,
-                }
+                FilaVigilancia(
+                    id=str(vig.id),
+                    hora=vig.hora,
+                    tipus=vig.tipus,
+                    grups=vig.grups,
+                    aula=vig.aula,
+                    vigilant=vig.vigilant or "",
+                    comentaris=vig.comentaris or "",
+                    nivell=vig.nivell,
+                    ordre=vig.ordre,
+                    updated_at=vig.updated_at.isoformat() if vig.updated_at else None,
+                )
             )
 
         return result
@@ -60,7 +59,7 @@ class VigilanciaRepository:
         )
 
     @staticmethod
-    def create(db: Session, data: str, vigilancia_data: Dict) -> Vigilancia:
+    def create(db: Session, data: str, vigilancia_data: dict) -> Vigilancia:
         """Crea una nova vigilància"""
         vig = Vigilancia(
             data=parse_date(data),
@@ -81,8 +80,8 @@ class VigilanciaRepository:
 
     @staticmethod
     def update_by_id(
-        db: Session, data: str, vig_id: str, updates: Dict, *, updated_at_esperat: str = None
-    ) -> Optional[Vigilancia]:
+        db: Session, data: str, vig_id: str, updates: dict, *, updated_at_esperat: str = None
+    ) -> Vigilancia | None:
         """
         Actualitza una vigilància pel seu ID (pot ser integer o compost)
 
@@ -174,7 +173,7 @@ class VigilanciaRepository:
         return vig
 
     @staticmethod
-    def get_by_id(db: Session, data: str, vig_id: str) -> Optional[Vigilancia]:
+    def get_by_id(db: Session, data: str, vig_id: str) -> Vigilancia | None:
         """Retorna una vigilància pel seu ID (integer o compost)."""
         vig = None
 
@@ -267,7 +266,7 @@ class VigilanciaRepository:
         return True
 
     @staticmethod
-    def get_vigilants_per_hora(db: Session, data: str, hora: str) -> List[str]:
+    def get_vigilants_per_hora(db: Session, data: str, hora: str) -> list[str]:
         """Retorna vigilants assignats a una hora concreta"""
         vigilancies = (
             db.query(Vigilancia)
@@ -299,14 +298,14 @@ class VigilanciaRepository:
         return {g for (g,) in files.distinct()}
 
     @staticmethod
-    def get_unique_tipus(db: Session) -> List[str]:
+    def get_unique_tipus(db: Session) -> list[str]:
         """Retorna tots els tipus d'examen únics de totes les vigilàncies"""
         result = db.query(Vigilancia.tipus).distinct().all()
         tipus_list = [r[0] for r in result if r[0] and r[0].strip()]
         return sorted(tipus_list)
 
     @staticmethod
-    def amb_vigilant(db: Session, data: str) -> List[Vigilancia]:
+    def amb_vigilant(db: Session, data: str) -> list[Vigilancia]:
         """Les vigilàncies del dia que tenen vigilant (ni buit ni el text del desplegable)."""
         return (
             db.query(Vigilancia)
@@ -332,11 +331,11 @@ class VigilanciaRepository:
         return 0 if maxim is None else maxim + 1
 
     @staticmethod
-    def del_dia(db: Session, data: str) -> List[Vigilancia]:
+    def del_dia(db: Session, data: str) -> list[Vigilancia]:
         return db.query(Vigilancia).filter(Vigilancia.data == parse_date(data)).all()
 
     @staticmethod
-    def hores_del_dia(db: Session, data: str) -> List[str]:
+    def hores_del_dia(db: Session, data: str) -> list[str]:
         """Les hores que tenen alguna vigilància aquell dia."""
         return [hora for (hora,) in db.query(Vigilancia.hora).filter(Vigilancia.data == parse_date(data)).distinct()]
 
@@ -345,7 +344,7 @@ class VigilanciaRepository:
         return db.query(Vigilancia).filter(Vigilancia.data == parse_date(data)).delete(synchronize_session=False)
 
     @staticmethod
-    def del_dia_dels_nivells(db: Session, data: str, nivells) -> List[Vigilancia]:
+    def del_dia_dels_nivells(db: Session, data: str, nivells) -> list[Vigilancia]:
         """Les vigilàncies del dia d'aquests nivells (cap, sense nivells)."""
         filtre = Vigilancia.nivell.in_(list(nivells)) if nivells else False
         return db.query(Vigilancia).filter(Vigilancia.data == parse_date(data), filtre).all()
@@ -360,5 +359,5 @@ class VigilanciaRepository:
         db.delete(vigilancia)
 
     @staticmethod
-    def per_id(db: Session, vig_id: int) -> Optional[Vigilancia]:
+    def per_id(db: Session, vig_id: int) -> Vigilancia | None:
         return db.query(Vigilancia).filter(Vigilancia.id == vig_id).first()

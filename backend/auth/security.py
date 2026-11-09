@@ -1,8 +1,8 @@
 """Contrasenyes (Argon2), testimonis de sessió (JWT) i la cookie que els porta."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import cache
-from typing import Any, Dict
+from typing import Any
 
 import jwt
 from argon2 import PasswordHasher
@@ -69,9 +69,9 @@ def hash_fictici() -> str:
     return _hasher.hash("contrasenya fictícia per igualar el temps del login")
 
 
-def create_access_token(data: Dict[str, Any], expira: datetime = None) -> str:
+def create_access_token(data: dict[str, Any], expira: datetime = None) -> str:
     """`expira`: per defecte, d'aquí a SESSIO_INACTIVITAT_MINUTS."""
-    ara = rellotge.ara(timezone.utc)
+    ara = rellotge.ara(UTC)
     to_encode = data.copy()
     to_encode["iat"] = ara
     to_encode["exp"] = expira or ara + timedelta(minutes=get_config_auth().sessio_inactivitat_minuts)
@@ -80,7 +80,7 @@ def create_access_token(data: Dict[str, Any], expira: datetime = None) -> str:
 
 def _caducitat(inici: float, ara: datetime) -> datetime:
     """La primera de: d'aquí a la inactivitat màxima o el màxim des de l'entrada."""
-    limit = datetime.fromtimestamp(inici, timezone.utc) + timedelta(hours=get_config_auth().sessio_maxima_hores)
+    limit = datetime.fromtimestamp(inici, UTC) + timedelta(hours=get_config_auth().sessio_maxima_hores)
     return min(ara + timedelta(minutes=get_config_auth().sessio_inactivitat_minuts), limit)
 
 
@@ -88,7 +88,7 @@ def testimoni_de_sessio(user, institucio: str = None) -> str:
     """Testimoni de sessió d'un usuari, amb el seu id («uid», que l'identifica:
     el nom pot canviar o passar a un altre usuari), la versió de sessió actual
     i l'hora d'entrada («ini»), que fixa el màxim de la sessió."""
-    ara = rellotge.ara(timezone.utc)
+    ara = rellotge.ara(UTC)
     return create_access_token(
         {
             "sub": user.username,
@@ -132,7 +132,7 @@ def renova_testimoni(token: str):
         payload = decode_access_token(token)
     except PyJWTError:
         return None
-    ara = rellotge.ara(timezone.utc)
+    ara = rellotge.ara(UTC)
     emes = payload.get("iat")
     if emes and ara.timestamp() - emes < get_config_auth().sessio_renovacio_minuts * 60:
         return None
@@ -145,8 +145,8 @@ def renova_testimoni(token: str):
     return create_access_token(nou, expira=caduca)
 
 
-def decode_access_token(token: str) -> Dict[str, Any]:
-    return _JWT(rellotge.ara(timezone.utc).timestamp()).decode(
+def decode_access_token(token: str) -> dict[str, Any]:
+    return _JWT(rellotge.ara(UTC).timestamp()).decode(
         token, get_config_auth().secret_key, algorithms=[get_config_auth().algorithm]
     )
 

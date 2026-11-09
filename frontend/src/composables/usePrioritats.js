@@ -1,10 +1,10 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed, onMounted, watch } from 'vue'
 import * as apiPdf from '../api/pdf'
 import { ambDataTreball, dataTreball } from '../dataTreball'
 import { detectaAssignatures } from '../api/horari'
 import * as apiPrioritats from '../api/prioritats'
 import { dataIso } from '../dates'
-import { jaAvisat } from '../errorsApi'
 import { novesAmbGrup } from '../noSubstituirAmbGrup'
 
 export function usePrioritats(dependents) {
@@ -120,7 +120,7 @@ export function usePrioritats(dependents) {
       activitatsPerDefecte.value = resposta.per_defecte
       toast.add({ severity: 'success', summary: t('common.saved'), life: 2500 })
     } catch (error) {
-      toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || '', life: 5000 })
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || '', life: 5000 }))
     } finally {
       desantAlliberables.value = false
     }
@@ -438,12 +438,12 @@ export function usePrioritats(dependents) {
       await carregarPrioritats()
     } catch (error) {
       console.error('Error desant prioritats:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('config.errors.savePriorities'),
         life: 3000
-      })
+      }))
     } finally {
       desantPrioritats.value = false
     }
@@ -478,14 +478,12 @@ export function usePrioritats(dependents) {
     } catch (error) {
       console.error('Error generant PDF:', error)
       // Els errors de l'API ja els avisa l'interceptor, amb el missatge del backend
-      if (!jaAvisat(error)) {
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: error.response?.data?.detail || t('config.errors.generatePDF'),
-          life: 3000
-        })
-      }
+      avisaError(error, () => toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: error.response?.data?.detail || t('config.errors.generatePDF'),
+        life: 3000
+      }))
     } finally {
       generantPDFDisponibles.value = false
     }
@@ -528,12 +526,12 @@ export function usePrioritats(dependents) {
       cancelarNoSubstituir()
     } catch (error) {
       console.error('Error desant no substituir:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('config.errors.addNoSubst'),
         life: 3000
-      })
+      }))
     }
   }
 
@@ -553,12 +551,12 @@ export function usePrioritats(dependents) {
       noSubstituir.value = resposta.assignatures
     } catch (error) {
       console.error('Error eliminant no substituir:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('config.errors.deleteNoSubst'),
         life: 3000
-      })
+      }))
     }
   }
 

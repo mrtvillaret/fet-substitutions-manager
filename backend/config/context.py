@@ -13,14 +13,13 @@ explícitament o fixar-lo al context. No se'n tria cap per defecte en llegir l'h
 """
 
 from contextvars import ContextVar
-from typing import Optional
 
-_institucio: ContextVar[Optional[str]] = ContextVar("institucio_peticio", default=None)
+_institucio: ContextVar[str | None] = ContextVar("institucio_peticio", default=None)
 
 
-def institucio_peticio() -> Optional[str]:
+def institucio_peticio() -> str | None:
     return _institucio.get()
 
 
-def fixa_institucio_peticio(institucio: Optional[str]):
+def fixa_institucio_peticio(institucio: str | None):
     return _institucio.set(institucio)

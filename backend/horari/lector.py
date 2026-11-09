@@ -4,9 +4,10 @@ Gestor d'horaris XML per al backend web - Llegeix configuració de SQLite
 
 import logging
 import xml.etree.ElementTree as ET
-from typing import Dict, Optional, Set
 
-from noms import nom_net
+from database import get_data_db_session
+from grups.repositories import AbreviaturaGrupRepository, GrupsAmagatsRepository
+from textos import nom_net
 
 log = logging.getLogger(__name__)
 
@@ -22,10 +23,10 @@ class GestorHorariWeb:
     """Gestor d'horaris amb límit de professor i consolidació de grups múltiples - Versió Web"""
 
     # Els professors amb una absència coberta que s'han tret d'aquest horari
-    # (absencia_coberta.services.sense_absents_coberts); el de l'XML, cap
+    # (absencia_coberta.domain.sense_absents_coberts); el de l'XML, cap
     absents_coberts = frozenset()
 
-    def __init__(self, xml_path: str, ultim_professor_subs: Optional[str] = None, institucio: Optional[str] = None):
+    def __init__(self, xml_path: str, ultim_professor_subs: str | None = None, institucio: str | None = None):
         """
         Args:
             xml_path: Path al fitxer XML de FET
@@ -55,9 +56,6 @@ class GestorHorariWeb:
         if self._grups_amagats is not None:
             return self._grups_amagats
 
-        from database import get_data_db_session
-        from grups.repositories import GrupsAmagatsRepository
-
         if not self.institucio:
             self._grups_amagats = set()
             return self._grups_amagats
@@ -69,13 +67,10 @@ class GestorHorariWeb:
             log.exception(f"⚠️  Error carregant grups amagats de BD: {e}")
             raise
 
-    def _carregar_abreviatures_bd(self) -> Dict[str, str]:
+    def _carregar_abreviatures_bd(self) -> dict[str, str]:
         """Carrega abreviatures des de la base de dades SQLite"""
         if self._abreviatures_cache is not None:
             return self._abreviatures_cache
-
-        from database import get_data_db_session
-        from grups.repositories import AbreviaturaGrupRepository
 
         if not self.institucio:
             self._abreviatures_cache = {}
@@ -345,7 +340,7 @@ class GestorHorariWeb:
 
         return "ca"  # Fallback a català
 
-    def get_activitat(self, dia: str, hora: str, professor: str) -> Optional[Dict]:
+    def get_activitat(self, dia: str, hora: str, professor: str) -> dict | None:
         """Obté l'activitat d'un professor"""
         return self.horari.get(dia, {}).get(hora, {}).get(professor)
 
@@ -364,7 +359,7 @@ class GestorHorariWeb:
                 ultima = hora
         return (primera, ultima)
 
-    def get_all_subjects(self) -> Set[str]:
+    def get_all_subjects(self) -> set[str]:
         """
         Retorna totes les assignatures úniques del XML
         Exclou '-' i valors buits

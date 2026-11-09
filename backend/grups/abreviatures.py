@@ -6,22 +6,21 @@ des de SQLite per institució i proporciona funcions per aplicar-les.
 """
 
 import logging
-from typing import Dict, Optional
 
-import i18n_setup
+from database import get_data_db_session
+from grups.repositories import AbreviaturaGrupRepository
+from horari.context import _get_institucio_actual as institucio_actual
+from i18n_setup import _
 
 log = logging.getLogger(__name__)
 
-_ = i18n_setup._
-
 
 # Cache global per evitar llegir el fitxer repetidament
-_abreviatures_cache: Dict[str, Dict[str, str]] = {}
+_abreviatures_cache: dict[str, dict[str, str]] = {}
 
 
 def _get_institucio_actual() -> str:
     """El centre de la petició en curs; fora, cal passar-lo explícitament."""
-    from horari.context import _get_institucio_actual as institucio_actual
 
     return institucio_actual()
 
@@ -51,7 +50,7 @@ def normalitzar_llista_grups(grups_string: str) -> str:
     return ",".join(sorted(grups))
 
 
-def carregar_abreviatures_grups(institucio: Optional[str] = None) -> Dict[str, str]:
+def carregar_abreviatures_grups(institucio: str | None = None) -> dict[str, str]:
     """
     Llegeix les abreviatures de grups des de SQLite de la institució actual.
 
@@ -59,8 +58,6 @@ def carregar_abreviatures_grups(institucio: Optional[str] = None) -> Dict[str, s
         Diccionari amb abreviatures: {"ESO1A,ESO1B": "ESO1AB", ...}
         Retorna diccionari buit si no hi ha abreviatures; propaga els errors.
     """
-    from database import get_data_db_session
-    from grups.repositories import AbreviaturaGrupRepository
 
     instit = institucio or _get_institucio_actual()
     try:
@@ -74,7 +71,7 @@ def carregar_abreviatures_grups(institucio: Optional[str] = None) -> Dict[str, s
         raise
 
 
-def get_abreviatures_cached(institucio: Optional[str] = None) -> Dict[str, str]:
+def get_abreviatures_cached(institucio: str | None = None) -> dict[str, str]:
     """
     Obté les abreviatures amb cache per evitar lectures repetides del fitxer.
 
@@ -90,7 +87,7 @@ def get_abreviatures_cached(institucio: Optional[str] = None) -> Dict[str, str]:
     return _abreviatures_cache[instit]
 
 
-def invalidar_cache_abreviatures(institucio: Optional[str] = None):
+def invalidar_cache_abreviatures(institucio: str | None = None):
     """
     Invalida el cache d'abreviatures: el d'un centre (quan en canvia les
     abreviatures) o, sense centre, el de tots (quan canvia el centre per
@@ -103,7 +100,7 @@ def invalidar_cache_abreviatures(institucio: Optional[str] = None):
         _abreviatures_cache = {}
 
 
-def obtenir_abreviatura(grups_string: str, abreviatures: Optional[Dict[str, str]] = None) -> str:
+def obtenir_abreviatura(grups_string: str, abreviatures: dict[str, str] | None = None) -> str:
     """
     Obté l'abreviatura per a una llista de grups si existeix.
 

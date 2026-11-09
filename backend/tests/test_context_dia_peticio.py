@@ -24,7 +24,7 @@ def test_dos_dies_simultanis_tenen_nuclis_independents(monkeypatch):
     monkeypatch.setattr(vigilancia_context, "get_gestors", gestors)
     monkeypatch.setattr(vigilancia_context.ConfiguracioExamenRepository, "get_all_as_dict", lambda *_: {})
     monkeypatch.setattr(vigilancia_context.SubstitucioRepository, "get_by_date", lambda *_: [])
-    monkeypatch.setattr(vigilancia_context.GrupsAlliberatsRepository, "get_by_date", lambda _, data: {"09": [data]})
+    monkeypatch.setattr(vigilancia_context.AlliberatsDelDia, "get_by_date", lambda _, data: {"09": [data]})
     with ThreadPoolExecutor(2) as fils:
         futures = [
             fils.submit(vigilancia_context.get_vigilancia_core, data, object(), "temporal")

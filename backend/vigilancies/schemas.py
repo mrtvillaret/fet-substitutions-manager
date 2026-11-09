@@ -1,10 +1,12 @@
 """Schemas d'entrada i de sortida de les rutes de vigilàncies."""
 
-from typing import Dict, List, Literal, Optional
+from dataclasses import asdict
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from noms import NomNet
+from vigilancies.files import FilaVigilancia
 
 
 class VigilanciaRequest(BaseModel):
@@ -12,39 +14,39 @@ class VigilanciaRequest(BaseModel):
     tipus: str
     grups: str
     aula: NomNet
-    vigilant: Optional[NomNet] = ""
-    comentaris: Optional[str] = ""
-    nivell: Optional[str] = None
+    vigilant: NomNet | None = ""
+    comentaris: str | None = ""
+    nivell: str | None = None
     # L'id d'una fila de la mateixa hora: la nova va just a sota (el «+» de
     # cada fila, que la copia). Sense, va al final del bloc de la seva hora.
-    despres_de: Optional[str] = None
+    despres_de: str | None = None
 
 
 class EdicioVigilanciaRequest(BaseModel):
     """Només els camps que es canvien. Sense `force`, cal l'`updated_at` que es
     va llegir (409 si algú l'ha modificat mentrestant)."""
 
-    hora: Optional[str] = None
-    tipus: Optional[str] = None
-    grups: Optional[str] = None
-    aula: Optional[NomNet] = None
-    vigilant: Optional[NomNet] = None
-    comentaris: Optional[str] = None
-    nivell: Optional[str] = None
-    updated_at: Optional[str] = None
-    force: Optional[bool] = False
+    hora: str | None = None
+    tipus: str | None = None
+    grups: str | None = None
+    aula: NomNet | None = None
+    vigilant: NomNet | None = None
+    comentaris: str | None = None
+    nivell: str | None = None
+    updated_at: str | None = None
+    force: bool | None = False
 
 
 class ConsultaDisponibles(BaseModel):
     vigilancia_id: str | None = None
     hora: str
-    tipus: Optional[str] = None
-    grups: Optional[str] = None
-    aula: Optional[NomNet] = None
+    tipus: str | None = None
+    grups: str | None = None
+    aula: NomNet | None = None
 
 
 class DisponiblesEnBlocRequest(BaseModel):
-    queries: List[ConsultaDisponibles]
+    queries: list[ConsultaDisponibles]
 
 
 class TitularHoraLliure(BaseModel):
@@ -78,15 +80,15 @@ class VigilanciaSenseTitular(BaseModel):
 
 
 class AssignacioTitularsResponse(AssignacioResponse):
-    titulars_hora_lliure: List[TitularHoraLliure] = []
-    vigilancies_sense_titular: List[VigilanciaSenseTitular] = []
+    titulars_hora_lliure: list[TitularHoraLliure] = []
+    vigilancies_sense_titular: list[VigilanciaSenseTitular] = []
 
 
 class OrdreRequest(BaseModel):
     """L'ordre de les files d'una hora: els ids, de la primera a l'última."""
 
     hora: str
-    ids: List[str]
+    ids: list[str]
 
 
 class OrdreManualResponse(BaseModel):
@@ -123,35 +125,35 @@ class AjudaVigilantResponse(BaseModel):
     professor: str
     hora: str
     estat: str
-    activitat: Optional[ActivitatHora] = None
-    tipus_absencia: Optional[str] = None
-    substitucions: List[SubstitucioHora]
-    vigilancies_hora: List[VigilanciaHora]
+    activitat: ActivitatHora | None = None
+    tipus_absencia: str | None = None
+    substitucions: list[SubstitucioHora]
+    vigilancies_hora: list[VigilanciaHora]
     vigilancies_dia: int
 
 
 class Afinitat(BaseModel):
     base: str  # un nivell
-    ordre: List[str]  # els nivells més propers, per ordre
+    ordre: list[str]  # els nivells més propers, per ordre
 
 
 class AfinitatsResponse(BaseModel):
-    afinitats: List[Afinitat]
+    afinitats: list[Afinitat]
 
 
 class AfinitatsDesadesResponse(BaseModel):
     success: bool
-    afinitats: List[Afinitat]
+    afinitats: list[Afinitat]
     message: str
 
 
 class AfinitatRequest(BaseModel):
     base: str
-    ordre: List[str] = []
+    ordre: list[str] = []
 
 
 class AfinitatsRequest(BaseModel):
-    afinitats: List[AfinitatRequest] = []
+    afinitats: list[AfinitatRequest] = []
 
 
 # ----------------------------------------------------------------- respostes
@@ -161,13 +163,13 @@ class ConfigVigilanciesResponse(BaseModel):
     """Nivells, grups, aules i assignatures de la configuració d'exàmens;
     professors i hores de l'horari del dia; tipus d'examen ja usats."""
 
-    nivells: List[str]
-    professors: List[str]
-    hores: List[str]
-    grups_per_nivell: Dict[str, List[str]]
-    aules: List[str]
-    tipus_examens: List[str]
-    tipus_per_nivell: Dict[str, List[str]]
+    nivells: list[str]
+    professors: list[str]
+    hores: list[str]
+    grups_per_nivell: dict[str, list[str]]
+    aules: list[str]
+    tipus_examens: list[str]
+    tipus_per_nivell: dict[str, list[str]]
 
 
 class ProfessorDisponible(BaseModel):
@@ -190,10 +192,12 @@ class ProfessorDisponible(BaseModel):
 class DisponiblesEnBlocResponse(BaseModel):
     """{clau de la consulta («hora» o «hora|tipus|grups|aula»): professors}"""
 
-    results: Dict[str, List[ProfessorDisponible]]
+    results: dict[str, list[ProfessorDisponible]]
 
 
 class VigilanciaDelDia(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     db_id: int
     hora: str
@@ -203,8 +207,8 @@ class VigilanciaDelDia(BaseModel):
     vigilant: str
     comentaris: str
     nivell: str
-    ordre: Optional[int]
-    updated_at: Optional[str]
+    ordre: int | None
+    updated_at: str | None
 
 
 class VigilanciaCreada(BaseModel):
@@ -216,7 +220,7 @@ class VigilanciaCreada(BaseModel):
     vigilant: str
     comentaris: str
     nivell: str
-    updated_at: Optional[str]
+    updated_at: str | None
 
 
 class VigilanciaCreadaResponse(BaseModel):
@@ -228,7 +232,7 @@ class VigilanciaCreadaResponse(BaseModel):
 class VigilanciaEditadaResponse(BaseModel):
     success: bool
     message: str
-    updated_at: Optional[str]
+    updated_at: str | None
 
 
 class MissatgeResponse(BaseModel):
@@ -262,3 +266,8 @@ class ProblemaVigilancia(BaseModel):
     aula: str
     cobertura_efectiva: str | None
     missatge: str
+
+
+def resposta_vigilancia(fila: FilaVigilancia) -> VigilanciaDelDia:
+    """Un únic ID de BD al domini; dos camps històrics al contracte HTTP."""
+    return VigilanciaDelDia(**{**asdict(fila), "id": str(fila.id), "db_id": int(fila.id)})

@@ -1,7 +1,5 @@
 """Entrades i sortides de les rutes de les absències cobertes."""
 
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 from noms import NomNet
@@ -16,10 +14,10 @@ class AbsenciaCobertaRequest(BaseModel):
 
 
 class EdicioAbsenciaCobertaRequest(BaseModel):
-    professor: Optional[NomNet] = None
-    data_inici: Optional[DataISO] = None
-    data_final: Optional[DataISO] = None
-    motiu: Optional[str] = None
+    professor: NomNet | None = None
+    data_inici: DataISO | None = None
+    data_final: DataISO | None = None
+    motiu: str | None = None
 
 
 # Sortides
@@ -34,7 +32,7 @@ class AbsenciaCobertaResponse(BaseModel):
 
 
 class AbsenciesCobertesResponse(BaseModel):
-    absencies_cobertes: List[AbsenciaCobertaResponse]
+    absencies_cobertes: list[AbsenciaCobertaResponse]
 
 
 class Avis(BaseModel):
@@ -44,10 +42,10 @@ class Avis(BaseModel):
 
 class DesadaResponse(BaseModel):
     success: bool
-    id: Optional[int] = None
+    id: int | None = None
     message: str
-    canvis: Optional[dict] = None  # el que s'ha tret en aplicar-la (aplica_absencia_coberta)
-    avisos: Optional[List[Avis]] = None
+    canvis: dict | None = None  # el que s'ha tret en aplicar-la (aplica_absencia_coberta)
+    avisos: list[Avis] | None = None
 
 
 class EsborradaResponse(BaseModel):

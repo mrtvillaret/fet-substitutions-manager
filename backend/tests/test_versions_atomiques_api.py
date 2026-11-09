@@ -86,7 +86,7 @@ def test_actualitzacio_no_trepitja_una_versio_antiga(context, tipus, force):
             actual = SubstitucioRepository.get_by_date(db, DATA)[0]
         else:
             actual = next(iter(VigilanciaRepository.get_by_date(db, DATA).values()))[0]
-    assert actual["comentaris"] == ("segona escriptura" if force else "primera escriptura")
+    assert actual.comentaris == ("segona escriptura" if force else "primera escriptura")
     if not force:
         assert resp.json()["detail"]["error"] == "conflict"
         assert resp.json()["detail"]["current_data"]["comentaris"] == "primera escriptura"
@@ -104,7 +104,7 @@ def test_el_mapa_de_versions_d_absencies_tambe_es_atomic(context):
     with get_data_db_session(centre) as db:
         files = SubstitucioRepository.get_by_date(db, DATA)
         assert len(files) == 1
-        assert files[0]["comentaris"] == "primera escriptura"
+        assert files[0].comentaris == "primera escriptura"
 
 
 @pytest.mark.parametrize("force", [False, True])

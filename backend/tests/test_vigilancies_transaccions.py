@@ -53,8 +53,8 @@ def _bolcat(centre):
         vigilancies = [v for files in VigilanciaRepository.get_by_date(db, DATA).values() for v in files]
         substitucions = SubstitucioRepository.get_by_date(db, DATA)
         return {
-            "vigilancies": sorted(vigilancies, key=lambda fila: fila["id"]),
-            "substitucions": sorted(substitucions, key=lambda fila: fila["id"]),
+            "vigilancies": sorted(vigilancies, key=lambda fila: fila.id),
+            "substitucions": sorted(substitucions, key=lambda fila: fila.id),
         }
 
 

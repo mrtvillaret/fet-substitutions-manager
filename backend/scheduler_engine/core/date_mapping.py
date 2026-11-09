@@ -2,8 +2,8 @@
 Helpers per construir mapes dia -> data ISO (YYYY-MM-DD).
 """
 
+from collections.abc import Iterable
 from datetime import datetime, timedelta
-from typing import Dict, Iterable, List, Optional
 
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 
@@ -11,7 +11,7 @@ DIES_CAT = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte",
 _DIES_CAT = DIES_CAT  # àlies privat per compatibilitat interna
 
 
-def _parse_iso_date(date_str: str) -> Optional[datetime]:
+def _parse_iso_date(date_str: str) -> datetime | None:
     if not date_str:
         return None
     try:
@@ -20,8 +20,8 @@ def _parse_iso_date(date_str: str) -> Optional[datetime]:
         return None
 
 
-def _normalitza_dies(dies: Optional[Iterable[str]]) -> List[str]:
-    out: List[str] = []
+def _normalitza_dies(dies: Iterable[str] | None) -> list[str]:
+    out: list[str] = []
     if not dies:
         return out
     seen = set()
@@ -34,10 +34,10 @@ def _normalitza_dies(dies: Optional[Iterable[str]]) -> List[str]:
 
 
 def construir_mapa_dia_data_iso(
-    dies_utilitzar: Optional[Iterable[str]] = None,
-    selected_dates: Optional[Iterable[str]] = None,
-    data_inici_iso: Optional[str] = None,
-) -> Dict[str, List[str]]:
+    dies_utilitzar: Iterable[str] | None = None,
+    selected_dates: Iterable[str] | None = None,
+    data_inici_iso: str | None = None,
+) -> dict[str, list[str]]:
     """
     Construeix un mapa {dia_normalitzat: [YYYY-MM-DD, ...]}.
 
@@ -47,7 +47,7 @@ def construir_mapa_dia_data_iso(
     """
     dies_norm = _normalitza_dies(dies_utilitzar)
     allowed = set(dies_norm) if dies_norm else None
-    mapa: Dict[str, List[str]] = {}
+    mapa: dict[str, list[str]] = {}
 
     parsed_dates = []
     for raw in selected_dates or []:

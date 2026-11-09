@@ -252,6 +252,7 @@
 </template>
 
 <script setup>
+import { avisaError } from '../errorsApi.js'
 import { tradueixMissatge } from './scheduler/missatges.js'
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import * as apiPlanificador from '../api/planificador'
@@ -548,8 +549,8 @@ const treureAssignaturesInexistents = async () => {
     aplicarRestriccions(data.restriccions)
     assignaturesInexistents.value = []
     toast.add({ severity: 'success', summary: t('scheduler.view.staleSubjects.removed', { count: data.trets.length }, data.trets.length), life: 4000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error') })
+  } catch (errorCapturat) {
+    avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error') }))
   }
 }
 

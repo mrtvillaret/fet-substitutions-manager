@@ -56,6 +56,7 @@ def test_un_xml_desat_fora_de_la_carpeta_del_centre_no_es_llegeix():
     centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "xml_horari_path", str(get_data_dir_for_institucio(altre) / "teachers.xml"))
+        db.commit()
     assert get_xml_path_for_date(centre, avui()) is None
 
 
@@ -65,6 +66,7 @@ def test_un_xml_dins_la_carpeta_es_llegeix_igual_amb_ruta_absoluta_o_relativa():
     assert get_xml_path_for_date(centre, avui()) == esperat
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "xml_horari_path", esperat)
+        db.commit()
     assert get_xml_path_for_date(centre, avui()) == esperat
 
 
@@ -72,6 +74,7 @@ def test_un_xml_amb_punts_que_surt_de_la_carpeta_no_es_llegeix():
     centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "xml_horari_path", f"../{altre}/teachers.xml")
+        db.commit()
     assert get_xml_path_for_date(centre, avui()) is None
 
 
@@ -79,6 +82,7 @@ def test_els_pdf_exportats_son_sempre_a_la_carpeta_del_centre():
     centre, altre = nova_institucio(), nova_institucio()
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "export_dir", str(get_data_dir_for_institucio(altre)))
+        db.commit()
     assert get_export_dir_for_institucio(centre) == get_data_dir_for_institucio(centre) / "exports"
 
 

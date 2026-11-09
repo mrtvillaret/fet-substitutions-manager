@@ -4,13 +4,12 @@ Detecta conflictes, violations de restriccions i genera logs d'incidències.
 Extret de l'antic routes/scheduler.py (ara planificador/) per millorar mantenibilitat i testabilitat.
 """
 
-from typing import Dict, List, Optional, Set
-
 from scheduler_engine.core.constraints import (
     _percent_penalty,
     _percent_value,
     percent_no_mateix_slot,
 )
+from scheduler_engine.core.scoring import pes_professor
 from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS
 
 
@@ -22,7 +21,7 @@ def _nom_base_assignatura(nom: str) -> str:
     return nom.strip()
 
 
-def _mateix_slot_groups(raw) -> List[List[str]]:
+def _mateix_slot_groups(raw) -> list[list[str]]:
     groups = []
     for g in raw or []:
         if isinstance(g, dict):
@@ -34,12 +33,12 @@ def _mateix_slot_groups(raw) -> List[List[str]]:
     return groups
 
 
-def _assig_in_group(assig: str, grup: List[str]) -> bool:
+def _assig_in_group(assig: str, grup: list[str]) -> bool:
     base = _nom_base_assignatura(assig)
     return assig in grup or (base and base in grup)
 
 
-def _log_with_score(msg: str, score: Optional[int]) -> str:
+def _log_with_score(msg: str, score: int | None) -> str:
     if score is None:
         return msg
     return f"{msg} (punt: {score})"
@@ -51,11 +50,11 @@ class ValidadorHorari:
     Genera logs d'incidències per mostrar a l'usuari.
     """
 
-    def __init__(self, horari: Dict, restriccions: Dict, no_subst: Set[str]):
+    def __init__(self, horari: dict, restriccions: dict, no_subst: set[str]):
         self.horari = horari
         self.restriccions = restriccions
         self.no_subst = no_subst or set()
-        self.logs: Set[str] = set()
+        self.logs: set[str] = set()
 
         # Extreure pesos amb el mateix criteri que el cost final (només costos_professors + pesos_optimitzacio)
         pesos_opt = restriccions.get("pesos_optimitzacio", {})
@@ -70,13 +69,13 @@ class ValidadorHorari:
         # Pre-calcular estructures
         self.mateix_slot_grups = _mateix_slot_groups(restriccions.get("restriccions_dures", {}).get("mateix_slot", []))
         _nms_raw = restriccions.get("restriccions_dures", {}).get("no_mateix_slot", {})
-        self.no_mateix_slot_grups: Dict[str, list] = {
+        self.no_mateix_slot_grups: dict[str, list] = {
             k: v
             for k, v in (_nms_raw.items() if isinstance(_nms_raw, dict) else {}.items())
             if not k.startswith("_") and isinstance(v, list)
         }
         _nmd_raw = restriccions.get("restriccions_dures", {}).get("no_mateix_dia", [])
-        self.no_mateix_dia_grups: List[dict] = []
+        self.no_mateix_dia_grups: list[dict] = []
         for r in _nmd_raw if isinstance(_nmd_raw, list) else []:
             if isinstance(r, dict):
                 assigs = r.get("assignatures", [])
@@ -93,10 +92,10 @@ class ValidadorHorari:
             assigs = c.get("assignatures", []) if isinstance(c, dict) else c
             self.combinacions_sets.append({_nom_base_assignatura(a) for a in assigs})
 
-        self.assignatures_ubicacio: Dict[str, list] = {}
-        self.assignatures_per_dia: Dict[str, set] = {}
+        self.assignatures_ubicacio: dict[str, list] = {}
+        self.assignatures_per_dia: dict[str, set] = {}
 
-    def validar(self) -> Dict:
+    def validar(self) -> dict:
         """
         Executa totes les validacions i retorna els logs generats.
 
@@ -136,7 +135,7 @@ class ValidadorHorari:
         """Detecta professors amb múltiples exàmens al mateix slot."""
         for dia in self.horari.get("dies", []):
             for slot in dia.get("sessions", []):
-                professors_slot: Dict[str, list] = {}
+                professors_slot: dict[str, list] = {}
                 for sessio in slot.get("sessions_simultanees", []):
                     nivell = sessio.get("curs", "")
                     assignatura_base = sessio.get("nom_base") or sessio.get("nom")
@@ -181,7 +180,7 @@ class ValidadorHorari:
         """Detecta alumnes amb múltiples exàmens simultanis (excloent optatives i combinacions permeses)."""
         for dia in self.horari.get("dies", []):
             for slot in dia.get("sessions", []):
-                cursos_slot: Dict[str, list] = {}
+                cursos_slot: dict[str, list] = {}
                 for sessio in slot.get("sessions_simultanees", []):
                     curs = sessio.get("curs")
                     if curs:
@@ -218,7 +217,7 @@ class ValidadorHorari:
 
         for dia in self.horari.get("dies", []):
             for slot in dia.get("sessions", []):
-                per_nivell: Dict[str, list] = {}
+                per_nivell: dict[str, list] = {}
                 for sessio in slot.get("sessions_simultanees", []):
                     curs = sessio.get("curs", "")
                     if curs:
@@ -243,7 +242,7 @@ class ValidadorHorari:
     def _comprovar_mateix_slot(self):
         """Comprova que assignatures agrupades estiguin al mateix slot."""
         for grup in self.mateix_slot_grups:
-            ubicacions: Dict[tuple, list] = {}
+            ubicacions: dict[tuple, list] = {}
             for assig in grup:
                 for loc in self.assignatures_ubicacio.get(assig, []):
                     ubicacions.setdefault(loc, []).append(assig)
@@ -318,7 +317,7 @@ class ValidadorHorari:
         if not professors_limits:
             return
 
-        sessions_per_dia: Dict[str, list] = {}
+        sessions_per_dia: dict[str, list] = {}
         for dia in self.horari.get("dies", []):
             sessions = []
             for slot in dia.get("sessions", []):
@@ -338,7 +337,7 @@ class ValidadorHorari:
                 continue
 
             count_examens = 0
-            per_day: Dict[str, int] = {}
+            per_day: dict[str, int] = {}
             for dia_check in dies_restringits:
                 for sessio in sessions_per_dia.get(dia_check, []):
                     profs = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
@@ -371,7 +370,7 @@ class ValidadorHorari:
             percent = grup.get("pes", 0) if isinstance(grup, dict) else 0
             score = _percent_penalty(self.pes_dies_diferents, percent)
 
-            ubicacions_dia: Dict[str, list] = {}
+            ubicacions_dia: dict[str, list] = {}
             for assig in assignatures:
                 for loc in self.assignatures_ubicacio.get(assig, []):
                     dia_loc, _ = loc
@@ -392,7 +391,6 @@ class ValidadorHorari:
         classe. La puntuació és el cost del professor (individual o global),
         la mateixa que compten els motors.
         """
-        from scheduler_engine.core.scoring import pes_professor
 
         incidencies = {}  # (tipus, prof, dia, franja, hora) -> {'item', 'dia', 'contextos'}
         for dia in self.horari.get("dies", []):

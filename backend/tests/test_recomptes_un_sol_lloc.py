@@ -196,7 +196,14 @@ FITXERS_SENSE_RECOMPTES_PROPIS = [
 # tipus de fila de substitució (copiar el camp tipus_absencia per mostrar-lo
 # sí que es pot; triar per tipus, no)
 PROHIBITS = {
-    "noms": {"Substitucio", "Vigilancia", "sense_classe", "NoSubstituirRepository", "GrupsAlliberatsRepository"},
+    "noms": {
+        "Substitucio",
+        "Vigilancia",
+        "sense_classe",
+        "NoSubstituirRepository",
+        "GrupsAlliberatsRepository",
+        "AlliberatsDelDia",
+    },
     "textos": {"ABSENCIA", "SERVEI", "VIGILANCIA_ABSENT", "ENCADENADA", "VIGILANCIA"},
     "atributs": {"tipus_absencia"},  # de les files de la BD (sub.tipus_absencia)
 }
@@ -205,7 +212,23 @@ PROHIBITS = {
 def test_ningu_no_compta_pel_seu_compte_fora_del_modul_comu():
     trobats = []
     for fitxer in FITXERS_SENSE_RECOMPTES_PROPIS:
-        for node in ast.walk(ast.parse(fitxer.read_text(encoding="utf-8"))):
+        arbre = ast.parse(fitxer.read_text(encoding="utf-8"))
+        # La còpia directa a la resposta HTTP és admissible, també amb atributs.
+        copies = {
+            id(valor.values[0])
+            for diccionari in ast.walk(arbre)
+            if isinstance(diccionari, ast.Dict)
+            for clau, valor in zip(diccionari.keys, diccionari.values, strict=True)
+            if isinstance(clau, ast.Constant)
+            and clau.value == "tipus_absencia"
+            and isinstance(valor, ast.BoolOp)
+            and isinstance(valor.op, ast.Or)
+            and len(valor.values) == 2
+            and isinstance(valor.values[0], ast.Attribute)
+            and isinstance(valor.values[1], ast.Constant)
+            and valor.values[1].value == ""
+        }
+        for node in ast.walk(arbre):
             nom = None
             if isinstance(node, ast.Name) and node.id in PROHIBITS["noms"]:
                 nom = node.id
@@ -213,7 +236,7 @@ def test_ningu_no_compta_pel_seu_compte_fora_del_modul_comu():
                 nom = node.name
             elif isinstance(node, ast.Constant) and node.value in PROHIBITS["textos"]:
                 nom = repr(node.value)
-            elif isinstance(node, ast.Attribute) and node.attr in PROHIBITS["atributs"]:
+            elif isinstance(node, ast.Attribute) and node.attr in PROHIBITS["atributs"] and id(node) not in copies:
                 nom = node.attr
             if nom:
                 trobats.append(f"{fitxer.relative_to(BACKEND)}:{getattr(node, 'lineno', '?')} {nom}")

@@ -139,3 +139,7 @@ data/exemple/gestor.db
 
 # Configuració global mutable, fora del codi
 data/config.json
+
+# Artefactes de les proves de navegador
+frontend/test-results/
+frontend/playwright-report/

@@ -1,7 +1,5 @@
 """Esquemes d'entrada de les rutes de configuració del centre."""
 
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 from noms import NomNet
@@ -12,20 +10,20 @@ class SettingsUpdate(BaseModel):
     """Model per actualitzar configuració. La pantalla també hi envia
     `institucio`, que s'ignora (el centre per defecte no es canvia d'aquí)."""
 
-    idioma: Optional[str] = None
-    data_inici_estadistiques: Optional[DataISO] = None  # 400 si no és AAAA-MM-DD
-    data_final_estadistiques: Optional[DataISO] = None
-    ultim_professor_subs: Optional[NomNet] = None
-    institucio_display_name: Optional[str] = None
+    idioma: str | None = None
+    data_inici_estadistiques: DataISO | None = None  # 400 si no és AAAA-MM-DD
+    data_final_estadistiques: DataISO | None = None
+    ultim_professor_subs: NomNet | None = None
+    institucio_display_name: str | None = None
 
 
 class ConfiguracioResponse(BaseModel):
     institucio: str
     idioma: str
-    xml_horari_path: Optional[str]
-    data_inici_estadistiques: Optional[str]
-    data_final_estadistiques: Optional[str]
-    logo_path: Optional[str]
+    xml_horari_path: str | None
+    data_inici_estadistiques: str | None
+    data_final_estadistiques: str | None
+    logo_path: str | None
     te_logo: bool
     institucio_display_name: str
     ultim_professor_subs: str
@@ -35,7 +33,7 @@ class ConfiguracioResponse(BaseModel):
 class ConfiguracioDesadaResponse(BaseModel):
     success: bool
     message: str
-    changed: List[str]
+    changed: list[str]
 
 
 class Idioma(BaseModel):
@@ -44,7 +42,7 @@ class Idioma(BaseModel):
 
 
 class IdiomesResponse(BaseModel):
-    idiomes: List[Idioma]
+    idiomes: list[Idioma]
     actual: str
 
 

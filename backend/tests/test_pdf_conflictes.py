@@ -9,12 +9,16 @@ from test_vigilancies_analisi import dia_fals
 
 from pdf.engine import PDFCompletExporter
 from pdf.taula import taula_del_dia
+from substitucions.files import FilaSubstitucio
 from vigilancies.analisi import analitza_vigilancies
+from vigilancies.files import FilaVigilancia
 
 
 def _conflictes(tmp_path, tipus):
     files = [{"hora": "10:00", "professor_absent": "Prof 2", "tipus_absencia": tipus}]
-    dia = dia_fals([{"hora": "10:00", "vigilant": "Prof 2", "aula": "A01"}], files, absents={"10:00": {"Prof 2"}})
+    dia = dia_fals(
+        [FilaVigilancia(**{"hora": "10:00", "vigilant": "Prof 2", "aula": "A01"})], files, absents={"10:00": {"Prof 2"}}
+    )
     return analitza_vigilancies(dia)
 
 
@@ -46,6 +50,7 @@ def test_la_taula_del_dia_fa_servir_la_mida_de_lletra(tmp_path, mida, cos, marge
             "vigilancies": [],
         }
     }
+    dades["10:00"]["substitucions"] = [FilaSubstitucio(**s) for s in dades["10:00"]["substitucions"]]
     taula = taula_del_dia(exporter, dades, espai_a_ma=False, combinada=True)[0]
     assert taula._cellvalues[1][1].style.fontSize == pytest.approx(cos)  # cel·la «Absent»
     assert taula._cellStyles[1][1].topPadding == marge
@@ -76,7 +81,7 @@ def castella():
 def test_el_nom_de_l_assignatura_no_es_tradueix_als_conflictes(tmp_path, castella):
     # «Dilluns» té traducció al castellà («Lunes»), però aquí és el nom d'una
     # assignatura (una dada del centre): ha de sortir tal com és
-    vigilancies = [{"hora": "10:00", "tipus": "Dilluns", "vigilant": "", "aula": ""}]
+    vigilancies = [FilaVigilancia(**{"hora": "10:00", "tipus": "Dilluns", "vigilant": "", "aula": ""})]
     conflictes = [p["missatge"] for p in analitza_vigilancies(dia_fals(vigilancies))]
     assert any("Dilluns" in c and "vigilant" in c for c in conflictes), conflictes
     assert any("Dilluns" in c and "aula" in c for c in conflictes), conflictes
@@ -84,7 +89,7 @@ def test_el_nom_de_l_assignatura_no_es_tradueix_als_conflictes(tmp_path, castell
 
 
 def test_el_valor_fix_vigilancia_si_que_es_tradueix(tmp_path, castella):
-    vigilancies = [{"hora": "10:00", "tipus": "VIGILÀNCIA", "vigilant": "", "aula": ""}]
+    vigilancies = [FilaVigilancia(**{"hora": "10:00", "tipus": "VIGILÀNCIA", "vigilant": "", "aula": ""})]
     conflictes = [p["missatge"] for p in analitza_vigilancies(dia_fals(vigilancies))]
     assert sum("VIGILANCIA" in c for c in conflictes) == 2, conflictes
     assert not any("VIGILÀNCIA" in c for c in conflictes), conflictes

@@ -250,7 +250,7 @@ def test_el_detall_d_un_professor_diu_el_mateix_que_el_pdf_per_professor(centre,
             web = _get(client, f"professor/{professor}")
             assert len(web["absencies"]) == len(pdf["absencies"])
             assert [f["tipus_absencia"] for f in web["substitucions"]] == [
-                s["tipus_absencia"] for s in pdf["substitucions_fetes"]
+                s.tipus_absencia for s in pdf["substitucions_fetes"]
             ]
 
 
@@ -395,7 +395,7 @@ def test_les_franges_del_filtre_son_les_de_les_versions_de_l_horari_de_l_interva
 
 @pytest.mark.parametrize("hores", [None, ["08:00"], ["10:00"], ["PATI"], ["08:00", "10:00"]])
 def test_batch_identic_a_les_rutes_i_a_la_llista_pdf(centre, client, hores, monkeypatch):
-    from grups.repositories import GrupsAlliberatsRepository
+    from grups.lectures import AlliberatsDelDia
     from pdf.services import professors_amb_activitat
 
     _afegeix(
@@ -417,14 +417,14 @@ def test_batch_identic_a_les_rutes_i_a_la_llista_pdf(centre, client, hores, monk
     horari = _get(client, "hores")["hores"]
     with get_data_db_session(centre) as db:
         llista = professors_amb_activitat(db, **INTERVAL, hores=hores)
-    original = GrupsAlliberatsRepository.get_entre_dates
+    original = AlliberatsDelDia.get_entre_dates
     crides = []
 
     def compta(db, dates):
         crides.append(dates)
         return original(db, dates)
 
-    monkeypatch.setattr(GrupsAlliberatsRepository, "get_entre_dates", compta)
+    monkeypatch.setattr(AlliberatsDelDia, "get_entre_dates", compta)
     lot = _get(client, "batch", **params)
     assert {k: lot[k] for k in esperat} == esperat
     assert lot["hores"] == horari

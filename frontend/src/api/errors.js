@@ -27,7 +27,23 @@ export const missatgeDError = async (error, t) => {
     : t('app.errors.unexpected')
 }
 
-// Si l'interceptor d'App.vue ja n'ha mostrat l'avís (tots els errors de
-// l'API, tret dels de les peticions _silent), perquè la pantalla no en
-// mostri un segon. 401: l'interceptor torna a la pantalla d'entrada.
-export const jaAvisat = (error) => Boolean(error?.isAxiosError && !error.config?._silent)
+// La marca correspon a una presentació real: un mateix error pot travessar
+// l'interceptor i diverses pantalles. WeakSet no altera l'error ni el reté.
+const avisats = new WeakSet()
+const esObjecte = error => error !== null && (typeof error === 'object' || typeof error === 'function')
+
+export const jaAvisat = error => esObjecte(error) && avisats.has(error)
+export const marcaAvisat = error => { if (esObjecte(error)) avisats.add(error) }
+
+export const avisaError = (error, mostrar) => {
+  if (jaAvisat(error)) return
+  marcaAvisat(error)
+  return mostrar()
+}
+
+// true: la pantalla gestiona l'error. Una llista: només els estats esperats
+// (p. ex. 404 d'un logo opcional); qualsevol altre error s'avisa globalment.
+export const esErrorSilencios = error => {
+  const silent = error?.config?._silent
+  return silent === true || (Array.isArray(silent) && silent.includes(error?.response?.status))
+}

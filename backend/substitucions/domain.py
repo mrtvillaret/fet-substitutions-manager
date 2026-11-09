@@ -9,9 +9,11 @@ from collections import defaultdict
 from functools import cached_property
 
 from grups.disponibilitat import sense_classe
-from grups.repositories import GrupsAlliberatsRepository
+from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
+from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
+from vigilancies.files import FilaVigilancia
 from vigilancies.repositories import VigilanciaRepository
 
 log = logging.getLogger(__name__)
@@ -27,24 +29,26 @@ class DiaEscolar:
         data = dia.iso
         self.data = data
         self.institucio = dia.institucio
-        self.files = SubstitucioRepository.get_by_date(db, data)
-        self.vigilancies = [v for vigs in VigilanciaRepository.get_by_date(db, data).values() for v in vigs]
+        self.files: list[FilaSubstitucio] = SubstitucioRepository.get_by_date(db, data)
+        self.vigilancies: list[FilaVigilancia] = [
+            v for vigs in VigilanciaRepository.get_by_date(db, data).values() for v in vigs
+        ]
         # Alliberats efectius per hora (grups sense classe, professors, activitats)
-        self.alliberats = GrupsAlliberatsRepository.get_by_date(db, data)
+        self.alliberats = AlliberatsDelDia.get_by_date(db, data)
 
         self.vigilants_per_hora = defaultdict(set)
         for vig in self.vigilancies:
-            hora = (vig.get("hora") or "").strip()
-            vigilant = (vig.get("vigilant") or "").strip()
+            hora = (vig.hora or "").strip()
+            vigilant = (vig.vigilant or "").strip()
             if hora and vigilant:
                 self.vigilants_per_hora[hora].add(vigilant)
 
         # Absents de veritat (absència o servei): no les cobertures de vigilància
         self.absents_per_hora = defaultdict(set)
         for sub in self.files:
-            hora = (sub.get("hora") or "").strip()
-            professor = (sub.get("professor_absent") or "").strip()
-            if hora and professor and sub.get("tipus_absencia") in TIPUS_ABSENCIA_REAL:
+            hora = (sub.hora or "").strip()
+            professor = (sub.professor_absent or "").strip()
+            if hora and professor and sub.tipus_absencia in TIPUS_ABSENCIA_REAL:
                 self.absents_per_hora[hora].add(professor)
 
         self._estricte = estricte
@@ -82,6 +86,15 @@ class DiaEscolar:
             return {}
         return self.horari.get_activitat(self.nom_del_dia, hora, professor) or {}
 
+    def professor_a_horari(self, professor: str) -> bool | None:
+        """Pertany a l'XML del dia, sense el límit dels candidats ni les baixes.
+
+        Sense horari no es pot saber: no s'ha de declarar ningú fora de l'XML.
+        Les absències cobertes tenen el seu motiu propi, «baixa».
+        """
+        horari = self.horari
+        return professor in horari.tots_professors if horari is not None else None
+
     @cached_property
     def _absencies_motor(self) -> tuple[dict, dict, dict]:
         """Absències del motor: primer tipus i activitat per professor/hora.
@@ -91,9 +104,9 @@ class DiaEscolar:
         """
         absents, absents_tipus, activitats_fallback = {}, {}, {}
         for sub in self.files:
-            professor = sub.get("professor_absent", "")
-            hora = sub.get("hora", "")
-            tipus = sub.get("tipus_absencia", "") or "ABSENCIA"
+            professor = sub.professor_absent
+            hora = sub.hora
+            tipus = sub.tipus_absencia or "ABSENCIA"
             if tipus in TIPUS_NO_ABSENCIA or not professor or not hora:
                 continue
             if professor not in absents:
@@ -104,9 +117,9 @@ class DiaEscolar:
             activitats_fallback.setdefault(
                 (professor, hora),
                 {
-                    "assignatura": sub.get("assignatura", ""),
-                    "grup": sub.get("grup", ""),
-                    "aula": sub.get("aula", ""),
+                    "assignatura": sub.assignatura,
+                    "grup": sub.grup,
+                    "aula": sub.aula,
                 },
             )
         return absents, absents_tipus, activitats_fallback
@@ -133,8 +146,8 @@ class DiaEscolar:
         """Vigilants del motor amb els valors originals, com a la generació."""
         resultat = {}
         for vig in self.vigilancies:
-            if vig.get("hora") and vig.get("vigilant"):
-                resultat.setdefault(vig["hora"], set()).add(vig["vigilant"])
+            if vig.hora and vig.vigilant:
+                resultat.setdefault(vig.hora, set()).add(vig.vigilant)
         return resultat
 
     def motius_substitut(
@@ -154,12 +167,8 @@ class DiaEscolar:
             motius.append({"motiu": "baixa"})
         if "absent" in nomes and substitut in self.absents_per_hora.get(hora, set()):
             motius.append({"motiu": "absent"})
-        if "fora_horari" in nomes:
-            horari = self.horari
-            # El límit dels candidats automàtics no treu ningú de l'XML.
-            # Les absències cobertes tenen el seu motiu propi, «baixa».
-            if horari is not None and substitut not in horari.tots_professors:
-                motius.append({"motiu": "fora_horari"})
+        if "fora_horari" in nomes and self.professor_a_horari(substitut) is False:
+            motius.append({"motiu": "fora_horari"})
         if "classe" not in nomes:
             return motius
         activitat = self.activitat(substitut, hora)
@@ -182,35 +191,21 @@ def substituts_no_valids(db, data: str, dia: DiaEscolar = None) -> list:
     dia = dia or DiaEscolar(db, Dia.de_text(data, db.info.get("institucio")))
     resultat = []
     for sub in dia.files:
-        hora = (sub.get("hora") or "").strip()
-        substitut = (sub.get("substitut") or "").strip()
-        if not sub.get("id") or not substitut or not hora:
+        hora = (sub.hora or "").strip()
+        substitut = (sub.substitut or "").strip()
+        if not sub.id or not substitut or not hora:
             continue
         motius = dia.motius_substitut(substitut, hora)
         if motius:
             resultat.append(
                 {
-                    "id": sub["id"],
+                    "id": sub.id,
                     "hora": hora,
-                    "professor_absent": sub.get("professor_absent", ""),
-                    "assignatura": sub.get("assignatura", ""),
-                    "grup": sub.get("grup", ""),
+                    "professor_absent": sub.professor_absent,
+                    "assignatura": sub.assignatura,
+                    "grup": sub.grup,
                     "substitut": substitut,
                     **motius[0],
                 }
             )
     return resultat
-
-
-def treu_substituts_no_valids(db, data: str, dia: DiaEscolar = None) -> list:
-    """Buida el substitut de les files de substituts_no_valids() i les retorna.
-    No n'hi posa cap altre: les files queden pendents. Les encadenades, d'acord
-    amb els substituts que queden (substitucions/encadenades.py): hi passen tots els
-    canvis d'absències i d'alliberaments."""
-    from substitucions.encadenades import reconcilia_encadenades
-
-    trets = substituts_no_valids(db, data, dia)
-    for fila in trets:
-        SubstitucioRepository.update(db, int(fila["id"]), {"substitut": "", "tipus_substitut": ""})
-    reconcilia_encadenades(db, data)
-    return trets

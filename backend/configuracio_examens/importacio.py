@@ -10,11 +10,10 @@ compta exactament igual (p. ex. una assignació sense titular que ja hi és)."""
 
 import csv
 import io
-from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from configuracio_examens.propostes import deriva_nivell, generar_propostes, nivells_amb_substitucions
+from configuracio_examens.propostes import generar_propostes, nivells_amb_substitucions
 from configuracio_examens.repositories import (
     ConfiguracioExamenRepository,
     MasterConfigRepository,
@@ -22,6 +21,7 @@ from configuracio_examens.repositories import (
 )
 from errors_domini import NoValid
 from horari.repositories import ProfessorRepository
+from nivells import deriva_nivell
 from noms import neteja_noms
 
 CSV_COLUMNES = ["nivell", "assignatura", "grup", "titular", "aula"]
@@ -40,7 +40,7 @@ def esborra_tota_la_configuracio(db: Session) -> None:
     db.flush()  # sense commit: va amb la importació, tot o res
 
 
-def _resum(nivells, grups, assignatures, aules, assignacions, ja_existien, avisos) -> Dict:
+def _resum(nivells, grups, assignatures, aules, assignacions, ja_existien, avisos) -> dict:
     return {
         "nivells_creats": nivells,
         "grups_creats": grups,
@@ -55,7 +55,7 @@ def _resum(nivells, grups, assignatures, aules, assignacions, ja_existien, aviso
 # ---------------------------------------------------------------- des de l'XML
 
 
-def propostes_de_l_horari(db: Session, horari) -> Dict:
+def propostes_de_l_horari(db: Session, horari) -> dict:
     """Propostes d'assignacions (assignatura/grup/titular/aula) a partir de
     l'horari, sense escriure res a la BD. `horari` ha de tenir tothom (les
     classes d'un titular amb una absència coberta també són del curs)."""
@@ -78,7 +78,7 @@ def propostes_de_l_horari(db: Session, horari) -> Dict:
     return {"propostes": propostes, "nivells_valids": sorted(nivells_valids)}
 
 
-def _simula(db: Session, aplica) -> Dict:
+def _simula(db: Session, aplica) -> dict:
     """Fa la importació dins d'un savepoint i la desfà: el resum és el de la
     importació real, sense desar res."""
     punt = db.begin_nested()
@@ -88,14 +88,14 @@ def _simula(db: Session, aplica) -> Dict:
         punt.rollback()
 
 
-def impacte_propostes(db: Session, propostes: List[Dict], overwrite: bool) -> Dict:
+def impacte_propostes(db: Session, propostes: list[dict], overwrite: bool) -> dict:
     """Què crearia una llista de propostes (nivells/grups/assignatures/aules/
     assignacions noves, quantes ja existeixen, avisos), SENSE escriure res a
     la BD: el resum previ (dry-run). Compta com la importació real."""
     return _simula(db, lambda: _aplica_propostes(db, propostes, [], overwrite, simula=True))
 
 
-def importa_propostes(db: Session, propostes: List[Dict], descartades: List[Dict], overwrite: bool) -> Dict:
+def importa_propostes(db: Session, propostes: list[dict], descartades: list[dict], overwrite: bool) -> dict:
     """Aplica una llista de propostes: crea nivell/assignatura/grup/aula mestres si
     calen, i l'assignació (evitant duplicats exactes assignatura+grup+titular).
     `descartades`: propostes que l'usuari ha desmarcat expressament (no
@@ -107,8 +107,8 @@ def importa_propostes(db: Session, propostes: List[Dict], descartades: List[Dict
 
 
 def _aplica_propostes(
-    db: Session, propostes: List[Dict], descartades: List[Dict], overwrite: bool, simula: bool
-) -> Dict:
+    db: Session, propostes: list[dict], descartades: list[dict], overwrite: bool, simula: bool
+) -> dict:
     """La importació de propostes, sense commit."""
     if overwrite:
         esborra_tota_la_configuracio(db)
@@ -184,7 +184,7 @@ def exporta_csv(db: Session) -> str:
     return buffer.getvalue()
 
 
-def llegeix_csv(nom_fitxer: Optional[str], contingut: bytes) -> List[tuple]:
+def llegeix_csv(nom_fitxer: str | None, contingut: bytes) -> list[tuple]:
     """Comprova que el fitxer és un CSV amb columnes reconegudes i en
     retorna les files (num_línia, fila) llestes per processar."""
     if not (nom_fitxer or "").endswith(".csv"):
@@ -207,13 +207,13 @@ def llegeix_csv(nom_fitxer: Optional[str], contingut: bytes) -> List[tuple]:
     return [(n, neteja_noms(fila, "assignatura", "titular", "aula")) for n, fila in enumerate(reader, start=2)]
 
 
-def impacte_csv(db: Session, files_rows: List[tuple], overwrite: bool) -> Dict:
+def impacte_csv(db: Session, files_rows: list[tuple], overwrite: bool) -> dict:
     """Què faria una importació CSV, SENSE escriure res: el resum previ.
     Compta com la importació real."""
     return _simula(db, lambda: _aplica_csv(db, files_rows, overwrite, simula=True))
 
 
-def importa_csv(db: Session, files_rows: List[tuple], overwrite: bool) -> Dict:
+def importa_csv(db: Session, files_rows: list[tuple], overwrite: bool) -> dict:
     """Importa les files d'un CSV (columnes: nivell,assignatura,grup,titular,aula).
     nivell, assignatura i grup són obligatoris (cap valor es dedueix ni
     s'inventa): si en falta algun, la fila es descarta sencera amb un avís.
@@ -225,7 +225,7 @@ def importa_csv(db: Session, files_rows: List[tuple], overwrite: bool) -> Dict:
     return {"success": True, **resum}
 
 
-def _aplica_csv(db: Session, files_rows: List[tuple], overwrite: bool, simula: bool) -> Dict:
+def _aplica_csv(db: Session, files_rows: list[tuple], overwrite: bool, simula: bool) -> dict:
     """La importació d'un CSV, sense commit."""
     if overwrite:
         esborra_tota_la_configuracio(db)

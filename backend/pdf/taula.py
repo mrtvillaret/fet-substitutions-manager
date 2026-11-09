@@ -17,8 +17,8 @@ taula. Només surten les hores que tenen alguna fila (o, amb l'espai per
 escriure a mà, les que en podrien tenir).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Dict, List
 
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
@@ -26,14 +26,17 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
 from i18n_setup import translate as _
+from pdf.text import _text
+from substitucions.files import FilaSubstitucio
+from vigilancies.files import FilaVigilancia
 
 
 @dataclass(frozen=True)
 class TipusTaula:
     """Què posa cada tipus de fila a les columnes lògiques."""
 
-    etiquetes: Dict[str, str]  # columna lògica -> etiqueta (sense traduir)
-    valors: Callable[[dict], Dict[str, str]]  # fila -> {columna lògica: text}
+    etiquetes: dict[str, str]  # columna lògica -> etiqueta (sense traduir)
+    valors: Callable[[FilaSubstitucio | FilaVigilancia], dict[str, str]]  # fila -> {columna lògica: text}
 
 
 # Valors del perfil d'impressió si el perfil no els té
@@ -54,44 +57,38 @@ PER_DEFECTE = {
 REDUCCIO_COMPRESSIO = 0.85
 
 
-def _text(valor) -> str:
-    from pdf.engine import _text as text_segur
-
-    return text_segur(valor)
-
-
-def _valors_substitucio(sub: dict) -> dict:
-    substitut = sub.get("substitut", "") or ""
+def _valors_substitucio(sub: FilaSubstitucio) -> dict:
+    substitut = sub.substitut or ""
     if substitut in ("---", "PENDENT"):  # els pendents no s'hi escriuen
         substitut = ""
-    grup = sub.get("grup", "") or ""
-    aula = sub.get("aula", "") or ""
+    grup = sub.grup or ""
+    aula = sub.aula or ""
     return {
-        "hora": sub.get("hora", "") or "",
-        "qui": sub.get("professor_absent", sub.get("professor", "")),
+        "hora": sub.hora or "",
+        "qui": sub.professor_absent,
         "on": f"{grup} ({aula})" if aula and grup else grup,  # mai l'aula sola, sense grup
-        "assignatura": sub.get("assignatura"),
+        "assignatura": sub.assignatura,
         "persona": substitut,
-        "observacions": sub.get("comentaris"),
+        "observacions": sub.comentaris,
     }
 
 
-def curs_vigilancia(vig: dict) -> str:
+def curs_vigilancia(vig: FilaVigilancia) -> str:
     """Nom del nivell de la vigilància, tal com està configurat."""
-    return vig.get("nivell", "") or ""
+    return vig.nivell or ""
 
 
-def _valors_vigilancia(vig: dict) -> dict:
-    vigilant = vig.get("vigilant", "") or ""
+def _valors_vigilancia(vig: FilaVigilancia) -> dict:
+    vigilant = vig.vigilant or ""
     if vigilant.startswith("-- selecciona"):  # el text del desplegable no és un vigilant
         vigilant = ""
     return {
-        "hora": vig.get("hora", "") or "",
+        "hora": vig.hora or "",
         "qui": curs_vigilancia(vig),
-        "on": vig.get("aula"),
-        "assignatura": vig.get("tipus", ""),
+        "on": vig.aula,
+        "assignatura": vig.tipus,
         "persona": vigilant,
-        "observacions": vig.get("comentaris"),
+        "observacions": vig.comentaris,
     }
 
 
@@ -233,7 +230,9 @@ def etiqueta(columna: str, tipus_taula) -> str:
     return subs if subs == vigs else f"{subs} / {vigs}"
 
 
-def _fila(est: EstilsPdf, tipus: TipusTaula, dada: dict, columnes: list, marcada: bool) -> list:
+def _fila(
+    est: EstilsPdf, tipus: TipusTaula, dada: FilaSubstitucio | FilaVigilancia, columnes: list, marcada: bool
+) -> list:
     """Una fila de dades; `marcada`: vigilància en un PDF amb substitucions
     (cursiva i fons de color)."""
     valors = tipus.valors(dada)
@@ -255,7 +254,7 @@ def _amplades(columnes: list, amb_hores_davant: bool) -> list:
     return [amples[c] * cm for c in columnes]
 
 
-def taula_del_dia(exp, dades_per_hora: Dict, espai_a_ma: bool, combinada: bool, tipus_sol=None) -> list:
+def taula_del_dia(exp, dades_per_hora: dict, espai_a_ma: bool, combinada: bool, tipus_sol=None) -> list:
     """Format «taula del dia»: una taula per a tot el dia, amb l'hora a la
     primera columna; la capçalera es repeteix a cada pàgina. `combinada`:
     substitucions i vigilàncies juntes; si no, `tipus_sol` diu quin tipus hi ha."""
@@ -307,7 +306,13 @@ def taula_del_dia(exp, dades_per_hora: Dict, espai_a_ma: bool, combinada: bool, 
     return contingut
 
 
-def taula_per_hores(exp, files: List[dict], tipus: TipusTaula, files_en_blanc: int = 0, marcada: bool = False):
+def taula_per_hores(
+    exp,
+    files: list[FilaSubstitucio | FilaVigilancia],
+    tipus: TipusTaula,
+    files_en_blanc: int = 0,
+    marcada: bool = False,
+):
     """La taula d'una hora del format «una secció per hora», amb els mateixos
     estils que la taula del dia. `marcada`: vigilàncies en un PDF amb
     substitucions (cursiva i fons de color). `files_en_blanc`: files buides al
@@ -332,7 +337,7 @@ def taula_per_hores(exp, files: List[dict], tipus: TipusTaula, files_en_blanc: i
     return taula
 
 
-def contingut_del_dia(exp, dades_per_hora: Dict, espai_a_ma: bool, combinada: bool, tipus_sol=None) -> list:
+def contingut_del_dia(exp, dades_per_hora: dict, espai_a_ma: bool, combinada: bool, tipus_sol=None) -> list:
     """El contingut d'un dia en el format triat (exp.format_dia): la taula del
     dia o una secció per hora. El fan servir el PDF del dia i l'interval."""
     if exp.format_dia:

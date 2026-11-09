@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref, computed, watch } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 
@@ -57,8 +58,8 @@ export function useAssignacionsExamens({ assignacions, aules, toast, t, confirma
           const data = await apiExamens.esborraAssignacions({ ids })
           toast.add({ severity: 'success', summary: t('examConfig.assignments.obsolete.removed', { count: data.eliminades }, data.eliminades), life: 3000 })
           await carregarAssignacions()
-        } catch {
-          toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 })
+        } catch (errorCapturat) {
+          avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 }))
         }
       }
     })
@@ -150,12 +151,12 @@ export function useAssignacionsExamens({ assignacions, aules, toast, t, confirma
         filtrarAssignacions()
       } catch (error) {
         console.error('Error creant assignació:', error)
-        toast.add({
+        avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
           detail: error.response?.data?.detail || t('examConfig.errors.createAssignment'),
           life: 3000
-        })
+        }))
       }
     }
     // Si és una fila existent, actualitzar-la
@@ -174,12 +175,12 @@ export function useAssignacionsExamens({ assignacions, aules, toast, t, confirma
         })
       } catch (error) {
         console.error('Error actualitzant assignació:', error)
-        toast.add({
+        avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
           detail: t('examConfig.errors.updateAssignment'),
           life: 3000
-        })
+        }))
       }
     }
   }
@@ -212,12 +213,12 @@ export function useAssignacionsExamens({ assignacions, aules, toast, t, confirma
           await carregarAssignacions()
         } catch (error) {
           console.error('Error eliminant assignació:', error)
-          toast.add({
+          avisaError(error, () => toast.add({
             severity: 'error',
             summary: t('common.error'),
             detail: t('examConfig.errors.deleteAssignment'),
             life: 3000
-          })
+          }))
         }
       }
     })
@@ -240,7 +241,7 @@ export function useAssignacionsExamens({ assignacions, aules, toast, t, confirma
           await carregarAssignacions()
         } catch (error) {
           console.error('Error eliminant assignacions:', error)
-          toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 })
+          avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 }))
         }
       }
     })
@@ -262,7 +263,7 @@ export function useAssignacionsExamens({ assignacions, aules, toast, t, confirma
           await carregarAssignacions()
         } catch (error) {
           console.error('Error eliminant totes les assignacions:', error)
-          toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 })
+          avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: t('examConfig.errors.deleteAssignment'), life: 3000 }))
         }
       }
     })

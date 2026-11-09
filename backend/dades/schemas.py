@@ -1,7 +1,6 @@
 """Esquemes d'entrada de les rutes de governança de dades."""
 
 from datetime import date
-from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -42,14 +41,14 @@ class AbsenciaCobertaAPurgar(BaseModel):
 
 
 class UltimHorari(BaseModel):
-    desat: Optional[str]
-    dates: List[str]
+    desat: str | None
+    dates: list[str]
     s_esten_fora: bool
 
 
 class PlanificadorAPurgar(BaseModel):
     dates_seleccionades: int
-    ultim_horari: Optional[UltimHorari]
+    ultim_horari: UltimHorari | None
 
 
 class PdfAPurgar(BaseModel):
@@ -61,7 +60,7 @@ class VersioXmlAPurgar(BaseModel):
     id: int
     path: str
     data_inici: str
-    data_fi: Optional[str]
+    data_fi: str | None
     activa: bool
     s_esten_fora: bool
     bloquejat: bool
@@ -71,11 +70,11 @@ class AnalisiPurgaResponse(BaseModel):
     interval: Interval
     bd: FilesBd
     total_bd: int
-    baixes: List[AbsenciaCobertaAPurgar]
+    baixes: list[AbsenciaCobertaAPurgar]
     planificador: PlanificadorAPurgar
-    pdfs_a_esborrar: List[PdfAPurgar]
-    pdfs_revisio_manual: List[str]
-    xml_versions: List[VersioXmlAPurgar]
+    pdfs_a_esborrar: list[PdfAPurgar]
+    pdfs_revisio_manual: list[str]
+    xml_versions: list[VersioXmlAPurgar]
 
 
 class PlanificadorPurgat(BaseModel):
@@ -86,7 +85,7 @@ class PlanificadorPurgat(BaseModel):
 class VersioXmlEsborrada(BaseModel):
     id: int
     data_inici: str
-    data_fi: Optional[str]
+    data_fi: str | None
 
 
 class PurgaResponse(BaseModel):
@@ -94,11 +93,11 @@ class PurgaResponse(BaseModel):
     planificador: PlanificadorPurgat
     bd: FilesBd
     total_bd: int
-    pdfs_esborrats: List[str]
-    pdfs_revisio_manual: List[str]
-    xml_esborrats: List[VersioXmlEsborrada]
-    xml_bloquejats: List[VersioXmlAPurgar]
-    errors: List[str]
+    pdfs_esborrats: list[str]
+    pdfs_revisio_manual: list[str]
+    xml_esborrats: list[VersioXmlEsborrada]
+    xml_bloquejats: list[VersioXmlAPurgar]
+    errors: list[str]
 
 
 class ProfessorDeLaBd(BaseModel):
@@ -107,10 +106,10 @@ class ProfessorDeLaBd(BaseModel):
 
 
 class ProfessorsDeLaBdResponse(BaseModel):
-    professors: List[ProfessorDeLaBd]
+    professors: list[ProfessorDeLaBd]
 
 
 class ReanomenaResponse(BaseModel):
     ok: bool
-    counts: Dict[str, int]  # files canviades de cada taula
+    counts: dict[str, int]  # files canviades de cada taula
     total: int

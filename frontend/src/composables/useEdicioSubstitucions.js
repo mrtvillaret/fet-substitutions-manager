@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { computed } from 'vue'
 import * as apiSubstitucions from '../api/substitucions.js'
 
@@ -102,12 +103,12 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
       // Mostrar missatge d'error de l'API (si està disponible)
       const errorDetail = error.response?.data?.detail || t('substitutions.errors.updateSubstitute')
 
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: errorDetail,
         life: 4000
-      })
+      }))
 
       // Recarregar substitucions per restaurar els valors correctes de la BD
       await carregarSubstitucions()
@@ -164,12 +165,12 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
         })
         return
       }
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('substitutions.errors.saveComment'),
         life: 3000
-      })
+      }))
     }
   }
 

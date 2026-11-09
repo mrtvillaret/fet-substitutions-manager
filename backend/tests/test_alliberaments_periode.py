@@ -14,6 +14,7 @@ Dilluns de prova: 13/04, 20/04, 27/04 i 04/05/2026.
 """
 
 import uuid
+from datetime import UTC
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
@@ -361,7 +362,7 @@ def test_un_error_llegint_els_canvis_per_periode_no_es_calla():
 
 @pytest.mark.parametrize("avui", ["2026-04-20", "2026-04-21"])
 def test_un_periode_passat_preserva_historial_i_revisa_nomes_des_d_avui(avui, rellotge_fix):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from database import get_data_db_session
     from grups.repositories import AlliberamentsPeriodeRepository
@@ -370,7 +371,7 @@ def test_un_periode_passat_preserva_historial_i_revisa_nomes_des_d_avui(avui, re
     centre = nova_institucio(amb_xml=True)
     nom = f"admin_{uuid.uuid4().hex[:8]}"
     crea_usuari(nom, centre, "admin")
-    rellotge_fix.moment = datetime.fromisoformat(avui).replace(tzinfo=timezone.utc)
+    rellotge_fix.moment = datetime.fromisoformat(avui).replace(tzinfo=UTC)
     client = entra(client_per(APP), nom)
     _canvi(client, "professor", "Prof 1", ["10:00"], DILLUNS[0])
     for data in DILLUNS[:3]:
@@ -394,18 +395,18 @@ def test_un_periode_passat_preserva_historial_i_revisa_nomes_des_d_avui(avui, re
             if data < avui:
                 assert files == abans[data]
             else:
-                assert all(f["substitut"] != "Prof 1" for f in files)
+                assert all(f.substitut != "Prof 1" for f in files)
 
 
 @pytest.mark.parametrize("des_de", ["2026-04-13", "2026-04-20", "2026-04-27"])
 def test_dates_afectades_exclou_historial_i_inclou_dies_amb_nomes_vigilancia(db_session, rellotge_fix, des_de):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from grups.repositories import AlliberamentsPeriodeRepository
     from substitucions.repositories import SubstitucioRepository
     from vigilancies.repositories import VigilanciaRepository
 
-    rellotge_fix.moment = datetime(2026, 4, 20, 12, tzinfo=timezone.utc)
+    rellotge_fix.moment = datetime(2026, 4, 20, 12, tzinfo=UTC)
     for data in DILLUNS[:2]:
         SubstitucioRepository.create(db_session, {"data": data, "hora": "10:00", "professor_absent": "Prof 15"})
     for data in [DILLUNS[2], "2026-04-21"]:

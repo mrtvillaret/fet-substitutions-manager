@@ -28,6 +28,22 @@ def test_la_versio_de_l_horari_i_des_de_quan_es_vigent(centre):
     assert Dia(dia(1), centre).versio_des_de == dia(-30).isoformat()
 
 
+def test_versio_explicita_per_revisar_un_xml_encara_no_vigent(centre, monkeypatch):
+    from horari.repositories import XMLVersionRepository
+
+    versio_nova = Dia(dia(10), centre).versio
+
+    def no_consultar(*args, **kwargs):
+        pytest.fail("Amb versió explícita no s'ha de resoldre la vigent")
+
+    monkeypatch.setattr(XMLVersionRepository, "vigent", no_consultar)
+    d = Dia(dia(1), centre, versio_xml=versio_nova)
+    assert d.versio is versio_nova
+    assert d.versio_des_de == dia(3).isoformat()
+    assert d.xml_path.endswith("futur.xml")
+    assert professor_que_plega() not in d.horari.professors
+
+
 def test_avui_i_de_text(centre):
     assert Dia.avui(centre) == Dia(AVUI, centre)
     assert Dia.de_text("2026-04-20", centre) == Dia(date(2026, 4, 20), centre)

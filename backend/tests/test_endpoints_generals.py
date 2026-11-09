@@ -52,16 +52,16 @@ def test_les_hores_demanen_sessio():
 _SALUT = """
 from fastapi.testclient import TestClient
 import main
-client = TestClient(main.app)
-for ruta in ("/", "/api/health"):
-    resp = client.get(ruta)
-    print(ruta, resp.status_code, resp.json()["status"])
+with TestClient(main.app) as client:
+    for ruta in ("/", "/api/health"):
+        resp = client.get(ruta)
+        print(ruta, resp.status_code, resp.json()["status"])
 """
 
 
 def test_les_comprovacions_de_salut_responen_sense_sessio(tmp_path):
-    # main.app en un procés a part: en importar-se crea els usuaris per
-    # defecte i llegeix l'entorn, i no ha de tocar l'auth.db dels altres tests.
+    # main.app en un procés a part: el lifespan crea els usuaris inicials
+    # i no ha de tocar l'auth.db dels altres tests.
     entorn = dict(
         os.environ,
         DATA_DIR=str(tmp_path),

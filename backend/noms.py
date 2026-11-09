@@ -14,16 +14,11 @@ Els noms de professors, assignatures (activitats) i aules: una sola regla.
 
 import re
 import unicodedata
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import AfterValidator
 
-
-def nom_net(valor: Optional[str]) -> Optional[str]:
-    """El nom sense espais al principi ni al final (None continua sent None)."""
-    if valor is None:
-        return None
-    return valor.strip()
+from textos import nom_net
 
 
 def _sense_accents(text: str) -> str:

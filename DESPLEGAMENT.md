@@ -343,6 +343,10 @@ Canvis que cal fer al servidor en actualitzar una instal·lació existent:
 4. Validar el Caddyfile amb `caddy validate --config /etc/caddy/Caddyfile`, i
    reiniciar Caddy quan es desplegui: els canvis de rotació d’un fitxer ja obert
    necessiten reinici. Recrear el backend perquè rebi la variable i el volum.
+5. Comprovar que el filtre funciona, no només que la configuració és vàlida: fer
+   una petició sense sessió amb un nom inventat, per exemple
+   `/api/substitucions/2026-01-01/1/NomDeProva?x=1`, i confirmar que a la línia
+   del registre de Caddy hi ha `{professor}` i no hi ha `NomDeProva` ni `x=1`.
 
 La retenció de la consola sense `ACCESS_LOG_PATH` continua depenent del sistema
 que la recull (a l’exemple de Compose, rotació per mida de Docker).

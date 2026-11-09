@@ -87,7 +87,7 @@ def _bolcat(centre):
                 for fila in vigilancies
             ],
             "grups": [(fila.id, fila.hora, fila.grups) for fila in grups],
-            "substitucions": sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila["id"]),
+            "substitucions": sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila.id),
         }
 
 

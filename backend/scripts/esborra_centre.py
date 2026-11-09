@@ -81,11 +81,11 @@ def main(args: list[str], entrada=input) -> int:
     opcions = parser.parse_args(args)
     centre = opcions.centre
 
-    from auth.repositories import UserRepository
-    from centres import services
-    from database import DATA_BASE_DIR, AuthSessionLocal, get_data_dir_for_institucio
-    from errors_domini import ErrorDeDomini
-    from models import User
+    from auth.repositories import UserRepository  # noqa: PLC0415 — El CLI valida arguments abans d’inicialitzar l’aplicació.
+    from centres import services  # noqa: PLC0415 — El CLI valida arguments abans d’inicialitzar l’aplicació.
+    from database import DATA_BASE_DIR, AuthSessionLocal, get_data_dir_for_institucio  # noqa: PLC0415 — El CLI valida arguments abans d’inicialitzar l’aplicació.
+    from errors_domini import ErrorDeDomini  # noqa: PLC0415 — El CLI valida arguments abans d’inicialitzar l’aplicació.
+    from models import User  # noqa: PLC0415 — El CLI valida arguments abans d’inicialitzar l’aplicació.
 
     with AuthSessionLocal() as auth_db:
         try:

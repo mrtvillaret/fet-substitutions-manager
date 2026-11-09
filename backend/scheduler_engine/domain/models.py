@@ -3,7 +3,6 @@ Models de domini compartits per als motors de generació d'horaris.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Set
 
 
 @dataclass
@@ -36,9 +35,9 @@ class Sessio:
     nom: str
     nom_base: str
     curs: str
-    examens: List[Dict]
+    examens: list[dict]
 
-    def professors(self) -> Set[str]:
+    def professors(self) -> set[str]:
         return {e["titular"] for e in self.examens if e.get("titular")}
 
 
@@ -47,8 +46,8 @@ class Item:
     """Representa un conjunt de sessions que van juntes al mateix slot."""
 
     id: str
-    sessions: List[Sessio]
-    noms_base: Set[str] = field(default_factory=set)
+    sessions: list[Sessio]
+    noms_base: set[str] = field(default_factory=set)
 
     def __post_init__(self):
         self.noms_base = {s.nom_base for s in self.sessions}

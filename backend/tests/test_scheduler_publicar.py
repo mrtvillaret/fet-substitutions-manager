@@ -139,6 +139,7 @@ def _alliberaments(centre, nivell, hores, seleccionats=None):
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(config), tipus="json")
         ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(seleccionats or [nivell]), tipus="json")
+        db.commit()
 
 
 def _durades(centre, titular=1, examen=1, grups=None):
@@ -148,6 +149,7 @@ def _durades(centre, titular=1, examen=1, grups=None):
         ConfiguracioRepository.set(db, SCHEDULER_DURADA_EXAMEN_KEY, str(examen), tipus="integer")
         if grups is not None:
             ConfiguracioRepository.set(db, SCHEDULER_DURADES_GRUPS_KEY, json.dumps(grups), tipus="json")
+        db.commit()
 
 
 # ------------------------------------------------------------------ accés
@@ -540,6 +542,7 @@ def test_s_allibera_un_nivell_seleccionat_amb_marques_encara_que_no_tingui_exame
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(config), tipus="json")
         ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(["1-BAT", "2-BAT"]), tipus="json")
+        db.commit()
     _publica(client, _horari(FILOSOFIA_1BAT), grups_sense_classe=["1-BAT-A", "2-BAT-A"])  # només examen de 1-BAT
     assert _grups_alliberats(centre) == [("10:00", "1-BAT-A"), ("10:00", "2-BAT-A")]
 

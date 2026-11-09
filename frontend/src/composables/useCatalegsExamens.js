@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { ref } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 import * as apiPlanificador from '../api/planificador.js'
@@ -55,12 +56,12 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       nivells.value = response.nivells
     } catch (error) {
       console.error('Error carregant nivells:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: t('examConfig.errors.loadLevels'),
         life: 3000
-      })
+      }))
     }
   }
 
@@ -97,12 +98,12 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       await carregarNivells()
     } catch (error) {
       console.error('Error afegint nivell:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('examConfig.errors.addLevel'),
         life: 3000
-      })
+      }))
     }
   }
 
@@ -135,7 +136,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
     try {
       quantes = (await apiExamens.comptaAssignacions(e.url(codi))).assignacions
     } catch (error) {
-      toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t(e.error), life: 3000 })
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t(e.error), life: 3000 }))
       return
     }
     if (quantes) {
@@ -163,7 +164,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       await e.recarrega()
     } catch (error) {
       console.error(`Error eliminant ${tipus}:`, error)
-      toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t(e.error), life: 3000 })
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t(e.error), life: 3000 }))
     }
   }
 
@@ -199,12 +200,12 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       await carregarAssignatures()
     } catch (error) {
       console.error('Error afegint assignatura:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('examConfig.errors.addSubject'),
         life: 3000
-      })
+      }))
     }
   }
 
@@ -229,12 +230,12 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
           await carregarAssignatures()
         } catch (error) {
           console.error('Error eliminant assignatura:', error)
-          toast.add({
+          avisaError(error, () => toast.add({
             severity: 'error',
             summary: t('common.error'),
             detail: t('examConfig.errors.deleteSubject'),
             life: 3000
-          })
+          }))
         }
       }
     })
@@ -272,12 +273,12 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       await carregarGrups()
     } catch (error) {
       console.error('Error afegint grup:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('examConfig.errors.addGroup'),
         life: 3000
-      })
+      }))
     }
   }
 
@@ -313,12 +314,12 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       await carregarAules()
     } catch (error) {
       console.error('Error afegint aula:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('examConfig.errors.addRoom'),
         life: 3000
-      })
+      }))
     }
   }
 
@@ -344,12 +345,12 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
           await carregarAules()
         } catch (error) {
           console.error('Error eliminant aula:', error)
-          toast.add({
+          avisaError(error, () => toast.add({
             severity: 'error',
             summary: t('common.error'),
             detail: t('examConfig.errors.deleteRoom'),
             life: 3000
-          })
+          }))
         }
       }
     })
@@ -487,12 +488,12 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       mostrarDialogRenomItem.value = false
     } catch (error) {
       console.error('Error reanomenant:', error)
-      toast.add({
+      avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
         detail: error.response?.data?.detail || t('common.error'),
         life: 3000
-      })
+      }))
     }
   }
 

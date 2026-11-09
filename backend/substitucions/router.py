@@ -8,8 +8,6 @@ Routes per gestió de substitucions:
 - Obtenir professors disponibles per hora
 """
 
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -32,6 +30,7 @@ from substitucions.schemas import (
     ReassignacioSubstitucionsResponse,
     SubstitucioResponse,
     SubstitucioUpdate,
+    resposta_conflicte,
 )
 
 router = APIRouter(prefix="/api/substitucions", tags=["Substitucions"])
@@ -47,12 +46,12 @@ def _conflicte(exc: services.ConflicteSubstitucions) -> HTTPException:
         detail={
             "error": "conflict",
             "message": exc.missatge,
-            "current_data": exc.current_data,
+            "current_data": resposta_conflicte(exc.current_data),
         },
     )
 
 
-@router.get("/{data}", response_model=List[SubstitucioResponse])
+@router.get("/{data}", response_model=list[SubstitucioResponse])
 def get_substitucions(
     data: DataISO,
     include_all: bool = False,

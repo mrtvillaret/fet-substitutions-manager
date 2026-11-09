@@ -5,11 +5,14 @@ cobertura (recomptes/). FUNCIONAMENT.md, apartat 5."""
 from collections.abc import Collection
 
 from grups.disponibilitat import sense_classe
-from noms import nom_net
+from substitucions.files import FilaSubstitucio
 from substitucions.vigilancia_absent import es_vigilancia_absent
+from textos import nom_net
 
 
-def es_visible_a_substitucions(fila: dict, no_substituir: Collection[str], alliberats_hora: Collection[str]) -> bool:
+def es_visible_a_substitucions(
+    fila: FilaSubstitucio, no_substituir: Collection[str], alliberats_hora: Collection[str]
+) -> bool:
     """Si la fila es veu a la pantalla Substitucions:
     - la vigilància d'un vigilant absent, sempre: no és una hora de l'horari
       del professor, sinó un tipus de fila que crea el programa quan falta un
@@ -21,6 +24,6 @@ def es_visible_a_substitucions(fila: dict, no_substituir: Collection[str], allib
       alliberats efectius de la data a aquella hora)."""
     if es_vigilancia_absent(fila):
         return True
-    if nom_net(fila.get("assignatura") or "") in no_substituir:
+    if nom_net(fila.assignatura or "") in no_substituir:
         return False
-    return not sense_classe(fila.get("professor_absent") or "", (fila.get("grup") or "").strip(), alliberats_hora)
+    return not sense_classe(fila.professor_absent or "", (fila.grup or "").strip(), alliberats_hora)

@@ -20,11 +20,12 @@ from errors_domini import NoValid
 from errors_servidor import registra_excepcio
 from grups.repositories import GrupsAlliberatsRepository
 from horari.domain import Dia
-from horari.hores import normalitzar_hora
 from planificador.config import carrega_config
 from planificador.services import cursos_anteriors
 from scheduler_engine.core.constraints import detectar_nivell_grup
+from substitucions import cobertures
 from substitucions.repositories import SubstitucioRepository
+from textos import normalitzar_hora
 from vigilancies.assignacio import titulars_de
 from vigilancies.domain import nivell_obligatori
 from vigilancies.repositories import VigilanciaRepository
@@ -259,11 +260,9 @@ class PublicacioExamens:
         config = files_configuracio(db)
         _, abreviatures, nivells = taules_de_grups(db)
         for v in vigilancies:
-            if v.get("vigilant"):
+            if v.vigilant:
                 continue
-            possibles, _ = titulars_de(
-                config, v.get("tipus", ""), v.get("grups", ""), v.get("aula", ""), abreviatures, nivells
-            )
+            possibles, _ = titulars_de(config, v.tipus, v.grups, v.aula, abreviatures, nivells)
             # Si tots els titulars possibles hi són (n'hi pot haver diversos)
             if possibles and possibles <= absents:
                 titular = ", ".join(sorted(possibles))
@@ -272,10 +271,10 @@ class PublicacioExamens:
                         "codi": "titular_amb_absencia_coberta",
                         "params": {
                             "data": data_iso,
-                            "hora": v.get("hora", ""),
+                            "hora": v.hora,
                             "titular": titular,
-                            "assignatura": v.get("tipus", ""),
-                            "grups": v.get("grups", ""),
+                            "assignatura": v.tipus,
+                            "grups": v.grups,
                         },
                     }
                 )
@@ -291,8 +290,7 @@ class PublicacioExamens:
                 v
                 for vigs in VigilanciaRepository.get_by_date(db, data_iso).values()
                 for v in vigs
-                if (data_iso, v.get("hora"), v.get("nivell") or "", v.get("grups") or "", v.get("aula") or "")
-                in self._publicades
+                if (data_iso, v.hora, v.nivell or "", v.grups or "", v.aula or "") in self._publicades
             ]
             if not vigilancies:
                 continue
@@ -300,7 +298,7 @@ class PublicacioExamens:
                 # L'assignació sencera de cada hora (com «Assigna titulars»):
                 # se'n desen només els titulars de les files publicades
                 calcul = calcula_assignacio(db, Dia.de_text(data_iso, institucio), data_iso, amb_guardia=False)
-                publicades = {str(v.get("db_id") or v.get("id")) for v in vigilancies}
+                publicades = {str(v.id) for v in vigilancies}
                 self._avisa_titulars_absents(db, vigilancies, institucio, data_iso)
                 for vig_id, professor in calcul["vigilants"].items():
                     if vig_id not in publicades or professor not in calcul["titulars"].get(vig_id, ()):
@@ -369,10 +367,9 @@ def publica(payload, institucio: str, avui: str) -> dict:
             db.rollback()
         else:
             db.flush()
-            from substitucions.cobertures import refresca_cobertures
 
             for data_iso, hora in sorted(resum.hores_esborrades):
-                refresca_cobertures(data_iso, hora, db)
+                cobertures.refresca_cobertures(data_iso, hora, db)
             db.commit()
 
     return {

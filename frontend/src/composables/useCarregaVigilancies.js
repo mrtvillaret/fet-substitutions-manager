@@ -1,3 +1,4 @@
+import { avisaError } from '../errorsApi.js'
 import { watch } from 'vue'
 import * as apiVigilancies from '../api/vigilancies.js'
 import { llistaSimple as llistaSubstitucions } from '../api/substitucions.js'
@@ -31,13 +32,13 @@ export function useCarregaVigilancies({ dataISO, loading, error, vigilancies, se
     oblidaAjudes()
     try {
       const [config, files, substitucions, analisi] = await Promise.all([
-        apiVigilancies.configuracio({ params: { data } }),
-        apiVigilancies.llista(data),
-        llistaSubstitucions(data),
-        apiVigilancies.analisi(data)
+        apiVigilancies.configuracio({ params: { data }, _silent: true }),
+        apiVigilancies.llista(data, { _silent: true }),
+        llistaSubstitucions(data, { _silent: true }),
+        apiVigilancies.analisi(data, { _silent: true })
       ])
       if (!vigent()) return
-      await carregarDisponiblesPerLlista(files, { substitueix: true, data, vigent, alhora: () => {
+      await carregarDisponiblesPerLlista(files, { substitueix: true, data, vigent, silent: true, alhora: () => {
         publicaConfig(config)
         problemes.value = analisi
         vigilancies.value = files
@@ -46,7 +47,7 @@ export function useCarregaVigilancies({ dataISO, loading, error, vigilancies, se
     } catch (err) {
       if (!vigent()) return
       console.error('Error carregant vigilàncies:', err)
-      error.value = t('vigilancies.errors.load')
+      avisaError(err, () => { error.value = t('vigilancies.errors.load') })
       problemes.value = []
       vigilancies.value = []
       substitucionsCount.value = 0
