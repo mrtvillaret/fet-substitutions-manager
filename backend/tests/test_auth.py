@@ -3,9 +3,9 @@ Tests d'autenticació i permisos: login/logout, validació del testimoni,
 rols i gestió d'usuaris entre institucions.
 
 No importa main.py (que carrega el .env i crea els usuaris inicials): munta
-una app mínima amb els routers d'auth i d'usuaris i les dependències reals
-de permisos. Tot passa sobre l'auth.db i les institucions temporals que
-prepara el conftest.
+l'app mínima de suport_api amb els routers d'auth i d'usuaris i les
+dependències reals de permisos. Tot passa sobre l'auth.db i les institucions
+temporals que prepara el conftest.
 """
 
 import uuid
@@ -14,33 +14,23 @@ from pathlib import Path
 
 import jwt
 import pytest
-from fastapi import Depends, FastAPI
-from fastapi.testclient import TestClient
-from slowapi.errors import RateLimitExceeded
+from fastapi import Depends
+from suport_api import CONTRASENYA, client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_rellotge import ARA
 
-import auth.router as rutes_auth
 import auth.services as serveis_auth
 from auth.dependencies import require_admin, require_super_admin, require_user
 from auth.repositories import UserRepository
 from auth.security import create_access_token, decode_access_token, hash_password, verify_password
 from config.auth import get_config_auth
 from config.settings import config
-from database import AuthSessionLocal, create_auth_tables, get_data_db_session
-from errors_servidor import registra_gestors_errors
-from rate_limit import limit_superat, limiter
+from database import AuthSessionLocal
+from rate_limit import limiter
 from usuaris.router import router as usuaris_router
-
-CONTRASENYA = "contrasenya-de-prova"
 
 
 def _app():
-    app = FastAPI()
-    app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, limit_superat)
-    registra_gestors_errors(app)  # com a main.py: tradueix els errors del domini
-    app.include_router(rutes_auth.router)
-    app.include_router(usuaris_router)
+    app = crea_app(usuaris_router)
 
     @app.get("/prova/user")
     def nomes_user(u=Depends(require_user)):
@@ -61,24 +51,8 @@ APP = _app()
 
 
 def _nova_institucio():
-    nom = f"centre_{uuid.uuid4().hex[:8]}"
-    with get_data_db_session(nom):  # crea la carpeta i el gestor.db
-        pass
-    return nom
-
-
-def _crea_usuari(username, institucio, role="user", active=True):
-    with AuthSessionLocal() as db:
-        user = UserRepository.create(
-            db=db,
-            username=username,
-            password_hash=hash_password(CONTRASENYA),
-            institucio=institucio,
-            role=role,
-            active=active,
-        )
-        db.commit()
-        return user.id
+    # Sense prioritats: aquí només calen la carpeta i el gestor.db
+    return nova_institucio(prioritats=None)
 
 
 def _usuari_db(username):
@@ -95,15 +69,12 @@ def _limiter_net():
 
 @pytest.fixture
 def client():
-    # https: la cookie es marca Secure (COOKIE_SECURE per defecte) i el client
-    # només la retorna per https.
-    return TestClient(APP, base_url="https://testserver")
+    return client_per(APP)
 
 
 @pytest.fixture
 def escenari():
     """Dues institucions, cadascuna amb un admin i un usuari, i un superadmin."""
-    create_auth_tables()
     sufix = uuid.uuid4().hex[:6]
     a, b = _nova_institucio(), _nova_institucio()
     noms = {
@@ -114,11 +85,11 @@ def escenari():
         "user_b": f"usuari_b_{sufix}",
     }
     ids = {
-        "super": _crea_usuari(noms["super"], a, "super_admin"),
-        "admin_a": _crea_usuari(noms["admin_a"], a, "admin"),
-        "user_a": _crea_usuari(noms["user_a"], a, "user"),
-        "admin_b": _crea_usuari(noms["admin_b"], b, "admin"),
-        "user_b": _crea_usuari(noms["user_b"], b, "user"),
+        "super": crea_usuari(noms["super"], a, "super_admin"),
+        "admin_a": crea_usuari(noms["admin_a"], a, "admin"),
+        "user_a": crea_usuari(noms["user_a"], a, "user"),
+        "admin_b": crea_usuari(noms["admin_b"], b, "admin"),
+        "user_b": crea_usuari(noms["user_b"], b, "user"),
     }
     return {"a": a, "b": b, "noms": noms, "ids": ids}
 
@@ -128,9 +99,7 @@ def _login(client, username, password=CONTRASENYA):
 
 
 def _entra(client, escenari, qui):
-    resp = _login(client, escenari["noms"][qui])
-    assert resp.status_code == 200, resp.text
-    return client
+    return entra(client, escenari["noms"][qui])
 
 
 def _posa_token(client, payload, clau=get_config_auth().secret_key):
@@ -188,13 +157,13 @@ def test_el_login_sempre_comprova_una_contrasenya(client, escenari, monkeypatch,
     nom = {"inexistent": "no_existeix", "contrasenya dolenta": escenari["noms"]["user_a"]}.get(cas)
     if cas == "desactivat":
         nom = "desactivat_" + escenari["a"]
-        _crea_usuari(nom, escenari["a"], active=False)
+        crea_usuari(nom, escenari["a"], active=False)
     assert _login(client, nom, "incorrecta").status_code == 401
     assert len(comprovacions) == 1
 
 
 def test_login_d_usuari_desactivat_es_rebutja(client, escenari):
-    _crea_usuari("desactivat_" + escenari["a"], escenari["a"], active=False)
+    crea_usuari("desactivat_" + escenari["a"], escenari["a"], active=False)
     assert _login(client, "desactivat_" + escenari["a"]).status_code == 401
 
 
@@ -277,6 +246,20 @@ def test_sense_cookie_dona_401(client, escenari):
     assert client.get("/prova/user").status_code == 401
 
 
+def test_cada_401_diu_el_mateix_que_abans_i_sense_capcaleres_d_autenticacio(client, escenari):
+    respostes = {"No autenticat": client.get("/prova/user")}
+    respostes["Credencials incorrectes"] = _login(client, escenari["noms"]["user_a"], "incorrecta")
+    client.cookies.set(get_config_auth().cookie_name, "no-es-un-token")
+    respostes["Token invàlid"] = client.get("/prova/user")
+    _posa_token(client, {"sub": escenari["noms"]["user_a"], "exp": ARA - timedelta(minutes=1)})
+    respostes["Sessió caducada"] = client.get("/prova/user")
+    _posa_token(client, {"sub": "no_existeix", "uid": -1, "exp": ARA + timedelta(minutes=5)})
+    respostes["Usuari inactiu o inexistent"] = client.get("/prova/user")
+    for detail, resp in respostes.items():
+        assert (resp.status_code, resp.json()) == (401, {"detail": detail})
+        assert "www-authenticate" not in resp.headers
+
+
 def test_token_que_no_es_un_jwt_dona_401(client, escenari):
     client.cookies.set(get_config_auth().cookie_name, "no-es-un-token")
     assert client.get("/prova/user").status_code == 401
@@ -305,8 +288,29 @@ def test_token_caducat_dona_401(client, escenari):
 
 
 def test_token_sense_usuari_dona_401(client, escenari):
-    _posa_token(client, {"institucio": escenari["a"], "role": "admin"})
-    assert client.get("/prova/user").status_code == 401
+    _posa_token(client, {"institucio": escenari["a"], "role": "admin", "exp": ARA + timedelta(minutes=5)})
+    resp = client.get("/prova/user")
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Token invàlid"}
+
+
+def test_token_sense_caducitat_dona_401(client, escenari):
+    # Signat amb la clau bona i d'un usuari actiu: sense "exp" valdria per sempre
+    _posa_token(
+        client, {"sub": escenari["noms"]["user_a"], "uid": escenari["ids"]["user_a"], "institucio": escenari["a"]}
+    )
+    resp = client.get("/prova/user")
+    assert resp.status_code == 401
+    assert resp.json() == {"detail": "Token invàlid"}
+
+
+@pytest.mark.parametrize("camp", ["exp", "sub"])
+def test_decode_exigeix_caducitat_i_usuari(camp):
+    payload = {"sub": "algu", "exp": ARA + timedelta(minutes=5)}
+    del payload[camp]
+    token = jwt.encode(payload, get_config_auth().secret_key, algorithm=get_config_auth().algorithm)
+    with pytest.raises(jwt.MissingRequiredClaimError):
+        decode_access_token(token)
 
 
 def test_usuari_desactivat_despres_del_login_perd_l_acces(client, escenari):
@@ -357,7 +361,7 @@ def test_la_sessio_d_un_usuari_esborrat_no_val_per_a_un_de_nou_amb_el_mateix_nom
     with AuthSessionLocal() as db:
         UserRepository.delete(db, UserRepository.get_by_id(db, escenari["ids"]["user_a"]))
         db.commit()
-    _crea_usuari(escenari["noms"]["user_a"], escenari["a"])  # el mateix nom, un altre usuari
+    crea_usuari(escenari["noms"]["user_a"], escenari["a"])  # el mateix nom, un altre usuari
     assert client.get("/prova/user").status_code == 401
 
 
@@ -367,7 +371,7 @@ def test_la_sessio_no_passa_a_qui_pren_el_nom_d_un_usuari_reanomenat(client, esc
     with AuthSessionLocal() as db:
         UserRepository.update(db, UserRepository.get_by_id(db, escenari["ids"]["user_a"]), username=nom + "_vell")
         db.commit()
-    _crea_usuari(nom, escenari["a"], "admin")
+    crea_usuari(nom, escenari["a"], "admin")
     resp = client.get("/prova/user")
     # La sessió continua sent del primer usuari (ara amb el nom nou), no de l'admin nou
     assert resp.status_code == 200 and resp.json()["username"] == nom + "_vell"
@@ -677,7 +681,7 @@ def test_no_es_pot_endevinar_la_contrasenya_des_del_canvi_de_contrasenya(client,
 
 def _dispositiu(escenari, qui):
     """Un altre navegador (un altre dispositiu) amb sessió del mateix usuari."""
-    return _entra(TestClient(APP, base_url="https://testserver"), escenari, qui)
+    return _entra(client_per(APP), escenari, qui)
 
 
 def test_canviar_la_contrasenya_tanca_les_altres_sessions_pero_no_la_propia(client, escenari):

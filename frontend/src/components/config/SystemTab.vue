@@ -271,7 +271,7 @@
 </template>
 
 <script setup>
-import { avisaError } from '../../errorsApi.js'
+import { avisaError, detallDError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -516,7 +516,7 @@ const desarXmlVersion = async (version) => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.saveXmlVersion'),
+      detail: detallDError(error) || t('config.errors.saveXmlVersion'),
       life: 3000
     }))
   }
@@ -544,7 +544,7 @@ const eliminarXmlVersion = async (version) => {
         avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
-          detail: error.response?.data?.detail || t('config.errors.deleteXmlVersion'),
+          detail: detallDError(error) || t('config.errors.deleteXmlVersion'),
           life: 3000
         }))
       }
@@ -577,7 +577,7 @@ const pujarLogo = async (event) => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.uploadLogo'),
+      detail: detallDError(error) || t('config.errors.uploadLogo'),
       life: 3000
     }))
   } finally {
@@ -612,7 +612,7 @@ const desar = async () => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.saveConfig'),
+      detail: detallDError(error) || t('config.errors.saveConfig'),
       life: 3000
     }))
   } finally {
@@ -674,7 +674,7 @@ const pujarXML = async (event) => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.uploadXml'),
+      detail: detallDError(error) || t('config.errors.uploadXml'),
       life: 3000
     }))
   }

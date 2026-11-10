@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { computed } from 'vue'
 import * as apiSubstitucions from '../api/substitucions.js'
 
@@ -101,7 +101,7 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
       }
 
       // Mostrar missatge d'error de l'API (si està disponible)
-      const errorDetail = error.response?.data?.detail || t('substitutions.errors.updateSubstitute')
+      const errorDetail = detallDError(error) || t('substitutions.errors.updateSubstitute')
 
       avisaError(error, () => toast.add({
         severity: 'error',

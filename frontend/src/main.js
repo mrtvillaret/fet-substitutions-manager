@@ -4,6 +4,7 @@ import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
 import Tooltip from 'primevue/tooltip'
 import i18n, { primeLocales } from './i18n'
+import { registraTraductorErrors } from './errorsApi'
 
 // Estils de PrimeVue (abans, l'ordre de les capes: el reinici, per sota del tema)
 import './capes.css'
@@ -27,6 +28,8 @@ app.use(PrimeVue, {
 app.use(ToastService)
 app.use(ConfirmationService)
 app.use(i18n)
+// Els errors de domini es tradueixen a l'idioma de la pantalla (api/errors.js)
+registraTraductorErrors(i18n.global)
 app.directive('tooltip', Tooltip)
 
 const DEFAULT_TOAST_LIFE = 5000

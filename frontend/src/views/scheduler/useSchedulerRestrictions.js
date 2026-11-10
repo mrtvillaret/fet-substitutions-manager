@@ -1,4 +1,4 @@
-import { avisaError } from '../../errorsApi.js'
+import { avisaError, detallDError } from '../../errorsApi.js'
 import { computed, ref } from 'vue'
 import * as apiPlanificador from '../../api/planificador'
 
@@ -424,7 +424,7 @@ export const useSchedulerRestrictions = ({
       await apiPlanificador.desaCostosProfessors(costosProfessors.value)
       if (!silent) toast.add({ severity: 'success', summary: t('common.saved') })
     } catch (error) {
-      const detall = error.response?.status === 400 ? error.response.data?.detail : null
+      const detall = error.response?.status === 400 ? detallDError(error) : null
       avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: typeof detall === 'string' ? detall : undefined }))
     } finally {
       savingRestr.value = false

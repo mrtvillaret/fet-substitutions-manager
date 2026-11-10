@@ -50,7 +50,7 @@
         </div>
 
         <Tag severity="info" :value="$t('examConfig.import.selectedCount', {
-          selected: propostesSeleccionades.length, total: propostes.length })" style="margin: 8px 0; display: inline-block;" />
+          selected: propostesSeleccionades.length, total: propostes.length }, propostesSeleccionades.length)" style="margin: 8px 0; display: inline-block;" />
         <Tag v-if="propostesFiltrades.length !== propostes.length" severity="secondary"
           :value="$t('examConfig.import.filteredCount', { count: propostesFiltrades.length })" style="margin: 8px 0 8px 6px; display: inline-block;" />
 

@@ -88,11 +88,8 @@ class Planificacio:
 def xml_del_dia(dia: Dia) -> str:
     """El fitxer de l'horari (XML) vigent un dia; si no n'hi ha, NoValid."""
     if not dia.xml_path or not os.path.exists(dia.xml_path):
-        raise NoValid(
-            f"No hi ha cap horari (XML) per al {dia.data:%d/%m/%Y}",
-            codi="planificacio_sense_xml",
-            params={"data": dia.iso},
-        )
+        data = f"{dia.data:%d/%m/%Y}"
+        raise NoValid(f"No hi ha cap horari (XML) per al {data}", codi="planificacio_sense_xml", params={"data": data})
     return dia.xml_path
 
 

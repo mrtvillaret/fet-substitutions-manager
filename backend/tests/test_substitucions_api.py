@@ -827,9 +827,9 @@ def test_assignacio_manual_consulta_la_regla_unica(client, monkeypatch, motiu, c
     errors = []
     error_original = services.NoValid
 
-    def error(missatge, *, codi):
+    def error(missatge, *, codi, params=None):
         errors.append((codi, missatge))
-        return error_original(missatge, codi=codi)
+        return error_original(missatge, codi=codi, params=params)
 
     monkeypatch.setattr(services, "NoValid", error)
 
@@ -845,6 +845,7 @@ def test_assignacio_manual_consulta_la_regla_unica(client, monkeypatch, motiu, c
     assert resp.status_code == 400
     assert errors == [(codi, missatge)]
     assert resp.json()["detail"] == missatge
+    assert resp.json()["codi"] == codi and resp.json()["params"]["substitut"] == "Prof 21"
     assert _sub(client, "10:00")["substitut"] == ""
 
 
@@ -862,7 +863,7 @@ def test_tria_manual_conserva_les_classes_sense_assignatura(client, monkeypatch,
     resp = _assigna(client, "10:00", "Prof 21")
     if grup.strip():
         assert resp.status_code == 400
-        assert resp.json() == {"detail": "⚠️ Prof 21 té CLASSE a les 10:00 (, Grup)"}
+        assert resp.json()["detail"] == "⚠️ Prof 21 té CLASSE a les 10:00 (, Grup)"
         assert _sub(client, "10:00")["substitut"] == ""
     else:
         assert resp.status_code == 200, resp.text

@@ -48,7 +48,7 @@ def test_reanomenar_amb_un_nom_que_ja_existeix_dona_409(centre):
     client = entra(client_per(APP), centre["noms"]["admin"])
     resp = client.put(f"/api/users/{centre['ids']['user']}", json={"username": centre["noms"]["admin2"]})
     assert resp.status_code == 409
-    assert resp.json() == {"detail": "Ja existeix un usuari amb aquest nom"}
+    assert resp.json()["detail"] == "Ja existeix un usuari amb aquest nom"
     assert _usuari(centre["ids"]["user"]).username == centre["noms"]["user"]
 
 
@@ -77,14 +77,14 @@ def test_l_admin_que_es_canvia_el_nom_i_la_contrasenya_alhora_conserva_la_sessio
 def test_un_admin_no_es_pot_desactivar_a_si_mateix(centre):
     client = entra(client_per(APP), centre["noms"]["admin"])
     resp = client.delete(f"/api/users/{centre['ids']['admin']}")
-    assert resp.status_code == 403 and resp.json() == {"detail": "No et pots desactivar a tu mateix"}
+    assert resp.status_code == 403 and resp.json()["detail"] == "No et pots desactivar a tu mateix"
     assert _usuari(centre["ids"]["admin"]).active
 
 
 def test_un_admin_no_es_pot_desactivar_a_si_mateix_editant_se(centre):
     client = entra(client_per(APP), centre["noms"]["admin"])
     resp = client.put(f"/api/users/{centre['ids']['admin']}", json={"active": False})
-    assert resp.status_code == 403 and resp.json() == {"detail": "No et pots desactivar a tu mateix"}
+    assert resp.status_code == 403 and resp.json()["detail"] == "No et pots desactivar a tu mateix"
     assert _usuari(centre["ids"]["admin"]).active
 
 
@@ -107,42 +107,42 @@ def un_sol_admin(centre):
     return centre
 
 
-SENSE_ADMIN = {"detail": "El centre es quedaria sense cap admin actiu"}
+SENSE_ADMIN = "El centre es quedaria sense cap admin actiu"
 
 
 def test_no_es_pot_desactivar_l_ultim_admin_actiu(un_sol_admin, super_client):
     resp = super_client.delete(f"/api/users/{un_sol_admin['ids']['admin']}")
-    assert resp.status_code == 403 and resp.json() == SENSE_ADMIN
+    assert resp.status_code == 403 and resp.json()["detail"] == SENSE_ADMIN
     assert _usuari(un_sol_admin["ids"]["admin"]).active
 
 
 def test_no_es_pot_desactivar_l_ultim_admin_actiu_editant_lo(un_sol_admin, super_client):
     resp = super_client.put(f"/api/users/{un_sol_admin['ids']['admin']}", json={"active": False})
-    assert resp.status_code == 403 and resp.json() == SENSE_ADMIN
+    assert resp.status_code == 403 and resp.json()["detail"] == SENSE_ADMIN
 
 
 def test_no_es_pot_esborrar_l_ultim_admin_actiu(un_sol_admin, super_client):
     resp = super_client.delete(f"/api/users/{un_sol_admin['ids']['admin']}/hard")
-    assert resp.status_code == 403 and resp.json() == SENSE_ADMIN
+    assert resp.status_code == 403 and resp.json()["detail"] == SENSE_ADMIN
     assert _usuari(un_sol_admin["ids"]["admin"]) is not None
 
 
 def test_no_es_pot_treure_el_rol_a_l_ultim_admin_actiu(un_sol_admin, super_client):
     resp = super_client.put(f"/api/users/{un_sol_admin['ids']['admin']}", json={"role": "user"})
-    assert resp.status_code == 403 and resp.json() == SENSE_ADMIN
+    assert resp.status_code == 403 and resp.json()["detail"] == SENSE_ADMIN
     assert _usuari(un_sol_admin["ids"]["admin"]).role == "admin"
 
 
 def test_l_ultim_admin_actiu_no_es_pot_treure_el_rol_ell_mateix(un_sol_admin):
     client = entra(client_per(APP), un_sol_admin["noms"]["admin"])
     resp = client.put(f"/api/users/{un_sol_admin['ids']['admin']}", json={"role": "user"})
-    assert resp.status_code == 403 and resp.json() == SENSE_ADMIN
+    assert resp.status_code == 403 and resp.json()["detail"] == SENSE_ADMIN
 
 
 def test_no_es_pot_canviar_de_centre_l_ultim_admin_actiu(un_sol_admin, super_client):
     altre = nova_institucio()
     resp = super_client.put(f"/api/users/{un_sol_admin['ids']['admin']}", json={"institucio": altre})
-    assert resp.status_code == 403 and resp.json() == SENSE_ADMIN
+    assert resp.status_code == 403 and resp.json()["detail"] == SENSE_ADMIN
     assert _usuari(un_sol_admin["ids"]["admin"]).institucio == un_sol_admin["nom"]
 
 
@@ -151,7 +151,7 @@ def test_amb_un_altre_admin_actiu_si_que_es_pot(centre, super_client):
     assert super_client.put(f"/api/users/{centre['ids']['admin']}", json={"role": "user"}).status_code == 200
     assert super_client.delete(f"/api/users/{centre['ids']['user']}").status_code == 200
     # i ara admin2 és l'últim
-    assert super_client.delete(f"/api/users/{centre['ids']['admin2']}").json() == SENSE_ADMIN
+    assert super_client.delete(f"/api/users/{centre['ids']['admin2']}").json()["detail"] == SENSE_ADMIN
 
 
 def test_un_usuari_normal_no_compta_per_a_la_regla(un_sol_admin, super_client):

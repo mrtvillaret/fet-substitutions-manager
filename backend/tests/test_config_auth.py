@@ -84,20 +84,25 @@ def test_config_auth_valida_la_delegacio(url):
         carrega_config_auth({**ENV, "LOGIN_DELEGACIO_USUARIS": "demo", "LOGIN_DELEGACIO_URL": url})
 
 
+def _imports_de_carrega_prioritats(tree):
+    return [
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.ImportFrom)
+        and n.module
+        and n.module.startswith("prioritats.")
+        and any(a.name == "carrega_prioritats" for a in n.names)
+    ]
+
+
 def test_prioritats_te_porta_publica_sense_imports_locals_a_auth():
     backend = Path(__file__).resolve().parents[1]
-    for fitxer in ["auth/dependencies.py", "main.py"]:
-        tree = ast.parse((backend / fitxer).read_text())
-        imports = [
-            n
-            for n in ast.walk(tree)
-            if isinstance(n, ast.ImportFrom)
-            and n.module
-            and n.module.startswith("prioritats.")
-            and any(a.name == "carrega_prioritats" for a in n.names)
-        ]
-        assert imports
-        assert all(n.module == "prioritats.memoria" and n in tree.body for n in imports)
+    tree = ast.parse((backend / "auth/dependencies.py").read_text())
+    imports = _imports_de_carrega_prioritats(tree)
+    assert imports
+    assert all(n.module == "prioritats.memoria" and n in tree.body for n in imports)
+    # En arrencar no es carreguen: no hi ha cap petició ni centre
+    assert _imports_de_carrega_prioritats(ast.parse((backend / "main.py").read_text())) == []
 
 
 def test_main_llegeix_la_mateixa_galeta_que_auth(config_auth_de_prova, monkeypatch):

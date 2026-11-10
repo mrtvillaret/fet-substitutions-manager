@@ -41,7 +41,7 @@
     "tabs": {
       "substitucions": "Substitutions",
       "grups": "Freed groups and teachers",
-      "vigilancies": "Supervisions"
+      "vigilancies": "Invigilations"
     },
     "newVersion": "A new version of the application is available.",
     "reload": "Reload"
@@ -186,7 +186,7 @@
       "generatedPdfs": "Generated PDFs",
       "noPdfs": "No PDFs generated",
       "logoUploaded": "Logo uploaded",
-      "xmlReviewSummary": "Review {dies} days: {substitucions} substitutions and {vigilancies} supervision issues.",
+      "xmlReviewSummary": "Review {dies} days: {substitucions} substitutions and {vigilancies} invigilation issues.",
       "xmlReviewInfo": "Checked against the new XML. Saved assignments are preserved; this notice is for information only.",
       "xmlReviewDetails": "Show or hide details by day",
       "uploadingFile": "Uploading {name}",
@@ -238,7 +238,7 @@
     "absences": {
       "count": "1 covered absence | {count} covered absences",
       "none": "No covered absences",
-      "hint": "A covered absence is that of a teacher whose classes are covered in the XML, by a substitute or by other teachers at the school. During the period, the absent teacher does not substitute, is not substituted, does not supervise and does not appear as available. When saved, from today on their absences, supervisions and substitutions are removed.",
+      "hint": "A covered absence is that of a teacher whose classes are covered in the XML, by a substitute or by other teachers at the school. During the period, the absent teacher does not substitute, is not substituted, does not invigilate and does not appear as available. When saved, from today on their absences, invigilations and substitutions are removed.",
       "editTitle": "✏️ Edit covered absence",
       "addTitle": "➕ Add covered absence",
       "teacher": "Teacher",
@@ -255,9 +255,9 @@
       "applied": {
         "title": "Changes due to the covered absence ({count})",
         "absence": "absence removed",
-        "vigilance": "supervision without supervisor ({tipus})"
+        "vigilance": "invigilation without invigilator ({tipus})"
       },
-      "startsInPast": "The covered absence starts before today. Absences, supervisions and substitutions will be removed from today on."
+      "startsInPast": "The covered absence starts before today. Absences, invigilations and substitutions will be removed from today on."
     },
     "priorities": {
       "introLine1": "Configure the order and weights of priority categories to assign substitutions.",
@@ -312,6 +312,8 @@
       "noSubstAdded": "Subject added to no substitute",
       "noSubstUpdated": "No-substitute list updated",
       "noSubstDeleted": "Subject removed from no substitute",
+      "availableListTitle": "📝 Available Teachers List",
+      "availableListHint": "Generates a PDF with the available teachers for every day, one page per day",
       "freeableFilter": "Filter activities…",
       "freeableNone": "No activities without a group in the timetable"
     },
@@ -333,7 +335,8 @@
       "uploadXml": "Could not upload file",
       "loadPdfs": "Could not load PDF list",
       "downloadPdf": "Could not download PDF",
-      "deletePdf": "Could not delete PDF"
+      "deletePdf": "Could not delete PDF",
+      "generatePDF": "Could not generate the PDF"
     },
     "users": {
       "title": "User management",
@@ -405,11 +408,11 @@
       "editTitle": "Edit academic year",
       "loadError": "Could not load academic years",
       "saveError": "Could not save the academic year",
-      "deleteConfirm": "Delete the year “{nom}”? No substitution or supervision data will be removed."
+      "deleteConfirm": "Delete the year “{nom}”? No substitution or invigilation data will be removed."
     },
     "dataManagement": {
       "title": "Purge data by interval",
-      "description": "Irreversibly removes every trace of data from a date range (usually a whole school year): substitutions, supervisions, freed groups and covered absences, exported PDFs, XML versions fully contained in the range, and the exam planner's dates and last timetable. First analyse what would be deleted; then confirm to run it.",
+      "description": "Irreversibly removes every trace of data from a date range (usually a whole school year): substitutions, invigilations, freed groups and covered absences, exported PDFs, XML versions fully contained in the range, and the exam planner's dates and last timetable. First analyse what would be deleted; then confirm to run it.",
       "startDate": "Start date",
       "endDate": "End date",
       "analyze": "Analyse",
@@ -512,7 +515,7 @@
       "regenerateAll": "Regenerate all",
       "regenerateAllHint": "Regenerate all substitutions from scratch following priority order",
       "savePdf": "Generate PDF",
-      "savePdfHint": "Generate a full day PDF (substitutions + supervisions)",
+      "savePdfHint": "Generate a full day PDF (substitutions + invigilations)",
       "deleteAbsences": "Delete {professor}'s absences",
       "manageAbsences": "Manage teacher absences",
       "addNew": "New",
@@ -520,7 +523,7 @@
     },
     "stats": {
       "substitutionsLabel": "substitutions",
-      "vigilanciesLabel": "supervisions",
+      "vigilanciesLabel": "invigilations",
       "assigned": "Assigned",
       "pending": "Pending"
     },
@@ -582,10 +585,10 @@
         "title": "📄 Export full PDF",
         "includeContent": "Content to include",
         "substitutions": "Substitutions",
-        "vigilancies": "Supervisions",
+        "vigilancies": "Invigilations",
         "blankRows": "Leave space for handwriting",
         "blankRowsHint": "Shows the hours where substitutions may be needed (classes with visible groups or activities not in “Do not substitute”) with blank rows, to add some by hand after printing.",
-        "selectAtLeastOne": "⚠️ You must select at least one content type (substitutions or supervisions)",
+        "selectAtLeastOne": "⚠️ You must select at least one content type (substitutions or invigilations)",
         "selectAtLeastOneShort": "You must select at least one content type",
         "generate": "Generate PDF"
       }
@@ -607,8 +610,8 @@
       "absenceDeleted": "Absence of {teacher} at {hour} deleted",
       "allAbsencesDeleted": "All absences of {teacher} deleted",
       "absencesSaved": "Absences for {teacher} updated",
-      "vigilanciesUnassignedTitle": "Supervisions added to substitutions",
-      "vigilanciesUnassignedDetail": "{count} SUPERVISION substitution has been created to cover the absent teacher's exam duties. | {count} SUPERVISION substitutions have been created to cover the absent teacher's exam duties.",
+      "vigilanciesUnassignedTitle": "Invigilations added to substitutions",
+      "vigilanciesUnassignedDetail": "{count} INVIGILATION substitution has been created to cover the absent teacher's exam duties. | {count} INVIGILATION substitutions have been created to cover the absent teacher's exam duties.",
       "pdfGeneratedTitle": "PDF generated",
       "pdfGeneratedDetail": "Downloaded full PDF for {date}",
       "reassignSubstitutionsTitle": "Substitutions reassigned",
@@ -638,7 +641,7 @@
       "classe": "has class with {grup}",
       "absent": "is absent",
       "baixa": "has a covered absence",
-      "vigilancia": "is supervising an exam",
+      "vigilancia": "is invigilating an exam",
       "fora_horari": "is not in that day's timetable"
     },
     "table": {
@@ -797,21 +800,21 @@
     }
   },
   "vigilancies": {
-    "title": "👁️ Exam supervisions",
-    "loading": "Loading supervisions...",
+    "title": "👁️ Exam invigilations",
+    "loading": "Loading invigilations...",
     "actions": {
-      "new": "New supervision",
-      "newHint": "Add a new exam supervision",
+      "new": "New invigilation",
+      "newHint": "Add a new exam invigilation",
       "assignOwners": "Assign owners",
       "assignOwnersHint": "Assign only freed/available owners",
       "assignPending": "Assign pending",
-      "assignPendingHint": "Assign pending supervisions with smart scoring",
+      "assignPendingHint": "Assign pending invigilations with smart scoring",
       "clear": "Clear",
-      "clearHint": "Clear all supervisor assignments",
+      "clearHint": "Clear all invigilator assignments",
       "deleteSelected": "Delete selected ({count})",
-      "deleteSelectedHint": "Delete the selected supervisions",
+      "deleteSelectedHint": "Delete the selected invigilations",
       "sort": "Sort",
-      "sortHint": "Sort supervisions by hour",
+      "sortHint": "Sort invigilations by hour",
       "exportPdf": "Export PDF",
       "exportPdfHint": "Generate PDF for the day",
       "exportInterval": "Interval PDF",
@@ -837,24 +840,24 @@
       "pending": "Pending"
     },
     "empty": {
-      "title": "No supervisions scheduled for this date",
-      "hint": "Click \"➕ New supervision\" to add one"
+      "title": "No invigilations scheduled for this date",
+      "hint": "Click \"➕ New invigilation\" to add one"
     },
     "columns": {
       "level": "📊 Level",
       "type": "📝 Type",
-      "supervisor": "👤 Supervisor"
+      "supervisor": "👤 Invigilator"
     },
     "placeholders": {
       "level": "-- Level --",
       "type": "-- Type --",
       "groups": "-- Groups --",
       "room": "-- Room --",
-      "supervisor": "-- Select supervisor --",
-      "supervisorSelect": "-- Select supervisor --"
+      "supervisor": "-- Select invigilator --",
+      "supervisorSelect": "-- Select invigilator --"
     },
     "dialogs": {
-      "pdfTitle": "📄 Export supervision PDF",
+      "pdfTitle": "📄 Export invigilation PDF",
       "levelsLabel": "Levels to include *",
       "levelsPlaceholder": "Select levels",
       "levelsHint": "Select the levels to include in the PDF",
@@ -870,30 +873,30 @@
       "includeSubstitucions": "Include generated substitutions"
     },
     "confirm": {
-      "deleteMessage": "Do you want to delete the supervision at {hour}?",
-      "assignAvailableMessage": "📋 Assigned {assigned} freed teachers.\n\n{pending} supervisions are still pending.\n\nDo you want to assign available teachers too (duty, free, etc.)?",
+      "deleteMessage": "Do you want to delete the invigilation at {hour}?",
+      "assignAvailableMessage": "📋 Assigned {assigned} freed teachers.\n\n{pending} invigilations are still pending.\n\nDo you want to assign available teachers too (duty, free, etc.)?",
       "assignAvailableTitle": "Assign available?",
       "assignAvailableAccept": "✅ Yes, assign {count} available | ✅ Yes, assign {count} available",
       "assignAvailableReject": "❌ No, leave pending",
-      "clearMessage": "🗑️ Do you want to clear all supervisor assignments?\n\nOnly assigned teachers will be removed, keeping subjects and rooms.",
+      "clearMessage": "🗑️ Do you want to clear all invigilator assignments?\n\nOnly assigned teachers will be removed, keeping subjects and rooms.",
       "clearTitle": "Confirm clearing",
       "clearAccept": "Yes, clear",
-      "deleteSelectedMessage": "Do you want to delete the selected supervision? | Do you want to delete the {count} selected supervisions?",
+      "deleteSelectedMessage": "Do you want to delete the selected invigilation? | Do you want to delete the {count} selected invigilations?",
       "sortManualTitle": "Sort the invigilations?",
       "sortManualMessage": "Manual changes to the order will be lost. Sort anyway?"
     },
     "messages": {
-      "updated": "Supervision updated successfully",
-      "added": "Supervision added successfully",
-      "deleted": "Supervision deleted successfully",
-      "deletedSelected": "{count} supervision deleted successfully | {count} supervisions deleted successfully",
-      "deletedSelectedPartial": "{ok} supervisions deleted, {errors} errors",
+      "updated": "Invigilation updated successfully",
+      "added": "Invigilation added successfully",
+      "deleted": "Invigilation deleted successfully",
+      "deletedSelected": "{count} invigilation deleted successfully | {count} invigilations deleted successfully",
+      "deletedSelectedPartial": "{ok} invigilations deleted, {errors} errors",
       "assignOwnersTitle": "Assignment completed",
       "assignedFreeTitle": "Freed assigned",
       "assignedFreeDetail": "✅ Assigned {count} freed teacher | ✅ Assigned {count} freed teachers",
       "availableAssignedTitle": "Available assigned",
       "allAssignedTitle": "All assigned",
-      "allAssignedDetail": "🎉 All supervisions are assigned!",
+      "allAssignedDetail": "🎉 All invigilations are assigned!",
       "clearedTitle": "Cleared",
       "sortedTitle": "Sorted",
       "pdfGeneratedTitle": "PDF generated",
@@ -904,15 +907,15 @@
     },
     "errors": {
       "levelRequired": "Set the invigilation level before editing it",
-      "load": "Error loading supervisions",
-      "update": "Could not update the supervision",
-      "create": "Could not create the supervision",
-      "delete": "Could not delete the supervision",
+      "load": "Error loading invigilations",
+      "update": "Could not update the invigilation",
+      "create": "Could not create the invigilation",
+      "delete": "Could not delete the invigilation",
       "assignOwners": "Could not assign owners",
       "assignAvailable": "Could not assign available teachers",
       "assignFree": "Could not assign freed teachers",
       "clear": "Could not clear assignments",
-      "sort": "Could not sort supervisions",
+      "sort": "Could not sort invigilations",
       "generatePdf": "Could not generate the PDF",
       "datesRequiredTitle": "Dates required",
       "datesRequired": "You must select a start and end date",
@@ -927,11 +930,11 @@
       "title": "1 exam owner was not assigned because they had a free period. Decide whether to put them in their row: | {count} exam owners were not assigned because they had a free period. Decide whether to put them in their rows:",
       "assign": "Assign",
       "assigned": "Owner assigned",
-      "conflict": "Someone changed this supervision: it has been reloaded."
+      "conflict": "Someone changed this invigilation: it has been reloaded."
     },
     "noLevels": "No levels are configured. An administrator can create them in the exam settings (Levels tab); meanwhile, the PDFs include all invigilations.",
     "withoutOwner": {
-      "title": "1 supervision has no owner defined in the exam settings: | {count} supervisions have no owner defined in the exam settings:",
+      "title": "1 invigilation has no owner defined in the exam settings: | {count} invigilations have no owner defined in the exam settings:",
       "cap_fila_grup": "no row for the group",
       "diversos_titulars": "several possible owners: set each teacher's room so it is defined (assigned anyway)",
       "openConfig": "Open exam settings"
@@ -963,18 +966,18 @@
     "tabs": {
       "intro": "Introduction",
       "substitutions": "Substitutions",
-      "vigilancies": "Supervisions",
+      "vigilancies": "Invigilations",
       "config": "Configuration",
       "tips": "Tips"
     },
     "intro": {
       "welcomeTitle": "Welcome to the Substitution Manager",
-      "welcomeBody": "This web app manages substitutions and exam supervisions for educational institutions.",
+      "welcomeBody": "This web app manages substitutions and exam invigilations for educational institutions.",
       "featuresTitle": "Key features:",
       "features": {
         "items": {
           "substitutions": "Automatic substitution management with priorities",
-          "vigilancies": "Smart assignment of exam supervisions",
+          "vigilancies": "Smart assignment of exam invigilations",
           "groups": "Control of groups without class",
           "pdf": "PDF generation for communication",
           "stats": "Statistics and reports"
@@ -988,8 +991,8 @@
           "substitutionsBody": "Manage absences and assign substitutes",
           "groupsTitle": "Groups without class",
           "groupsBody": "Define which groups are released per hour",
-          "vigilanciesTitle": "Supervisions",
-          "vigilanciesBody": "Organize exam supervisions"
+          "vigilanciesTitle": "Invigilations",
+          "vigilanciesBody": "Organize exam invigilations"
         }
       }
     },
@@ -1009,7 +1012,7 @@
       },
       "savePdf": {
         "title": "Generate PDF",
-        "body": "Generate a full PDF with substitutions and/or supervisions for the day. The system validates conflicts before generating the document."
+        "body": "Generate a full PDF with substitutions and/or invigilations for the day. The system validates conflicts before generating the document."
       },
       "assignManual": {
         "title": "Assign substitute manually",
@@ -1035,10 +1038,10 @@
       }
     },
     "vigilancies": {
-      "title": "Exam Supervisions",
+      "title": "Exam Invigilations",
       "new": {
-        "title": "New supervision",
-        "body": "Create a new supervision by specifying hour, level, exam type, groups, and room. The supervisor can be assigned manually or left blank for automatic assignment."
+        "title": "New invigilation",
+        "body": "Create a new invigilation by specifying hour, level, exam type, groups, and room. The invigilator can be assigned manually or left blank for automatic assignment."
       },
       "assignOwners": {
         "title": "Assign owners",
@@ -1060,7 +1063,7 @@
       },
       "export": {
         "title": "Export PDF",
-        "body": "Generate a PDF of supervisions for the selected day. You can choose:",
+        "body": "Generate a PDF of invigilations for the selected day. You can choose:",
         "items": {
           "levels": "Levels to include (1-ESO, 2-BACH, etc.)",
           "comments": "Show/hide observations and hours",
@@ -1069,7 +1072,7 @@
       },
       "interval": {
         "title": "Interval PDF",
-        "body": "Generate a single PDF with supervisions for multiple days. Useful for planning full exam periods."
+        "body": "Generate a single PDF with invigilations for multiple days. Useful for planning full exam periods."
       }
     },
     "config": {
@@ -1128,9 +1131,9 @@
         }
       },
       "vigilancies": {
-        "title": "Optimizing exam supervisions",
+        "title": "Optimizing exam invigilations",
         "items": {
-          "define": "First define all supervisions for the day",
+          "define": "First define all invigilations for the day",
           "assignOwners": "Run “🎯 Assign owners” to cover with group teachers",
           "assignPending": "Then “📋 Assign pending” to complete",
           "adjust": "Adjust special cases manually"
@@ -1138,11 +1141,11 @@
       },
       "groups": {
         "title": "Groups without class",
-        "body": "Configure released groups for each hour correctly. This improves automatic assignment of substitutions and supervisions because the system prioritizes freed teachers."
+        "body": "Configure released groups for each hour correctly. This improves automatic assignment of substitutions and invigilations because the system prioritizes freed teachers."
       },
       "filters": {
         "title": "Filters and search",
-        "body": "In the supervisions view you can filter by:",
+        "body": "In the invigilations view you can filter by:",
         "items": {
           "level": "Level (1-ESO, 2-BACH, etc.)",
           "hour": "Hour",
@@ -1174,7 +1177,7 @@
     "informes": {
       "direccio": {
         "titol": "Management report",
-        "desc": "Global report of absences, substitutions and supervisions for the selected period.",
+        "desc": "Global report of absences, substitutions and invigilations for the selected period.",
         "btn": "Generate and download PDF"
       },
       "professor": {
@@ -1186,8 +1189,8 @@
       }
     },
     "summary": {
-      "totalVigilancies": "Total supervisions",
-      "daysWithVigs": "Days with supervisions",
+      "totalVigilancies": "Total invigilations",
+      "daysWithVigs": "Days with invigilations",
       "perTeacher": "Detail by teacher",
       "perTeacherHint": "Click a teacher to see the day-by-day detail",
       "topAbsences": "Top 5 absences",
@@ -1199,7 +1202,7 @@
       "doneHint": "Every hour with a substitute on the Substitutions screen, of any type. This is not the coverage of absences.",
       "balanceHint": "Balance = substitutions done − absences (services are not subtracted)",
       "vigilanciesCovered": "{count} covered ({percent}%) | {count} covered ({percent}%)",
-      "vigilanciesBreakdown": "Supervisor present: {vigilant} · substitute: {substitute} · uncovered: {uncovered}"
+      "vigilanciesBreakdown": "Invigilator present: {vigilant} · substitute: {substitute} · uncovered: {uncovered}"
     },
     "columns": {
       "teacher": "Teacher",
@@ -1213,7 +1216,7 @@
     "temporal": {
       "byDay": "Distribution by day",
       "byHour": "Distribution by hour",
-      "legendVigs": "Supervisions",
+      "legendVigs": "Invigilations",
       "summaryBySlot": "Slot summary",
       "legendToCover": "To cover",
       "legendCovered": "With substitute"
@@ -1264,9 +1267,9 @@
       "types": {
         "ABSENCIA": "Absence",
         "SERVEI": "Service",
-        "VIGILANCIA_ABSENT": "Absent supervisor",
+        "VIGILANCIA_ABSENT": "Absent invigilator",
         "ENCADENADA": "Chained",
-        "VIGILANCIA": "Supervision"
+        "VIGILANCIA": "Invigilation"
       }
     },
     "slots": {
@@ -1453,7 +1456,6 @@
       }
     },
     "duplicatesTitle": "Teachers with simultaneous exams",
-    "sessionCount": "{count} sessions",
     "levels": "Levels",
     "subjects": "Subjects",
     "groups": "Groups",
@@ -1477,10 +1479,10 @@
       "successTitle": "Publication completed",
       "errorTitle": "Publication error",
       "datesProcessed": "Dates processed:",
-      "vigilanciesCreated": "Supervisions created:",
-      "vigilanciesUpdated": "Supervisions updated:",
-      "vigilanciesUnchanged": "Supervisions unchanged:",
-      "vigilanciesDeleted": "Supervisions deleted:",
+      "vigilanciesCreated": "Invigilations created:",
+      "vigilanciesUpdated": "Invigilations updated:",
+      "vigilanciesUnchanged": "Invigilations unchanged:",
+      "vigilanciesDeleted": "Invigilations deleted:",
       "freeGroupsCreated": "Released groups:",
       "titularsAssigned": "Titulars assigned:",
       "warnings": "Warnings",
@@ -1495,8 +1497,8 @@
       "previewDesc": "This is what will happen when you confirm publication. Nothing has been written to the database yet.",
       "confirmPublish": "Confirm publication",
       "publishButton": "Publish",
-      "durationExam": "Each exam will be supervised for all the hours it lasts for students (its duration group's duration or, if it has none, the general exam duration).",
-      "durationTitular": "The subject teacher will be assigned to the hours when they are freed or available (on duty); another teacher can supervise the rest.",
+      "durationExam": "Each exam will be invigilated for all the hours it lasts for students (its duration group's duration or, if it has none, the general exam duration).",
+      "durationTitular": "The subject teacher will be assigned to the hours when they are freed or available (on duty); another teacher can invigilate the rest.",
       "freedGroupsInfo": "Groups of the selected levels will have no class at the hours marked in the planner calendar."
     },
     "view": {
@@ -1572,7 +1574,7 @@
       },
       "messages": {
         "configSaved": "Configuration saved",
-        "vigilanciesPublished": "Published {count} supervision | Published {count} supervisions",
+        "vigilanciesPublished": "Published {count} invigilation | Published {count} invigilations",
         "scheduleUpdated": "Schedule updated",
         "localChangesApplied": "Changes were applied locally",
         "notViable": "Not viable",
@@ -1640,7 +1642,7 @@
         "durades": {
           "title": "Exam durations",
           "globalLabel": "Default teacher duration:",
-          "globalSuffix": "hour(s) the teacher supervises",
+          "globalSuffix": "hour(s) the teacher invigilates",
           "examGlobalLabel": "Default exam duration:",
           "examGlobalSuffix": "hour(s) the exam lasts (students)",
           "exceptionsTitle": "Custom duration groups",
@@ -1660,7 +1662,7 @@
             "sessionsLabel": "Subjects",
             "sessionsPlaceholder": "Select subjects...",
             "durationLabel": "Teacher duration",
-            "durationSuffix": "hour(s) supervising",
+            "durationSuffix": "hour(s) invigilating",
             "examDurationLabel": "Exam duration",
             "examDurationSuffix": "hour(s) for students"
           }
@@ -1791,7 +1793,8 @@
           "placedExams": "Placed exams",
           "substitutions": "Substitutions",
           "before": "Arrive earlier",
-          "after": "Leave later"
+          "after": "Leave later",
+          "generationTime": "Generation time"
         },
         "incidents": {
           "groups": {
@@ -1800,7 +1803,7 @@
             "stayLate": "Stay later",
             "arriveEarly": "Arrive earlier",
             "links": "Links (same level)",
-            "zoneExam": "Exam zone (no supervisor, no cost)",
+            "zoneExam": "Exam zone (no invigilator, no cost)",
             "others": "Others"
           },
           "short": {
@@ -1961,5 +1964,99 @@
     "compress": "Automatic compression",
     "showConflicts": "Show conflicts and warnings",
     "dayPerPage": "Each day on a new page"
+  },
+  "errors": {
+    "abreviatura_incompleta": "Original groups and abbreviation are required",
+    "abreviatura_no_trobada": "Abbreviation not found",
+    "abreviatura_repetida": "There is already an abbreviation for these groups",
+    "abreviatura_text_repetit": "There is already an abbreviation with this text",
+    "absencia_coberta_no_trobada": "Covered absence not found",
+    "activitat_no_configurada": "Activity not configured",
+    "activitat_no_substituible": "❌ A substitute cannot be assigned: '{assignatura}' is in the list of activities that are NOT substituted",
+    "agrupacio_de_diversos_nivells": "A grouping must contain exams of a single level: {agrupacions}. To put exams of different levels at the same time, use the \"Same day and time\" preference.",
+    "assignacio_incompleta": "Subject and group are required",
+    "assignacio_no_trobada": "Assignment not found",
+    "assignatura_no_afegida": "The subject already exists or the level was not found",
+    "assignatura_no_reanomenada": "Could not rename the subject",
+    "assignatura_no_trobada": "Subject not found",
+    "assignatura_requerida": "Subject required",
+    "assignatura_sense_nom": "Subject name required",
+    "aula_existent": "The room already exists",
+    "aula_no_reanomenada": "Could not rename the room",
+    "aula_no_trobada": "Room not found",
+    "aula_sense_codi": "Room code required",
+    "centre_d_un_superadmin": "It is a superadmin's own institution: change their institution before deleting it",
+    "centre_sense_admin": "The institution would be left without any active admin",
+    "confirmacio_incorrecta": "Incorrect confirmation",
+    "contrasenya_actual_incorrecta": "The current password is incorrect",
+    "contrasenya_curta": "The password must be at least {minim} characters long",
+    "csv_extensio": "The file must be a CSV",
+    "csv_no_utf8": "The CSV file must be saved as UTF-8",
+    "csv_sense_columnes": "The CSV must have at least one of these columns: {columnes}",
+    "curs_mateix_dia": "Another school year already starts on this day",
+    "curs_no_trobat": "School year not found",
+    "dia_sense_substitucions": "There are no substitutions for {data}",
+    "esborrat_definitiu_al_servidor": "An institution can only be permanently deleted from the server",
+    "grup_no_afegit": "The group already exists or the level was not found",
+    "grup_no_reanomenat": "Could not rename the group",
+    "grup_no_trobat": "Group not found",
+    "grup_sense_codi": "Group code required",
+    "horari_sense_dies": "The timetable contains no days",
+    "idioma_no_valid": "Invalid language",
+    "institucio_existent": "The institution already exists",
+    "institucio_inactiva": "Inactive institution",
+    "institucio_inexistent": "The institution does not exist",
+    "institucio_no_trobada": "Institution not found",
+    "interval_informe_invertit": "The start date must be on or before the end date",
+    "interval_invertit": "The start date cannot be later than the end date.",
+    "interval_vigilancies_invertit": "The start date must be before the end date",
+    "logo_extensio": "The logo must be PNG or JPG",
+    "logo_massa_gran": "The logo image is too large",
+    "logo_no_trobat": "Logo not found",
+    "logo_no_valid": "The logo must be a valid PNG or JPG image",
+    "mateix_nom": "The new name must be different from the current one.",
+    "nivell_existent": "The level already exists",
+    "nivell_no_trobat": "Level not found",
+    "nivell_sense_codi": "Level code required",
+    "no_substituir_repetida": "The subject is already in “Do not substitute”",
+    "nom_centre_massa_llarg": "The institution name can be at most {maxim} characters long",
+    "nom_centre_no_valid": "Invalid institution name",
+    "nom_d_usuari_repetit": "A user with this name already exists",
+    "nom_existent": "A teacher named “{nom}” already exists.",
+    "nom_visible_superadmin": "Only the superadmin can edit the display name",
+    "noms_buits": "Enter the current name and the new name.",
+    "ordre_desactualitzat": "The rows for this hour have changed: reload the invigilations",
+    "periode_incomplet": "Specify who and at which hours",
+    "planificacio_sense_dates": "Choose the exam dates",
+    "planificacio_sense_xml": "There is no timetable (XML) for {data}",
+    "professor_actiu": "Only inactive teachers (no longer in the current timetable) can be renamed. To rename an active teacher, change it in FET and import the XML again.",
+    "professor_inexistent": "There is no teacher named “{nom}”.",
+    "publicacio_sense_setmanes": "Specify at least one week with dates",
+    "sense_grups": "Select at least one group",
+    "sense_vigilancies": "There are no invigilations for {data}",
+    "sense_vigilancies_interval": "There are no invigilations in the selected range",
+    "substitucio_id_no_trobat": "Substitution with identifier {id} not found for {data}",
+    "substitucio_no_trobada": "Substitution not found: {hora} - {professor}",
+    "substitut_absent": "❌ {substitut} is ABSENT at {hora}!",
+    "substitut_amb_absencia_coberta": "❌ {substitut} has a COVERED ABSENCE that day!",
+    "substitut_amb_classe": "⚠️ {substitut} has a CLASS at {hora} ({assignatura}, {grup})",
+    "substitut_fora_horari": "❌ {substitut} is not a teacher in that day's timetable",
+    "substitut_repetit": "❌ {substitut} is already assigned as SUBSTITUTE for {absent} ({assignatura}, {grup}) at {hora}",
+    "substitut_vigilant": "❌ {substitut} is already assigned as INVIGILATOR at {hora}",
+    "superadmin_no_desactivable": "The superadmin cannot be deactivated",
+    "superadmin_no_editable": "The superadmin cannot be edited",
+    "superadmin_no_eliminable": "The superadmin cannot be deleted",
+    "usuari_d_una_altra_institucio": "You cannot edit users from another institution",
+    "usuari_no_trobat": "User not found",
+    "usuari_protegit": "This user cannot be modified",
+    "versio_xml_mateix_dia": "Another XML version already starts on this day",
+    "versio_xml_no_trobada": "XML version not found",
+    "vigilancia_no_trobada": "Invigilation not found",
+    "vigilancia_sense_nivell": "Set the invigilation level",
+    "xml_data_no_posterior": "The effective date ({data}) must be later than that of the current version ({actual})",
+    "xml_estructura_incompleta": "The timetable XML must contain at least one teacher, one day and one hour",
+    "xml_extensio": "The file must be XML",
+    "xml_missing": "A timetable XML file must be uploaded for the institution {institucio}.",
+    "xml_no_valid": "The file is not a valid timetable XML"
   }
 }

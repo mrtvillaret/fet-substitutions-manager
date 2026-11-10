@@ -38,7 +38,7 @@ def client():
 
 def test_sense_assignatura_dona_400(client):
     resp = client.post(URL, json={})
-    assert resp.status_code == 400 and resp.json() == {"detail": "Assignatura requerida"}
+    assert resp.status_code == 400 and resp.json()["detail"] == "Assignatura requerida"
 
 
 def test_el_text_buit_s_accepta(client):
@@ -50,7 +50,7 @@ def test_el_text_buit_s_accepta(client):
 def test_una_assignatura_que_ja_hi_es_dona_409(client):
     assert client.post(URL, json={"assignatura": "Tutoria"}).status_code == 200
     resp = client.post(URL, json={"assignatura": "Tutoria"})
-    assert resp.status_code == 409 and resp.json() == {"detail": "L'assignatura ja és a «No substituir»"}
+    assert resp.status_code == 409 and resp.json()["detail"] == "L'assignatura ja és a «No substituir»"
     assert client.get(URL).json() == {"assignatures": ["Tutoria"]}
 
 

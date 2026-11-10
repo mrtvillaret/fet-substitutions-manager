@@ -162,7 +162,7 @@
 </template>
 
 <script setup>
-import { avisaError } from '../../errorsApi.js'
+import { avisaError, detallDError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -243,7 +243,7 @@ const detectarGrupsXML = async (silent = false) => {
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('config.errors.detectGroups'),
+        detail: detallDError(error) || t('config.errors.detectGroups'),
         life: 3000
       }))
     }
@@ -285,7 +285,7 @@ const desarGrupsAmagats = async () => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.groups.hiddenSaveError'),
+      detail: detallDError(error) || t('config.groups.hiddenSaveError'),
       life: 3000
     }))
   } finally {
@@ -341,7 +341,7 @@ const desarAbreviatura = async () => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.saveAbbrev'),
+      detail: detallDError(error) || t('config.errors.saveAbbrev'),
       life: 3000
     }))
   }
@@ -379,7 +379,7 @@ const eliminarAbreviatura = async (id) => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.deleteAbbrev'),
+      detail: detallDError(error) || t('config.errors.deleteAbbrev'),
       life: 3000
     }))
   }

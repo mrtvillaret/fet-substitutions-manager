@@ -117,7 +117,8 @@ def desa_logo(institucio: str, nom_fitxer: str, contingut: bytes) -> str:
     # nova en PNG. Així el que queda al servidor (i va als PDF) és sempre una
     # imatge vàlida, sense metadades ni res afegit al fitxer original.
     try:
-        imatge = Image.open(io.BytesIO(contingut))
+        # Només els lectors de PNG i JPEG: Pillow no prova cap altre format.
+        imatge = Image.open(io.BytesIO(contingut), formats=["PNG", "JPEG"])
         if imatge.format not in ("PNG", "JPEG"):
             raise ValueError(imatge.format)
         # Abans de descomprimir-la: una imatge petita en bytes pot ocupar

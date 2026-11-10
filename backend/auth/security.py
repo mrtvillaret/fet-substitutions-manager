@@ -145,9 +145,19 @@ def renova_testimoni(token: str):
     return create_access_token(nou, expira=caduca)
 
 
+# Els camps que el codi dona per segurs: sense caducitat el testimoni valdria
+# per sempre, i sense usuari no identifica ningú. Tots dos els posa sempre
+# create_access_token / testimoni_de_sessio; la resta tenen valor per defecte
+# per als testimonis d'abans (uid, sv, ini).
+CAMPS_OBLIGATORIS = ["exp", "sub"]
+
+
 def decode_access_token(token: str) -> dict[str, Any]:
     return _JWT(rellotge.ara(UTC).timestamp()).decode(
-        token, get_config_auth().secret_key, algorithms=[get_config_auth().algorithm]
+        token,
+        get_config_auth().secret_key,
+        algorithms=[get_config_auth().algorithm],
+        options={"require": CAMPS_OBLIGATORIS},
     )
 
 

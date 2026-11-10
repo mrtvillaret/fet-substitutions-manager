@@ -12,6 +12,7 @@ import pytest
 from fastapi import Depends
 from fastapi.testclient import TestClient
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_xml import amb_versions, dia, professor_que_plega
 
 from auth.dependencies import require_admin
 from dades import router as dades
@@ -20,8 +21,10 @@ from database import (
     get_data_dir_for_institucio,
     get_export_dir_for_institucio,
 )
+from horari import context
+from horari.context import get_horari
 from horari.repositories import XMLVersionRepository
-from models import AbsenciaCoberta, GrupAlliberat, Substitucio, Vigilancia, XMLVersion
+from models import AbsenciaCoberta, GrupAlliberat, Professor, Substitucio, Vigilancia, XMLVersion
 from rate_limit import limiter
 
 APP = crea_app()
@@ -320,3 +323,37 @@ def test_un_fitxer_que_no_es_pot_esborrar_no_diu_el_cami(admin, centre, monkeypa
     ]
     assert not any(str(get_data_dir_for_institucio(centre)) in e for e in informe["errors"])
     assert "Permission denied" in caplog.text
+
+
+def test_purgar_una_versio_d_xml_buida_la_memoria_cau_i_resincronitza_els_professors():
+    """Com en esborrar una versió: els professors actius tornen a ser els de
+    l'XML d'avui i l'horari de la versió purgada ja no és a la memòria cau."""
+    # La purgada (futur.xml, sense el primer professor) és la d'avui; després
+    # de purgar-la, l'anterior s'allarga fins a la següent.
+    centre = amb_versions(
+        ("actual.xml", dia(-90), dia(-31)), ("futur.xml", dia(-30), dia(10)), ("actual.xml", dia(11), None)
+    )
+    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    crea_usuari(nom, centre, "admin")
+    client = entra(client_per(APP), nom)  # la primera petició del dia sincronitza amb futur.xml
+    assert client.post("/api/dades/purga/analitzar", json=INTERVAL).status_code == 200
+    plega = professor_que_plega()
+    assert plega not in _actius(centre)  # futur.xml no el té
+    abans = get_horari(centre, data_iso=dia(0).isoformat())
+    assert plega not in abans.professors
+    clau_purgada = next(k for k in context._horari if k.startswith(f"{centre}:") and k.endswith("futur.xml"))
+
+    interval = {"data_inici": dia(-30).isoformat(), "data_final": dia(10).isoformat(), "confirmar": True}
+    resp = client.post("/api/dades/purga/executar", json=interval)
+    assert resp.status_code == 200, resp.text
+    assert [v["data_inici"] for v in resp.json()["xml_esborrats"]] == [dia(-30).isoformat()]
+
+    assert _actius(centre)[plega] is True
+    assert clau_purgada not in context._horari
+    despres = get_horari(centre, data_iso=dia(0).isoformat())
+    assert despres is not abans and plega in despres.professors
+
+
+def _actius(centre):
+    with get_data_db_session(centre) as db:
+        return {p.nom: p.actiu for p in db.query(Professor)}

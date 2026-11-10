@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed } from 'vue'
 import * as apiVigilancies from '../api/vigilancies.js'
 
@@ -34,7 +34,7 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: err.response?.status === 409 ? t('vigilancies.freeHourOwners.conflict') : (err.response?.data?.detail || t('vigilancies.errors.assignOwners')),
+        detail: err.response?.status === 409 ? t('vigilancies.freeHourOwners.conflict') : (detallDError(err) || t('vigilancies.errors.assignOwners')),
         life: 5000
       }))
       await carregarVigilancies()
@@ -65,7 +65,7 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: err.response?.data?.detail || t('vigilancies.errors.assignOwners'),
+        detail: detallDError(err) || t('vigilancies.errors.assignOwners'),
         life: 5000
       }))
     } finally {
@@ -124,7 +124,7 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
               avisaError(err, () => toast.add({
                 severity: 'error',
                 summary: t('common.error'),
-                detail: err.response?.data?.detail || t('vigilancies.errors.assignAvailable'),
+                detail: detallDError(err) || t('vigilancies.errors.assignAvailable'),
                 life: 5000
               }))
             } finally {
@@ -148,7 +148,7 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: err.response?.data?.detail || t('vigilancies.errors.assignFree'),
+        detail: detallDError(err) || t('vigilancies.errors.assignFree'),
         life: 5000
       }))
       assignantPendents.value = false

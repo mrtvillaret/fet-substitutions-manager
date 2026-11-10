@@ -119,7 +119,7 @@
 </template>
 
 <script setup>
-import { avisaError } from '../../errorsApi.js'
+import { avisaError, detallDError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -268,7 +268,7 @@ const desarProfessorBaixa = async () => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.saveAbsence'),
+      detail: detallDError(error) || t('config.errors.saveAbsence'),
       life: 3000
     }))
   }
@@ -304,7 +304,7 @@ const eliminarProfessorBaixa = async (id) => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.errors.deleteAbsence'),
+      detail: detallDError(error) || t('config.errors.deleteAbsence'),
       life: 3000
     }))
   }

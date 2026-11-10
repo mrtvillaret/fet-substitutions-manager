@@ -20,7 +20,7 @@ from starlette.background import BackgroundTask
 
 import rellotge
 from auth.dependencies import get_current_user
-from dependencies import dia_de_la_peticio, get_db
+from dependencies import dia_de_la_peticio, get_db, get_db_lectura
 from horari.domain import Dia
 from parametres import DataISO, data_iso
 from pdf import disponibles, generacio, services
@@ -227,7 +227,7 @@ def generar_pdf_vigilancies(
 @router.post("/disponibles-tots-dies")
 def generar_pdf_disponibles_tots_dies(
     data_inici: DataISO | None = Body(None, embed=True),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_lectura),
     current_user=Depends(get_current_user),
 ):
     """

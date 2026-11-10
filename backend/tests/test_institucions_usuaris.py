@@ -67,7 +67,7 @@ def test_l_esborrat_definitiu_no_es_fa_des_de_la_web(escenari):
         "DELETE", f"/api/settings/institucions/{centre}", json={"mode": "hard", "confirm": f"ELIMINA {centre}"}
     )
     assert resp.status_code == 400
-    assert resp.json() == {"detail": "L'esborrat definitiu d'un centre es fa des del servidor"}
+    assert resp.json()["detail"] == "L'esborrat definitiu d'un centre es fa des del servidor"
     assert (DATA_BASE_DIR / centre / "gestor.db").is_file()
     assert config.is_institucio_activa(centre)
     assert (_usuari(noms["admin"]), _usuari(noms["user"]), _usuari(noms["super"])) == (True, True, True)

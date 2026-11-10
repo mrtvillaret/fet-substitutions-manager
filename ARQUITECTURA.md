@@ -639,6 +639,8 @@ npm run e2e
 # Només un dispositiu o un flux:
 npm run e2e -- --project=mobil
 npm run e2e -- --grep 'canvi de dia'
+# Contra el build de producció (vite build + vite preview), com la CI:
+npm run e2e:build
 ```
 
 `E2E_PYTHON` permet triar un altre intèrpret amb les dependències del backend.
@@ -675,12 +677,21 @@ El job `e2e` de `.github/workflows/ci.yml` s’executa a cada push i pull
 request, després dels jobs `backend` i `frontend`. Instal·la Python 3.13,
 Node 22, `poppler-utils` i només Chromium amb les dependències del sistema;
 la cache del navegador està vinculada al sistema, l’arquitectura i el
-`package-lock.json`. Playwright arrenca tots dos serveis. Si falla, es desa
+`package-lock.json`. Playwright arrenca tots dos serveis; a la CI el frontend
+és el build de producció (`npm run e2e:build`: `vite build` a
+`frontend/dist-e2e/`, fora de git, i `vite preview` al mateix port 5183 amb el
+mateix proxy), no el servidor de desenvolupament. Si falla, es desa
 `playwright-fallada` amb `test-results/` i `playwright-report/` durant set
 dies. El resum de GitHub Actions registra tant el temps de les proves
 (serveis inclosos) com el del job complet, amb la preparació.
 
-En local, els vuit casos triguen uns 21 s amb els serveis.
+En local, els vuit casos triguen uns 21 s amb els serveis (uns 23 s amb el build).
+
+El job `auditoria` passa `pip-audit` sobre `backend/requirements*.txt` i
+`npm audit --omit=dev --audit-level=high` al frontend. Les vulnerabilitats ja
+conegudes i justificades, si n'hi ha, són a `backend/pip-audit-excepcions.txt`
+(un identificador per línia, amb el motiu): surten al resum i com a avís, però
+no fan fallar el job; qualsevol altra, sí.
 
 
 Conflictes de vigilàncies: `vigilancies/analisi.py` conté l’anàlisi pura

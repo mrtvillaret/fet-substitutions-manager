@@ -1,6 +1,7 @@
 """
-Dependències compartides de les rutes: la BD de dades de l'usuari i el dia
-(amb l'horari que hi correspon) segons cada regla:
+Dependències compartides de les rutes: la BD de dades de l'usuari (get_db;
+get_db_lectura per a les POST que només llegeixen) i el dia (amb l'horari que
+hi correspon) segons cada regla:
 
 - dia_de_la_peticio: la data de la petició (a l'adreça, /{data}, o ?data=), obligatòria.
 - dia_del_calendari: ?data= opcional (la data del calendari de la pantalla); sense, avui.
@@ -19,6 +20,14 @@ from planificador.config import data_referencia
 
 def get_db(request: Request, current_user=Depends(get_current_user)):
     yield from get_data_db(current_user.institucio, lectura=request.method in {"GET", "HEAD", "OPTIONS"})
+
+
+def get_db_lectura(current_user=Depends(get_current_user)):
+    """Per a les rutes POST que només llegeixen (consultes grans al cos de la
+    petició): no reserven l'escriptura de SQLite (`BEGIN IMMEDIATE`) i no
+    fan esperar qui desa. La sessió no pot escriure: SQLite ho rebutja
+    (`database._opcions_de_sessio`; ho vigila `tests/test_sessio_de_lectura.py`)."""
+    yield from get_data_db(current_user.institucio, nomes_lectura=True)
 
 
 def dia_de_la_peticio(data: DataISO, current_user=Depends(get_current_user)) -> Dia:

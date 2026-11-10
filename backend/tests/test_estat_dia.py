@@ -50,7 +50,6 @@ def test_generacio_conserva_els_filtres_l_ordre_i_els_valors_originals(estat):
     assert dia.nom_del_dia == "Dilluns"
     assert dia.absents == {"Prof A": ["09", "10"], "Prof B": ["09"], "Prof C": ["09"]}
     assert dia.absents_tipus == {"Prof A": "SERVEI", "Prof B": "ABSENCIA", "Prof C": "ALTRE"}
-    assert dia.activitats_fallback[("Prof A", "09")]["aula"] == "A1"
     assert dia.grups == {"09": {"G1"}}
     assert dia.vigilants == {"09": {" Prof V "}}
 

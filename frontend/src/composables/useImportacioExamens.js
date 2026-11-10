@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 import { ruta } from '../basePath.js'
@@ -170,7 +170,7 @@ export function useImportacioExamens({ toast, t, confirm, carregarAssignacions }
       mostrarResumPrevi.value = true
     } catch (error) {
       console.error('Error calculant el resum previ del CSV:', error)
-      const detail = error.response?.data?.detail || t('examConfig.import.errorPreview')
+      const detail = detallDError(error) || t('examConfig.import.errorPreview')
       avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 }))
     }
   }
@@ -206,7 +206,7 @@ export function useImportacioExamens({ toast, t, confirm, carregarAssignacions }
       await carregarAssignacions()
     } catch (error) {
       console.error('Error important:', error)
-      const detail = error.response?.data?.detail || t('examConfig.import.errorApply')
+      const detail = detallDError(error) || t('examConfig.import.errorApply')
       avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 }))
     } finally {
       important.value = false

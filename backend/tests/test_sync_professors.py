@@ -81,16 +81,25 @@ def test_primera_peticio_del_dia_sincronitza_avui_amb_cache_calenta_i_data_passa
     assert lectura.call_count == 2
 
 
-def test_error_de_sync_no_es_memoritza_ni_s_empassa(monkeypatch):
+def test_error_de_sync_no_bloqueja_ni_es_memoritza(monkeypatch, caplog):
+    """Un error de sincronització (p. ex. XML vigent il·legible) no fa fallar la
+    petició: queda al registre i es reintenta passada l'espera."""
+    from horari import sincronitzacio
+
     centre = nova_institucio(amb_xml=True)
     client = _client(centre)
     real = ProfessorRepository.sync_from_xml
     lectura = Mock(side_effect=OSError("sync de prova"))
+    ara = [1000.0]
+    monkeypatch.setattr(sincronitzacio.time, "monotonic", lambda: ara[0])
     monkeypatch.setattr(ProfessorRepository, "sync_from_xml", lectura)
-    assert client.get("/api/professors").status_code == 500
+    assert client.get("/api/professors").status_code == 200
+    assert "No s'han pogut sincronitzar" in caplog.text
     monkeypatch.setattr(ProfessorRepository, "sync_from_xml", real)
+    ara[0] += sincronitzacio.REINTENT_DESPRES_D_ERROR + 1
     assert client.get("/api/professors").status_code == 200
     assert _estat(centre)
+    assert centre not in sincronitzacio._ultim_error
 
 
 def test_llegir_horari_no_escriu_en_una_altra_sessio(monkeypatch):

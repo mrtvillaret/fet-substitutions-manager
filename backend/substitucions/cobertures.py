@@ -8,7 +8,7 @@ from datetime import datetime
 
 from grups.lectures import AlliberatsDelDia
 from substitucions.context import get_gestors
-from substitucions.files import FilaSubstitucio
+from substitucions.files import FilaSubstitucio, clau_fila
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import crear_vigilancia_absent
 from vigilancies.repositories import VigilanciaRepository
@@ -56,7 +56,7 @@ def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
     # Restaurar substituts ja assignats als Tipus B
     existing_map = {}
     for sub in existing_subs:
-        key = f"{sub.professor_absent}|{sub.hora}|{sub.assignatura or ''}|{sub.grup or ''}"
+        key = clau_fila(sub.professor_absent, sub.hora, sub.assignatura or "", sub.grup or "")
         existing_map[key] = FilaSubstitucio(
             substitut=sub.substitut or "",
             tipus_substitut=sub.tipus_substitut or "",
@@ -110,7 +110,7 @@ def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
     for sub in noves:
         if (sub.hora or "").strip() != hora:
             continue
-        key = f"{sub.professor_absent}|{sub.hora}|{sub.assignatura}|{sub.grup}"
+        key = clau_fila(sub.professor_absent, sub.hora, sub.assignatura, sub.grup)
         existent = existing_map.get(key)
         if existent and existent.substitut:
             sub.substitut = existent.substitut

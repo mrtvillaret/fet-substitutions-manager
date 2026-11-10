@@ -54,7 +54,9 @@ def crea(nom: str, nom_visible: str | None) -> None:
     té com a molt LLARGADA_MAXIMA_NOM caràcters."""
     if len(nom) > LLARGADA_MAXIMA_NOM:
         raise NoValid(
-            f"El nom del centre pot tenir com a molt {LLARGADA_MAXIMA_NOM} caràcters", codi="nom_centre_massa_llarg"
+            f"El nom del centre pot tenir com a molt {LLARGADA_MAXIMA_NOM} caràcters",
+            codi="nom_centre_massa_llarg",
+            params={"maxim": LLARGADA_MAXIMA_NOM},
         )
     try:
         carpeta = get_data_dir_for_institucio(nom)

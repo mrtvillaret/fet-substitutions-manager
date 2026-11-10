@@ -21,7 +21,6 @@ class GestorAbsencies:
         dia: str,
         absents: dict[str, list[str]],
         absents_tipus: dict[str, str] = None,
-        activitats_fallback: dict = None,
     ) -> list[PropostaSubstitucio]:
         """
         Calcula quines substitucions calen segons les absències
@@ -46,8 +45,6 @@ class GestorAbsencies:
         substitucions = []
         absents_tipus = absents_tipus or {}
 
-        activitats_fallback = activitats_fallback or {}
-
         for professor, hores in absents.items():
             # Obté el tipus d'absència per aquest professor
             tipus_professor = absents_tipus.get(professor, "ABSENCIA")
@@ -58,15 +55,6 @@ class GestorAbsencies:
                 logger.debug(f"         get_activitat('{dia}', '{hora}', '{professor}') = {activitat}")
 
                 if not activitat:
-                    fallback = activitats_fallback.get((professor, hora))
-                    if fallback:
-                        activitat = {
-                            "assignatura": fallback.get("assignatura", ""),
-                            "grup": fallback.get("grup", ""),
-                            "aula": fallback.get("aula", ""),
-                        }
-                    else:
-                        continue
                     continue
 
                 # Comprova si necessita substitució

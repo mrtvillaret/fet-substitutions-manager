@@ -16,12 +16,12 @@ from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from substitucions import _consultes
 from substitucions.absencies import desa_absencies
-from substitucions.assignacio import QuotaFranja
+from substitucions.assignacio import QuotaFranja, text_tipus_substitut
 from substitucions.domain import DiaEscolar
 from substitucions.encadenades import reconcilia_encadenades
 from substitucions.files import FilaSubstitucio
 from substitucions.generacio import genera_substitucions_dia
-from substitucions.prioritat import MillorsSubstituts, text_tipus_substitut
+from substitucions.prioritat import MillorsSubstituts
 from substitucions.reconciliacio import treu_substituts_no_valids
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import es_vigilancia_absent
@@ -134,19 +134,36 @@ def _rebutja_motius_manual(motius: list, substitut: str, hora: str) -> None:
                 raise NoValid(
                     _("❌ {substitut} no és un professor de l’horari d’aquell dia").format(substitut=substitut),
                     codi="substitut_fora_horari",
+                    params={"substitut": substitut},
                 )
             case "vigilancia":
-                raise NoValid(f"❌ {substitut} ja està assignat com a VIGILANT a les {hora}", codi="substitut_vigilant")
+                raise NoValid(
+                    f"❌ {substitut} ja està assignat com a VIGILANT a les {hora}",
+                    codi="substitut_vigilant",
+                    params={"substitut": substitut, "hora": hora},
+                )
             case "absent":
-                raise NoValid(f"❌ {substitut} està ABSENT a les {hora}!", codi="substitut_absent")
+                raise NoValid(
+                    f"❌ {substitut} està ABSENT a les {hora}!",
+                    codi="substitut_absent",
+                    params={"substitut": substitut, "hora": hora},
+                )
             case "baixa":
                 raise NoValid(
-                    f"❌ {substitut} té una ABSÈNCIA COBERTA aquell dia!", codi="substitut_amb_absencia_coberta"
+                    f"❌ {substitut} té una ABSÈNCIA COBERTA aquell dia!",
+                    codi="substitut_amb_absencia_coberta",
+                    params={"substitut": substitut},
                 )
             case "classe":
                 raise NoValid(
                     f"⚠️ {substitut} té CLASSE a les {hora} ({motiu['classe_assignatura']}, {motiu['classe_grup']})",
                     codi="substitut_amb_classe",
+                    params={
+                        "substitut": substitut,
+                        "hora": hora,
+                        "assignatura": motiu["classe_assignatura"],
+                        "grup": motiu["classe_grup"],
+                    },
                 )
 
 
@@ -161,6 +178,7 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
             raise NoTrobat(
                 f"No s'ha trobat la substitució amb identificador {update.id} per al dia {data}",
                 codi="substitucio_id_no_trobat",
+                params={"id": update.id, "data": data},
             )
         if substitucio_actual.hora != hora or substitucio_actual.professor_absent != professor:
             raise NoValid(
@@ -184,6 +202,7 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
         raise NoTrobat(
             f"Substitució no trobada: {hora} - {professor}",
             codi="substitucio_no_trobada",
+            params={"hora": hora, "professor": professor},
         )
 
     if not update.force:
@@ -205,6 +224,7 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
             raise NoValid(
                 f"❌ No es pot assignar substitut: '{assignatura_actual}' està a la llista d'activitats que NO es substitueixen",
                 codi="activitat_no_substituible",
+                params={"assignatura": assignatura_actual},
             )
 
         estat = DiaEscolar(db, dia, estricte=True)
@@ -224,6 +244,13 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
                 raise NoValid(
                     f"❌ {substitut_normalitzat} ja està assignat com a SUBSTITUT per {sub.professor_absent} ({sub.assignatura}, {sub.grup}) a les {hora}",
                     codi="substitut_repetit",
+                    params={
+                        "substitut": substitut_normalitzat,
+                        "absent": sub.professor_absent,
+                        "assignatura": sub.assignatura,
+                        "grup": sub.grup,
+                        "hora": hora,
+                    },
                 )
 
         _rebutja_motius_manual(
@@ -269,7 +296,9 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
                 grups_hora = set(grups_sense_classe.get(hora, []))
                 disponibles_hora = alliberats.get_tots_disponibles(dia_name, hora, grups_hora)
                 tipus_map = {prof: (tipus, detall) for prof, tipus, detall in disponibles_hora}
-                tipus_substitut_nou = text_tipus_substitut(*tipus_map.get(substitut_nou, ("", "")))
+                # Sense tipus (no és entre els disponibles), el text queda buit.
+                tipus, detall = tipus_map.get(substitut_nou, ("", ""))
+                tipus_substitut_nou = text_tipus_substitut(tipus, detall) if tipus else ""
             except Exception as exc:
                 log.warning("⚠️ No s'ha pogut calcular tipus_substitut manual: %s", exc)
 
@@ -307,7 +336,7 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
 def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:
     substitucions_data = SubstitucioRepository.get_by_date(db, data)
     if not substitucions_data:
-        raise NoTrobat(f"No hi ha substitucions per {data}", codi="dia_sense_substitucions")
+        raise NoTrobat(f"No hi ha substitucions per {data}", codi="dia_sense_substitucions", params={"data": data})
 
     substituts_abans = {str(sub.id): (sub.substitut or "").strip() for sub in substitucions_data if sub.id}
     cleared = len(treu_substituts_no_valids(db, data))
@@ -333,7 +362,10 @@ def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:
                     SubstitucioRepository.update(
                         db,
                         int(sub.id),
-                        {"substitut": professor, "tipus_substitut": text_tipus_substitut(tipus, detall)},
+                        {
+                            "substitut": professor,
+                            "tipus_substitut": text_tipus_substitut(tipus, detall) if tipus else "",
+                        },
                     )
                     millors.canvia((sub.hora or "").strip(), (sub.substitut or "").strip(), professor)
             reconcilia_encadenades(db, data)

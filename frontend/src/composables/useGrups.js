@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from 'vue'
 import * as apiGrups from '../api/grups'
 import { dataTreball } from '../dataTreball'
@@ -172,7 +172,7 @@ export function useGrups(dependents) {
     try {
       await carregarReforc()
     } catch (err) {
-      avisaError(err, () => toast.add({ severity: 'error', summary: t('common.error'), detail: err.response?.data?.detail || '', life: 5000 }))
+      avisaError(err, () => toast.add({ severity: 'error', summary: t('common.error'), detail: detallDError(err) || '', life: 5000 }))
     }
   }
 
@@ -243,7 +243,7 @@ export function useGrups(dependents) {
       await carregarReforc()
       await recarregarDiaCarregat()
     } catch (err) {
-      avisaError(err, () => toast.add({ severity: 'error', summary: t('common.error'), detail: err.response?.data?.detail || '', life: 5000 }))
+      avisaError(err, () => toast.add({ severity: 'error', summary: t('common.error'), detail: detallDError(err) || '', life: 5000 }))
     } finally {
       reforc.desant = false
     }

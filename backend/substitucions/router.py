@@ -11,7 +11,7 @@ Routes per gestió de substitucions:
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from dependencies import dia_de_la_peticio, get_db
+from dependencies import dia_de_la_peticio, get_db, get_db_lectura
 from errors_domini import MissingXmlError
 from horari.domain import Dia
 from noms import NomNet
@@ -199,7 +199,7 @@ def get_disponibles(
 def get_disponibles_batch(
     data: DataISO,
     payload: DisponiblesEnBlocRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_lectura),
     dia: Dia = Depends(dia_de_la_peticio),
 ):
     """Retorna els disponibles de totes les hores en una sola operació."""

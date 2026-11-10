@@ -27,7 +27,8 @@ from database import AuthSessionLocal, create_auth_tables
 create_auth_tables()
 for ordre in json.loads(sys.argv[1]):
     exec(ordre)
-crea_usuaris_inicials()
+with AuthSessionLocal() as db:
+    crea_usuaris_inicials(db)
 with AuthSessionLocal() as db:
     usuaris = {
         u.username: {"role": u.role, "active": u.active, "institucio": u.institucio, "sv": u.versio_sessio,

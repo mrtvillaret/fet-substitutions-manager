@@ -79,7 +79,7 @@ def test_un_camp_d_un_tipus_que_no_toca_dona_422(client, metode, ruta, cos):
 def test_una_data_que_no_es_aaaa_mm_dd_dona_400(client, metode, ruta, cos):
     resp = getattr(client, metode)(ruta, json=cos)
     assert resp.status_code == 400
-    assert resp.json() == {"detail": "Format de data invàlid. Usa YYYY-MM-DD"}
+    assert resp.json()["detail"] == "Format de data invàlid. Usa YYYY-MM-DD"
 
 
 def _restriccions(centre):

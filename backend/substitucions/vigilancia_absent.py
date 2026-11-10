@@ -13,10 +13,16 @@ teclat inclòs). Ara s'usa el camp tipus_absencia='VIGILANCIA_ABSENT' directamen
 """
 
 from collections import defaultdict
-from collections import defaultdict as _dd
 
 from config import constants
-from substitucions.assignacio import CandidateValidator, QuotaFranja, candidats_de_maxima_prioritat
+from substitucions.assignacio import (
+    CandidateValidator,
+    QuotaFranja,
+    absents_a_hora,
+    candidats_de_maxima_prioritat,
+    candidats_per_categoria,
+    text_tipus_substitut,
+)
 from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
@@ -97,7 +103,6 @@ def assignar_substituts_pendents(
     Returns: nombre d'assignacions fetes
     """
     all_subs = SubstitucioRepository.get_by_date(db, data)
-    absents_set = set(absents.keys())
 
     pendents = [s for s in all_subs if es_vigilancia_absent(s) and not s.substitut.strip()]
     if not pendents:
@@ -122,18 +127,10 @@ def assignar_substituts_pendents(
         grups_hora = set(grups_sense_classe.get(hora, [])) if grups_sense_classe else set()
         disponibles = alliberats.get_tots_disponibles(dia_name, hora, grups_hora)
 
-        def categoria_idx(tipus: str) -> int:
-            for i, cat in enumerate(constants.ORDRE_PRIORITATS):
-                if tipus in cat:
-                    return i
-            return len(constants.ORDRE_PRIORITATS)
-
-        # Agrupar candidats per categoria (igual que _escollir_millor_candidat_disponible)
-
-        candidats_per_cat = _dd(list)
-        for p, tipus, detall in disponibles:
-            if p != prof_absent and p not in absents_set and p not in assignats_hora[hora] and p not in vigilants_hora:
-                candidats_per_cat[categoria_idx(tipus)].append((p, tipus, detall))
+        # La mateixa regla de candidats que el motor; fora qui és absent,
+        # vigila o ja substitueix a aquesta hora.
+        exclosos = {prof_absent} | absents_a_hora(absents, hora) | assignats_hora[hora] | vigilants_hora
+        candidats_per_cat = candidats_per_categoria(disponibles, exclosos)
 
         # La prioritat i el desempat són dos passos separats, igual que al
         # motor normal de substitucions.
@@ -145,11 +142,7 @@ def assignar_substituts_pendents(
 
         if not best:
             continue
-        tipus_sub = (
-            f"disponible ({best_tipus})"
-            if best_tipus == best_detall and best_tipus != "alliberat"
-            else f"{best_tipus} ({best_detall})"
-        )
+        tipus_sub = text_tipus_substitut(best_tipus, best_detall)
         SubstitucioRepository.update(
             db,
             int(pendent.id),

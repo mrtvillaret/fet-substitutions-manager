@@ -273,7 +273,7 @@ def genera_pdf_vigilancies(
     data_text = data_completa(parse_date(data))
     per_nivell = VigilanciaRepository.get_by_date(db, data)
     if not per_nivell:
-        raise SenseVigilancies(f"No hi ha vigilàncies per {data}", codi="sense_vigilancies")
+        raise SenseVigilancies(f"No hi ha vigilàncies per {data}", codi="sense_vigilancies", params={"data": data})
     vigilancies_list = vigilancies_dels_nivells(per_nivell, _nivells(nivells), inclou_sense_nivell=inclou_sense_nivell)
 
     horari_mgr = dia.horari
@@ -301,7 +301,7 @@ def dates_de_l_interval(data_inici: str, data_final: str, amb_caps_de_setmana: b
     date_inici = datetime.strptime(data_inici, "%Y-%m-%d")
     date_final = datetime.strptime(data_final, "%Y-%m-%d")
     if date_inici > date_final:
-        raise IntervalNoValid("La data inicial ha de ser anterior a la final", codi="interval_invertit")
+        raise IntervalNoValid("La data inicial ha de ser anterior a la final", codi="interval_vigilancies_invertit")
     dates = []
     actual = date_inici
     while actual <= date_final:
@@ -401,7 +401,7 @@ def genera_pdf_interval(
         inclou_sense_nivell,
     )
     if not vigilancies:
-        raise SenseVigilancies("No hi ha vigilàncies a l'interval seleccionat", codi="sense_vigilancies")
+        raise SenseVigilancies("No hi ha vigilàncies a l'interval seleccionat", codi="sense_vigilancies_interval")
 
     exporter = _exportador(horari_mgr.hores, opcions, institucio)
     exporter.hores_per_data = {data: horari.hores for data, horari in horaris_per_data.items()}

@@ -29,7 +29,9 @@ from configuracio.repositories import ConfiguracioRepository
 from dades.repositories import ProfessorsRepository, PurgaRepository
 from database import get_data_dir_for_institucio, get_export_dir_for_institucio
 from errors_domini import NoValid
+from horari.context import invalidar_horari
 from horari.repositories import XMLVersionRepository
+from horari.services import encadena_i_sincronitza
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +81,11 @@ def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> dict[str,
 
     prof = ProfessorsRepository.get_by_nom(db, nom_actual)
     if not prof:
-        raise NoValid(f"No existeix cap professor amb el nom «{nom_actual}».", codi="professor_inexistent")
+        raise NoValid(
+            f"No existeix cap professor amb el nom «{nom_actual}».",
+            codi="professor_inexistent",
+            params={"nom": nom_actual},
+        )
     if prof.actiu:
         raise NoValid(
             "Només es poden reanomenar professors inactius (que ja no són a "
@@ -88,7 +94,7 @@ def reanomena_professor(db: Session, nom_actual: str, nom_nou: str) -> dict[str,
             codi="professor_actiu",
         )
     if ProfessorsRepository.get_by_nom(db, nom_nou):
-        raise NoValid(f"Ja existeix un professor amb el nom «{nom_nou}».", codi="nom_existent")
+        raise NoValid(f"Ja existeix un professor amb el nom «{nom_nou}».", codi="nom_existent", params={"nom": nom_nou})
 
     counts = ProfessorsRepository.reanomena_registres(db, nom_actual, nom_nou)
     prof.nom = nom_nou
@@ -298,8 +304,9 @@ def executar_purga(
                 }
             )
             db.delete(v)
-        # Les que queden s'encadenen de nou: sense forats on hi havia les esborrades
-        XMLVersionRepository.encadena(db)
+        # Les que queden s'encadenen de nou (sense forats on hi havia les
+        # esborrades) i els professors actius tornen a ser els de l'XML d'avui
+        encadena_i_sincronitza(db, institucio)
 
     # --- Planificador d'exàmens ---
     planificador = manifest["planificador"]
@@ -314,6 +321,9 @@ def executar_purga(
         PurgaRepository.esborra_configuracio(db, CLAU_ULTIM_HORARI)
 
     db.commit()
+    if xml_esborrats:
+        # Com en pujar un XML: fora de la memòria cau els horaris del centre
+        invalidar_horari(institucio)
 
     for fpath, path in fitxers_xml:
         try:

@@ -1,6 +1,6 @@
 """Rutes d'auth: entrar, sortir i el perfil propi (/api/users/profile...)."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from auth import services
@@ -17,6 +17,8 @@ from auth.schemas import (
 )
 from auth.security import clear_auth_cookie, set_auth_cookie, testimoni_de_sessio
 from database import get_auth_db
+from dependencies import get_db
+from errors_domini import NoAutenticat
 from rate_limit import LIMIT_LOGIN_PER_IP, comprova_limit_login_usuari, limiter
 
 router = APIRouter()
@@ -39,7 +41,7 @@ def login(request: Request, credentials: LoginRequest, response: Response, db: S
 
     user = services.autentica(db, credentials.username, credentials.password)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credencials incorrectes")
+        raise NoAutenticat("Credencials incorrectes", codi="credencials_incorrectes")
 
     set_auth_cookie(response, testimoni_de_sessio(user))
     return {"ok": True}
@@ -52,8 +54,8 @@ def logout(response: Response):
 
 
 @router.get(PERFIL, tags=ETIQUETA_PERFIL, response_model=PerfilResponse)
-def get_profile(current_user: UsuariActual = Depends(require_user)):
-    return services.perfil(current_user)
+def get_profile(current_user: UsuariActual = Depends(require_user), data_db: Session = Depends(get_db)):
+    return services.perfil(data_db, current_user)
 
 
 @router.put(f"{PERFIL}/password", tags=ETIQUETA_PERFIL, response_model=SuccessResponse)

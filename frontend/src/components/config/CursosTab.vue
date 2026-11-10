@@ -89,7 +89,7 @@
 </template>
 
 <script setup>
-import { avisaError } from '../../errorsApi.js'
+import { avisaError, detallDError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -168,7 +168,7 @@ const desarCurs = async () => {
     emit('cursos-canviats')
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
   } catch (error) {
-    const detail = error?.response?.data?.detail || t('config.courses.saveError')
+    const detail = detallDError(error) || t('config.courses.saveError')
     avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail, life: 4000 }))
   } finally {
     desantCurs.value = false

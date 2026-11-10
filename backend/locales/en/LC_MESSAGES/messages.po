@@ -24,20 +24,10 @@ msgstr ""
 msgid "❌ {hora}: {tipus} sense vigilant assignat"
 msgstr "❌ {hora}: {tipus} without invigilator assigned"
 
-#: pdf/engine.py:787
-#, python-brace-format
-msgid "❌ {hora}: Assignatura {tipus} sense vigilant assignat"
-msgstr "❌ {hora}: Subject {tipus} without invigilator assigned"
-
 #: pdf/engine.py:795 pdf/validacions.py:33
 #, python-brace-format
 msgid "🏫 {hora}: {tipus} sense aula assignada"
 msgstr "🏫 {hora}: {tipus} without aula assignada"
-
-#: pdf/engine.py:799
-#, python-brace-format
-msgid "🏫 {hora}: Assignatura {tipus} sense aula assignada"
-msgstr "🏫 {hora}: Subject {tipus} without aula assignada"
 
 #: pdf/engine.py:772 pdf/validacions.py:52
 #, python-brace-format
@@ -56,10 +46,6 @@ msgstr "Hour"
 #: pdf/informe_professors.py:413 pdf/informe_professors.py:492
 msgid "Tipus"
 msgstr "Type"
-
-#: pdf/informe_direccio.py:675
-msgid "Grups"
-msgstr "Groups"
 
 #: pdf/taula.py:129
 msgid "Aula"
@@ -106,10 +92,6 @@ msgstr "Absent"
 msgid "📋 Llistat de Professors Substituts"
 msgstr "📋 List of Substitute Teachers"
 
-# PDF conflict/priority messages (active)
-msgid "⚠️ AVÍS: Hi ha professors de major prioritat disponibles:\n\n"
-msgstr "⚠️ WARNING: Higher-priority teachers are available:\n\n"
-
 #: pdf/engine.py:516
 #, python-brace-format
 msgid "🕐 HORA {hora}:"
@@ -128,16 +110,6 @@ msgstr "Generated on {data} at {hora}"
 #, python-brace-format
 msgid "🔄 {hora}: {vigilant} assignat {count} vegades com a vigilant"
 msgstr "🔄 {hora}: {vigilant} assigned {count} times as invigilator"
-
-#: pdf/router.py
-#, python-brace-format
-msgid "⚠️ {hora}: Vigilant {vigilant} està absent"
-msgstr "⚠️ {hora}: Invigilator {vigilant} is absent"
-
-#: pdf/validacions.py:145
-#, python-brace-format
-msgid "⚠️ {hora}: Vigilant {vigilant} té classe ({assignatura}, {grup})"
-msgstr "⚠️ {hora}: Invigilator {vigilant} has a class ({assignatura}, {grup})"
 
 #: pdf/validacions.py:161
 #, python-brace-format
@@ -222,31 +194,6 @@ msgstr "Observations"
 #: pdf/taula.py:128
 msgid "Curs"
 msgstr "Course"
-
-#: pdf/engine.py:722
-#, python-brace-format
-msgid "⚠️ {hora}: Substitut {substitut} {absence_text}"
-msgstr "⚠️ {hora}: Substitute {substitut} {absence_text}"
-
-#: pdf/engine.py:730
-#, python-brace-format
-msgid "🕐 {hora}: Substitut {substitut} duplicat"
-msgstr "🕐 {hora}: Substitute {substitut} duplicated"
-
-#: pdf/engine.py:742
-#, python-brace-format
-msgid "❌ {hora}: {professor} - {assignatura} sense substitut assignat"
-msgstr "❌ {hora}: {professor} - {assignatura} with no substitute assigned"
-
-#: pdf/engine.py:756
-#, python-brace-format
-msgid "⚠️ {hora}: Vigilant {vigilant} {absence_text}"
-msgstr "⚠️ {hora}: Invigilator {vigilant} {absence_text}"
-
-#: pdf/engine.py:764
-#, python-brace-format
-msgid "🕐 {hora}: Vigilant {vigilant} duplicat"
-msgstr "🕐 {hora}: Invigilator {vigilant} duplicated"
 
 #: core/absencies.py:44 core/substitucions.py:99
 msgid "   🔄 Convertit dia ISO a nom XML: '{}'"
@@ -334,104 +281,9 @@ msgstr "INVIGILATION"
 msgid "Grup {grup}"
 msgstr "Group {grup}"
 
-#: utils/exception_chain.py:68
-msgid "Error inesperat"
-msgstr "Error inesperat"
-
-#: utils/exception_chain.py:69
-msgid "Excepció no gestionada"
-msgstr "Excepció no gestionada"
-
-#: utils/exception_chain.py:90
-#, fuzzy
-msgid "Error en {}"
-msgstr "Error"
-
-#: utils/exception_chain.py:148 utils/exception_chain.py:154
-msgid "accés a fitxer"
-msgstr "accés a file"
-
-#: utils/exception_chain.py:149
-msgid "Fitxer no trobat. Comprova que el fitxer existeix."
-msgstr "File no found. Check que el file existeix."
-
-#: utils/exception_chain.py:154
-msgid "Permisos insuficients per accedir al fitxer."
-msgstr "Insufficient permissions per accedir al file."
-
-#: utils/exception_chain.py:159
-#, fuzzy
-msgid "processament de dades"
-msgstr "Data management"
-
-#: utils/exception_chain.py:159
-msgid "Error en format de dades. Comprova l'entrada."
-msgstr "Error en format de dades. Check l'entrada."
-
-#: utils/exception_chain.py:164
-msgid "connexió externa"
-msgstr "connection externa"
-
-#: utils/exception_chain.py:164
-msgid "Error de connexió. Comprova la connectivitat."
-msgstr "Error de connection. Check la connectivitat."
-
-#: utils/exception_chain.py:179
-msgid "descodificació JSON"
-msgstr "descodificació JSON"
-
-#: utils/exception_chain.py:180
-msgid "Format de fitxer corrupte. Regenera el fitxer."
-msgstr "Format de file corrupte. Regenera el file."
-
-#: utils/exception_chain.py:186
-msgid "accés a dades"
-msgstr "accés a dades"
-
-#: utils/exception_chain.py:186
-msgid "Dada no trobada. Comprova la configuració."
-msgstr "Dada no found. Check la configuració."
-
-#: utils/exception_chain.py:191
-#, fuzzy
-msgid "tipus de dades"
-msgstr "Data management"
-
-#: utils/exception_chain.py:191
-msgid "Error en tipus de dada. Comprova l'entrada."
-msgstr "Error en tipus de dada. Check l'entrada."
-
-#: utils/exception_chain.py:203
-msgid "accés a llista"
-msgstr "accés a llista"
-
-#: utils/exception_chain.py:203
-msgid "Índex fora de rang. Comprova les dades."
-msgstr "Índex fora de rang. Check les dades."
-
-#: utils/exception_chain.py:208
-msgid "accés a propietat"
-msgstr "accés a propietat"
-
-#: utils/exception_chain.py:208
-msgid "Propietat no trobada. Comprova l'objecte."
-msgstr "Propietat no found. Check l'objecte."
-
-#: utils/exception_chain.py:213
-msgid "càlcul matemàtic"
-msgstr "càlcul matemàtic"
-
-#: utils/exception_chain.py:213
-msgid "Divisió per zero. Comprova els valors."
-msgstr "Divisió per zero. Check els valors."
-
 #: pdf/engine.py:694
 msgid "absent"
 msgstr "absent"
-
-#: pdf/engine.py:693
-msgid "absent (servei)"
-msgstr "absent (on duty)"
 
 #: pdf/taula.py:138
 msgid "Les files en cursiva amb fons de color són vigilàncies d'examen."
@@ -581,10 +433,6 @@ msgstr "Intensity: proportion relative to the school-year maximum"
 msgid "Mes"
 msgstr "Month"
 
-#: pdf/informe_direccio.py:751
-msgid "Niv."
-msgstr "Lvl."
-
 #: pdf/informe_direccio.py:675
 msgid "Nivell"
 msgstr "Level"
@@ -608,10 +456,6 @@ msgstr "Absent teacher"
 #: pdf/informe_direccio.py:368 pdf/informe_direccio.py:541
 msgid "Professor/a"
 msgstr "Teacher"
-
-#: pdf/informe_direccio.py:669
-msgid "Resum per nivell"
-msgstr "Summary by level"
 
 #: pdf/informe_direccio.py:384
 msgid "Serv"
@@ -673,14 +517,6 @@ msgstr "⚠️ WARNING: Higher-priority teachers are available:"
 msgid "⚠️ {hora}: Vigilant {vigilant} absent sense cobertura"
 msgstr "⚠️ {hora}: Invigilator {vigilant} absent with no cover"
 
-#: pdf/validacions.py:85
-msgid "❌ {hora}: {prof} - VIGILÀNCIA sense substitut assignat"
-msgstr "❌ {hora}: {prof} - INVIGILATION with no substitute assigned"
-
-#: pdf/engine.py:829
-msgid "🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | Assignatures: {assignatures})"
-msgstr "🔄 {hora}: {professor} has {num} substitutions (Substitutes: {substituts} | Subjects: {assignatures})"
-
 #: pdf/engine.py:651
 msgid "🕐 {professor} → arriba abans a {hora} (primera hora: {primera})"
 msgstr "🕐 {professor} → arrives earlier at {hora} (first hour: {primera})"
@@ -705,15 +541,6 @@ msgstr "Invigilation"
 msgid "Hores"
 msgstr "Hours"
 
-#: pdf/validacions.py
-msgid "ℹ️ {count} classes de vigilants amb substitut (el professor vigila un examen a aquella hora)"
-msgstr "ℹ️ {count} invigilators’ classes with a substitute (the teacher is invigilating an exam at that time)"
-
-#: pdf/validacions.py
-msgid "❌ {count} classes de vigilants sense substitut (el professor vigila un examen a aquella hora)"
-msgstr "❌ {count} invigilators’ classes without a substitute (the teacher is invigilating an exam at that time)"
-
-
 msgid "⚠️ No s’ha pogut completar la comprovació de l’horari"
 msgstr "⚠️ The timetable check could not be completed"
 
@@ -728,10 +555,6 @@ msgstr "ℹ️ {hora}: {vigilant} invigilates; {assignatura} for {grup} covered 
 
 msgid "❌ {hora}: {vigilant} vigila; {assignatura} de {grup} queda sense substitut"
 msgstr "❌ {hora}: {vigilant} invigilates; {assignatura} for {grup} has no substitute"
-
-
-msgid "ℹ️ {hora}: Vigilant {vigilant} alliberat manualment"
-msgstr "ℹ️ {hora}: Invigilator {vigilant} manually released"
 
 
 msgid "ℹ️ {hora}: Vigilant {vigilant} té una activitat sense grup ({assignatura})"

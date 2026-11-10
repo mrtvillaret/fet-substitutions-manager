@@ -56,7 +56,7 @@ class FakeAbsencies:
     def __init__(self, substitucions):
         self._substitucions = substitucions
 
-    def get_substitucions_necessaries(self, dia, absents, absents_tipus, activitats_fallback=None):
+    def get_substitucions_necessaries(self, dia, absents, absents_tipus):
         return [
             PropostaSubstitucio(**{"professor_absent": sub.get("professor", ""), **sub}) for sub in self._substitucions
         ]
@@ -283,7 +283,7 @@ def test_no_genera_encadenada_si_lassignatura_esta_a_no_subst(monkeypatch):
 # ----- Paràmetres que es reenvien tal qual al gestor d'absències -----
 
 
-def test_absents_tipus_i_activitats_fallback_es_reenvien_al_gestor_dabsencies(monkeypatch):
+def test_absents_tipus_es_reenvia_al_gestor_dabsencies(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [])
     monkeypatch.setattr(constants, "NO_SUBST", set())
@@ -293,13 +293,11 @@ def test_absents_tipus_i_activitats_fallback_es_reenvien_al_gestor_dabsencies(mo
     crides = {}
 
     class FakeAbsenciesEspia(FakeAbsencies):
-        def get_substitucions_necessaries(self, dia, absents, absents_tipus, activitats_fallback=None):
+        def get_substitucions_necessaries(self, dia, absents, absents_tipus):
             crides["absents_tipus"] = absents_tipus
-            crides["activitats_fallback"] = activitats_fallback
-            return super().get_substitucions_necessaries(dia, absents, absents_tipus, activitats_fallback)
+            return super().get_substitucions_necessaries(dia, absents, absents_tipus)
 
     absents_tipus = {"Prof_A": "SERVEI"}
-    activitats_fallback = {"Prof_A": {"09:00": {"assignatura": "Guàrdia"}}}
 
     gestor = GestorSubstitucions(FakeHorari(hores=["09:00"]), FakeAlliberats({}), FakeAbsenciesEspia([]))
     gestor.assignar_substitucions(
@@ -307,11 +305,9 @@ def test_absents_tipus_i_activitats_fallback_es_reenvien_al_gestor_dabsencies(mo
         absents={"Prof_A": ["09:00"]},
         grups_sense_classe=set(),
         absents_tipus=absents_tipus,
-        activitats_fallback=activitats_fallback,
     )
 
     assert crides["absents_tipus"] == absents_tipus
-    assert crides["activitats_fallback"] == activitats_fallback
 
 
 # ----- Conservació d'assignacions anteriors (substitucions_existents) -----

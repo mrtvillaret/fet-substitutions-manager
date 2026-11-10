@@ -1,0 +1,6 @@
+# Vulnerabilitats conegudes que la CI (job «auditoria») no deixa fallar.
+# Un identificador per línia; després de «#», el paquet, la versió, la versió
+# corregida, la gravetat (GitHub Advisory) i l'àlies GHSA.
+#
+# Cap excepció activa: Pillow passa a 13.0.0 el 10/11/2026 (les 39 de la 12.3.0
+# eren totes de Pillow). Si n'hi ha d'afegir, cada línia amb el seu motiu.

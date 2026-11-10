@@ -35,7 +35,7 @@ from vigilancies.files import FilaVigilancia
 
 def valida_interval(data_inici: str, data_final: str) -> None:
     if data_iso(data_inici) > data_iso(data_final):
-        raise IntervalNoValid("La data inicial ha de ser anterior o igual a la final", codi="interval_invertit")
+        raise IntervalNoValid("La data inicial ha de ser anterior o igual a la final", codi="interval_informe_invertit")
 
 
 # ===== Les substitucions que compten =====

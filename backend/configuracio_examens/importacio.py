@@ -201,6 +201,7 @@ def llegeix_csv(nom_fitxer: str | None, contingut: bytes) -> list[tuple]:
         raise NoValid(
             f"El CSV ha de tenir com a mínim una d'aquestes columnes: {', '.join(sorted(columnes_conegudes))}",
             codi="csv_sense_columnes",
+            params={"columnes": ", ".join(sorted(columnes_conegudes))},
         )
 
     # línia 1 = capçalera; els noms, nets (noms.py)

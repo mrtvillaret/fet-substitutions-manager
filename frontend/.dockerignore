@@ -3,6 +3,7 @@
 # sistema. dist/ el genera el `npm run build` de la mateixa imatge.
 node_modules/
 dist/
+dist-e2e/
 .vite/
 
 .git/

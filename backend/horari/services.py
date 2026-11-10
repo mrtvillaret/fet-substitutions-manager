@@ -329,6 +329,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str
                     f"La data de vigència ({vigent_des_de.isoformat()}) ha de ser posterior "
                     f"a la de la versió actual ({current_version.data_inici.isoformat()})",
                     codi="xml_data_no_posterior",
+                    params={"data": vigent_des_de.isoformat(), "actual": current_version.data_inici.isoformat()},
                 )
 
             previous_path = ConfiguracioRepository.get(db, "xml_horari_path")
@@ -342,7 +343,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str
 
             # Si és el mateix XML que l'actual, no crear nova versió
             if current_version and current_version.hash_contingut == hash_contingut:
-                _encadena_i_sincronitza(db, institucio)
+                encadena_i_sincronitza(db, institucio)
                 db.commit()
                 return {
                     "success": True,
@@ -363,7 +364,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str
                     db, path=stored_prev_path, data_inici=date(2000, 1, 1), hash_contingut=previous_hash
                 )
                 if previous_hash == hash_contingut:
-                    _encadena_i_sincronitza(db, institucio)
+                    encadena_i_sincronitza(db, institucio)
                     db.commit()
 
                     return {
@@ -386,7 +387,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str
             )
             # L'anterior es tanca el dia abans que entri en vigor la nova; el
             # punter "actual" només es mou si la nova ja és vigent avui
-            _encadena_i_sincronitza(db, institucio)
+            encadena_i_sincronitza(db, institucio)
             db.commit()
             es_vigent_avui = vigent_des_de <= rellotge.avui()
             db.refresh(nova_versio)
@@ -413,7 +414,10 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str
 # ---------------------------------------------------------------- versions
 
 
-def _encadena_i_sincronitza(db: Session, institucio: str) -> None:
+def encadena_i_sincronitza(db: Session, institucio: str) -> None:
+    """Després de canviar les versions de l'XML (pujar, canviar l'inici,
+    esborrar, purgar): dates de fi sense forats i professors actius segons
+    l'XML d'avui, a la mateixa transacció. El commit és de qui la crida."""
     XMLVersionRepository.encadena(db)
     sincronitza_professors(db, institucio)
 
@@ -453,7 +457,7 @@ def canvia_inici(db: Session, institucio: str, version_id: int, data_inici: str 
         raise NoValid("Ja hi ha una altra versió d'XML que comença aquest dia", codi="versio_xml_mateix_dia")
 
     versio.data_inici = nova
-    _encadena_i_sincronitza(db, institucio)
+    encadena_i_sincronitza(db, institucio)
     db.commit()
 
 
@@ -463,7 +467,7 @@ def esborra_versio(db: Session, institucio: str, version_id: int) -> None:
     versio = _versio(db, version_id)
     path = versio.path
     XMLVersionRepository.delete(db, versio)
-    _encadena_i_sincronitza(db, institucio)
+    encadena_i_sincronitza(db, institucio)
     db.commit()
     # Després del commit: si fallés, la versió hi seria i el fitxer també
     if path and not XMLVersionRepository.fa_servir(db, path):

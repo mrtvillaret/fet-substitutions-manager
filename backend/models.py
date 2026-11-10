@@ -373,8 +373,9 @@ class CategoriaPrioritat(Base):
 
 class AssignaturaPrioritat(Base):
     """
-    Assignatures dins de cada categoria amb el seu pes
-    Pes més baix = més probabilitat de ser triat (dins de la mateixa categoria)
+    Assignatures dins de cada categoria amb el seu pes.
+    Pes més alt = més substitucions (dins de la mateixa categoria): la quota
+    divideix les aparicions pel pes (substitucions.assignacio.pes_de).
     """
 
     __tablename__ = "assignatures_prioritat"
@@ -382,7 +383,7 @@ class AssignaturaPrioritat(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     assignatura = Column(String, nullable=False)
     categoria_id = Column(Integer, ForeignKey("categories_prioritat.id", ondelete="CASCADE"), nullable=False)
-    pes = Column(Integer, default=1)  # 1-10: menor = més prioritat dins categoria
+    pes = Column(Integer, default=1)  # 1-10: més alt = més substitucions; nul, zero o negatiu: 1
     ordre = Column(Integer, default=0)  # Ordre dins de la categoria
     auto_assignada = Column(Boolean, default=False)  # S'assigna automàticament (ex: "alliberat")
     created_at = Column(DateTime, default=ara_utc)

@@ -1,14 +1,14 @@
 """
-Els errors del domini: cada categoria surt amb el seu status i la mateixa
-resposta que una HTTPException, {"detail": "..."}. El codi i els paràmetres
-(pensats per a l'i18n) no surten a la resposta.
+Els errors del domini: cada categoria surt amb el seu status i la resposta
+d'una HTTPException, {"detail": "..."}, més el codi estable i els paràmetres
+perquè la web en tradueixi el missatge ({"codi": "...", "params": {...}}).
 """
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from errors_domini import Conflicte, ErrorDeDomini, NoPermes, NoTrobat, NoValid
+from errors_domini import Conflicte, ErrorDeDomini, NoAutenticat, NoPermes, NoTrobat, NoValid
 from errors_servidor import registra_gestors_errors
 
 
@@ -27,13 +27,26 @@ def _client_que_llanca(error):
 def test_cada_categoria_respon_amb_el_seu_status_i_el_missatge(classe, status):
     resp = _client_que_llanca(classe("Un missatge", codi="prova")).get("/prova")
     assert resp.status_code == status
-    assert resp.json() == {"detail": "Un missatge"}
+    assert resp.json() == {"detail": "Un missatge", "codi": "prova", "params": {}}
 
 
-def test_el_codi_i_els_parametres_no_surten_a_la_resposta():
+def test_no_autenticat_respon_401_com_l_excepcio_http_d_abans():
+    # Mateix cos (només el detail) i mateixes capçaleres que HTTPException(401)
+    nou = _client_que_llanca(NoAutenticat("Sessió tancada", codi="sessio_tancada")).get("/prova")
+    abans = _client_que_llanca(HTTPException(status_code=401, detail="Sessió tancada")).get("/prova")
+    assert nou.status_code == abans.status_code == 401
+    assert nou.content == abans.content == b'{"detail":"Sessi\xc3\xb3 tancada"}'
+    assert dict(nou.headers) == dict(abans.headers)
+
+
+def test_el_codi_i_els_parametres_surten_a_la_resposta_amb_el_text():
     error = NoValid("Massa curta", codi="contrasenya_curta", params={"minim": 8})
     assert (error.codi, error.params) == ("contrasenya_curta", {"minim": 8})
-    assert _client_que_llanca(error).get("/prova").json() == {"detail": "Massa curta"}
+    assert _client_que_llanca(error).get("/prova").json() == {
+        "detail": "Massa curta",
+        "codi": "contrasenya_curta",
+        "params": {"minim": 8},
+    }
 
 
 def test_una_subclasse_fa_servir_el_status_de_la_seva_categoria():

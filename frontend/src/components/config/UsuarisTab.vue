@@ -150,7 +150,7 @@
 </template>
 
 <script setup>
-import { avisaError } from '../../errorsApi.js'
+import { avisaError, detallDError } from '../../errorsApi.js'
 import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -358,7 +358,7 @@ const desarUsuari = async () => {
     avisaError(error, () => toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.detail || t('config.users.saveError'),
+      detail: detallDError(error) || t('config.users.saveError'),
       life: 3000
     }))
   }
@@ -386,7 +386,7 @@ const desactivarUsuari = (user) => {
         avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
-          detail: error.response?.data?.detail || t('config.users.deleteError'),
+          detail: detallDError(error) || t('config.users.deleteError'),
           life: 3000
         }))
       }
@@ -416,7 +416,7 @@ const eliminarUsuari = (user) => {
         avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
-          detail: error.response?.data?.detail || t('config.users.deleteError'),
+          detail: detallDError(error) || t('config.users.deleteError'),
           life: 3000
         }))
       }

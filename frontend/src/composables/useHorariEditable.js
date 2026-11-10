@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed, watch, onMounted } from 'vue'
 import * as apiPlanificador from '../api/planificador'
 import { debounce } from 'lodash-es'
@@ -51,7 +51,7 @@ export function useHorariEditable(dependents) {
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('scheduler.editable.toasts.recalcErrorTitle'),
-        detail: err.response?.data?.detail || err.message,
+        detail: detallDError(err) || err.message,
         life: 3000
       }))
     }

@@ -164,3 +164,26 @@ def test_millores_finals_successives_anoten_nomes_les_tries_aplicables(monkeypat
     # Cap categoria superior a A: aquesta consulta no ha d'alterar la finestra.
     assert millors.millor(FilaSubstitucio(hora="10:00", substitut="Prof 0", tipus_substitut="disponible (A)")) is None
     assert quota.torns(candidats, "10:00") == abans
+
+
+@pytest.mark.parametrize("pes", [None, 0, -2])
+def test_un_pes_nul_zero_o_negatiu_compta_com_1(monkeypatch, pes):
+    monkeypatch.setattr(constants, "PRIORITATS", {"A": pes, "B": 1})
+    assert assignacio.pes_de("A") == 1
+    assert assignacio.pes_de("sense pes") == 1
+    assert assignacio.pes_de("B") == 1
+
+    class AtzarControlat:
+        def choices(self, candidats, *, weights, k):
+            assert weights == [1, 1]
+            return [candidats[0]]
+
+    quota = assignacio.QuotaFranja([("10:00", "Prof 0", "disponible (A)")])
+    candidats = [("Prof 0", "A", "A"), ("Prof 1", "B", "B")]
+    assert quota.torns(candidats, "10:00") == [Fraction(1), Fraction(0)]
+    quota_buida = assignacio.QuotaFranja()
+    assert assignacio.escull_candidat_amb_quota(candidats, quota_buida, "10:00", AtzarControlat()) == candidats[0]
+
+
+def test_el_pes_configurat_es_fa_servir_tal_qual():
+    assert [assignacio.pes_de(tipus) for tipus in ("A", "B", "C")] == [3, 1, 9]

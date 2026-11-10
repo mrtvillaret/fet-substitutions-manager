@@ -22,13 +22,15 @@ from dades.schemas import (
     ReanomenaRequest,
     ReanomenaResponse,
 )
-from dependencies import get_db
+from dependencies import get_db, get_db_lectura
 
 router = APIRouter(prefix="/api/dades", tags=["Governança de dades"])
 
 
 @router.post("/purga/analitzar", response_model=AnalisiPurgaResponse, response_model_exclude_unset=True)
-def analitzar_purga(req: AnalisiPurgaRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def analitzar_purga(
+    req: AnalisiPurgaRequest, db: Session = Depends(get_db_lectura), current_user=Depends(get_current_user)
+):
     """Retorna el manifest (només lectura) de tot el que eliminaria la purga."""
     return services.analitzar_purga(db, current_user.institucio, req.data_inici, req.data_final)
 

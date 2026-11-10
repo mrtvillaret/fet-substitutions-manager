@@ -18,6 +18,7 @@ from grups.disponibilitat import sense_classe
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from ordre_curs import clau_curs
+from substitucions.assignacio import pes_de
 from substitucions.cobertures import refresca_cobertures
 from substitucions.domain import DiaEscolar
 from substitucions.repositories import SubstitucioRepository
@@ -542,7 +543,7 @@ def _posa_despres_de(db: Session, data: str, nova, referencia: str) -> None:
 
 def _comprova_versio(vig_abans, updated_at, falta: str) -> None:
     if not updated_at:
-        raise NoValid(falta, codi="falta_updated_at")
+        raise NoValid(falta, codi="falta_updated_at_vigilancia")
     if not vig_abans:
         raise NoTrobat("Vigilància no trobada", codi="vigilancia_no_trobada")
     current_ts = vig_abans.updated_at.isoformat() if vig_abans.updated_at else None
@@ -710,8 +711,7 @@ def calcula_assignacio(db: Session, dia: Dia, data: str, amb_guardia: bool, rng=
                     alliberat=alliberat,
                     grups_classe=grups_classe,
                     nivells={nivell_de[g] for g in grups_classe if g in nivell_de},
-                    preferencia_guardia=(n_categories - core.get_categoria_prioritat(tipus)) * 1000
-                    + constants.PRIORITATS.get(tipus, 1),
+                    preferencia_guardia=(n_categories - core.get_categoria_prioritat(tipus)) * 1000 + pes_de(tipus),
                     autoassignable=core.is_activitat_auto_assignable(tipus),
                 )
             )

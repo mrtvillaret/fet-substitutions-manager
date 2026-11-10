@@ -13,13 +13,31 @@ const cosDError = async (error) => {
   return cos
 }
 
-// El missatge d'un error de l'API per a l'usuari: el `detail` del backend si
-// en porta; si no, un de genèric. Els errors 5xx no porten detall (és al
-// registre del servidor), només una referència per poder-lo trobar.
+// Errors de domini traduïts: el backend hi afegeix un `codi` estable i els
+// `params` (errors_servidor.py). Si la web té la clau `errors.<codi>`, el
+// missatge surt a l'idioma de la pantalla; si no, el `detail` del servidor.
+// main.js hi registra el vue-i18n global; sense registre (tests), el detail.
+let traductor = null
+export const registraTraductorErrors = (i18n) => { traductor = i18n }
+
+export const textDelCos = (cos) => {
+  const detail = cos?.detail
+  const clau = typeof cos?.codi === 'string' && cos.codi ? `errors.${cos.codi}` : null
+  return typeof detail === 'string' && clau && traductor?.te(clau)
+    ? traductor.t(clau, cos.params ?? {})
+    : detail
+}
+
+// El text de l'error d'una resposta JSON ja llegida (crides sense blob).
+export const detallDError = error => textDelCos(error?.response?.data)
+
+// El missatge d'un error de l'API per a l'usuari: el `detail` del backend
+// (traduït si es pot) si en porta; si no, un de genèric. Els errors 5xx no
+// porten detall (és al registre del servidor), només una referència.
 export const missatgeDError = async (error, t) => {
   const status = error?.response?.status
   const cos = await cosDError(error)
-  const detail = cos?.detail
+  const detail = textDelCos(cos)
   const ref = cos?.error_ref
   return typeof detail === 'string' ? detail
     : !error?.response ? t('app.errors.connection')

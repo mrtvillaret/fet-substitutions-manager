@@ -2,8 +2,13 @@
 Com responen els errors.
 
 - Errors del domini (errors_domini.py): cada categoria té el seu status
-  (STATUS_PER_CATEGORIA) i la resposta és la d'una HTTPException,
-  {"detail": "<missatge>"}. El codi i els paràmetres encara no hi surten.
+  (STATUS_PER_CATEGORIA) i la resposta és la d'una HTTPException amb el codi
+  estable i els paràmetres de l'error: {"detail": "<missatge>", "codi":
+  "contrasenya_curta", "params": {"minim": 8}}. El `detail` es manté (és el
+  que llegeixen els clients que no coneixen el codi); la web tradueix el
+  missatge a partir del codi quan en té la traducció (`errors.<codi>`).
+  NoAutenticat (401) respon només {"detail": ...}, com abans de ser un error
+  de domini (`amb_codi_a_la_resposta`).
 - Errors interns (5xx): el detall es desa al registre del servidor i l'usuari
   només rep una referència curta. Moltes rutes responen
   `HTTPException(500, detail=f"...{str(e)}")`, i aquest detall pot contenir
@@ -24,7 +29,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config.access_log import request_route
-from errors_domini import Conflicte, ErrorDeDomini, NoPermes, NoTrobat, NoValid
+from errors_domini import Conflicte, ErrorDeDomini, NoAutenticat, NoPermes, NoTrobat, NoValid
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -51,7 +56,7 @@ async def _gestor_http(request: Request, exc: StarletteHTTPException):
     return await http_exception_handler(request, exc)
 
 
-STATUS_PER_CATEGORIA = {NoTrobat: 404, NoPermes: 403, NoValid: 400, Conflicte: 409}
+STATUS_PER_CATEGORIA = {NoAutenticat: 401, NoTrobat: 404, NoPermes: 403, NoValid: 400, Conflicte: 409}
 
 
 async def _gestor_error_de_domini(request: Request, exc: ErrorDeDomini):
@@ -59,7 +64,9 @@ async def _gestor_error_de_domini(request: Request, exc: ErrorDeDomini):
     status = next((STATUS_PER_CATEGORIA[c] for c in type(exc).__mro__ if c in STATUS_PER_CATEGORIA), None)
     if status is None:  # una categoria nova sense status: és un error del codi
         return _resposta_error_intern(500, request, f"{type(exc).__name__} sense status: {exc.missatge}")
-    return JSONResponse(status_code=status, content={"detail": exc.missatge})
+    if not exc.amb_codi_a_la_resposta:
+        return JSONResponse(status_code=status, content={"detail": exc.missatge})
+    return JSONResponse(status_code=status, content={"detail": exc.missatge, "codi": exc.codi, "params": exc.params})
 
 
 async def _gestor_no_controlat(request: Request, exc: Exception):

@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed } from 'vue'
 import * as apiPdf from '../api/pdf.js'
 import * as apiSubstitucions from '../api/substitucions.js'
@@ -132,7 +132,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('substitutions.errors.validatePdf'),
+        detail: detallDError(error) || t('substitutions.errors.validatePdf'),
         life: 3000
       }))
       generantPDF.value = false
@@ -188,7 +188,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('substitutions.errors.generatePdf'),
+        detail: detallDError(error) || t('substitutions.errors.generatePdf'),
         life: 3000
       }))
     } finally {
@@ -268,7 +268,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('substitutions.errors.reassignProblematics'),
+        detail: detallDError(error) || t('substitutions.errors.reassignProblematics'),
         life: 3000
       }))
     } finally {

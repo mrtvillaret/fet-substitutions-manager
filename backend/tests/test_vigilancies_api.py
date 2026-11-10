@@ -165,7 +165,7 @@ def test_crear_sense_nivell_dona_un_error_clar(client, nivell):
     resp = client.post(URL, json=cos)
 
     assert resp.status_code == 400
-    assert resp.json() == {"detail": "Cal indicar el nivell de la vigilància"}
+    assert resp.json()["detail"] == "Cal indicar el nivell de la vigilància"
     assert _vigilancies(client) == []
 
 
@@ -179,7 +179,7 @@ def test_actualitzar_no_permet_treure_el_nivell(client):
     )
 
     assert resp.status_code == 400
-    assert resp.json() == {"detail": "Cal indicar el nivell de la vigilància"}
+    assert resp.json()["detail"] == "Cal indicar el nivell de la vigilància"
     assert _vigilancies(client)[0]["nivell"] == "2-BAT"
 
 
@@ -205,7 +205,7 @@ def test_actualitzar_una_vigilancia_antiga_sense_nivell_obliga_a_posar_lo(client
     )
 
     assert resp.status_code == 400
-    assert resp.json() == {"detail": "Cal indicar el nivell de la vigilància"}
+    assert resp.json()["detail"] == "Cal indicar el nivell de la vigilància"
     [sense_canvis] = _vigilancies(client)
     assert (sense_canvis["nivell"], sense_canvis["comentaris"]) == ("", "antiga")
 

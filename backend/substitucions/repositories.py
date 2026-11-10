@@ -1,14 +1,19 @@
 """Repositori de substitucions."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
+from cursos.repositories import CursRepository
 from dates import parse_date
 from models import Substitucio
 from ordre_curs import clau_curs, natural
 from substitucions.files import FilaSubstitucio
+
+# Sense cap curs definit, fins on mira enrere l'historial de la quota. Amb curs,
+# només es compta el curs del dia (a cada curs nou la quota torna a començar).
+HISTORIAL_QUOTA = timedelta(days=2 * 365)
 
 
 class SubstitucioRepository:
@@ -94,15 +99,24 @@ class SubstitucioRepository:
 
     @staticmethod
     def historial_quota(db: Session, data: str) -> list[tuple[str, str, str]]:
-        """Una lectura per centre/dia, també dates futures; exclou el mateix dia.
+        """Una lectura per centre/dia del mateix dia de la setmana, també dates
+        futures; exclou el mateix dia. Només el curs del dia; sense curs definit,
+        els dos últims anys (HISTORIAL_QUOTA).
 
         Projecció mínima en ordre cronològic amb ID com a desempat estable.
         El domini separa categories i reté només les deu últimes de cadascuna.
         """
         dia = parse_date(data)
+        curs = CursRepository.get_for_date(db, data)
+        consulta = db.query(Substitucio.hora, Substitucio.substitut, Substitucio.tipus_substitut)
+        if curs:
+            consulta = consulta.filter(Substitucio.data >= curs.data_inici)
+            if curs.data_fi:
+                consulta = consulta.filter(Substitucio.data <= curs.data_fi)
+        else:
+            consulta = consulta.filter(Substitucio.data >= dia - HISTORIAL_QUOTA)
         files = (
-            db.query(Substitucio.hora, Substitucio.substitut, Substitucio.tipus_substitut)
-            .filter(
+            consulta.filter(
                 Substitucio.data != dia,
                 func.strftime("%w", Substitucio.data) == dia.strftime("%w"),
                 Substitucio.substitut.isnot(None),

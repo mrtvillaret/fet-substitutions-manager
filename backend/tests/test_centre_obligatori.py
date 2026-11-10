@@ -51,7 +51,7 @@ def test_peticio_sense_centre_no_fa_servir_cap_fallback(monkeypatch, fallback, p
 
     resposta = client_per(app).get("/prova")
     assert resposta.status_code == 400, resposta.text
-    assert resposta.json() == {"detail": TEXT}
+    assert resposta.json()["detail"] == TEXT
 
 
 def test_script_sense_centre_tambe_ha_de_ser_explicit(monkeypatch):

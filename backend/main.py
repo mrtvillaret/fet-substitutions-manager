@@ -34,7 +34,7 @@ from configuracio.router import router as configuracio_router
 from configuracio_examens.router import router as config_examens_router
 from cursos.router import router as cursos_router
 from dades.router import router as dades_router
-from database import create_auth_tables, get_data_db_session
+from database import create_auth_tables, get_auth_db_session, get_engine_for_institucio
 from errors_domini import MissingXmlError
 from errors_servidor import registra_gestors_errors
 from estadistiques.router import router as estadistiques_router
@@ -45,7 +45,6 @@ from horari.router import router_admin as horari_admin_router
 from pdf import informes as informes_pdf
 from pdf.router import router as pdf_router
 from planificador.router import router as planificador_router
-from prioritats.memoria import carrega_prioritats
 from prioritats.router import router as prioritats_router
 from rate_limit import limit_superat, limiter
 from substitucions.router import router as substitucions_router
@@ -57,17 +56,19 @@ log = logging.getLogger(__name__)
 access_logger = logging.getLogger("uvicorn.error")
 
 
-# Carregar prioritats des de la BD (per web, no usem JSON)
-def _inicialitzar_prioritats():
-    """Carrega prioritats des de la BD en iniciar el backend"""
+def _prepara_centre_per_defecte():
+    """La carpeta i el gestor.db del centre per defecte del servidor
+    (APP_INSTITUCIO o el de config.json), si encara no hi són (README).
 
+    Les prioritats no es carreguen aquí: cada petició les carrega per al seu
+    centre (auth.dependencies). Abans es carregaven en arrencar, però sense
+    cap petició en curs quedaven desades sota el centre None i no les llegia
+    ningú."""
+    institucio = os.getenv("APP_INSTITUCIO") or config.global_data.get("institucio") or "exemple"
     try:
-        institucio = os.getenv("APP_INSTITUCIO") or config.global_data.get("institucio") or "exemple"
-        with get_data_db_session(institucio, lectura=True) as db:
-            carrega_prioritats(db)
-    except Exception as e:
-        log.warning(f"⚠️  No s'han pogut carregar prioritats des de BD: {e}")
-        log.warning("   Es faran servir les constants del JSON per defecte")
+        get_engine_for_institucio(institucio)
+    except Exception:
+        log.warning("No s'ha pogut preparar la BD del centre per defecte", exc_info=True)
 
 
 @asynccontextmanager
@@ -78,8 +79,9 @@ async def lifespan(app: FastAPI):
     config.inicialitza_fitxer()
     access_logger = configure_access_logger()
     create_auth_tables()
-    crea_usuaris_inicials()
-    _inicialitzar_prioritats()
+    with get_auth_db_session() as db:
+        crea_usuaris_inicials(db)
+    _prepara_centre_per_defecte()
     yield
 
 
@@ -103,7 +105,14 @@ registra_gestors_errors(app)
 @app.exception_handler(MissingXmlError)
 async def missing_xml_exception_handler(request: Request, exc: MissingXmlError):
     return JSONResponse(
-        status_code=400, content={"detail": str(exc), "xml_missing": True, "institucio": exc.institucio}
+        status_code=400,
+        content={
+            "detail": str(exc),
+            "codi": exc.codi,
+            "params": exc.params,
+            "xml_missing": True,
+            "institucio": exc.institucio,
+        },
     )
 
 

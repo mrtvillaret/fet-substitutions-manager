@@ -16,6 +16,7 @@ from config.context import fixa_institucio_peticio
 from config.settings import config
 from configuracio.repositories import ConfiguracioRepository
 from database import get_auth_db, get_data_db_session
+from errors_domini import NoAutenticat
 from horari.sincronitzacio import sincronitza_un_cop_al_dia
 from prioritats.memoria import carrega_prioritats
 
@@ -55,18 +56,18 @@ def _valida_usuari(request: Request, db: Session, amb_centre: bool = True) -> Us
     de la sessió existeix i és actiu (per al superadmin, només que existeix)."""
     token = security.get_auth_token(request)
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticat")
+        raise NoAutenticat("No autenticat", codi="no_autenticat")
     try:
         payload = security.decode_access_token(token)
         username = payload.get("sub")
         institucio = payload.get("institucio")
         if not username:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid")
+            raise NoAutenticat("Token invàlid", codi="token_invalid")
     except ExpiredSignatureError as exc:
         # Sense activitat durant SESSIO_INACTIVITAT_MINUTS, o passat el màxim
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessió caducada") from exc
+        raise NoAutenticat("Sessió caducada", codi="sessio_caducada") from exc
     except PyJWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid") from exc
+        raise NoAutenticat("Token invàlid", codi="token_invalid") from exc
 
     # Per l'id: si l'usuari s'esborra o es reanomena i un altre pren el seu nom,
     # la sessió no passa al nou. Els testimonis d'abans, sense "uid" (duren com
@@ -74,21 +75,21 @@ def _valida_usuari(request: Request, db: Session, amb_centre: bool = True) -> Us
     uid = payload.get("uid")
     user = UserRepository.get_by_id(db, uid) if uid is not None else UserRepository.get_by_username(db, username)
     if not user or not user.active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuari inactiu o inexistent")
+        raise NoAutenticat("Usuari inactiu o inexistent", codi="usuari_inactiu")
 
     # Testimoni d'abans d'un canvi de contrasenya o d'un "tancar les altres
     # sessions". Els testimonis antics sense "sv" valen com a versió 0.
     if payload.get("sv", 0) != (user.versio_sessio or 0):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessió tancada")
+        raise NoAutenticat("Sessió tancada", codi="sessio_tancada")
 
     if user.role == Rol.SUPER_ADMIN:
         # Treballa amb la institució del testimoni (la que ha triat), no la seva
         institucio_activa = institucio or user.institucio
         if not institucio_activa:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid")
+            raise NoAutenticat("Token invàlid", codi="token_invalid")
     else:
         if not institucio or user.institucio != institucio:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invàlid")
+            raise NoAutenticat("Token invàlid", codi="token_invalid")
         institucio_activa = user.institucio
 
     if amb_centre:

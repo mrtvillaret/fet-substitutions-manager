@@ -3,6 +3,11 @@
 from dataclasses import dataclass, field
 
 
+def clau_fila(professor_absent: str, hora: str, assignatura: str, grup: str) -> str:
+    """Clau d'una fila per conservar-la entre generacions (sense el tipus d'absència)."""
+    return f"{professor_absent}|{hora}|{assignatura}|{grup}"
+
+
 @dataclass(frozen=True, slots=True)
 class FilaSubstitucio:
     """Instantània immutable: els canvis es desen pel repositori i es rellegeixen.

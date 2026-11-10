@@ -20,6 +20,8 @@ def test_missing_xml_conserva_la_resposta_http(xml_path):
     assert resposta.status_code == 400
     assert resposta.json() == {
         "detail": "Cal pujar un fitxer XML d'horari per a la institució centre_de_prova.",
+        "codi": "xml_missing",
+        "params": {"institucio": "centre_de_prova"},
         "xml_missing": True,
         "institucio": "centre_de_prova",
     }

@@ -143,3 +143,4 @@ data/config.json
 # Artefactes de les proves de navegador
 frontend/test-results/
 frontend/playwright-report/
+frontend/dist-e2e/

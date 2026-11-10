@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 import * as apiPlanificador from '../api/planificador.js'
@@ -101,7 +101,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('examConfig.errors.addLevel'),
+        detail: detallDError(error) || t('examConfig.errors.addLevel'),
         life: 3000
       }))
     }
@@ -136,7 +136,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
     try {
       quantes = (await apiExamens.comptaAssignacions(e.url(codi))).assignacions
     } catch (error) {
-      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t(e.error), life: 3000 }))
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: detallDError(error) || t(e.error), life: 3000 }))
       return
     }
     if (quantes) {
@@ -164,7 +164,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       await e.recarrega()
     } catch (error) {
       console.error(`Error eliminant ${tipus}:`, error)
-      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t(e.error), life: 3000 }))
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: detallDError(error) || t(e.error), life: 3000 }))
     }
   }
 
@@ -203,7 +203,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('examConfig.errors.addSubject'),
+        detail: detallDError(error) || t('examConfig.errors.addSubject'),
         life: 3000
       }))
     }
@@ -276,7 +276,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('examConfig.errors.addGroup'),
+        detail: detallDError(error) || t('examConfig.errors.addGroup'),
         life: 3000
       }))
     }
@@ -317,7 +317,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('examConfig.errors.addRoom'),
+        detail: detallDError(error) || t('examConfig.errors.addRoom'),
         life: 3000
       }))
     }
@@ -491,7 +491,7 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('common.error'),
+        detail: detallDError(error) || t('common.error'),
         life: 3000
       }))
     }

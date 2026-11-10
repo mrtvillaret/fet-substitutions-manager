@@ -74,8 +74,8 @@ canvis del dia (alliberats, absències, absència coberta)
 1. **Categoria.** Guanya la categoria activa de Prioritats de més prioritat que
    té algun candidat lliure a aquella hora (no absent, no vigilant, no ocupat).
 2. **Quota per franja.** Dins d'aquesta categoria es miren les últimes 10
-   substitucions guardades de la mateixa franja (dia de la setmana i hora) i
-   categoria. Cadascuna compta 1/pes per a qui la va fer, amb el pes actual de la
+   substitucions guardades del mateix curs, de la mateixa franja (dia de la
+   setmana i hora) i categoria; a cada curs nou, la quota torna a començar. Cadascuna compta 1/pes per a qui la va fer, amb el pes actual de la
    seva activitat (sense pes, o amb pes zero o negatiu, compta 1). Surt el candidat
    amb menys torns.
 3. **Empats** a l'atzar, amb probabilitat proporcional al pes.

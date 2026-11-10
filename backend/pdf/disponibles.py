@@ -17,11 +17,12 @@ from reportlab.platypus import KeepTogether, PageBreak, Paragraph, SimpleDocTemp
 from sqlalchemy.orm import Session
 
 import i18n_setup
-from config.constants import ORDRE_PRIORITATS, PRIORITATS
+from config.constants import ORDRE_PRIORITATS
 from configuracio.repositories import ConfiguracioRepository
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import setup_translation, translate
+from substitucions.assignacio import pes_de
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 
@@ -127,7 +128,7 @@ def linies_de_l_hora(disponibles: list, absents: set, ocupats: set) -> list[str]
     for categoria_idx in sorted(per_categoria_tipus.keys()):
         cat_label = f"Cat.{categoria_idx}" if categoria_idx < len(ORDRE_PRIORITATS) else "Cat.99"
         for tipus in sorted(per_categoria_tipus[categoria_idx].keys()):
-            pes = PRIORITATS.get(tipus, 1)
+            pes = pes_de(tipus)
             parts = []
             for prof, estat in sorted(per_categoria_tipus[categoria_idx][tipus], key=lambda x: x[0]):
                 if estat == "absent":

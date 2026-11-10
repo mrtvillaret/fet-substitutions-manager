@@ -90,7 +90,7 @@ def test_sense_data_el_recalcul_fa_servir_la_del_planificador(client, centre):
         "/api/scheduler/recalcular-cost", json={"horari": {"dies": [{"dia": "Dilluns", "sessions": []}]}}
     )
     assert resp.status_code == 400
-    assert resp.json() == {"detail": SENSE_HORARI}
+    assert resp.json()["detail"] == SENSE_HORARI
 
 
 def test_generar_sense_horari_ho_diu_en_catala(client, centre, monkeypatch):
@@ -99,4 +99,4 @@ def test_generar_sense_horari_ho_diu_en_catala(client, centre, monkeypatch):
     )
     resp = client.post("/api/scheduler/generate", json={"data_inici": DATA, "selected_dates": [DATA]})
     assert resp.status_code == 400
-    assert resp.json() == {"detail": SENSE_HORARI}
+    assert resp.json()["detail"] == SENSE_HORARI

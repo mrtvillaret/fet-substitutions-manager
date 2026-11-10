@@ -6,7 +6,7 @@ import globals from 'globals'
 import errorUnic from './eslint-rules/errors-unics.js'
 
 export default [
-  { ignores: ['dist/**', '.vite/**', 'test-results/**', 'playwright-report/**'] },
+  { ignores: ['dist/**', 'dist-e2e/**', '.vite/**', 'test-results/**', 'playwright-report/**'] },
   js.configs.recommended,
   // Regles bàsiques ara; strongly-recommended i recommended, més endavant.
   ...pluginVue.configs['flat/essential'],

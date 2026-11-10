@@ -12,7 +12,7 @@ from auth.security import hash_fictici, hash_password, verify_password
 from config.auth import get_config_auth
 from config.settings import config
 from configuracio.repositories import ConfiguracioRepository
-from database import get_auth_db_session, get_data_db_session, inicia_escriptura
+from database import get_engine_for_institucio, inicia_escriptura
 from errors_domini import NoPermes, NoTrobat, NoValid
 from models import User
 
@@ -61,11 +61,11 @@ def autentica(db: Session, username: str, contrasenya: str) -> User | None:
     return user
 
 
-def perfil(current_user: UsuariActual) -> dict:
-    # De la BD de la institució de l'usuari, no de la del centre per defecte del servidor
-    with get_data_db_session(current_user.institucio, lectura=True) as data_db:
-        idioma = ConfiguracioRepository.get(data_db, "idioma") or "ca"
-        display_name = ConfiguracioRepository.nom_visible_institucio(data_db, current_user.institucio)
+def perfil(data_db: Session, current_user: UsuariActual) -> dict:
+    """`data_db`: la BD de la institució de l'usuari (la de la sessió), no la
+    del centre per defecte del servidor."""
+    idioma = ConfiguracioRepository.get(data_db, "idioma") or "ca"
+    display_name = ConfiguracioRepository.nom_visible_institucio(data_db, current_user.institucio)
     return {
         "username": current_user.username,
         "role": current_user.role,
@@ -118,7 +118,7 @@ def comprova_institucio_accessible(institucio: str) -> None:
         raise NoPermes("Institució inactiva", codi="institucio_inactiva")
 
 
-def crea_usuaris_inicials() -> None:
+def crea_usuaris_inicials(db: Session) -> None:
     """En arrencar: els usuaris inicials d'una instal·lació nova i, si es
     demana, la recuperació del superadmin.
 
@@ -132,14 +132,15 @@ def crea_usuaris_inicials() -> None:
       li sobreescriu la contrasenya.
     - Avisa al registre si hi ha usuaris actius de centres que no existeixen
       (una sessió d'un centre que no existeix rep un 409 a tot).
+
+    `db`: una sessió de l'auth.db; el servei en fa el commit.
     """
-    with get_auth_db_session() as db:
-        if UserRepository.count(db) == 0:
-            _crea_usuaris_d_instal_lacio_nova(db)
-        if get_config_auth().admin_password_recuperacio:
-            _recupera_superadmin(db, get_config_auth().admin_password_recuperacio)
-        db.commit()
-        _avisa_usuaris_sense_centre(db)
+    if UserRepository.count(db) == 0:
+        _crea_usuaris_d_instal_lacio_nova(db)
+    if get_config_auth().admin_password_recuperacio:
+        _recupera_superadmin(db, get_config_auth().admin_password_recuperacio)
+    db.commit()
+    _avisa_usuaris_sense_centre(db)
 
 
 def _avisa_usuaris_sense_centre(db: Session) -> None:
@@ -172,8 +173,7 @@ def _crea_usuaris_d_instal_lacio_nova(db: Session) -> None:
     for usuari in inicials:
         # El centre, també: cap centre no es crea sol en la primera petició
         if not config.institucio_existeix(usuari["institucio"]):
-            with get_data_db_session(usuari["institucio"]):
-                pass
+            get_engine_for_institucio(usuari["institucio"])  # crea la carpeta i el gestor.db
         UserRepository.create(
             db=db,
             username=usuari["username"],

@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed, onMounted, watch } from 'vue'
 import * as apiPdf from '../api/pdf'
 import { ambDataTreball, dataTreball } from '../dataTreball'
@@ -120,7 +120,7 @@ export function usePrioritats(dependents) {
       activitatsPerDefecte.value = resposta.per_defecte
       toast.add({ severity: 'success', summary: t('common.saved'), life: 2500 })
     } catch (error) {
-      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || '', life: 5000 }))
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: detallDError(error) || '', life: 5000 }))
     } finally {
       desantAlliberables.value = false
     }
@@ -441,7 +441,7 @@ export function usePrioritats(dependents) {
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('config.errors.savePriorities'),
+        detail: detallDError(error) || t('config.errors.savePriorities'),
         life: 3000
       }))
     } finally {
@@ -481,7 +481,7 @@ export function usePrioritats(dependents) {
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('config.errors.generatePDF'),
+        detail: detallDError(error) || t('config.errors.generatePDF'),
         life: 3000
       }))
     } finally {
@@ -529,7 +529,7 @@ export function usePrioritats(dependents) {
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('config.errors.addNoSubst'),
+        detail: detallDError(error) || t('config.errors.addNoSubst'),
         life: 3000
       }))
     }
@@ -554,7 +554,7 @@ export function usePrioritats(dependents) {
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('config.errors.deleteNoSubst'),
+        detail: detallDError(error) || t('config.errors.deleteNoSubst'),
         life: 3000
       }))
     }

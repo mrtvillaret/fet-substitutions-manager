@@ -15,7 +15,7 @@ from horari.domain import Dia
 from prioritats.repositories import NoSubstituirRepository
 from substitucions.assignacio import QuotaFranja
 from substitucions.domain import DiaEscolar
-from substitucions.files import PropostaSubstitucio
+from substitucions.files import PropostaSubstitucio, clau_fila
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import (
     assignar_substituts_pendents as assignar_vigilancies_absents_pendents,
@@ -27,10 +27,6 @@ from substitucions.vigilancia_absent import (
 log = logging.getLogger(__name__)
 
 TIPUS_COBERTURA_VIGILANCIA = ("VIGILANCIA", "VIGILANCIA_ABSENT")
-
-
-def clau_fila(professor_absent: str, hora: str, assignatura: str, grup: str) -> str:
-    return f"{professor_absent}|{hora}|{assignatura}|{grup}"
 
 
 def _ocupats(estat: DiaEscolar) -> dict:
@@ -229,7 +225,6 @@ def genera_substitucions_dia(
         professors_ocupats_examens=_ocupats(estat),
         substitucions_existents=desats,
         absents_tipus=estat.absents_tipus,
-        activitats_fallback=estat.activitats_fallback,
         omplir=omplir,
         rng=rng,
         quota=quota,

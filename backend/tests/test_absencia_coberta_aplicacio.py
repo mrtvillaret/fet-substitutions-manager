@@ -174,7 +174,7 @@ def test_no_es_pot_assignar_a_ma_un_substitut_amb_absencia_coberta(client):
     )
 
     assert resp.status_code == 400
-    assert resp.json() == {"detail": "❌ Prof 3 té una ABSÈNCIA COBERTA aquell dia!"}
+    assert resp.json()["detail"] == "❌ Prof 3 té una ABSÈNCIA COBERTA aquell dia!"
     assert _substitut_de_prof_15(client, FUTUR) == ""
 
 

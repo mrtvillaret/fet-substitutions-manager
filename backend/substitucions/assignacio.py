@@ -13,7 +13,7 @@ from dates import parse_date
 # Evitem imports estàtics per no quedar-nos amb valors stale
 from grups.disponibilitat import sense_classe
 from substitucions.encadenades import activitat_encadenada
-from substitucions.files import FilaSubstitucio, PropostaSubstitucio
+from substitucions.files import FilaSubstitucio, PropostaSubstitucio, clau_fila
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +32,38 @@ def prioritat_candidat(tipus_activitat: str) -> int:
         if tipus_activitat in categoria:
             return i
     return len(constants.ORDRE_PRIORITATS)
+
+
+def absents_a_hora(absents: dict[str, list[str]], hora: str) -> set[str]:
+    """Qui és absent a aquella hora (l'absència compta per hores, no tot el dia)."""
+    return {professor for professor, hores in absents.items() if hora in hores}
+
+
+def candidats_per_categoria(
+    disponibles: list[tuple[str, str, str]], exclosos: set[str] = frozenset()
+) -> dict[int, list[tuple[str, str, str]]]:
+    """Regla única de candidats: els disponibles agrupats per categoria de Prioritats.
+
+    Fora els `exclosos` i els tipus que no tenen cap categoria. La fan servir
+    el motor, la millora final de «Reassigna» i el vigilant absent.
+    """
+    per_categoria = defaultdict(list)
+    for professor, tipus, detall in disponibles:
+        if professor in exclosos:
+            continue
+        categoria = prioritat_candidat(tipus)
+        if categoria < len(constants.ORDRE_PRIORITATS):
+            per_categoria[categoria].append((professor, tipus, detall))
+    return per_categoria
+
+
+def pes_de(tipus: str) -> int:
+    """Pes de Prioritats per a la quota i el sorteig.
+
+    Sense pes configurat (p. ex. alliberats), nul, zero o negatiu: 1.
+    """
+    pes = constants.PRIORITATS.get(tipus)
+    return pes if pes is not None and pes > 0 else 1
 
 
 def candidats_de_maxima_prioritat(
@@ -53,6 +85,17 @@ def candidats_de_maxima_prioritat(
         if candidats:
             return candidats
     return []
+
+
+def text_tipus_substitut(tipus: str, detall: str) -> str:
+    """El text que es desa a la fila per a un substitut de `tipus` (invers de `tipus_real`).
+
+    Evita la duplicació: si tipus == detall i no és «alliberat», «disponible (tipus)».
+    Els alliberats mai tenen tipus == detall (el detall sempre és «tenia X - Y»).
+    """
+    if tipus == detall and tipus != "alliberat":
+        return f"disponible ({tipus})"
+    return f"{tipus} ({detall})"
 
 
 def tipus_real(tipus_substitut: str) -> str:
@@ -84,8 +127,7 @@ class QuotaFranja:
         categories = {prioritat_candidat(tipus) for _, tipus, _ in candidats}
         comptes = {categoria: Counter(self.finestres.get((hora, categoria), ())) for categoria in categories}
         return [
-            Fraction(comptes[prioritat_candidat(tipus)][professor], max(1, constants.PRIORITATS.get(tipus, 1)))
-            for professor, tipus, _ in candidats
+            Fraction(comptes[prioritat_candidat(tipus)][professor], pes_de(tipus)) for professor, tipus, _ in candidats
         ]
 
 
@@ -104,7 +146,7 @@ def escull_candidat_amb_quota(
     empatats = [c for c, torn in zip(candidats, torns, strict=True) if torn == minim]
     if len(empatats) == 1 or rng is None:
         return empatats[0]
-    pesos = [max(1, constants.PRIORITATS.get(tipus, 1)) for _, tipus, _ in empatats]
+    pesos = [pes_de(tipus) for _, tipus, _ in empatats]
     return rng.choices(empatats, weights=pesos, k=1)[0]
 
 
@@ -156,7 +198,6 @@ class GestorSubstitucions:
         professors_ocupats_examens: dict[str, list[str]] = None,
         substitucions_existents: dict[str, FilaSubstitucio] = None,
         absents_tipus: dict[str, str] = None,
-        activitats_fallback: dict = None,
         omplir: bool = True,
         rng=None,
         quota: QuotaFranja = None,
@@ -201,9 +242,7 @@ class GestorSubstitucions:
         # Inicialitza validador amb la info actual
         self.validator = CandidateValidator(professors_ocupats_examens, substitucions_existents, rng, quota)
 
-        substitucions = self.absencies.get_substitucions_necessaries(
-            dia, absents, absents_tipus, activitats_fallback=activitats_fallback
-        )
+        substitucions = self.absencies.get_substitucions_necessaries(dia, absents, absents_tipus)
         logger.debug(_("   📋 get_substitucions_necessaries retorna {} substitucions").format(len(substitucions)))
 
         # ===== FILTRE GRUPS SENSE CLASSE (per hora específica) =====
@@ -263,7 +302,7 @@ class GestorSubstitucions:
 
             for sub in substitucions:
                 if not sub.separador:
-                    clau = f"{sub.professor_absent}|{sub.hora}|{sub.assignatura}|{sub.grup}"
+                    clau = clau_fila(sub.professor_absent, sub.hora, sub.assignatura, sub.grup)
                     claus_existents.add(clau)
 
                     # Registra substituts actius per hora (per validar encadenades)
@@ -462,12 +501,7 @@ class GestorSubstitucions:
         """Ordena substitucions prioritzant les que poden tenir conservació"""
 
         def prioritat_conservacio(sub):
-            professor_absent = sub.professor_absent
-            assignatura = sub.assignatura
-            grup = sub.grup
-
-            # Genera clau de conservació
-            clau = f"{professor_absent}|{hora}|{assignatura}|{grup}"
+            clau = clau_fila(sub.professor_absent, hora, sub.assignatura, sub.grup)
 
             # Si existeix als existents, prioritat màxima (0)
             if clau in self.substitucions_existents:
@@ -483,18 +517,8 @@ class GestorSubstitucions:
     ) -> tuple[dict[int, list], set[str]]:
         """Prepara i filtra candidats per una hora específica"""
         disponibles = self.alliberats.get_tots_disponibles(dia, hora, grups_sense_classe)
-
         # Fora els absents (els que tenen una absència coberta ja no són a l'horari del dia)
-        candidats = [(prof, tipus, detall) for prof, tipus, detall in disponibles if hora not in absents.get(prof, [])]
-
-        candidats_per_categoria = defaultdict(list)
-        for prof, tipus, detall in candidats:
-            categoria = self._obtenir_categoria(tipus)
-
-            if categoria < len(constants.ORDRE_PRIORITATS):
-                candidats_per_categoria[categoria].append((prof, tipus, detall))
-
-        return candidats_per_categoria, set()
+        return candidats_per_categoria(disponibles, absents_a_hora(absents, hora)), set()
 
     def _aplica_assignacio(
         self,
@@ -507,7 +531,7 @@ class GestorSubstitucions:
         """Aplica assignació conservadora per una substitució individual"""
         professor_absent = sub.professor_absent
         # Crea clau semàntica (sense tipus_absencia per preservar substituts en canvis SERVEI ↔ ABSENCIA)
-        clau_exacta = f"{professor_absent}|{hora}|{sub.assignatura}|{sub.grup}"
+        clau_exacta = clau_fila(professor_absent, hora, sub.assignatura, sub.grup)
 
         # CAS 1: una fila que ja existia es conserva tal com és, amb substitut o sense.
         # «Genera pendents» no reescriu les files que ja tenen substitut: si aquí se'n
@@ -533,14 +557,8 @@ class GestorSubstitucions:
         substitut = self._escollir_millor_candidat_disponible(candidats_per_categoria, ocupats_hora, hora)
         if substitut:
             prof, tipus, detall = substitut
-            # Evita duplicació: si tipus == detall i no és "alliberat", usa "disponible (tipus)"
-            # Els alliberats mai tenen tipus == detall (el detall sempre és "tenia X - Y")
-            if tipus == detall and tipus != "alliberat":
-                tipus_substitut = f"disponible ({tipus})"
-            else:
-                tipus_substitut = f"{tipus} ({detall})"
             sub.substitut = prof
-            sub.tipus_substitut = tipus_substitut
+            sub.tipus_substitut = text_tipus_substitut(tipus, detall)
             ocupats_hora.add(prof)
 
         return True

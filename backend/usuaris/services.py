@@ -143,7 +143,7 @@ def edita_usuari(db: Session, current_user: UsuariActual, user_id: int, canvis: 
     inicia_escriptura(db)
     user = _usuari_a_gestionar(db, user_id)
     if user.role == Rol.SUPER_ADMIN:
-        raise NoPermes("No es pot editar el superadmin", codi="superadmin_intocable")
+        raise NoPermes("No es pot editar el superadmin", codi="superadmin_no_editable")
     comprova_no_protegit(user.username, current_user)
     _comprova_mateixa_institucio(user, current_user)
     if not current_user.es_super_admin:
@@ -188,7 +188,7 @@ def desactiva_usuari(db: Session, current_user: UsuariActual, user_id: int) -> N
     inicia_escriptura(db)
     user = _usuari_a_gestionar(db, user_id)
     if user.role == Rol.SUPER_ADMIN:
-        raise NoPermes("No es pot desactivar el superadmin", codi="superadmin_intocable")
+        raise NoPermes("No es pot desactivar el superadmin", codi="superadmin_no_desactivable")
     comprova_no_protegit(user.username, current_user)
     _comprova_mateixa_institucio(user, current_user)
     _comprova_que_no_es_treu_a_si_mateix(user, current_user, "desactivar")
@@ -204,7 +204,7 @@ def elimina_usuari(db: Session, current_user: UsuariActual, user_id: int) -> Non
     inicia_escriptura(db)
     user = _usuari_a_gestionar(db, user_id)
     if user.role == Rol.SUPER_ADMIN:
-        raise NoPermes("No es pot eliminar el superadmin", codi="superadmin_intocable")
+        raise NoPermes("No es pot eliminar el superadmin", codi="superadmin_no_eliminable")
     _comprova_que_no_es_treu_a_si_mateix(user, current_user, "esborrar")
     _comprova_que_el_centre_conserva_un_admin(db, user, None)
     UserRepository.delete(db, user)

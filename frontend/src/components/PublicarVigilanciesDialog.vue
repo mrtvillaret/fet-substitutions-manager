@@ -185,6 +185,7 @@ import Column from 'primevue/column'
 import Checkbox from 'primevue/checkbox'
 import Divider from 'primevue/divider'
 import Message from 'primevue/message'
+import { detallDError } from '../errorsApi'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -272,7 +273,7 @@ const previsualitzar = async () => {
   } catch (e) {
     previsualitzacio.value = {
       success: false,
-      errors: [e.response?.data?.detail || e.message || 'Error desconegut']
+      errors: [detallDError(e) || e.message || 'Error desconegut']
     }
   } finally {
     previsualitzant.value = false
@@ -294,7 +295,7 @@ const confirmarPublicar = async () => {
   } catch (e) {
     resultat.value = {
       success: false,
-      errors: [e.response?.data?.detail || e.message || 'Error desconegut']
+      errors: [detallDError(e) || e.message || 'Error desconegut']
     }
   } finally {
     publicant.value = false

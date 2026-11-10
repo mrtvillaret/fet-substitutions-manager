@@ -96,13 +96,13 @@ class DiaEscolar:
         return professor in horari.tots_professors if horari is not None else None
 
     @cached_property
-    def _absencies_motor(self) -> tuple[dict, dict, dict]:
-        """Absències del motor: primer tipus i activitat per professor/hora.
+    def _absencies_motor(self) -> tuple[dict, dict]:
+        """Absències del motor: hores i primer tipus per professor.
 
         Es conserva el filtre històric de generació, diferent de les
         absències reals que valida absents_per_hora.
         """
-        absents, absents_tipus, activitats_fallback = {}, {}, {}
+        absents, absents_tipus = {}, {}
         for sub in self.files:
             professor = sub.professor_absent
             hora = sub.hora
@@ -114,15 +114,7 @@ class DiaEscolar:
                 absents_tipus[professor] = tipus
             if hora not in absents[professor]:
                 absents[professor].append(hora)
-            activitats_fallback.setdefault(
-                (professor, hora),
-                {
-                    "assignatura": sub.assignatura,
-                    "grup": sub.grup,
-                    "aula": sub.aula,
-                },
-            )
-        return absents, absents_tipus, activitats_fallback
+        return absents, absents_tipus
 
     @property
     def absents(self) -> dict:
@@ -131,10 +123,6 @@ class DiaEscolar:
     @property
     def absents_tipus(self) -> dict:
         return self._absencies_motor[1]
-
-    @property
-    def activitats_fallback(self) -> dict:
-        return self._absencies_motor[2]
 
     @cached_property
     def grups(self) -> dict:

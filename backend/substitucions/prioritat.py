@@ -10,20 +10,12 @@ from config import constants
 from substitucions.assignacio import (
     QuotaFranja,
     candidats_de_maxima_prioritat,
+    candidats_per_categoria,
     escull_candidat_amb_quota,
     tipus_real,
 )
 from substitucions.domain import DiaEscolar
 from substitucions.files import FilaSubstitucio
-
-
-def text_tipus_substitut(tipus: str, detall: str) -> str:
-    """El text que es desa a la fila per a un substitut de `tipus`."""
-    if not tipus:
-        return ""
-    if tipus == detall and tipus != "alliberat":
-        return f"disponible ({tipus})"
-    return f"{tipus} ({detall})"
 
 
 class MillorsSubstituts:
@@ -62,16 +54,9 @@ class MillorsSubstituts:
             | self.dia.vigilants_per_hora.get(hora, set())
             | self.ocupats_per_hora.get(hora, set())
         )
-        candidats_per_categoria = defaultdict(list)
-        for prof, tipus, detall in disponibles:
-            categoria = self.motor._obtenir_categoria(tipus)
-            if categoria < len(constants.ORDRE_PRIORITATS):
-                candidats_per_categoria[categoria].append((prof, tipus, detall))
-
         candidats = candidats_de_maxima_prioritat(
-            candidats_per_categoria,
+            candidats_per_categoria(disponibles, no_poden),
             constants.CATEGORIES_ACTIVES,
-            no_poden,
         )
         # «Reassigna» hi injecta el mateix atzar que la generació. Els avisos
         # del PDF no assignen ningú i conserven un representant estable.

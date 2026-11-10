@@ -58,7 +58,7 @@ def test_un_nom_de_centre_no_valid_dona_400_i_no_crea_res(nom):
     resposta = superadmin.post(URL, json={"nom": nom})
 
     assert resposta.status_code == 400, resposta.text
-    assert resposta.json() == {"detail": "Nom de centre no vàlid"}
+    assert resposta.json()["detail"] == "Nom de centre no vàlid"
     assert sorted(DATA_BASE_DIR.iterdir()) == abans
 
 
@@ -70,7 +70,7 @@ def test_un_nom_de_centre_de_mes_de_64_caracters_dona_400_i_no_crea_res():
     for nom in ("a" * 65, "a" * 300):
         resposta = superadmin.post(URL, json={"nom": nom})
         assert resposta.status_code == 400, resposta.text
-        assert resposta.json() == {"detail": "El nom del centre pot tenir com a molt 64 caràcters"}
+        assert resposta.json()["detail"] == "El nom del centre pot tenir com a molt 64 caràcters"
     assert sorted(DATA_BASE_DIR.iterdir()) == abans
 
     nom = f"c{uuid.uuid4().hex}".ljust(64, "x")

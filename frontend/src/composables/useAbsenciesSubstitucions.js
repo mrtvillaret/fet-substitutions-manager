@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import * as apiSubstitucions from '../api/substitucions.js'
 import { dataIso } from '../dates.js'
@@ -363,7 +363,7 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
         })
         return
       }
-      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: (typeof error.response?.data?.detail === 'string' && error.response.data.detail) || t('substitutions.errors.saveAbsences'), life: 8000 }))
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: (typeof detallDError(error) === 'string' && detallDError(error)) || t('substitutions.errors.saveAbsences'), life: 8000 }))
     } finally {
       loading.value = false
     }

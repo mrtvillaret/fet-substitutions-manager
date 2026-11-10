@@ -33,6 +33,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: ruff check .
+      - run: ruff format --check .
       # Els tests creen centres temporals amb l'horari de data/exemple/
       - run: python -m pytest -q -n auto --dist loadscope -p no:cacheprovider
 
@@ -55,6 +56,36 @@ jobs:
       # Funcions pures (tests/*.test.js, node --test)
       - run: npm test
       - run: npm run build
+
+  auditoria:
+    # Vulnerabilitats conegudes de les dependències. Totes les troballes surten
+    # al resum; les ja conegudes i justificades (backend/pip-audit-excepcions.txt)
+    # queden com a avís, i qualsevol altra fa fallar el job.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: pip-audit (backend)
+        working-directory: backend
+        run: |
+          python -m pip install pip-audit==2.10.1
+          # 1) Informe complet, excepcions incloses (no falla aquí)
+          pip-audit -r requirements.txt -r requirements-dev.txt --desc off -f markdown > "$RUNNER_TEMP/pip-audit.md" || true
+          { echo '### pip-audit (totes les troballes)'; cat "$RUNNER_TEMP/pip-audit.md"; } >> "$GITHUB_STEP_SUMMARY"
+          # 2) Falla només per les que no són a la llista d'excepcions
+          mapfile -t ignora < <(sed -e 's/#.*//' -e 's/[[:space:]]//g' pip-audit-excepcions.txt | grep -v '^$' | sed 's/^/--ignore-vuln=/')
+          echo "::warning title=pip-audit::${#ignora[@]} vulnerabilitats conegudes amb excepció (backend/pip-audit-excepcions.txt)"
+          pip-audit -r requirements.txt -r requirements-dev.txt --desc off "${ignora[@]}"
+      - name: npm audit (frontend, dependències de producció)
+        working-directory: frontend
+        # Només llegeix el package-lock.json: no cal npm ci
+        run: npm audit --omit=dev --audit-level=high
 
   e2e:
     # Cap prova de navegador alhora que les suites.
@@ -99,13 +130,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends poppler-utils
           npx playwright install --with-deps chromium
-      - name: Executa els vuit casos de navegador
+      # Contra el build de producció servit amb `vite preview`, no contra el
+      # servidor de desenvolupament (en local, `npm run e2e` el continua fent servir)
+      - name: Executa els vuit casos de navegador (build servit)
         run: |
           inici=$SECONDS
           codi=0
-          npm run e2e || codi=$?
+          npm run e2e:build || codi=$?
           durada=$((SECONDS - inici))
-          printf 'Proves e2e (serveis inclosos): %s s; sortida %s.\n' "$durada" "$codi" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Proves e2e (build i serveis inclosos): %s s; sortida %s.\n' "$durada" "$codi" >> "$GITHUB_STEP_SUMMARY"
           exit "$codi"
       - name: Desa les captures, traces i l'informe si falla
         if: failure()

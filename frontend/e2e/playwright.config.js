@@ -8,6 +8,11 @@ const credencials = {
   USER_CENTRE1_USERNAME: escenaris.mobil.usuari, USER_CENTRE1_PASSWORD: contrasenya, USER_CENTRE1_INSTITUCIO: 'centre_e2e'
 }
 const cita = (valor) => `'${valor.replaceAll("'", "'\\''")}'`
+// Per defecte, el servidor de desenvolupament de Vite. Amb E2E_SERVIDOR=build
+// (npm run e2e:build, el que fa la CI), es compila el frontend com a producció
+// i se serveix amb `vite preview`: es prova el mateix codi que es publica.
+const ambBuild = process.env.E2E_SERVIDOR === 'build'
+const opcionsVite = '--config e2e/vite.config.js --mode e2e'
 
 export default defineConfig({
   testDir: '.',
@@ -33,8 +38,10 @@ export default defineConfig({
       cwd: '..', url: `${backendURL}/api/health`, reuseExistingServer: false, timeout: 60_000
     },
     {
-      command: 'npm run dev -- --config e2e/vite.config.js --mode e2e',
-      cwd: '..', url: frontendURL, reuseExistingServer: false, timeout: 60_000,
+      command: ambBuild
+        ? `npm run build -- ${opcionsVite} && npm run preview -- ${opcionsVite}`
+        : `npm run dev -- ${opcionsVite}`,
+      cwd: '..', url: frontendURL, reuseExistingServer: false, timeout: ambBuild ? 180_000 : 60_000,
       env: { VITE_BASE_PATH: '/', VITE_VERSIO: 'e2e' }
     }
   ]

@@ -279,7 +279,7 @@ def test_una_abreviatura_dels_mateixos_grups_que_una_altra_dona_409(admin, centr
 
     for resposta in (creada, editada):
         assert resposta.status_code == 409, resposta.text
-        assert resposta.json() == {"detail": "Ja hi ha una abreviatura per a aquests grups"}
+        assert resposta.json()["detail"] == "Ja hi ha una abreviatura per a aquests grups"
     assert _estat_config(centre) == abans
     # Editar-ne una amb els seus mateixos grups sí que es pot
     assert admin.put(f"{url}/{primera['id']}", json={"grups_originals": "1-ESO-A,1-ESO-B"}).status_code == 200
@@ -295,7 +295,7 @@ def test_un_csv_que_no_es_utf8_dona_400(admin, centre, ruta):
     abans = _estat_config(centre)
     resposta = admin.post(f"{C}/{ruta}", files={"file": ("a.csv", contingut, "text/csv")})
     assert resposta.status_code == 400, resposta.text
-    assert resposta.json() == {"detail": "El fitxer CSV ha d'estar desat en UTF-8"}
+    assert resposta.json()["detail"] == "El fitxer CSV ha d'estar desat en UTF-8"
     assert _estat_config(centre) == abans
 
 
@@ -363,7 +363,7 @@ def test_una_abreviatura_amb_el_mateix_text_que_una_altra_dona_409(admin, centre
 
     for resposta in (creada, editada):
         assert resposta.status_code == 409, resposta.text
-        assert resposta.json() == {"detail": "Ja hi ha una abreviatura amb aquest text"}
+        assert resposta.json()["detail"] == "Ja hi ha una abreviatura amb aquest text"
     assert _estat_config(centre) == abans
     # Editar-ne una amb el seu mateix text sí que es pot
     assert admin.put(f"{url}/{primera['id']}", json={"abreviatura": "1-ESO-AB"}).status_code == 200

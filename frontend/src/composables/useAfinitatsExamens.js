@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 
@@ -58,7 +58,7 @@ export function useAfinitatsExamens({ toast, t }) {
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.detail || t('examConfig.errors.saveAffinities'),
+        detail: detallDError(error) || t('examConfig.errors.saveAffinities'),
         life: 3000
       }))
     }

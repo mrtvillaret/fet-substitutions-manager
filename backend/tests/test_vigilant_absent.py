@@ -132,6 +132,88 @@ def test_vigilancia_absent_tria_a_l_atzar_dins_la_categoria(monkeypatch):
     ]
 
 
+def _assigna_pendent(monkeypatch, disponibles, absents, ocupats=None, altres_files=()):
+    """Executa el vigilant absent de les 10:00 amb uns disponibles donats."""
+    files = [
+        FilaSubstitucio(id=1, hora="10:00", professor_absent="Prof absent", tipus_absencia="VIGILANCIA_ABSENT"),
+        *altres_files,
+    ]
+    actualitzacions = []
+
+    class Alliberats:
+        def get_tots_disponibles(self, dia, hora, grups):
+            return list(disponibles)
+
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
+    monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
+    monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
+    monkeypatch.setattr(vigilancia_absent.SubstitucioRepository, "get_by_date", lambda db, data: files)
+    monkeypatch.setattr(
+        vigilancia_absent.SubstitucioRepository,
+        "update",
+        lambda db, sub_id, canvis: actualitzacions.append(canvis["substitut"]),
+    )
+    vigilancia_absent.assignar_substituts_pendents(
+        object(), "2026-04-20", "Dilluns", Alliberats(), absents, ocupats or {}, quota=QuotaFranja()
+    )
+    return actualitzacions
+
+
+def test_vigilancia_absent_un_absent_a_una_altra_hora_es_candidat(monkeypatch):
+    # La mateixa regla que el motor: l'absència compta per hores, no tot el dia.
+    assignats = _assigna_pendent(
+        monkeypatch,
+        [("Prof parcial", "Guàrdia", "Guàrdia")],
+        {"Prof absent": ["10:00"], "Prof parcial": ["08:00"]},
+    )
+    assert assignats == ["Prof parcial"]
+
+
+def test_vigilancia_absent_un_tipus_sense_categoria_no_surt_mai(monkeypatch):
+    assignats = _assigna_pendent(
+        monkeypatch,
+        [("Prof sense categoria", "Activitat desconeguda", "Activitat desconeguda")],
+        {"Prof absent": ["10:00"]},
+    )
+    assert assignats == []
+
+
+def test_vigilancia_absent_exclou_els_absents_vigilants_i_ocupats_de_l_hora(monkeypatch):
+    disponibles = [
+        ("Prof absent", "Guàrdia", "Guàrdia"),
+        ("Prof absent ara", "Guàrdia", "Guàrdia"),
+        ("Prof vigilant", "Guàrdia", "Guàrdia"),
+        ("Prof ja substitut", "Guàrdia", "Guàrdia"),
+        ("Prof lliure", "Guàrdia", "Guàrdia"),
+    ]
+    ja_substitut = FilaSubstitucio(id=2, hora="10:00", professor_absent="Prof X", substitut="Prof ja substitut")
+    assignats = _assigna_pendent(
+        monkeypatch,
+        disponibles,
+        {"Prof absent": ["10:00"], "Prof absent ara": ["09:00", "10:00"]},
+        ocupats={"10:00": {"Prof vigilant"}},
+        altres_files=(ja_substitut,),
+    )
+    assert assignats == ["Prof lliure"]
+
+
+def test_generar_cobreix_la_vigilancia_absent_amb_guardies_absents_a_una_altra_hora(client):
+    # Les tres guàrdies de les 10:00 són absents a les 11:30. El motor en fa
+    # servir una per a la classe de Prof 15 i el vigilant absent n'ha de trobar
+    # una altra: abans s'excloïen tot el dia i la vigilància quedava pendent.
+    guardies = {"Prof 3", "Prof 21", "Prof 28"}
+    _crea(client, "Prof 15")
+    _absent(client, "Prof 15")
+    for professor in guardies:
+        _absent(client, professor, hores=("11:30",))
+    assert client.post(f"{URL_SUBS}/generar").status_code == 200
+
+    [(_, substitut_classe)] = _cobertures_classe(client)
+    [substitut_vigilancia] = _vigilancia_absent_de(client, "Prof 15")
+    assert substitut_classe in guardies
+    assert substitut_vigilancia in guardies - {substitut_classe}
+
+
 # ------------------------------------------------ vigilant absent: estat
 
 

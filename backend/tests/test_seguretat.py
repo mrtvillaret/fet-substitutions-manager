@@ -55,6 +55,7 @@ from config.auth import get_config_auth
 from config.settings import config
 from configuracio.repositories import ConfiguracioRepository
 from database import DATA_BASE_DIR, AuthSessionLocal, get_data_db_session
+from dependencies import get_db, get_db_lectura
 from horari.context import avui, get_horari, invalidar_horari
 from models import User
 from rate_limit import limiter
@@ -1014,14 +1015,32 @@ def _peticio(client, clau, ruta, ctx):
     return client.request(metode, _resol(ruta.url, ctx), **_resol(ruta.kw, ctx))
 
 
-def _rutes_de_l_app():
-    rutes = set()
+def _api_routes():
     for ruta in app_sencera().routes:
         candidates = ruta.original_router.routes if hasattr(ruta, "original_router") else [ruta]
-        for r in candidates:
-            if isinstance(r, APIRoute):
-                rutes |= {(m, r.path) for m in r.methods}
-    return rutes
+        yield from (r for r in candidates if isinstance(r, APIRoute))
+
+
+def _rutes_de_l_app():
+    return {(m, r.path) for r in _api_routes() for m in r.methods}
+
+
+def _dependencies(dependant):
+    for dep in dependant.dependencies:
+        yield dep.call
+        yield from _dependencies(dep)
+
+
+def _rutes_amb(dependencia):
+    return {(m, r.path) for r in _api_routes() if dependencia in set(_dependencies(r.dependant)) for m in r.methods}
+
+
+# POST que no canvien res però escriuen i desfan: simulen la importació dins
+# d'un savepoint, i per això necessiten la sessió d'escriptura.
+POST_QUE_SIMULEN = {
+    ("POST", "/api/config/importar-assignacions/dry-run"),
+    ("POST", "/api/config/importar-assignacions-csv/dry-run"),
+}
 
 
 # ----------------------------------------------------------------- l'inventari
@@ -1045,6 +1064,24 @@ def test_l_inventari_es_coherent():
             assert set(ruta.escriu) <= {"a"}, clau
         if ruta.grup == GLOBAL:
             assert ruta.rol == SUPER, clau
+
+
+def test_les_rutes_de_lectura_no_escriuen():
+    """Les rutes amb la sessió de només lectura (get_db_lectura) no canvien
+    res: ho comprova l'aïllament (c), que les executa totes. I a l'inrevés:
+    una POST de l'inventari que no canvia res i fa servir get_db, o simula
+    (POST_QUE_SIMULEN), o ha de passar a get_db_lectura."""
+    lectura = _rutes_amb(get_db_lectura)
+    assert lectura == {
+        ("POST", "/api/substitucions/{data}/disponibles-batch"),
+        ("POST", "/api/vigilancies/{data}/disponibles-batch"),
+        ("POST", "/api/pdf/disponibles-tots-dies"),
+        ("POST", "/api/dades/purga/analitzar"),
+    }
+    for clau in lectura:
+        assert INVENTARI[clau].escriu == () and INVENTARI[clau].esperat == 200, clau
+    sense_canvis = {clau for clau, ruta in INVENTARI.items() if clau[0] == "POST" and not ruta.escriu}
+    assert sense_canvis & _rutes_amb(get_db) == POST_QUE_SIMULEN
 
 
 # --------------------------------------------------------------- a) autenticació

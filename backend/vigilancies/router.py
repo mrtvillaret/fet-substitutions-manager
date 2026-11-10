@@ -11,7 +11,7 @@ Rutes de /api/vigilancies (vigilàncies d'examen de cada dia):
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from dependencies import dia_de_la_peticio, dia_del_calendari, get_db
+from dependencies import dia_de_la_peticio, dia_del_calendari, get_db, get_db_lectura
 from horari.domain import Dia
 from noms import NomNet
 from parametres import DataISO
@@ -97,7 +97,7 @@ def obtenir_ajuda_vigilant(
 def obtenir_disponibles_vigilancia_batch(
     data: DataISO,
     payload: DisponiblesEnBlocRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_lectura),
     dia: Dia = Depends(dia_de_la_peticio),
 ):
     """Disponibles per a moltes consultes en una sola crida."""

@@ -41,7 +41,11 @@ def _create_engine(db_path: Path):
     @event.listens_for(engine, "begin")
     def _comenca_transaccio(connection):
         opcions = connection.get_execution_options()
-        if not opcions.get("sqlite_lectura", False) and not opcions.get("sqlite_manual_begin", False):
+        if opcions.get("sqlite_nomes_lectura", False):
+            # Només per a aquesta connexió (NullPool la tanca en acabar): SQLite
+            # rebutja qualsevol escriptura, no cal confiar que el codi no n'intenti.
+            connection.exec_driver_sql("PRAGMA query_only=ON")
+        elif not opcions.get("sqlite_lectura", False) and not opcions.get("sqlite_manual_begin", False):
             connection.exec_driver_sql("BEGIN IMMEDIATE")
 
     return engine
@@ -54,6 +58,8 @@ def inicia_escriptura(db: Session) -> None:
     abans de reservar l'escriptura; mai descarta mutacions pendents.
     """
     bind = db.get_bind()
+    if bind.get_execution_options().get("sqlite_nomes_lectura", False):
+        raise RuntimeError("Una sessió de només lectura no pot passar a escriptura")
     if bind.get_execution_options().get("sqlite_lectura", False):
         if db.new or db.dirty or db.deleted:
             raise RuntimeError("No es pot canviar una sessió amb canvis pendents a escriptura")
@@ -119,8 +125,17 @@ def get_auth_db() -> Session:
         db.close()
 
 
-def get_data_db(institucio: str, *, lectura: bool = False):
-    engine = get_engine_for_institucio(institucio).execution_options(sqlite_lectura=lectura)
+def _opcions_de_sessio(lectura: bool, nomes_lectura: bool) -> dict:
+    """`lectura`: sense reservar l'escriptura (es pot passar a escriptura amb
+    inicia_escriptura). `nomes_lectura`: a més, SQLite rebutja qualsevol
+    escriptura i la sessió no pot passar a escriptura."""
+    if nomes_lectura:
+        return {"sqlite_lectura": True, "sqlite_nomes_lectura": True}
+    return {"sqlite_lectura": lectura}
+
+
+def get_data_db(institucio: str, *, lectura: bool = False, nomes_lectura: bool = False):
+    engine = get_engine_for_institucio(institucio).execution_options(**_opcions_de_sessio(lectura, nomes_lectura))
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal(info={"institucio": institucio})
     try:
@@ -139,8 +154,8 @@ def get_auth_db_session():
 
 
 @contextmanager
-def get_data_db_session(institucio: str, *, lectura: bool = False):
-    engine = get_engine_for_institucio(institucio).execution_options(sqlite_lectura=lectura)
+def get_data_db_session(institucio: str, *, lectura: bool = False, nomes_lectura: bool = False):
+    engine = get_engine_for_institucio(institucio).execution_options(**_opcions_de_sessio(lectura, nomes_lectura))
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal(info={"institucio": institucio})
     try:

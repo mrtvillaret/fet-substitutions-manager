@@ -20,36 +20,6 @@ msgstr ""
 "Generated-By: Babel 2.17.0\n"
 "X-Generator: Poedit 3.8\n"
 
-#. I18N: Correcció f-string -> .format() i marcatge per traducció
-#. I18N: Títol i missatge d'error
-#. Corregit: Error en calcular
-#. Corregit: Error en exportar
-#. I18N: Títol i cos del missatge d'error
-#: gui/configuracio_dialog.py:748 gui/configuracio_dialog.py:913 gui/configuracio_dialog.py:1018 gui/configuracio_dialog.py:1317 gui/configuracio_dialog.py:1409 gui/configuracio_dialog.py:1442 gui/configuracio_dialog.py:1447 gui/configuracio_dialog.py:1499 gui/configuracio_dialog.py:1561 gui/configuracio_dialog.py:1691 gui/configuracio_dialog.py:1694 gui/editor_configuracio_examens.py:508 gui/editor_configuracio_examens.py:1702 gui/editor_configuracio_examens.py:1918 gui/estadistiques_dialog.py:401 gui/estadistiques_dialog.py:887 gui/estadistiques_dialog.py:898 gui/estadistiques_dialog.py:1247 gui/estadistiques_dialog.py:1351 gui/llistat_substituts_dialog.py:121 gui/llistat_substituts_dialog.py:229 gui/llistat_substituts_dialog.py:387 gui/llistat_substituts_dialog.py:415 gui/main_window.py:51 gui/main_window.py:64 gui/main_window.py:467 gui/main_window.py:516 gui/main_window.py:521 gui/main_window.py:1209 gui/vigilancia_unificada.py:274 gui/vigilancia/assignment_engine.py:142 gui/vigilancia/assignment_engine.py:192 gui/vigilancia/assignment_engine.py:282 gui/vigilancia/assignment_engine.py:597 gui/vigilancia/assignment_engine.py:663 gui/vigilancia/pdf_generator.py:185 gui/vigilancia/pdf_generator.py:188 gui/vigilancia/pdf_generator.py:260 gui/vigilancia/pdf_generator.py:263 gui/vigilancia/pdf_generator.py:325 gui/vigilancia/pdf_generator.py:328 export/pdf_interval.py:104 export/pdf_interval.py:109 export/pdf/combined_exporter.py:199 export/pdf/combined_exporter.py:203 export/pdf/dialogs.py:186
-msgid "Error"
-msgstr "Error"
-
-#: gui/configuracio_dialog.py:1664 utils/unsaved_changes.py:235
-msgid "❌ Cancel·lar"
-msgstr "❌ Cancelar"
-
-#: gui/configuracio_dialog.py:1848 export/pdf/combined_exporter.py:68
-#, python-brace-format
-msgid "Error en obtenir vigilàncies: {error}"
-msgstr "Error cargando horario {error}"
-
-#: gui/dialogs.py:265 export/pdf/dialogs.py:46
-msgid "✅ Tots"
-msgstr "✅ Todos"
-
-#: gui/dialogs.py:267 export/pdf/dialogs.py:48
-msgid "❌ Cap"
-msgstr "❌ Ninguno"
-
-#: pdf/informe_direccio.py:675
-msgid "Grups"
-msgstr "Grupos"
-
 #: pdf/informe_professors.py:413 pdf/informe_professors.py:492 pdf/taula.py:118 pdf/taula.py:130
 msgid "Assignatura"
 msgstr "Asignatura"
@@ -61,10 +31,6 @@ msgstr "Grupo"
 #: pdf/taula.py:129
 msgid "Aula"
 msgstr "Aula"
-
-#: gui/editor_configuracio_examens.py:1469 gui/editor_configuracio_examens.py:1514 gui/editor_configuracio_examens.py:1552 export/pdf_interval.py:52
-msgid "Atenció"
-msgstr "Atención"
 
 #: pdf/informe_professors.py:413 pdf/informe_professors.py:492
 msgid "Data"
@@ -89,20 +55,6 @@ msgstr "Tipo"
 msgid "📋 Llistat de Professors Substituts"
 msgstr "📋 Listado de Profesores Sustitutos"
 
-#: gui/main_window.py:297 export/pdf/dialogs.py:166
-msgid "👁️ Vigilàncies"
-msgstr "👁️ Vigilancias"
-
-#: gui/main_window.py:1336 export/pdf/combined_exporter.py:351
-#, python-brace-format
-msgid "⚠️ Error en obtenir vigilàncies de finestra existent: {error}"
-msgstr "❌ Error generando sustituciones {error}"
-
-#: gui/main_window.py:1392 export/pdf/combined_exporter.py:393
-#, python-brace-format
-msgid "❌ Error en carregar vigilàncies directament: {error}"
-msgstr "❌ Error en carregar Vigilancias directament: {error}"
-
 #. I18N: Avís de millora de prioritat
 #: pdf/router.py:168
 #, python-brace-format
@@ -112,10 +64,6 @@ msgstr "• {time}: {prof} ({type_disp}) disponible en lugar de {sub} ({type_cur
 #: pdf/taula.py:131
 msgid "Vigilant"
 msgstr "Vigilante"
-
-#: gui/vigilancia_ui_components.py:48 gui/widgets.py:503 export/pdf.py:55 export/pdf.py:168
-msgid "Comentaris"
-msgstr "Comentarios"
 
 #: pdf/engine.py:783 pdf/engine.py:795
 msgid "VIGILÀNCIA"
@@ -136,342 +84,25 @@ msgstr "Ausente"
 msgid "tenia {assignatura} - {grup}"
 msgstr "tenía {assignatura} - {grup}"
 
-#: gui/vigilancia/pdf_generator.py:38 export/pdf_interval.py:57
-msgid "Cap nivell seleccionat"
-msgstr "Cap Nivel seleccionat"
-
-#: gui/vigilancia/pdf_generator.py:320 export/pdf/combined_exporter.py:195
-msgid "PDF generat"
-msgstr "PDF creado"
-
 #: pdf/engine.py:783 pdf/validacions.py:31
 #, python-brace-format
 msgid "❌ {hora}: {tipus} sense vigilant assignat"
 msgstr "❌ {hora}: {tipus} sin vigilante asignado"
-
-#: pdf/engine.py:787
-#, python-brace-format
-msgid "❌ {hora}: Assignatura {tipus} sense vigilant assignat"
-msgstr "❌ {hora}: Asignatura {tipus} sin vigilante asignado"
 
 #: pdf/engine.py:795 pdf/validacions.py:33
 #, python-brace-format
 msgid "🏫 {hora}: {tipus} sense aula assignada"
 msgstr "🏫 {hora}: {tipus} sin aula assignada"
 
-#: pdf/engine.py:799
-#, python-brace-format
-msgid "🏫 {hora}: Assignatura {tipus} sense aula assignada"
-msgstr "🏫 {hora}: Asignatura {tipus} sin aula assignada"
-
 #: pdf/engine.py:772 pdf/validacions.py:52
 #, python-brace-format
 msgid "🏫 {hora}: Aula {aula} duplicada"
 msgstr "🏫 {hora}: Aula {aula} duplicada"
 
-#: export/base_pdf.py:131
-msgid "✅ S'ha obert el PDF amb xdg-open"
-msgstr "✅ PDF abierto con xdg-open"
-
-#: export/base_pdf.py:133 pdf/engine.py:64
-#, python-brace-format
-msgid "⚠️ No s'ha pogut obrir automàticament: {error}"
-msgstr "❌ No se han podido sincronizar los datos. {error}"
-
-#: export/base_pdf.py:170
-#, python-brace-format
-msgid "RESUM: {num} elements"
-msgstr "RESUMEN: {num} elementos"
-
-#: export/base_pdf.py:173 export/pdf.py:200
-#, python-brace-format
-msgid "✅ S'ha generat el fitxer de text: {filename}"
-msgstr "✅ Se ha generado el archivo de texto: {filename}"
-
-#: export/base_pdf.py:177 export/pdf.py:204
-#, python-brace-format
-msgid "❌ Error en generar fitxer de text: {error}"
-msgstr "❌ Error descargando de Sheets: {error}"
-
-#: export/pdf_interval.py:52
-msgid "No hi ha dates vàlides a l'interval seleccionat"
-msgstr "No hay fechas válidas en el intervalo seleccionado"
-
-#: export/pdf_interval.py:58
-msgid "❌ Has de seleccionar almenys un nivell per generar el PDF."
-msgstr "Por favor, selecciona al menos una clase."
-
-#: export/pdf_interval.py:89
-msgid "PDF d'Interval Generat"
-msgstr "📅 PDF Intervalo de Días"
-
-#: export/pdf_interval.py:90
-#, python-brace-format
-msgid "✅ PDF generat correctament:\n\n📅 Període: {data_inici_cat} - {data_final_cat}\n🎓 Nivells: {nivells}\n📊 {total_vigilancies} vigilàncies en {dies_amb_vigilancies} dies\n📄 Fitxer: {filename}"
-msgstr "✅ PDF generado correctamente:\n\n📅 Período: {data_inici_cat} - {data_final_cat}\n🎓 Niveles: {nivells}\n📊 {total_vigilancies} vigilancias en {dies_amb_vigilancies} días\n📄 Archivo: {filename}"
-
-#: export/pdf_interval.py:104
-msgid "No s'ha pogut exportar el PDF d'interval"
-msgstr "No se ha podido exportar el PDF de intervalo"
-
-#: export/pdf_interval.py:109
-msgid "Error en generar PDF d'interval: {e}"
-msgstr "Error exportando PDF completo {e}"
-
-#: export/pdf_interval.py:213
-#, python-brace-format
-msgid "📋 Substitucions de vigilàncies en l'interval: {count}"
-msgstr "📚 Gestión de Sustituciones - Con Vigilancias {count}"
-
-#: export/pdf_interval.py:222
-msgid "🗜️ Compressió manual activada per a interval de vigilàncies"
-msgstr "🗜️ Compressió manual activada per vigilancias"
-
-#: export/pdf_interval.py:235
-#, python-brace-format
-msgid "Error en generar PDF concatenat: {error}"
-msgstr "Error exportando PDF completo {error}"
-
-#. Títol
-#: export/pdf.py:50
-msgid "<b>Substitucions de Professors</b>"
-msgstr "<b>Sustituciones de Profesores</b>"
-
-#: export/pdf.py:121
-msgid "No hi ha substitucions per aquest dia."
-msgstr "No hay datos de sustituciones en el sistema."
-
-#: export/pdf.py:131
-#, python-brace-format
-msgid "<b>Resum:</b> {total} substitucions totals | {assignades} assignades | {pendents} pendents"
-msgstr "<b>Resumen:</b> {total} sustituciones totales | {assignades} asignadas | {pendents} pendientes"
-
-#: export/pdf.py:145
-#, python-brace-format
-msgid "✅ S'ha generat el PDF: {filename}"
-msgstr "✅ PDF creat: {filename}"
-
-#: export/pdf.py:149
-msgid "⚠️ ReportLab no disponible, es generarà un fitxer de text..."
-msgstr "⚠️ ReportLab no disponible, se generará un archivo de texto..."
-
-#: export/pdf.py:153
-#, python-brace-format
-msgid "❌ Error en exportar PDF: {error}"
-msgstr "Error exportando PDF completo {error}"
-
-#: export/pdf.py:163
-msgid "SUBSTITUCIONS DE PROFESSORS"
-msgstr "SUSTITUCIONES"
-
-#: export/pdf.py:192
-#, python-brace-format
-msgid "RESUM: {total} substitucions"
-msgstr "Regenera todas las sustituciones desde cero {total}"
-
-#: export/pdf.py:194
-#, python-brace-format
-msgid "Assignades: {assignades} | Pendents: {pendents}"
-msgstr "Assignades: {assignades} | Pendents: {pendents}"
-
-#: export/pdf.py:197
-#, python-brace-format
-msgid "\nGenerat: {timestamp}"
-msgstr "\nGenerado: {timestamp}"
-
-#: export/pdf/combined_exporter.py:89
-msgid "⚠️ AVÍS: Hi ha professors de major prioritat disponibles:\n\n"
-msgstr "⚠️ AVISO: Hay profesores de mayor prioridad disponibles:\n\n"
-
-#: export/pdf/combined_exporter.py:91
-msgid "\n\nVoleu continuar amb l'exportació?"
-msgstr "\n\n¿Desea continuar con la exportación?"
-
-#: export/pdf/combined_exporter.py:94
-msgid "Professors de major prioritat disponibles"
-msgstr "Profesores de mayor prioridad disponibles"
-
-#. 5. Confirma exportació final
-#: export/pdf/combined_exporter.py:102
-#, python-brace-format
-msgid "📋 PDF Complet per {data}\n\n"
-msgstr "📋 PDF Completo para {data}\n\n"
-
-#: export/pdf/combined_exporter.py:105 export/pdf/combined_exporter.py:140 export/pdf/combined_exporter.py:188
-#, python-brace-format
-msgid "📝 Substitucions: {assignades} assignades de {totals}\n"
-msgstr "📝 Sustituciones: {assignades} asignadas de {totals}\n"
-
-#: export/pdf/combined_exporter.py:108 export/pdf/combined_exporter.py:148 export/pdf/combined_exporter.py:191
-#, python-brace-format
-msgid "👁️ Vigilàncies: {assignades} assignades de {totals}\n"
-msgstr "👁️ Vigilancias: {assignades} asignadas de {totals}\n"
-
-#. Actualitza missatge segons opcions seleccionades
-#: export/pdf/combined_exporter.py:137
-#, python-brace-format
-msgid "📋 PDF per {data}\n\n"
-msgstr "📋 PDF para {data}\n\n\n"
-
-#: export/pdf/combined_exporter.py:145
-#, python-brace-format
-msgid "👁️ Vigilàncies ({nivells}): {assignades} assignades de {totals}\n"
-msgstr "👁️ Vigilancias ({nivells}): {assignades} asignadas de {totals}\n"
-
-#. 5. Genera PDF complet
-#: export/pdf/combined_exporter.py:152
-msgid "Generant PDF complet..."
-msgstr "Generando PDF completo..."
-
-#: export/pdf/combined_exporter.py:180
-msgid "\n❌ Error en desar dades localment"
-msgstr "\n❌ Error al guardar datos localmente"
-
-#: export/pdf/combined_exporter.py:182
-#, python-brace-format
-msgid "\n❌ Error inesperat: {error}"
-msgstr "\n❌ Error inesperado: {error}"
-
-#. 7. Mostra èxit PDF amb info de sincronització
-#. Construeix missatge final segons opcions seleccionades
-#: export/pdf/combined_exporter.py:186
-#, python-brace-format
-msgid "✅ PDF creat i obert correctament!\n\n📄 Fitxer: {filename}\n"
-msgstr "✅ PDF creado y abierto correctamente!\n\n📄 Archivo: {filename}\n"
-
-#: export/pdf/combined_exporter.py:197
-#, python-brace-format
-msgid "✅ PDF creat: {filename}"
-msgstr "✅ PDF creat: {filename}"
-
-#: export/pdf/combined_exporter.py:199
-msgid "❌ No s'ha pogut generar el PDF complet"
-msgstr "❌ No se ha podido generar el PDF completo"
-
-#: export/pdf/combined_exporter.py:200
-msgid "❌ Error en generar PDF complet"
-msgstr "❌ Error generando PDF completo"
-
-#: export/pdf/combined_exporter.py:203
-msgid "Error exportant PDF complet"
-msgstr "Error exportando PDF completo"
-
-#: export/pdf/combined_exporter.py:204
-msgid "❌ Error d'exportació"
-msgstr "❌ Error de sincronización"
-
-#. Construïm missatge agrupat per hores
-#: export/pdf/combined_exporter.py:238
-msgid "S'han detectat conflictes:\n\n"
-msgstr "Se han detectado conflictos:\n\n\n"
-
-#. Línia en blanc entre hores
-#: export/pdf/combined_exporter.py:255
-msgid "\nVoleu continuar amb l'exportació?"
-msgstr "\n¿Desea continuar con la exportación?"
-
-#: export/pdf/combined_exporter.py:259
-msgid "Conflictes detectats"
-msgstr "Conflictos detectados"
-
-#: export/pdf/combined_exporter.py:283
-msgid "🗜️ Compressió manual activada per l'usuari"
-msgstr "🗜️ Compressió manual activada per vigilancias"
-
-#: export/pdf/combined_exporter.py:299
-#, python-brace-format
-msgid "Error en generar PDF combinat: {error}"
-msgstr "Error exportando PDF completo {error}"
-
-#: export/pdf/combined_exporter.py:323 core/json_loader.py:43 core/substitutions_data_manager.py:45
-msgid "⚠️ Fitxer vigilancies_examens.json no trobat"
-msgstr "⚠️ Archivo vigilancies_examens.json no encontrado"
-
-#: export/pdf/combined_exporter.py:326
-#, python-brace-format
-msgid "❌ Error en carregar vigilàncies del JSON: {error}"
-msgstr "❌ Error cargando vigilancias del JSON: {error}"
-
-#: export/pdf/combined_exporter.py:442
-#, python-brace-format
-msgid "⚠️ Error en comptar canvis respecte al PDF: {error}"
-msgstr "⚠️ Error detectando estado. {error}"
-
-#: export/pdf/dialogs.py:13 export/pdf/dialogs.py:140
-msgid "Exportació del PDF de vigilàncies"
-msgstr "Exportar PDF Vigilancias"
-
-#. Missatge informatiu compacte
-#: export/pdf/dialogs.py:26
-msgid "📄 Configureu les opcions:"
-msgstr "📄 Configure las opciones:"
-
-#: export/pdf/dialogs.py:40
-msgid "🎓 Nivells"
-msgstr "📄 PDF Nivel"
-
-#. Compacte per al diàleg amb nivells
-#: export/pdf/dialogs.py:92
-msgid "⚙️ Opcions"
-msgstr "⚙️ Opciones Generales"
-
-#. Sense grup per al diàleg simple
-#: export/pdf/dialogs.py:97 export/pdf/dialogs.py:105 export/pdf/dialogs.py:171
-msgid "🗜️ Compressió del PDF"
-msgstr "🗜️ Compressió PDF"
-
-#. Desmarcat per defecte
-#: export/pdf/dialogs.py:99 export/pdf/dialogs.py:107 export/pdf/dialogs.py:173
-msgid "Redueix l'espaiat per a estalviar pàgines"
-msgstr "Reduce espaciado para ahorrar páginas"
-
-#: export/pdf/dialogs.py:148
-msgid "📄 Exportació del PDF complet"
-msgstr "📄 Exportar PDF"
-
-#. Layout ultra-compacte similar al PDF nivell
-#: export/pdf/dialogs.py:157
-msgid "📄 Seleccioneu les opcions del PDF:"
-msgstr "📄 Seleccione las opciones del PDF:"
-
-#: export/pdf/dialogs.py:161
-msgid "📚 Substitucions"
-msgstr "📝 Sustituciones"
-
-#: export/pdf/dialogs.py:163
-msgid "Inclou la llista de substitucions del dia"
-msgstr "Incluye la lista de sustituciones del día"
-
-#: export/pdf/dialogs.py:168
-msgid "Inclou les vigilàncies d'exàmens i activitats"
-msgstr "Incluye las vigilancias de exámenes y actividades"
-
-#: export/pdf/dialogs.py:186
-msgid "Heu de seleccionar almenys una opció per a generar el PDF."
-msgstr "Por favor, selecciona al menos una clase."
-
-#: pdf/engine.py:61
-#, python-brace-format
-msgid "📖 S'ha obert el PDF amb xdg-open: {filepath}"
-msgstr "📖 PDF abierto con xdg-open: {filepath}"
-
-#: pdf/engine.py:65
-#, python-brace-format
-msgid "📁 Fitxer disponible a: {filepath}"
-msgstr "📁 Archivo disponible en: {filepath}"
-
 #: pdf/engine.py:101
 #, python-brace-format
 msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
 msgstr "Aviso: no se ha podido cargar la división de palabras: {error}"
-
-#: pdf/engine.py:114
-msgid "📄 Compressió activada manualment per l'usuari"
-msgstr "📄 Compresión activada manualmente por el usuario"
-
-#: pdf/engine.py:116
-msgid "📄 PDF normal sense compressió"
-msgstr "📄 Sin compresión"
 
 #: pdf/engine.py:239 pdf/engine.py:251
 msgid "SUBSTITUCIONS"
@@ -520,20 +151,10 @@ msgstr "<b>CONFLICTOS DETECTADOS:</b>"
 msgid "Generat el {data} a les {hora}"
 msgstr "Generado el {data} a las {hora}"
 
-#: pdf/engine.py:384
-#, python-brace-format
-msgid "✅ S'ha generat el PDF combinat: {output_path}"
-msgstr "✅ Se ha generado el PDF combinado: {output_path}"
-
 #: pdf/engine.py:370
 #, python-brace-format
 msgid "❌ Error en generar PDF: {error}"
 msgstr "❌ Error al generar el PDF: {error}"
-
-#: pdf/engine.py:555 pdf/engine.py:682
-#, python-brace-format
-msgid "🔍 Compressió automàtica: fonts reduïdes a H:{header} B:{body}"
-msgstr "🔍 Compresión automática: fuentes reducidas a H:{header} B:{body}"
 
 #: pdf/taula.py:120 pdf/taula.py:132
 msgid "Observacions"
@@ -543,58 +164,9 @@ msgstr "Observaciones"
 msgid "Curs"
 msgstr "Curso"
 
-#: pdf/engine.py:722
-#, python-brace-format
-msgid "⚠️ {hora}: Substitut {substitut} {absence_text}"
-msgstr "⚠️ {hora}: Sustituto {substitut} {absence_text}"
-
-#: pdf/engine.py:730
-#, python-brace-format
-msgid "🕐 {hora}: Substitut {substitut} duplicat"
-msgstr "🕐 {hora}: Sustituto {substitut} duplicado"
-
-#: pdf/engine.py:742
-#, python-brace-format
-msgid "❌ {hora}: {professor} - {assignatura} sense substitut assignat"
-msgstr "❌ {hora}: {professor} - {assignatura} sin sustituto asignado"
-
-#: pdf/engine.py:756
-#, python-brace-format
-msgid "⚠️ {hora}: Vigilant {vigilant} {absence_text}"
-msgstr "⚠️ {hora}: Vigilante {vigilant} {absence_text}"
-
-#: pdf/engine.py:764
-#, python-brace-format
-msgid "🕐 {hora}: Vigilant {vigilant} duplicat"
-msgstr "🕐 {hora}: Vigilante {vigilant} duplicado"
-
-#: pdf/engine.py:829
-#, python-brace-format
-msgid "🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | Assignatures: {assignatures})"
-msgstr "🔄 {hora}: {professor} tiene {num} sustituciones (Sustitutos: {substituts} | Asignaturas: {assignatures})"
-
-#: pdf/engine.py:991
-#, python-brace-format
-msgid "📅 {dia}"
-msgstr "📅 {dia}"
-
-#: pdf/engine.py:1010
-#, python-brace-format
-msgid "🕐 {hora}"
-msgstr "🕐 {hora}"
-
 #: core/absencies.py:44 core/substitucions.py:99
 msgid "   🔄 Convertit dia ISO a nom XML: '{}'"
 msgstr "   🔄 Convertit dia ISO a nom XML: '{}'"
-
-#: core/absencies.py:36 core/substitucions.py:95
-msgid "⚠️ Error convertint dia ISO: {}"
-msgstr "⚠️ Error convertint dia ISO: {}"
-
-#: core/alliberats.py:47
-#, python-brace-format
-msgid "⚠️ Error comprovant baixa de {professor}: {e}"
-msgstr "⚠️ Error comprovant baixa de {professor}: {e}"
 
 #. Marca com a ocupat amb vigilància
 #: core/alliberats.py:111 core/alliberats.py:126
@@ -606,28 +178,10 @@ msgstr "VIGILANCIA {detall}"
 msgid "vigilància"
 msgstr "vigilancia"
 
-#. Ja porta la informació de vigilància, només afegeix estadístiques
-#: core/alliberats.py:111 core/alliberats.py:113 core/alliberats.py:115
-#, python-brace-format
-msgid "{detall} - {num_subs} subs"
-msgstr "{detall} - {num_subs} subs"
-
 #: core/alliberats.py:160
 #, python-brace-format
 msgid "Grup {grup}"
 msgstr "Grupo {grup}"
-
-#: core/baixes.py:63
-msgid "⚠️ Error en carregar baixes: {}"
-msgstr "⚠️ Error cargando bajas: {}"
-
-#: core/baixes.py:95
-msgid "⚠️ Error parseig dates baixa {}: {}"
-msgstr "⚠️ Error parseig dates baixa {}: {}"
-
-#: core/baixes.py:161
-msgid "🔄 Cache de baixes invalidat"
-msgstr "🔄 Caché de bajas invalidado"
 
 #: horari_web.py:141
 #, python-brace-format
@@ -647,21 +201,6 @@ msgstr "Sin límite de profesor o '{professor}' no encontrado"
 #, python-brace-format
 msgid "Horari carregat: {prof_count} professors, {grup_count} grups"
 msgstr "Horario cargado:  profesores {prof_count} {grup_count}"
-
-#: core/horari.py:127
-#, python-brace-format
-msgid "Dies: {dies}"
-msgstr "Dies: {dies}"
-
-#: core/horari.py:128
-#, python-brace-format
-msgid "Hores: {hores}"
-msgstr "Hores: {hores}"
-
-#: core/horari.py:129 core/horari.py:401
-#, python-brace-format
-msgid "Primers 10 grups: {grups}"
-msgstr "Primers 10 grups: {grups}"
 
 #: horari_web.py:227
 msgid "Error en carregar horari: {error}"
@@ -704,62 +243,6 @@ msgstr "Dimanche"
 msgid "Índex de dia invàlid: {index} (rang vàlid: 0-6)"
 msgstr "Índice de día inválido: {index} (rango válido: 0-6)"
 
-#: core/horari.py:394
-#, python-brace-format
-msgid "Fitxer XML: {path}"
-msgstr "Archivo XML: No cargado {path}"
-
-#: core/horari.py:395
-#, python-brace-format
-msgid "Professor límit configurat: {professor}"
-msgstr "Profesor límit configurat: {professor}"
-
-#: core/horari.py:396
-#, python-brace-format
-msgid "Professors carregats: {count}"
-msgstr "Profesores cargados: {count}"
-
-#: core/horari.py:397
-#, python-brace-format
-msgid "Primers 5: {professors}"
-msgstr "Profesores {professors}"
-
-#: core/horari.py:399
-#, python-brace-format
-msgid "Últims 5: {professors}"
-msgstr "Últimos 5: {professors}"
-
-#: core/horari.py:400
-#, python-brace-format
-msgid "Grups consolidats (ESO/BATX): {count}"
-msgstr "Grupos consolidados (ESO/BATX): {count}"
-
-#: core/horari.py:405
-#, python-brace-format
-msgid "Grups individuals (ESO/BATX): {count}"
-msgstr "Grupos individuales (ESO/BATX): {count}"
-
-#: core/horari.py:406
-#, python-brace-format
-msgid "Primers 10 individuals: {grups}"
-msgstr "Primeros 10 individuales: {grups}"
-
-#: core/horari.py:407
-msgid "===================="
-msgstr "===================="
-
-#: core/json_loader.py:46 core/substitutions_data_manager.py:48
-msgid "❌ Error en carregar vigilàncies del JSON: {}"
-msgstr "❌ Error cargando vigilancias del JSON: {error}"
-
-#: core/json_loader.py:89 core/substitutions_data_manager.py:93
-msgid "⚠️ Error extraient absents: {}"
-msgstr "⚠️ Error detectando estado."
-
-#: core/json_loader.py:196 core/substitutions_data_manager.py:182
-msgid "⚠️ Error formatejant substitucions: {}"
-msgstr "⚠️ Error formateando sustituciones: {}"
-
 #: core/substitucions.py:112
 msgid "   📌 hores carregades de l'XML: {}"
 msgstr "   📌 hores carregades de l'XML: {}"
@@ -780,26 +263,6 @@ msgstr "   🟡 _assignar_substitucions_per_hora(): dia='{}', hora='{}', {} subs
 msgid "      📊 {} candidats trobats per hora {}"
 msgstr "      📊 {} candidatos encontrados por hora {}"
 
-#: core/substitucions.py:508
-msgid "ℹ️ No hi ha substitucions publicades per {}: {}"
-msgstr "ℹ️ No hay sustituciones publicadas para {}: {}"
-
-#: core/substitutions_data_manager.py:202
-msgid "⚠️ Error en obtenir substitucions del JSON: {}"
-msgstr "❌ Error generando sustituciones"
-
-#: core/substitutions_data_manager.py:232
-msgid "⚠️ Error en obtenir substitucions actuals: {}"
-msgstr "❌ Error generando sustituciones"
-
-#: core/substitutions_data_manager.py:264
-msgid "⚠️ Error en obtenir disponibles per {} a {}: {}"
-msgstr "⚠️ Error obteniendo disponibles para {} a {}: {}"
-
-#: core/substitutions_data_manager.py:300
-msgid "⚠️ Error comptant canvis: {}"
-msgstr "⚠️ Error contando cambios: {}"
-
 #: core/vigilancia_core.py:161
 msgid "ABSENT"
 msgstr "ABSENT"
@@ -812,284 +275,10 @@ msgstr "VIGILANCIA"
 msgid "JA ASSIGNAT"
 msgstr "JA ASSIGNAT"
 
-#: core/vigilancia_data.py:210
-msgid "📁 grups.json ja existeix, no es regenera (permet edició manual)"
-msgstr "📁 grups.json ja existeix, no es regenera (permet edició manual)"
-
-#: core/vigilancia_data.py:221
-msgid "✅ grups.json generat automàticament amb {} nivells:"
-msgstr "✅ grups.json generado automáticamente con {} niveles:"
-
-#: core/vigilancia_data.py:223
-msgid "   - {}: {} grups"
-msgstr "   - {}: {} grups"
-
-#: core/vigilancia_data.py:228
-msgid "❌ Error en generar grups.json: {}"
-msgstr "Error cargando horario"
-
-#: core/vigilancia_data.py:239
-msgid "Missing required field: {}"
-msgstr "Missing required field: {}"
-
-#: core/vigilancia_data.py:244
-msgid "Invalid hour format: {}"
-msgstr "Invalid hour format: {}"
-
-#: utils/exception_chain.py:67
-msgid "operació desconeguda"
-msgstr "operació desconeguda"
-
-#: utils/exception_chain.py:68
-msgid "Error inesperat"
-msgstr "Error inesperat"
-
-#: utils/exception_chain.py:69
-msgid "Excepció no gestionada"
-msgstr "Excepció no gestionada"
-
-#: utils/exception_chain.py:90
-msgid "Error en {}"
-msgstr "Error"
-
-#: utils/exception_chain.py:148 utils/exception_chain.py:154
-msgid "accés a fitxer"
-msgstr "accés a archivo"
-
-#: utils/exception_chain.py:149
-msgid "Fitxer no trobat. Comprova que el fitxer existeix."
-msgstr "Archivo no encontrado. Comprueba que el archivo existeix."
-
-#: utils/exception_chain.py:154
-msgid "Permisos insuficients per accedir al fitxer."
-msgstr "Permisos insuficientes per accedir al archivo."
-
-#: utils/exception_chain.py:159
-msgid "processament de dades"
-msgstr "procesamiento de datos"
-
-#: utils/exception_chain.py:159
-msgid "Error en format de dades. Comprova l'entrada."
-msgstr "Error en format de dades. Comprueba l'entrada."
-
-#: utils/exception_chain.py:164
-msgid "connexió externa"
-msgstr "conexión externa"
-
-#: utils/exception_chain.py:164
-msgid "Error de connexió. Comprova la connectivitat."
-msgstr "Error de conexión. Comprueba la connectivitat."
-
-#: utils/exception_chain.py:179
-msgid "descodificació JSON"
-msgstr "descodificació JSON"
-
-#: utils/exception_chain.py:180
-msgid "Format de fitxer corrupte. Regenera el fitxer."
-msgstr "Format de archivo corrupte. Regenera el archivo."
-
-#: utils/exception_chain.py:186
-msgid "accés a dades"
-msgstr "accés a dades"
-
-#: utils/exception_chain.py:186
-msgid "Dada no trobada. Comprova la configuració."
-msgstr "Dada no encontrada. Comprueba la configuració."
-
-#: utils/exception_chain.py:191
-msgid "tipus de dades"
-msgstr "tipo de datos"
-
-#: utils/exception_chain.py:191
-msgid "Error en tipus de dada. Comprova l'entrada."
-msgstr "Error en tipus de dada. Comprueba l'entrada."
-
-#: utils/exception_chain.py:203
-msgid "accés a llista"
-msgstr "accés a llista"
-
-#: utils/exception_chain.py:203
-msgid "Índex fora de rang. Comprova les dades."
-msgstr "Índex fora de rang. Comprueba les dades."
-
-#: utils/exception_chain.py:208
-msgid "accés a propietat"
-msgstr "accés a propietat"
-
-#: utils/exception_chain.py:208
-msgid "Propietat no trobada. Comprova l'objecte."
-msgstr "Propietat no encontrada. Comprueba l'objecte."
-
-#: utils/exception_chain.py:213
-msgid "càlcul matemàtic"
-msgstr "càlcul matemàtic"
-
-#: utils/exception_chain.py:213
-msgid "Divisió per zero. Comprova els valors."
-msgstr "Divisió per zero. Comprueba els valors."
-
-#: utils/grups_utils.py:65
-msgid "⚠️ No existeix {}"
-msgstr "⚠️ No existeix {file}"
-
-#: utils/grups_utils.py:72
-msgid "✅ Carregades {} abreviatures de grups des de {}"
-msgstr "✅ Cargadas {num} abreviatures de {file}"
-
-#: utils/grups_utils.py:75
-msgid "❌ Error decodificant JSON de {}: {}"
-msgstr "❌ Error descargando de Sheets: {error}"
-
-#: utils/grups_utils.py:78
-msgid "⚠️ Error en carregar abreviatures de {}: {}"
-msgstr "⚠️ Error carregant abreviatures de {}: {}"
-
-#: utils/unsaved_changes.py:95
-msgid "Error comparant substitucions: {}"
-msgstr "❌ Error generando sustituciones"
-
-#: utils/unsaved_changes.py:105
-msgid "Canvis no desats"
-msgstr "Cambios no guardados"
-
-#. Text explicatiu
-#: utils/unsaved_changes.py:111
-msgid "⚠️ Canvis no desats al dia {}"
-msgstr "⚠️ Cambios no guardados al dia {}"
-
-#: utils/unsaved_changes.py:123 utils/unsaved_changes.py:185
-msgid "🆕 NOVES SUBSTITUCIONS:\n"
-msgstr "🆕 NUEVAS SUSTITUCIONES:\n"
-
-#: utils/unsaved_changes.py:125 utils/unsaved_changes.py:135 utils/unsaved_changes.py:187 utils/unsaved_changes.py:197
-#, python-brace-format
-msgid "  • {hora} - {absent} ({assignatura}, {grup}) → {substitut}\n"
-msgstr "  • {hora} - {absent} ({assignatura}, {grup}) → {substitut}\n"
-
-#: utils/unsaved_changes.py:129 utils/unsaved_changes.py:139 utils/unsaved_changes.py:191 utils/unsaved_changes.py:201
-#, python-brace-format
-msgid "    💬 Comentari: {comentaris}\n"
-msgstr "    💬 Comentari: {comentaris}\n"
-
-#: utils/unsaved_changes.py:133 utils/unsaved_changes.py:195
-msgid "🗑️ SUBSTITUCIONS ELIMINADES:\n"
-msgstr "🗑️ SUSTITUCIONES ELIMINADAS:\n"
-
-#: utils/unsaved_changes.py:143 utils/unsaved_changes.py:205
-msgid "✏️ SUBSTITUCIONS MODIFICADES:\n"
-msgstr "✏️ SUSTITUCIONES MODIFICADAS:\n"
-
-#: utils/unsaved_changes.py:145 utils/unsaved_changes.py:207
-#, python-brace-format
-msgid "  • {hora} - {absent} ({assignatura}, {grup})\n"
-msgstr "  • {hora} - {absent} ({assignatura}, {grup})\n"
-
-#: utils/unsaved_changes.py:150 utils/unsaved_changes.py:212
-#, python-brace-format
-msgid "    Substitut: {anterior} → {actual}\n"
-msgstr "    Sustituto: {anterior} → {actual}\n"
-
-#: utils/unsaved_changes.py:151 utils/unsaved_changes.py:152 utils/unsaved_changes.py:157 utils/unsaved_changes.py:158 utils/unsaved_changes.py:213 utils/unsaved_changes.py:214 utils/unsaved_changes.py:219 utils/unsaved_changes.py:220
-msgid "(buit)"
-msgstr "(buit)"
-
-#: utils/unsaved_changes.py:156 utils/unsaved_changes.py:218
-#, python-brace-format
-msgid "    💬 Comentari: {anterior} → {actual}\n"
-msgstr "    💬 Comentari: {anterior} → {actual}\n"
-
-#: utils/unsaved_changes.py:166
-msgid "🆕 NOVES ABSÈNCIES:\n"
-msgstr "🆕 NOVES ABSÈNCIES:\n"
-
-#: utils/unsaved_changes.py:168 utils/unsaved_changes.py:174
-#, python-brace-format
-msgid "  • {absent}\n"
-msgstr "  • {absent}\n"
-
-#: utils/unsaved_changes.py:172
-msgid "🗑️ ABSÈNCIES ELIMINADES:\n"
-msgstr "🗑️ ABSÈNCIES ELIMINADES:\n"
-
-#: utils/unsaved_changes.py:178
-msgid "🔄 CANVIS DE TIPUS D'ABSÈNCIA:\n"
-msgstr "🔄 CANVIS DE TIPUS D'ABSÈNCIA:\n"
-
-#: utils/unsaved_changes.py:180
-#, python-brace-format
-msgid "  • {canvi}\n"
-msgstr "  • {canvi}\n"
-
-#: utils/unsaved_changes.py:225
-msgid "No s'han detectat canvis."
-msgstr "No se han detectado cambios."
-
-#: utils/unsaved_changes.py:233
-msgid "💾 Desar canvis"
-msgstr "💾 Guardar Grupos"
-
-#: utils/unsaved_changes.py:234
-msgid "🗑️ Descartar canvis"
-msgstr "🗑️ Descartar canvis"
-
-#: utils/unsaved_changes.py:340
-msgid "Error comparant absents: {}"
-msgstr "❌ Error subiendo a Sheets: {error}"
-
-#: utils/unsaved_changes.py:393
-msgid "💾 Canvis desats i sincronitzats"
-msgstr "🔧 Acciones del Sistema"
-
-#: utils/unsaved_changes.py:396
-msgid "❌ Error en desar canvis"
-msgstr "❌ Error al guardar cambios\n❌ Error al guardar datos localmente"
-
-#: utils/unsaved_changes.py:405
-msgid "Error comprovant canvis no desats: {}"
-msgstr "Error comprovant canvis no desats: {}"
-
-#: data/google_storage.py:523
-msgid "Sense connexió a Internet"
-msgstr "Sense conexión a Internet"
-
-#: data/google_storage.py:525
-msgid "Permisos insuficients per modificar Google Sheets"
-msgstr "Permisos insuficientes per modificar Google Sheets"
-
-#: data/google_storage.py:527
-msgid "Límit de peticions a Google Sheets exhaurit"
-msgstr "Límite de peticions a Google Sheets exhaurit"
-
-#: data/google_storage.py:529
-msgid "Temps d'espera esgotat connectant a Google Sheets"
-msgstr "Tiempo de espera agotado conectando a Google Sheets{prefix}⏰ Datos guardados localmente (timeout conectando a Google Sheets){prefix}⏰ Datos Guardadas localment (timeout connectant a Google Sheets)"
-
-#: data/google_storage.py:531
-msgid "Error d'autenticació amb Google Sheets"
-msgstr "⚠️ Error de conexión - Revisa Google Sheets."
-
-#: data/google_storage.py:533
-msgid "Error de connexió amb Google Sheets"
-msgstr "Error de conexión con Google Sheets"
-
-#: data/google_storage.py:535
-msgid "Error: {error}"
-msgstr "  error: {error}"
-
 #: pdf/validacions.py:43
 #, python-brace-format
 msgid "🔄 {hora}: {vigilant} assignat {count} vegades com a vigilant"
 msgstr "🔄 {hora}: {vigilant} asignado {count} veces como vigilante"
-
-#: pdf/router.py
-#, python-brace-format
-msgid "⚠️ {hora}: Vigilant {vigilant} està absent"
-msgstr "⚠️ {hora}: Vigilante {vigilant} está ausente"
-
-#: pdf/validacions.py:145
-#, python-brace-format
-msgid "⚠️ {hora}: Vigilant {vigilant} té classe ({assignatura}, {grup})"
-msgstr "⚠️ {hora}: Vigilante {vigilant} tiene clase ({assignatura}, {grup})"
 
 #: pdf/validacions.py:161
 #, python-brace-format
@@ -1129,10 +318,6 @@ msgstr "⚠️ {hora}: Sustituto {substitut} tiene clase ({assignatura_sub}, {gr
 #: pdf/engine.py:694
 msgid "absent"
 msgstr "ausente"
-
-#: pdf/engine.py:693
-msgid "absent (servei)"
-msgstr "ausente (servicio)"
 
 #: pdf/taula.py:138
 msgid "Les files en cursiva amb fons de color són vigilàncies d'examen."
@@ -1278,10 +463,6 @@ msgstr "Intensidad: proporción respecto al máximo del curso"
 msgid "Mes"
 msgstr "Mes"
 
-#: pdf/informe_direccio.py:751
-msgid "Niv."
-msgstr "Niv."
-
 #: pdf/informe_direccio.py:675
 msgid "Nivell"
 msgstr "Nivel"
@@ -1305,10 +486,6 @@ msgstr "Profesor ausente"
 #: pdf/informe_direccio.py:368 pdf/informe_direccio.py:541
 msgid "Professor/a"
 msgstr "Profesor/a"
-
-#: pdf/informe_direccio.py:669
-msgid "Resum per nivell"
-msgstr "Resumen por nivel"
 
 #: pdf/informe_direccio.py:384
 msgid "Serv"
@@ -1370,10 +547,6 @@ msgstr "⚠️ AVISO: Hay profesores de mayor prioridad disponibles:"
 msgid "⚠️ {hora}: Vigilant {vigilant} absent sense cobertura"
 msgstr "⚠️ {hora}: Vigilante {vigilant} ausente sin cobertura"
 
-#: pdf/validacions.py:85
-msgid "❌ {hora}: {prof} - VIGILÀNCIA sense substitut assignat"
-msgstr "❌ {hora}: {prof} - VIGILANCIA sin sustituto asignado"
-
 #: pdf/engine.py:516
 msgid "🕐 HORA {hora}:"
 msgstr "🕐 HORA {hora}:"
@@ -1402,15 +575,6 @@ msgstr "Vigilancia"
 msgid "Hores"
 msgstr "Horas"
 
-#: pdf/validacions.py
-msgid "ℹ️ {count} classes de vigilants amb substitut (el professor vigila un examen a aquella hora)"
-msgstr "ℹ️ {count} clases de vigilantes con sustituto (el profesor vigila un examen a esa hora)"
-
-#: pdf/validacions.py
-msgid "❌ {count} classes de vigilants sense substitut (el professor vigila un examen a aquella hora)"
-msgstr "❌ {count} clases de vigilantes sin sustituto (el profesor vigila un examen a esa hora)"
-
-
 msgid "⚠️ No s’ha pogut completar la comprovació de l’horari"
 msgstr "⚠️ No se ha podido completar la comprobación del horario"
 
@@ -1425,10 +589,6 @@ msgstr "ℹ️ {hora}: {vigilant} vigila; {assignatura} de {grup} cubierta por {
 
 msgid "❌ {hora}: {vigilant} vigila; {assignatura} de {grup} queda sense substitut"
 msgstr "❌ {hora}: {vigilant} vigila; {assignatura} de {grup} queda sin sustituto"
-
-
-msgid "ℹ️ {hora}: Vigilant {vigilant} alliberat manualment"
-msgstr "ℹ️ {hora}: Vigilante {vigilant} liberado manualmente"
 
 
 msgid "ℹ️ {hora}: Vigilant {vigilant} té una activitat sense grup ({assignatura})"

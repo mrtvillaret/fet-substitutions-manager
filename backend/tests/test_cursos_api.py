@@ -61,7 +61,7 @@ def test_editar_i_esborrar_reencadenen_els_cursos(centre):
 def test_un_curs_inexistent_dona_404(centre):
     admin = _client(centre, "admin")
     cos = {"nom": "X", "data_inici": "2026-09-07"}
-    assert admin.put(f"{URL}/999999", json=cos).json() == {"detail": "Curs no trobat"}
+    assert admin.put(f"{URL}/999999", json=cos).json()["detail"] == "Curs no trobat"
     assert admin.delete(f"{URL}/999999").status_code == 404
 
 
@@ -107,7 +107,7 @@ def test_dos_cursos_no_poden_comencar_el_mateix_dia(centre):
 
     for resposta in (creat, editat):
         assert resposta.status_code == 400
-        assert resposta.json() == {"detail": "Ja hi ha un altre curs que comença aquest dia"}
+        assert resposta.json()["detail"] == "Ja hi ha un altre curs que comença aquest dia"
     assert admin.get(URL).json() == abans
     # Editar un curs sense canviar-ne la data d'inici sí que es pot
     assert admin.put(f"{URL}/{primer['id']}", json={"nom": "Nou nom", "data_inici": "2026-09-07"}).status_code == 200

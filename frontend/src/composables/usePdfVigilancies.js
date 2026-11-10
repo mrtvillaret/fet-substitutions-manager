@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed, watch } from 'vue'
 import * as apiPdf from '../api/pdf.js'
 import { dataIso } from '../dates.js'
@@ -207,7 +207,7 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
+        detail: detallDError(err) || t('vigilancies.errors.generatePdf'),
         life: 5000
       }))
       generantPDF.value = false
@@ -265,7 +265,7 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdf'),
+        detail: detallDError(err) || t('vigilancies.errors.generatePdf'),
         life: 5000
       }))
     } finally {
@@ -361,7 +361,7 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: err.response?.data?.detail || t('vigilancies.errors.generatePdfInterval'),
+        detail: detallDError(err) || t('vigilancies.errors.generatePdfInterval'),
         life: 5000
       }))
     } finally {

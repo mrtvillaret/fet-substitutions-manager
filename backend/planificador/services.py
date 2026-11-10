@@ -150,7 +150,7 @@ def desa_restriccions(db: Session, restriccions: dict) -> None:
             "Per posar exàmens de nivells diferents al mateix moment, feu servir la preferència "
             '"Mateix dia i hora".',
             codi="agrupacio_de_diversos_nivells",
-            params={"agrupacions": barrejades},
+            params={"agrupacions": ", ".join(barrejades)},
         )
     regles.desa(db, restriccions or {})
     db.commit()

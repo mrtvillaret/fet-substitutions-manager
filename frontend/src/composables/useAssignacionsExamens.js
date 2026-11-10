@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed, watch } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 
@@ -154,7 +154,7 @@ export function useAssignacionsExamens({ assignacions, aules, toast, t, confirma
         avisaError(error, () => toast.add({
           severity: 'error',
           summary: t('common.error'),
-          detail: error.response?.data?.detail || t('examConfig.errors.createAssignment'),
+          detail: detallDError(error) || t('examConfig.errors.createAssignment'),
           life: 3000
         }))
       }
