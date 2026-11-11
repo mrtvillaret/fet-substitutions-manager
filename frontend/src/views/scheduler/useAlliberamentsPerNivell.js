@@ -269,15 +269,15 @@ export const useAlliberamentsPerNivell = ({
   const menuFilaItems = computed(() => ([
     { label: `🟩 ${t('scheduler.steps.config.menu.allReleased')}`, icon: 'pi pi-check-square', command: () => accioFilaTotAlliberat() },
     { label: `🟩🟦 ${t('scheduler.steps.config.menu.releasedAndStart')}`, icon: 'pi pi-check-square', command: () => accioFilaTotAmbInici() },
-    { label: `✖ ${t('scheduler.steps.config.menu.clearRow')}`, icon: 'pi pi-times', command: () => accioFilaNetejar() },
+    { label: t('scheduler.steps.config.menu.clearRow'), icon: 'pi pi-times', command: () => accioFilaNetejar() },
     { separator: true },
-    { label: `❌ ${t('scheduler.steps.config.menu.deleteDay')}`, icon: 'pi pi-trash', class: 'menu-perill', command: () => accioFilaEliminar() }
+    { label: t('scheduler.steps.config.menu.deleteDay'), icon: 'pi pi-trash', class: 'menu-perill', command: () => accioFilaEliminar() }
   ]))
 
   const menuColumnaItems = computed(() => ([
     { label: `🟩 ${t('scheduler.steps.config.menu.allReleased')}`, icon: 'pi pi-check-square', command: () => accioColumnaTotAlliberat() },
     { label: `🟩🟦 ${t('scheduler.steps.config.menu.releasedAndStart')}`, icon: 'pi pi-check-square', command: () => accioColumnaTotAmbInici() },
-    { label: `✖ ${t('scheduler.steps.config.menu.clearColumn')}`, icon: 'pi pi-times', command: () => accioColumnaNetejar() }
+    { label: t('scheduler.steps.config.menu.clearColumn'), icon: 'pi pi-times', command: () => accioColumnaNetejar() }
   ]))
 
   const mostrarMenuFila = (event, nivell, data) => {

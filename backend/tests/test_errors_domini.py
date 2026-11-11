@@ -30,13 +30,16 @@ def test_cada_categoria_respon_amb_el_seu_status_i_el_missatge(classe, status):
     assert resp.json() == {"detail": "Un missatge", "codi": "prova", "params": {}}
 
 
-def test_no_autenticat_respon_401_com_l_excepcio_http_d_abans():
-    # Mateix cos (només el detail) i mateixes capçaleres que HTTPException(401)
+def test_no_autenticat_respon_401_amb_el_codi_i_les_capcaleres_de_l_excepcio_http():
+    # El cos porta el codi com la resta d'errors de domini; les capçaleres són
+    # les d'una HTTPException(401) (cap www-authenticate), llevat de la mida
     nou = _client_que_llanca(NoAutenticat("Sessió tancada", codi="sessio_tancada")).get("/prova")
     abans = _client_que_llanca(HTTPException(status_code=401, detail="Sessió tancada")).get("/prova")
     assert nou.status_code == abans.status_code == 401
-    assert nou.content == abans.content == b'{"detail":"Sessi\xc3\xb3 tancada"}'
-    assert dict(nou.headers) == dict(abans.headers)
+    assert nou.json() == {"detail": "Sessió tancada", "codi": "sessio_tancada", "params": {}}
+    nou_capcaleres, abans_capcaleres = (dict(r.headers) for r in (nou, abans))
+    del nou_capcaleres["content-length"], abans_capcaleres["content-length"]
+    assert nou_capcaleres == abans_capcaleres
 
 
 def test_el_codi_i_els_parametres_surten_a_la_resposta_amb_el_text():

@@ -4,7 +4,7 @@ import os
 from contextvars import ContextVar
 
 # Dominis de traducció modular
-DOMAINS = ["messages", "gui", "core", "export", "utils", "manual"]
+DOMAINS = ["messages", "gui", "core", "export"]
 
 # Camí al directori de traduccions
 LOCALE_DIR = os.path.join(os.path.dirname(__file__), "locales")

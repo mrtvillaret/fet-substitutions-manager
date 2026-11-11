@@ -278,6 +278,7 @@ import FormulariVigilancia from '../components/vigilancies/FormulariVigilancia.v
 import TaulaVigilancies from '../components/vigilancies/TaulaVigilancies.vue'
 import { useAjudaVigilant } from '../composables/useAjudaVigilant'
 import { useOrdreFiles } from '../composables/useOrdreFiles'
+import { useDialegsInterns } from '../dialegsInterns'
 
 const emit = defineEmits(['anar-substitucions'])
 const toast = useToast()
@@ -394,6 +395,14 @@ const { mostrarDialogConflicte, gestionarConflicte, executarOverwrite, canviaCam
 
 const { titularsHoraLliure, vigilanciesSenseTitular, posantTitular, assignantTitulars, assignantPendents, ordenant, posaTitularHoraLliure, assignarTitulars, assignarPendents, confirmarNetejar, ordenarPerHora, idsTitularsHoraLliure } = useAssignacioVigilancies({
   dataISO, vigilancies, toast, t, confirm, confirmaEsborrar, carregarVigilancies
+})
+
+// «Enrere» tanca aquests diàlegs com la creu (dialegsInterns.js)
+useDialegsInterns({
+  'vigilancies-nova': mostrarFormulariNova,
+  'vigilancies-pdf': mostrarDialogPDF,
+  'vigilancies-pdf-avisos': mostrarDialogValidacionsVig,
+  'vigilancies-pdf-interval': mostrarDialogInterval,
 })
 
 watch(dataTreball, async () => {

@@ -16,9 +16,6 @@ interpola (ho vigila tests/test_codis_errors.py).
 class ErrorDeDomini(Exception):
     """Base comuna. No es llança directament: cal triar-ne la categoria."""
 
-    # Si la resposta HTTP porta el codi i els paràmetres a més del missatge
-    amb_codi_a_la_resposta = True
-
     def __init__(self, missatge: str, *, codi: str, params: dict | None = None):
         if type(self) is ErrorDeDomini:
             raise TypeError("Cal llançar una categoria: NoAutenticat, NoTrobat, NoPermes, NoValid o Conflicte")
@@ -29,11 +26,11 @@ class ErrorDeDomini(Exception):
 
 
 class NoAutenticat(ErrorDeDomini):
-    """Qui ho demana no ha entrat, o la seva sessió ja no val."""
+    """Qui ho demana no ha entrat, o la seva sessió ja no val.
 
-    # La resposta només porta el `detail`: la web no el tradueix (diu per què
-    # cal tornar a entrar amb els seus textos, app.login.*).
-    amb_codi_a_la_resposta = False
+    La web no tradueix el missatge (diu per què cal tornar a entrar amb els seus
+    textos, app.login.*), però en llegeix el codi: `sessio_tancada`.
+    """
 
 
 class NoTrobat(ErrorDeDomini):

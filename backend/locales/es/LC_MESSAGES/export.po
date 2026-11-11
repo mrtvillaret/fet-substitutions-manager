@@ -17,100 +17,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: export/base_pdf.py:131
-msgid "✅ S'ha obert el PDF amb xdg-open"
-msgstr "✅ Se ha abierto el PDF con xdg-open"
-
-#: export/base_pdf.py:133 pdf/engine.py:64
-#, python-brace-format
-msgid "⚠️ No s'ha pogut obrir automàticament: {error}"
-msgstr "⚠️ No se ha podido abrir automáticamente: {error}"
-
-#: export/base_pdf.py:170
-#, python-brace-format
-msgid "RESUM: {num} elements"
-msgstr "RESUMEN: {num} elementos"
-
-#: export/base_pdf.py:173 export/pdf.py:200
-#, python-brace-format
-msgid "✅ S'ha generat el fitxer de text: {filename}"
-msgstr "✅ Se ha generado el archivo de texto: {filename}"
-
-#: export/base_pdf.py:177 export/pdf.py:204
-#, python-brace-format
-msgid "❌ Error en generar fitxer de text: {error}"
-msgstr "❌ Error al generar archivo de texto: {error}"
-
-#: export/pdf_interval.py:52
-msgid "Atenció"
-msgstr "Atención"
-
-#: export/pdf_interval.py:52
-msgid "No hi ha dates vàlides a l'interval seleccionat"
-msgstr "No hay fechas válidas en el intervalo seleccionado"
-
-#: export/pdf_interval.py:57
-msgid "Cap nivell seleccionat"
-msgstr "Ningún nivel seleccionado"
-
-#: export/pdf_interval.py:58
-msgid "❌ Has de seleccionar almenys un nivell per generar el PDF."
-msgstr "❌ Debes seleccionar al menos un nivel para generar el PDF."
-
-#: export/pdf_interval.py:89
-msgid "PDF d'Interval Generat"
-msgstr "PDF de Intervalo Generado"
-
-#: export/pdf_interval.py:90
-#, python-brace-format
-msgid ""
-"✅ PDF generat correctament:\n"
-"\n"
-"📅 Període: {data_inici_cat} - {data_final_cat}\n"
-"🎓 Nivells: {nivells}\n"
-"📊 {total_vigilancies} vigilàncies en {dies_amb_vigilancies} dies\n"
-"📄 Fitxer: {filename}"
-msgstr ""
-"✅ PDF generado correctamente:\n"
-"\n"
-"📅 Período: {data_inici_cat} - {data_final_cat}\n"
-"🎓 Niveles: {nivells}\n"
-"📊 {total_vigilancies} vigilancias en {dies_amb_vigilancies} días\n"
-"📄 Archivo: {filename}"
-
-#: export/pdf_interval.py:104 export/pdf_interval.py:109
-#: export/pdf/combined_exporter.py:213 export/pdf/combined_exporter.py:217
-#: export/pdf/dialogs.py:288
-msgid "Error"
-msgstr "Error"
-
-#: export/pdf_interval.py:104
-msgid "No s'ha pogut exportar el PDF d'interval"
-msgstr "No se ha podido exportar el PDF de intervalo"
-
-#: export/pdf_interval.py:109
-#, python-brace-format
-msgid "Error en generar PDF d'interval: {e}"
-msgstr "Error al generar PDF de intervalo: {e}"
-
-#: export/pdf_interval.py:213
-#, python-brace-format
-msgid "📋 Substitucions de vigilàncies en l'interval: {count}"
-msgstr "📋 Sustituciones de vigilancias en el intervalo: {count}"
-
-#: export/pdf_interval.py:222
-msgid "🗜️ Compressió manual activada per a interval de vigilàncies"
-msgstr "🗜️ Compresión manual activada para intervalo de vigilancias"
-
-#: export/pdf_interval.py:235
-#, python-brace-format
-msgid "Error en generar PDF concatenat: {error}"
-msgstr "Error al generar PDF concatenado: {error}"
-
-#: export/pdf.py:50
-msgid "<b>Substitucions de Professors</b>"
-msgstr "<b>Sustituciones de Profesores</b>"
-
 #: export/pdf.py:55 export/pdf.py:168 pdf/engine.py:600
 #: pdf/engine.py:604 pdf/engine.py:618 pdf/engine.py:622
 msgid "Hora"
@@ -138,352 +44,10 @@ msgstr "Grupo"
 msgid "Substitut"
 msgstr "Sustituto"
 
-#: export/pdf.py:55 export/pdf.py:168
-msgid "Comentaris"
-msgstr "Comentarios"
-
-#: export/pdf.py:121
-msgid "No hi ha substitucions per aquest dia."
-msgstr "No hay sustituciones para este día."
-
-#: export/pdf.py:131
-#, python-brace-format
-msgid ""
-"<b>Resum:</b> {total} substitucions totals | {assignades} assignades | "
-"{pendents} pendents"
-msgstr ""
-"<b>Resumen:</b> {total} sustituciones totales | {assignades} asignadas | "
-"{pendents} pendientes"
-
-#: export/pdf.py:145
-#, python-brace-format
-msgid "✅ S'ha generat el PDF: {filename}"
-msgstr "✅ Se ha generado el PDF: {filename}"
-
-#: export/pdf.py:149
-msgid "⚠️ ReportLab no disponible, es generarà un fitxer de text..."
-msgstr "⚠️ ReportLab no disponible, se generará un archivo de texto..."
-
-#: export/pdf.py:153
-#, python-brace-format
-msgid "❌ Error en exportar PDF: {error}"
-msgstr "❌ Error al exportar PDF: {error}"
-
-#: export/pdf.py:163
-msgid "SUBSTITUCIONS DE PROFESSORS"
-msgstr "SUSTITUCIONES DE PROFESORES"
-
-#: export/pdf.py:192
-#, python-brace-format
-msgid "RESUM: {total} substitucions"
-msgstr "RESUMEN: {total} sustituciones"
-
-#: export/pdf.py:194
-#, python-brace-format
-msgid "Assignades: {assignades} | Pendents: {pendents}"
-msgstr "Asignadas: {assignades} | Pendientes: {pendents}"
-
-#: export/pdf.py:197
-#, python-brace-format
-msgid ""
-"\n"
-"Generat: {timestamp}"
-msgstr ""
-"\n"
-"Generado: {timestamp}"
-
-#: export/pdf/combined_exporter.py:68
-#, python-brace-format
-msgid "Error en obtenir vigilàncies: {error}"
-msgstr "Error al obtener vigilancias: {error}"
-
-#: export/pdf/combined_exporter.py:95
-msgid ""
-"⚠️ AVÍS: Hi ha professors de major prioritat disponibles:\n"
-"\n"
-msgstr ""
-"⚠️ AVISO: Hay profesores de mayor prioridad disponibles:\n"
-"\n"
-
-#: export/pdf/combined_exporter.py:97
-msgid ""
-"\n"
-"\n"
-"Voleu continuar amb l'exportació?"
-msgstr ""
-"\n"
-"\n"
-"¿Quieres continuar con la exportación?"
-
-#: export/pdf/combined_exporter.py:101
-msgid "Professors de major prioritat disponibles"
-msgstr "Profesores de mayor prioridad disponibles"
-
-#: export/pdf/combined_exporter.py:103 export/pdf/combined_exporter.py:275
-msgid "Sí"
-msgstr "Sí"
-
-#: export/pdf/combined_exporter.py:104 export/pdf/combined_exporter.py:276
-msgid "No"
-msgstr "No"
-
-#: export/pdf/combined_exporter.py:112
-#, python-brace-format
-msgid ""
-"📋 PDF Complet per {data}\n"
-"\n"
-msgstr ""
-"📋 PDF Completo para {data}\n"
-"\n"
-
-#: export/pdf/combined_exporter.py:115 export/pdf/combined_exporter.py:154
-#: export/pdf/combined_exporter.py:202
-#, python-brace-format
-msgid "📝 Substitucions: {assignades} assignades de {totals}\n"
-msgstr "📝 Sustituciones: {assignades} asignadas de {totals}\n"
-
-#: export/pdf/combined_exporter.py:118 export/pdf/combined_exporter.py:162
-#: export/pdf/combined_exporter.py:205
-#, python-brace-format
-msgid "👁️ Vigilàncies: {assignades} assignades de {totals}\n"
-msgstr "👁️ Vigilancias: {assignades} asignadas de {totals}\n"
-
-#: export/pdf/combined_exporter.py:151
-#, python-brace-format
-msgid ""
-"📋 PDF per {data}\n"
-"\n"
-msgstr ""
-"📋 PDF para {data}\n"
-"\n"
-
-#: export/pdf/combined_exporter.py:159
-#, python-brace-format
-msgid "👁️ Vigilàncies ({nivells}): {assignades} assignades de {totals}\n"
-msgstr "👁️ Vigilancias ({nivells}): {assignades} asignadas de {totals}\n"
-
-#: export/pdf/combined_exporter.py:166
-msgid "S'està generant el PDF complet..."
-msgstr "Generando el PDF completo..."
-
-#: export/pdf/combined_exporter.py:194
-msgid ""
-"\n"
-"❌ Error en desar dades localment"
-msgstr ""
-"\n"
-"❌ Error al guardar datos localmente"
-
-#: export/pdf/combined_exporter.py:196
-#, python-brace-format
-msgid ""
-"\n"
-"❌ Error inesperat: {error}"
-msgstr ""
-"\n"
-"❌ Error inesperado: {error}"
-
-#: export/pdf/combined_exporter.py:200
-#, python-brace-format
-msgid ""
-"✅ PDF creat i obert correctament!\n"
-"\n"
-"📄 Fitxer: {filename}\n"
-msgstr ""
-"✅ ¡PDF creado y abierto correctamente!\n"
-"\n"
-"📄 Archivo: {filename}\n"
-
-#: export/pdf/combined_exporter.py:209
-msgid "PDF generat"
-msgstr "PDF generado"
-
-#: export/pdf/combined_exporter.py:211
-#, python-brace-format
-msgid "✅ PDF creat: {filename}"
-msgstr "✅ PDF creado: {filename}"
-
-#: export/pdf/combined_exporter.py:213
-msgid "❌ No s'ha pogut generar el PDF complet"
-msgstr "❌ No se ha podido generar el PDF completo"
-
-#: export/pdf/combined_exporter.py:214
-msgid "❌ Error en generar PDF complet"
-msgstr "❌ Error al generar PDF completo"
-
-#: export/pdf/combined_exporter.py:217
-msgid "Error en exportar el PDF complet"
-msgstr "Error al exportar el PDF completo"
-
-#: export/pdf/combined_exporter.py:218
-msgid "❌ Error d'exportació"
-msgstr "❌ Error de exportación"
-
-#: export/pdf/combined_exporter.py:252
-msgid ""
-"S'han detectat conflictes:\n"
-"\n"
-msgstr ""
-"Se han detectado conflictos:\n"
-"\n"
-
-#: export/pdf/combined_exporter.py:269
-msgid ""
-"\n"
-"Voleu continuar amb l'exportació?"
-msgstr ""
-"\n"
-"¿Quieres continuar con la exportación?"
-
-#: export/pdf/combined_exporter.py:273
-msgid "Conflictes detectats"
-msgstr "Conflictos detectados"
-
-#: export/pdf/combined_exporter.py:307
-msgid "🗜️ Compressió manual activada per l'usuari"
-msgstr "🗜️ Compresión manual activada por el usuario"
-
-#: export/pdf/combined_exporter.py:323
-#, python-brace-format
-msgid "Error en generar PDF combinat: {error}"
-msgstr "Error al generar PDF combinado: {error}"
-
-#: export/pdf/combined_exporter.py:347
-msgid "⚠️ Fitxer vigilancies_examens.json no trobat"
-msgstr "⚠️ Archivo vigilancies_examens.json no encontrado"
-
-#: export/pdf/combined_exporter.py:350
-#, python-brace-format
-msgid "❌ Error en carregar vigilàncies del JSON: {error}"
-msgstr "❌ Error al cargar vigilancias del JSON: {error}"
-
-#: export/pdf/combined_exporter.py:375
-#, python-brace-format
-msgid "⚠️ Error en obtenir vigilàncies de finestra existent: {error}"
-msgstr "⚠️ Error al obtener vigilancias de ventana existente: {error}"
-
-#: export/pdf/combined_exporter.py:417
-#, python-brace-format
-msgid "❌ Error en carregar vigilàncies directament: {error}"
-msgstr "❌ Error al cargar vigilancias directamente: {error}"
-
-#: export/pdf/combined_exporter.py:466
-#, python-brace-format
-msgid "⚠️ Error en comptar canvis respecte al PDF: {error}"
-msgstr "⚠️ Error al contar cambios respecto al PDF: {error}"
-
-#: export/pdf/dialogs.py:13 export/pdf/dialogs.py:211
-msgid "Exportació del PDF de vigilàncies"
-msgstr "Exportación del PDF de vigilancias"
-
-#: export/pdf/dialogs.py:43
-msgid "📄 Configureu les opcions:"
-msgstr "📄 Configura las opciones:"
-
-#: export/pdf/dialogs.py:57
-msgid "🎓 Nivells"
-msgstr "🎓 Niveles"
-
-#: export/pdf/dialogs.py:63
-msgid "✅ Tots"
-msgstr "✅ Todos"
-
-#: export/pdf/dialogs.py:65
-msgid "❌ Cap"
-msgstr "❌ Ninguno"
-
-#: export/pdf/dialogs.py:109
-msgid "⚙️ Opcions"
-msgstr "⚙️ Opciones"
-
-#: export/pdf/dialogs.py:114 export/pdf/dialogs.py:132
-#: export/pdf/dialogs.py:261
-msgid "🗜️ Compressió del PDF"
-msgstr "🗜️ Compresión del PDF"
-
-#: export/pdf/dialogs.py:116 export/pdf/dialogs.py:134
-#: export/pdf/dialogs.py:263
-msgid "Redueix l'espaiat per a estalviar pàgines"
-msgstr "Reduce el espaciado para ahorrar páginas"
-
-#: export/pdf/dialogs.py:119 export/pdf/dialogs.py:137
-#: export/pdf/dialogs.py:266
-msgid "💬 Mostrar columna comentaris"
-msgstr "💬 Mostrar columna comentarios"
-
-#: export/pdf/dialogs.py:121 export/pdf/dialogs.py:139
-#: export/pdf/dialogs.py:268
-msgid "Mostra o amaga la columna d'observacions al PDF"
-msgstr "Muestra u oculta la columna de observaciones en el PDF"
-
-#: export/pdf/dialogs.py:124 export/pdf/dialogs.py:142
-#: export/pdf/dialogs.py:271
-msgid "🕒 Mostrar columna hores"
-msgstr "🕒 Mostrar columna horas"
-
-#: export/pdf/dialogs.py:126 export/pdf/dialogs.py:144
-#: export/pdf/dialogs.py:273
-msgid "Afegeix una columna amb la franja horària"
-msgstr "Añade una columna con la franja horaria"
-
-#: export/pdf/dialogs.py:149 export/pdf/dialogs.py:278
-msgid "D'acord"
-msgstr "Aceptar"
-
-#: export/pdf/dialogs.py:150 export/pdf/dialogs.py:279
-msgid "Cancel·la"
-msgstr "Cancelar"
-
-#: export/pdf/dialogs.py:217
-msgid "📄 Exportació del PDF complet"
-msgstr "📄 Exportación del PDF completo"
-
-#: export/pdf/dialogs.py:247
-msgid "📄 Seleccioneu les opcions del PDF:"
-msgstr "📄 Selecciona las opciones del PDF:"
-
-#: export/pdf/dialogs.py:251
-msgid "📚 Substitucions"
-msgstr "📚 Sustituciones"
-
-#: export/pdf/dialogs.py:253
-msgid "Inclou la llista de substitucions del dia"
-msgstr "Incluye la lista de sustituciones del día"
-
-#: export/pdf/dialogs.py:256
-msgid "👁️ Vigilàncies"
-msgstr "👁️ Vigilancias"
-
-#: export/pdf/dialogs.py:258
-msgid "Inclou les vigilàncies d'exàmens i activitats"
-msgstr "Incluye las vigilancias de exámenes y actividades"
-
-#: export/pdf/dialogs.py:288
-msgid "Heu de seleccionar almenys una opció per a generar el PDF."
-msgstr "Debes seleccionar al menos una opción para generar el PDF."
-
-#: pdf/engine.py:61
-#, python-brace-format
-msgid "📖 S'ha obert el PDF amb xdg-open: {filepath}"
-msgstr "📖 Se ha abierto el PDF con xdg-open: {filepath}"
-
-#: pdf/engine.py:65
-#, python-brace-format
-msgid "📁 Fitxer disponible a: {filepath}"
-msgstr "📁 Archivo disponible en: {filepath}"
-
 #: pdf/engine.py:97
 #, python-brace-format
 msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
 msgstr "Aviso: No se ha podido cargar la partición de palabras: {error}"
-
-#: pdf/engine.py:120
-msgid "📄 Compressió activada manualment per l'usuari"
-msgstr "📄 Compresión activada manualmente por el usuario"
-
-#: pdf/engine.py:122
-msgid "📄 PDF normal sense compressió"
-msgstr "📄 PDF normal sin compresión"
 
 #: pdf/engine.py:244 pdf/engine.py:256
 msgid "SUBSTITUCIONS"
@@ -535,11 +99,6 @@ msgstr "🕐 HORA {hora}:"
 msgid "Generat el {data} a les {hora}"
 msgstr "Generado el {data} a las {hora}"
 
-#: pdf/engine.py:397
-#, python-brace-format
-msgid "✅ S'ha generat el PDF combinat: {output_path}"
-msgstr "✅ Se ha generado el PDF combinado: {output_path}"
-
 #: pdf/engine.py:403
 #, python-brace-format
 msgid "❌ Error en generar PDF: {error}"
@@ -565,36 +124,6 @@ msgstr "Aula"
 msgid "Vigilant"
 msgstr "Vigilante"
 
-#: pdf/engine.py:655 pdf/engine.py:803
-#, python-brace-format
-msgid "🔍 Compressió automàtica: fonts reduïdes a H:{header} B:{body}"
-msgstr "🔍 Compresión automática: fuentes reducidas a H:{header} B:{body}"
-
-#: pdf/engine.py:985
-#, python-brace-format
-msgid "⚠️ {hora}: Substitut {substitut} {absence_text}"
-msgstr "⚠️ {hora}: Sustituto {substitut} {absence_text}"
-
-#: pdf/engine.py:990
-#, python-brace-format
-msgid "🕐 {hora}: Substitut {substitut} duplicat"
-msgstr "🕐 {hora}: Sustituto {substitut} duplicado"
-
-#: pdf/engine.py:1001
-#, python-brace-format
-msgid "❌ {hora}: {professor} - {assignatura} sense substitut assignat"
-msgstr "❌ {hora}: {professor} - {assignatura} sin sustituto asignado"
-
-#: pdf/engine.py:1014
-#, python-brace-format
-msgid "⚠️ {hora}: Vigilant {vigilant} {absence_text}"
-msgstr "⚠️ {hora}: Vigilante {vigilant} {absence_text}"
-
-#: pdf/engine.py:1019
-#, python-brace-format
-msgid "🕐 {hora}: Vigilant {vigilant} duplicat"
-msgstr "🕐 {hora}: Vigilante {vigilant} duplicado"
-
 #: pdf/engine.py:1027
 #, python-brace-format
 msgid "🏫 {hora}: Aula {aula} duplicada"
@@ -605,39 +134,10 @@ msgstr "🏫 {hora}: Aula {aula} duplicada"
 msgid "❌ {hora}: {tipus} sense vigilant assignat"
 msgstr "❌ {hora}: {tipus} sin vigilante asignado"
 
-#: pdf/engine.py:1039
-#, python-brace-format
-msgid "❌ {hora}: Assignatura {tipus} sense vigilant assignat"
-msgstr "❌ {hora}: Asignatura {tipus} sin vigilante asignado"
-
 #: pdf/engine.py:1046
 #, python-brace-format
 msgid "🏫 {hora}: {tipus} sense aula assignada"
 msgstr "🏫 {hora}: {tipus} sin aula asignada"
-
-#: pdf/engine.py:1049
-#, python-brace-format
-msgid "🏫 {hora}: Assignatura {tipus} sense aula assignada"
-msgstr "🏫 {hora}: Asignatura {tipus} sin aula asignada"
-
-#: pdf/engine.py:1080
-#, python-brace-format
-msgid ""
-"🔄 {hora}: {professor} té {num} substitucions (Substituts: {substituts} | "
-"Assignatures: {assignatures})"
-msgstr ""
-"🔄 {hora}: {professor} tiene {num} sustituciones (Sustitutos: {substituts} | "
-"Asignaturas: {assignatures})"
-
-#: pdf/engine.py:1132
-#, python-brace-format
-msgid "📅 {dia}"
-msgstr "📅 {dia}"
-
-#: pdf/engine.py:1151
-#, python-brace-format
-msgid "🕐 {hora}"
-msgstr "🕐 {hora}"
 
 # --- Informe Direcció i Professors ---
 
@@ -653,23 +153,14 @@ msgstr "Informe generado el {timestamp} · {nom_centre}"
 msgid "Evolució mensual"
 msgstr "Evolución mensual"
 
-msgid "Professors amb més absències"
-msgstr "Profesores con más ausencias"
-
 msgid "Evolució d'absències per professor i mes"
 msgstr "Evolución de ausencias por profesor y mes"
 
 msgid "Evolució de substitucions fetes per professor i mes"
 msgstr "Evolución de sustituciones realizadas por profesor y mes"
 
-msgid "Professors que han fet més substitucions"
-msgstr "Profesores que han realizado más sustituciones"
-
 msgid "Impacte per grup"
 msgstr "Impacto por grupo"
-
-msgid "Resum per nivell"
-msgstr "Resumen por nivel"
 
 msgid "Evolució d'absències per grup i mes"
 msgstr "Evolución de ausencias por grupo y mes"
@@ -679,9 +170,6 @@ msgstr "Distribución por día de la semana y hora"
 
 msgid "Distribució per dia i hora"
 msgstr "Distribución por día y hora"
-
-msgid "Vigilàncies d'examen"
-msgstr "Vigilancias de examen"
 
 msgid "Absències reals"
 msgstr "Ausencias reales"
@@ -701,20 +189,11 @@ msgstr "Sustituciones realizadas"
 msgid "Substitucions fetes (triangle inf)"
 msgstr "Sustituciones realizadas (triángulo inf)"
 
-msgid "Cobertes"
-msgstr "Cubiertas"
-
-msgid "Baixes"
-msgstr "Bajas"
-
 msgid "Dies amb incid."
 msgstr "Días con incid."
 
 msgid "Total incid."
 msgstr "Total incid."
-
-msgid "Niv."
-msgstr "Niv."
 
 msgid "Professor/a"
 msgstr "Profesor/a"
@@ -730,12 +209,6 @@ msgstr "Aus"
 
 msgid "Serv"
 msgstr "Serv"
-
-msgid "% sobre total"
-msgstr "% sobre total"
-
-msgid "Concepte"
-msgstr "Concepto"
 
 msgid "Pendent"
 msgstr "Pendiente"
@@ -758,18 +231,6 @@ msgstr "No hay sustitución realizada."
 msgid "Cap dada disponible."
 msgstr "No hay datos disponibles."
 
-msgid "Total vigilàncies programades"
-msgstr "Total vigilancias programadas"
-
-msgid "Vigilants absents (cobertura necessària)"
-msgstr "Vigilantes ausentes (cobertura necesaria)"
-
-msgid "Vigilants absents coberts"
-msgstr "Vigilantes ausentes cubiertos"
-
-msgid "Vigilants absents pendents"
-msgstr "Vigilantes ausentes pendientes"
-
 msgid "Intensitat de color: proporció d'absències respecte al màxim del curs"
 msgstr "Intensidad de color: proporción de ausencias respecto al máximo del curso"
 
@@ -778,9 +239,6 @@ msgstr "Intensidad de color: proporción respecto al máximo del curso"
 
 msgid "Intensitat: proporció respecte al màxim del curs"
 msgstr "Intensidad: proporción respecto al máximo del curso"
-
-msgid "* Mostrant els {top} primers de {total} professors"
-msgstr "* Mostrando los {top} primeros de {total} profesores"
 
 msgid "Dilluns"
 msgstr "Lunes"
@@ -802,21 +260,6 @@ msgstr "Sábado"
 
 msgid "Diumenge"
 msgstr "Domingo"
-
-msgid "Dll"
-msgstr "Lun"
-
-msgid "Dmt"
-msgstr "Mar"
-
-msgid "Dmc"
-msgstr "Mié"
-
-msgid "Djo"
-msgstr "Jue"
-
-msgid "Div"
-msgstr "Vie"
 
 msgid "Període"
 msgstr "Período"

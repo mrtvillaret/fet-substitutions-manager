@@ -113,8 +113,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useConfirm } from 'primevue/useconfirm'
+import { useConfirmaSortida, useAvisTancarPestanya } from '../composables/useConfirmaSortida'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import TabView from 'primevue/tabview'
@@ -128,8 +127,6 @@ import GestioDadesTab from './config/GestioDadesTab.vue'
 import UsuarisTab from './config/UsuarisTab.vue'
 import InstitucionsTab from './config/InstitucionsTab.vue'
 
-const { t } = useI18n()
-const confirm = useConfirm()
 
 const props = defineProps({
   visible: {
@@ -155,32 +152,24 @@ const isSuperAdmin = computed(() => props.currentRole === 'super_admin')
 // de tancament del diàleg (com abans, només depèn dels settings del sistema).
 const systemDirty = ref(false)
 
-const handleVisibleChange = (newVal) => {
+const confirmaSortida = useConfirmaSortida()
+const teCanvis = computed(() => props.visible && systemDirty.value)
+useAvisTancarPestanya(() => teCanvis.value)
+
+const handleVisibleChange = async (newVal) => {
   if (newVal) {
     emit('update:visible', true)
     return
   }
-
-  if (!systemDirty.value) {
-    emit('update:visible', false)
-    return
-  }
-
-  confirm.require({
-    message: t('common.unsavedChangesPrompt'),
-    header: t('common.unsavedChangesTitle'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('common.closeAnyway'),
-    rejectLabel: t('common.cancel'),
-    accept: () => {
-      emit('update:visible', false)
-    }
-  })
+  if (await confirmaSortida(teCanvis.value)) emit('update:visible', false)
 }
 
 const tancar = () => {
   handleVisibleChange(false)
 }
+
+// App.vue: «Enrere» amb canvis sense desar pregunta com el botó de tancar
+defineExpose({ teCanvis, tanca: tancar })
 </script>
 
 <style scoped>

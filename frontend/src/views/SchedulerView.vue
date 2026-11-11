@@ -286,6 +286,7 @@ import { useSchedulerRestrictions } from './scheduler/useSchedulerRestrictions'
 import { useSchedulerResults } from './scheduler/useSchedulerResults'
 import { useSchedulerIncidencies } from './scheduler/useSchedulerIncidencies'
 import { useSchedulerSlotsConfig } from './scheduler/useSchedulerSlotsConfig'
+import { useDialegsInterns } from '../dialegsInterns'
 
 const toast = useToast()
 const { t, locale, te } = useI18n()
@@ -1160,6 +1161,20 @@ const {
   logsIncidencies,
   logsEnllacos,
   result,
+})
+
+// «Enrere» tanca aquests diàlegs com la creu (dialegsInterns.js)
+useDialegsInterns({
+  'planificador-durada': mostrarDialogDurada,
+  'planificador-professor': mostrarDialogProfessor,
+  'planificador-dia-hora': mostrarDialogDiaHora,
+  'planificador-preferencia-dia': mostrarDialogPreferenciaDia,
+  'planificador-incompatibilitat': mostrarDialogIncompatibilitat,
+  'planificador-agrupacio': mostrarDialogAgrupacio,
+  'planificador-cost-professor': mostrarDialogCostProfessor,
+  'planificador-intents': mostrarDialogIntents,
+  'planificador-incompatibilitats': mostrarDialogIncompat,
+  'planificador-publica': mostrarPublicarDialog,
 })
 
 onMounted(() => {

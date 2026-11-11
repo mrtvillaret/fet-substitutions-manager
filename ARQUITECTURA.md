@@ -66,6 +66,7 @@ locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
 │                        FRONTEND (Vue 3)                          │
 │                                                                  │
 │  main.js → App.vue (i18n, PrimeVue) — navegació per tabs  │
+│  adreca.js ← adreça per pantalla i diàleg (sense vue-router)     │
 │                                                                  │
 │  VISTES PRINCIPALS                                               │
 │  ├── SubstitucionsView.vue                                       │
@@ -336,6 +337,55 @@ versionat és un recurs estàtic de només lectura. El contenidor executa el
 backend amb UID/GID `10001:10001`; els volums de dades han de tenir permisos
 per a aquest usuari. Procediment, demo, còpies i reversió: [DESPLEGAMENT.md](DESPLEGAMENT.md).
 
+## Adreça de cada pantalla i diàleg
+
+Sense vue-router. L'adreça és `<base><pantalla>?data=AAAA-MM-DD&obert=<diàleg>`
+(p. ex. `/vigilancies?data=2026-11-12&obert=estadistiques`; a la demo,
+`/demo/vigilancies...`). Pantalles: `substitucions` (també `/`), `grups`,
+`vigilancies` i `scheduler`. Diàlegs: `configuracio`, `configuracio-examens`,
+`estadistiques`, `perfil`, `ajuda` i `menu` (el del mòbil). La data d'avui no
+s'escriu. Els diàlegs de dins de cada pantalla (PDF, absències...) no tenen adreça,
+però sí entrada a l'historial: «Enrere» els tanca (`src/dialegsInterns.js`).
+
+- `src/adreca.js`: funcions pures (`llegeixAdreca`, `escriuAdreca`,
+  `pasHistorial`). Un valor desconegut és el de per defecte (Substitucions,
+  sense data ni diàleg); la pàgina reescriu l'adreça neta sense cap error.
+- `composables/useAplicacio.js`: l'estat (`estatAdreca`: pestanya, data de
+  treball i diàleg obert) s'escriu a l'adreça cada cop que canvia. Canviar de
+  pantalla o obrir un diàleg afegeix una entrada a l'historial; canviar de data
+  o passar d'un diàleg a un altre la substitueix; tancar un diàleg que té una
+  entrada pròpia (`history.state.dialeg`) torna enrere, i si s'havia obert per
+  enllaç directe la substitueix (així mai no se surt de l'aplicació en tancar-lo).
+- `popstate` («Enrere»/«Endavant»): s'aplica la pantalla i el diàleg de
+  l'adreça; la data de treball no torna enrere (és la de tota l'aplicació) i es
+  reescriu a l'adreça. Amb canvis sense desar, es torna a posar l'adreça d'on
+  se sortia i es pregunta: Grups amb el seu `potSortir()`, i Configuració i
+  Configuració d'exàmens amb `tanca()` (exposen `teCanvis`).
+- En entrar (galeta vigent, login o recàrrega), la data s'aplica de seguida i la
+  pantalla i el diàleg quan se sap el rol: configuració, configuració
+  d'exàmens, estadístiques i el planificador són només per als admins
+  (`isSchedulerRoute` també ho exigeix); el menú, només al mòbil. El que no es
+  permet no s'obre i l'adreça queda neta. En sortir es tanquen els diàlegs.
+- Diàlegs de dins de les pantalles (`src/dialegsInterns.js`): cada pantalla
+  registra els seus amb `useDialegsInterns` mentre és muntada (Substitucions: la
+  fitxa d'absències, el PDF i els avisos del PDF; Vigilàncies: «Nova
+  vigilància», el PDF, els avisos i el PDF d'interval; Grups: els reforços; el
+  planificador: els seus formularis, els intents, les incompatibilitats i
+  «Publica»). L'obert és `estatAdreca.intern`: no s'escriu a l'adreça, però
+  `pasHistorial` el tracta com un diàleg més i l'entrada en guarda el nom
+  (`history.state.intern`). «Enrere» el tanca com la creu i «Endavant» no el
+  reobre (no se'n sap el context). Cap d'aquests diàlegs no té confirmació de
+  canvis sense desar. Fora: les confirmacions (`ConfirmDialog`), el conflicte
+  d'edició (no es pot tancar sense triar), els desplegables i panells, i els
+  diàlegs de dins d'un altre diàleg (Configuració, Estadístiques...), que
+  «Enrere» tanca amb el pare.
+- Canvis sense desar: `composables/useConfirmaSortida.js` (la confirmació
+  «Canvis sense desar / Sí, tanca», amb un `ConfirmDialog` de grup propi a
+  App.vue, i l'avís del navegador abans de tancar o recarregar la pestanya).
+  Grups té el seu diàleg propi (Desa / No desis / Cancel·la).
+- Servidor: Nginx (`try_files ... /index.html`) i `vite dev`/`preview` ja
+  serveixen l'`index.html` per a qualsevol camí, també sota el `base`.
+
 ## Vista de substitucions
 
 `SubstitucionsView.vue` coordina la data de treball, la generació, la taula i
@@ -408,15 +458,16 @@ classes i regles), en català: `autentica`, `canvia_contrasenya`,
 `comprova_no_protegit`.
 
 **Errors.** Un servei que troba una regla incomplerta llança un error de
-`errors_domini.py`, segons la mena: `NoTrobat` (404), `NoPermes` (403),
-`NoValid` (400) o `Conflicte` (409). Tots són `ErrorDeDomini`, que no es
-llança directament i porta el missatge per a l'usuari, un `codi` obligatori i
-uns `params` opcionals per quan el frontend tradueixi els missatges.
+`errors_domini.py`, segons la mena: `NoAutenticat` (401), `NoTrobat` (404),
+`NoPermes` (403), `NoValid` (400) o `Conflicte` (409). Tots són
+`ErrorDeDomini`, que no es llança directament i porta el missatge per a
+l'usuari, un `codi` obligatori i uns `params` opcionals.
 `errors_domini.py` no sap res d'HTTP: la taula categoria → status
 (`STATUS_PER_CATEGORIA`) i l'únic gestor són a `errors_servidor.py`
-(`registra_gestors_errors`), que respon com sempre, `{"detail": "<missatge>"}`;
-el codi i els paràmetres encara no hi surten. Els errors que són pròpiament d'HTTP (els 401 de sessió i de
-credencials) continuen sent `HTTPException` a `dependencies.py` i al router.
+(`registra_gestors_errors`), que respon `{"detail": "<missatge>", "codi":
+"...", "params": {...}}`. La web tradueix el missatge pel codi
+(`errors.<codi>`) i, als 401, en mira el codi per dir si la sessió s'ha tancat
+(`sessio_tancada`) o ha caducat (`useAplicacio.js`; sense codi, pel text).
 
 ```python
 # services.py
@@ -619,10 +670,14 @@ pytest tests/
 
 ### Fluxos de navegador (Playwright)
 
-`frontend/e2e/` conté la configuració i quatre fluxos amb Chromium:
+`frontend/e2e/` conté la configuració i cinc fluxos amb Chromium:
 sessió, canvi de dia (següent/anterior/calendari), assignació de substitut i
-vigilant i descàrrega del PDF del dia. Cadascun s’executa a 1440 × 900 i a
-390 × 844 amb tacte (vuit casos). Les assignacions es comproven també per
+vigilant, descàrrega del PDF del dia, i l'adreça («Enrere» amb un diàleg obert,
+també la fitxa d'absències i el PDF de dins de Substitucions,
+recàrrega i enllaç directe amb pantalla, data i diàleg). Cadascun s’executa a
+1440 × 900 i a 390 × 844 amb tacte (deu casos). Cada flux entra de nou, i el
+backend només deixa entrar 5 cops per minut a cada usuari: un sisè flux per
+dispositiu necessitaria un altre usuari de prova o reaprofitar la sessió. Les assignacions es comproven també per
 l’API i després de recarregar; `pdfinfo` valida les pàgines del PDF descarregat.
 
 Requisits: Python 3.13, Node 22 i `pdfinfo` (`poppler-utils` a Debian/Ubuntu).

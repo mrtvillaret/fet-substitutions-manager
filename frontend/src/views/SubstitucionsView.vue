@@ -166,6 +166,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
 import TaulaSubstitucions from '../components/substitucions/TaulaSubstitucions.vue'
+import { useDialegsInterns } from '../dialegsInterns'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -355,6 +356,13 @@ const {
 } = usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, collator, toast, t, mostrarAvisos, carregarSubstitucions })
 
 defineExpose({ mostrarDialegPDF })
+
+// «Enrere» tanca aquests diàlegs com la creu (dialegsInterns.js)
+useDialegsInterns({
+  'substitucions-absencies': { obert: () => mostrarDialogGestio.value, tanca: tancarDialogGestio },
+  'substitucions-pdf': mostrarDialogPDF,
+  'substitucions-pdf-avisos': mostrarDialogValidacions,
+})
 
 // Watch per canvis de data
 watch(dataTreball, async () => {

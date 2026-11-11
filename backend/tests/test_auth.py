@@ -246,17 +246,19 @@ def test_sense_cookie_dona_401(client, escenari):
     assert client.get("/prova/user").status_code == 401
 
 
-def test_cada_401_diu_el_mateix_que_abans_i_sense_capcaleres_d_autenticacio(client, escenari):
-    respostes = {"No autenticat": client.get("/prova/user")}
-    respostes["Credencials incorrectes"] = _login(client, escenari["noms"]["user_a"], "incorrecta")
+def test_cada_401_diu_el_text_i_el_codi_i_sense_capcaleres_d_autenticacio(client, escenari):
+    respostes = {("No autenticat", "no_autenticat"): client.get("/prova/user")}
+    respostes["Credencials incorrectes", "credencials_incorrectes"] = _login(
+        client, escenari["noms"]["user_a"], "incorrecta"
+    )
     client.cookies.set(get_config_auth().cookie_name, "no-es-un-token")
-    respostes["Token invàlid"] = client.get("/prova/user")
+    respostes["Token invàlid", "token_invalid"] = client.get("/prova/user")
     _posa_token(client, {"sub": escenari["noms"]["user_a"], "exp": ARA - timedelta(minutes=1)})
-    respostes["Sessió caducada"] = client.get("/prova/user")
+    respostes["Sessió caducada", "sessio_caducada"] = client.get("/prova/user")
     _posa_token(client, {"sub": "no_existeix", "uid": -1, "exp": ARA + timedelta(minutes=5)})
-    respostes["Usuari inactiu o inexistent"] = client.get("/prova/user")
-    for detail, resp in respostes.items():
-        assert (resp.status_code, resp.json()) == (401, {"detail": detail})
+    respostes["Usuari inactiu o inexistent", "usuari_inactiu"] = client.get("/prova/user")
+    for (detail, codi), resp in respostes.items():
+        assert (resp.status_code, resp.json()) == (401, {"detail": detail, "codi": codi, "params": {}})
         assert "www-authenticate" not in resp.headers
 
 
@@ -291,7 +293,7 @@ def test_token_sense_usuari_dona_401(client, escenari):
     _posa_token(client, {"institucio": escenari["a"], "role": "admin", "exp": ARA + timedelta(minutes=5)})
     resp = client.get("/prova/user")
     assert resp.status_code == 401
-    assert resp.json() == {"detail": "Token invàlid"}
+    assert resp.json() == {"detail": "Token invàlid", "codi": "token_invalid", "params": {}}
 
 
 def test_token_sense_caducitat_dona_401(client, escenari):
@@ -301,7 +303,7 @@ def test_token_sense_caducitat_dona_401(client, escenari):
     )
     resp = client.get("/prova/user")
     assert resp.status_code == 401
-    assert resp.json() == {"detail": "Token invàlid"}
+    assert resp.json() == {"detail": "Token invàlid", "codi": "token_invalid", "params": {}}
 
 
 @pytest.mark.parametrize("camp", ["exp", "sub"])

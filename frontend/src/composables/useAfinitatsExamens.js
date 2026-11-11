@@ -1,10 +1,14 @@
 import { avisaError, detallDError } from '../errorsApi.js'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 
 // Extret de la vista: es preserven estat, efectes i ordre de les operacions.
 export function useAfinitatsExamens({ toast, t }) {
   const afinitats = ref([])
+  // Les afinitats es desen amb un botó: el que hi havia en carregar o desar,
+  // per saber si hi ha canvis sense desar (avís en tancar el diàleg)
+  const desades = ref('[]')
+  const teCanvis = computed(() => JSON.stringify(afinitats.value) !== desades.value)
 
   const carregarAfinitats = async () => {
     try {
@@ -18,6 +22,7 @@ export function useAfinitatsExamens({ toast, t }) {
       console.error('Error carregant afinitats:', error)
       afinitats.value = []
     }
+    desades.value = JSON.stringify(afinitats.value)
   }
 
   const afegirFilaAfinitat = () => {
@@ -46,6 +51,7 @@ export function useAfinitatsExamens({ toast, t }) {
         base: row.base || '',
         ordreText: Array.isArray(row.ordre) ? row.ordre.join(',') : ''
       }))
+      desades.value = JSON.stringify(afinitats.value)
 
       toast.add({
         severity: 'success',
@@ -64,5 +70,5 @@ export function useAfinitatsExamens({ toast, t }) {
     }
   }
 
-  return { afinitats, carregarAfinitats, afegirFilaAfinitat, eliminarFilaAfinitat, desarAfinitats }
+  return { afinitats, teCanvis, carregarAfinitats, afegirFilaAfinitat, eliminarFilaAfinitat, desarAfinitats }
 }

@@ -268,14 +268,17 @@
       </footer>
 
       <!-- Diàlegs -->
+      <!-- Canvis sense desar en tancar un diàleg (useConfirmaSortida.js) -->
+      <ConfirmDialog :group="GRUP_SORTIDA" />
       <ConfiguracioDialog
+        ref="configuracioRef"
         v-model:visible="mostrarConfiguracio"
         :currentRole="userProfile?.role"
         :currentInstitucio="userProfile?.institucio"
         @cursos-canviats="carregarCursos"
         @xml-importat="handleInstitucioCanviada"
       />
-      <ConfiguracioExamensDialog v-model:visible="mostrarConfiguracioExamens" />
+      <ConfiguracioExamensDialog ref="configuracioExamensRef" v-model:visible="mostrarConfiguracioExamens" />
       <EstadistiquesDialog
         v-model:visible="mostrarEstadistiques"
         :curs="cursDeLaData"
@@ -359,6 +362,7 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import Dialog from 'primevue/dialog'
+import ConfirmDialog from 'primevue/confirmdialog'
 import SubstitucionsView from './views/SubstitucionsView.vue'
 import GrupsView from './views/GrupsView.vue'
 import VigilanciesView from './views/VigilanciesView.vue'
@@ -369,6 +373,7 @@ import EstadistiquesDialog from './components/EstadistiquesDialog.vue'
 import AjudaDialog from './components/AjudaDialog.vue'
 import ProfileDialog from './components/ProfileDialog.vue'
 import { useAplicacio } from './composables/useAplicacio'
+import { GRUP_SORTIDA } from './composables/useConfirmaSortida'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -378,6 +383,8 @@ const {
   autenticat,
   tabActiu,
   grupsRef,
+  configuracioRef,
+  configuracioExamensRef,
   canviaTab,
   substitucionsRef,
   dataSeleccionada,

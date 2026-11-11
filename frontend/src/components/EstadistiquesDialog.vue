@@ -246,7 +246,7 @@
             </div>
             <div class="temporal-actions">
               <Button
-                :label="`⏰ ${$t('stats.temporal.summaryBySlot')}`"
+                :label="$t('stats.temporal.summaryBySlot')"
                 icon="pi pi-clock"
                 class="p-button-secondary"
                 @click="obrirResumFranges"
@@ -257,7 +257,7 @@
           <TabPanel :header="`📚 ${$t('stats.tabs.classes')}`">
             <div class="classes-actions">
               <Button
-                :label="`🔎 ${$t('stats.classes.detailButton')}`"
+                :label="$t('stats.classes.detailButton')"
                 icon="pi pi-search"
                 class="p-button-secondary"
                 @click="obrirDetallClasses()"

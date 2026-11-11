@@ -2,7 +2,7 @@
   <Dialog
     class="dialog-stable-height"
     :visible="visible"
-    @update:visible="$emit('update:visible', $event)"
+    @update:visible="canviaVisible"
     :header="$t('examConfig.title')"
     :modal="true"
     :style="{ width: '900px', maxHeight: '90vh' }"
@@ -211,12 +211,13 @@ import { useAfinitatsExamens } from '../composables/useAfinitatsExamens.js'
 import { useImportacioExamens } from '../composables/useImportacioExamens.js'
 import { useAssignacionsExamens } from '../composables/useAssignacionsExamens.js'
 import { useCatalegsExamens } from '../composables/useCatalegsExamens.js'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { dataAmbAny } from '../dates'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
+import { useConfirmaSortida, useAvisTancarPestanya } from '../composables/useConfirmaSortida'
 import Dialog from 'primevue/dialog'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
@@ -345,6 +346,7 @@ const {
 
 const {
   afinitats,
+  teCanvis: afinitatsAmbCanvis,
   carregarAfinitats,
   afegirFilaAfinitat,
   eliminarFilaAfinitat,
@@ -370,9 +372,19 @@ const carregarTot = async () => {
   }
 }
 
-const tancar = () => {
-  emit('update:visible', false)
+// Afinitats sense desar: es pregunta abans de tancar (botó, creu o «Enrere»)
+// i el navegador avisa abans de tancar la pestanya
+const confirmaSortida = useConfirmaSortida()
+const teCanvis = computed(() => props.visible && !loading.value && afinitatsAmbCanvis.value)
+useAvisTancarPestanya(() => teCanvis.value)
+
+const canviaVisible = async (visible) => {
+  if (visible || await confirmaSortida(teCanvis.value)) emit('update:visible', visible)
 }
+
+const tancar = () => canviaVisible(false)
+
+defineExpose({ teCanvis, tanca: tancar })
 
 watch(() => props.visible, (newVal) => {
   if (newVal) {

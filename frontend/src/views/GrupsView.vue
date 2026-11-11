@@ -353,6 +353,7 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
 import { useGrups } from '../composables/useGrups'
+import { useDialegsInterns } from '../dialegsInterns'
 
 const toast = useToast()
 const { t, locale } = useI18n()
@@ -413,8 +414,13 @@ const {
   potSortir,
 } = useGrups({ t, locale, toast })
 
-// App.vue el crida abans de canviar de pestanya
-defineExpose({ potSortir })
+// App.vue el crida abans de canviar de pestanya (també amb «Enrere»)
+defineExpose({ potSortir, teCanvis })
+
+// «Enrere» tanca el diàleg dels reforços com la creu (dialegsInterns.js)
+useDialegsInterns({
+  'grups-reforc': { obert: () => reforc.visible, tanca: () => { reforc.visible = false } },
+})
 </script>
 
 <style scoped src="./grupsView.css"></style>

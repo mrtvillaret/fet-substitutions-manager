@@ -124,3 +124,61 @@ test('PDF: descarregar el del dia, vàlid i amb pàgines', async ({ page, hasTou
   // Un parser real comprova l'estructura, més enllà de la signatura.
   expect(execFileSync('pdfinfo', [fitxer], { encoding: 'utf8' })).toMatch(/Pages:\s+[1-9]\d*/)
 })
+
+// Adreça per pantalla i per diàleg: «Enrere» tanca el diàleg i després torna
+// a la pantalla anterior, sense sortir de l'aplicació; recarregar i els enllaços
+// directes conserven pantalla, data i diàleg. Un sol flux: cada flux torna a
+// entrar, i el backend només deixa entrar 5 cops per minut a cada usuari.
+test('adreça: «Enrere», recàrrega i enllaç directe', async ({ page, hasTouch }, testInfo) => {
+  const { data, seguent } = escenaris[testInfo.project.name]
+  await expect(page).toHaveURL(/\/substitucions$/)
+  // Diàlegs de dins de la pantalla (no van a l'adreça): «Enrere» els tanca i
+  // es queda a Substitucions. La fitxa d'absències sempre és a la pàgina; oberta,
+  // porta la classe bs-sheet--visible.
+  const fitxa = page.getByRole('dialog').filter({ hasText: 'Gestionar absències' })
+  await toca(page.getByRole('button', { name: 'Nova', exact: true }), hasTouch)
+  await expect(fitxa).toHaveClass(/bs-sheet--visible/)
+  await expect(page).toHaveURL(/\/substitucions$/)
+  await page.goBack()
+  await expect(fitxa).not.toHaveClass(/bs-sheet--visible/)
+  await expect(page).toHaveURL(/\/substitucions$/)
+  await toca(page.getByRole('button', { name: 'Genera PDF', exact: true }), hasTouch)
+  await expect(page.getByRole('dialog', { name: /Exporta PDF Complet/ })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('dialog', { name: /Exporta PDF Complet/ })).toBeHidden()
+  await diaVisible(page, data, 'Prof 15', '10:00', '3-ESO-A')
+  await toca(page.getByRole('button', { name: /Vigilàncies$/ }), hasTouch)
+  await expect(page.getByRole('heading', { name: /Vigilàncies/ })).toBeVisible()
+  await expect(page).toHaveURL(/\/vigilancies$/)
+  // Escriptori (admin): Estadístiques, el quart botó des del final (abans de perfil, ajuda i sortir).
+  // Mòbil: el menú (primer botó del banner).
+  const botons = page.getByRole('banner').getByRole('button')
+  await toca(hasTouch ? botons.first() : botons.nth((await botons.count()) - 4), hasTouch)
+  const obert = hasTouch ? 'menu' : 'estadistiques'
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/vigilancies\\?obert=${obert}$`))
+  await page.goBack()
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await expect(page).toHaveURL(/\/vigilancies$/)
+  await expect(page.getByRole('heading', { name: /Vigilàncies/ })).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL(/\/substitucions$/)
+  await diaVisible(page, data, 'Prof 15', '10:00', '3-ESO-A')
+
+  // Recàrrega: es conserven pantalla i data
+  await toca(page.getByRole('button', { name: /Vigilàncies$/ }), hasTouch)
+  await toca(page.getByRole('banner').getByRole('button').nth(hasTouch ? 3 : 2), hasTouch)
+  await expect(page).toHaveURL(new RegExp(`/vigilancies\\?data=${seguent}$`))
+  await page.reload()
+  await expect(page.getByRole('heading', { name: /Vigilàncies/ })).toBeVisible()
+  await expect(page.getByPlaceholder('Selecciona data')).toHaveValue(seguent.split('-').reverse().join('/'))
+  await expect(page).toHaveURL(new RegExp(`/vigilancies\\?data=${seguent}$`))
+  // Enllaç directe amb un diàleg (l'ajuda, per a tots els rols) i un valor desconegut
+  await page.goto(`/grups?data=${seguent}&obert=ajuda&x=1`)
+  await expect(page.getByRole('dialog', { name: /Ajuda/ })).toBeVisible()
+  await expect(page.getByPlaceholder('Selecciona data')).toHaveValue(seguent.split('-').reverse().join('/'))
+  await page.goto('/pantalla-que-no-existeix?obert=configuracio-falsa')
+  await expect(page).toHaveURL(/\/substitucions$/)
+  await expect(page.getByRole('heading', { name: '📋 Gestió de Substitucions', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: /Ajuda|Configuració/ })).toHaveCount(0)
+})

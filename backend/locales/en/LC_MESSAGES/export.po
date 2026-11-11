@@ -20,23 +20,14 @@ msgstr "Report generated on {timestamp} · {nom_centre}"
 msgid "Evolució mensual"
 msgstr "Monthly evolution"
 
-msgid "Professors amb més absències"
-msgstr "Teachers with most absences"
-
 msgid "Evolució d'absències per professor i mes"
 msgstr "Absence evolution by teacher and month"
 
 msgid "Evolució de substitucions fetes per professor i mes"
 msgstr "Substitutions made evolution by teacher and month"
 
-msgid "Professors que han fet més substitucions"
-msgstr "Teachers with most substitutions made"
-
 msgid "Impacte per grup"
 msgstr "Impact by group"
-
-msgid "Resum per nivell"
-msgstr "Summary by level"
 
 msgid "Evolució d'absències per grup i mes"
 msgstr "Absence evolution by group and month"
@@ -46,9 +37,6 @@ msgstr "Distribution by weekday and hour"
 
 msgid "Distribució per dia i hora"
 msgstr "Distribution by day and hour"
-
-msgid "Vigilàncies d'examen"
-msgstr "Exam supervisions"
 
 msgid "Absències"
 msgstr "Absences"
@@ -80,12 +68,6 @@ msgstr "Substitutions made (bottom triangle)"
 msgid "Cobertura"
 msgstr "Coverage"
 
-msgid "Cobertes"
-msgstr "Covered"
-
-msgid "Baixes"
-msgstr "Sick leaves"
-
 msgid "Dies amb incid."
 msgstr "Days with incid."
 
@@ -107,14 +89,8 @@ msgstr "Date"
 msgid "Grup"
 msgstr "Group"
 
-msgid "Grups"
-msgstr "Groups"
-
 msgid "Nivell"
 msgstr "Level"
-
-msgid "Niv."
-msgstr "Lev."
 
 msgid "Assignatura"
 msgstr "Subject"
@@ -146,12 +122,6 @@ msgstr "Abs"
 msgid "Serv"
 msgstr "Serv"
 
-msgid "% sobre total"
-msgstr "% of total"
-
-msgid "Concepte"
-msgstr "Concept"
-
 msgid "Pendent"
 msgstr "Pending"
 
@@ -179,18 +149,6 @@ msgstr "No substitution made."
 msgid "Cap dada disponible."
 msgstr "No data available."
 
-msgid "Total vigilàncies programades"
-msgstr "Total scheduled supervisions"
-
-msgid "Vigilants absents (cobertura necessària)"
-msgstr "Absent supervisors (coverage needed)"
-
-msgid "Vigilants absents coberts"
-msgstr "Absent supervisors covered"
-
-msgid "Vigilants absents pendents"
-msgstr "Absent supervisors pending"
-
 msgid "Intensitat de color: proporció d'absències respecte al màxim del curs"
 msgstr "Color intensity: proportion of absences relative to course maximum"
 
@@ -199,9 +157,6 @@ msgstr "Color intensity: proportion relative to course maximum"
 
 msgid "Intensitat: proporció respecte al màxim del curs"
 msgstr "Intensity: proportion relative to course maximum"
-
-msgid "* Mostrant els {top} primers de {total} professors"
-msgstr "* Showing the top {top} of {total} teachers"
 
 msgid "Dilluns"
 msgstr "Monday"
@@ -223,21 +178,6 @@ msgstr "Saturday"
 
 msgid "Diumenge"
 msgstr "Sunday"
-
-msgid "Dll"
-msgstr "Mon"
-
-msgid "Dmt"
-msgstr "Tue"
-
-msgid "Dmc"
-msgstr "Wed"
-
-msgid "Djo"
-msgstr "Thu"
-
-msgid "Div"
-msgstr "Fri"
 
 msgid "Període"
 msgstr "Period"
