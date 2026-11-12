@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from dependencies import get_db
 from noms import NomNet
+from parametres import DataISO
 from prioritats import services
 from prioritats.schemas import (
     AssignaturesPrioritatResponse,
@@ -46,22 +47,23 @@ def get_assignatures_prioritat(db: Session = Depends(get_db)):
 
 @router.get("/no-substituir", response_model=NoSubstituirResponse)
 def get_no_substituir(db: Session = Depends(get_db)):
-    """Retorna llista d'assignatures que no es substitueixen"""
-    return {"assignatures": services.llista_no_substituir(db)}
+    """Retorna les assignatures que no es substitueixen avui i les entrades
+    amb data d'inici o de fi futura"""
+    return services.llista_no_substituir(db)
 
 
 @router.post("/no-substituir", response_model=CreacioResponse)
 def create_no_substituir(data: NoSubstituirRequest, db: Session = Depends(get_db)):
     """Afegeix una assignatura a no substituir"""
     assignatura = data.assignatura
-    no_subst_id = services.afegeix_no_substituir(db, assignatura)
+    no_subst_id = services.afegeix_no_substituir(db, assignatura, data.data)
     return {"success": True, "id": no_subst_id, "message": f"Assignatura '{assignatura}' afegida a no substituir"}
 
 
 @router.delete("/no-substituir/{assignatura}", response_model=MissatgeResponse)
-def delete_no_substituir(assignatura: NomNet, db: Session = Depends(get_db)):
-    """Elimina una assignatura de no substituir"""
-    services.treu_no_substituir(db, assignatura)
+def delete_no_substituir(assignatura: NomNet, db: Session = Depends(get_db), data: DataISO | None = None):
+    """Treu una assignatura de no substituir a partir de `data` (per defecte avui)"""
+    services.treu_no_substituir(db, assignatura, data)
     return {"success": True, "message": "Assignatura eliminada de no substituir"}
 
 

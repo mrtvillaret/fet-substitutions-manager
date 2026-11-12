@@ -181,4 +181,37 @@ test('adreça: «Enrere», recàrrega i enllaç directe', async ({ page, hasTouc
   await expect(page).toHaveURL(/\/substitucions$/)
   await expect(page.getByRole('heading', { name: '📋 Gestió de Substitucions', exact: true })).toBeVisible()
   await expect(page.getByRole('dialog', { name: /Ajuda|Configuració/ })).toHaveCount(0)
+
+  // «No substituir» a 390 px: el diàleg i el calendari de la data caben a la
+  // pantalla, sense desplaçament horitzontal. Només l'administrador (escriptori)
+  // hi entra; es fa aquí per no tornar a entrar (5 entrades per minut).
+  if (testInfo.project.name !== 'escriptori') return
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/substitucions?obert=configuracio')
+  const configuracio = page.getByRole('dialog', { name: /Configuració General/ })
+  await expect(configuracio).toBeVisible()
+  await configuracio.getByRole('tab', { name: /Prioritats/ }).click()
+  await configuracio.locator('.p-panel').filter({ hasText: 'Activitats No Substituibles' })
+    .getByRole('button', { name: 'Afegeix', exact: true }).click()
+  const dialeg = page.getByRole('dialog', { name: 'Assignatures a no substituir' })
+  await expect(dialeg).toBeVisible()
+  const capALaPantalla = async (element) => {
+    const caixa = await element.boundingBox()
+    expect(caixa.x).toBeGreaterThanOrEqual(0)
+    expect(caixa.x + caixa.width).toBeLessThanOrEqual(390)
+  }
+  await capALaPantalla(dialeg)
+  const dataCanvis = dialeg.getByLabel('Data dels canvis', { exact: true })
+  await capALaPantalla(dataCanvis)
+  await dataCanvis.click()
+  const calendari = page.locator('.p-datepicker:visible')
+  await expect(calendari).toBeVisible()
+  await capALaPantalla(calendari)
+  expect(await dialeg.locator('.p-dialog-content').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true)
+  // Triar un dia amb el dit el posa al camp i tanca el calendari (que tapa els botons)
+  await toca(calendari.getByRole('gridcell', { name: '15', exact: true }), hasTouch)
+  await expect(calendari).toBeHidden()
+  await expect(dataCanvis).toHaveValue(`15/${data.slice(5, 7)}/${data.slice(0, 4)}`)
+  await dialeg.getByRole('button', { name: 'Cancel·la', exact: true }).click()
+  await expect(dialeg).toBeHidden()
 })

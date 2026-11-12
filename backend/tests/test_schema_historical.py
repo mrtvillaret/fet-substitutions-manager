@@ -11,10 +11,10 @@ from sqlalchemy import create_engine
 from schema_migrations.runner import database_state, initialize_database
 from schema_migrations.schema import (
     BASE_REVISION,
-    CANONICAL_REVISION,
     CLEAN_REVISION,
-    base_signature,
+    CURRENT_REVISION,
     create_base,
+    current_signature,
     schema_signature,
 )
 from scripts.migra_esquemes import main
@@ -126,8 +126,8 @@ def test_known_variants_checked_migrated_and_backed_up(tmp_path, variants, stamp
                 assert backup.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == count
     with engine.connect() as connection:
         assert database_state(connection, "data") == "vigent"
-        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == CANONICAL_REVISION
-        assert schema_signature(connection) == base_signature("data")
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == CURRENT_REVISION
+        assert schema_signature(connection) == current_signature("data")
         assert not set(HISTORICAL_TABLES).intersection(schema_signature(connection))
         assert connection.exec_driver_sql("SELECT valor FROM configuracio WHERE clau = 'prova'").scalar() == "conserva"
         columns = connection.exec_driver_sql("PRAGMA table_info(assignatures_prioritat)").fetchall()
@@ -162,9 +162,14 @@ def test_0002_leaves_matching_schema_and_rows_unchanged(tmp_path, kind, stamped)
         if stamped:
             connection.exec_driver_sql("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY)")
             connection.exec_driver_sql("INSERT INTO alembic_version VALUES (?)", (BASE_REVISION,))
-    before = tuple(line for line in dump(path) if "alembic_version" not in line)
+
+    # La 0004 només refà no_substituir (tests a test_migracio_0004.py).
+    def sense_versio(path):
+        return tuple(line for line in dump(path) if "alembic_version" not in line and "no_substituir" not in line)
+
+    before = sense_versio(path)
     assert main(["--aplica", f"--{kind}", str(path), "--backup-dir", str(tmp_path / "copies")]) == 0
-    assert tuple(line for line in dump(path) if "alembic_version" not in line) == before
+    assert sense_versio(path) == before
 
 
 @pytest.mark.parametrize("stamped", [False, True, CLEAN_REVISION])

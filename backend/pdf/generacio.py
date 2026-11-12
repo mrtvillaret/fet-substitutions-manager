@@ -163,7 +163,7 @@ def es_substitucio_del_pdf(sub: FilaSubstitucio, grups_sense_classe: dict, no_su
 
 def substitucions_del_pdf(db: Session, data: str) -> list[FilaSubstitucio]:
     grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
-    no_substituir = NoSubstituirRepository.get_all(db)
+    no_substituir = NoSubstituirRepository.vigents_a(db, data)
     return [
         sub
         for sub in SubstitucioRepository.get_by_date(db, data)
@@ -228,7 +228,7 @@ def genera_pdf_complet(
     exporter.espai_a_ma = files_en_blanc and amb_substitucions
     if exporter.espai_a_ma or exporter.format_dia:
         exporter.hores_amb_classe = hores_amb_possible_substitucio(
-            horari_mgr, horari_mgr.get_dia_name(date_obj.weekday()), NoSubstituirRepository.get_all(db)
+            horari_mgr, horari_mgr.get_dia_name(date_obj.weekday()), NoSubstituirRepository.vigents_a(db, data)
         )
 
     validacio = validacions(db, data, institucio, dia)

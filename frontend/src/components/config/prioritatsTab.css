@@ -202,3 +202,10 @@
   .freeable-toolbar { flex-wrap: wrap; }
   .freeable-filter { min-width: 0; flex-basis: 100%; }
 }
+
+/* Data de fi o d'inici d'una activitat de «No substituir» */
+.no-subst-data {
+  margin-left: 0.35rem;
+  opacity: 0.8;
+  font-weight: normal;
+}

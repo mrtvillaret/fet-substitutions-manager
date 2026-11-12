@@ -218,7 +218,7 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
         substitut_normalitzat = update.substitut.strip()
         files_a_alliberar = []
         assignatura_actual = substitucio_actual.assignatura
-        no_substituir = NoSubstituirRepository.get_all(db)
+        no_substituir = NoSubstituirRepository.vigents_a(db, data)
 
         if assignatura_actual in no_substituir:
             raise NoValid(

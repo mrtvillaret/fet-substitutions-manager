@@ -4,8 +4,8 @@ Extret del GeneradorSessionsExamensV2 per ser reutilitzable.
 """
 
 import re
-from collections import defaultdict
-from typing import Any
+from collections.abc import Iterable
+from typing import Any, NamedTuple
 
 from scheduler_engine.core.normalitzacio import dia_nom_per_horari, normalitzar_dia
 from scheduler_engine.defaults import (
@@ -176,6 +176,66 @@ def percent_no_mateix_slot(restriccions: dict, group_name: str) -> int:
     return _percent_value(raw if raw is not None else 100)
 
 
+def _dies_restringits(config_prof: dict) -> set[str]:
+    """Els dies del límit d'un professor, normalitzats («dilluns»)."""
+    return {normalitzar_dia(d) for d in config_prof.get("dies_restringits", [])}
+
+
+class RecompteLimitProfessor(NamedTuple):
+    """Exàmens d'un professor als dies restringits i quants en sobren."""
+
+    examens: int
+    excedent: int
+    per_dia: dict[str, int]  # dia normalitzat → exàmens
+
+
+def recompte_limit_professor(
+    professor: str, config_prof: dict, sessions_per_dia: dict, candidates: Iterable[dict] = ()
+) -> RecompteLimitProfessor:
+    """La regla «professors_limit_dies_especifics» per a un professor.
+
+    Compta les sessions de `sessions_per_dia` (claus de dia amb qualsevol forma:
+    «Dilluns», «dilluns» o data ISO) que cauen als dies restringits, són de les
+    assignatures del límit i tenen el professor de titular, més les `candidates`
+    (les que s'estan provant de col·locar en un dia restringit). Cada sessió
+    compta una sola vegada, encara que sigui candidata i ja surti al mapa o que
+    el mapa la porti sota dues formes del mateix dia.
+
+    És l'únic lloc on es normalitzen els dies i es calcula l'excedent: l'usen la
+    versió dura, les toves, el cost final, la validació i el resum de la pantalla.
+    """
+    assignatures = config_prof.get("assignatures", [])
+    dies = _dies_restringits(config_prof)
+    _max = config_prof.get("max_examens")
+    max_examens = int(_max) if _max is not None else 999
+
+    vistes: set[int] = set()
+
+    def compta(sessio: dict) -> bool:
+        if id(sessio) in vistes:
+            return False
+        titulars = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
+        if professor not in titulars or not sessio_in_group(sessio, assignatures):
+            return False
+        vistes.add(id(sessio))
+        return True
+
+    per_dia: dict[str, int] = {}
+    for dia, sessions in (sessions_per_dia or {}).items():
+        dia_norm = dia_nom_per_horari(dia)
+        if dia_norm not in dies:
+            continue
+        for sessio in sessions:
+            if compta(sessio):
+                per_dia[dia_norm] = per_dia.get(dia_norm, 0) + 1
+    examens = sum(per_dia.values()) + sum(1 for sessio in candidates if compta(sessio))
+    return RecompteLimitProfessor(examens, max(0, examens - max_examens), per_dia)
+
+
+def _dia_restringit(dia: str, config_prof: dict) -> bool:
+    return dia_nom_per_horari(dia) in _dies_restringits(config_prof)
+
+
 def viola_limit_dies_professor_obligatori(
     sessio: dict, dia: str, sessions_assignades: dict, restriccions: dict
 ) -> bool:
@@ -186,36 +246,21 @@ def viola_limit_dies_professor_obligatori(
         return False
 
     professors_sessio = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
-    dia_norm = normalitzar_dia(dia)
-    # Normalitzar claus del mapa de sessions per dia (ISO → nom-dia per lookup per dia-setmana)
-    sessions_norm: dict[str, list] = defaultdict(list)
-    for d, lst in (sessions_assignades or {}).items():
-        sessions_norm[dia_nom_per_horari(d)].extend(lst)
 
     for professor in professors_sessio:
         if professor not in restriccio:
             continue
         cfg = restriccio[professor]
-        assignatures = cfg.get("assignatures", [])
-        dies = [normalitzar_dia(d) for d in cfg.get("dies_restringits", [])]
-        max_examens = int(cfg.get("max_examens", 999))
         pes = cfg.get("pes_penalitzacio", 0)
 
         if not _pes_obligatori(pes):
             continue
-        if not sessio_in_group(sessio, assignatures):
+        if not sessio_in_group(sessio, cfg.get("assignatures", [])):
             continue
-        if dia_norm not in dies:
+        if not _dia_restringit(dia, cfg):
             continue
 
-        count = 1
-        for d in dies:
-            for s in sessions_norm.get(d, []):
-                profs_s = {e.get("titular") for e in s.get("examens", []) if e.get("titular")}
-                if professor in profs_s and sessio_in_group(s, assignatures):
-                    count += 1
-
-        if count > max_examens:
+        if recompte_limit_professor(professor, cfg, sessions_assignades, [sessio]).excedent:
             return True
     return False
 
@@ -561,35 +606,22 @@ def calcular_penalitzacio_professors_dies(sessio: dict, dia: str, sessions_assig
     hard_cost = restriccions.get("pesos_optimitzacio", {}).get(
         "restriccio_dura_violada", DEFAULT_PES_RESTRICCIO_VIOLADA
     )
-    dia_nom = dia_nom_per_horari(dia)
-    sessions_norm_d: dict[str, list] = defaultdict(list)
-    for d, lst in (sessions_assignades or {}).items():
-        sessions_norm_d[dia_nom_per_horari(d)].extend(lst)
 
     for professor in professors_sessio:
         if professor not in restriccio:
             continue
 
         config_prof = restriccio[professor]
-        assignatures_restringides = config_prof.get("assignatures", [])
-        dies_restringits = [normalitzar_dia(d) for d in config_prof.get("dies_restringits", [])]
-        max_examens = int(config_prof.get("max_examens", 999))
         pes = config_prof.get("pes_penalitzacio", 50)
 
-        if not sessio_in_group(sessio, assignatures_restringides):
+        if not sessio_in_group(sessio, config_prof.get("assignatures", [])):
             continue
-        if dia_nom not in dies_restringits:
+        if not _dia_restringit(dia, config_prof):
             continue
 
-        count_examens = 0
-        for dia_check in dies_restringits:
-            for s in sessions_norm_d.get(dia_check, []):
-                profs_s = {e.get("titular") for e in s.get("examens", []) if e.get("titular")}
-                if professor in profs_s and sessio_in_group(s, assignatures_restringides):
-                    count_examens += 1
-
-        if count_examens > max_examens:
-            excedent = count_examens - max_examens
+        # La sessió que es prova també compta, com a la versió dura
+        excedent = recompte_limit_professor(professor, config_prof, sessions_assignades, [sessio]).excedent
+        if excedent:
             if _pes_obligatori(pes):
                 penalitzacio_total += hard_cost * excedent
             else:
@@ -627,31 +659,17 @@ def calcular_penalitzacio_professors_dies_item(
 
         config_prof = restriccio[professor]
         assignatures_restringides = config_prof.get("assignatures", [])
-        dies_restringits = config_prof.get("dies_restringits", [])
-        max_examens = int(config_prof.get("max_examens", 999))
         pes = config_prof.get("pes_penalitzacio", 50)
 
         # Només aplica si l'ítem té alguna sessió de les assignatures restringides
         if not any(sessio_in_group(s, assignatures_restringides) for s in sessions_item):
             continue
-        dies_restringits = [normalitzar_dia(d) for d in dies_restringits]
-        dia_nom = dia_nom_per_horari(dia)
-        if dia_nom not in dies_restringits:
+        if not _dia_restringit(dia, config_prof):
             continue
 
-        sessions_norm_d: dict[str, list] = defaultdict(list)
-        for d, lst in (sessions_assignades or {}).items():
-            sessions_norm_d[dia_nom_per_horari(d)].extend(lst)
-
-        count_examens = 0
-        for dia_check in dies_restringits:
-            for s in sessions_norm_d.get(dia_check, []):
-                profs_s = {e.get("titular") for e in s.get("examens", []) if e.get("titular")}
-                if professor in profs_s and sessio_in_group(s, assignatures_restringides):
-                    count_examens += 1
-
-        if count_examens > max_examens:
-            excedent = count_examens - max_examens
+        # Les sessions de l'ítem que es prova també compten, com a la versió dura
+        excedent = recompte_limit_professor(professor, config_prof, sessions_assignades, sessions_item).excedent
+        if excedent:
             if _pes_obligatori(pes):
                 penalitzacio_total += hard_cost * excedent
             else:
@@ -674,22 +692,11 @@ def calcular_penalitzacio_total_professors(sessions_per_dia: dict, restriccions:
     )
 
     for professor, config_prof in restriccio.items():
-        assignatures_restringides = config_prof.get("assignatures", [])
-        dies_restringits = config_prof.get("dies_restringits", [])
-        max_examens = int(config_prof.get("max_examens", 999))
         _v = config_prof.get("pes_penalitzacio")
         pes = int(_v) if _v is not None else 50
 
-        count_examens = 0
-        for dia_check in dies_restringits:
-            for s in sessions_per_dia.get(dia_check, []):
-                # Usar self._professors_sessio si és motor, o helper si no
-                profs_s = {e.get("titular") for e in s.get("examens", []) if e.get("titular")}
-                if professor in profs_s and sessio_in_group(s, assignatures_restringides):
-                    count_examens += 1
-
-        if count_examens > max_examens:
-            excedent = count_examens - max_examens
+        excedent = recompte_limit_professor(professor, config_prof, sessions_per_dia).excedent
+        if excedent:
             if _pes_obligatori(pes):
                 penalitzacio_total += hard_cost * excedent
             else:

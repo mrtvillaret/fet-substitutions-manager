@@ -118,7 +118,7 @@ def test_el_pes_actual_del_candidat_s_aplica_a_totes_les_seves_aparicions():
 def test_una_categoria_prioritaria_amb_mes_torns_continua_guanyant(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"A"}, {"B"}])
     quota = assignacio.QuotaFranja([("10:00", "Prof 0", "disponible (A)")] * 10)
-    gestor = assignacio.GestorSubstitucions(None, None, None)
+    gestor = assignacio.GestorSubstitucions(None, None, None, no_substituir=frozenset())
     gestor.validator = assignacio.CandidateValidator(quota=quota)
     alta = ("Prof 0", "A", "A")
     baixa = ("Prof 1", "B", "B")
@@ -152,7 +152,7 @@ def test_millores_finals_successives_anoten_nomes_les_tries_aplicables(monkeypat
         def choices(self, poblacio, *, weights, k):
             return [poblacio[-1]]
 
-    motor = assignacio.GestorSubstitucions(None, None, None)
+    motor = assignacio.GestorSubstitucions(None, None, None, no_substituir=frozenset())
     millors = MillorsSubstituts(dia, (motor, None, disponibles, None), rng=UltimEmpat(), quota=quota)
     primera = FilaSubstitucio(hora="10:00", substitut="Prof 90", tipus_substitut="disponible (C)")
     segona = FilaSubstitucio(hora="10:00", substitut="Prof 91", tipus_substitut="disponible (C)")

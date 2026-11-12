@@ -32,3 +32,8 @@ babel==2.18.0
 # externes (XXE, "bombes" d'entitats). La lectura de l'horari es fa amb
 # xml.etree de la biblioteca estàndard; lxml no es feia servir enlloc.
 defusedxml==0.7.1
+
+# Zona horària del centre (rellotge.py: «avui» és el d'Europe/Madrid encara
+# que el servidor vagi en UTC). Amb el paquet, no depèn de si la imatge té
+# /usr/share/zoneinfo.
+tzdata==2026.6

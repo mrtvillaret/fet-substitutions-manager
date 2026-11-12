@@ -9,8 +9,8 @@ registres.
 ## Com funciona el codi
 
 - `0001_base` congela l’esquema canònic inicial per a auth i dades.
-  Les BD noves creen aquesta base i arriben a `0003_esquema_canonic`. Cap
-  revisió no importa els models vius.
+  Les BD noves creen aquesta base i arriben a la darrera revisió
+  (`0004_vigencia_no_substituir`). Cap revisió no importa els models vius.
 - `--comprova` valida en només lectura, abans de qualsevol còpia o escriptura,
   **tota** la llista. Una forma històrica coneguda només s’accepta com a punt
   de partida d’una actualització explícita. Una BD `vigent` ha de coincidir
@@ -54,7 +54,13 @@ registres.
   L’esquema final conserva les claus canòniques; l’aplicació continua activant
   les FK a cada connexió. Les proves amb pares i fills poblats comproven que
   no es perd cap fila i que `foreign_key_check` queda buit.
-- Les BD existents **sense versió, a 0001 o a 0002** necessiten l’script
+- `0004_vigencia_no_substituir` refà **només `no_substituir`**: hi afegeix
+  `vigent_des_de` i `vigent_fins_a` (nul·les) i en treu la unicitat
+  d’`assignatura`. Només parteix del canònic exacte de la 0003; copia les files
+  per rowid sense canviar cap valor, i les dates queden nul·les (les entrades
+  existents valen des de sempre: cap xifra no canvia). Si la taula ja té la forma
+  nova, no fa res. Les taules d’auth no canvien; només se n’avança la revisió.
+- Les BD existents **sense versió, a 0001, a 0002 o a 0003** necessiten l’script
   explícit amb backend i reset aturats abans d’arrencar. La transacció és
   per BD, no per tota la llista: si falla després d’haver migrat alguna BD,
   mantenir els serveis aturats i restaurar la còpia completa.
@@ -68,6 +74,12 @@ registres.
 - El backend s’executa com `10001:10001`. El codi continua sent propietat de
   root i de només lectura per a l’aplicació; només els volums de dades i la
   carpeta de còpies que s’hi munti necessiten escriptura.
+- Zona horària: «avui» i l’hora local de l’aplicació són sempre els
+  d’Europe/Madrid (`backend/rellotge.py`, amb el paquet `tzdata`), encara que el
+  servidor vagi en UTC; la imatge porta també `TZ=Europe/Madrid` per als scripts
+  i els registres. **No cal canviar res al servidor** ni al Compose. Comprovació
+  després d’arrencar: `docker compose exec -T backend python -c "import rellotge;
+  print(rellotge.ara())"` ha de donar l’hora local, no la UTC.
 
 ## Preparar la finestra de desplegament
 
@@ -231,6 +243,35 @@ Afegir muntatges explícits per a qualsevol auth fora dels dos DATA_DIR. El nou
 script no carrega `.env` ni busca centres pel seu compte. A la tercera ordre,
 totes les BD han de dir `vigent`; repetir `--aplica` no ha de fer cap canvi ni
 crear més còpies. Qualsevol error ha de donar sortida diferent de zero.
+
+## Aplicar la 0004 en una instal·lació que ja era a la 0003
+
+Quan el desplegament porta la 0004 i les BD ja eren `vigent` a la 0003, el
+backend nou **no arrenca** fins que s’han migrat («Migracions pendents»). Seguir
+els mateixos passos d’aquesta guia, en aquest ordre:
+
+1. Aturar els dos backends i el reset de la demo; cap escriptor actiu.
+2. Còpia de la carpeta de l’aplicació (sense logs), com a cada desplegament.
+3. `git pull` i construir la imatge nova **sense arrencar-la**
+   (`docker compose build`).
+4. Fer el manifest i executar `--comprova`, `--aplica --backup-dir` i un altre
+   `--comprova` (apartat anterior), incloent-hi **totes** les `gestor.db` dels
+   centres, `data-demo/demo/gestor.db` i la instantània
+   `demo_reset/demo/gestor.db`, que el reinici nocturn copia sense reiniciar el
+   backend: si no es migra, l’endemà la demo no arrencaria. Incloure-hi també
+   **les dues `auth.db`** (la principal i la de la demo): la 0004 no hi canvia
+   cap taula, però n'avança la revisió, i sense migrar-les el backend tampoc no
+   arrenca. La primera comprovació ha de dir `pendent` per a totes; la darrera,
+   `vigent` per a totes.
+5. Arrencar i comprovar (apartat següent). A Prioritats, «No substituir» ha de
+   mostrar les mateixes activitats que abans, sense cap data al costat.
+6. **Abans de reactivar el reset nocturn**, fer un reinici manual de la demo (o
+   el `--comprova` d’una còpia temporal de la instantània, com diu «Arrencar i
+   comprovar») i comprovar que arrenca: el reset copia la instantània sencera i,
+   si no s’hagués migrat, la demo no cauria ara sinó l’endemà a les 4:00.
+
+Desfer: com a «Desfer el desplegament», restaurant les còpies de `--backup-dir`
+(la 0004 no té downgrade).
 
 ## Arrencar i comprovar
 

@@ -140,9 +140,9 @@ def client():
 def test_un_nom_amb_espais_es_desa_net_i_es_la_mateixa_entrada(client):
     url = "/api/prioritats/no-substituir"
     assert client.post(url, json={"assignatura": " Guàrdia "}).status_code == 200
-    assert client.get(url).json() == {"assignatures": ["Guàrdia"]}
+    assert client.get(url).json()["assignatures"] == ["Guàrdia"]
     assert client.post(url, json={"assignatura": "Guàrdia"}).status_code == 409  # la mateixa
     assert client.post(url, json={"assignatura": "   "}).status_code == 200  # només espais: el buit
     assert client.post(url, json={"assignatura": ""}).status_code == 409
     assert client.delete(f"{url}/%20Guàrdia").status_code == 200  # també a la ruta
-    assert client.get(url).json() == {"assignatures": [""]}
+    assert client.get(url).json()["assignatures"] == [""]

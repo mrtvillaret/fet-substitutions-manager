@@ -4,7 +4,7 @@ import * as apiPdf from '../api/pdf'
 import { ambDataTreball, dataTreball } from '../dataTreball'
 import { detectaAssignatures } from '../api/horari'
 import * as apiPrioritats from '../api/prioritats'
-import { dataIso } from '../dates'
+import { dataAmbAny, dataIso } from '../dates'
 import { novesAmbGrup } from '../noSubstituirAmbGrup'
 
 export function usePrioritats(dependents) {
@@ -27,10 +27,29 @@ export function usePrioritats(dependents) {
   // Assignatures que no surten a l'XML però es poden assignar (grups sense classe)
   const ASSIGNATURES_SINTETIQUES = ['alliberat']
 
-  // No substituir
+  // No substituir: les vigents avui (`noSubstituir`) i, amb dates, les que
+  // comencen o acaben més endavant (`entradesNoSubstituir`)
   const noSubstituir = ref([])
+  const entradesNoSubstituir = ref([])
   const mostrarDialogNoSubstituir = ref(false)
   const novesNoSubstituir = ref([])
+  // La llista de partida del diàleg: el que ja hi ha. Si un desar falla a
+  // mig camí, s'hi sumen els canvis que sí que s'han fet, perquè tornar a
+  // desar no els reenviï (amb una data futura, no surten a la llista d'avui)
+  const baseNoSubstituir = ref(null)
+  // Data dels canvis del diàleg: avui per defecte; si és passada, avís
+  const dataCanvisNoSubst = ref(new Date())
+  const avuiIso = () => dataIso(new Date())
+  const dataCanvisNoSubstPassada = computed(() =>
+    !!dataCanvisNoSubst.value && dataIso(dataCanvisNoSubst.value) < avuiIso())
+  // Les vigents avui que deixaran de ser-hi: {assignatura: 'dd/mm/aaaa'}
+  const fiNoSubstituir = computed(() => Object.fromEntries(
+    entradesNoSubstituir.value
+      .filter(e => e.vigent_fins_a && noSubstituir.value.includes(e.assignatura))
+      .map(e => [e.assignatura, dataAmbAny(e.vigent_fins_a)])))
+  // Les que encara no valen: comencen en una data futura
+  const futuresNoSubstituir = computed(() =>
+    entradesNoSubstituir.value.filter(e => e.vigent_des_de && e.vigent_des_de > avuiIso()))
 
   // Prioritats
   const ordreCategories = ref([])  // Array de {categories: ["Reforç", "alliberat"], activa: true}
@@ -338,10 +357,14 @@ export function usePrioritats(dependents) {
   // Si canvia la data del calendari general, tornar a detectar sobre el nou XML
   watch(dataISO, () => { carregarAssignaturesXML() })
 
+  const actualitzaNoSubstituir = (resposta) => {
+    noSubstituir.value = resposta.assignatures
+    entradesNoSubstituir.value = resposta.entrades || []
+  }
+
   const carregarNoSubstituir = async () => {
     try {
-      const resposta = await apiPrioritats.noSubstituir()
-      noSubstituir.value = resposta.assignatures
+      actualitzaNoSubstituir(await apiPrioritats.noSubstituir())
     } catch (error) {
       console.error('Error carregant no substituir:', error)
     }
@@ -494,27 +517,33 @@ export function usePrioritats(dependents) {
   const obrirDialogNoSubstituir = () => {
     // Obrir amb les assignatures actuals ja marcades (desmarcar-les les treu)
     novesNoSubstituir.value = [...noSubstituir.value]
+    baseNoSubstituir.value = [...noSubstituir.value]
+    dataCanvisNoSubst.value = new Date()
     mostrarDialogNoSubstituir.value = true
   }
 
   const desarNoSubstituir = async () => {
     const seleccio = novesNoSubstituir.value
-    const previes = noSubstituir.value
+    const previes = baseNoSubstituir.value ?? noSubstituir.value
 
     const afegir = seleccio.filter(a => !previes.includes(a))
     const treure = previes.filter(a => !seleccio.includes(a))
+    // Els canvis valen des de la data triada (avui per defecte)
+    const data = dataIso(dataCanvisNoSubst.value) || undefined
+    const afegides = [], tretes = []
 
     try {
       for (const assignatura of afegir) {
-        await apiPrioritats.afegeixNoSubstituir(assignatura)
+        await apiPrioritats.afegeixNoSubstituir(assignatura, data)
+        afegides.push(assignatura)
       }
       for (const assignatura of treure) {
-        await apiPrioritats.esborraNoSubstituir(assignatura)
+        await apiPrioritats.esborraNoSubstituir(assignatura, data)
+        tretes.push(assignatura)
       }
 
       // Recarregar no substituir
-      const resposta = await apiPrioritats.noSubstituir()
-      noSubstituir.value = resposta.assignatures
+      actualitzaNoSubstituir(await apiPrioritats.noSubstituir())
 
       toast.add({
         severity: 'success',
@@ -532,12 +561,18 @@ export function usePrioritats(dependents) {
         detail: detallDError(error) || t('config.errors.addNoSubst'),
         life: 3000
       }))
+      // El diàleg queda obert amb la selecció; el que ja s'ha desat passa a
+      // la base i la llista de la pantalla es torna a llegir
+      baseNoSubstituir.value = [...previes.filter(a => !tretes.includes(a)), ...afegides]
+      await carregarNoSubstituir()
     }
   }
 
-  const eliminarNoSubstituir = async (assignatura) => {
+  // Treu una activitat des d'avui; amb `data`, des d'aquella data (p. ex. la
+  // d'inici d'una que encara no ha començat: s'anul·la)
+  const eliminarNoSubstituir = async (assignatura, data) => {
     try {
-      await apiPrioritats.esborraNoSubstituir(assignatura)
+      await apiPrioritats.esborraNoSubstituir(assignatura, data)
 
       toast.add({
         severity: 'success',
@@ -547,8 +582,7 @@ export function usePrioritats(dependents) {
       })
 
       // Recarregar no substituir
-      const resposta = await apiPrioritats.noSubstituir()
-      noSubstituir.value = resposta.assignatures
+      actualitzaNoSubstituir(await apiPrioritats.noSubstituir())
     } catch (error) {
       console.error('Error eliminant no substituir:', error)
       avisaError(error, () => toast.add({
@@ -563,6 +597,7 @@ export function usePrioritats(dependents) {
   const cancelarNoSubstituir = () => {
     mostrarDialogNoSubstituir.value = false
     novesNoSubstituir.value = []
+    baseNoSubstituir.value = null
   }
 
   // Fer que tot el header dels panels sigui clicable
@@ -595,8 +630,13 @@ export function usePrioritats(dependents) {
     xmlVersioText,
     ASSIGNATURES_SINTETIQUES,
     noSubstituir,
+    entradesNoSubstituir,
     mostrarDialogNoSubstituir,
     novesNoSubstituir,
+    dataCanvisNoSubst,
+    dataCanvisNoSubstPassada,
+    fiNoSubstituir,
+    futuresNoSubstituir,
     ordreCategories,
     pesos,
     prioritiesSnapshot,

@@ -44,14 +44,14 @@ def test_sense_assignatura_dona_400(client):
 def test_el_text_buit_s_accepta(client):
     # «No substituir» amb text buit: les hores sense assignatura no se substitueixen
     assert client.post(URL, json={"assignatura": ""}).status_code == 200
-    assert client.get(URL).json() == {"assignatures": [""]}
+    assert client.get(URL).json()["assignatures"] == [""]
 
 
 def test_una_assignatura_que_ja_hi_es_dona_409(client):
     assert client.post(URL, json={"assignatura": "Tutoria"}).status_code == 200
     resp = client.post(URL, json={"assignatura": "Tutoria"})
     assert resp.status_code == 409 and resp.json()["detail"] == "L'assignatura ja és a «No substituir»"
-    assert client.get(URL).json() == {"assignatures": ["Tutoria"]}
+    assert client.get(URL).json()["assignatures"] == ["Tutoria"]
 
 
 def test_el_text_buit_tampoc_es_pot_repetir(client):
@@ -61,7 +61,7 @@ def test_el_text_buit_tampoc_es_pot_repetir(client):
 
 def test_una_assignatura_que_no_es_text_dona_422(client):
     assert client.post(URL, json={"assignatura": 5}).status_code == 422
-    assert client.get(URL).json() == {"assignatures": []}
+    assert client.get(URL).json() == {"assignatures": [], "entrades": []}
 
 
 # Prof 15 (horari d'exemple), dilluns: a les 08:00 no té assignatura, a les 10:00 fa Anglès
@@ -81,7 +81,8 @@ def _absent_i_genera(client):
 
 
 def test_amb_el_text_buit_les_hores_sense_assignatura_no_se_substitueixen(client):
-    assert client.post(URL, json={"assignatura": ""}).status_code == 200
+    # Des del dia de la prova (passat): un canvi d'avui no hi arribaria
+    assert client.post(URL, json={"assignatura": "", "data": DATA}).status_code == 200
     files, pendents = _absent_i_genera(client)
     assert files["08:00"]["assignatura"] == "" and not files["08:00"]["substitut"]
     assert "08:00" not in pendents  # no surt com a substitució per fer

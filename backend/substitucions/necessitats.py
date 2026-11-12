@@ -4,17 +4,18 @@ Gestió d'absències de professors
 
 import logging
 
-from config.constants import NO_SUBST
 from dates import parse_date
 from i18n_setup import _
 from substitucions.files import PropostaSubstitucio
 
 
 class GestorAbsencies:
-    """Gestiona les absències dels professors"""
+    """Gestiona les absències dels professors. `no_substituir`: la llista
+    vigent el dia dels gestors (substitucions.context.get_gestors)."""
 
-    def __init__(self, gestor_horari):
+    def __init__(self, gestor_horari, *, no_substituir: frozenset[str]):
         self.horari = gestor_horari
+        self.no_substituir = no_substituir
 
     def get_substitucions_necessaries(
         self,
@@ -86,8 +87,8 @@ class GestorAbsencies:
         """Comprova si una activitat necessita substitució"""
         assignatura = activitat.get("assignatura", "")
 
-        # No necessita si l'assignatura està a NO_SUBST
-        if assignatura in NO_SUBST:
+        # No necessita si l'assignatura és a «No substituir» aquell dia
+        if assignatura in self.no_substituir:
             return False
 
         return True

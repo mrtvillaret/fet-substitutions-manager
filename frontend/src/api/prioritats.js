@@ -14,9 +14,12 @@ export const categoriesAmb = async (client) => (await client.get('/api/prioritat
 export const categories = () => categoriesAmb(clientApi)
 export const desaTotAmb = async (client, cos) => (await client.put('/api/prioritats/desar-tot', cos)).data
 export const desaTot = (cos) => desaTotAmb(clientApi, cos)
-export const afegeixNoSubstituirAmb = async (client, assignatura) =>
-  (await client.post('/api/prioritats/no-substituir', { assignatura })).data
-export const afegeixNoSubstituir = (assignatura) => afegeixNoSubstituirAmb(clientApi, assignatura)
-export const esborraNoSubstituirAmb = async (client, assignatura) =>
-  (await client.delete(`/api/prioritats/no-substituir/${encodeURIComponent(assignatura)}`)).data
-export const esborraNoSubstituir = (assignatura) => esborraNoSubstituirAmb(clientApi, assignatura)
+// `data` (AAAA-MM-DD, opcional): des de quan val el canvi; sense, avui.
+export const afegeixNoSubstituirAmb = async (client, assignatura, data) =>
+  (await client.post('/api/prioritats/no-substituir', data ? { assignatura, data } : { assignatura })).data
+export const afegeixNoSubstituir = (assignatura, data) => afegeixNoSubstituirAmb(clientApi, assignatura, data)
+export const esborraNoSubstituirAmb = async (client, assignatura, data) => {
+  const url = `/api/prioritats/no-substituir/${encodeURIComponent(assignatura)}`
+  return (await (data ? client.delete(url, { params: { data } }) : client.delete(url))).data
+}
+export const esborraNoSubstituir = (assignatura, data) => esborraNoSubstituirAmb(clientApi, assignatura, data)

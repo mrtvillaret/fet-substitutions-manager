@@ -25,7 +25,8 @@ flowchart TD
     BASE --> TEXTOS
 ```
 
-- Base: `database`, `models`, `noms`, `parametres`, `rellotge`, errors,
+- Base: `database`, `models`, `noms`, `parametres`, `rellotge` («avui» i l’hora
+  local, sempre d’Europe/Madrid), errors,
   `i18n_setup` i `config/`; també `dates`, `ordre_curs`, `nivells` i `textos`,
   que només transformen valors. La validació d’esquemes de `database` és
   infraestructura de `schema_migrations/`, sense dependències del domini.
@@ -232,7 +233,7 @@ locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
 │  INFRAESTRUCTURA                                                 │
 │  ├── config/settings.py   ← Config global (institucions)         │
 │  ├── config/auth.py       ← JWT, usuaris per defecte             │
-│  ├── config/constants.py  ← PRIORITATS, NO_SUBST, baixes: vistes │
+│  ├── config/constants.py  ← PRIORITATS, NO_SUBSTITUIR: vistes    │
 │  │                           de les dades de cada centre         │
 │  ├── config/pdf.json      ← perfils visuals PDF                  │
 │  ├── dependencies.py      ← Depends FastAPI: get_db (la BD de la │
@@ -328,6 +329,39 @@ L’script rep camins explícits, valida tota la llista en només lectura i exig
 una carpeta de còpies per aplicar; cada BD es migra en una transacció SQLite
 explícita. Les inicialitzacions concurrents se serialitzen dins del procés i
 amb el bloqueig de SQLite entre processos.
+
+L’esquema vigent és el de la `0004_vigencia_no_substituir`: la base congelada
+(`base_schema.json`, que no es toca) amb `no_substituir` substituïda pel DDL de
+`vigencia_schema.json` (`schema.current_statements` i `current_signature`;
+`validate_current` per a una BD vigent). La 0004 només parteix del canònic exacte
+de la 0003: canvia el nom de la taula antiga (cap FK hi apunta), crea la nova amb
+el DDL congelat, hi copia les files per rowid amb les dates nul·les (vàlides des
+de sempre), esborra l’antiga i crea `idx_no_substituir_assignatura`. Si la taula
+ja té la forma nova, no fa res. Tests: `tests/test_migracio_0004.py`.
+
+### «No substituir» per data: una sola porta
+
+`no_substituir` té `vigent_des_de` i `vigent_fins_a` (incloses, nul·les = sense
+límit). La regla de quines entrades valen cada dia és a `prioritats/files.py:
+VigenciaNoSubstituir.a(data)`, un valor pur que no es pot recórrer ni fer servir
+amb `in`: la llista sempre és d’una data. S’obté de la BD amb
+`NoSubstituirRepository.vigencia(db)` (intervals: la regla per a cada fila) o
+`vigents_a(db, data)` (un dia), o de memòria amb `prioritats.memoria.no_substituir_a(data)`
+(el motor, que no té sessió: `substitucions.context.get_gestors` la passa a
+`GestorAbsencies` i `GestorSubstitucions`). `activitat_encadenada` rep la llista
+del dia. Afegir i treure (`prioritats/services.py`) creen entrades noves o
+posen la data de fi a l'entrada vigent a la data (cap altra), sense solapaments. Ho vigila
+`tests/test_no_substituir_amb_data.py`: cap `NO_SUBST`/`GENERA_ENCADENADES`, cap
+lectura de les files o de les entrades fora de `prioritats/`, i les crides de la
+porta sempre amb data.
+
+| Ús | Data |
+|---|---|
+| Absències i motor (`necessitats.py`, `assignacio.py`, encadenades del motor) | la del dia (`get_gestors(data_iso=...)`) |
+| Generació (`generacio.py`), pantalla i hores del professor (`_consultes.py`), tria a mà (`services.py`), encadenades i els seus avisos | la del dia |
+| PDF del dia (`pdf/generacio.py`) | la del dia |
+| Recomptes, Estadístiques i informes (`recomptes/services.py`) | la de cada fila |
+| Planificador (`planificador/config.py`) | la de l’horari del planificador: primera data planificada o avui |
 
 La configuració global mutable va a `APP_CONFIG_PATH` o, per defecte,
 `DATA_DIR/config.json`. El fitxer antic `backend/config/config.json` només

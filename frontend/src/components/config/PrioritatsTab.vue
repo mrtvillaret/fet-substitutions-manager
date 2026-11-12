@@ -174,7 +174,20 @@
         >
           <template #default>
             {{ item || $t('common.empty') }}
+            <small v-if="fiNoSubstituir[item]" class="no-subst-data">{{ $t('config.priorities.noSubstUntil', { data: fiNoSubstituir[item] }) }}</small>
             <i class="pi pi-times" style="margin-left: 0.5rem; cursor: pointer;" @click="eliminarNoSubstituir(item)"></i>
+          </template>
+        </Tag>
+        <!-- Les que comencen més endavant: encara no valen avui -->
+        <Tag
+          v-for="entrada in futuresNoSubstituir"
+          :key="'futura-' + entrada.assignatura + entrada.vigent_des_de"
+          severity="warning"
+        >
+          <template #default>
+            {{ entrada.assignatura || $t('common.empty') }}
+            <small class="no-subst-data">{{ $t('config.priorities.noSubstFrom', { data: dataAmbAny(entrada.vigent_des_de) }) }}</small>
+            <i class="pi pi-times" style="margin-left: 0.5rem; cursor: pointer;" @click="eliminarNoSubstituir(entrada.assignatura, entrada.vigent_des_de)"></i>
           </template>
         </Tag>
       </div>
@@ -276,6 +289,7 @@
       :header="$t('config.priorities.addNoSubstTitle')"
       :modal="true"
       :style="{ width: '500px' }"
+      :breakpoints="{ '720px': '95vw' }"
     >
       <div class="p-fluid">
         <div class="field">
@@ -301,6 +315,20 @@
           <p v-if="avisAmbGrup.length" class="avis-amb-grup" role="status">
             <i class="pi pi-exclamation-triangle"></i>
             {{ $t('config.priorities.noSubstWithGroupWarning', { activitats: avisAmbGrup.join(', ') }, avisAmbGrup.length) }}
+          </p>
+        </div>
+        <div class="field">
+          <label :for="prefixEtiquetes + '-camp-data-no-subst'">{{ $t('config.priorities.noSubstChangeDate') }}</label>
+          <Calendar :inputId="prefixEtiquetes + '-camp-data-no-subst'"
+            v-model="dataCanvisNoSubst"
+            dateFormat="dd/mm/yy"
+            :showIcon="true"
+            class="w-full"
+          />
+          <small class="field-hint">{{ $t('config.priorities.noSubstChangeDateHint') }}</small>
+          <p v-if="dataCanvisNoSubstPassada" class="avis-amb-grup" role="status">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ $t('config.priorities.noSubstPastDateWarning') }}
           </p>
         </div>
       </div>
@@ -409,6 +437,8 @@ import AccordionTab from 'primevue/accordiontab'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Checkbox from 'primevue/checkbox'
+import Calendar from 'primevue/calendar'
+import { dataAmbAny } from '../../dates'
 import { usePrioritats } from '../../composables/usePrioritats'
 
 const prefixEtiquetes = useId()
@@ -424,6 +454,10 @@ const {
   noSubstituir,
   mostrarDialogNoSubstituir,
   novesNoSubstituir,
+  dataCanvisNoSubst,
+  dataCanvisNoSubstPassada,
+  fiNoSubstituir,
+  futuresNoSubstituir,
   ordreCategories,
   pesos,
   categoriaSeleccionada,

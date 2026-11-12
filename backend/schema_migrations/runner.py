@@ -13,8 +13,10 @@ from schema_migrations.schema import (
     BASE_REVISION,
     CANONICAL_REVISION,
     CLEAN_REVISION,
+    CURRENT_REVISION,
     create_base,
     validate_base,
+    validate_current,
     validate_historical,
 )
 
@@ -45,8 +47,8 @@ def database_state(connection, kind):
         validate_base(connection, kind)
         return "sense versió"
     if heads == (head,):
-        if head == CANONICAL_REVISION:
-            validate_base(connection, kind, historical=False)
+        if head == CURRENT_REVISION:
+            validate_current(connection, kind)
         return "vigent"
     if len(heads) != 1 or ScriptDirectory.from_config(config).get_revision(heads[0]) is None:
         raise RuntimeError("Versió de BD desconeguda.")
@@ -56,6 +58,8 @@ def database_state(connection, kind):
         validate_historical(connection, kind, cleaned=True)
     elif heads == (CANONICAL_REVISION,):
         validate_base(connection, kind, historical=False)
+    elif heads == (CURRENT_REVISION,):
+        validate_current(connection, kind)
     return "pendent"
 
 

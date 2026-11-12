@@ -38,7 +38,7 @@ def llista_substitucions(
             result.append(resposta_substitucio(sub))
     else:
         grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
-        no_substituir = set(NoSubstituirRepository.get_all(db))
+        no_substituir = NoSubstituirRepository.vigents_a(db, data)
 
         for sub in substitucions_list:
             if es_visible_a_substitucions(sub, no_substituir, grups_sense_classe.get(sub.hora, [])):
@@ -52,7 +52,7 @@ def hores_professor(db: Session, dia: Dia, data: str, professor: str) -> dict:
     horari = dia.horari
     weekday_idx = datetime.strptime(data, "%Y-%m-%d").weekday()
     dia_name = horari.get_dia_name(weekday_idx)
-    no_substituir = NoSubstituirRepository.get_all(db)
+    no_substituir = NoSubstituirRepository.vigents_a(db, data)
 
     hores_amb_classe = []
     hores_al_centre = []

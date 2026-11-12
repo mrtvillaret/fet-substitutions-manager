@@ -10,6 +10,8 @@ from sqlalchemy import create_engine, inspect
 BASE_REVISION = "0001_base"
 CLEAN_REVISION = "0002_neteja_historiques"
 CANONICAL_REVISION = "0003_esquema_canonic"
+# La 0004 només canvia no_substituir (vigència per dates); és la revisió vigent.
+CURRENT_REVISION = "0004_vigencia_no_substituir"
 SCHEMA_OBJECTS = ("objects",)
 RETIRED_TABLES = frozenset({"users", "configuracio_assignatures", "exam_schedules"})
 SCHEMA_ERROR = (
@@ -76,6 +78,43 @@ def base_signature(kind):
             return schema_signature(connection)
     finally:
         engine.dispose()
+
+
+def vigencia_statements(kind):
+    """DDL congelat de la 0004: no_substituir amb vigència i sense unicitat."""
+    return json.loads(Path(__file__).with_name("vigencia_schema.json").read_text()).get(kind, [])
+
+
+def current_statements(kind):
+    """L’esquema vigent: la base (0001–0003) amb no_substituir de la 0004."""
+    replaced = vigencia_statements(kind)
+    if not replaced:
+        return base_statements(kind)
+    tables = {s.split()[2] for s in replaced if s.startswith("CREATE TABLE ")}
+    kept = [
+        s
+        for s in base_statements(kind)
+        if not (s.startswith("CREATE TABLE ") and s.split()[2] in tables)
+        and not (s.startswith(("CREATE INDEX ", "CREATE UNIQUE INDEX ")) and s.split(" ON ", 1)[1].split()[0] in tables)
+    ]
+    return kept + replaced
+
+
+@lru_cache(maxsize=2)
+def current_signature(kind):
+    engine = create_engine("sqlite://")
+    try:
+        with engine.begin() as connection:
+            for statement in current_statements(kind):
+                connection.exec_driver_sql(statement)
+            return schema_signature(connection)
+    finally:
+        engine.dispose()
+
+
+def validate_current(connection, kind):
+    if schema_signature(connection) != current_signature(kind):
+        raise RuntimeError(SCHEMA_ERROR)
 
 
 @lru_cache(maxsize=1)

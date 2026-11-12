@@ -68,7 +68,7 @@ def _esborra(db, data: str, regenerar_tot: bool) -> None:
 
 
 def _desa_files_motor(db, data: str, files_motor: list[PropostaSubstitucio], desats: dict) -> None:
-    no_substituir = NoSubstituirRepository.get_all(db)
+    no_substituir = NoSubstituirRepository.vigents_a(db, data)
 
     # Cobertures de vigilància que han quedat a la BD: les que tenen substitut
     # es deixen; a les pendents s'hi posa el substitut del motor, si n'hi ha.

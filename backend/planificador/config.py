@@ -43,7 +43,7 @@ class ConfigPlanificador:
     alliberaments: dict  # per nivell: dates, hores sense classe i d'inici
     durades_per_sessio: dict  # hores de vigilància de cada examen amb durada pròpia
     durades_examen_per_sessio: dict  # hores d'examen (≥ les de vigilància)
-    no_substituir: set
+    no_substituir: frozenset  # la llista vigent a la data de l'horari del planificador
     ultim_professor: str
 
     def durada_titular_de(self, examen: str) -> int:
@@ -111,18 +111,25 @@ def carrega_config(institucio: str) -> ConfigPlanificador:
         durada_titular = int(durada) if durada else DEFAULT_DURADA_TITULAR
         durada_examen = _positiu(ConfiguracioRepository.get(db, SCHEDULER_DURADA_EXAMEN_KEY)) or durada_titular
         durades_per_sessio, durades_examen_per_sessio = _durades(db)
+        alliberaments = llegeix_json(db, SCHEDULER_ALLIBERAMENTS_KEY, {})
+        nivells_configurats = llegeix_json(db, SCHEDULER_NIVELLS_KEY, [])
+        nivells = nivells_configurats or nivells_master(db)
+        dates_configurades = llegeix_json(db, SCHEDULER_DATES_KEY, [])
+        # «No substituir», el de la mateixa data que l'horari (XML) del
+        # planificador: la primera data planificada o, sense dates, avui.
+        dates = _selected_dates_from_alliberaments(alliberaments, nivells) or dates_configurades
         return ConfigPlanificador(
             config=_config_dels_motors(ConfiguracioExamenRepository.get_all(db)),
             restriccions=restriccions.llegeix(db),
             durada_titular=durada_titular,
             durada_examen=durada_examen,
-            nivells_configurats=llegeix_json(db, SCHEDULER_NIVELLS_KEY, []),
+            nivells_configurats=nivells_configurats,
             nivells_master=nivells_master(db),
-            dates_configurades=llegeix_json(db, SCHEDULER_DATES_KEY, []),
-            alliberaments=llegeix_json(db, SCHEDULER_ALLIBERAMENTS_KEY, {}),
+            dates_configurades=dates_configurades,
+            alliberaments=alliberaments,
             durades_per_sessio=durades_per_sessio,
             durades_examen_per_sessio=durades_examen_per_sessio,
-            no_substituir=set(NoSubstituirRepository.get_all(db)),
+            no_substituir=NoSubstituirRepository.vigents_a(db, _data_de_referencia(dates)),
             ultim_professor=ConfiguracioRepository.get(db, "ultim_professor_subs") or "",
         )
 
@@ -154,6 +161,13 @@ def aplica_restriccions_derivades(
         dures["slots_valids_iso_per_nivell"] = slots_iso
 
 
+def _data_de_referencia(dates) -> str:
+    """La data de l'horari del planificador: la primera de les planificades;
+    sense dates, avui."""
+    dates = sorted(d for d in (dates or []) if d)
+    return dates[0] if dates else rellotge.avui().isoformat()
+
+
 def horari_de_la_planificacio(institucio: str, dates: list | None = None) -> dict:
     """Quin horari (XML) fa servir el planificador: el vigent a la primera de
     les dates planificades (les donades o, si no, les desades); sense dates,
@@ -163,7 +177,7 @@ def horari_de_la_planificacio(institucio: str, dates: list | None = None) -> dic
         cfg = carrega_config(institucio)
         dates = cfg.dates(None, cfg.nivells_actius())
     dates = sorted(d for d in (dates or []) if d)
-    referencia = dates[0] if dates else rellotge.avui().isoformat()
+    referencia = _data_de_referencia(dates)
     with get_data_db_session(institucio, lectura=True) as db:
         versions = {}
         for d in dates or [referencia]:

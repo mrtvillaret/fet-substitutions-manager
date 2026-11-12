@@ -445,3 +445,21 @@ def test_un_grup_de_la_configuracio_d_examens_no_es_d_un_curs_anterior(client):
     assert client.delete("/api/config/grups/1-BAT-AB").status_code == 200
     obsoletes = client.get("/api/config/assignacions-obsoletes").json()["assignacions"]
     assert [(a["grup"], a["motius"]) for a in obsoletes] == [("1-BAT-AB", ["grup"])]
+
+
+def test_no_substituir_del_planificador_es_el_de_la_primera_data_planificada(centre, client):
+    # Com l'horari (XML) del planificador: la llista vigent a la primera data
+    # planificada (20/04/2026); sense dates, la d'avui (04/11/2026).
+    from datetime import date
+
+    from prioritats.repositories import NoSubstituirRepository
+
+    with get_data_db_session(centre[0]) as db:
+        NoSubstituirRepository.create(db, "Abans", vigent_des_de=date(2026, 1, 1))
+        fila = NoSubstituirRepository.de_l_activitat(db, "Abans")[0]
+        NoSubstituirRepository.tanca(db, fila, date(2026, 6, 30))
+        NoSubstituirRepository.create(db, "Ara", vigent_des_de=date(2026, 11, 1))
+        db.commit()
+    assert carrega_config(centre[0]).no_substituir == {"Ara"}
+    configura(client)
+    assert carrega_config(centre[0]).no_substituir == {"Abans"}

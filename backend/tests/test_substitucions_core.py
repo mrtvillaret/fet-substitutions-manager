@@ -68,8 +68,7 @@ class FakeAbsencies:
 def test_assignacio_basica_amb_candidat_disponible(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00"])
@@ -78,7 +77,7 @@ def test_assignacio_basica_amb_candidat_disponible(monkeypatch):
         [{"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"}]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe=set())
 
     assert len(resultat) == 1
@@ -92,7 +91,7 @@ def test_sense_candidats_disponibles_queda_pendent():
         [{"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"}]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=frozenset())
     resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe=set())
 
     assert len(resultat) == 1
@@ -102,8 +101,7 @@ def test_sense_candidats_disponibles_queda_pendent():
 def test_no_assigna_el_mateix_substitut_dues_vegades_a_la_mateixa_hora(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choices", lambda seq, *, weights, k: [seq[0]])
 
@@ -116,7 +114,7 @@ def test_no_assigna_el_mateix_substitut_dues_vegades_a_la_mateixa_hora(monkeypat
         ]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"], "Prof_X": ["09:00"]},
@@ -167,7 +165,7 @@ def test_pesos_absents_zero_i_negatius_equivalen_a_un(monkeypatch):
 
 
 def test_prioritza_la_categoria_mes_alta_encara_que_tingui_menys_candidats():
-    gestor = GestorSubstitucions(FakeHorari([]), FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(FakeHorari([]), FakeAlliberats({}), FakeAbsencies([]), no_substituir=frozenset())
     gestor.validator = CandidateValidator()
 
     candidats_per_categoria = {
@@ -186,7 +184,7 @@ def test_un_alliberat_guanya_dos_de_guardia_sense_consultar_l_atzar(monkeypatch)
             raise AssertionError(f"No calia desempatar entre {candidats}")
 
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True, True])
-    gestor = GestorSubstitucions(FakeHorari([]), FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(FakeHorari([]), FakeAlliberats({}), FakeAbsencies([]), no_substituir=frozenset())
     gestor.validator = CandidateValidator(rng=AtzarProhibit())
 
     escollit = gestor._escollir_millor_candidat_disponible(
@@ -207,7 +205,7 @@ def test_un_alliberat_guanya_dos_de_guardia_sense_consultar_l_atzar(monkeypatch)
 def test_categoria_desactivada_no_assigna_automaticament(monkeypatch):
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [False, True])
 
-    gestor = GestorSubstitucions(FakeHorari([]), FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(FakeHorari([]), FakeAlliberats({}), FakeAbsencies([]), no_substituir=frozenset())
     gestor.validator = CandidateValidator()
 
     candidats_per_categoria = {
@@ -226,8 +224,7 @@ def test_categoria_desactivada_no_assigna_automaticament(monkeypatch):
 def test_substitucio_encadenada_cobreix_el_professor_substitut(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", ["Guàrdia"])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
     monkeypatch.setattr(random, "choices", lambda seq, *, weights, k: [seq[0]])
 
@@ -237,7 +234,7 @@ def test_substitucio_encadenada_cobreix_el_professor_substitut(monkeypatch):
         [{"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"}]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe=set())
 
     # L'absència original de Prof_A la cobreix Prof_B (tenia Guàrdia, categoria
@@ -256,8 +253,7 @@ def test_substitucio_encadenada_cobreix_el_professor_substitut(monkeypatch):
 def test_no_genera_encadenada_si_lassignatura_esta_a_no_subst(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", {"Guàrdia"})
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset({"Guàrdia"})
     monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
     monkeypatch.setattr(random, "choices", lambda seq, *, weights, k: [seq[0]])
 
@@ -267,10 +263,10 @@ def test_no_genera_encadenada_si_lassignatura_esta_a_no_subst(monkeypatch):
         [{"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"}]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe=set())
 
-    # "Guàrdia" és a NO_SUBST: no s'ha de generar cap substitució encadenada.
+    # "Guàrdia" és a «No substituir»: no s'ha de generar cap substitució encadenada.
     assert len(resultat) == 1
     assert resultat[0].substitut == "Prof_B"
 
@@ -286,8 +282,7 @@ def test_no_genera_encadenada_si_lassignatura_esta_a_no_subst(monkeypatch):
 def test_absents_tipus_es_reenvia_al_gestor_dabsencies(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     crides = {}
@@ -299,7 +294,9 @@ def test_absents_tipus_es_reenvia_al_gestor_dabsencies(monkeypatch):
 
     absents_tipus = {"Prof_A": "SERVEI"}
 
-    gestor = GestorSubstitucions(FakeHorari(hores=["09:00"]), FakeAlliberats({}), FakeAbsenciesEspia([]))
+    gestor = GestorSubstitucions(
+        FakeHorari(hores=["09:00"]), FakeAlliberats({}), FakeAbsenciesEspia([]), no_substituir=no_substituir
+    )
     gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
@@ -316,8 +313,7 @@ def test_absents_tipus_es_reenvia_al_gestor_dabsencies(monkeypatch):
 def test_conserva_el_substitut_anterior_si_encara_esta_disponible(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choices", lambda seq, *, weights, k: [seq[0]])
 
@@ -341,7 +337,7 @@ def test_conserva_el_substitut_anterior_si_encara_esta_disponible(monkeypatch):
         )
     }
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
@@ -360,8 +356,7 @@ def test_conserva_el_substitut_desat_encara_que_ja_no_surti_disponible(monkeypat
     (Prof_Nou) va a la fila pendent de la mateixa hora."""
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choices", lambda seq, *, weights, k: [seq[0]])
 
@@ -384,7 +379,7 @@ def test_conserva_el_substitut_desat_encara_que_ja_no_surti_disponible(monkeypat
         )
     }
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"], "Prof_B": ["09:00"]},
@@ -401,8 +396,7 @@ def test_conserva_el_substitut_desat_encara_que_ja_no_surti_disponible(monkeypat
 def test_conserva_seleccio_buida_anterior_encara_que_hi_hagi_candidat(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00"])
@@ -421,7 +415,7 @@ def test_conserva_seleccio_buida_anterior_encara_que_hi_hagi_candidat(monkeypatc
         )
     }
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
@@ -443,8 +437,7 @@ def test_conserva_seleccio_buida_anterior_encara_que_hi_hagi_candidat(monkeypatc
 def test_preserva_encadenada_del_json_quan_el_pare_torna_a_tenir_el_mateix_substitut(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})  # buit: no es regenera en viu
 
     horari = FakeHorari(hores=["09:00"])
@@ -465,7 +458,7 @@ def test_preserva_encadenada_del_json_quan_el_pare_torna_a_tenir_el_mateix_subst
         )
     }
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
@@ -486,8 +479,7 @@ def test_preserva_encadenada_del_json_quan_el_pare_torna_a_tenir_el_mateix_subst
 def test_encadenada_del_json_es_descarta_si_el_pare_ja_no_es_actiu(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00"])
@@ -508,7 +500,7 @@ def test_encadenada_del_json_es_descarta_si_el_pare_ja_no_es_actiu(monkeypatch):
         )
     }
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
@@ -526,8 +518,7 @@ def test_encadenada_del_json_es_descarta_si_el_pare_ja_no_es_actiu(monkeypatch):
 def test_grups_sense_classe_com_a_dict_filtra_nomes_lhora_indicada(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00"])
@@ -536,7 +527,7 @@ def test_grups_sense_classe_com_a_dict_filtra_nomes_lhora_indicada(monkeypatch):
         [{"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"}]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
@@ -550,8 +541,7 @@ def test_grups_sense_classe_com_a_dict_filtra_nomes_lhora_indicada(monkeypatch):
 def test_grups_sense_classe_com_a_set_antic_saplica_a_totes_les_hores(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
 
     horari = FakeHorari(hores=["09:00", "10:00"])
@@ -568,7 +558,7 @@ def test_grups_sense_classe_com_a_set_antic_saplica_a_totes_les_hores(monkeypatc
         ]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00", "10:00"]},
@@ -584,8 +574,7 @@ def test_grups_sense_classe_com_a_set_antic_saplica_a_totes_les_hores(monkeypatc
 def test_mes_absents_que_candidats_alguns_queden_pendents(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choices", lambda seq, *, weights, k: [seq[0]])
 
@@ -599,7 +588,7 @@ def test_mes_absents_que_candidats_alguns_queden_pendents(monkeypatch):
         ]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"], "Prof_X": ["09:00"], "Prof_Y": ["09:00"]},
@@ -616,8 +605,7 @@ def test_mes_absents_que_candidats_alguns_queden_pendents(monkeypatch):
 def test_mateix_professor_absent_a_diverses_hores_es_resol_independentment(monkeypatch):
     monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
     monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset()
     monkeypatch.setattr(constants, "PRIORITATS", {})
     monkeypatch.setattr(random, "choices", lambda seq, *, weights, k: [seq[0]])
 
@@ -635,7 +623,7 @@ def test_mateix_professor_absent_a_diverses_hores_es_resol_independentment(monke
         ]
     )
 
-    gestor = GestorSubstitucions(horari, alliberats, absencies)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
         dia="Dilluns", absents={"Prof_A": ["09:00", "10:00"]}, grups_sense_classe=set()
     )
@@ -655,7 +643,7 @@ def test_vigilant_amb_classe_real_genera_substitucio_de_vigilancia():
         "assignatura": "Matemàtiques",
         "aula": "A1",
     }
-    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]), no_substituir=frozenset())
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
     resultat = gestor._generar_substitucions_vigilants("Dilluns")
@@ -668,7 +656,7 @@ def test_vigilant_amb_classe_real_genera_substitucio_de_vigilancia():
 
 def test_vigilant_sense_activitat_no_genera_substitucio():
     horari = FakeHorari(hores=["09:00"])  # get_activitat retorna None per defecte
-    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]), no_substituir=frozenset())
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
     resultat = gestor._generar_substitucions_vigilants("Dilluns")
@@ -678,12 +666,11 @@ def test_vigilant_sense_activitat_no_genera_substitucio():
 
 def test_vigilant_amb_activitat_de_prioritats_sense_grup_genera_substitucio(monkeypatch):
     monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
-    monkeypatch.setattr(constants, "NO_SUBST", set())
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", ["Guàrdia"])  # prioritats.services
+    no_substituir = frozenset()
 
     horari = FakeHorari(hores=["09:00"])
     horari._activitats[("Dilluns", "09:00", "Prof_V")] = {"grup": "", "assignatura": "Guàrdia", "aula": ""}
-    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]), no_substituir=no_substituir)
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
     resultat = gestor._generar_substitucions_vigilants("Dilluns")
@@ -695,12 +682,11 @@ def test_vigilant_amb_activitat_de_prioritats_sense_grup_genera_substitucio(monk
 
 def test_vigilant_amb_assignatura_a_no_subst_no_genera_substitucio(monkeypatch):
     monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
-    monkeypatch.setattr(constants, "NO_SUBST", {"Guàrdia"})
-    monkeypatch.setattr(constants, "GENERA_ENCADENADES", [])  # prioritats.services
+    no_substituir = frozenset({"Guàrdia"})
 
     horari = FakeHorari(hores=["09:00"])
     horari._activitats[("Dilluns", "09:00", "Prof_V")] = {"grup": "", "assignatura": "Guàrdia", "aula": ""}
-    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]), no_substituir=no_substituir)
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
     resultat = gestor._generar_substitucions_vigilants("Dilluns")
@@ -718,7 +704,7 @@ def test_generar_substitucions_vigilants_avisa_d_excepcions_internes(caplog):
     ho registra amb traça, retorna una llista buida i deixa un avís: la
     generació de la resta de substitucions no s'atura."""
     horari = _HorariQueTrenca(hores=["09:00"])
-    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]), no_substituir=frozenset())
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
 
     resultat = gestor._generar_substitucions_vigilants("Dilluns")
@@ -742,7 +728,7 @@ def test_cobertura_de_vigilant_nomes_mira_els_grups_sense_classe_de_la_seva_hora
         "assignatura": "Matemàtiques",
         "aula": "A1",
     }
-    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]))
+    gestor = GestorSubstitucions(horari, FakeAlliberats({}), FakeAbsencies([]), no_substituir=frozenset())
     gestor.professors_ocupats_examens = {"09:00": ["Prof_V"]}
     gestor.grups_sense_classe_dict = {"12:30": ["1-ESO-A"]}
 

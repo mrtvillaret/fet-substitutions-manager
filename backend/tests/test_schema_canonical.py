@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
-from suport_schema_history import HISTORY, create_snapshot, preserved_rows
+from suport_schema_history import HISTORY, assert_preserved, create_snapshot, preserved_rows
 from test_schema_historical import historical_database
 from test_schema_migrations import legacy_database
 
@@ -18,6 +18,8 @@ from schema_migrations.schema import (
     CLEAN_REVISION,
     base_signature,
     create_base,
+    current_signature,
+    current_statements,
     schema_signature,
 )
 from scripts.migra_esquemes import main, run
@@ -43,12 +45,16 @@ def test_0003_stamp_accepts_only_exact_canonical_tables(tmp_path, variant):
     assert main(["--comprova", f"--{kind}", str(path)]) == (0 if matches else 1)
     assert main(["--aplica", f"--{kind}", str(path), "--backup-dir", str(copies)]) == (0 if matches else 1)
     if matches:
+        # Estampada a la 0003 i exacta: la 0004 la porta a l’esquema vigent.
         initialize_database(engine, kind)
+        with engine.connect() as connection:
+            assert schema_signature(connection) == current_signature(kind)
+            assert database_state(connection, kind) == "vigent"
     else:
         with pytest.raises(RuntimeError, match="Restaureu.*demaneu ajuda"):
             initialize_database(engine, kind)
-    assert path.read_bytes() == before
-    assert not copies.exists()
+        assert path.read_bytes() == before
+        assert not copies.exists()
     engine.dispose()
 
 
@@ -70,8 +76,10 @@ def test_matching_tables_are_never_rebuilt(tmp_path, kind):
         run([(kind, path)], apply=True, backup_dir=tmp_path / "copies")
     finally:
         event.remove(Engine, "before_cursor_execute", record)
-    assert not any(s.startswith(("DROP TABLE", "ALTER TABLE", "INSERT INTO _MIGRA3")) for s in statements)
-    assert preserved_rows(path) == before
+    # La 0004 només refà no_substituir (tests a test_migracio_0004.py).
+    altres = [s for s in statements if "NO_SUBSTITUIR" not in s]
+    assert not any(s.startswith(("DROP TABLE", "ALTER TABLE", "INSERT INTO _MIGRA3")) for s in altres)
+    assert_preserved(before, preserved_rows(path))
     engine.dispose()
 
 
@@ -126,12 +134,13 @@ def test_ensure_variants_normalize_column_order_defaults_and_all_values(tmp_path
     engine = legacy_database(path, kind)
     before = preserved_rows(path)
     run([(kind, path)], apply=True, backup_dir=tmp_path / "copies")
-    assert preserved_rows(path) == before
+    assert_preserved(before, preserved_rows(path))
     # Comparació independent del validador de producció, inclòs SQL i ordre.
     reference = create_engine("sqlite://")
     sql = "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' AND name != 'alembic_version' ORDER BY type, name"
     with reference.begin() as connection, engine.connect() as migrated:
-        create_base(connection, kind)
+        for statement in current_statements(kind):
+            connection.exec_driver_sql(statement)
         assert migrated.exec_driver_sql(sql).fetchall() == connection.exec_driver_sql(sql).fetchall()
     engine.dispose()
     reference.dispose()
@@ -168,7 +177,7 @@ def test_default_variants_with_non_default_values_are_preserved(tmp_path, revisi
         connection.exec_driver_sql("UPDATE assignatures_prioritat SET auto_assignada = 23 WHERE auto_assignada = 1")
     before = preserved_rows(path)
     run([("data", path)], apply=True, backup_dir=tmp_path / "copies")
-    assert preserved_rows(path) == before
+    assert_preserved(before, preserved_rows(path))
     engine.dispose()
 
 

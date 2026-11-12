@@ -397,16 +397,25 @@ class AssignaturaPrioritat(Base):
 
 class NoSubstituir(Base):
     """
-    Assignatures que NO necessiten substitució
+    Assignatures que NO necessiten substitució, amb vigència per dates
     Ex: "", "-x-", "Reforç", "alliberat", etc.
+
+    Cada fila val de `vigent_des_de` a `vigent_fins_a` (tots dos inclosos;
+    nul = sense límit). Treure una activitat posa `vigent_fins_a`; tornar-la
+    a afegir crea una fila nova. Les files d'una mateixa activitat no se
+    solapen (prioritats.services). Migració 0004.
     """
 
     __tablename__ = "no_substituir"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    assignatura = Column(String, unique=True, nullable=False)
+    assignatura = Column(String, nullable=False)
+    vigent_des_de = Column(Date)
+    vigent_fins_a = Column(Date)
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
+
+    __table_args__ = (Index("idx_no_substituir_assignatura", "assignatura"),)
 
 
 class User(Base):

@@ -1,0 +1,6 @@
+{
+  "data": [
+    "CREATE TABLE no_substituir (\n\tid INTEGER NOT NULL, \n\tassignatura VARCHAR NOT NULL, \n\tvigent_des_de DATE, \n\tvigent_fins_a DATE, \n\tcreated_at DATETIME, \n\tupdated_at DATETIME, \n\tPRIMARY KEY (id)\n)",
+    "CREATE INDEX idx_no_substituir_assignatura ON no_substituir (assignatura)"
+  ]
+}

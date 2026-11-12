@@ -2,8 +2,8 @@
 Tests per al mòdul prioritats (prioritats/):
 
 - carrega_prioritats: reconstrueix ORDRE_PRIORITATS/PRIORITATS/
-  CATEGORIES_ACTIVES/NO_SUBST/GENERA_ENCADENADES a
-  config.constants llegint-les de la BD. Alimenta directament la lògica
+  CATEGORIES_ACTIVES i la vigència de «No substituir» a config.constants
+  llegint-les de la BD. Alimenta directament la lògica
   d'assignació de substitucions/assignacio.py i core/vigilancia_core.py — és la
   peça de més risc real d'aquest mòdul, perquè si trenca, l'assignació
   automàtica es trenca en silenci sense que cap altre test ho detecti.
@@ -17,6 +17,7 @@ import pytest
 
 import config.constants as constants
 from errors_domini import NoTrobat, NoValid
+from prioritats.memoria import no_substituir_a
 from prioritats.repositories import AssignaturaPrioritatRepository, CategoriaPrioritatRepository, NoSubstituirRepository
 from prioritats.router import (
     create_no_substituir,
@@ -39,15 +40,13 @@ def test_recarrega_bd_buida_dona_tot_buit(db_session):
     assert constants.ORDRE_PRIORITATS == []
     assert constants.CATEGORIES_ACTIVES == []
     assert constants.PRIORITATS == {}
-    assert constants.NO_SUBST == set()
-    assert constants.GENERA_ENCADENADES == []
+    assert no_substituir_a("2026-11-04") == frozenset()
 
 
 def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     # Aquests mòduls fan "from config.constants import ..." en carregar-se:
     # la recàrrega ha d'omplir els mateixos objectes, no crear-ne de nous.
     import pdf.disponibles
-    import substitucions.necessitats
     import vigilancies.prioritats
 
     cat = CategoriaPrioritatRepository.create(db_session, "Guàrdies", ordre=0, activa=True)
@@ -59,7 +58,7 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     assert dict(constants.PRIORITATS) == {"Guàrdia": 4}  # ja cap mòdul no la importa en carregar-se
     for modul in (vigilancies.prioritats, pdf.disponibles):
         assert modul.ORDRE_PRIORITATS == [["Guàrdia"]], modul.__name__
-    assert substitucions.necessitats.NO_SUBST == {"Reunió"}
+    assert no_substituir_a("2026-11-04") == {"Reunió"}
 
 
 def test_recarrega_construeix_ordre_i_pesos(db_session):
@@ -97,16 +96,22 @@ def test_recarrega_categories_actives_en_el_mateix_ordre_que_ordre_prioritats(db
 
 
 def test_recarrega_no_subst_i_genera_encadenades(db_session):
+    from datetime import date
+
+    from substitucions.encadenades import activitat_encadenada
+
     cat = CategoriaPrioritatRepository.create(db_session, "Cat", ordre=0, activa=True)
     AssignaturaPrioritatRepository.create(db_session, "Normal", cat, pes=1)
     AssignaturaPrioritatRepository.create(db_session, "Guàrdia-P", cat, pes=1)
-    NoSubstituirRepository.create(db_session, "Guàrdia-P")
+    NoSubstituirRepository.create(db_session, "Guàrdia-P", vigent_des_de=date(2026, 11, 4))
 
     carrega_prioritats(db_session)
 
-    assert constants.NO_SUBST == {"Guàrdia-P"}
-    assert set(constants.GENERA_ENCADENADES) == {"Normal"}
-    assert "Guàrdia-P" not in constants.GENERA_ENCADENADES
+    # Abans que «Guàrdia-P» entri a «No substituir», també genera encadenada
+    for data, esperat in (("2026-11-03", {"Normal", "Guàrdia-P"}), ("2026-11-04", {"Normal"})):
+        llista = no_substituir_a(data)
+        assert llista == ({"Guàrdia-P"} if data == "2026-11-04" else frozenset())
+        assert {a for a in ("Normal", "Guàrdia-P") if activitat_encadenada(f"disponible ({a})", llista)} == esperat
 
 
 def test_recarrega_categoria_sense_assignatures_dona_llista_buida_en_ordre(db_session):
@@ -243,7 +248,7 @@ def test_els_repositoris_de_prioritats_no_fan_commit(db_session):
     db_session.rollback()
     assert CategoriaPrioritatRepository.get_all(db_session) == []
     assert AssignaturaPrioritatRepository.get_all(db_session) == []
-    assert NoSubstituirRepository.get_all(db_session) == []
+    assert NoSubstituirRepository.vigencia(db_session).entrades == ()
 
 
 def test_una_categoria_sense_ordre_va_al_final_sense_xocar(db_session):

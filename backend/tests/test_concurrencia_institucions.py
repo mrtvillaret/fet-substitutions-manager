@@ -23,11 +23,12 @@ from fastapi import APIRouter, Depends
 from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_institucio
 
 import i18n_setup
+import rellotge
 from auth.dependencies import get_current_user
-from config import constants
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from i18n_setup import _
+from prioritats.memoria import no_substituir_a
 from prioritats.repositories import NoSubstituirRepository
 from vigilancies.router import router as vigilancies_router
 
@@ -40,7 +41,7 @@ _textos = APIRouter()
 
 @_textos.get("/api/prova/no-substituir")
 def no_substituir(_usuari=Depends(get_current_user)):
-    return {"no_substituir": sorted(constants.NO_SUBST), "institucio": _usuari.institucio}
+    return {"no_substituir": sorted(no_substituir_a(rellotge.avui().isoformat())), "institucio": _usuari.institucio}
 
 
 @_textos.get("/api/prova/textos")

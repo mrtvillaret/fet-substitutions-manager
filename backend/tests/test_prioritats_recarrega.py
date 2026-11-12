@@ -12,11 +12,12 @@ from fastapi import APIRouter, Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_rellotge import AVUI
 
+import rellotge
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user
-from config import constants
 from database import get_data_db_session
 from pdf import router as pdf
+from prioritats.memoria import no_substituir_a
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
 from substitucions import router as substitucions
@@ -28,7 +29,7 @@ _no_substituir = APIRouter()
 
 @_no_substituir.get("/api/prova/no-substituir")
 def no_substituir_a_memoria(_usuari=Depends(get_current_user)):
-    return sorted(constants.NO_SUBST)
+    return sorted(no_substituir_a(rellotge.avui().isoformat()))
 
 
 APP = crea_app(substitucions.router, pdf.router, prioritats_router, absencia_coberta_router, _no_substituir)

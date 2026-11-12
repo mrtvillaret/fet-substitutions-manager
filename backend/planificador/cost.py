@@ -15,7 +15,7 @@ from planificador.config import aplica_restriccions_derivades, carrega_config
 from planificador.planificacio import xml_del_dia
 from planificador.services import desa_ultim_resultat
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-from scheduler_engine.core.constraints import sessio_in_group
+from scheduler_engine.core.constraints import recompte_limit_professor
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
 from scheduler_engine.core.durada import detectar_nivell_sessio, get_durada_per_sessio_key
 from scheduler_engine.core.horaris_xml import horaris_professors as llegeix_horaris_professors
@@ -101,16 +101,11 @@ def conflicte_de_nivell(sessions: list) -> bool:
 
 
 def _sessions_per_dia(horari: dict) -> dict:
-    """Sessions de cada dia, pel nom tal com ve i pel nom normalitzat."""
+    """Sessions de cada dia, pel nom tal com ve a l'horari."""
     sessions = defaultdict(list)
     for dia_data in horari.get("dies", []):
-        dia_nom = dia_data.get("dia", "")
-        dia_norm = normalitzar_dia(dia_nom)
         for slot_data in dia_data.get("sessions", []):
-            for sessio_data in slot_data.get("sessions_simultanees", []):
-                sessions[dia_nom].append(sessio_data)
-                if dia_norm and dia_norm != dia_nom:
-                    sessions[dia_norm].append(sessio_data)
+            sessions[dia_data.get("dia", "")].extend(slot_data.get("sessions_simultanees", []))
     return sessions
 
 
@@ -124,17 +119,9 @@ def excessos_limit_dies(horari: dict, restriccions: dict) -> list[str]:
     sessions_per_dia = _sessions_per_dia(horari)
     excessos = []
     for professor, config_prof in limits.items():
-        assignatures = config_prof.get("assignatures", [])
-        max_examens = int(config_prof.get("max_examens", 999))
-        examens = sum(
-            1
-            for dia in config_prof.get("dies_restringits", [])
-            for s in sessions_per_dia.get(dia, [])
-            if professor in {e.get("titular") for e in s.get("examens", []) if e.get("titular")}
-            and sessio_in_group(s, assignatures)
-        )
-        if examens > max_examens:
-            excessos.append(f"{professor} +{examens - max_examens}")
+        excedent = recompte_limit_professor(professor, config_prof, sessions_per_dia).excedent
+        if excedent:
+            excessos.append(f"{professor} +{excedent}")
     return excessos
 
 

@@ -145,3 +145,24 @@ def test_el_recompte_obre_la_bd_en_nomes_lectura(centre, monkeypatch):
     monkeypatch.setattr(m.sqlite3, "connect", lambda *a, **k: obertes.append((a, k)) or original(*a, **k))
     migra(centre[0], aplica=False)
     assert obertes and all("mode=ro" in a[0] and k.get("uri") for a, k in obertes)
+
+
+def test_els_periodes_d_una_activitat_a_no_substituir_no_es_fusionen():
+    """Amb la vigència per dates (migració 0004), cada període és una entrada
+    pròpia: en netejar el nom, només es fusionen les del mateix període."""
+    nom = f"migra_{uuid.uuid4().hex[:8]}"
+    with get_data_db_session(nom) as db:
+        db.add_all(
+            [
+                NoSubstituir(assignatura="Pares ", vigent_fins_a=date(2026, 3, 31), updated_at=ABANS),
+                NoSubstituir(assignatura="Pares", vigent_des_de=date(2026, 9, 1), updated_at=DESPRES),
+            ]
+        )
+        db.commit()
+    resum = migra(str(get_data_dir_for_institucio(nom) / "gestor.db"), aplica=True)
+    assert resum["no_substituir: fusions"] == 0
+    with get_data_db_session(nom) as db:
+        assert [(x.assignatura, x.vigent_des_de, x.vigent_fins_a) for x in db.query(NoSubstituir).order_by("id")] == [
+            ("Pares", None, date(2026, 3, 31)),
+            ("Pares", date(2026, 9, 1), None),
+        ]

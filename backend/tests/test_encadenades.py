@@ -89,7 +89,9 @@ def test_genera_pendents_crea_l_encadenada_d_un_substitut_de_guardia(centre):
 
 def test_amb_guardia_a_no_substituir_no_hi_ha_encadenada(centre):
     institucio, client = centre
-    assert client.post("/api/prioritats/no-substituir", json={"assignatura": "Guàrdia"}).status_code == 200
+    assert (
+        client.post("/api/prioritats/no-substituir", json={"assignatura": "Guàrdia", "data": DATA}).status_code == 200
+    )
     _absent_i_genera(client)
 
     assert not any(f["tipus_absencia"] == "ENCADENADA" for f in _files(institucio))
@@ -157,7 +159,9 @@ def test_un_substitut_alliberat_no_crea_encadenada(centre):
 
 def test_triar_a_ma_amb_guardia_a_no_substituir_no_crea_encadenada(centre):
     institucio, client = centre
-    assert client.post("/api/prioritats/no-substituir", json={"assignatura": "Guàrdia"}).status_code == 200
+    assert (
+        client.post("/api/prioritats/no-substituir", json={"assignatura": "Guàrdia", "data": DATA}).status_code == 200
+    )
     _absent(client)
     _tria(client, "Prof 2")
     assert _encadenades(institucio) == []
@@ -302,11 +306,14 @@ def test_no_avisa_quan_no_deixa_activitat_encadenable(centre, exclusio):
     institucio, client = centre
     _absent_i_genera(client)
     if exclusio == "no_substituir":
-        assert client.post("/api/prioritats/no-substituir", json={"assignatura": "Guàrdia"}).status_code == 200
+        assert (
+            client.post("/api/prioritats/no-substituir", json={"assignatura": "Guàrdia", "data": DATA}).status_code
+            == 200
+        )
     elif exclusio == "fora_prioritats":
         from config import constants
 
-        constants.desa_prioritats(institucio, GENERA_ENCADENADES=[])
+        constants.desa_prioritats(institucio, PRIORITATS={})
     else:
         with get_data_db_session(institucio) as db:
             fila = db.query(Substitucio).filter(Substitucio.tipus_absencia == "ENCADENADA").one()

@@ -18,7 +18,7 @@ from suport_schema_history import assert_preserved, preserved_rows
 from models import Base
 from schema_migrations import runner
 from schema_migrations.runner import database_state, initialize_database
-from schema_migrations.schema import CANONICAL_REVISION, schema_signature
+from schema_migrations.schema import CURRENT_REVISION, schema_signature
 from scripts.migra_esquemes import main, run
 
 
@@ -285,7 +285,7 @@ def future_migration(tmp_path, monkeypatch):
         return result
 
     monkeypatch.setattr(runner, "alembic_config", local_config)
-    return target / "versions/0004_test.py"
+    return target / "versions/0005_test.py"
 
 
 @pytest.mark.parametrize("fails", [False, True])
@@ -297,8 +297,8 @@ def test_pending_upgrade_only_explicit_and_transactional(tmp_path, future_migrat
     before = path.read_bytes()
     future_migration.write_text(
         "from alembic import op\n"
-        "revision = '0004_test'\n"
-        f"down_revision = {CANONICAL_REVISION!r}\n"
+        "revision = '0005_test'\n"
+        f"down_revision = {CURRENT_REVISION!r}\n"
         "def upgrade():\n"
         "    op.execute('CREATE TABLE nova (id INTEGER)')\n"
         + ("    raise RuntimeError('fallada simulada')\n" if fails else "")
@@ -307,7 +307,7 @@ def test_pending_upgrade_only_explicit_and_transactional(tmp_path, future_migrat
         fresh_engine = create_engine(f"sqlite:///{tmp_path / 'new_future.db'}")
         initialize_database(fresh_engine, "auth")
         with fresh_engine.connect() as connection:
-            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0004_test"
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0005_test"
     with pytest.raises(RuntimeError, match="Migracions pendents"):
         initialize_database(engine, "auth")
     assert path.read_bytes() == before
@@ -319,7 +319,7 @@ def test_pending_upgrade_only_explicit_and_transactional(tmp_path, future_migrat
         run([("auth", path)], apply=True, backup_dir=tmp_path / "copies")
         with engine.connect() as connection:
             assert database_state(connection, "auth") == "vigent"
-            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0004_test"
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar() == "0005_test"
         after = path.read_bytes()
         initialize_database(engine, "auth")
         assert path.read_bytes() == after

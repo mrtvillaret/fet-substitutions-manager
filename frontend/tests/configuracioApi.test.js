@@ -82,6 +82,13 @@ test('prioritats conserva totes les rutes i codifica No substituir', async () =>
   await comprova(prioritats.esborraNoSubstituirAmb, ['Act / 1'], {}, [
     'delete', '/api/prioritats/no-substituir/Act%20%2F%201'
   ])
+  // Amb la data del canvi (vigència per dates)
+  await comprova(prioritats.afegeixNoSubstituirAmb, ['Act 1', '2026-09-01'], {}, [
+    'post', '/api/prioritats/no-substituir', { assignatura: 'Act 1', data: '2026-09-01' }
+  ])
+  await comprova(prioritats.esborraNoSubstituirAmb, ['Act 1', '2026-09-01'], {}, [
+    'delete', '/api/prioritats/no-substituir/Act%201', { params: { data: '2026-09-01' } }
+  ])
 })
 
 test('abreviatures de grup conserven el contracte CRUD', async () => {

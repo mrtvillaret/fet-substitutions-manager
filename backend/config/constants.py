@@ -23,7 +23,7 @@ except ImportError:
 #
 # Cada institució té les seves (es carreguen de la seva BD amb
 # prioritats.memoria.carrega_prioritats). Els noms públics de sota
-# (PRIORITATS, NO_SUBST, ...) són vistes: objectes fixos que, cada cop que es
+# (PRIORITATS, ORDRE_PRIORITATS, ...) són vistes: objectes fixos que, cada cop que es
 # consulten, mostren les dades de la institució de la petició en curs
 # (config.context). Així:
 #   - dues peticions simultànies de centres diferents no es trepitgen;
@@ -42,9 +42,15 @@ def _dades_actuals() -> dict:
 
 
 def desa_prioritats(institucio, **valors) -> None:
-    """Desa les prioritats d'una institució (claus: PRIORITATS, NO_SUBST,
-    ORDRE_PRIORITATS, CATEGORIES_ACTIVES, GENERA_ENCADENADES)."""
+    """Desa les prioritats d'una institució (claus: PRIORITATS,
+    ORDRE_PRIORITATS, CATEGORIES_ACTIVES i NO_SUBSTITUIR, la vigència de
+    «No substituir», que només es llegeix per data: prioritats.memoria)."""
     _PRIORITATS_PER_INSTITUCIO[institucio] = valors
+
+
+def dada_actual(nom, buit):
+    """Una dada desada de la institució de la petició en curs."""
+    return _dades_actuals().get(nom, buit)
 
 
 def te_prioritats(institucio) -> bool:
@@ -100,12 +106,8 @@ class _VistaLlista(_Vista, _Sequence):
 
 
 PRIORITATS = _VistaDict("PRIORITATS", {})
-NO_SUBST = _VistaSet("NO_SUBST", frozenset())
 ORDRE_PRIORITATS = _VistaLlista("ORDRE_PRIORITATS", ())
 CATEGORIES_ACTIVES = _VistaLlista("CATEGORIES_ACTIVES", ())
-
-# Assignatures que generen substitucions encadenades (estan a PRIORITATS però NO a NO_SUBST)
-GENERA_ENCADENADES = _VistaLlista("GENERA_ENCADENADES", ())
 
 # EMOJI MAPPING FOR PROFESSOR TYPES
 PROFESSOR_TYPE_EMOJIS = {

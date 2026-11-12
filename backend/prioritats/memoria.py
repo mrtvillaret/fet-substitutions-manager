@@ -4,14 +4,15 @@ from sqlalchemy.orm import Session
 
 import config.constants as constants
 from config.context import institucio_peticio
+from prioritats.files import VigenciaNoSubstituir
 from prioritats.repositories import AssignaturaPrioritatRepository, CategoriaPrioritatRepository, NoSubstituirRepository
 
 
 def carrega_prioritats(db: Session) -> None:
     """Llegeix de la BD les prioritats i «No substituir» de la
     institució de la petició en curs (config.context) i les deixa a memòria
-    (config.constants: ORDRE_PRIORITATS, CATEGORIES_ACTIVES, PRIORITATS,
-    NO_SUBST, GENERA_ENCADENADES). Cal tornar-la a cridar
+    (config.constants: ORDRE_PRIORITATS, CATEGORIES_ACTIVES, PRIORITATS i
+    NO_SUBSTITUIR, amb la vigència per dates). Cal tornar-la a cridar
     després de qualsevol canvi."""
     categories = CategoriaPrioritatRepository.ordenades(db)
     assignatures = AssignaturaPrioritatRepository.totes(db)
@@ -20,13 +21,18 @@ def carrega_prioritats(db: Session) -> None:
     ordre_prioritats = [[a.assignatura for a in assignatures if a.categoria_id == cat.id] for cat in categories]
     categories_actives = [cat.activa for cat in categories]
     prioritats = {a.assignatura: a.pes for a in assignatures}
-    no_subst = set(NoSubstituirRepository.get_all(db))
 
     constants.desa_prioritats(
         institucio_peticio(),
         ORDRE_PRIORITATS=ordre_prioritats,
         CATEGORIES_ACTIVES=categories_actives,
         PRIORITATS=prioritats,
-        NO_SUBST=no_subst,
-        GENERA_ENCADENADES=[tipus for tipus in prioritats if tipus not in no_subst],
+        NO_SUBSTITUIR=NoSubstituirRepository.vigencia(db),
     )
+
+
+def no_substituir_a(data: str) -> frozenset[str]:
+    """«No substituir» de la institució de la petició a `data` (de memòria,
+    per al motor, que no té sessió de BD). La regla és la de
+    `VigenciaNoSubstituir.a`, la mateixa que llegeix la BD."""
+    return constants.dada_actual("NO_SUBSTITUIR", VigenciaNoSubstituir()).a(data)

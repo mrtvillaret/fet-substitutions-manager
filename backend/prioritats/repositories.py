@@ -3,10 +3,13 @@
 Els repositoris no fan commit: el fa el servei, un cop per operació (com a
 auth/repositories.py)."""
 
+from datetime import date
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models import AssignaturaPrioritat, CategoriaPrioritat, NoSubstituir
+from prioritats.files import EntradaNoSubstituir, VigenciaNoSubstituir
 
 
 class CategoriaPrioritatRepository:
@@ -92,25 +95,50 @@ class AssignaturaPrioritatRepository:
 
 
 class NoSubstituirRepository:
-    """Activitats que no se substitueixen"""
+    """Activitats que no se substitueixen, amb vigència per dates.
+
+    Les lectures sempre van per data: `vigencia` (totes les entrades, per
+    a recomptes d'un interval: la regla per a cada fila segons la seva data)
+    o `vigents_a` (la llista d'un dia). No hi ha cap llista sense data."""
 
     @staticmethod
-    def get_all(db: Session) -> list[str]:
-        return [a.assignatura for a in db.query(NoSubstituir).all()]
+    def vigencia(db: Session) -> VigenciaNoSubstituir:
+        return VigenciaNoSubstituir(
+            tuple(NoSubstituirRepository.entrada(f) for f in db.query(NoSubstituir).order_by(NoSubstituir.id))
+        )
 
     @staticmethod
-    def create(db: Session, assignatura: str) -> int:
-        nova = NoSubstituir(assignatura=assignatura)
+    def entrada(fila: NoSubstituir) -> EntradaNoSubstituir:
+        """La fila com a valor del domini (amb la regla de les dates)."""
+        return EntradaNoSubstituir(
+            id=fila.id,
+            assignatura=fila.assignatura,
+            vigent_des_de=fila.vigent_des_de.isoformat() if fila.vigent_des_de else None,
+            vigent_fins_a=fila.vigent_fins_a.isoformat() if fila.vigent_fins_a else None,
+        )
+
+    @staticmethod
+    def vigents_a(db: Session, data: str) -> frozenset[str]:
+        return NoSubstituirRepository.vigencia(db).a(data)
+
+    @staticmethod
+    def de_l_activitat(db: Session, assignatura: str) -> list[NoSubstituir]:
+        """Les files d'una activitat (per escriure-hi), per ordre de creació."""
+        return db.query(NoSubstituir).filter(NoSubstituir.assignatura == assignatura).order_by(NoSubstituir.id).all()
+
+    @staticmethod
+    def create(db: Session, assignatura: str, vigent_des_de: date | None = None) -> int:
+        nova = NoSubstituir(assignatura=assignatura, vigent_des_de=vigent_des_de)
         db.add(nova)
         db.flush()
         return nova.id
 
     @staticmethod
-    def delete(db: Session, assignatura: str) -> bool:
-        """False si no hi era."""
-        assig = db.query(NoSubstituir).filter(NoSubstituir.assignatura == assignatura).first()
-        if not assig:
-            return False
-        db.delete(assig)
+    def tanca(db: Session, fila: NoSubstituir, vigent_fins_a: date) -> None:
+        fila.vigent_fins_a = vigent_fins_a
         db.flush()
-        return True
+
+    @staticmethod
+    def delete(db: Session, fila: NoSubstituir) -> None:
+        db.delete(fila)
+        db.flush()

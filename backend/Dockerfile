@@ -2,8 +2,11 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+# TZ: l'hora local dels scripts i dels registres, la del centre. «Avui» de
+# l'aplicació no en depèn: rellotge.py fa servir sempre Europe/Madrid.
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    TZ=Europe/Madrid
 
 COPY requirements.txt /app/requirements.txt
 # --only-binary=:all: instal·la només paquets ja compilats. Totes les

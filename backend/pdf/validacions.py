@@ -10,6 +10,7 @@ from collections import defaultdict
 from grups.disponibilitat import sense_classe
 from horari.domain import Dia
 from i18n_setup import translate
+from prioritats.repositories import NoSubstituirRepository
 from substitucions.domain import DiaEscolar
 from substitucions.encadenades import avisos_encadenades
 from substitucions.files import FilaSubstitucio
@@ -120,7 +121,7 @@ def valida_dia(db, data: str, institucio: str, avisos_prioritat) -> dict:
     _absencies_sense_substitut(dia, conflicts, problemes)
     _baixes_i_substituts_no_valids(dia, conflicts, warnings, problemes)
     warnings.extend(avisos_prioritat(dia))
-    encadenades = avisos_encadenades(dia.files)
+    encadenades = avisos_encadenades(dia.files, NoSubstituirRepository.vigents_a(db, data))
     warnings.extend(encadenades)
 
     conflicts.sort(key=_clau_hora)

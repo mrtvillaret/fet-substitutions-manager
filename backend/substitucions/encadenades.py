@@ -13,17 +13,19 @@ import re
 
 from config import constants
 from i18n_setup import translate
+from prioritats.repositories import NoSubstituirRepository
 from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
 
 log = logging.getLogger(__name__)
 
 
-def activitat_encadenada(tipus_substitut: str) -> str | None:
+def activitat_encadenada(tipus_substitut: str, no_substituir: frozenset[str]) -> str | None:
     """L'activitat que deixa un substitut, si cal una encadenada; si no, None.
     `tipus_substitut` és el text desat a la fila: l'activitat va entre
     parèntesis («disponible (Guàrdia)»); un alliberat («alliberat (tenia…)»)
-    o una vigilància no en fan cap."""
+    o una vigilància no en fan cap. `no_substituir`: la llista vigent el dia
+    de la fila."""
     if not tipus_substitut:
         return None
     match = re.search(r"\(([^)]+)\)", tipus_substitut)
@@ -32,8 +34,8 @@ def activitat_encadenada(tipus_substitut: str) -> str | None:
     else:
         # Formats antics, sense parèntesis
         activitat = tipus_substitut.split(" (")[0]
-    # Les de les prioritats que no són a «No substituir» (prioritats.services)
-    return activitat if activitat in constants.GENERA_ENCADENADES else None
+    # Les de les prioritats que no són a «No substituir» aquell dia
+    return activitat if activitat in constants.PRIORITATS and activitat not in no_substituir else None
 
 
 def reconcilia_encadenades(db, data: str) -> dict:
@@ -41,12 +43,13 @@ def reconcilia_encadenades(db, data: str) -> dict:
     no calen. Només un nivell, com el motor: el substitut d'una encadenada no
     en fa cap altra. Retorna {"creades": n, "esborrades": n}."""
     files = SubstitucioRepository.get_by_date(db, data)
+    no_substituir = NoSubstituirRepository.vigents_a(db, data)
     cal = set()
     for fila in files:
         if fila.tipus_absencia == "ENCADENADA":
             continue
         substitut = (fila.substitut or "").strip()
-        activitat = activitat_encadenada(fila.tipus_substitut or "")
+        activitat = activitat_encadenada(fila.tipus_substitut or "", no_substituir)
         if substitut and activitat:
             cal.add((fila.hora, substitut, activitat))
 
@@ -81,18 +84,19 @@ def reconcilia_encadenades(db, data: str) -> dict:
     return resum
 
 
-def avisos_encadenades(files: list[FilaSubstitucio]) -> list[str]:
+def avisos_encadenades(files: list[FilaSubstitucio], no_substituir: frozenset[str]) -> list[str]:
     """Avisa de l'activitat que deixa qui cobreix una encadenada.
 
     Només lectura: es manté el límit d'un nivell. La mateixa regla
     d'activitat encadenable serveix per generar i per avisar.
+    `no_substituir`: la llista vigent el dia de les files.
     """
     avisos = []
     for fila in files:
         if fila.tipus_absencia != "ENCADENADA":
             continue
         substitut = (fila.substitut or "").strip()
-        activitat = activitat_encadenada(fila.tipus_substitut or "")
+        activitat = activitat_encadenada(fila.tipus_substitut or "", no_substituir)
         if substitut and activitat:
             avisos.append(
                 translate(

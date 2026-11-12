@@ -64,3 +64,20 @@ def test_el_rellotge_no_evita_la_comprovacio_de_signatura(rellotge_fix):
 def test_es_preserva_el_fus_utc_i_el_format_local(rellotge_fix):
     assert rellotge.ara(UTC).utcoffset() == timedelta(0)
     assert rellotge.ara().tzinfo is None
+
+
+@pytest.mark.parametrize(
+    "instant, dia, hora",
+    [
+        (datetime(2026, 11, 11, 23, 30, tzinfo=UTC), date(2026, 11, 12), "00:30"),  # hivern, UTC+1
+        (datetime(2026, 7, 1, 22, 30, tzinfo=UTC), date(2026, 7, 2), "00:30"),  # estiu, UTC+2
+        (datetime(2026, 11, 12, 7, 0, tzinfo=UTC), date(2026, 11, 12), "08:00"),
+    ],
+)
+def test_avui_i_l_hora_son_els_del_centre_tambe_amb_el_servidor_en_utc(instant, dia, hora):
+    # El servidor va en UTC: entre les 0 i les 2 h, «avui» no pot ser ahir.
+    sistema = rellotge.RellotgeSistema(lambda: instant)
+    assert sistema.avui() == dia
+    assert sistema.ara().strftime("%H:%M") == hora
+    assert sistema.ara().tzinfo is None
+    assert sistema.ara(UTC) == instant

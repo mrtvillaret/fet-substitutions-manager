@@ -176,8 +176,11 @@ class CandidateValidator:
 class GestorSubstitucions:
     """Gestiona l'assignació de substitucions"""
 
-    def __init__(self, gestor_horari, gestor_alliberats, gestor_absencies):
+    def __init__(self, gestor_horari, gestor_alliberats, gestor_absencies, *, no_substituir: frozenset[str]):
+        """`no_substituir`: la llista vigent el dia que s'assigna
+        (substitucions.context.get_gestors)."""
         self.horari = gestor_horari
+        self.no_substituir = no_substituir
         self.alliberats = gestor_alliberats
         self.absencies = gestor_absencies
         self.validator = None
@@ -263,7 +266,7 @@ class GestorSubstitucions:
                 substitucions_filtrades.append(sub)
             elif not grup:
                 # Activitats sense grup que necessiten substitució (VP, GP, etc.)
-                if assignatura not in constants.NO_SUBST and not sense_classe(professor, "", grups_hora):
+                if assignatura not in self.no_substituir and not sense_classe(professor, "", grups_hora):
                     substitucions_filtrades.append(sub)
 
         # Recomponem la llista: separadors + substitucions filtrades
@@ -401,10 +404,10 @@ class GestorSubstitucions:
                                 )
                             )
 
-                        # CAS 2: Té activitat de PRIORITATS que NO està a NO_SUBST
+                        # CAS 2: Té activitat de PRIORITATS que NO és a «No substituir»
                         # (si no està alliberat d'aquesta activitat)
                         elif assignatura and not sense_classe(vigilant, "", self.grups_sense_classe_dict.get(hora, ())):
-                            if assignatura in constants.PRIORITATS and assignatura not in constants.NO_SUBST:
+                            if assignatura in constants.PRIORITATS and assignatura not in self.no_substituir:
                                 substitucions_vigilants.append(
                                     PropostaSubstitucio(
                                         professor=vigilant,
@@ -473,7 +476,7 @@ class GestorSubstitucions:
         # SUBSTITUCIONS ENCADENADES: Genera substitucions per disponibles que ara fan substitució
         substitucions_encadenades = []
         for sub in substitucions:
-            activitat = activitat_encadenada(sub.tipus_substitut) if sub.substitut else None
+            activitat = activitat_encadenada(sub.tipus_substitut, self.no_substituir) if sub.substitut else None
             if activitat:
                 substitucions_encadenades.append(
                     PropostaSubstitucio(

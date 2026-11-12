@@ -24,7 +24,7 @@ def test_every_historical_snapshot_reaches_canonical_with_same_values(tmp_path, 
 
     from models import Base
     from schema_migrations.runner import database_state
-    from schema_migrations.schema import base_signature, schema_signature
+    from schema_migrations.schema import base_statements, current_signature, schema_signature
     from scripts.migra_esquemes import main
 
     path = tmp_path / "inventada.db"
@@ -32,7 +32,15 @@ def test_every_historical_snapshot_reaches_canonical_with_same_values(tmp_path, 
     create_snapshot(path, data_snapshot)
     if completed != "original":
         engine = create_engine(f"sqlite:///{path}")
-        Base.metadata.create_all(engine, tables=[t for t in Base.metadata.sorted_tables if t.name != "users"])
+        # Els models d'abans de la 0004: no_substituir, amb la forma congelada de la base.
+        Base.metadata.create_all(
+            engine, tables=[t for t in Base.metadata.sorted_tables if t.name not in {"users", "no_substituir"}]
+        )
+        with engine.begin() as connection:
+            if "no_substituir" not in schema_signature(connection):
+                for statement in base_statements("data"):
+                    if statement.startswith("CREATE TABLE no_substituir "):
+                        connection.exec_driver_sql(statement)
         engine.dispose()
     if completed == "ensure":
         with sqlite3.connect(path) as connection:
@@ -52,7 +60,7 @@ def test_every_historical_snapshot_reaches_canonical_with_same_values(tmp_path, 
     assert preserved_rows(next(copies.glob("*.db"))) == before
     engine = create_engine(f"sqlite:///{path}")
     with engine.connect() as connection:
-        assert schema_signature(connection) == base_signature("data")
+        assert schema_signature(connection) == current_signature("data")
         assert database_state(connection, "data") == "vigent"
         assert connection.exec_driver_sql("PRAGMA integrity_check").scalar() == "ok"
         assert not connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
@@ -69,7 +77,7 @@ def test_each_exact_table_shape_and_rows_after_0003(tmp_path, variant):
     from sqlalchemy import create_engine
 
     from schema_migrations.runner import alembic_config
-    from schema_migrations.schema import BASE_REVISION, CLEAN_REVISION, base_signature, schema_signature
+    from schema_migrations.schema import BASE_REVISION, CLEAN_REVISION, current_signature, schema_signature
     from scripts.migra_esquemes import main
 
     statements = HISTORY["tables"][variant]
@@ -98,6 +106,6 @@ def test_each_exact_table_shape_and_rows_after_0003(tmp_path, variant):
         if before[table][0] == after[table][0]:
             assert before[table] == after[table]
     with engine.connect() as connection:
-        assert schema_signature(connection) == base_signature(kind)
+        assert schema_signature(connection) == current_signature(kind)
         assert not connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
     engine.dispose()

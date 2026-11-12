@@ -12,7 +12,7 @@ compta cada pantalla, PDF i informe. Les regles detallades són a
 | Absències del dia (professor, hores, absència o servei) | user | files de `substitucions` |
 | Absència coberta (abans «baixa»): període amb el substitut ja a l'XML | user | `professors_baixa` |
 | Grups i professors alliberats d'un dia; activitats alliberables | user | `grups_alliberats`, `alliberaments_periode` |
-| «No substituir»: activitats que no cal cobrir (buit = hora sense activitat) | admin | `no_substituir` |
+| «No substituir»: activitats que no cal cobrir (buit = hora sense activitat), cadascuna amb el seu període de vigència | admin | `no_substituir` |
 | Prioritats: activitats de qui pot anar a substituir, per categoria i pes | admin | `prioritats` |
 | Vigilàncies d'examen del dia (a mà o publicades pel planificador) | user | `vigilancies` |
 
@@ -26,7 +26,37 @@ XML vigent aquella data ──► Dia / DiaEscolar
    grups / professors ───────►├─ sense_classe(): el professor queda lliure
    alliberats                 │  (només controls manuals; un examen mai no allibera)
    No substituir ────────────►└─ aquelles activitats no generen res a cobrir
+   (el vigent aquella data)
 ```
+
+### «No substituir» té vigència per dates
+
+Cada entrada de «No substituir» val d'una data a una altra (`vigent_des_de` i
+`vigent_fins_a`, totes dues incloses; buida = sense límit). Cada dia fa servir
+la llista vigent **aquell dia**, també als dies passats:
+- **Afegir** una activitat crea una entrada nova que val des de la data triada a
+  Prioritats (per defecte, avui). **Treure-la** no l'esborra: a l'entrada que
+  val la data triada hi posa la data de fi (el dia abans). Les altres entrades de
+  l'activitat (p. ex. un període programat per més endavant) no es toquen.
+  Tornar-la a afegir en crea una altra. Les entrades d'una mateixa activitat no
+  se solapen (409, amb la data d'inici del període que ja hi ha). Treure una
+  entrada des del dia que comença l'anul·la (no ha valgut cap dia): és el que fa
+  la creu de les etiquetes «(des del ...)».
+- «Avui» és sempre el d'Europe/Madrid (`backend/rellotge.py`), encara que el
+  servidor vagi en UTC.
+- Per tant, un canvi d'avui **no toca els dies d'abans**: ni les files que es veuen
+  a Substitucions aquells dies, ni les absències, els serveis, les hores a cobrir
+  i les cobertes dels recomptes i informes. Triar a propòsit una data passada sí
+  que canvia aquell interval; la pantalla ho avisa.
+- Les entrades d'abans d'aquesta regla (migració 0004) valen des de sempre: les
+  xifres no han canviat en migrar.
+- Quina llista fa servir cadascú: la generació, la pantalla, el PDF i les
+  encadenades d'un dia, la d'aquell dia; els recomptes i els informes d'un
+  interval, la de la data de cada fila; el planificador d'exàmens, la de la data
+  del seu horari (la primera data planificada o, sense dates, avui).
+- A Prioritats es veuen les vigents avui i, al costat, la data de les que
+  acaben més endavant («fins al ...») i les que encara no han començat («des del
+  ...»).
 
 ## 3. Els tipus de fila de substitució (`tipus_absencia`)
 
@@ -181,6 +211,8 @@ Un vigilant que falta es pot resoldre de dues maneres: reassignant la vigilànci
   substitucions fetes, no a les vigilàncies fetes.
 - Els filtres («No substituir» i alliberats) són els de la pantalla Substitucions, i
   només valen per a les absències i la cobertura; les substitucions fetes no en tenen.
+  «No substituir» és el vigent a la data de cada fila (apartat 2), de manera que
+  afegir o treure una activitat avui no canvia les xifres dels dies passats.
 - A Prioritats, en afegir a «No substituir» una activitat que a l'horari vigent té grup,
   la pantalla avisa (sense impedir desar-la) que aquell grup quedarà sense professor quan
   qui la fa falti, perquè l'hora no sortirà a Substitucions.

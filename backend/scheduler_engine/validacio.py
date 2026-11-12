@@ -8,7 +8,9 @@ from scheduler_engine.core.constraints import (
     _percent_penalty,
     _percent_value,
     percent_no_mateix_slot,
+    recompte_limit_professor,
 )
+from scheduler_engine.core.normalitzacio import normalitzar_dia
 from scheduler_engine.core.scoring import pes_professor
 from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS
 
@@ -319,10 +321,10 @@ class ValidadorHorari:
 
         sessions_per_dia: dict[str, list] = {}
         for dia in self.horari.get("dies", []):
-            sessions = []
+            # Dos dilluns de setmanes diferents sumen, com al cost final
+            sessions = sessions_per_dia.setdefault(dia.get("dia") or "", [])
             for slot in dia.get("sessions", []):
                 sessions.extend(slot.get("sessions_simultanees", []))
-            sessions_per_dia[dia.get("dia")] = sessions
 
         for prof, config_prof in professors_limits.items():
             assignatures_restringides = config_prof.get("assignatures", [])
@@ -336,19 +338,15 @@ class ValidadorHorari:
             if not assignatures_restringides or not dies_restringits:
                 continue
 
-            count_examens = 0
+            recompte = recompte_limit_professor(prof, config_prof, sessions_per_dia)
+            count_examens, excedent = recompte.examens, recompte.excedent
+            # Els dies, amb el nom tal com els ha escrit el centre
             per_day: dict[str, int] = {}
             for dia_check in dies_restringits:
-                for sessio in sessions_per_dia.get(dia_check, []):
-                    profs = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
-                    if prof not in profs:
-                        continue
-                    nom_sessio = sessio.get("nom", "")
-                    if _assig_in_group(nom_sessio, assignatures_restringides):
-                        count_examens += 1
-                        per_day[dia_check] = per_day.get(dia_check, 0) + 1
+                n = recompte.per_dia.get(normalitzar_dia(dia_check), 0)
+                if n:
+                    per_day[dia_check] = n
 
-            excedent = count_examens - max_examens
             if excedent > 0:
                 score = _percent_penalty(self.pes_restriccio_dura_violada, pes_penalitzacio) * excedent
                 dies_txt = (

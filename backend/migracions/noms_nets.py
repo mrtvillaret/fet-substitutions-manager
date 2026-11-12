@@ -36,7 +36,8 @@ from textos import nom_net
 
 # taula: (columnes de noms, clau de la llista)
 LLISTES = {
-    "no_substituir": (["assignatura"], ["assignatura"]),
+    # Amb la vigència (migració 0004), cada període és una entrada pròpia
+    "no_substituir": (["assignatura"], ["assignatura", "vigent_des_de", "vigent_fins_a"]),
     "assignatures_prioritat": (["assignatura"], ["categoria_id", "assignatura"]),
     "professors": (["nom"], ["nom"]),
     "assignatures": (["nom"], ["nivell_id", "nom"]),
@@ -53,6 +54,8 @@ REGISTRES = {
 CLAUS_LLISTA = ["activitats_alliberables", "activitats_alliberades_per_defecte"]
 CLAU_TEXT = "ultim_professor_subs"
 CLAU_DICT = "scheduler_durades_per_sessio"
+# Columnes de clau que una BD d'abans de la seva migració pot no tenir encara
+CLAUS_OPCIONALS = {"vigent_des_de", "vigent_fins_a"}
 
 
 def _columnes(con, taula):
@@ -69,6 +72,7 @@ def _net(v):
 
 def _llista(con, taula, cols, clau, aplica, resum):
     existents = _columnes(con, taula)
+    clau = [c for c in clau if c in existents or c not in CLAUS_OPCIONALS]
     cols = [c for c in cols if c in existents]
     if not cols or not set(clau) <= existents:
         return

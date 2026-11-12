@@ -53,13 +53,19 @@ def substitucions_reals(
     """Les files de l'interval que es veuen a la pantalla Substitucions
     (es_visible_a_substitucions, la mateixa regla que la pantalla), de tots
     els tipus, per data i per ordre de creació: d'aquí surten les absències i
-    la cobertura. Amb `hores`, només les d'aquestes franges."""
-    no_sub = set(NoSubstituirRepository.get_all(db))
+    la cobertura. Amb `hores`, només les d'aquestes franges. «No substituir»,
+    el vigent a la data de cada fila."""
+    vigencia = NoSubstituirRepository.vigencia(db)
     files = [
         s for s in RecomptesRepository.substitucions_entre(db, data_inici, data_final) if a_les_hores(s.hora, hores)
     ]
     alliberats_per_data = AlliberatsDelDia.get_entre_dates(db, [s.data for s in files])
-    return [s for s in files if es_visible_a_substitucions(s, no_sub, alliberats_per_data[s.data].get(s.hora, []))]
+    no_sub_per_data = {d: vigencia.a(d) for d in {s.data for s in files}}
+    return [
+        s
+        for s in files
+        if es_visible_a_substitucions(s, no_sub_per_data[s.data], alliberats_per_data[s.data].get(s.hora, []))
+    ]
 
 
 # Les absències (i la cobertura) només compten les hores en què falta un
