@@ -7,12 +7,12 @@ Dilluns 20/04/2026, horari d'exemple: Prof 15 fa Anglès a les 10:00 (3-ESO-A).
 """
 
 import copy
-import uuid
 import xml.etree.ElementTree as ET
 
 import pytest
 from fastapi import Depends
 from suport_api import XML_EXEMPLE, client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import require_admin
@@ -41,7 +41,7 @@ def _client(amb_substitut):
         substitut.set("name", "Substitut 1")
         arrel.append(substitut)
         arbre.write(get_data_dir_for_institucio(centre) / "teachers.xml", encoding="utf-8")
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

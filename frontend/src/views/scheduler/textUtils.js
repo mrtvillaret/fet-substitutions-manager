@@ -25,7 +25,8 @@ export const extractHour = (value) => {
 
 const INCIDENT_EMOJI_PREFIX_RE = /^(?:(?:🚨|🕐|⚠️|📋|🔗|🚫|❌|ℹ️|👁️)\s*)+/u
 const INCIDENT_TEXT_PREFIX_RE = /^(CONFLICTE|SUBSTITUÏT|SUBSTITUIT|ENLLAÇ|ENLLAC):\s*/i
-const INCIDENT_SCORE_RE = /\(punt:\s*\d+\)/i
+// Els punts poden ser negatius (una preferència amb pes base negatiu bonifica)
+const INCIDENT_SCORE_RE = /\(punt:\s*-?\d+\)/i
 
 const INCIDENT_KIND = {
   conflict: 'conflict',
@@ -58,7 +59,7 @@ export const stripIncidentDecorators = (text) => String(text || '')
   .replace(INCIDENT_TEXT_PREFIX_RE, '')
   .trim()
 
-export const removeIncidentScore = (text) => String(text || '').replace(/\s*\(punt:\s*\d+\)\s*$/i, '')
+export const removeIncidentScore = (text) => String(text || '').replace(/\s*\(punt:\s*-?\d+\)\s*$/i, '')
 
 export const extractIncidentScore = (text) => String(text || '').match(INCIDENT_SCORE_RE)?.[0] || ''
 
@@ -116,11 +117,12 @@ const BACKEND_DAY_I18N_KEYS = {
 const BACKEND_DAY_NAMES_RE = /\b(Dilluns|Dimarts|Dimecres|Dijous|Divendres|Dissabte|Diumenge)\b/gi
 
 export const localizeBackendDayName = (dayName, t) => {
-  const norm = normalizeText(dayName)
-  const key = BACKEND_DAY_I18N_KEYS[norm]
+  // «Dilluns 20/04»: el backend hi afegeix la data; es tradueix el nom del dia
+  const [, nom, resta] = String(dayName || '').match(/^(\S+)(.*)$/s) || [null, dayName, '']
+  const key = BACKEND_DAY_I18N_KEYS[normalizeText(nom)]
   if (!key || typeof t !== 'function') return dayName
   const translated = t(key)
-  return translated || dayName
+  return translated ? `${translated}${resta}` : dayName
 }
 
 export const localizeBackendDayNames = (text, t) => String(text || '')
@@ -136,8 +138,8 @@ export const localizeIncidentText = (text, t) => {
   }
 
   const cleaned = stripIncidentDecorators(text)
-  const scoreValue = cleaned.match(/\(punt:\s*(\d+)\)/i)?.[1]
-  const rawNoScore = cleaned.replace(/\s*\(punt:\s*\d+\)\s*$/i, '').trim()
+  const scoreValue = cleaned.match(/\(punt:\s*(-?\d+)\)/i)?.[1]
+  const rawNoScore = cleaned.replace(/\s*\(punt:\s*-?\d+\)\s*$/i, '').trim()
   let body = rawNoScore
 
   let match = rawNoScore.match(/^(.+?)\s+→\s+ha de ser SUBSTITU[ÏI]T a\s+(.+?)\s+amb\s+(.+?)\s+a les\s+(\d{2}:\d{2})\s+el\s+(.+)$/i)

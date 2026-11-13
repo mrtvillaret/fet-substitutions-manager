@@ -3,9 +3,8 @@ Els repositoris no fan commit: el fa el servei, un cop per operació. Si una
 operació falla a mig camí, el que ja s'havia escrit es desfà.
 """
 
-import uuid
-
 from suport_api import CONTRASENYA, crea_usuari
+from suport_noms import unic
 
 from auth.repositories import UserRepository
 from auth.security import hash_password
@@ -13,7 +12,7 @@ from database import AuthSessionLocal, create_auth_tables
 
 
 def _nom():
-    return f"repo_{uuid.uuid4().hex[:8]}"
+    return f"repo_{unic()}"
 
 
 def test_crear_sense_commit_no_desa_res():

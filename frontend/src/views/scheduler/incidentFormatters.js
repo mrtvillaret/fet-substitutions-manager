@@ -1,4 +1,4 @@
-import { getIncidentEmoji, removeIncidentScore, extractIncidentScore, stripIncidentDecorators, localizeIncidentText } from './textUtils'
+import { getIncidentEmoji, removeIncidentScore, extractIncidentScore, stripIncidentDecorators, localizeIncidentText } from './textUtils.js'
 
 const translate = (t, key, fallback) => {
   if (typeof t !== 'function') return fallback
@@ -14,8 +14,8 @@ export const formatIncidentFull = (group, incident, t) => {
 
 export const formatIncidentShort = (group, incident, t) => {
   const scoreToken = extractIncidentScore(incident)
-  const scoreValue = scoreToken.match(/(\d+)/)?.[1]
-  const score = scoreValue && Number(scoreValue) > 0 ? ` (${translate(t, 'scheduler.steps.results.incidents.short.cost', 'cost')}: ${scoreValue})` : ''
+  const scoreValue = scoreToken.match(/(-?\d+)/)?.[1]
+  const score = scoreValue && Number(scoreValue) !== 0 ? ` (${translate(t, 'scheduler.steps.results.incidents.short.cost', 'cost')}: ${scoreValue})` : ''
   const noScore = removeIncidentScore(incident)
   const emojiMatch = noScore.match(/^(🚨|🕐|⚠️|📋|🔗|🚫|❌|ℹ️|👁️)/u)
   const cleanedNoEmoji = stripIncidentDecorators(noScore)

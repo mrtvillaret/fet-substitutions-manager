@@ -1387,17 +1387,12 @@
           "help": "Com es prioritza la cerca",
           "options": {
             "ponderada": "Ponderada",
-            "epsilon_greedy": "Voraç amb exploració",
             "greedy": "Voraç"
           }
         },
         "max_intents_validacio": {
           "label": "Nombre d'intents",
           "help": "Quantes solucions es proven per trobar la millor"
-        },
-        "epsilon": {
-          "label": "Èpsilon",
-          "help": "Probabilitat d'acceptar pitjors solucions (exploració)"
         },
         "random_seed": {
           "label": "Llavor aleatòria",
@@ -1414,6 +1409,10 @@
         "shuffle_top_n": {
           "label": "Aleatorietat (N millors opcions)",
           "help": "Quantes de les millors hores es barregen segons la llavor (0 = determinista i ràpid, 3 = equilibrat, 5 = molt aleatori)"
+        },
+        "segons_maxims": {
+          "label": "Temps màxim (segons)",
+          "help": "Quant pot durar la cerca com a màxim; si s'acaba el temps, es queda amb la millor solució trobada"
         }
       }
     },
@@ -1829,7 +1828,28 @@
             "noWork": "{teacher} → no treballa aquest dia a les {hour} el {day}"
           }
         },
-        "otherLevel": "Altres"
+        "otherLevel": "Altres",
+        "costBreakdown": {
+          "open": "Veure el desglossament del cost",
+          "title": "Desglossament del cost",
+          "total": "Total",
+          "concepts": {
+            "substitucio": "Substitucions",
+            "abans_jornada": "Arriben abans",
+            "despres_jornada": "Queden després",
+            "no_treballa_dia": "No treballen aquell dia",
+            "preferencia_mateix_dia": "Preferència mateix dia",
+            "preferencia_dies_diferents": "Preferència dies diferents",
+            "preferencia_mateix_slot": "Preferència mateixa franja",
+            "no_mateix_slot": "No al mateix moment",
+            "no_mateix_dia": "No el mateix dia",
+            "combinacio_no_permesa": "Combinació no permesa",
+            "dia_hora_fix": "Dia o hora fixats",
+            "assignatures_dies_exclosos": "Dies exclosos",
+            "limit_dies_professor": "Límit d'exàmens per professor",
+            "professor_estricte": "Horari estricte del professor"
+          }
+        }
       }
     },
     "dialogs": {
@@ -1911,6 +1931,8 @@
       "capacitat_exhaurida": "No es poden col·locar tots els exàmens: hi ha més exàmens que hores per nivell",
       "sense_hora_compatible": "No es poden col·locar tots els exàmens: algun examen no té cap hora compatible",
       "backtrack_sense_solucio": "La cerca no ha trobat cap solució vàlida",
+      "cerca_tallada_temps": "La cerca s’ha aturat pel límit de temps ({segons} s) sense trobar cap horari complet: no vol dir que les restriccions siguin incompatibles",
+      "cerca_tallada_nodes": "La cerca s’ha aturat pel límit de càlcul ({nodes} nodes) sense trobar cap horari complet: no vol dir que les restriccions siguin incompatibles. Podeu augmentar el màxim de nodes",
       "examens_pendents": "No s’han pogut col·locar tots els exàmens",
       "capacitat_nivell": "{nivell}: cal col·locar {examens}, però només hi ha {horesText}",
       "capacitat_nivell_fixos": "{nivell}: cal col·locar {examens}, però després de fixar dies i hores només hi ha {horesText}",
@@ -1933,6 +1955,13 @@
       "fixat_dia_no_disponible": "{nom}: el dia {dia} no està disponible",
       "fixat_hora_no_disponible": "{nom}: l’hora {hora} no està disponible",
       "fixat_slot_no_disponible": "{nom}: el dia {dia} a les {hora} no està disponible",
+      "fixat_fora_de_dates": "«{nom}» està fixat a {franja}, que no és entre les dates i hores planificades",
+      "fixat_a_hora_sense_inici": "«{nom}» està fixat a {franja}, però {nivell} no hi té marcat l’inici d’un examen",
+      "fixat_a_franja_prohibida": "«{nom}» està fixat a {franja}, però aquesta franja li està prohibida",
+      "limit_professor_insuficient": "{professor}: com a màxim {max} els dies {dies}, i aquests dies són els únics possibles per a {examens}: {noms}",
+      "grup_sense_nivell": "Avís: el grup {grup} no és a cap nivell de la configuració d’exàmens i els seus exàmens no es planifiquen ({assignatures}). Afegiu-lo al seu nivell",
+      "nivell_sense_hores_alliberades": "El nivell {nivell} no té hores alliberades: es considera tot el dia lliure; comproveu-les",
+      "nivell_alliberaments_sense_hores": "El nivell {nivell} té alliberaments, però cap hora disponible per als exàmens; comproveu-los",
       "precheck_detectat": "La comprovació prèvia ha detectat incompatibilitats deterministes",
       "sessions_pendents": "Exàmens pendents de col·locar: {count}",
       "nivell_incomplet": "Nivell incomplet: {nivell} ({collocats}/{esperats})",
@@ -1946,6 +1975,9 @@
       },
       "causes": {
         "dia_hora_fix": "Dia/hora fixat",
+        "examen_fixat": "Examen fixat a una altra franja",
+        "franja_prohibida": "Franja prohibida",
+        "nivell_sense_inici": "Hora sense inici d’examen per al nivell",
         "no_mateix_dia": "Dies distints",
         "combinacions_permeses": "Combinació no permesa",
         "limit_dies_professor": "Límit d’exàmens del professor",

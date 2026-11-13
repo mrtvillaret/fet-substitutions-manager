@@ -4,10 +4,9 @@ carpeta del centre. Abans un admin podia escriure des de la configuració la
 ruta d'un altre centre i llegir-ne l'horari o llistar-ne i esborrar-ne PDF.
 """
 
-import uuid
-
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from configuracio import router as configuracio
 from configuracio.repositories import ConfiguracioRepository
@@ -35,7 +34,7 @@ def _config(centre, clau):
 
 def test_la_configuracio_no_deixa_canviar_les_rutes():
     centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(APP), nom)
 

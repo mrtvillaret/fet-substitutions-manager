@@ -377,6 +377,7 @@ export function useHorariEditable(dependents) {
       if (horariLocal.value) {
         horariLocal.value.metadata = horariLocal.value.metadata || {}
         horariLocal.value.metadata.cost_total = data.cost_total
+        horariLocal.value.metadata.cost_desglossament = data.cost_desglossament || []
         horariLocal.value.metadata.logs = data.logs || []
         horariLocal.value.metadata.total_substitucions = data.stats?.total_substitucions || 0
         horariLocal.value.metadata.professors_abans = data.stats?.professors_abans || 0
@@ -386,6 +387,7 @@ export function useHorariEditable(dependents) {
 
       emit('cost-changed', {
         cost: data.cost_total,
+        desglossament: data.cost_desglossament || [],
         valid: data.valid,
         logs: data.logs || [],
         stats: data.stats || {}

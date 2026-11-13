@@ -4,12 +4,12 @@ desa la data d'inici; la de fi és el dia abans del curs següent, i l'últim
 queda obert. Llegir-los, qualsevol usuari; canviar-los, només admins.
 """
 
-import uuid
 from datetime import date
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import get_current_user
 from cursos import router as cursos
@@ -29,7 +29,7 @@ def centre():
 
 
 def _client(centre, rol):
-    nom = f"{rol}_{uuid.uuid4().hex[:8]}"
+    nom = f"{rol}_{unic()}"
     crea_usuari(nom, centre, rol)
     return entra(client_per(APP), nom)
 

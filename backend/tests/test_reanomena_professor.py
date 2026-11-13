@@ -4,12 +4,12 @@ el nom canvia a totes les taules on surt i la resposta diu quantes files de
 cadascuna. Només admins i només professors que ja no són a l'XML.
 """
 
-import uuid
 from datetime import date
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import require_admin
 from dades import router as dades
@@ -51,7 +51,7 @@ def centre():
 
 
 def _client(centre, rol="admin"):
-    nom = f"{rol}_{uuid.uuid4().hex[:8]}"
+    nom = f"{rol}_{unic()}"
     crea_usuari(nom, centre, rol)
     return entra(client_per(APP), nom)
 

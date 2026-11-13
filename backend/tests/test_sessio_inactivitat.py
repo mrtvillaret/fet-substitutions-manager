@@ -4,12 +4,12 @@ sense peticions, es renoven mentre s'hi treballa i no passen de
 SESSIO_MAXIMA_HORES des de l'entrada.
 """
 
-import uuid
 from datetime import timedelta
 
 import jwt
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_rellotge import ARA
 
 from auth.security import decode_access_token
@@ -29,7 +29,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio(amb_xml=True)
-    nom = f"user_{uuid.uuid4().hex[:8]}"
+    nom = f"user_{unic()}"
     crea_usuari(nom, centre, "user")
     return entra(client_per(APP), nom)
 

@@ -35,7 +35,8 @@ def test_l_analisi_dona_els_tres_informes_amb_els_examens_del_nivell(client):
     resp = client.post("/api/scheduler/analisi", json=PETICIO)
     assert resp.status_code == 200, resp.text
     informes = resp.json()
-    assert set(informes) == {"per_slots", "per_sessio", "professors_slot"}
+    assert set(informes) == {"per_slots", "per_sessio", "professors_slot", "avisos"}
+    assert informes["avisos"] == []  # tots els grups són a un nivell
     for examen in ("Anglès (1-BAT)", "Català (1-BAT)", "Filosofia (1-BAT)"):
         assert examen in informes["per_sessio"]
     assert "Prof 25" in informes["per_sessio"]  # titular d'Anglès

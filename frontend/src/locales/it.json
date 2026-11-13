@@ -1387,17 +1387,12 @@
           "help": "Come viene prioritizzata la ricerca",
           "options": {
             "ponderada": "Ponderata",
-            "epsilon_greedy": "Epsilon Greedy",
             "greedy": "Greedy"
           }
         },
         "max_intents_validacio": {
           "label": "Numero di tentativi",
           "help": "Quante soluzioni vengono provate per trovare la migliore"
-        },
-        "epsilon": {
-          "label": "Epsilon",
-          "help": "Probabilità di accettare soluzioni peggiori (esplorazione)"
         },
         "random_seed": {
           "label": "Seme casuale",
@@ -1414,6 +1409,10 @@
         "shuffle_top_n": {
           "label": "Casualità (top-N)",
           "help": "Quante delle migliori ore vengono mescolate in base al seme (0 = deterministico e veloce, 3 = bilanciato, 5 = molto casuale)"
+        },
+        "segons_maxims": {
+          "label": "Tempo massimo (secondi)",
+          "help": "Quanto può durare al massimo la ricerca; se il tempo finisce, si tiene la soluzione migliore trovata"
         }
       }
     },
@@ -1829,7 +1828,28 @@
             "noWork": "{teacher} → non lavora quel giorno alle {hour} di {day}"
           }
         },
-        "otherLevel": "Altri"
+        "otherLevel": "Altri",
+        "costBreakdown": {
+          "open": "Mostra il dettaglio del costo",
+          "title": "Dettaglio del costo",
+          "total": "Totale",
+          "concepts": {
+            "substitucio": "Supplenze",
+            "abans_jornada": "Arrivano prima",
+            "despres_jornada": "Restano dopo",
+            "no_treballa_dia": "Non lavorano quel giorno",
+            "preferencia_mateix_dia": "Preferenza stesso giorno",
+            "preferencia_dies_diferents": "Preferenza giorni diversi",
+            "preferencia_mateix_slot": "Preferenza stessa fascia",
+            "no_mateix_slot": "Non nello stesso momento",
+            "no_mateix_dia": "Non nello stesso giorno",
+            "combinacio_no_permesa": "Combinazione non consentita",
+            "dia_hora_fix": "Giorno o ora fissati",
+            "assignatures_dies_exclosos": "Giorni esclusi",
+            "limit_dies_professor": "Limite di esami per docente",
+            "professor_estricte": "Orario rigido del docente"
+          }
+        }
       }
     },
     "dialogs": {
@@ -1911,6 +1931,8 @@
       "capacitat_exhaurida": "Non è possibile collocare tutti gli esami: ci sono più esami che ore per livello",
       "sense_hora_compatible": "Non è possibile collocare tutti gli esami: un esame non ha ore compatibili",
       "backtrack_sense_solucio": "La ricerca non ha trovato soluzioni valide",
+      "cerca_tallada_temps": "La ricerca si è fermata per il limite di tempo ({segons} s) senza trovare un orario completo: non significa che i vincoli siano incompatibili",
+      "cerca_tallada_nodes": "La ricerca si è fermata per il limite di calcolo ({nodes} nodi) senza trovare un orario completo: non significa che i vincoli siano incompatibili. Si può aumentare il numero massimo di nodi",
       "examens_pendents": "Non è stato possibile collocare tutti gli esami",
       "capacitat_nivell": "{nivell}: occorre collocare {examens}, con solo {horesText} a disposizione",
       "capacitat_nivell_fixos": "{nivell}: occorre collocare {examens}, ma dopo aver fissato giorni e ore restano solo {horesText}",
@@ -1933,6 +1955,13 @@
       "fixat_dia_no_disponible": "{nom}: il giorno {dia} non è disponibile",
       "fixat_hora_no_disponible": "{nom}: l’ora {hora} non è disponibile",
       "fixat_slot_no_disponible": "{nom}: il giorno {dia} alle {hora} non è disponibile",
+      "fixat_fora_de_dates": "«{nom}» è fissato a {franja}, che non è tra le date e le ore pianificate",
+      "fixat_a_hora_sense_inici": "«{nom}» è fissato a {franja}, ma {nivell} non vi ha segnato l’inizio di un esame",
+      "fixat_a_franja_prohibida": "«{nom}» è fissato a {franja}, ma quella fascia gli è vietata",
+      "limit_professor_insuficient": "{professor}: al massimo {max} nei giorni {dies}, e quei giorni sono gli unici possibili per {examens}: {noms}",
+      "grup_sense_nivell": "Avviso: il gruppo {grup} non è in nessun livello della configurazione degli esami e i suoi esami non vengono pianificati ({assignatures}). Aggiungetelo al suo livello",
+      "nivell_sense_hores_alliberades": "Il livello {nivell} non ha ore liberate: si considera libera tutta la giornata; controllatele",
+      "nivell_alliberaments_sense_hores": "Il livello {nivell} ha ore liberate configurate, ma nessuna ora disponibile per gli esami; controllatele",
       "precheck_detectat": "Il controllo preliminare ha rilevato incompatibilità deterministiche",
       "sessions_pendents": "Esami ancora da collocare: {count}",
       "nivell_incomplet": "Livello incompleto: {nivell} ({collocats}/{esperats})",
@@ -1946,6 +1975,9 @@
       },
       "causes": {
         "dia_hora_fix": "Giorno/ora fissato",
+        "examen_fixat": "Esame fissato in un’altra fascia",
+        "franja_prohibida": "Fascia vietata",
+        "nivell_sense_inici": "Ora senza inizio d’esame per il livello",
         "no_mateix_dia": "Giorni diversi",
         "combinacions_permeses": "Combinazione non consentita",
         "limit_dies_professor": "Limite di esami del docente",

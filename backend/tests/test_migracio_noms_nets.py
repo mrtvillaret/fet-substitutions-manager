@@ -4,10 +4,10 @@ centre temporal amb l'esquema de l'aplicació.
 """
 
 import json
-import uuid
 from datetime import date, datetime
 
 import pytest
+from suport_noms import unic
 
 from database import get_data_db_session, get_data_dir_for_institucio
 from migracions.noms_nets import main, migra
@@ -26,7 +26,7 @@ ABANS, DESPRES = datetime(2026, 1, 1), datetime(2026, 2, 1)
 
 @pytest.fixture
 def centre():
-    nom = f"migra_{uuid.uuid4().hex[:8]}"
+    nom = f"migra_{unic()}"
     with get_data_db_session(nom) as db:
         db.add_all(
             [
@@ -150,7 +150,7 @@ def test_el_recompte_obre_la_bd_en_nomes_lectura(centre, monkeypatch):
 def test_els_periodes_d_una_activitat_a_no_substituir_no_es_fusionen():
     """Amb la vigència per dates (migració 0004), cada període és una entrada
     pròpia: en netejar el nom, només es fusionen les del mateix període."""
-    nom = f"migra_{uuid.uuid4().hex[:8]}"
+    nom = f"migra_{unic()}"
     with get_data_db_session(nom) as db:
         db.add_all(
             [

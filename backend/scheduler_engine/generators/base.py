@@ -5,21 +5,28 @@ import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
+from scheduler_engine.core.availability import horari_del_dia_normalitzat
 from scheduler_engine.core.context import SchedulerContext
 from scheduler_engine.core.durada import (
     get_durada_per_nivell,
     get_durada_per_sessio_key,
 )
 from scheduler_engine.core.horaris_xml import horaris_professors
+from scheduler_engine.core.nivells import NivellsDelsGrups
 from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
 from scheduler_engine.defaults import (
     DEFAULT_NIVELLS_ACTIUS,
     DEFAULT_RESTRICCIONS,
+    SEGONS_MAXIMS_PER_DEFECTE,
 )
 
 
 class GeneradorSessionsExamensBase(ABC):
     """Classe base abstracta amb funcionalitat compartida pels motors."""
+
+    # Temps màxim de la cerca (segons); la petició de generar el pot canviar
+    # (crear_motor el posa a la instància)
+    segons_maxims = SEGONS_MAXIMS_PER_DEFECTE
 
     def __init__(
         self,
@@ -54,6 +61,8 @@ class GeneradorSessionsExamensBase(ABC):
         self.durades_examen_per_sessio = durades_examen_per_sessio or {}
 
         self.config = {}
+        # El nivell de cada grup (taules de la configuració d'exàmens, dins de la config)
+        self.nivells_dels_grups = NivellsDelsGrups()
         self.horaris_professors = {}
         self.totes_hores = []
 
@@ -68,6 +77,7 @@ class GeneradorSessionsExamensBase(ABC):
     def _carregar_config(self):
         with open(self.config_path, encoding="utf-8") as f:
             self.config = json.load(f)
+        self.nivells_dels_grups = NivellsDelsGrups.de_config(self.config)
 
     def _carregar_restriccions_raw(self) -> dict:
         if self.restriccions_path and os.path.exists(self.restriccions_path):
@@ -81,16 +91,8 @@ class GeneradorSessionsExamensBase(ABC):
         for prof, dies in (self.horaris_professors or {}).items():
             norm_prof = {}
             for dia_k, hores in dies.items():
-                dia_n = normalitzar_dia(dia_k)
-                norm_hores = {}
-                for h_k, act in hores.items():
-                    parts = str(h_k).split(":")
-                    try:
-                        h_n = f"{int(parts[0]):02d}:{int(parts[1]):02d}"
-                        norm_hores[h_n] = act
-                    except Exception:
-                        norm_hores[h_k] = act
-                norm_prof[dia_n] = norm_hores
+                # Les hores, igual que l'anàlisi quan no rep l'horari normalitzat
+                norm_prof[normalitzar_dia(dia_k)] = horari_del_dia_normalitzat(hores)
             norm[prof] = norm_prof
         return norm
 
@@ -115,6 +117,7 @@ class GeneradorSessionsExamensBase(ABC):
             dia_a_data_iso=getattr(self, "dia_a_data_iso", {}) or {},
             alliberaments_per_nivell=self.alliberaments_per_nivell,
             durades_per_sessio=self.durades_per_sessio,
+            nivells_dels_grups=self.nivells_dels_grups,
         )
 
     def carregar_horaris_professors(self):

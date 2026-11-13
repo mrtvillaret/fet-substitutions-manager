@@ -1,4 +1,4 @@
-import { tradueixMissatge } from './missatges.js'
+import { avisosDeConfiguracio, esAvisDeConfiguracio, tradueixMissatge } from './missatges.js'
 import { computed } from 'vue'
 import { dataIso } from '../../dates'
 import { classifyIncidentKind, INCIDENT_KINDS, extractIncidentScore, isIncidentLogLine, isLinkIncident } from './textUtils'
@@ -27,7 +27,10 @@ export const useSchedulerResults = ({
 
   const incidenciesAgrupades = computed(() => {
     const logs = result.value?.horari?.metadata?.logs || []
-    const filtered = logs.map((line) => tradueixMissatge(line, t).trim()).filter(isIncidentLogLine)
+    const filtered = logs
+      .filter((line) => !esAvisDeConfiguracio(line))
+      .map((line) => tradueixMissatge(line, t).trim())
+      .filter(isIncidentLogLine)
 
     const grups = {
       conflictes: { id: 'conflicts', titol: `🚨 ${t('scheduler.steps.results.incidents.groups.conflicts')}`, items: [], severity: 'error' },
@@ -39,6 +42,8 @@ export const useSchedulerResults = ({
       altres: { id: 'others', titol: `📋 ${t('scheduler.steps.results.incidents.groups.others')}`, items: [], severity: 'info' }
     }
 
+    // Els avisos de la configuració (grups sense nivell...), primer de tot a «Altres»
+    grups.altres.items.push(...avisosDeConfiguracio(logs, t))
     filtered.forEach((line) => {
       const kind = classifyIncidentKind(line)
       if (kind === INCIDENT_KINDS.conflict) grups.conflictes.items.push(line)
@@ -73,7 +78,7 @@ export const useSchedulerResults = ({
     let arribenAbans = 0
     logs.forEach((log) => {
       const scoreToken = extractIncidentScore(log)
-      const scoreValue = scoreToken.match(/(\d+)/)?.[1]
+      const scoreValue = scoreToken.match(/(-?\d+)/)?.[1]
       if (scoreValue) totalScore += Number(scoreValue)
 
       const kind = classifyIncidentKind(log)
@@ -212,10 +217,13 @@ export const useSchedulerResults = ({
     }
   }
 
-  const onCostChanged = ({ cost, logs, stats }) => {
+  const onCostChanged = ({ cost, desglossament, logs, stats }) => {
     if (!result.value?.horari) return
     result.value.horari.metadata = result.value.horari.metadata || {}
     result.value.horari.metadata.cost_total = cost
+    if (Array.isArray(desglossament)) {
+      result.value.horari.metadata.cost_desglossament = desglossament
+    }
     if (Array.isArray(logs)) {
       result.value.horari.metadata.logs = logs
     }

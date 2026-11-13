@@ -208,6 +208,7 @@ export const useSchedulerApi = ({
       })
       result.value.horari.metadata = result.value.horari.metadata || {}
       result.value.horari.metadata.cost_total = data.cost_total
+      result.value.horari.metadata.cost_desglossament = data.cost_desglossament || []
       result.value.horari.metadata.logs = data.logs || []
       result.value.horari.metadata.total_substitucions = data.stats?.total_substitucions || 0
       result.value.horari.metadata.professors_abans = data.stats?.professors_abans || 0

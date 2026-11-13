@@ -5,12 +5,12 @@ Tot viu dins del DATA_DIR temporal que prepara el conftest.
 """
 
 import shutil
-import uuid
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from slowapi.errors import RateLimitExceeded
+from suport_noms import unic
 
 from auth.repositories import UserRepository
 from auth.router import router as auth_router
@@ -53,7 +53,7 @@ PRIORITATS_PER_DEFECTE = [("Alliberats", ["alliberat"]), ("Guàrdies", ["Guàrdi
 
 
 def nova_institucio(amb_xml=False, prioritats=PRIORITATS_PER_DEFECTE):
-    nom = f"centre_{uuid.uuid4().hex[:8]}"
+    nom = f"centre_{unic()}"
     with get_data_db_session(nom) as db:  # crea la carpeta i el gestor.db
         if amb_xml:
             shutil.copy(XML_EXEMPLE, get_data_dir_for_institucio(nom) / "teachers.xml")

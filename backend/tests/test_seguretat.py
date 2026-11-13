@@ -38,7 +38,6 @@ import hashlib
 import io
 import os
 import sqlite3
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -48,6 +47,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from suport_api import CONTRASENYA, XML_EXEMPLE, crea_usuari, entra, nova_institucio, text_pdf
 from suport_main import app_sencera
+from suport_noms import unic
 from suport_planificador import alliberaments
 
 from auth import security
@@ -927,7 +927,7 @@ def entorn():
     mp.setitem(config.global_data, "institucio", b)
     mp.setenv("APP_INSTITUCIO", b)
     try:
-        ctx = {"A": a, "B": b, "M": "MARCAA", "nou": f"seg_nou_{uuid.uuid4().hex[:6]}"}
+        ctx = {"A": a, "B": b, "M": "MARCAA", "nou": f"seg_nou_{unic()}"}
         # Els ids que la comprovació (c) recull de les respostes; abans, uns de vàlids
         ctx.update(assignacio=1, abreviatura=1, vigilancia="1", xml=1, xml_nou=1, curs=1, absencia=1, usuari=1)
         ctx.update(csv=b"assignatura;grup\n", ordre_10=[])
@@ -940,7 +940,7 @@ def entorn():
             ("super", a, SUPER),
             ("admin_inactiu", inactiu, ADMIN),
         ]:
-            noms[clau] = f"{clau}_{uuid.uuid4().hex[:6]}"
+            noms[clau] = f"{clau}_{unic()}"
             crea_usuari(noms[clau], centre, rol)
         ctx.update(noms)
         clients = {clau: entra(_client(), nom) for clau, nom in noms.items()}
@@ -951,7 +951,7 @@ def entorn():
         for centre in (a, b):
             invalidar_horari(centre)
             get_horari(centre, data_iso=avui())
-        ctx["usuari_b"] = crea_usuari(f"MARCAB_{uuid.uuid4().hex[:6]}", b, USER)
+        ctx["usuari_b"] = crea_usuari(f"MARCAB_{unic()}", b, USER)
         ctx["xml_a"] = _xml("MARCAA")
         con = sqlite3.connect(DATA_BASE_DIR / a / "gestor.db")
         with con:

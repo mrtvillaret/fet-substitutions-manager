@@ -10,8 +10,6 @@ Dilluns 20/04/2026 a les 10:00, Prof 26 fa classe a l'agrupació
 alumnes de 2-BAT-B.
 """
 
-import uuid
-
 import pytest
 from suport_api import (
     XML_EXEMPLE,
@@ -21,6 +19,7 @@ from suport_api import (
     entra,
     nova_institucio,
 )
+from suport_noms import unic
 
 from database import get_data_db_session
 from grups.repositories import GrupsAlliberatsRepository
@@ -54,7 +53,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

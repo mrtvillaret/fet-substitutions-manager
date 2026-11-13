@@ -194,14 +194,14 @@ locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
 │  SCHEDULER ENGINE (planificador exàmens)                         │
 │  ├── factory.py                   ← selecciona motor             │
 │  ├── defaults.py                  ← valors per defecte           │
-│  ├── validacio.py                 ← genera logs d'incidències    │
-│  ├── estadistiques.py             ← estadístiques del pla        │
+│  ├── validacio.py                 ← logs d'incidències (punts)   │
+│  ├── estadistiques.py             ← estadístiques i cost final   │
 │  ├── domain/models.py             ← models de domini             │
 │  ├── generators/base.py           ← classe base motors           │
 │  ├── generators/v2_intents.py                                    │
 │  ├── generators/v2_backtrack.py                                  │
 │  ├── generators/v3_sa.py          ← Simulated Annealing          │
-│  └── core/: context, constraints, scoring, availability,         │
+│  └── core/: context, constraints, scoring, punts, availability,  │
 │             durada, date_mapping, diagnostic,                    │
 │             normalitzacio, restriction_engine                    │
 │                                                                  │

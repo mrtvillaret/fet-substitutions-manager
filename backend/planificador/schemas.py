@@ -6,11 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from noms import NomNet
 from parametres import DataISO
+from scheduler_engine.defaults import SEGONS_MAXIMS_LIMIT, SEGONS_MAXIMS_PER_DEFECTE
 
 # ---------------------------------------------------------------- peticions
 # Un camp d'un tipus que no toca, 422; una data que no és AAAA-MM-DD, 400
 # (DataISO). Els camps que no hi són s'ignoren, com a la resta de l'API
-# (la pantalla envia a generar tots els paràmetres dels motors).
+# (la pantalla envia a generar tots els paràmetres dels motors). Una petició
+# antiga amb `epsilon` (tret: no feia res) tampoc no falla.
 
 TipusCost = Literal["substitucio", "abans_jornada", "despres_jornada", "no_treballa_dia"]
 
@@ -26,8 +28,8 @@ class SchedulerGenerateRequest(BaseModel):
     max_dies: int = Field(default=5, gt=0)
     motor: str = "v3"
     estrategia: str = "ponderada"
-    epsilon: float = Field(default=0.2, ge=0, le=1)
-    max_intents_validacio: int = Field(default=250, gt=0)
+    # Sostre = el màxim de la pantalla; a més, el motor s'atura al temps màxim (segons_maxims)
+    max_intents_validacio: int = Field(default=250, gt=0, le=5000)
     max_iteracions: int | None = Field(default=None, ge=0)
     iteracions_per_temperatura: int | None = Field(default=None, gt=0)
     temperatura_inicial: float | None = Field(default=None, ge=0)
@@ -37,6 +39,9 @@ class SchedulerGenerateRequest(BaseModel):
     seeds_count: int | None = Field(default=None, le=50)
     max_nodes: int | None = Field(default=None, ge=0, le=10_000_000)
     shuffle_top_n: int | None = None
+    # Temps màxim de la cerca (tots tres motors); el sostre el fixen els temps
+    # límit de la cadena de producció (DESPLEGAMENT.md)
+    segons_maxims: int = Field(default=SEGONS_MAXIMS_PER_DEFECTE, ge=1, le=SEGONS_MAXIMS_LIMIT)
 
     @model_validator(mode="after")
     def comprova_coherencia(self):
@@ -317,6 +322,7 @@ class AnalisiResponse(BaseModel):
     per_slots: str
     per_sessio: str
     professors_slot: str
+    avisos: list[dict] = []  # grups sense nivell ({codi, params})
 
 
 class PublicacioResponse(BaseModel):
@@ -342,11 +348,23 @@ class CostFranja(BaseModel):
     item_avisos: dict[str, list[str]]  # els avisos de cada examen (per _uid i per item_id)
 
 
+class ConcepteCost(BaseModel):
+    """Una fila del desglossament del cost: quantitat × pes = punts."""
+
+    concepte: str  # scheduler_engine.core.punts.CONCEPTES
+    quantitat: int
+    pes: int
+    punts: int
+
+
 class RecalculResponse(BaseModel):
     cost_total: int | float
     cost_breakdown: dict
     cost_breakdown_details: dict
+    # Només els conceptes amb punts; la suma de punts és cost_total
+    cost_desglossament: list[ConcepteCost]
     slots: list[CostFranja]
     valid: bool  # False si hi ha conflictes de nivell
-    logs: list[str]
+    # Text del validador i avisos de la configuració ({codi, params}), com a la generació
+    logs: list[str | dict]
     stats: dict

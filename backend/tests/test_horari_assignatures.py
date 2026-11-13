@@ -5,10 +5,9 @@ aquell grup quedarà sense professor quan qui la fa falti (l'hora no surt a
 Substitucions).
 """
 
-import uuid
-
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import get_current_user
 from horari import router as horari
@@ -21,7 +20,7 @@ APP.include_router(horari.router, dependencies=[Depends(get_current_user)])
 def test_detectar_diu_quines_activitats_tenen_grup_a_l_horari_vigent():
     limiter.reset()
     centre = nova_institucio(amb_xml=True)
-    usuari = f"admin_{uuid.uuid4().hex[:8]}"
+    usuari = f"admin_{unic()}"
     crea_usuari(usuari, centre, "admin")
     client = entra(client_per(APP), usuari)
 

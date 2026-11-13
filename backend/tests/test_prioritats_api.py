@@ -3,11 +3,10 @@ Prioritats per l'API (com la pantalla): l'entrada de «No substituir» i el
 text buit, que representa les hores de l'XML sense assignatura.
 """
 
-import uuid
-
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user, require_admin
@@ -31,7 +30,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

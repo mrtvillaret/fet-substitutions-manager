@@ -15,6 +15,13 @@ DEFAULT_COST_PROFESSORS = {
     "no_treballa_dia": 60,
 }
 
+# Temps màxim de la cerca dels tres motors, en segons: el per defecte i el
+# màxim que admet el servidor (es tria a la pantalla, als paràmetres del motor).
+# El màxim ha de cabre amb marge als temps límit de la cadena de producció
+# (nginx del frontend, Caddy, client de la pantalla): vegeu DESPLEGAMENT.md.
+SEGONS_MAXIMS_PER_DEFECTE = 20
+SEGONS_MAXIMS_LIMIT = 120
+
 # Paràmetres Simulated Annealing (motor V3)
 # La temperatura inicial ha d'anar d'acord amb els costos: una substitució en
 # val 80. Amb 8000 la primera part de la cerca acceptava qualsevol canvi i, en
@@ -35,7 +42,6 @@ DEFAULT_SA_PARAMS = {
 DEFAULT_GREEDY_PARAMS = {
     "max_intents_validacio": 250,
     "estrategia": "ponderada",
-    "epsilon": 0.2,
 }
 
 # Nivells per defecte
@@ -62,6 +68,16 @@ ETIQUETES_RESTRICCIONS: dict[str, str] = {
     "combinacions_permeses": "Combinació no permesa",
     "preferencia_dia": "Preferència de dia",
     "professors_estrictes": "Horari estricte professor",
+}
+
+# Les causes per les quals un examen no pot anar a una franja (diagnòstic i
+# missatges dels motors): les de dalt i les tres de «dia_hora_fix» per separat.
+# El desglossament del cost continua amb «dia_hora_fix» junt.
+ETIQUETES_CAUSES: dict[str, str] = {
+    **ETIQUETES_RESTRICCIONS,
+    "examen_fixat": "Examen fixat a una altra franja",
+    "franja_prohibida": "Franja prohibida",
+    "nivell_sense_inici": "Hora sense inici d'examen per al nivell",
 }
 
 # Estructura de restriccions per defecte

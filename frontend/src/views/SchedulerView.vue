@@ -211,6 +211,7 @@
       :incompatibilitats="incompatibilitats.map(m => tradueixMissatge(m, t))"
       :incompat-error-msg="tradueixMissatge(incompatErrorMsg, t)"
       :explicacio-no-disponible="explicacioNoDisponible"
+      :avisos-incompat="avisosDeGrupsSenseNivell(result?.horari?.metadata?.logs, t)"
       :desar-dialog-professor="desarDialogProfessor"
       :desar-dialog-dia-hora="desarDialogDiaHora"
       :desar-dialog-preferencia-dia="desarDialogPreferenciaDia"
@@ -253,7 +254,7 @@
 
 <script setup>
 import { avisaError } from '../errorsApi.js'
-import { tradueixMissatge } from './scheduler/missatges.js'
+import { avisosDeGrupsSenseNivell, tradueixMissatge } from './scheduler/missatges.js'
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import * as apiPlanificador from '../api/planificador'
 import { ruta } from '../basePath'

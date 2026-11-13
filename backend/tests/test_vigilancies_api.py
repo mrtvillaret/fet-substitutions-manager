@@ -13,11 +13,11 @@ prioritats mínimes de suport_api. Dilluns 20/04/2026 a les 10:00:
   Prof 48                    Filosofia amb 1-BAT-A
 """
 
-import uuid
 from datetime import date
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from database import get_data_db_session
 from grups.repositories import GrupsAlliberatsRepository
@@ -40,7 +40,7 @@ def _limiter_net():
 
 
 def _admin_de(institucio):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, institucio, "admin")
     return entra(client_per(APP), nom)
 

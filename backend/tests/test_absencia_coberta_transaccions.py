@@ -1,11 +1,11 @@
 """L'absència coberta i tots els seus efectes es desen en una transacció."""
 
-import uuid
 from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_rellotge import AVUI
 
 from absencia_coberta import services
@@ -30,7 +30,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client_sense_excepcions = TestClient(APP, base_url="https://testserver", raise_server_exceptions=False)
     return entra(client_sense_excepcions, nom)

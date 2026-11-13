@@ -22,7 +22,6 @@ from grups.repositories import GrupsAlliberatsRepository
 from horari.domain import Dia
 from planificador.config import carrega_config
 from planificador.services import cursos_anteriors
-from scheduler_engine.core.constraints import detectar_nivell_grup
 from substitucions import cobertures
 from substitucions.repositories import SubstitucioRepository
 from textos import normalitzar_hora
@@ -94,7 +93,6 @@ class PublicacioExamens:
         self.db = db
         self.cfg = cfg
         self.alliberaments = cfg.alliberaments if isinstance(cfg.alliberaments, dict) else {}
-        self.nivells = list(self.alliberaments.keys())
         self.nivells_seleccionats = cfg.nivells_actius()
         self.totes_hores = totes_hores
         self.grups_sense_classe = grups_sense_classe
@@ -228,14 +226,8 @@ class PublicacioExamens:
                     self.resum.grups_alliberats += 1
 
     def _nivell_del_grup(self, grup: str) -> str | None:
-        """El nivell dels alliberaments al qual pertany un grup (p. ex. «1-BAT-A» → «1-BAT»)."""
-        if not grup:
-            return None
-        for nivell in self.nivells:
-            if nivell and nivell in grup:
-                return nivell
-        nivell = detectar_nivell_grup(grup, self.nivells)
-        return None if nivell == "altres" else nivell
+        """El nivell d'un grup (p. ex. «1-BAT-A» → «1-BAT»), amb les taules de la configuració d'exàmens."""
+        return self.cfg.nivells_dels_grups.nivell(grup)
 
     def _hores_alliberades(self, nivell: str, data_iso: str) -> list:
         """Les hores sense classe (marca «a») d'un nivell aquell dia, en l'ordre de l'horari."""

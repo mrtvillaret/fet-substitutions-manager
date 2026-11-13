@@ -3,12 +3,11 @@ Configuració d'exàmens (/api/config/*): nivells, assignatures, grups, aules i
 assignacions. La configuració no es sincronitza mai amb l'XML.
 """
 
-import uuid
-
 import pytest
 from fastapi import Depends
 from fastapi.testclient import TestClient
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import require_admin
 from configuracio_examens import router as config_examens
@@ -42,7 +41,7 @@ def centre():
 
 @pytest.fixture
 def admin(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(APP), nom)
     assert client.post(f"{C}/nivells", json={"codi": "1-ESO"}).status_code == 200
@@ -192,7 +191,7 @@ CSV = "nivell,assignatura,grup,titular,aula\n3-ESO,Física,3-ESO-A,,A30\n3-ESO,Q
 def test_una_importacio_que_falla_a_mitges_no_deixa_res_a_mitges(centre, monkeypatch, overwrite, format):
     # Abans, cada alta tenia el seu commit (i «Sobreescriu» esborrava i en feia
     # un abans d'importar): si fallava a mitges, la configuració quedava a mitges
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(TestClient(APP, base_url="https://testserver", raise_server_exceptions=False), nom)
     client.post(f"{C}/nivells", json={"codi": "1-ESO"})
@@ -411,7 +410,7 @@ def test_sense_esborrar_les_assignacions_es_queden_i_tornen_a_servir(admin, cent
 
 
 def test_esborrar_amb_les_assignacions_es_tot_o_res(centre, monkeypatch):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(TestClient(APP, base_url="https://testserver", raise_server_exceptions=False), nom)
     client.post(f"{C}/nivells", json={"codi": "1-ESO"})

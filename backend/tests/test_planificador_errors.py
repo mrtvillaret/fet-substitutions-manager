@@ -6,12 +6,12 @@ diu amb un missatge genèric (no es publica res) i el detall, que pot ser
 intern, només va al registre.
 """
 
-import uuid
 import xml.etree.ElementTree as ET
 
 import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from configuracio.repositories import ConfiguracioRepository
 from planificador import publicacio
@@ -54,7 +54,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     # Els errors interns com els veu la pantalla (500 amb referència)
     return entra(TestClient(APP, base_url="https://testserver", raise_server_exceptions=False), nom)

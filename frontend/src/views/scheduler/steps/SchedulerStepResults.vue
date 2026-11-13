@@ -145,7 +145,10 @@
           <div class="kpi-grid">
             <div class="kpi-item kpi-main">
               <span class="kpi-label">{{ t('scheduler.steps.results.kpis.totalCost') }}</span>
-              <span class="kpi-value">{{ result.horari.metadata.cost_total }}</span>
+              <span class="kpi-value">
+                {{ result.horari.metadata.cost_total }}
+                <CostDesglossament :desglossament="result.horari.metadata.cost_desglossament" />
+              </span>
             </div>
             <div class="kpi-item">
               <span v-tooltip.top="recompteTooltip">
@@ -272,6 +275,7 @@ import InputNumber from 'primevue/inputnumber'
 import Checkbox from 'primevue/checkbox'
 import ProgressSpinner from 'primevue/progressspinner'
 import HorariEditable from '../../../components/HorariEditable.vue'
+import CostDesglossament from '../../../components/CostDesglossament.vue'
 
 const props = defineProps({
   generating: { type: Boolean, default: false },
@@ -322,7 +326,7 @@ const pinnedNomsList = computed(() => {
 const isSessioFixada = (sessioNom) => props.pinnedNoms?.has(sessioNom)
 
 const hasIncidentCost = (inc) => {
-  const val = extractIncidentScore(inc).match(/(\d+)/)?.[1]
-  return val !== undefined && Number(val) > 0
+  const val = extractIncidentScore(inc).match(/(-?\d+)/)?.[1]
+  return val !== undefined && Number(val) !== 0
 }
 </script>

@@ -329,6 +329,9 @@
     <Message v-if="explicacioNoDisponible" severity="warn" :closable="false" class="mb-2">
       {{ t('scheduler.dialogs.incompatibilities.explanationUnavailable', { ref: explicacioNoDisponible }) }}
     </Message>
+    <Message v-if="avisosIncompat.length" severity="warn" :closable="false" class="mb-2">
+      <div v-for="(avis, idx) in avisosIncompat" :key="idx" class="text-sm">{{ avis }}</div>
+    </Message>
     <ul v-if="incompatibilitats.length" class="pl-3">
       <li v-for="(msg, idx) in incompatibilitats" :key="idx" class="text-sm">{{ msg }}</li>
     </ul>
@@ -394,6 +397,7 @@ const props = defineProps({
   incompatibilitats: { type: Array, default: () => [] },
   incompatErrorMsg: { type: String, default: '' },
   explicacioNoDisponible: { type: String, default: null },
+  avisosIncompat: { type: Array, default: () => [] }, // grups sense nivell, ja traduïts
   desarDialogDurada: { type: Function, required: true },
   desarDialogProfessor: { type: Function, required: true },
   desarDialogDiaHora: { type: Function, required: true },

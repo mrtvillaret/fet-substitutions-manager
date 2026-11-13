@@ -3,10 +3,9 @@ Gestió d'usuaris (usuaris/): les regles que no cobreixen test_auth.py ni
 test_usuaris_protegits.py.
 """
 
-import uuid
-
 import pytest
 from suport_api import CONTRASENYA, client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.repositories import UserRepository
 from database import AuthSessionLocal
@@ -26,7 +25,7 @@ def _limiter_net():
 def centre():
     """Un centre amb dos admins i un usuari; els noms són únics per test."""
     nom = nova_institucio()
-    sufix = uuid.uuid4().hex[:8]
+    sufix = unic()
     noms = {"admin": f"admin_{sufix}", "admin2": f"admin2_{sufix}", "user": f"user_{sufix}"}
     ids = {
         "admin": crea_usuari(noms["admin"], nom, "admin"),
@@ -93,7 +92,7 @@ def test_un_admin_no_es_pot_desactivar_a_si_mateix_editant_se(centre):
 
 @pytest.fixture
 def super_client():
-    nom = f"super_{uuid.uuid4().hex[:8]}"
+    nom = f"super_{unic()}"
     crea_usuari(nom, nova_institucio(), "super_admin")
     return entra(client_per(APP), nom)
 

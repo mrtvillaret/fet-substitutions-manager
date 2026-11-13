@@ -9,16 +9,15 @@ from scheduler_engine.core.constraints import (
     calcular_penalitzacio_assignatures_dies_exclosos,
     calcular_penalitzacio_professors_dies,
     percent_dia_hora_fix_violation,
-    percent_no_mateix_dia_violation,
-    percent_no_mateix_slot_violation,
     sessio_in_group,
     viola_combinacions_permeses,
+    violacio_no_mateix_dia,
+    violacio_no_mateix_slot,
 )
-from scheduler_engine.defaults import (
-    DEFAULT_COST_PROFESSORS,
-    DEFAULT_PES_RESTRICCIO_DURA,
-    DEFAULT_PES_RESTRICCIO_VIOLADA,
-)
+from scheduler_engine.core.punts import IncidenciaCost, punts_restriccio
+from scheduler_engine.core.punts import pes_restriccio_dura as pes_dura
+from scheduler_engine.core.punts import pes_restriccio_violada as pes_violada
+from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS
 
 # Camp de l'anàlisi de disponibilitat -> tipus de cost del professor
 TIPUS_COST_PROFESSOR = {
@@ -74,6 +73,7 @@ def calcular_cost_slot(
     include_limit_dies: bool = True,
     data_iso: str = "",
     ja_comptats: set[tuple] | None = None,
+    incidencies: list[IncidenciaCost] | None = None,
 ) -> dict:
     """
     Calcula el cost total i el desglossament de penalitzacions per col·locar
@@ -81,11 +81,19 @@ def calcular_cost_slot(
 
     ja_comptats: veure costos_professors_analisi (per no comptar dues vegades
     el mateix professor en exàmens de la mateixa franja).
+    incidencies: si es passa una llista, s'hi afegeix cada part del cost amb
+    punts (IncidenciaCost); la suma dels seus punts és `cost_total`. És el que
+    fan servir el cost final i el validador per dir quant costa cada incidència.
     """
+
+    def _apunta(concepte, punts, amb=(), **camps):
+        if incidencies is not None and punts:
+            incidencies.append(IncidenciaCost(concepte, punts, amb=tuple(amb), **camps))
+
     pesos_opt = restriccions.get("pesos_optimitzacio", {})
 
-    pes_restriccio_dura = pesos_opt.get("restriccio_dura", DEFAULT_PES_RESTRICCIO_DURA)
-    pes_restriccio_violada = pesos_opt.get("restriccio_dura_violada", DEFAULT_PES_RESTRICCIO_VIOLADA)
+    pes_restriccio_dura = pes_dura(restriccions)
+    pes_restriccio_violada = pes_violada(restriccions)
 
     # 2. Verificar professors amb horari estricte
     professors_estrictes = restriccions.get("restriccions_dures", {}).get("professors_horari_estricte", [])
@@ -102,6 +110,7 @@ def calcular_cost_slot(
 
     # Si es viola un horari estricte, el cost és el màxim permès
     if professors_estrictes_afectats:
+        _apunta("professor_estricte", pes_restriccio_violada, sorted(professors_estrictes_afectats))
         return {
             "cost_total": pes_restriccio_violada,
             "breakdown": {"professor_estricte": pes_restriccio_violada},
@@ -110,6 +119,8 @@ def calcular_cost_slot(
 
     # 3. Cost dels professors (individual o global; un cop per professor i hora)
     costos_prof = costos_professors_analisi(analisi, hora, restriccions, ja_comptats)
+    for (tipus, professor, hora_prof), cost in costos_prof.items():
+        _apunta(tipus, cost, professor=professor, hora=hora_prof)
 
     def _suma(tipus):
         return sum(c for (t, _, _), c in costos_prof.items() if t == tipus)
@@ -138,23 +149,27 @@ def calcular_cost_slot(
         for pref in prefs.get("mateix_dia", []):
             assignatures = pref.get("assignatures", []) if isinstance(pref, dict) else pref
             if sessio_in_group(sessio, assignatures):
-                altres_al_dia = sum(1 for a in assignatures if a != nom_actual and a in noms_dia)
-                if altres_al_dia > 0:
+                altres_al_dia = [a for a in assignatures if a != nom_actual and a in noms_dia]
+                if altres_al_dia:
                     percent = pref.get("pes", 0) if isinstance(pref, dict) else 0
                     base = pesos_opt.get("preferencia_mateix_dia", 0)
-                    val = _percent_penalty(abs(base), percent) * altres_al_dia
-                    cost_preferencies += -val if base >= 0 else val
+                    val = _percent_penalty(abs(base), percent) * len(altres_al_dia)
+                    val = -val if base >= 0 else val
+                    cost_preferencies += val
+                    _apunta("preferencia_mateix_dia", val, altres_al_dia)
 
         # Dies diferents (percentatge)
         for pref in prefs.get("dies_diferents", []):
             assignatures = pref.get("assignatures", []) if isinstance(pref, dict) else pref
             if sessio_in_group(sessio, assignatures):
-                altres_al_dia = sum(1 for a in assignatures if a != nom_actual and a in noms_dia)
-                if altres_al_dia > 0:
+                altres_al_dia = [a for a in assignatures if a != nom_actual and a in noms_dia]
+                if altres_al_dia:
                     percent = pref.get("pes", 0) if isinstance(pref, dict) else 0
                     base = pesos_opt.get("preferencia_dies_diferents", 0)
-                    val = _percent_penalty(abs(base), percent) * altres_al_dia
-                    cost_preferencies += val if base >= 0 else -val
+                    val = _percent_penalty(abs(base), percent) * len(altres_al_dia)
+                    val = val if base >= 0 else -val
+                    cost_preferencies += val
+                    _apunta("preferencia_dies_diferents", val, altres_al_dia)
 
         # Mateix slot: penalitza si companyes del grup estan al mateix dia però hora diferent
         if sessions_slot is not None:
@@ -164,14 +179,16 @@ def calcular_cost_slot(
                 if sessio_in_group(sessio, assignatures):
                     percent = pref.get("pes", 0) if isinstance(pref, dict) else 0
                     # Companyes al mateix dia però en hora diferent (no al slot actual)
-                    altres_dia_no_slot = sum(
-                        1 for a in assignatures if a != nom_actual and a in noms_dia and a not in noms_slot
-                    )
-                    if altres_dia_no_slot > 0:
+                    altres_dia_no_slot = [
+                        a for a in assignatures if a != nom_actual and a in noms_dia and a not in noms_slot
+                    ]
+                    if altres_dia_no_slot:
                         if percent >= 100:
-                            cost_preferencies += pes_restriccio_violada
+                            val = pes_restriccio_violada
                         else:
-                            cost_preferencies += _percent_penalty(pes_restriccio_dura, percent) * altres_dia_no_slot
+                            val = _percent_penalty(pes_restriccio_dura, percent) * len(altres_dia_no_slot)
+                        cost_preferencies += val
+                        _apunta("preferencia_mateix_slot", val, altres_dia_no_slot)
 
     breakdown["preferencies"] = cost_preferencies
 
@@ -180,20 +197,21 @@ def calcular_cost_slot(
 
     if sessions_slot:
         # No mateix slot (percentatge)
-        pct_no_slot = percent_no_mateix_slot_violation(sessio, sessions_slot, restriccions)
+        pct_no_slot, amb_no_slot = violacio_no_mateix_slot(sessio, sessions_slot, restriccions)
         if pct_no_slot:
-            if pct_no_slot >= 100:
-                cost_restriccions += pes_restriccio_violada
-                breakdown["no_mateix_slot"] = breakdown.get("no_mateix_slot", 0) + pes_restriccio_violada
-            else:
-                pen = _percent_penalty(pes_restriccio_dura, pct_no_slot)
-                cost_restriccions += pen
-                breakdown["no_mateix_slot"] = breakdown.get("no_mateix_slot", 0) + pen
+            pen = punts_restriccio(restriccions, pct_no_slot)
+            cost_restriccions += pen
+            breakdown["no_mateix_slot"] = breakdown.get("no_mateix_slot", 0) + pen
+            _apunta("no_mateix_slot", pen, amb_no_slot)
 
         # Combinacions permeses (hard)
         if viola_combinacions_permeses(sessio, sessions_slot, restriccions):
             cost_restriccions += pes_restriccio_dura
             breakdown["combinacio_no_permesa"] = pes_restriccio_dura
+            if incidencies is not None:
+                curs = sessio.get("curs", "")
+                mateix_nivell = [s.get("nom") for s in sessions_slot if s is not sessio and s.get("curs", "") == curs]
+                _apunta("combinacio_no_permesa", pes_restriccio_dura, mateix_nivell)
 
     # Dia/Hora fixos
     # Els nivells són les claus del dict analisi que comencen per 'classe_'
@@ -201,25 +219,19 @@ def calcular_cost_slot(
 
     pct_fix = percent_dia_hora_fix_violation(sessio, dia, hora, restriccions, nivells, data_iso)
     if pct_fix:
-        if pct_fix >= 100:
-            cost_restriccions += pes_restriccio_violada
-            breakdown["dia_hora_fix"] = breakdown.get("dia_hora_fix", 0) + pes_restriccio_violada
-        else:
-            pen = _percent_penalty(pes_restriccio_dura, pct_fix)
-            cost_restriccions += pen
-            breakdown["dia_hora_fix"] = breakdown.get("dia_hora_fix", 0) + pen
+        pen = punts_restriccio(restriccions, pct_fix)
+        cost_restriccions += pen
+        breakdown["dia_hora_fix"] = breakdown.get("dia_hora_fix", 0) + pen
+        _apunta("dia_hora_fix", pen)
 
     # No mateix dia
     if sessions_dia:
-        pct_no_dia = percent_no_mateix_dia_violation(sessio, sessions_dia, restriccions)
+        pct_no_dia, amb_no_dia = violacio_no_mateix_dia(sessio, sessions_dia, restriccions)
         if pct_no_dia:
-            if pct_no_dia >= 100:
-                cost_restriccions += pes_restriccio_violada
-                breakdown["restriccio_dura"] = breakdown.get("restriccio_dura", 0) + pes_restriccio_violada
-            else:
-                pen = _percent_penalty(pes_restriccio_dura, pct_no_dia)
-                cost_restriccions += pen
-                breakdown["restriccio_dura"] = breakdown.get("restriccio_dura", 0) + pen
+            pen = punts_restriccio(restriccions, pct_no_dia)
+            cost_restriccions += pen
+            breakdown["restriccio_dura"] = breakdown.get("restriccio_dura", 0) + pen
+            _apunta("no_mateix_dia", pen, amb_no_dia)
 
     # Penalitzacions de professors (dies límit)
     # Nota: sessions_dia a V2 és List[Sessio], calcular_penalitzacio espera Dict[dia, List[Sessio]]
@@ -230,12 +242,14 @@ def calcular_cost_slot(
         cost_restriccions += p_prof_dies
         if p_prof_dies:
             breakdown["professors_limit_dies"] = breakdown.get("professors_limit_dies", 0) + p_prof_dies
+            _apunta("limit_dies_professor", p_prof_dies)
 
     # Assignatures dies exclosos
     p_exclosos = calcular_penalitzacio_assignatures_dies_exclosos(sessio, dia, restriccions)
     cost_restriccions += p_exclosos
     if p_exclosos:
         breakdown["assignatures_dies_exclosos"] = p_exclosos
+        _apunta("assignatures_dies_exclosos", p_exclosos)
 
     return {
         "cost_total": cost_base + cost_preferencies + cost_restriccions,

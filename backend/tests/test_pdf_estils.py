@@ -4,10 +4,9 @@ Els PDF de substitucions i de vigilàncies fan servir els mateixos estils
 soles, i en gris i cursiva a la taula del dia, no per uns colors propis.
 """
 
-import uuid
-
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, streams_pdf, text_pdf
+from suport_noms import unic
 
 from pdf import router as pdf
 from rate_limit import limiter
@@ -30,7 +29,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(APP), nom)
     body = {

@@ -8,10 +8,9 @@ primer els alliberats, després les guàrdies. Quan Prof 3 substitueix, la seva
 guàrdia queda per cobrir (fila encadenada) i en generar s'hi posa un alliberat.
 """
 
-import uuid
-
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
+from suport_noms import unic
 
 from grups import router as grups
 from pdf import router as pdf
@@ -31,7 +30,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

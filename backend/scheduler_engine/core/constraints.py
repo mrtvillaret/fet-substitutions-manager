@@ -8,10 +8,8 @@ from collections.abc import Iterable
 from typing import Any, NamedTuple
 
 from scheduler_engine.core.normalitzacio import dia_nom_per_horari, normalitzar_dia
-from scheduler_engine.defaults import (
-    DEFAULT_PES_RESTRICCIO_DURA,
-    DEFAULT_PES_RESTRICCIO_VIOLADA,
-)
+from scheduler_engine.core.punts import IncidenciaCost, pes_restriccio_dura, punts_limit_professor, punts_percentatge
+from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA
 
 _RE_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -102,19 +100,6 @@ def get_restriccio_val(mapa: dict, sessio: dict):
     return None
 
 
-def detectar_nivell_grup(grup: str, nivells_actius: list[str]) -> str:
-    """Detecta el nivell d'un grup de forma dinàmica."""
-    if not grup:
-        return "altres"
-    grup_upper = grup.upper()
-    for nivell in nivells_actius:
-        nivell_net = nivell.upper().replace("-", "").replace(" ", "")
-        grup_net = grup_upper.replace("-", "").replace(" ", "")
-        if nivell_net in grup_net or grup_net.startswith(nivell_net[:4]):
-            return nivell
-    return "altres"
-
-
 # ==================================================================================================
 # RESTRICCIONS OBLIGATÒRIES (PES >= 100)
 # ==================================================================================================
@@ -136,10 +121,7 @@ def _percent_value(pes: int | float | str | None) -> int:
 
 
 def _percent_penalty(base_cost: int, percent: int | float | str | None) -> int:
-    pct = _percent_value(percent)
-    if pct <= 0:
-        return 0
-    return int(round(base_cost * (pct / 100.0)))
+    return punts_percentatge(base_cost, percent)
 
 
 def _find_restriccio_key(mapa: dict, sessio: dict) -> str | None:
@@ -336,8 +318,9 @@ def viola_restriccio_dura(sessio: dict, sessions_dia: list[dict], restriccions: 
     return False
 
 
-def percent_no_mateix_dia_violation(sessio: dict, sessions_dia: list[dict], restriccions: dict) -> int:
-    """Retorna el percentatge de la violació de no_mateix_dia (0 si no hi ha conflicte)."""
+def violacio_no_mateix_dia(sessio: dict, sessions_dia: list[dict], restriccions: dict) -> tuple[int, list[str]]:
+    """(percentatge, assignatures del grup que hi ha el mateix dia) de la
+    primera restricció no_mateix_dia que la sessió incompleix; (0, []) si cap."""
     no_mateix_dia = restriccions.get("restriccions_dures", {}).get("no_mateix_dia", [])
     for restriccio in no_mateix_dia:
         if isinstance(restriccio, dict):
@@ -347,10 +330,19 @@ def percent_no_mateix_dia_violation(sessio: dict, sessions_dia: list[dict], rest
             assignatures = restriccio
             pes = 100
         if sessio_in_group(sessio, assignatures):
-            for altra in assignatures:
-                if not sessio_matches(altra, sessio) and any(sessio_matches(altra, s) for s in sessions_dia):
-                    return _percent_value(pes)
-    return 0
+            companyes = [
+                altra
+                for altra in assignatures
+                if not sessio_matches(altra, sessio) and any(sessio_matches(altra, s) for s in sessions_dia)
+            ]
+            if companyes:
+                return _percent_value(pes), companyes
+    return 0, []
+
+
+def percent_no_mateix_dia_violation(sessio: dict, sessions_dia: list[dict], restriccions: dict) -> int:
+    """Retorna el percentatge de la violació de no_mateix_dia (0 si no hi ha conflicte)."""
+    return violacio_no_mateix_dia(sessio, sessions_dia, restriccions)[0]
 
 
 def percent_pref_mateix_slot_violation(sessio: dict, slot_key: str, ubicacions: list[tuple], restriccions: dict) -> int:
@@ -371,22 +363,32 @@ def percent_pref_mateix_slot_violation(sessio: dict, slot_key: str, ubicacions: 
     return pct
 
 
-def percent_no_mateix_slot_violation(sessio: dict, sessions_slot: list[dict], restriccions: dict) -> int:
-    """Retorna el percentatge de la violació no_mateix_slot (0 si no hi ha conflicte)."""
+def violacio_no_mateix_slot(sessio: dict, sessions_slot: list[dict], restriccions: dict) -> tuple[int, list[str]]:
+    """(percentatge, exàmens del grup a la mateixa franja) del primer grup
+    no_mateix_slot que la sessió incompleix; (0, []) si cap."""
     if not sessions_slot:
-        return 0
+        return 0, []
     no_mateix_slot = restriccions.get("restriccions_dures", {}).get("no_mateix_slot", {})
     if not isinstance(no_mateix_slot, dict):
-        return 0
+        return 0, []
     for nom_grup, grup in no_mateix_slot.items():
         if nom_grup.startswith("_") or not isinstance(grup, list):
             continue
         if not sessio_in_group(sessio, grup):
             continue
-        for altra in sessions_slot:
-            if sessio_in_group(altra, grup) and (altra.get("nom") != sessio.get("nom")):
-                return percent_no_mateix_slot(restriccions, nom_grup)
-    return 0
+        companyes = [
+            altra.get("nom")
+            for altra in sessions_slot
+            if sessio_in_group(altra, grup) and (altra.get("nom") != sessio.get("nom"))
+        ]
+        if companyes:
+            return percent_no_mateix_slot(restriccions, nom_grup), companyes
+    return 0, []
+
+
+def percent_no_mateix_slot_violation(sessio: dict, sessions_slot: list[dict], restriccions: dict) -> int:
+    """Retorna el percentatge de la violació no_mateix_slot (0 si no hi ha conflicte)."""
+    return violacio_no_mateix_slot(sessio, sessions_slot, restriccions)[0]
 
 
 def percent_slot_prohibit_violation(sessio: dict, dia: str, hora: str, restriccions: dict) -> int:
@@ -408,16 +410,13 @@ def percent_slot_prohibit_violation(sessio: dict, dia: str, hora: str, restricci
     return 0
 
 
-def percent_dia_hora_fix_violation(
-    sessio: dict, dia: str, hora: str, restriccions: dict, nivells_actius: list[str], data_iso: str = ""
-) -> int:
-    """Retorna el percentatge de violació per dia/hora fix o slots prohibits (0 si no hi ha)."""
+def percent_examen_fixat(sessio: dict, dia: str, hora: str, restriccions: dict, data_iso: str = "") -> int:
+    """Examen fixat (assignatures_dia_fix / assignatures_hora_fix) a una altra
+    franja: la força del pin (100 si no en té); 0 si la franja és la fixada o
+    l'examen no en té cap."""
     dures = restriccions.get("restriccions_dures", {})
-    dia_norm = normalitzar_dia(dia)
-
     dies_fixos = {k: v for k, v in dures.get("assignatures_dia_fix", {}).items() if not k.startswith("_")}
     hores_fixes = {k: v for k, v in dures.get("assignatures_hora_fix", {}).items() if not k.startswith("_")}
-
     dia_fix = get_restriccio_val(dies_fixos, sessio)
     hora_fix = get_restriccio_val(hores_fixes, sessio)
     percent = percent_assignatura_fix(sessio, dures)
@@ -427,21 +426,47 @@ def percent_dia_hora_fix_violation(
             # Pin amb data ISO: comparar directament contra data_iso del slot
             if not data_iso or data_iso != dia_fix:
                 return percent or 100
-        elif normalitzar_dia(dia_fix) != dia_norm:
+        elif normalitzar_dia(dia_fix) != normalitzar_dia(dia):
             return percent or 100
     if hora_fix and hora != hora_fix:
         return percent or 100
-
-    pct_prohibit = percent_slot_prohibit_violation(sessio, dia, hora, restriccions)
-    if pct_prohibit:
-        return pct_prohibit
-
-    if not es_slot_valid_per_nivell(
-        sessio.get("nom", ""), dia, hora, restriccions, nivells_actius, curs=sessio.get("curs", ""), data_iso=data_iso
-    ):
-        return 100
-
     return 0
+
+
+def nivell_sense_inici(
+    sessio: dict, dia: str, hora: str, restriccions: dict, nivells_actius: list[str], data_iso: str = ""
+) -> bool:
+    """El nivell de l'examen no té l'hora marcada com a inici d'examen
+    (slots_valids_per_nivell, del calendari)."""
+    return not es_slot_valid_per_nivell(sessio.get("curs", ""), dia, hora, restriccions, data_iso=data_iso)
+
+
+def causa_dia_hora_fix(
+    sessio: dict, dia: str, hora: str, restriccions: dict, nivells_actius: list[str], data_iso: str = ""
+) -> tuple[str | None, int]:
+    """(causa, percentatge) de la franja per a la sessió, en aquest ordre:
+    «examen_fixat» (el pin obligatori), «franja_prohibida», «nivell_sense_inici»
+    i, si no n'hi ha cap altra, el pin no obligatori amb el seu percentatge
+    (un pin tou no amaga les altres dues). (None, 0) si la franja és vàlida."""
+    pin = percent_examen_fixat(sessio, dia, hora, restriccions, data_iso)
+    if pin >= 100:
+        return "examen_fixat", pin
+    percent = percent_slot_prohibit_violation(sessio, dia, hora, restriccions)
+    if percent:
+        return "franja_prohibida", percent
+    if nivell_sense_inici(sessio, dia, hora, restriccions, nivells_actius, data_iso):
+        return "nivell_sense_inici", 100
+    if pin:
+        return "examen_fixat", pin
+    return None, 0
+
+
+def percent_dia_hora_fix_violation(
+    sessio: dict, dia: str, hora: str, restriccions: dict, nivells_actius: list[str], data_iso: str = ""
+) -> int:
+    """Les tres causes juntes (com al cost: `dia_hora_fix`): el percentatge de
+    la primera que es dona (0 si cap)."""
+    return causa_dia_hora_fix(sessio, dia, hora, restriccions, nivells_actius, data_iso)[1]
 
 
 def viola_combinacions_permeses(sessio: dict, sessions_slot: list[dict], restriccions: dict) -> bool:
@@ -496,44 +521,16 @@ def viola_combinacions_permeses(sessio: dict, sessions_slot: list[dict], restric
     return True
 
 
-def es_slot_valid_per_nivell(
-    nom_sessio: str,
-    dia: str,
-    hora: str,
-    restriccions: dict,
-    nivells_actius: list[str],
-    curs: str = "",
-    data_iso: str = "",
-) -> bool:
-    """Comprova si un slot és vàlid per al nivell segons 'slots_valids_per_nivell'."""
+def es_slot_valid_per_nivell(nivell: str | None, dia: str, hora: str, restriccions: dict, data_iso: str = "") -> bool:
+    """Comprova si un slot és vàlid per al nivell segons 'slots_valids_per_nivell'.
+    `nivell`: el de la sessió (el seu camp «curs»); mai es dedueix del nom."""
     slots_valids = restriccions.get("restriccions_dures", {}).get("slots_valids_per_nivell", {})
     if not slots_valids:
         return True
 
-    # Prioritzar curs directe per evitar falses deteccions per nom
-    nivell_sessio = None
-    if curs:
-        if curs in slots_valids:
-            nivell_sessio = curs
-        else:
-            for nivell in nivells_actius:
-                if nivell == curs:
-                    nivell_sessio = nivell
-                    break
-
-    if not nivell_sessio:
-        for nivell in nivells_actius:
-            if nivell in nom_sessio:
-                nivell_sessio = nivell
-                break
-
-    if not nivell_sessio:
-        nivell_sessio = detectar_nivell_grup(nom_sessio or curs, nivells_actius)
-        if nivell_sessio == "altres":
-            nivell_sessio = None
-
-    if not nivell_sessio or nivell_sessio not in slots_valids:
+    if not nivell or nivell not in slots_valids:
         return True
+    nivell_sessio = nivell
 
     # Prioritzar lookup per data ISO exacta (evita confusió entre dates del mateix dia de la setmana)
     if data_iso:
@@ -602,10 +599,6 @@ def calcular_penalitzacio_professors_dies(sessio: dict, dia: str, sessions_assig
 
     professors_sessio = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
     penalitzacio_total = 0
-    base_cost = restriccions.get("pesos_optimitzacio", {}).get("restriccio_dura", DEFAULT_PES_RESTRICCIO_DURA)
-    hard_cost = restriccions.get("pesos_optimitzacio", {}).get(
-        "restriccio_dura_violada", DEFAULT_PES_RESTRICCIO_VIOLADA
-    )
 
     for professor in professors_sessio:
         if professor not in restriccio:
@@ -621,11 +614,7 @@ def calcular_penalitzacio_professors_dies(sessio: dict, dia: str, sessions_assig
 
         # La sessió que es prova també compta, com a la versió dura
         excedent = recompte_limit_professor(professor, config_prof, sessions_assignades, [sessio]).excedent
-        if excedent:
-            if _pes_obligatori(pes):
-                penalitzacio_total += hard_cost * excedent
-            else:
-                penalitzacio_total += _percent_penalty(base_cost, pes) * excedent
+        penalitzacio_total += punts_limit_professor(restriccions, pes, excedent)
 
     return penalitzacio_total
 
@@ -648,10 +637,6 @@ def calcular_penalitzacio_professors_dies_item(
         return 0
 
     penalitzacio_total = 0
-    base_cost = restriccions.get("pesos_optimitzacio", {}).get("restriccio_dura", DEFAULT_PES_RESTRICCIO_DURA)
-    hard_cost = restriccions.get("pesos_optimitzacio", {}).get(
-        "restriccio_dura_violada", DEFAULT_PES_RESTRICCIO_VIOLADA
-    )
 
     for professor in professors_item:
         if professor not in restriccio:
@@ -669,40 +654,42 @@ def calcular_penalitzacio_professors_dies_item(
 
         # Les sessions de l'ítem que es prova també compten, com a la versió dura
         excedent = recompte_limit_professor(professor, config_prof, sessions_assignades, sessions_item).excedent
-        if excedent:
-            if _pes_obligatori(pes):
-                penalitzacio_total += hard_cost * excedent
-            else:
-                penalitzacio_total += _percent_penalty(base_cost, pes) * excedent
+        penalitzacio_total += punts_limit_professor(restriccions, pes, excedent)
 
     return penalitzacio_total
+
+
+def incidencies_limit_professors(sessions_per_dia: dict, restriccions: dict) -> list[IncidenciaCost]:
+    """Una incidència per professor amb més exàmens dels permesos als seus
+    dies restringits, amb els punts que suma al cost final."""
+    restriccio = restriccions.get("restriccions_dures", {}).get("professors_limit_dies_especifics", {})
+    restriccio = {k: v for k, v in restriccio.items() if not k.startswith("_")}
+    incidencies = []
+    for professor, config_prof in restriccio.items():
+        _v = config_prof.get("pes_penalitzacio")
+        pes = int(_v) if _v is not None else 50
+        _max = config_prof.get("max_examens")
+        recompte = recompte_limit_professor(professor, config_prof, sessions_per_dia)
+        if not recompte.excedent:
+            continue
+        # Els dies, amb el nom tal com els ha escrit el centre
+        dies = config_prof.get("dies_restringits", [])
+        per_dia = [(d, recompte.per_dia.get(normalitzar_dia(d), 0)) for d in dies]
+        dies_txt = ", ".join(f"{d}({n})" for d, n in per_dia if n) or ", ".join(dies)
+        incidencies.append(
+            IncidenciaCost(
+                "limit_dies_professor",
+                punts_limit_professor(restriccions, pes, recompte.excedent),
+                professor=professor,
+                detall=f"{recompte.examens} exàmens en {dies_txt} (màx {_max}, pes {pes}%)",
+            )
+        )
+    return incidencies
 
 
 def calcular_penalitzacio_total_professors(sessions_per_dia: dict, restriccions: dict) -> int:
     """Calcula penalització total per professors amb límits d'exàmens en dies específics."""
-    restriccio = restriccions.get("restriccions_dures", {}).get("professors_limit_dies_especifics", {})
-    restriccio = {k: v for k, v in restriccio.items() if not k.startswith("_")}
-    if not restriccio:
-        return 0
-
-    penalitzacio_total = 0
-    base_cost = restriccions.get("pesos_optimitzacio", {}).get("restriccio_dura", DEFAULT_PES_RESTRICCIO_DURA)
-    hard_cost = restriccions.get("pesos_optimitzacio", {}).get(
-        "restriccio_dura_violada", DEFAULT_PES_RESTRICCIO_VIOLADA
-    )
-
-    for professor, config_prof in restriccio.items():
-        _v = config_prof.get("pes_penalitzacio")
-        pes = int(_v) if _v is not None else 50
-
-        excedent = recompte_limit_professor(professor, config_prof, sessions_per_dia).excedent
-        if excedent:
-            if _pes_obligatori(pes):
-                penalitzacio_total += hard_cost * excedent
-            else:
-                penalitzacio_total += _percent_penalty(base_cost, pes) * excedent
-
-    return penalitzacio_total
+    return sum(inc.punts for inc in incidencies_limit_professors(sessions_per_dia, restriccions))
 
 
 def calcular_penalitzacio_assignatures_dies_exclosos(sessio: dict, dia: str, restriccions: dict) -> int:
@@ -714,7 +701,7 @@ def calcular_penalitzacio_assignatures_dies_exclosos(sessio: dict, dia: str, res
     penalitzacio_total = 0
     dia_norm = normalitzar_dia(dia)
 
-    base_cost = restriccions.get("pesos_optimitzacio", {}).get("restriccio_dura", DEFAULT_PES_RESTRICCIO_DURA)
+    base_cost = pes_restriccio_dura(restriccions)
     for r in restr_llista:
         if not isinstance(r, dict):
             continue

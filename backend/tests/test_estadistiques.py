@@ -3,12 +3,12 @@ Els recomptes de la pantalla Estadístiques per l'API, amb els criteris de
 FUNCIONAMENT.md (apartats 5 i 6).
 """
 
-import uuid
 from datetime import date
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import require_admin
 from database import get_data_db_session
@@ -35,7 +35,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    usuari = f"admin_{uuid.uuid4().hex[:8]}"
+    usuari = f"admin_{unic()}"
     crea_usuari(usuari, centre, "admin")
     return entra(client_per(APP), usuari)
 

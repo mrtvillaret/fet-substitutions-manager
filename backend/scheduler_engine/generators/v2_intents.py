@@ -1,12 +1,16 @@
 """
-Motor de generació d'horaris V2 - Greedy amb Epsilon.
+Motor de generació d'horaris V2 - Greedy (el millor de molts intents).
+
+Estratègies: «greedy» prova les franges en ordre; qualsevol altra
+(«ponderada», i «epsilon_greedy» de les peticions antigues) les barreja a
+cada ítem.
 """
 
 import copy
 import random
 import re as _re_iso
+import time
 from collections import defaultdict
-from datetime import datetime as _dt2
 
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.constraints import (
@@ -17,8 +21,8 @@ from scheduler_engine.core.constraints import (
     es_slot_valid_per_nivell,
     percent_pref_mateix_slot_violation,
 )
-from scheduler_engine.core.date_mapping import DIES_CAT as _DIES_CAT
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.franja import franja
 from scheduler_engine.core.missatges import missatge
 from scheduler_engine.core.normalitzacio import (
     dia_nom_per_horari,
@@ -37,6 +41,7 @@ from scheduler_engine.estadistiques import (
     recalcular_cost_i_breakdown,
 )
 from scheduler_engine.generators.base import GeneradorSessionsExamensBase
+from scheduler_engine.informe import log
 
 
 class GeneradorV2Intents(GeneradorSessionsExamensBase):
@@ -77,7 +82,9 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         for curs in self.nivells_actius:
             self.sessions_per_nivell[curs] = []
             for assignatura_nom, dades in self.config.get("assignatures", {}).items():
-                examens = [a for a in dades.get("assignacions", []) if curs in a["grup"]]
+                examens = [
+                    a for a in dades.get("assignacions", []) if curs in self.nivells_dels_grups.nivells(a["grup"])
+                ]
                 if examens:
                     sid = f"{assignatura_nom}_{curs}"
                     s = {
@@ -139,6 +146,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             alliberaments_per_nivell=self.alliberaments_per_nivell,
             data_iso=data_iso,
             horaris_professors_norm=getattr(self, "_horaris_norm", None),
+            nivells_dels_grups=self.nivells_dels_grups,
         )
 
     def _calcular_cost_sessio(
@@ -254,13 +262,7 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                     # Respectar slots vàlids per nivell (alliberaments per dia/hora)
                     if any(
                         not es_slot_valid_per_nivell(
-                            s.get("nom", ""),
-                            dia_horari,
-                            hora,
-                            self.restriccions,
-                            self.nivells_actius,
-                            curs=s.get("curs", ""),
-                            data_iso=_data_iso_calc,
+                            s.get("curs", ""), dia_horari, hora, self.restriccions, data_iso=_data_iso_calc
                         )
                         for s in item.get("sessions", [])
                     ):
@@ -597,14 +599,13 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                             continue
                         grup = (act.get("grup") or "").strip()
                         assig = (act.get("assignatura") or "").strip()
+                        nivell = self.nivells_dels_grups.nivell(grup, entre=self.nivells_actius)
                         if grup:
                             grup = aplicar_abreviatura_grup(grup)
-                        if any(n in grup for n in self.nivells_actius):
+                        if nivell:
                             # Els slots vàlids es defineixen per hora d'inici (🟦), no per hora interna.
                             # Si el bloc comença a les 09:15 i dura 2h, la 10:15 ha de mantenir el mateix filtre.
-                            if not es_slot_valid_per_nivell(
-                                grup, dia_horari_prof, hora, self.restriccions, self.nivells_actius
-                            ):
+                            if not es_slot_valid_per_nivell(nivell, dia_horari_prof, hora, self.restriccions):
                                 continue
                             if grup and assig:
                                 alliberats.append(f"{prof} ({assig}, {grup})")
@@ -643,7 +644,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         dia_a_data_iso: dict[str, list[str]] = None,
         max_intents_validacio: int = 250,
         estrategia: str = "ponderada",
-        epsilon: float = 0.2,
         track_intents: bool = False,
         **kwargs,
     ) -> dict:
@@ -690,9 +690,19 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         total_sessions = self.get_total_sessions_count()
         ctx = self.build_context(dies_utilitzar)
         millor, minim, intents = None, float("inf"), []
+        # Termini cooperatiu dels intents, com el del recuit i el del
+        # backtracking: es comprova abans de cada intent (el primer sempre es fa)
+        termini = time.monotonic() + self.segons_maxims
+        aturat_pel_temps = False
 
         for i in range(max_intents_validacio):
-            horari = self._generar_un_intent_horari(physical_slots, items, estrategia, epsilon)
+            if i > 0 and time.monotonic() >= termini:
+                aturat_pel_temps = True
+                log.info(
+                    f"⏱️ Límit de temps ({self.segons_maxims} s): s'han fet {i} intents dels {max_intents_validacio} demanats"
+                )
+                break
+            horari = self._generar_un_intent_horari(physical_slots, items, estrategia)
             # Garantir estadístiques a cada intent
             aplicar_estadistiques(horari)
             cost_info = recalcular_cost_i_breakdown(horari, ctx)
@@ -720,12 +730,19 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
                 )
 
         res = millor or horari
+        if aturat_pel_temps:
+            res["metadata"]["motiu_aturada"] = "temps"
+            if millor is None:
+                # Cap intent complet abans del termini: no vol dir que les
+                # restriccions siguin incompatibles
+                res["metadata"]["viable"] = False
+                res["metadata"]["error"] = missatge("cerca_tallada_temps", segons=self.segons_maxims)
         if track_intents:
             res["metadata"]["intents"] = intents
         res["metadata"]["motor"] = "v2-intents"
         return res
 
-    def _generar_un_intent_horari(self, physical_slots, items, estrategia, epsilon):
+    def _generar_un_intent_horari(self, physical_slots, items, estrategia):
 
         engine = RestrictionEngine(self.restriccions, self.nivells_actius)
 
@@ -745,14 +762,6 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             else:
                 items_flex.append(it)
 
-        # Helper: (dia_nom, data_iso_or_none) des del prefix d'un slot key
-        def _parse_prefix(prefix: str):
-            try:
-                dt = _dt2.strptime(prefix, "%Y-%m-%d")
-                return _DIES_CAT[dt.weekday()], prefix
-            except ValueError:
-                return prefix, None
-
         # Professors ja comptats a cada franja (un que vigila dos exàmens alhora
         # deixa una sola classe)
         comptats_slot = defaultdict(set)
@@ -769,9 +778,8 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
             # On són les sessions ja col·locades (per a "Mateix dia i hora" entre nivells)
             ubicacions = [(x["sessio"], k) for k, llista in slots.items() for x in llista]
             for sk in llista_slots:
-                _idx = sk.rfind("_")
-                prefix, hora = sk[:_idx], sk[_idx + 1 :]
-                dia, data_iso_sk = _parse_prefix(prefix)
+                f = franja(sk)
+                prefix, hora, dia, data_iso_sk = f.prefix, f.hora, f.dia, f.data_iso
                 # Restriccions dures compartides (nivell + no_mateix_slot obligatori)
                 compatible, _ = es_item_compatible_amb_slot(it, slots[sk], self.restriccions)
                 if not compatible:
@@ -811,9 +819,8 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
 
             if millor_s:
                 comptats_slot[millor_s] = millors_comptats
-                _idx_s = millor_s.rfind("_")
-                prefix_s = millor_s[:_idx_s]
-                dia_s, _ = _parse_prefix(prefix_s)
+                f = franja(millor_s)
+                prefix_s, dia_s = f.prefix, f.dia
                 for s in it["sessions"]:
                     slots[millor_s].append({"sessio": s, "nom": s["nom"], "curs": s["curs"]})
                     sessions_per_dia[dia_s].append(s)
@@ -826,9 +833,8 @@ class GeneradorV2Intents(GeneradorSessionsExamensBase):
         for sk in physical_slots:
             if not slots[sk]:
                 continue
-            _idx2 = sk.rfind("_")
-            prefix, h = sk[:_idx2], sk[_idx2 + 1 :]
-            dia_nom, data_iso_out = _parse_prefix(prefix)
+            f = franja(sk)
+            prefix, h, dia_nom, data_iso_out = f.prefix, f.hora, f.dia, f.data_iso
             if prefix not in dia_map:
                 di = {"dia": dia_nom, "sessions": []}
                 if data_iso_out:

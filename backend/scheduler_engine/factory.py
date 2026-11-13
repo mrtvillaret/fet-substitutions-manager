@@ -6,7 +6,24 @@ Registre centralitzat de motors amb metadades per l'API.
 import importlib
 from typing import Any
 
-from scheduler_engine.defaults import DEFAULT_GREEDY_PARAMS, DEFAULT_SA_PARAMS
+from scheduler_engine.defaults import (
+    DEFAULT_GREEDY_PARAMS,
+    DEFAULT_SA_PARAMS,
+    SEGONS_MAXIMS_LIMIT,
+    SEGONS_MAXIMS_PER_DEFECTE,
+)
+
+# El temps màxim de la cerca, comú als tres motors (un paràmetre avançat més)
+PARAM_SEGONS_MAXIMS = {
+    "segons_maxims": {
+        "label": "Temps màxim (segons)",
+        "help": "Quant pot durar la cerca com a màxim; si s'acaba el temps, es queda amb la millor solució trobada",
+        "type": "number",
+        "min": 1,
+        "max": SEGONS_MAXIMS_LIMIT,
+        "step": 5,
+    }
+}
 
 # Registre de motors disponibles
 MOTORS = {
@@ -15,7 +32,7 @@ MOTORS = {
         "class_name": "GeneradorV3SA",
         "label": "Optimització progressiva (SA)",
         "method": "generar_horari_optimitzat",
-        "params": DEFAULT_SA_PARAMS,
+        "params": {**DEFAULT_SA_PARAMS, "segons_maxims": SEGONS_MAXIMS_PER_DEFECTE},
         "param_labels": {
             "temperatura_inicial": {
                 "label": "Temperatura inicial",
@@ -57,6 +74,7 @@ MOTORS = {
                 "max": 1000000,
                 "step": 1000,
             },
+            **PARAM_SEGONS_MAXIMS,
         },
     },
     "v2": {
@@ -64,7 +82,7 @@ MOTORS = {
         "class_name": "GeneradorV2Intents",
         "label": "Millor de molts intents (Greedy)",
         "method": "generar_horari_optimitzat",
-        "params": DEFAULT_GREEDY_PARAMS,
+        "params": {**DEFAULT_GREEDY_PARAMS, "segons_maxims": SEGONS_MAXIMS_PER_DEFECTE},
         "param_labels": {
             "estrategia": {
                 "label": "Estratègia",
@@ -72,7 +90,6 @@ MOTORS = {
                 "type": "select",
                 "options": [
                     {"label": "Ponderada", "value": "ponderada"},
-                    {"label": "Epsilon Greedy", "value": "epsilon_greedy"},
                     {"label": "Greedy", "value": "greedy"},
                 ],
                 "main": True,
@@ -86,14 +103,7 @@ MOTORS = {
                 "step": 10,
                 "main": True,
             },
-            "epsilon": {
-                "label": "Epsilon",
-                "help": "Probabilitat d'acceptar pitjors solucions (exploració)",
-                "type": "number",
-                "min": 0,
-                "max": 1,
-                "step": 0.05,
-            },
+            **PARAM_SEGONS_MAXIMS,
         },
     },
     "v2-backtrack": {
@@ -106,6 +116,7 @@ MOTORS = {
             "seeds_count": 1,
             "max_nodes": 100000,
             "shuffle_top_n": 0,
+            "segons_maxims": SEGONS_MAXIMS_PER_DEFECTE,
         },
         "param_labels": {
             "random_seed": {
@@ -143,6 +154,7 @@ MOTORS = {
                 "step": 1,
                 "main": True,
             },
+            **PARAM_SEGONS_MAXIMS,
         },
     },
 }

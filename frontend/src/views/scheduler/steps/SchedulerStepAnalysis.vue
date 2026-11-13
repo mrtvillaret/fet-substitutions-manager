@@ -11,6 +11,10 @@
       </div>
     </div>
 
+    <Message v-if="avisos.length" severity="warn" :closable="false">
+      <div v-for="(avis, idx) in avisos" :key="idx">{{ avis }}</div>
+    </Message>
+
     <div v-if="analisiResult" class="card analysis-card">
       <div class="analysis-tab-hint">
         <span class="analysis-tab-title">{{ analysisTabInfo.title }}</span>
@@ -170,12 +174,15 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
+import { avisosDeGrupsSenseNivell } from '../missatges.js'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 
-defineProps({
+const props = defineProps({
   analisiLoading: { type: Boolean, default: false },
   analisiResult: { type: Object, default: null },
   analysisActiveIndex: { type: Number, default: 0 },
@@ -188,4 +195,6 @@ defineProps({
 
 defineEmits(['analitzar', 'imprimir', 'update:analysisActiveIndex'])
 const { t } = useI18n()
+// Grups de les assignacions que no són a cap nivell: no es planifiquen
+const avisos = computed(() => avisosDeGrupsSenseNivell(props.analisiResult?.avisos, t))
 </script>

@@ -7,10 +7,10 @@ centres temporals.
 
 import json
 import tarfile
-import uuid
 
 import pytest
 from suport_api import crea_usuari, nova_institucio
+from suport_noms import unic
 
 from auth.repositories import UserRepository
 from database import DATA_BASE_DIR, AuthSessionLocal
@@ -25,7 +25,7 @@ def _usuaris(centre):
 @pytest.fixture
 def centre():
     centre = nova_institucio(amb_xml=True)
-    sufix = uuid.uuid4().hex[:8]
+    sufix = unic()
     crea_usuari(f"admin_{sufix}", centre, "admin")
     crea_usuari(f"user_{sufix}", centre, "user")
     return centre
@@ -44,7 +44,7 @@ def _executa(args, resposta, capsys):
 
 def test_esborra_la_carpeta_i_els_usuaris_despres_de_fer_la_copia(centre, tmp_path, capsys):
     altre = nova_institucio()
-    crea_usuari(f"altre_{uuid.uuid4().hex[:8]}", altre, "admin")
+    crea_usuari(f"altre_{unic()}", altre, "admin")
     usuaris, usuaris_altre = _usuaris(centre), _usuaris(altre)
     fitxers = sorted(p.relative_to(DATA_BASE_DIR).as_posix() for p in (DATA_BASE_DIR / centre).rglob("*"))
 
@@ -84,7 +84,7 @@ def test_sense_la_confirmacio_no_toca_res(centre, tmp_path, capsys, resposta):
 
 
 def test_no_esborra_el_centre_propi_d_un_superadmin(centre, tmp_path, capsys):
-    crea_usuari(f"super_{uuid.uuid4().hex[:8]}", centre, "super_admin")
+    crea_usuari(f"super_{unic()}", centre, "super_admin")
     usuaris = _usuaris(centre)
 
     codi, preguntes, sortida = _executa([centre, "--copia-dir", str(tmp_path)], centre, capsys)

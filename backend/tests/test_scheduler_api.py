@@ -8,10 +8,10 @@ i sortirien pestanyes de nivells que no existeixen.
 """
 
 import json
-import uuid
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session
@@ -44,7 +44,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 
@@ -75,6 +75,6 @@ def test_no_es_tornen_nivells_desats_que_ja_no_existeixen(client, centre):
 
 
 def test_nomes_els_admins_veuen_la_configuracio(centre):
-    nom = f"user_{uuid.uuid4().hex[:8]}"
+    nom = f"user_{unic()}"
     crea_usuari(nom, centre, "user")
     assert entra(client_per(APP), nom).get(URL).status_code == 403

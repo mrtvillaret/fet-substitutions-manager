@@ -11,13 +11,13 @@ Ordre de les files de vigilància dins de cada hora (columna `ordre`):
 """
 
 import sqlite3
-import uuid
 from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
 from suport_database_antic import _ensure_vigilancies_ordre_column
+from suport_noms import unic
 from test_scheduler_publicar import DATA as DATA_PUBLICAR
 from test_scheduler_publicar import _examen, _publica
 
@@ -48,7 +48,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

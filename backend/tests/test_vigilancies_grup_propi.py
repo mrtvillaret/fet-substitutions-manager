@@ -10,10 +10,9 @@ Els quatre grups fan examen (són sense classe), i el titular de l'examen de
 2-ESO-A és un altre professor.
 """
 
-import uuid
-
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from database import get_data_db_session
 from grups.repositories import GrupsAlliberatsRepository
@@ -39,7 +38,7 @@ def _assigna(titular, ordre=EXAMENS, alliberats=("2-ESO-A", "2-ESO-B", "2-ESO-C"
         GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": list(alliberats)})
         db.add(ConfiguracioExamen(assignatura="Matemàtiques", grup="2-ESO-A", titular=titular, aula=""))
         db.commit()
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(APP), nom)
     for tipus, grup in ordre:

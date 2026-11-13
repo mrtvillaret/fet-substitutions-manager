@@ -6,13 +6,13 @@ demani si no en té: no tenir-ne és normal, no un error.
 """
 
 import io
-import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy.exc import OperationalError
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from configuracio import router as configuracio
 from configuracio.repositories import ConfiguracioRepository
@@ -36,7 +36,7 @@ def centre():
 
 
 def _usuari_de(institucio, role="admin"):
-    nom = f"{role}_{uuid.uuid4().hex[:8]}"
+    nom = f"{role}_{unic()}"
     crea_usuari(nom, institucio, role)
     return entra(client_per(APP), nom)
 
@@ -167,7 +167,7 @@ def test_un_error_que_no_es_de_la_bd_no_es_calla(centre, monkeypatch):
     # Abans, qualsevol excepció es callava i es responia amb el logo de la carpeta
     _logo_a_la_carpeta(centre)
     client = TestClient(APP, base_url="https://testserver", raise_server_exceptions=False)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     entra(client, nom)
 

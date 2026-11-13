@@ -5,11 +5,10 @@ uns exàmens d'aquí a deu dies ha d'importar assignacions i comprovar-les amb
 l'horari nou, no amb el d'avui.
 """
 
-import uuid
-
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra
+from suport_noms import unic
 from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from auth.dependencies import get_current_user, require_admin
@@ -34,7 +33,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = amb_horari_futur()
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

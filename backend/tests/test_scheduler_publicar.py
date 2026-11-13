@@ -8,11 +8,11 @@ una institució temporal amb l'horari d'exemple. Dilluns 20/04/2026:
 """
 
 import json
-import uuid
 from datetime import timedelta
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_rellotge import AVUI
 
 from absencia_coberta.repositories import AbsenciaCobertaRepository
@@ -45,14 +45,26 @@ def _limiter_net():
 
 
 def _usuari_de(institucio, role="admin"):
-    nom = f"{role}_{uuid.uuid4().hex[:8]}"
+    nom = f"{role}_{unic()}"
     crea_usuari(nom, institucio, role)
     return entra(client_per(APP), nom)
 
 
 @pytest.fixture
 def centre():
-    return nova_institucio(amb_xml=True)
+    """Amb els nivells i grups de la configuració d'exàmens (d'on surt el
+    nivell de cada grup que es publica sense classe)."""
+    institucio = nova_institucio(amb_xml=True)
+    with get_data_db_session(institucio) as db:
+        for ordre, codi in enumerate(("1-BAT", "2-BAT")):
+            nivell = Nivell(codi=codi, nom=codi, ordre=ordre)
+            db.add(nivell)
+            db.flush()
+            db.add_all(
+                [Grup(codi=f"{codi}-{g}", nom=f"{codi}-{g}", nivell_id=nivell.id, ordre=i) for i, g in enumerate("AB")]
+            )
+        db.commit()
+    return institucio
 
 
 @pytest.fixture
@@ -301,15 +313,7 @@ def test_marca_sense_classe_els_grups_indicats_a_les_hores_alliberades(client, c
 def test_sense_llista_de_grups_marca_els_grups_actius_del_nivell(client, centre):
     _alliberaments(centre, "1-BAT", ["10:00"])
     with get_data_db_session(centre) as db:
-        nivell = Nivell(codi="1-BAT", nom="1-BAT", ordre=0)
-        db.add(nivell)
-        db.flush()
-        db.add_all(
-            [
-                Grup(codi="1-BAT-A", nom="1-BAT-A", nivell_id=nivell.id, ordre=0, actiu=True),
-                Grup(codi="1-BAT-B", nom="1-BAT-B", nivell_id=nivell.id, ordre=1, actiu=False),
-            ]
-        )
+        db.query(Grup).filter(Grup.codi == "1-BAT-B").one().actiu = False
         db.commit()
     _publica(client, _horari(FILOSOFIA_1BAT))
     assert _grups_alliberats(centre) == [("10:00", "1-BAT-A")]

@@ -5,11 +5,11 @@ duia la institució activa i calia desvincular-lo de la sessió).
 """
 
 import dataclasses
-import uuid
 
 import pytest
 from fastapi import APIRouter, Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import get_current_user
 from auth.domain import Rol, UsuariActual
@@ -36,7 +36,7 @@ def _limiter_net():
 
 def test_la_ruta_rep_un_usuari_actual_immutable():
     centre = nova_institucio()
-    nom = f"u_{uuid.uuid4().hex[:8]}"
+    nom = f"u_{unic()}"
     crea_usuari(nom, centre, "admin")
     assert entra(client_per(APP), nom).get("/prova/usuari").status_code == 200
     usuari = rebut["usuari"]

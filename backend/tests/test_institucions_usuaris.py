@@ -3,11 +3,10 @@ Desactivar una institució (o esborrar-la en mode «soft») no en toca els
 usuaris; l'esborrat definitiu no es fa des de la web.
 """
 
-import uuid
-
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import require_admin
 from auth.repositories import UserRepository
@@ -29,7 +28,7 @@ def _limiter_net():
 @pytest.fixture
 def escenari():
     centre = nova_institucio()
-    sufix = uuid.uuid4().hex[:8]
+    sufix = unic()
     noms = {"super": f"super_{sufix}", "admin": f"admin_{sufix}", "user": f"user_{sufix}"}
     crea_usuari(noms["super"], centre, "super_admin")
     crea_usuari(noms["admin"], centre, "admin")

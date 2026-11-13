@@ -6,7 +6,6 @@ de professor, assignatura (activitat) o aula arriba net (noms.NomNet).
 import importlib
 import re
 import typing
-import uuid
 from pathlib import Path
 
 import pytest
@@ -14,6 +13,7 @@ from fastapi import APIRouter, Depends
 from fastapi.routing import APIRoute
 from pydantic import BaseModel
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import require_admin
@@ -132,7 +132,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio()
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

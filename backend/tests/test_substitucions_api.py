@@ -14,7 +14,6 @@ Escenari base, dilluns 20/04/2026, Prof 15 absent:
 import contextlib
 import io
 import random
-import uuid
 
 import pytest
 from suport_api import (
@@ -25,6 +24,7 @@ from suport_api import (
     entra,
     nova_institucio,
 )
+from suport_noms import unic
 
 from database import get_data_db_session
 from grups.repositories import GrupsAlliberatsRepository
@@ -54,7 +54,7 @@ def _limiter_net():
 
 
 def _admin_de(institucio, client=None):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, institucio, "admin")
     return entra(client or client_per(APP), nom)
 

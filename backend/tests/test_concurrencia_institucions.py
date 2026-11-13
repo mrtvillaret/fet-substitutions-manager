@@ -14,13 +14,13 @@ import json
 import socket
 import threading
 import time
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import uvicorn
 from fastapi import APIRouter, Depends
 from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_institucio
+from suport_noms import unic
 
 import i18n_setup
 import rellotge
@@ -94,7 +94,7 @@ def servidor():
 
     galetes = {}
     for inst in (a, b):
-        nom = f"admin_{uuid.uuid4().hex[:8]}"
+        nom = f"admin_{unic()}"
         crea_usuari(nom, inst, "admin")
         estat, _, galeta = _peticio(port, "POST", "/api/login", {"username": nom, "password": CONTRASENYA})
         assert estat == 200

@@ -109,3 +109,157 @@ def test_dos_examens_d_un_nivell_amb_una_hora_cada_dia_hi_caben():
         _diagnostic(_examens_1bat(2), slots_valids_per_nivell={"1-BAT": {"Dilluns": ["09:00"], "Dimarts": ["11:30"]}})
         == []
     )
+
+
+# ------------------------------------------- tres causes de «dia_hora_fix»
+
+
+def test_fixat_a_hora_sense_inici_diu_l_hora_i_el_nivell():
+    # Revisió B1: bloquejat a totes les altres franges per «fixat» i a la seva
+    # per «nivell sense inici»; abans sortia la més freqüent, «Dia/hora fixat»
+    msgs = _diagnostic(
+        [FIL1],
+        assignatures_dia_fix={"Fil (1-BAT)": "Dilluns"},
+        assignatures_hora_fix={"Fil (1-BAT)": "11:30"},
+        slots_valids_per_nivell={"1-BAT": {"Dilluns": ["09:00"], "Dimarts": ["09:00", "11:30"]}},
+    )
+    assert msgs == [
+        missatge("fixat_a_hora_sense_inici", nom="Fil (1-BAT)", dia="Dilluns", hora="11:30", nivell="1-BAT")
+    ]
+
+
+def test_fixat_a_un_dia_fora_de_les_dates():
+    msgs = _diagnostic([FIL1], assignatures_dia_fix={"Fil (1-BAT)": "Dijous"})
+    assert msgs == [missatge("fixat_fora_de_dates", nom="Fil (1-BAT)", dia="Dijous", hora="")]
+
+
+def test_fixat_a_una_hora_que_no_es_d_examen():
+    msgs = _diagnostic([FIL1], assignatures_hora_fix={"Fil (1-BAT)": "10:00"})
+    assert msgs == [missatge("fixat_fora_de_dates", nom="Fil (1-BAT)", dia="", hora="10:00")]
+
+
+def test_fixat_a_una_franja_prohibida():
+    msgs = _diagnostic(
+        [FIL1],
+        assignatures_dia_fix={"Fil (1-BAT)": "2026-04-21"},
+        assignatures_slot_prohibit=[{"assignatures": ["Fil (1-BAT)"], "dia": "Dimarts"}],
+    )
+    assert msgs == [missatge("fixat_a_franja_prohibida", nom="Fil (1-BAT)", dia="2026-04-21", hora="")]
+
+
+def test_sense_pin_i_cap_hora_d_inici_la_causa_es_el_nivell():
+    msgs = _diagnostic([FIL1], slots_valids_per_nivell={"1-BAT": {"Dilluns": [], "Dimarts": []}})
+    assert msgs == [missatge("examen_sense_hora_causa", nom="Fil (1-BAT)", causa="nivell_sense_inici")]
+
+
+def test_sense_pin_i_franges_prohibides():
+    msgs = _diagnostic([FIL1], assignatures_slot_prohibit=[{"assignatures": ["Fil (1-BAT)"]}])
+    assert msgs == [missatge("examen_sense_hora_causa", nom="Fil (1-BAT)", causa="franja_prohibida")]
+
+
+# ------------------------------------------- límit d'exàmens per professor
+
+
+def _del_professor(nom, nivell, professor="P"):
+    return {"nom": nom, "curs": nivell, "sessions": [{"nom": nom, "curs": nivell, "examens": [{"titular": professor}]}]}
+
+
+def _limit(dies, maxim, pes=100, assignatures=("Fil (1-BAT)", "Fil (2-BAT)")):
+    return {
+        "P": {
+            "assignatures": list(assignatures),
+            "dies_restringits": dies,
+            "max_examens": maxim,
+            "pes_penalitzacio": pes,
+        }
+    }
+
+
+A, B = _del_professor("Fil (1-BAT)", "1-BAT"), _del_professor("Fil (2-BAT)", "2-BAT")
+
+
+def test_limit_de_professor_amb_mes_examens_forcats_que_el_maxim():
+    msgs = _diagnostic(
+        [A, B],
+        professors_limit_dies_especifics=_limit(["Dilluns"], 1),
+        assignatures_dia_fix={"Fil (1-BAT)": "Dilluns", "Fil (2-BAT)": "Dilluns"},
+    )
+    assert msgs == [
+        missatge(
+            "limit_professor_insuficient",
+            professor="P",
+            max=1,
+            count=2,
+            noms=["Fil (1-BAT)", "Fil (2-BAT)"],
+            dies="Dilluns",
+        )
+    ]
+
+
+def test_limit_zero_i_tots_els_dies_restringits():
+    msgs = _diagnostic([A], professors_limit_dies_especifics=_limit(["Dilluns", "Dimarts"], 0))
+    assert msgs == [
+        missatge(
+            "limit_professor_insuficient", professor="P", max=0, count=1, noms=["Fil (1-BAT)"], dies="Dilluns, Dimarts"
+        )
+    ]
+
+
+def test_limit_amb_una_altra_data_possible_no_diu_res():
+    # Sense fixar, tots dos poden anar dimarts
+    assert _diagnostic([A, B], professors_limit_dies_especifics=_limit(["Dilluns"], 1)) == []
+
+
+def test_limit_que_hi_cap_no_diu_res():
+    dures = {"assignatures_dia_fix": {"Fil (1-BAT)": "Dilluns", "Fil (2-BAT)": "Dilluns"}}
+    assert _diagnostic([A, B], professors_limit_dies_especifics=_limit(["Dilluns"], 2), **dures) == []
+
+
+def test_limit_tou_no_es_comprova():
+    dures = {"assignatures_dia_fix": {"Fil (1-BAT)": "Dilluns", "Fil (2-BAT)": "Dilluns"}}
+    assert _diagnostic([A, B], professors_limit_dies_especifics=_limit(["Dilluns"], 1, pes=60), **dures) == []
+
+
+def test_limit_nomes_compta_les_assignatures_i_el_professor_del_limit():
+    altre = _del_professor("Fil (2-BAT)", "2-BAT", professor="Q")
+    dures = {"assignatures_dia_fix": {"Fil (1-BAT)": "Dilluns", "Fil (2-BAT)": "Dilluns"}}
+    assert _diagnostic([A, altre], professors_limit_dies_especifics=_limit(["Dilluns"], 1), **dures) == []
+    limit = _limit(["Dilluns"], 1, assignatures=("Fil (1-BAT)",))
+    assert _diagnostic([A, B], professors_limit_dies_especifics=limit, **dures) == []
+
+
+# ------------------------------- exclosos per examen i horari estricte
+
+
+def test_dos_examens_amb_el_mateix_nom_el_que_queda_fora_te_missatge():
+    # Abans les dates es desaven per nom: el segon (viable) trepitjava el
+    # primer i el que no té cap hora no sortia
+    sense_inici = _examen("Fil", "2-BAT")
+    amb_inici = _examen("Fil", "1-BAT")
+    msgs = _diagnostic([sense_inici, amb_inici], slots_valids_per_nivell={"2-BAT": {"Dilluns": [], "Dimarts": []}})
+    assert msgs == [missatge("examen_sense_hora_causa", nom="Fil", causa="nivell_sense_inici")]
+
+
+def _amb_estrictes(examens, analitza):
+    restriccions = {"restriccions_dures": {"professors_horari_estricte": ["P"]}, "preferencies": {}}
+    return InfeasibilityDiagnostic(restriccions, DIES, HORES, ["1-BAT"], analitza=analitza).run(examens)
+
+
+def test_horari_estricte_es_comprova_amb_l_analisi():
+    crides = []
+
+    def analitza(sessio, dia, hora, data_iso):
+        crides.append((sessio["nom"], dia, hora, data_iso))
+        return {"abans_jornada": [{"professor": "P"}]}  # P hauria d'arribar abans a totes les franges
+
+    assert _amb_estrictes([FIL1], analitza) == [
+        missatge("examen_sense_hora_causa", nom="Fil (1-BAT)", causa="professors_estrictes")
+    ]
+    assert ("Fil (1-BAT)", "Dilluns", "09:00", "2026-04-20") in crides
+
+
+def test_horari_estricte_sense_analisi_o_sense_estrictes_com_abans():
+    assert _amb_estrictes([FIL1], None) == []
+    crides = []
+    diag = InfeasibilityDiagnostic({"restriccions_dures": {}}, DIES, HORES, ["1-BAT"], analitza=crides.append)
+    assert diag.run([FIL1]) == [] and crides == []  # sense estrictes no s'analitza res

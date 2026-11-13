@@ -6,13 +6,13 @@ servir la del planificador (dia_de_la_planificacio). Si no hi ha horari
 (XML) per a la data, el missatge és en català i diu la data.
 """
 
-import uuid
 from dataclasses import dataclass
 from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from cursos.repositories import CursRepository
 from database import get_data_db_session
@@ -57,7 +57,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(TestClient(APP, base_url="https://testserver", raise_server_exceptions=False), nom)
 

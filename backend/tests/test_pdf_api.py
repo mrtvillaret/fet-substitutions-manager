@@ -6,10 +6,9 @@ a text, no interpretat com a etiquetes de ReportLab. Abans, un simple
 generador llegís fitxers del servidor.
 """
 
-import uuid
-
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from pdf import generacio, informes, services, taula
 from pdf import router as pdf
@@ -45,7 +44,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

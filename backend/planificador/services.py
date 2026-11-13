@@ -19,7 +19,7 @@ from database import get_data_db_session
 from errors_domini import NoValid
 from planificador import restriccions as regles
 from planificador.alliberaments import extreure_hores_examen_des_alliberaments
-from planificador.examens import examens, nivells_master
+from planificador.examens import examens, nivells_dels_grups
 from planificador.repositories import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DATES_KEY,
@@ -107,11 +107,11 @@ def examens_dels_nivells(db: Session, nivells: str | None) -> list[str]:
     """Els exàmens actuals dels nivells (separats per comes; sense, tots).
     Els de restriccions antigues es mostren a part (assignatures_inexistents)."""
     filtre = nivells.split(",") if nivells else []
-    return examens(ConfiguracioExamenRepository.get_all(db), nivells_master(db), only_nivells=filtre)
+    return examens(ConfiguracioExamenRepository.get_all(db), nivells_dels_grups(db), only_nivells=filtre)
 
 
 def examens_actius(db: Session) -> list[str]:
-    return examens(ConfiguracioExamenRepository.get_all(db), nivells_master(db))
+    return examens(ConfiguracioExamenRepository.get_all(db), nivells_dels_grups(db))
 
 
 # ---------------------------------------------------------------- restriccions
@@ -122,7 +122,7 @@ def _assignatures_inexistents(db: Session, restr: dict) -> list[str]:
     actual (p.ex. d'un curs anterior o d'abans de canviar el nom d'un nivell).
     Un nom sense nivell ("Anglès") val si hi ha aquesta assignatura a algun nivell."""
     assignacions = ConfiguracioExamenRepository.get_all(db)
-    actuals = set(examens(assignacions, nivells_master(db)))
+    actuals = set(examens(assignacions, nivells_dels_grups(db)))
     actuals |= {a.get("assignatura") if isinstance(a, dict) else a.assignatura for a in assignacions}
     return sorted(n for n in regles.assignatures_de(restr) if n not in actuals)
 

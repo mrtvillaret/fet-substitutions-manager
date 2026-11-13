@@ -7,13 +7,13 @@ informes no compten pel seu compte (FUNCIONAMENT.md, apartat 6).
 
 import ast
 import re
-import uuid
 from datetime import date
 from pathlib import Path
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import require_admin
 from database import get_data_db_session
@@ -77,7 +77,7 @@ def _centre():
             )
         )
         db.commit()
-    usuari = f"admin_{uuid.uuid4().hex[:8]}"
+    usuari = f"admin_{unic()}"
     crea_usuari(usuari, centre, "admin")
     return centre, entra(client_per(APP), usuari)
 

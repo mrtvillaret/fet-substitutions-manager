@@ -48,11 +48,9 @@ def _executa_motor(gen, metode: str, motor: str, payload: SchedulerGenerateReque
         kwargs.update(
             max_intents_validacio=payload.max_intents_validacio,
             estrategia=payload.estrategia,
-            epsilon=payload.epsilon,
             track_intents=True,
         )
     elif motor == "v2-backtrack":
-        kwargs["max_solucions"] = 100
         for clau in ("random_seed", "seeds_count", "max_nodes", "shuffle_top_n"):
             if getattr(payload, clau) is not None:
                 kwargs[clau] = getattr(payload, clau)
@@ -62,11 +60,10 @@ def _executa_motor(gen, metode: str, motor: str, payload: SchedulerGenerateReque
     temps_ms = int((time.monotonic() - t0) * 1000)
 
     if motor == "v2-backtrack":
-        # Retorna la llista de solucions: la primera, i quantes n'hi ha
+        # Retorna una llista amb un sol horari (el millor de totes les llavors)
         if resultat:
             horari = resultat[0]
             if horari.get("metadata", {}).get("viable", True):
-                horari["metadata"]["alternatives"] = len(resultat)
                 horari["metadata"]["motor"] = "v2-backtrack"
         else:
             horari = {
@@ -149,9 +146,13 @@ def _explica_no_viable(horari: dict, gen, pla, del_precheck: bool = False) -> No
                 _explicacio_no_disponible(meta)
                 del_motor = []
         incompat = unics(diagnostic + list(del_motor))
+    if meta.get("motiu_aturada"):
+        # La cerca s'ha aturat per un límit (temps o nodes), no perquè les
+        # restriccions siguin incompatibles: és el primer que s'ha de llegir
+        incompat = unics([error] + incompat)
     if incompat:
         meta["incompatibilitats"] = incompat
-    meta["logs"] = unics(meta.get("logs", []) + [error])
+    meta["logs"] = unics(pla.cfg.avisos(pla.nivells) + meta.get("logs", []) + [error])
 
 
 def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
@@ -167,6 +168,7 @@ def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
             for k in PARAMETRES_V3
             if motor == "v3" and getattr(payload, k, None) is not None
         }
+        parametres["segons_maxims"] = payload.segons_maxims
 
         with captura_informe() as sortida:
             gen, metode = pla.motor(motor, **parametres)
@@ -208,11 +210,11 @@ def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
 
             # Incidències: les del motor, la sortida capturada i la validació
 
-            validacio = ValidadorHorari(horari, pla.restriccions, pla.cfg.no_substituir).validar()
+            validacio = ValidadorHorari(horari, pla.restriccions, pla.cfg.no_substituir, pla.dia_a_data_iso).validar()
             logs = [linia.strip() for linia in meta.get("logs", []) if linia.strip()]
             logs += [linia.strip() for linia in sortida.getvalue().splitlines() if linia.strip()]
             logs += validacio["logs"]
-            meta["logs"] = list(dict.fromkeys(logs))
+            meta["logs"] = pla.cfg.avisos(pla.nivells) + list(dict.fromkeys(logs))
 
         desa_ultim_resultat(institucio, horari, pla.dies)
         return {"dies_utilitzar": pla.dies, "horari": horari}
@@ -247,4 +249,5 @@ def analitza(payload: SchedulerGenerateRequest, institucio: str) -> dict:
             "professors_slot": gen.generar_informe_professors_per_slot(
                 dies_analisi, aplicar_abreviatura_grup=aplicar_abreviatura_grup
             ),
+            "avisos": pla.cfg.avisos_de_grups(),
         }

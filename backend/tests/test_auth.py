@@ -8,7 +8,6 @@ dependències reals de permisos. Tot passa sobre l'auth.db i les institucions
 temporals que prepara el conftest.
 """
 
-import uuid
 from datetime import timedelta
 from pathlib import Path
 
@@ -16,6 +15,7 @@ import jwt
 import pytest
 from fastapi import Depends
 from suport_api import CONTRASENYA, client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_rellotge import ARA
 
 import auth.services as serveis_auth
@@ -75,7 +75,7 @@ def client():
 @pytest.fixture
 def escenari():
     """Dues institucions, cadascuna amb un admin i un usuari, i un superadmin."""
-    sufix = uuid.uuid4().hex[:6]
+    sufix = unic()
     a, b = _nova_institucio(), _nova_institucio()
     noms = {
         "super": f"super_{sufix}",
@@ -460,7 +460,7 @@ def test_admin_no_pot_crear_usuaris_fora_del_seu_abast(client, escenari, canvis,
     _entra(client, escenari, "admin_a")
     if canvis.get("institucio") == "b":
         canvis = {**canvis, "institucio": escenari["b"]}
-    body = {"username": "prova_" + uuid.uuid4().hex[:6], "password": "x", **canvis}
+    body = {"username": "prova_" + unic(), "password": "x", **canvis}
     assert client.post("/api/users", json=body).status_code == esperat
 
 

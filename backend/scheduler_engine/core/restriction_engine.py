@@ -10,16 +10,17 @@ NO reimplementa lògica: delega sempre a constraints.py.
 """
 
 import re as _re
+from collections import Counter
 from dataclasses import dataclass
 
 from scheduler_engine.core.constraints import (
+    causa_dia_hora_fix,
     viola_combinacions_permeses,
     viola_limit_dies_professor_obligatori,
     viola_preferencia_dia_obligatoria,
-    viola_restriccio_dia_hora_fixos,
     viola_restriccio_dura,
 )
-from scheduler_engine.defaults import ETIQUETES_RESTRICCIONS
+from scheduler_engine.defaults import ETIQUETES_CAUSES as ETIQUETES_RESTRICCIONS
 
 _ISO_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -30,8 +31,8 @@ def _is_iso(s: str) -> bool:
 
 @dataclass
 class ViolationResult:
-    restriction: str  # Clau interna: "no_mateix_dia", "dia_hora_fix", etc.
-    label: str  # Etiqueta llegible: "Dies distints", "Dia/hora fixat", etc.
+    restriction: str  # Clau interna: "no_mateix_dia", "examen_fixat", etc.
+    label: str  # Etiqueta llegible: "Dies distints", "Franja prohibida", etc.
     is_hard: bool = True
     detail: str = ""  # Descripció específica de la violació
 
@@ -93,11 +94,13 @@ class RestrictionEngine:
         """
         data_iso = prefix if _is_iso(prefix) else ""
 
-        # 1. Dia/hora fix, slots prohibits, alliberaments
-        if viola_restriccio_dia_hora_fixos(sessio, dia, hora, self.restriccions, self.nivells_actius, data_iso):
+        # 1. Examen fixat a una altra franja, franja prohibida o hora sense
+        # inici per al nivell (les tres de «dia_hora_fix», cadascuna amb el seu nom)
+        causa, percent = causa_dia_hora_fix(sessio, dia, hora, self.restriccions, self.nivells_actius, data_iso)
+        if percent >= 100:
             return ViolationResult(
-                restriction="dia_hora_fix",
-                label=ETIQUETES_RESTRICCIONS.get("dia_hora_fix", "Dia/hora fixat"),
+                restriction=causa,
+                label=ETIQUETES_RESTRICCIONS[causa],
                 detail=f"{sessio.get('nom', '')} — slot {dia} {hora} no permès",
             )
 
@@ -150,3 +153,15 @@ class RestrictionEngine:
                 )
 
         return None
+
+
+def causa_principal(raons: Counter) -> str | None:
+    """La restricció que bloqueja més franges d'un examen (`raons`: restricció
+    → franges). «examen_fixat» només si no n'hi ha cap altra: un examen fixat
+    queda bloquejat per «fixat» a totes les franges menys la seva, i el que
+    importa és per què no pot anar a la seva (revisió B1). Empats: la primera
+    que s'ha vist."""
+    if not raons:
+        return None
+    altres = Counter({clau: n for clau, n in raons.items() if clau != "examen_fixat"})
+    return (altres or raons).most_common(1)[0][0]

@@ -8,10 +8,9 @@ Dilluns 19/10/2026 a les 10:00: Prof 15 fa Anglès a 3-ESO-A, Prof 1 té classe
 amb 3-ESO-C i Prof 3 fa guàrdia.
 """
 
-import uuid
-
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from grups import router as grups
 from rate_limit import limiter
@@ -32,7 +31,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio(amb_xml=True)
-    nom = f"user_{uuid.uuid4().hex[:8]}"
+    nom = f"user_{unic()}"
     crea_usuari(nom, centre, "user")
     return entra(client_per(APP), nom)
 

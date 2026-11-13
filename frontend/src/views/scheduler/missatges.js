@@ -17,6 +17,8 @@ export function tradueixMissatge(missatge, t) {
   if ('nivell' in params && !params.nivell) params.nivell = t(prefix + 'nivell_desconegut')
   if (params.causa) params.causa = t(prefix + 'causes.' + params.causa)
   if (params.dia) params.dia = localizeBackendDayName(params.dia, t)
+  // Franja fixada d'un examen: el dia (o la data) i l'hora, el que hi hagi
+  if ('dia' in params && 'hora' in params) params.franja = [params.dia, params.hora].filter(Boolean).join(' ')
   if (typeof params.dies === 'string') {
     params.dies = params.dies.split(', ').map(d => localizeBackendDayName(d, t)).join(', ')
   }
@@ -24,4 +26,20 @@ export function tradueixMissatge(missatge, t) {
     if (typeof params[key] === 'number') params[desti] = t(prefix + 'unitats.' + unitat, { count: params[key] }, params[key])
   }
   return t(prefix + missatge.codi, params)
+}
+
+// Avisos de la configuració que el backend posa als logs del resultat.
+// Es reconeixen pel codi: el text no sempre diu «avís» en cada idioma.
+const CODIS_AVIS_CONFIGURACIO = new Set(['grup_sense_nivell', 'nivell_sense_hores_alliberades', 'nivell_alliberaments_sense_hores'])
+
+export const esAvisDeConfiguracio = (missatge) => CODIS_AVIS_CONFIGURACIO.has(missatge?.codi)
+
+export function avisosDeConfiguracio(logs, t) {
+  return (logs || []).filter(esAvisDeConfiguracio).map((m) => tradueixMissatge(m, t).trim())
+}
+
+// Grups de les assignacions que no són a cap nivell: al diàleg de no
+// viable (dels logs del resultat) i a l'anàlisi prèvia (dels seus avisos)
+export function avisosDeGrupsSenseNivell(logs, t) {
+  return (logs || []).filter((m) => m?.codi === 'grup_sense_nivell').map((m) => tradueixMissatge(m, t).trim())
 }

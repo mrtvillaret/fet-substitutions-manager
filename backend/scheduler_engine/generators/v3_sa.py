@@ -6,13 +6,11 @@ Versió corregida amb totes les restriccions i agrupament modular.
 import math
 import random
 import re
-import re as _re
 import time
 from collections import Counter as _Counter
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
-from datetime import datetime as _dt
 
 from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.constraints import (
@@ -20,15 +18,13 @@ from scheduler_engine.core.constraints import (
     es_item_compatible_amb_slot,
     es_slot_valid_per_nivell,
     get_restriccio_val,
-    sessio_in_group,
-    sessio_matches,
     viola_restriccio_dia_hora_fixos,
 )
-from scheduler_engine.core.date_mapping import DIES_CAT as _DIES_CAT
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.franja import dia_de_prefix
 from scheduler_engine.core.missatges import missatge
 from scheduler_engine.core.normalitzacio import normalitzar_dia, normalitzar_text
-from scheduler_engine.core.restriction_engine import RestrictionEngine
+from scheduler_engine.core.restriction_engine import RestrictionEngine, causa_principal
 from scheduler_engine.core.scoring import calcular_cost_slot
 from scheduler_engine.defaults import (
     DEFAULT_COST_PROFESSORS,
@@ -45,13 +41,12 @@ from scheduler_engine.informe import log
 
 @dataclass
 class Restriccio:
+    """Una preferència «mateix moment» (l'única regla que el recuit avalua
+    per a tota la solució; la resta, `check_hard` i `calcular_cost_slot`)."""
+
     tipus: str
     pes: int
     dades: dict = field(default_factory=dict)
-
-    @property
-    def es_dura(self) -> bool:
-        return self.pes >= 100
 
 
 @dataclass
@@ -73,8 +68,7 @@ SOLUCIONS_INICIALS_A_COMPARAR = 10
 # reinicis curts que pocs de llargs (cada un acaba en un mínim local diferent)
 REINICIS = 12
 ITERACIONS_SENSE_MILLORA = 2000
-# Temps màxim del recuit, comprovat també dins de cada reinici
-SEGONS_MAXIMS_REINICIS = 20
+# El temps màxim del recuit és self.segons_maxims (base), comprovat també dins de cada reinici
 
 
 class GeneradorV3SA(GeneradorSessionsExamensBase):
@@ -138,7 +132,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         if not dia_fix and not hora_fix:
             return []
 
-        _re_iso = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
+        _re_iso = re.compile(r"^\d{4}-\d{2}-\d{2}$")
         slots_set_dia = {(normalitzar_dia(s.dia), s.hora) for s in self.slots}
         slots_set_iso = {(s.data, s.hora) for s in self.slots if s.data}
         days_set = {normalitzar_dia(s.dia) for s in self.slots}
@@ -173,7 +167,9 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         self._carregar_config()
         for curs in self.nivells_actius:
             for assignatura_nom, dades in self.config.get("assignatures", {}).items():
-                examens = [a for a in dades.get("assignacions", []) if curs in a["grup"]]
+                examens = [
+                    a for a in dades.get("assignacions", []) if curs in self.nivells_dels_grups.nivells(a["grup"])
+                ]
                 if examens:
                     sid = f"{assignatura_nom}_{curs}"
                     s = Sessio(
@@ -194,56 +190,15 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
 
     def _processar_restriccions(self):
         self.restriccions_obj = []
-        dures = self.restriccions_raw.get("restriccions_dures", {})
         prefs = self.restriccions_raw.get("preferencies", {})
         pesos = self.restriccions_raw.get("pesos_percentatge", {})
         costos_profs = self.restriccions_raw.get("costos_professors", {})
 
-        # Mapejat a objectes Restriccio per al SA
-        for grup in dures.get("mateix_slot", []):
-            p = grup.get("pes", 100) if isinstance(grup, dict) else 100
-            a = grup.get("assignatures", []) if isinstance(grup, dict) else grup
-            self.restriccions_obj.append(Restriccio("mateix_slot", p, {"assignatures": a}))
-
-        for key, grup in dures.get("no_mateix_slot", {}).items():
-            if not key.startswith("_"):
-                self.restriccions_obj.append(
-                    Restriccio("no_mateix_slot", dures.get(f"_pes_{key}", 100), {"assignatures": grup})
-                )
-
-        for grup in dures.get("no_mateix_dia", []):
-            self.restriccions_obj.append(Restriccio("no_mateix_dia", 100, {"assignatures": grup}))
-
-        for assig, dia in dures.get("assignatures_dia_fix", {}).items():
-            if not assig.startswith("_"):
-                self.restriccions_obj.append(
-                    Restriccio("dia_fix", 100, {"assignatura": assig, "dia": normalitzar_dia(dia)})
-                )
-
-        for assig, hora in dures.get("assignatures_hora_fix", {}).items():
-            if not assig.startswith("_"):
-                self.restriccions_obj.append(Restriccio("hora_fix", 100, {"assignatura": assig, "hora": hora}))
-
-        for grup in prefs.get("dies_diferents", []):
-            p = grup.get("pes", 75) if isinstance(grup, dict) else 75
-            self.restriccions_obj.append(
-                Restriccio(
-                    "dies_diferents",
-                    p,
-                    {"assignatures": grup.get("assignatures", []) if isinstance(grup, dict) else grup},
-                )
-            )
-
-        for grup in prefs.get("mateix_dia", []):
-            p = grup.get("pes", 50) if isinstance(grup, dict) else 50
-            self.restriccions_obj.append(
-                Restriccio(
-                    "pref_mateix_dia",
-                    p,
-                    {"assignatures": grup.get("assignatures", []) if isinstance(grup, dict) else grup},
-                )
-            )
-
+        # Només «mateix moment» de les preferències: les altres regles no es
+        # construeixen com a objectes (s'apliquen per check_hard i pel cost de
+        # cada franja). Abans se'n creaven de mateix_slot, no_mateix_slot,
+        # no_mateix_dia, dia_fix, hora_fix, dies_diferents, pref_mateix_dia,
+        # combinacions_permeses i limit_dies_prof que no llegia ningú.
         for grup in prefs.get("mateix_slot", []):
             p = grup.get("pes", 75) if isinstance(grup, dict) else 75
             self.restriccions_obj.append(
@@ -254,39 +209,6 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 )
             )
 
-        # Combinacions i restriccions especials
-        combs = dures.get("combinacions_permeses", [])
-        combinacions = [c.get("assignatures", []) if isinstance(c, dict) else c for c in combs]
-        # Restricció crítica: Combinacions Permeses / Un sol slot per nivell
-        # Si no hi ha combinacions, enforce_single=True per defecte
-        enforce_single = True
-        if combinacions:
-            enforce_single = True  # També volem que si no estan a la llista, no es puguin ajuntar
-
-        self.restriccions_obj.append(
-            Restriccio("combinacions_permeses", 100, {"combinacions": combinacions, "enforce_single": enforce_single})
-        )
-
-        pe = dures.get("professors_horari_estricte", [])
-        self.professors_estrictes = list(pe.keys()) if isinstance(pe, dict) else pe
-
-        limits = dures.get("professors_limit_dies_especifics", {})
-        if isinstance(limits, dict):
-            for prof, cfg in limits.items():
-                if not str(prof).startswith("_") and cfg.get("max_examens") is not None:
-                    self.restriccions_obj.append(
-                        Restriccio(
-                            tipus="limit_dies_prof",
-                            pes=int(cfg.get("pes_penalitzacio", 50)),
-                            dades={
-                                "professor": prof,
-                                "assignatures": cfg.get("assignatures", []),
-                                "dies": cfg.get("dies_restringits", []),
-                                "max_examens": int(cfg["max_examens"]),
-                            },
-                        )
-                    )
-
         cp = costos_profs.get("globals", {}) if costos_profs else pesos
         self.pes_substitucio_global = cp.get("substitucio", DEFAULT_COST_PROFESSORS["substitucio"])
         self.pes_abans_jornada_global = cp.get("abans_jornada", DEFAULT_COST_PROFESSORS["abans_jornada"])
@@ -296,22 +218,18 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
     def crear_slots(self, dies_utilitzar: list[str]):
 
         self.slots = []
-        bloq = {r.dades["slot"] for r in self.restriccions_obj if r.tipus == "slot_bloquejat"}
         selected = getattr(self, "selected_dates", None) or []
         if selected:
-            for data_iso in selected:
-                try:
-                    dia_nom = _DIES_CAT[_dt.strptime(data_iso, "%Y-%m-%d").weekday()]
-                except (ValueError, IndexError):
+            for prefix in selected:
+                dia_nom, data_iso = dia_de_prefix(prefix)
+                if not data_iso:
                     continue
                 for hora in self.hores_examen:
-                    if f"{dia_nom}-{hora}" not in bloq:
-                        self.slots.append(Slot(dia=dia_nom, hora=hora, data=data_iso))
+                    self.slots.append(Slot(dia=dia_nom, hora=hora, data=data_iso))
         else:
             for dia in dies_utilitzar:
                 for hora in self.hores_examen:
-                    if f"{dia}-{hora}" not in bloq:
-                        self.slots.append(Slot(dia=dia, hora=hora))
+                    self.slots.append(Slot(dia=dia, hora=hora))
 
     def _pre_agrupar_sessions(self):
         """Agrupa sessions en items usant la lògica unificada de la base."""
@@ -495,6 +413,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                     alliberaments_per_nivell=self.alliberaments_per_nivell,
                     data_iso=data_iso,
                     horaris_professors_norm=getattr(self, "_horaris_norm", None),
+                    nivells_dels_grups=self.nivells_dels_grups,
                 )
             if engine.check_hard(
                 s_dict, slot.dia, slot.hora, prefix, sessions_dia, sessions_slot_dicts, sessions_per_dia, analisi
@@ -512,11 +431,8 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         restriccions = self.get_restriccions()
         prefix, hora = slot_key.split("_", 1)
         # El prefix pot ser data ISO ("2026-02-03") o nom de dia ("Dilluns")
-        try:
-            dia_nom = _DIES_CAT[_dt.strptime(prefix, "%Y-%m-%d").weekday()]
-            data_iso = prefix
-        except ValueError:
-            dia_nom = prefix
+        dia_nom, data_iso = dia_de_prefix(prefix)
+        if data_iso is None:
             _dates = getattr(self, "dia_a_data_iso", {}).get(normalitzar_dia(prefix))
             data_iso = _dates[0] if isinstance(_dates, list) else _dates
         dia_norm = normalitzar_dia(dia_nom)
@@ -566,6 +482,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 alliberaments_per_nivell=self.alliberaments_per_nivell,
                 data_iso=data_iso,
                 horaris_professors_norm=getattr(self, "_horaris_norm", None),
+                nivells_dels_grups=self.nivells_dels_grups,
             )
             resultat = calcular_cost_slot(
                 sessio=sessio,
@@ -631,122 +548,33 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         return cost_total, violacions
 
     def _avaluar_restriccio(self, sol: Solucio, r: Restriccio) -> tuple[float, list[dict]]:
-        if r.tipus == "dia_fix":
-            for iid, sl in sol.assignacions.items():
-                it = self.items_per_id[iid]
-                if any(sessio_matches(r.dades["assignatura"], s) for s in it.sessions):
-                    if normalitzar_dia(sl.dia) != r.dades["dia"]:
-                        return float(DEFAULT_PES_RESTRICCIO_DURA), [
-                            {
-                                "tipus": "dia_fix",
-                                "pes": 100,
-                                "missatge": f"{r.dades['assignatura']} vol {r.dades['dia']}",
-                            }
-                        ]
-
-        if r.tipus == "hora_fix":
-            for iid, sl in sol.assignacions.items():
-                it = self.items_per_id[iid]
-                if any(sessio_matches(r.dades["assignatura"], s) for s in it.sessions):
-                    if sl.hora != r.dades["hora"]:
-                        return float(DEFAULT_PES_RESTRICCIO_DURA), [
-                            {
-                                "tipus": "hora_fix",
-                                "pes": 100,
-                                "missatge": f"{r.dades['assignatura']} vol {r.dades['hora']}",
-                            }
-                        ]
-
-        if r.tipus == "no_mateix_dia":
-            cost = 0.0
-            viols = []
-            per_dia = defaultdict(list)
-            for iid, sl in sol.assignacions.items():
-                per_dia[normalitzar_dia(sl.dia)].append(self.items_per_id[iid])
-            for its in per_dia.values():
-                sessions_d = [s for it in its for s in it.sessions]
-                for s in sessions_d:
-                    if sessio_in_group(s, r.dades["assignatures"]):
-                        altres = [x for x in sessions_d if x != s and sessio_in_group(x, r.dades["assignatures"])]
-                        if altres:
-                            cost += float(DEFAULT_PES_RESTRICCIO_DURA)
-                            viols.append(
-                                {"tipus": "no_mateix_dia", "pes": 100, "missatge": f"MATEIX DIA PROHIBIT: {s.nom}"}
-                            )
-            return cost / 2, viols  # Deduplicar parelles
-
-        if r.tipus == "combinacions_permeses":
-            return self._avaluar_combinacions_permeses(sol, r)
-
-        if r.tipus == "mateix_slot":
-            return 0.0, []
-
-        if r.tipus == "pref_mateix_slot":
-            assignatures_norm = {normalitzar_text(a) for a in r.dades.get("assignatures", [])}
-            # Recollir els slots on estan els ítems del grup
-            slots_grup = set()
-            for it in self.items:
-                if any(
-                    normalitzar_text(s.nom) in assignatures_norm or normalitzar_text(s.nom_base) in assignatures_norm
-                    for s in it.sessions
-                ):
-                    if it.id in sol.assignacions:
-                        slots_grup.add(sol.assignacions[it.id].key)
-            if len(slots_grup) > 1:
-                pes = r.pes
-                n_viols = len(slots_grup) - 1
-                if pes >= 100:
-                    cost = float(DEFAULT_PES_RESTRICCIO_PROHIBITIU) * n_viols
-                else:
-                    cost = float(_percent_penalty(DEFAULT_PES_RESTRICCIO_DURA, pes)) * n_viols
-                return cost, [
-                    {
-                        "tipus": "pref_mateix_slot",
-                        "pes": pes,
-                        "missatge": f"Slots separats: {r.dades.get('assignatures')}",
-                    }
-                ]
-            return 0.0, []
-
+        """Cost de la preferència «mateix moment» `r` (pref_mateix_slot): el
+        grup repartit en més d'una franja."""
+        assignatures_norm = {normalitzar_text(a) for a in r.dades.get("assignatures", [])}
+        # Recollir els slots on estan els ítems del grup
+        slots_grup = set()
+        for it in self.items:
+            if any(
+                normalitzar_text(s.nom) in assignatures_norm or normalitzar_text(s.nom_base) in assignatures_norm
+                for s in it.sessions
+            ):
+                if it.id in sol.assignacions:
+                    slots_grup.add(sol.assignacions[it.id].key)
+        if len(slots_grup) > 1:
+            pes = r.pes
+            n_viols = len(slots_grup) - 1
+            if pes >= 100:
+                cost = float(DEFAULT_PES_RESTRICCIO_PROHIBITIU) * n_viols
+            else:
+                cost = float(_percent_penalty(DEFAULT_PES_RESTRICCIO_DURA, pes)) * n_viols
+            return cost, [
+                {
+                    "tipus": "pref_mateix_slot",
+                    "pes": pes,
+                    "missatge": f"Slots separats: {r.dades.get('assignatures')}",
+                }
+            ]
         return 0.0, []
-
-    def _avaluar_combinacions_permeses(self, sol, r):
-        cost, viols = 0.0, []
-
-        # Agrupar items assignats per slot
-        items_per_slot = defaultdict(list)
-        for iid, s in sol.assignacions.items():
-            items_per_slot[s.key].append(self.items_per_id[iid])
-
-        for slot_key, its_in_slot in items_per_slot.items():
-            # Per cada ítem al slot, comprovar si és compatible amb la resta
-            for i, it in enumerate(its_in_slot):
-                altres = its_in_slot[:i] + its_in_slot[i + 1 :]
-                # Convertir llista d'items a llista de sessions_info compatible amb el helper
-                # (El helper espera List[Dict] amb clau 'sessio' o directament sessions)
-                # Creem una versió mínima que el helper entengui
-                sessions_al_slot = []
-                for other_it in altres:
-                    for s in other_it.sessions:
-                        sessions_al_slot.append({"sessio": s, "curs": s.curs})
-
-                # RESTRICCIÓ MANDATÒRIA via helper
-                # Convertim el nostre Item (objecte) a format Dict per al helper
-                it_dict = {"sessions": [{"curs": s.curs} for s in it.sessions]}
-                compatible, msg = es_item_compatible_amb_slot(it_dict, sessions_al_slot, self.restriccions_raw)
-
-                if not compatible:
-                    cost += float(DEFAULT_PES_RESTRICCIO_PROHIBITIU)  # Cost prohibitiu (mandatori, no negociable)
-                    viols.append(
-                        {
-                            "tipus": "conflict_alumnes",
-                            "pes": 1000,
-                            "missatge": f"CONFLICTE ALUMNES: {it.sessions[0].curs} duplicat a {slot_key}",
-                        }
-                    )
-                    break  # Ja hem detectat el conflicte en aquest slot
-
-        return cost, viols
 
     def _detectar_items_congelats(self):
         """Pre-computa els ítems que tenen exactament 1 slot compatible (fixats per restricció).
@@ -775,13 +603,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 for sess in it.sessions:
                     s_dict = self._sessio_to_dict(sess)
                     if not es_slot_valid_per_nivell(
-                        s_dict.get("nom", ""),
-                        s.dia,
-                        s.hora,
-                        restriccions,
-                        self.nivells_actius,
-                        curs=s_dict.get("curs", ""),
-                        data_iso=s.data or "",
+                        s_dict.get("curs", ""), s.dia, s.hora, restriccions, data_iso=s.data or ""
                     ):
                         passes = False
                         break
@@ -844,8 +666,10 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             _max_iter = self.max_iteracions
 
         inici_sa = time.monotonic()
+        self._aturat_pel_temps = False
         for reinici in range(reinicis):
-            if reinici > 0 and time.monotonic() - inici_sa >= SEGONS_MAXIMS_REINICIS:
+            if reinici > 0 and time.monotonic() - inici_sa >= self.segons_maxims:
+                self._aturat_pel_temps = True
                 if verbose:
                     log.info(f"   ⏱️ Temps esgotat després de {reinici} reinicis")
                 break
@@ -875,11 +699,10 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
             t, it = self.temperatura_inicial, 0
             sense_millora = 0
 
-            while (
-                t > self.temperatura_final and it < _max_iter and time.monotonic() - inici_sa < SEGONS_MAXIMS_REINICIS
-            ):
+            while t > self.temperatura_final and it < _max_iter and time.monotonic() - inici_sa < self.segons_maxims:
                 for _ in range(_iter_per_t):
-                    if time.monotonic() - inici_sa >= SEGONS_MAXIMS_REINICIS:
+                    if time.monotonic() - inici_sa >= self.segons_maxims:
+                        self._aturat_pel_temps = True
                         break
                     sv = self._generar_veí(sa)
 
@@ -1187,9 +1010,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 if violation:
                     raons[violation.restriction] += 1
                     break
-        if raons:
-            return raons.most_common(1)[0][0]
-        return None
+        return causa_principal(raons)
 
     def _solucio_a_horari(self, sol, du, di):
 
@@ -1202,12 +1023,10 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
         selected = getattr(self, "selected_dates", None) or []
         if selected:
             dies_iter = []
-            for data_iso in selected:
-                try:
-                    dia_nom = _DIES_CAT[_dt.strptime(data_iso, "%Y-%m-%d").weekday()]
+            for prefix in selected:
+                dia_nom, data_iso = dia_de_prefix(prefix)
+                if data_iso:
                     dies_iter.append((dia_nom, data_iso, data_iso))
-                except (ValueError, IndexError):
-                    continue
         else:
             dies_iter = []
             for d in du:
@@ -1254,6 +1073,7 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                             alliberaments_per_nivell=self.alliberaments_per_nivell,
                             data_iso=data_iso,
                             horaris_professors_norm=getattr(self, "_horaris_norm", None),
+                            nivells_dels_grups=self.nivells_dels_grups,
                         )
                         sessions_sim.append({"tipus": "examen", **sessio_dict, "analisi": analisi})
                     di_info["sessions"].append({"hora": h, "sessions_simultanees": sessions_sim})
@@ -1267,5 +1087,8 @@ class GeneradorV3SA(GeneradorSessionsExamensBase):
                 "logs": [v["missatge"] for v in sol.violacions],
             },
         }
+        if getattr(self, "_aturat_pel_temps", False):
+            # Com el greedy i el backtracking: la millor solució trobada abans del termini
+            final["metadata"]["motiu_aturada"] = "temps"
         aplicar_estadistiques(final)
         return final

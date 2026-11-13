@@ -1,4 +1,4 @@
-"""Límit d'exàmens per professor als dies restringits (troballes A1 i A2).
+"""Límit d'exàmens per professor als dies restringits.
 
 La regla ha de comptar igual a la versió dura (pes 100), a la tova (pes < 100)
 i al cost final: els exàmens ja posats als dies restringits més el candidat.

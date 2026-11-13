@@ -3,6 +3,7 @@ Context unificat per als motors i l'anàlisi de l'scheduler.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -23,3 +24,5 @@ class SchedulerContext:
     alliberaments_per_nivell: dict | None = field(default=None)
     # Durades específiques per sessió: { "Nom (NIVELL)": hores }
     durades_per_sessio: dict | None = field(default=None)
+    # El nivell de cada grup (scheduler_engine.core.nivells.NivellsDelsGrups)
+    nivells_dels_grups: Any = field(default=None)

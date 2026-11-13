@@ -206,6 +206,7 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
         dia_a_data_iso=dia_a_data_iso,
         alliberaments_per_nivell=cfg.alliberaments,
         durades_per_sessio=cfg.durades_per_sessio,
+        nivells_dels_grups=cfg.nivells_dels_grups,
     )
     cost_info = recalcular_cost_i_breakdown(horari, ctx)
 
@@ -227,7 +228,7 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
             item_avisos = {}
             for idx, sessio in enumerate(sessions_sim):
                 altres = [s for i, s in enumerate(sessions_sim) if i != idx]
-                nivell_sessio = detectar_nivell_sessio(sessio, nivells_actius or [])
+                nivell_sessio = detectar_nivell_sessio(sessio)
                 sessio_nom_d = sessio.get("nom") if isinstance(sessio, dict) else None
                 durada_sessio = get_durada_per_sessio_key(
                     sessio_nom_d, nivell_sessio, cfg.durades_per_sessio, cfg.alliberaments, cfg.durada_titular
@@ -257,6 +258,7 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
                     hores_supervisio=hores_ocupades,
                     alliberaments_per_nivell=cfg.alliberaments,
                     data_iso=data_iso_slot,
+                    nivells_dels_grups=cfg.nivells_dels_grups,
                 )
                 # El validador posterior fa servir l'anàlisi nova
                 if isinstance(sessio, dict):
@@ -290,7 +292,8 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
     # Netejar logs antics per evitar que el validador ometi avisos (p. ex. LÍMIT DIES)
     if horari.get("metadata", {}).get("logs"):
         horari["metadata"]["logs"] = []
-    validation_result = ValidadorHorari(horari, restriccions, cfg.no_substituir).validar()
+    validation_result = ValidadorHorari(horari, restriccions, cfg.no_substituir, dia_a_data_iso).validar()
+    logs = cfg.avisos(nivells_actius) + validation_result.get("logs", [])
 
     breakdown_details = {}
     excessos = excessos_limit_dies(horari, restriccions)
@@ -303,7 +306,8 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
         metadata={
             **(horari.get("metadata") or {}),
             "cost_total": cost_info.get("cost_total", 0),
-            "logs": validation_result.get("logs", []),
+            "cost_desglossament": cost_info.get("cost_desglossament", []),
+            "logs": logs,
             "total_substitucions": cost_info.get("total_substitucions", 0),
             "professors_abans": cost_info.get("professors_abans", 0),
             "professors_despres": cost_info.get("professors_despres", 0),
@@ -316,9 +320,10 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
         "cost_total": cost_info.get("cost_total", 0),
         "cost_breakdown": cost_info.get("cost_breakdown", {}),
         "cost_breakdown_details": breakdown_details,
+        "cost_desglossament": cost_info.get("cost_desglossament", []),
         "slots": slots_info,
         "valid": not conflicte_global,
-        "logs": validation_result.get("logs", []),
+        "logs": logs,
         "stats": {
             "total_substitucions": cost_info.get("total_substitucions", 0),
             "professors_abans": cost_info.get("professors_abans", 0),

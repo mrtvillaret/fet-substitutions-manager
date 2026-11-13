@@ -4,11 +4,10 @@ una data que no és AAAA-MM-DD, 400 (parametres.DataISO). Els noms d'examen
 (fixats, preferències, grups de durada) i de professor arriben nets.
 """
 
-import uuid
-
 import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from database import get_data_db_session
 from models import ExamRestriccio
@@ -32,7 +31,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(TestClient(APP, base_url="https://testserver", raise_server_exceptions=False), nom)
 

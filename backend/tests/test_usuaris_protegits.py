@@ -4,8 +4,6 @@ coneguda): ni ells mateixos ni cap admin els poden canviar la contrasenya,
 editar, desactivar o tancar-los les sessions. El superadmin sí.
 """
 
-import uuid
-
 import pytest
 from suport_api import (
     CONTRASENYA,
@@ -15,6 +13,7 @@ from suport_api import (
     entra,
     nova_institucio,
 )
+from suport_noms import unic
 
 from rate_limit import limiter
 from usuaris.router import router as usuaris_router
@@ -31,7 +30,7 @@ def _limiter_net():
 @pytest.fixture
 def demo(config_auth_de_prova):
     centre = nova_institucio()
-    noms = {r: f"{r}_{uuid.uuid4().hex[:6]}" for r in ("user", "admin", "super_admin")}
+    noms = {r: f"{r}_{unic()}" for r in ("user", "admin", "super_admin")}
     ids = {r: crea_usuari(nom, centre, r) for r, nom in noms.items()}
     config_auth_de_prova(USUARIS_PROTEGITS=",".join([noms["user"], noms["admin"]]))
     return noms, ids
@@ -62,9 +61,7 @@ def test_l_admin_no_pot_editar_ni_desactivar_un_usuari_protegit(demo):
 
 
 def test_l_admin_si_que_pot_gestionar_els_usuaris_no_protegits(demo):
-    altre = crea_usuari(
-        f"prof_{uuid.uuid4().hex[:6]}", _com(demo, "admin").get("/api/users/profile").json()["institucio"]
-    )
+    altre = crea_usuari(f"prof_{unic()}", _com(demo, "admin").get("/api/users/profile").json()["institucio"])
     assert _com(demo, "admin").put(f"/api/users/{altre}", json={"active": False}).status_code == 200
 
 

@@ -9,12 +9,12 @@ Horari d'exemple, dilluns 20/04/2026 a les 09:00: Prof 1 fa E.F. amb
 prioritats i «No substituir» és buit.
 """
 
-import uuid
 from datetime import date
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
+from suport_noms import unic
 
 from auth.dependencies import get_current_user, require_admin
 from database import get_data_db_session
@@ -43,7 +43,7 @@ def _limiter_net():
 @pytest.fixture
 def centre():
     institucio = nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, institucio, "admin")
     return institucio, entra(client_per(APP), nom)
 

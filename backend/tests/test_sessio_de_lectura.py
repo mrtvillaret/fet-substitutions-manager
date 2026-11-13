@@ -13,13 +13,13 @@ l'inventari de `test_seguretat.py` (`test_les_rutes_de_lectura_no_escriuen`).
 """
 
 import sqlite3
-import uuid
 from datetime import date
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from database import DATA_BASE_DIR, get_data_db_session, inicia_escriptura
 from models import Substitucio
@@ -85,7 +85,7 @@ def test_despres_d_una_sessio_de_lectura_es_torna_a_poder_escriure(centre):
 
 
 def test_la_ruta_de_lectura_no_espera_qui_te_l_escriptura(centre):
-    nom = f"user_{uuid.uuid4().hex[:8]}"
+    nom = f"user_{unic()}"
     crea_usuari(nom, centre)
     client = entra(client_per(APP), nom)
     url = f"/api/substitucions/{DATA}/disponibles-batch"

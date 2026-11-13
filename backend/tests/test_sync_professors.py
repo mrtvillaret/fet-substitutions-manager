@@ -1,12 +1,12 @@
 """La sincronització d'avui és independent de la memòria cau i del dia consultat."""
 
 import io
-import uuid
 from unittest.mock import Mock
 
 from fastapi import Depends
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_xml import amb_horari_futur, dia, professor_que_plega
 
 from auth.dependencies import get_current_user, require_admin
@@ -25,7 +25,7 @@ XML = b'<Teachers_Timetable><Teacher name="Prof nou"><Day name="Dilluns"><Hour n
 
 def _client(centre):
     limiter.reset()
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(TestClient(APP, base_url="https://testserver", raise_server_exceptions=False), nom)
 

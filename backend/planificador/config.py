@@ -3,7 +3,7 @@ Configuració del planificador d'exàmens d'un centre, tal com la fan servir
 generar, analitzar i recalcular el cost: es llegeix d'un sol lloc.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import rellotge
 from configuracio.repositories import ConfiguracioRepository
@@ -17,7 +17,7 @@ from planificador.alliberaments import (
     _merge_slots_valids,
     _selected_dates_from_alliberaments,
 )
-from planificador.examens import nivells_master
+from planificador.examens import nivells_dels_grups, nivells_master
 from planificador.repositories import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DATES_KEY,
@@ -28,6 +28,8 @@ from planificador.repositories import (
     llegeix_json,
 )
 from prioritats.repositories import NoSubstituirRepository
+from scheduler_engine.core.missatges import missatge
+from scheduler_engine.core.nivells import NivellsDelsGrups
 from scheduler_engine.defaults import DEFAULT_DURADA_TITULAR
 
 
@@ -45,6 +47,8 @@ class ConfigPlanificador:
     durades_examen_per_sessio: dict  # hores d'examen (≥ les de vigilància)
     no_substituir: frozenset  # la llista vigent a la data de l'horari del planificador
     ultim_professor: str
+    # El nivell de cada grup: les taules de la configuració d'exàmens (també dins de `config`)
+    nivells_dels_grups: NivellsDelsGrups = field(default_factory=NivellsDelsGrups)
 
     def durada_titular_de(self, examen: str) -> int:
         """Hores que el titular vigila un examen: les del seu grup de durada
@@ -60,6 +64,41 @@ class ConfigPlanificador:
     def nivells_actius(self, demanats=None) -> list:
         return demanats or self.nivells_configurats or self.nivells_master
 
+    def avisos(self, nivells: list | None = None) -> list:
+        """Avisos de la configuració que la pantalla mostra amb el resultat:
+        - sense cap alliberament definit, cada nivell actiu (`nivells`): l'anàlisi
+          el considera lliure tot el dia (availability._nivell_alliberat_a_slot;
+          no es canvia, només s'avisa);
+        - si n'hi ha, cada nivell actiu que hi surt però no té cap hora «a»:
+          l'anàlisi no el considera lliure a cap hora (tampoc no es canvia);
+        - cada grup de les assignacions que no és a cap nivell (els seus
+          exàmens no es planifiquen; no es dedueix el nivell del nom)."""
+        avisos = []
+        if not self.alliberaments:
+            avisos += [missatge("nivell_sense_hores_alliberades", nivell=nivell) for nivell in nivells or []]
+        else:
+            avisos += [
+                missatge("nivell_alliberaments_sense_hores", nivell=nivell)
+                for nivell in nivells or []
+                if nivell in self.alliberaments and not _te_alguna_hora_alliberada(self.alliberaments[nivell])
+            ]
+        return avisos + self.avisos_de_grups()
+
+    def avisos_de_grups(self) -> list:
+        """Un avís per a cada grup de les assignacions que no és a cap nivell,
+        amb les seves assignatures (també al diàleg de no viable i a l'anàlisi)."""
+        per_grup: dict[str, list] = {}
+        for assignatura, dades in (self.config.get("assignatures") or {}).items():
+            for assignacio in dades.get("assignacions", []):
+                for grup in self.nivells_dels_grups.sense_nivell(assignacio.get("grup") or ""):
+                    noms = per_grup.setdefault(grup, [])
+                    if assignatura not in noms:
+                        noms.append(assignatura)
+        return [
+            missatge("grup_sense_nivell", grup=grup, assignatures=sorted(noms))
+            for grup, noms in sorted(per_grup.items())
+        ]
+
     def dates(self, demanades, nivells) -> list:
         """Les dates dels alliberaments dels nivells si n'hi ha; si no, les
         demanades o les desades a la configuració."""
@@ -69,6 +108,20 @@ class ConfigPlanificador:
             or self.dates_configurades
             or []
         )
+
+
+def _te_alguna_hora_alliberada(dades) -> bool:
+    """Si algun dia del nivell té una hora «a» (la mateixa marca que mira
+    availability._nivell_alliberat_a_slot)."""
+    config = dades.get("config") if isinstance(dades, dict) else None
+    if not isinstance(config, dict):
+        return False
+    return any(
+        isinstance(marques, dict) and marques.get("a") is True
+        for hores in config.values()
+        if isinstance(hores, dict)
+        for marques in hores.values()
+    )
 
 
 def _positiu(valor) -> int | None:
@@ -88,9 +141,10 @@ def _durades(db) -> tuple[dict, dict]:
     return vigilancia, examen
 
 
-def _config_dels_motors(assignacions) -> dict:
-    """Les assignacions per assignatura, com les llegeixen els motors."""
-    config = {"assignatures": {}}
+def _config_dels_motors(assignacions, taules: NivellsDelsGrups) -> dict:
+    """Les assignacions per assignatura i les taules dels nivells, com les
+    llegeixen els motors."""
+    config = {"assignatures": {}, **taules.a_config()}
     for a in assignacions:
         nom = a.get("assignatura") if isinstance(a, dict) else a.assignatura
         if nom not in config["assignatures"]:
@@ -118,8 +172,9 @@ def carrega_config(institucio: str) -> ConfigPlanificador:
         # «No substituir», el de la mateixa data que l'horari (XML) del
         # planificador: la primera data planificada o, sense dates, avui.
         dates = _selected_dates_from_alliberaments(alliberaments, nivells) or dates_configurades
+        taules = nivells_dels_grups(db)
         return ConfigPlanificador(
-            config=_config_dels_motors(ConfiguracioExamenRepository.get_all(db)),
+            config=_config_dels_motors(ConfiguracioExamenRepository.get_all(db), taules),
             restriccions=restriccions.llegeix(db),
             durada_titular=durada_titular,
             durada_examen=durada_examen,
@@ -131,6 +186,7 @@ def carrega_config(institucio: str) -> ConfigPlanificador:
             durades_examen_per_sessio=durades_examen_per_sessio,
             no_substituir=NoSubstituirRepository.vigents_a(db, _data_de_referencia(dates)),
             ultim_professor=ConfiguracioRepository.get(db, "ultim_professor_subs") or "",
+            nivells_dels_grups=taules,
         )
 
 

@@ -3,10 +3,9 @@ Configuració del centre (/api/settings): què es desa, qui ho pot desar i què
 en surt.
 """
 
-import uuid
-
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from config.settings import config
 from configuracio import router as configuracio
@@ -36,7 +35,7 @@ def config_global(tmp_path, monkeypatch):
 
 
 def _client(centre, rol="admin"):
-    nom = f"{rol}_{uuid.uuid4().hex[:8]}"
+    nom = f"{rol}_{unic()}"
     crea_usuari(nom, centre, rol)
     return entra(client_per(APP), nom)
 

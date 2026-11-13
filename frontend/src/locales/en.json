@@ -1387,17 +1387,12 @@
           "help": "How search is prioritized",
           "options": {
             "ponderada": "Weighted",
-            "epsilon_greedy": "Epsilon Greedy",
             "greedy": "Greedy"
           }
         },
         "max_intents_validacio": {
           "label": "Number of attempts",
           "help": "How many solutions are tried to find the best one"
-        },
-        "epsilon": {
-          "label": "Epsilon",
-          "help": "Probability of accepting worse solutions (exploration)"
         },
         "random_seed": {
           "label": "Random seed",
@@ -1414,6 +1409,10 @@
         "shuffle_top_n": {
           "label": "Randomness (top-N)",
           "help": "How many of the best time slots are shuffled by the seed (0 = deterministic and fast, 3 = balanced, 5 = very random)"
+        },
+        "segons_maxims": {
+          "label": "Maximum time (seconds)",
+          "help": "How long the search can run at most; when time runs out, it keeps the best solution found"
         }
       }
     },
@@ -1829,7 +1828,28 @@
             "noWork": "{teacher} → does not work that day at {hour} on {day}"
           }
         },
-        "otherLevel": "Others"
+        "otherLevel": "Others",
+        "costBreakdown": {
+          "open": "Show the cost breakdown",
+          "title": "Cost breakdown",
+          "total": "Total",
+          "concepts": {
+            "substitucio": "Substitutions",
+            "abans_jornada": "Arrive early",
+            "despres_jornada": "Stay later",
+            "no_treballa_dia": "Not working that day",
+            "preferencia_mateix_dia": "Same-day preference",
+            "preferencia_dies_diferents": "Different-days preference",
+            "preferencia_mateix_slot": "Same-slot preference",
+            "no_mateix_slot": "Not at the same time",
+            "no_mateix_dia": "Not on the same day",
+            "combinacio_no_permesa": "Combination not allowed",
+            "dia_hora_fix": "Fixed day or time",
+            "assignatures_dies_exclosos": "Excluded days",
+            "limit_dies_professor": "Exam limit per teacher",
+            "professor_estricte": "Teacher's strict timetable"
+          }
+        }
       }
     },
     "dialogs": {
@@ -1911,6 +1931,8 @@
       "capacitat_exhaurida": "Not all exams can be placed: there are more exams than times per level",
       "sense_hora_compatible": "Not all exams can be placed: an exam has no compatible time",
       "backtrack_sense_solucio": "The search found no valid solution",
+      "cerca_tallada_temps": "The search stopped at the time limit ({segons} s) without finding a complete timetable: this does not mean the restrictions are incompatible",
+      "cerca_tallada_nodes": "The search stopped at the calculation limit ({nodes} nodes) without finding a complete timetable: this does not mean the restrictions are incompatible. You can raise the maximum number of nodes",
       "examens_pendents": "Not all exams could be placed",
       "capacitat_nivell": "{nivell}: {examens} must be placed, with only {horesText} available",
       "capacitat_nivell_fixos": "{nivell}: {examens} must be placed, but only {horesText} remain after fixing days and times",
@@ -1933,6 +1955,13 @@
       "fixat_dia_no_disponible": "{nom}: day {dia} is unavailable",
       "fixat_hora_no_disponible": "{nom}: time {hora} is unavailable",
       "fixat_slot_no_disponible": "{nom}: {dia} at {hora} is unavailable",
+      "fixat_fora_de_dates": "“{nom}” is pinned to {franja}, which is not among the planned dates and times",
+      "fixat_a_hora_sense_inici": "“{nom}” is pinned to {franja}, but {nivell} has no exam start marked there",
+      "fixat_a_franja_prohibida": "“{nom}” is pinned to {franja}, but that slot is forbidden for it",
+      "limit_professor_insuficient": "{professor}: at most {max} on {dies}, and those are the only possible days for {examens}: {noms}",
+      "grup_sense_nivell": "Warning: group {grup} is not in any level of the exam configuration, so its exams are not scheduled ({assignatures}). Add it to its level",
+      "nivell_sense_hores_alliberades": "Level {nivell} has no released hours: the whole day is considered free; please check them",
+      "nivell_alliberaments_sense_hores": "Level {nivell} has released hours set up, but no hour available for exams; please check them",
       "precheck_detectat": "The preliminary check detected deterministic incompatibilities",
       "sessions_pendents": "Exams still to be placed: {count}",
       "nivell_incomplet": "Incomplete level: {nivell} ({collocats}/{esperats})",
@@ -1946,6 +1975,9 @@
       },
       "causes": {
         "dia_hora_fix": "Fixed day/time",
+        "examen_fixat": "Exam pinned to another slot",
+        "franja_prohibida": "Forbidden slot",
+        "nivell_sense_inici": "Not an exam start time for the level",
         "no_mateix_dia": "Different days",
         "combinacions_permeses": "Combination not allowed",
         "limit_dies_professor": "Teacher exam limit",

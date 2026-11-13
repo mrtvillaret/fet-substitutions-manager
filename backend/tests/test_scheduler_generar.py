@@ -193,8 +193,28 @@ def test_si_no_es_viable_diu_quina_restriccio_ho_impedeix(dos_nivells, motor):
     assert del_motor["codi"] in ("examen_sense_hora_causa", "examen_pendent", "examens_pendents_nivell")
 
 
+def test_examen_fixat_a_una_hora_sense_inici_diu_l_hora_i_el_nivell():
+    # Revisió B1 i 5.1: 1-BAT no pot començar exàmens a les 10:00 (2-BAT sí);
+    # abans la causa sortia com «Dia/hora fixat»
+    _, client = centre_amb_examens(nivells=("1-BAT", "2-BAT"))
+    allib = alliberaments(nivells=("1-BAT",)) | alliberaments(
+        nivells=("2-BAT",), hores_inici=("09:00", "10:00", "11:30")
+    )
+    configura(client, nivells_actius=["1-BAT", "2-BAT"], alliberaments_per_nivell=allib)
+    resp = client.post(
+        "/api/scheduler/restriccions/pin",
+        json={"pins": [{"nom": "Filosofia (1-BAT)", "dia": "Dilluns", "hora": "10:00"}]},
+    )
+    assert resp.status_code == 200, resp.text
+    horari = _genera(client, motor="v2-backtrack")
+    assert horari["metadata"]["viable"] is False
+    assert horari["metadata"]["incompatibilitats"][0] == missatge(
+        "fixat_a_hora_sense_inici", nom="Filosofia (1-BAT)", dia="Dilluns", hora="10:00", nivell="1-BAT"
+    )
+
+
 def _amb_limit_de_prof_48(client):
-    """No viable per una regla que el diagnòstic no comprova: el motor el diu."""
+    """No viable pel límit d'exàmens de Prof 48: cap dia fora dels restringits."""
     restr = client.get("/api/scheduler/restriccions").json()["restriccions"]
     restr["restriccions_dures"]["professors_limit_dies_especifics"] = {
         "Prof 48": {
@@ -207,13 +227,21 @@ def _amb_limit_de_prof_48(client):
     client.put("/api/scheduler/restriccions", json={"restriccions": restr})
 
 
-def test_si_el_diagnostic_no_hi_veu_res_surt_el_missatge_del_motor(un_nivell):
-    # El límit d'exàmens per professor no el comprova el diagnòstic
+def test_el_diagnostic_veu_el_limit_per_professor_i_despres_surt_el_del_motor(un_nivell):
+    # Abans el diagnòstic no comprovava el límit i només sortia el del motor (5.2)
     _amb_limit_de_prof_48(un_nivell)
     horari = _genera(un_nivell)
     assert horari["metadata"]["viable"] is False
     assert horari["metadata"]["incompatibilitats"] == [
-        missatge("examen_sense_hora_causa", nom="Filosofia (1-BAT)", causa="limit_dies_professor")
+        missatge(
+            "limit_professor_insuficient",
+            professor="Prof 48",
+            max=0,
+            count=1,
+            noms=["Filosofia (1-BAT)"],
+            dies=", ".join(DIES),
+        ),
+        missatge("examen_sense_hora_causa", nom="Filosofia (1-BAT)", causa="limit_dies_professor"),
     ]
 
 
@@ -268,11 +296,11 @@ def test_un_professor_amb_examens_de_dos_nivells_alhora_surt_a_les_incidencies(d
     )
     logs = [linia for linia in _genera(dos_nivells)["metadata"]["logs"] if "Prof 48 →" in linia]
     assert any(
-        linia.startswith("⚠️ AVÍS: Prof 48 → té exàmens de nivells diferents a 09:00 el Dilluns") for linia in logs
+        linia.startswith("⚠️ AVÍS: Prof 48 → té exàmens de nivells diferents a 09:00 el Dilluns 20/04") for linia in logs
     )
     assert any(
         linia.startswith(
-            "🔗 ENLLAÇ: Prof 48 → gestiona 2 exàmens de nivells diferents a 09:00 el Dilluns: "
+            "🔗 ENLLAÇ: Prof 48 → gestiona 2 exàmens de nivells diferents a 09:00 el Dilluns 20/04: "
             "Filosofia (1-BAT), Filosofia (2-BAT)"
         )
         for linia in logs

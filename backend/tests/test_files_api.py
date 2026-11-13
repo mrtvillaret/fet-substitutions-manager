@@ -4,7 +4,6 @@ i que el nom que envia el navegador no permet escriure fora de la carpeta de
 la institució ni trepitjar l'XML vigent abans de desar-lo a l'històric.
 """
 
-import uuid
 from datetime import timedelta
 
 import pytest
@@ -16,6 +15,7 @@ from suport_api import (
     entra,
     nova_institucio,
 )
+from suport_noms import unic
 from suport_rellotge import AVUI
 
 from configuracio.repositories import ConfiguracioRepository
@@ -36,7 +36,7 @@ def _limiter_net():
 
 
 def _usuari_de(institucio, role="admin"):
-    nom = f"{role}_{uuid.uuid4().hex[:8]}"
+    nom = f"{role}_{unic()}"
     crea_usuari(nom, institucio, role)
     return entra(client_per(APP), nom)
 

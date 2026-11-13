@@ -1,11 +1,11 @@
 """Impacte dels canvis d'XML, sempre amb centres i fitxers de prova."""
 
 import subprocess
-import uuid
 import xml.etree.ElementTree as ET
 
 import pytest
 from suport_api import XML_EXEMPLE, client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
@@ -32,7 +32,7 @@ def test_vigilant_que_plega_es_important_a_pantalla_revisio_i_pdf(idioma, text, 
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "idioma", idioma)
         db.commit()
-    nom = "bloc11_" + uuid.uuid4().hex[:8]
+    nom = "bloc11_" + unic()
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(crea_app(vigilancies_router, pdf_router, substitucions_router)), nom)
     r = client.post(

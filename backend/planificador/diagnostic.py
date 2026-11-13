@@ -3,12 +3,41 @@ no es poden complir, el diagnòstic d'incompatibilitats, les sessions que han
 quedat sense col·locar i el recompte per nivell."""
 
 from collections import defaultdict
-from datetime import datetime as _dt
 
+from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
 from scheduler_engine.core.constraints import es_slot_valid_per_nivell, viola_restriccio_dia_hora_fixos
-from scheduler_engine.core.date_mapping import DIES_CAT
 from scheduler_engine.core.diagnostic import InfeasibilityDiagnostic, construir_dies_efectius
+from scheduler_engine.core.franja import dia_de_prefix
 from scheduler_engine.core.missatges import missatge
+
+
+def analitza_de(gen):
+    """L'anàlisi de disponibilitat d'una sessió (sessio, dia, hora, data_iso)
+    amb les dades del motor, per comprovar els professors amb horari estricte
+    al diagnòstic (revisió B2). v2 i el backtracking en tenen un mètode; el
+    recuit crida la funció del core amb les seves dades, com fa ell mateix."""
+    metode = getattr(gen, "analitzar_disponibilitat_sessio", None)
+    if callable(metode):
+        return lambda sessio, dia, hora, data_iso: metode(sessio, dia, hora, sessions_al_slot=None, data_iso=data_iso)
+
+    def analitza(sessio, dia, hora, data_iso):
+        return analitzar_disponibilitat_sessio(
+            sessio=sessio,
+            dia=dia,
+            hora=hora,
+            horaris_professors=gen.horaris_professors,
+            totes_hores=gen.totes_hores,
+            nivells_actius=gen.nivells_actius,
+            durada_titular=gen.get_durada_per_sessio_key(sessio.get("nom"), sessio.get("curs")),
+            no_substituir_norm=gen.no_substituir_norm,
+            sessions_al_slot=None,
+            alliberaments_per_nivell=gen.alliberaments_per_nivell,
+            data_iso=data_iso,
+            horaris_professors_norm=getattr(gen, "_horaris_norm", None),
+            nivells_dels_grups=gen.nivells_dels_grups,
+        )
+
+    return analitza
 
 
 def _diagnosticar_incompatibilitats(
@@ -43,6 +72,7 @@ def _diagnosticar_incompatibilitats(
         dies_efectius=dies_efectius,
         hores_examen=hores_examen,
         nivells_actius=nivells_actius or [],
+        analitza=analitza_de(gen),
     )
     return diag.run(items_gen)
 
@@ -169,12 +199,10 @@ def _precheck_incompatibilitats_deterministes(
     # Llista efectiva de (dia_nom, sk_prefix) — usa dates reals si disponibles
     if selected_dates:
         dies_efectius = []
-        for iso in sorted(selected_dates):
-            try:
-                dia_nom = DIES_CAT[_dt.strptime(iso, "%Y-%m-%d").weekday()]
+        for prefix in sorted(selected_dates):
+            dia_nom, iso = dia_de_prefix(prefix)
+            if iso:
                 dies_efectius.append((dia_nom, iso))
-            except (ValueError, IndexError):
-                continue
     else:
         dies_efectius = [(d, d) for d in dies_utilitzar]
 
@@ -228,7 +256,7 @@ def _precheck_incompatibilitats_deterministes(
                 hores_ocupades = _hores_ocupades(hora, nivell)
                 if len(hores_ocupades) < durada:
                     continue
-                if not es_slot_valid_per_nivell(nivell, dia_nom, hora, restriccions, nivells_actius):
+                if not es_slot_valid_per_nivell(nivell, dia_nom, hora, restriccions):
                     continue
                 slots_fisics_per_nivell[nivell].add(f"{sk_prefix}_{hora}")
 

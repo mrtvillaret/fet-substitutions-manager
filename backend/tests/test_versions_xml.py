@@ -4,11 +4,10 @@ fi es calcula sempre (el dia abans que comenci la següent; l'última, oberta),
 en una sola operació, com els cursos: no hi pot haver forats ni solapaments.
 """
 
-import uuid
-
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_xml import amb_versions, dia
 
 from auth.dependencies import require_admin
@@ -30,7 +29,7 @@ def _limiter_net():
 
 
 def _client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

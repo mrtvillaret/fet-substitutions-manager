@@ -7,12 +7,12 @@ Dilluns, horari d'exemple: Prof 3 fa guàrdia a les 10:00 i té classe (ViP,
 1-ESO-C) a les 11:30; Prof 15 fa Anglès a les 10:00.
 """
 
-import uuid
 from datetime import timedelta
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_rellotge import AVUI
 
 from absencia_coberta.router import router as absencia_coberta_router
@@ -40,7 +40,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

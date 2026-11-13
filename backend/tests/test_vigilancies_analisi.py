@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from database import get_data_db_session
 from pdf.router import router as pdf_router
@@ -98,7 +99,6 @@ def test_fila_antiga_sense_hora_te_avis_i_la_tria_conserva_conflictes_amb_altres
 
 @pytest.mark.parametrize("idioma", ["ca", "es", "en", "it"])
 def test_api_i_els_dos_pdf_imprimeixen_exactament_els_mateixos_avisos(idioma):
-    import uuid
 
     from configuracio.repositories import ConfiguracioRepository
 
@@ -106,7 +106,7 @@ def test_api_i_els_dos_pdf_imprimeixen_exactament_els_mateixos_avisos(idioma):
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "idioma", idioma)
         db.commit()
-    nom = "analisi_" + uuid.uuid4().hex[:8]
+    nom = "analisi_" + unic()
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(crea_app(router, pdf_router)), nom)
     data = "2026-04-20"
@@ -152,10 +152,9 @@ def test_una_classe_pendent_es_un_sol_problema_encara_que_vigili_dues_files():
 
 
 def test_avisos_amb_text_d_usuari_no_s_interpreten_com_html():
-    import uuid
 
     centre = nova_institucio(amb_xml=True)
-    nom = "text_" + uuid.uuid4().hex[:8]
+    nom = "text_" + unic()
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(crea_app(router, pdf_router)), nom)
     data = "2026-04-20"
@@ -196,12 +195,11 @@ def test_alliberat_no_es_un_problema(grup, marca):
 
 @pytest.mark.parametrize("tipus_info,professor", [("classe_coberta", "Prof 30"), ("activitat_sense_grup", "Prof 22")])
 def test_informatius_es_conserven_a_la_revisio_pero_no_als_tres_pdf(tipus_info, professor):
-    import uuid
 
     from models import Substitucio
 
     centre = nova_institucio(amb_xml=True)
-    nom = "info_" + uuid.uuid4().hex[:8]
+    nom = "info_" + unic()
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(crea_app(router, pdf_router)), nom)
     data = "2026-04-20"

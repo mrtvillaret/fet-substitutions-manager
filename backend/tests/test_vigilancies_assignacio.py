@@ -17,10 +17,10 @@ només si es diu. Un examen sol no allibera.
 
 import itertools
 import random
-import uuid
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from config.context import fixa_institucio_peticio
 from database import get_data_db_session
@@ -84,7 +84,7 @@ def _centre(config=(), alliberats=(), absents=(), abreviatures=(), afinitats=())
         if afinitats:
             save_vigilancies_afinitats(db, list(afinitats))
         db.commit()
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(APP), nom)
     for professor in absents:

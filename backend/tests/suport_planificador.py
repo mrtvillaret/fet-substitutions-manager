@@ -4,9 +4,8 @@ d'exemple i la configuració d'exàmens de 1-BAT importada amb la mateixa
 funció de l'aplicació (Importar assignacions).
 """
 
-import uuid
-
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from absencia_coberta.router import router as absencia_coberta_router
 from configuracio_examens import router as config_examens
@@ -23,7 +22,7 @@ ASSIGNATURES = ("Anglès", "Català", "Filosofia")  # 1-BAT-A i 1-BAT-B
 
 
 def admin_de(institucio, role="admin"):
-    nom = f"{role}_{uuid.uuid4().hex[:8]}"
+    nom = f"{role}_{unic()}"
     crea_usuari(nom, institucio, role)
     return entra(client_per(APP), nom)
 

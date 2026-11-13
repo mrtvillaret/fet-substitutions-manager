@@ -5,12 +5,12 @@ en lloc d'una consulta que no troba res o d'un error intern.
 """
 
 import ast
-import uuid
 from pathlib import Path
 
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import get_current_user, require_admin
 from estadistiques.router import router as estadistiques_router
@@ -57,7 +57,7 @@ def test_cap_parametre_de_data_d_una_ruta_es_text_sense_validar():
 @pytest.fixture
 def client():
     limiter.reset()
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, nova_institucio(amb_xml=True), "admin")
     return entra(client_per(APP), nom)
 

@@ -28,8 +28,6 @@ def client(monkeypatch):
     "camps",
     [
         {"max_dies": 0},
-        {"epsilon": -0.1},
-        {"epsilon": 1.1},
         {"max_intents_validacio": 0},
         {"iteracions_per_temperatura": 0, "factor_refredament": 1},
         {"iteracions_per_temperatura": -1},
@@ -44,6 +42,20 @@ def client(monkeypatch):
 def test_parametres_invalids_son_422_abans_de_cridar_el_motor(client, camps):
     resp = client.post("/api/scheduler/generate", json={"data_inici": "2026-04-20", **camps})
     assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.parametrize("camps", [{"epsilon": 0.2}, {"epsilon": -0.1}, {"estrategia": "epsilon_greedy"}])
+def test_peticio_antiga_amb_epsilon_no_falla(client, camps):
+    """`epsilon` (i l'estratègia «Epsilon Greedy») no feien res i s'han tret:
+    una petició antiga que els envia s'accepta igual."""
+    resp = client.post("/api/scheduler/generate", json={"data_inici": "2026-04-20", "motor": "v2", **camps})
+    assert resp.status_code == 200, resp.text
+
+
+def test_els_motors_ja_no_ofereixen_epsilon(client):
+    v2 = next(m for m in client.get("/api/scheduler/motors").json()["motors"] if m["id"] == "v2")
+    assert "epsilon" not in v2["params"] and "epsilon" not in v2["param_labels"]
+    assert [o["value"] for o in v2["param_labels"]["estrategia"]["options"]] == ["ponderada", "greedy"]
 
 
 def test_valors_per_defecte_actuals_valids():

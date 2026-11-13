@@ -13,11 +13,11 @@ Horari d'exemple, els dilluns:
 Dilluns de prova: 13/04, 20/04, 27/04 i 04/05/2026.
 """
 
-import uuid
 from datetime import UTC
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from absencia_coberta.router import router as absencia_coberta_router
 from configuracio import router as configuracio
@@ -46,7 +46,7 @@ def _limiter_net():
 @pytest.fixture
 def client():
     centre = nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 
@@ -315,7 +315,7 @@ def test_un_reforc_ocupat_continua_disponible_amb_la_prioritat_del_reforc():
     centre = nova_institucio(
         amb_xml=True, prioritats=[("Alliberats", ["alliberat"]), ("Guàrdies", ["Guàrdia"]), ("Reforços", ["Reforç"])]
     )
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(APP), nom)
     _configura_reforc_per_defecte(client)
@@ -369,7 +369,7 @@ def test_un_periode_passat_preserva_historial_i_revisa_nomes_des_d_avui(avui, re
     from substitucions.repositories import SubstitucioRepository
 
     centre = nova_institucio(amb_xml=True)
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     rellotge_fix.moment = datetime.fromisoformat(avui).replace(tzinfo=UTC)
     client = entra(client_per(APP), nom)

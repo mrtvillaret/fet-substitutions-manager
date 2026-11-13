@@ -8,6 +8,7 @@ import uuid
 import pytest
 from fastapi import Depends
 from suport_api import CONTRASENYA, client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import require_admin
 from auth.repositories import UserRepository
@@ -29,14 +30,14 @@ def _limiter_net():
 
 
 def _superadmin():
-    nom = f"super_{uuid.uuid4().hex[:8]}"
+    nom = f"super_{unic()}"
     crea_usuari(nom, nova_institucio(), "super_admin")
     return entra(client_per(APP), nom)
 
 
 def test_crear_un_centre_desa_i_mostra_el_nom_visible():
     superadmin = _superadmin()
-    centre = f"centre_{uuid.uuid4().hex[:8]}"
+    centre = f"centre_{unic()}"
     nom_visible = "Centre de prova"
 
     resposta = superadmin.post(URL, json={"nom": centre, "display_name": nom_visible})
@@ -106,7 +107,7 @@ def test_desactivar_un_centre_no_desactiva_els_usuaris_pero_no_hi_poden_entrar()
     # petició i l'entrada comproven que és actiu.
     superadmin = _superadmin()
     centre = nova_institucio()
-    admin, usuari = f"admin_{uuid.uuid4().hex[:8]}", f"user_{uuid.uuid4().hex[:8]}"
+    admin, usuari = f"admin_{unic()}", f"user_{unic()}"
     crea_usuari(admin, centre, "admin")
     crea_usuari(usuari, centre, "user")
     ja_dins = entra(client_per(APP), usuari)  # una sessió oberta abans de desactivar-lo
@@ -130,7 +131,7 @@ def test_desactivar_un_centre_no_desactiva_els_usuaris_pero_no_hi_poden_entrar()
 def test_el_superadmin_continua_treballant_en_un_centre_desactivat():
     # Abans: 403 a tot (també reactivar-lo, canviar de centre o tornar a
     # entrar), tot i que a l'entrada el superadmin sí que hi entra.
-    nom = f"super_{uuid.uuid4().hex[:8]}"
+    nom = f"super_{unic()}"
     centre, altre = nova_institucio(), nova_institucio()
     crea_usuari(nom, centre, "super_admin")
     superadmin = entra(client_per(APP), nom)
@@ -156,7 +157,7 @@ CENTRE_INEXISTENT = {"detail": "El centre d'aquesta sessió ja no existeix: torn
 
 def test_superadmin_amb_la_sessio_en_un_centre_que_ja_no_existeix_pot_sortir_i_canviar_de_centre():
     # Abans: 500 a tot fins que canviava de centre
-    nom = f"super_{uuid.uuid4().hex[:8]}"
+    nom = f"super_{unic()}"
     propi, esborrat = nova_institucio(), nova_institucio()
     crea_usuari(nom, propi, "super_admin")
     superadmin = entra(client_per(APP), nom)
@@ -175,7 +176,7 @@ def test_superadmin_amb_la_sessio_en_un_centre_que_ja_no_existeix_pot_sortir_i_c
 
 
 def test_amb_la_sessio_en_un_centre_que_ja_no_existeix_es_pot_sortir():
-    nom = f"user_{uuid.uuid4().hex[:8]}"
+    nom = f"user_{unic()}"
     centre = nova_institucio()
     crea_usuari(nom, centre, "user")
     usuari = entra(client_per(APP), nom)

@@ -26,7 +26,9 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from planificador.alliberaments import extreure_hores_examen_des_alliberaments
+from planificador.diagnostic import analitza_de
 from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
+from scheduler_engine.core.diagnostic import InfeasibilityDiagnostic
 from scheduler_engine.factory import crear_motor
 
 XML_PATH = BACKEND_DIR.parent / "data" / "exemple" / "teachers.xml"
@@ -68,7 +70,9 @@ def _config_examens():
                 "assignacions": [{"grup": grup, "titular": titular, "aula": ""} for grup, titular in assignacions]
             }
             for assignatura, assignacions in ASSIGNACIONS.items()
-        }
+        },
+        # Les taules de la configuració d'exàmens: el nivell de cada grup
+        "nivells_grups": {NIVELL: ["2-BAT-A", "2-BAT-B"]},
     }
 
 
@@ -166,6 +170,7 @@ class _MotorsExemple(unittest.TestCase):
         restriccions["restriccions_dures"]["professors_horari_estricte"] = list(cls.ESTRICTES)
         cls.restr_path.write_text(json.dumps(restriccions, ensure_ascii=False), encoding="utf-8")
 
+        cls.gens = {}
         cls.results = {motor: cls._run_motor(motor) for motor in EXPECTED_SNAPSHOT}
 
     @classmethod
@@ -202,6 +207,7 @@ class _MotorsExemple(unittest.TestCase):
         )
         gen.carregar_dades()
         gen.carregar_horaris_professors()
+        cls.gens[motor] = gen
 
         kwargs = {
             "data_inici": datetime.strptime(min(DATES), "%Y-%m-%d").strftime("%d/%m/%Y"),
@@ -215,12 +221,11 @@ class _MotorsExemple(unittest.TestCase):
                 {
                     "max_intents_validacio": 40,
                     "estrategia": "ponderada",
-                    "epsilon": 0.15,
                     "track_intents": True,
                 }
             )
         elif motor == "v2-backtrack":
-            kwargs.update({"max_solucions": 5, "random_seed": 12345, "seeds_count": 1})
+            kwargs.update({"random_seed": 12345, "seeds_count": 1})
 
         # Silencia logs de traça dels motors durant test.
         with redirect_stdout(io.StringIO()):
@@ -317,6 +322,30 @@ class SchedulerHorariEstricteTest(_MotorsExemple):
                 dia = _dia_de(result, "2.4 (2-BAT)")
                 self.assertIsNotNone(dia)
                 self.assertNotIn("dimarts", str(dia).lower())
+
+    def test_el_diagnostic_hi_veu_l_horari_estricte_amb_qualsevol_motor(self):
+        """Revisió B2: amb només el dimarts, el diagnòstic diu que l'examen no
+        hi cap per l'horari estricte (abans no ho comprovava: no deia res)."""
+        sessio = next(s for s in self.gens["v2"].sessions_per_nivell[NIVELL] if s["nom"] == "2.4 (2-BAT)")
+        item = {"nom": sessio["nom"], "curs": NIVELL, "sessions": [sessio]}
+        restriccions = json.loads(self.restr_path.read_text(encoding="utf-8"))
+        dimarts = [("Dimarts", "2026-04-21")]
+        for motor, gen in self.gens.items():
+            with self.subTest(motor=motor):
+                diag = InfeasibilityDiagnostic(
+                    restriccions, dimarts, self.hores_examen, [NIVELL], analitza=analitza_de(gen)
+                )
+                self.assertEqual(
+                    diag.run([item]),
+                    [
+                        {
+                            "codi": "examen_sense_hora_causa",
+                            "params": {"nom": "2.4 (2-BAT)", "causa": "professors_estrictes"},
+                        }
+                    ],
+                )
+        sense = InfeasibilityDiagnostic(restriccions, dimarts, self.hores_examen, [NIVELL])
+        self.assertEqual(sense.run([item]), [])
 
 
 if __name__ == "__main__":

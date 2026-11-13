@@ -22,6 +22,9 @@ export default async function prepara() {
     for (const assignatura of ['', 'Guàrdia']) {
       await desa('post', '/api/prioritats/no-substituir', { data: { assignatura } })
     }
+    // Abans de les absències: la importació d'exàmens només proposa els nivells
+    // que ja surten a les substitucions, si n'hi ha
+    await preparaPlanificador(desa)
     await desa('post', '/api/config/nivells', { data: { codi: '3-ESO' } })
     await desa('post', '/api/config/grups/3-ESO', { data: { codi: '3-ESO-A' } })
     for (const { data, seguent, calendari } of Object.values(escenaris)) {
@@ -37,4 +40,22 @@ export default async function prepara() {
   } finally {
     await api.dispose()
   }
+}
+
+// Planificador: exàmens de 1r i 2n de Batxillerat, dues dates i un horari generat
+// i recalculat (queda com a últim horari, amb el desglossament del cost)
+export const DATES_PLANIFICADOR = ['2026-04-20', '2026-04-21']
+async function preparaPlanificador(desa) {
+  const { propostes } = await desa('get', '/api/config/importar-assignacions/preview')
+  const nivells = ['1-BAT', '2-BAT']
+  const triades = propostes.filter((p) => nivells.includes(p.nivell) && ['Anglès', 'Català', 'Filosofia'].includes(p.assignatura))
+  await desa('post', '/api/config/importar-assignacions', { data: { propostes: triades, overwrite: true } })
+  const config = Object.fromEntries(DATES_PLANIFICADOR.map((d) => [d, { '09:00': { a: true, i: true }, '11:30': { a: true, i: true } }]))
+  await desa('put', '/api/scheduler/config', { data: {
+    nivells_actius: nivells, durada_titular: 1, durada_examen: 1,
+    alliberaments_per_nivell: Object.fromEntries(nivells.map((n) => [n, { durada: 1, dates: DATES_PLANIFICADOR, config }]))
+  } })
+  const peticio = { data_inici: DATES_PLANIFICADOR[0], data_final: DATES_PLANIFICADOR[1], selected_dates: DATES_PLANIFICADOR, dies_utilitzar: ['Dilluns', 'Dimarts'] }
+  const { horari } = await desa('post', '/api/scheduler/generate', { data: { ...peticio, motor: 'v2-backtrack', random_seed: 1 } })
+  await desa('post', '/api/scheduler/recalcular-cost', { data: { horari, data_referencia: DATES_PLANIFICADOR[0], selected_dates: DATES_PLANIFICADOR } })
 }

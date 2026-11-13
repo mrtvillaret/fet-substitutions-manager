@@ -6,10 +6,9 @@ Configuració però la pantalla de grups i la de Substitucions no els feien
 servir.
 """
 
-import uuid
-
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from auth.dependencies import get_current_user, require_admin
 from database import get_data_db_session
@@ -28,7 +27,7 @@ def _centre(amagat: str, originals: str, abreviatura: str):
         db.add(GrupAmagat(grup=amagat))
         db.add(AbreviaturaGrup(grups_originals=originals, abreviatura=abreviatura))
         db.commit()
-    usuari = f"admin_{uuid.uuid4().hex[:8]}"
+    usuari = f"admin_{unic()}"
     crea_usuari(usuari, centre, "admin")
     return entra(client_per(APP), usuari)
 
@@ -90,7 +89,7 @@ def test_canviar_les_abreviatures_buida_la_memoria_cau_del_planificador_del_cent
     app.include_router(grups_admin_router, dependencies=[Depends(require_admin)])
     limiter.reset()
     centre, altre = nova_institucio(), nova_institucio()
-    usuari = f"admin_{uuid.uuid4().hex[:8]}"
+    usuari = f"admin_{unic()}"
     crea_usuari(usuari, centre, "admin")
     client = entra(client_per(app), usuari)
 
@@ -126,7 +125,7 @@ def test_canviar_les_abreviatures_nomes_buida_l_horari_del_centre():
     app.include_router(grups_admin_router, dependencies=[Depends(require_admin)])
     limiter.reset()
     centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
-    usuari = f"admin_{uuid.uuid4().hex[:8]}"
+    usuari = f"admin_{unic()}"
     crea_usuari(usuari, centre, "admin")
     client = entra(client_per(app), usuari)
     de_l_altre = horari_context.get_horari(altre, data_iso=DATA)

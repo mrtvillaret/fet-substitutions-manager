@@ -4,12 +4,12 @@ llistes que fan servir el motor i les validacions (config.constants) es
 recarreguen de seguida, sense haver de reiniciar ni desar les prioritats.
 """
 
-import uuid
 from datetime import timedelta
 
 import pytest
 from fastapi import APIRouter, Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_rellotge import AVUI
 
 import rellotge
@@ -51,7 +51,7 @@ def centre():
 
 @pytest.fixture
 def client(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 

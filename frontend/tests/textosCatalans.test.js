@@ -21,7 +21,7 @@ test('el català defineix tots els textos de PrimeVue, inclosa l’accessibilita
   comprova(defaultOptions.locale, locale)
   assert.equal(locale.emptySearchMessage, 'No hi ha resultats')
 })
-test('el català no conté els anglicismes de la revisió del bloc 7', () => {
+test('el català no conté els anglicismes revisats', () => {
   const errors = []
   const visita = (objecte, prefix = '') => {
     for (const [clau, valor] of Object.entries(objecte)) {

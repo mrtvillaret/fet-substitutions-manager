@@ -391,3 +391,25 @@ Canvis que cal fer al servidor en actualitzar una instal·lació existent:
 
 La retenció de la consola sense `ACCESS_LOG_PATH` continua depenent del sistema
 que la recull (a l’exemple de Compose, rotació per mida de Docker).
+
+## Temps límit de la generació del planificador
+
+Cada motor del planificador té un temps màxim de cerca que es tria a la
+pantalla (paràmetres avançats del motor): 20 s per defecte i **120 s com a
+màxim** (`scheduler_engine/defaults.py`: `SEGONS_MAXIMS_PER_DEFECTE` i
+`SEGONS_MAXIMS_LIMIT`; el servidor respon 422 per sobre). Quan s’acaba el temps,
+el motor es queda amb la millor solució trobada i ho diu (`motiu_aturada`).
+La petició de generar dura aquest temps més la preparació i la validació, i
+cap pas de la cadena no l’ha de tallar abans:
+
+| Pas | Temps límit | Cal canviar res? |
+|---|---|---|
+| Pantalla (axios) | 300 s per a generar i per a l’anàlisi | No |
+| Caddy (`reverse_proxy`) | sense temps de lectura per defecte | No, si el Caddyfile del servidor no n’hi ha afegit cap (`grep -n timeout Caddyfile`); si en té, que sigui de 180 s o més |
+| nginx del contenidor del frontend (`/api/`, només sense Caddy davant: `docker-compose.local.yml`) | `proxy_read_timeout 180s` a `frontend/nginx.conf` | Reconstruir la imatge del frontend en actualitzar (`docker compose up --build -d`) |
+| uvicorn | sense temps límit per petició | No |
+
+Mentre es genera, el backend continua atenent la resta de peticions (la ruta
+és síncrona i s’executa en un fil a part; ho comprova
+`tests/test_planificador_no_bloqueja.py`). Una generació llarga ocupa un fil i
+una CPU durant tot el temps triat: per això el màxim és de 120 s i no més.

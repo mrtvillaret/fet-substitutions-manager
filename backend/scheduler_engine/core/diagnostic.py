@@ -10,18 +10,31 @@ En lloc, calcula dates viables per ítem cridant directament RestrictionEngine.c
 """
 
 import re as _re
-from collections import defaultdict
-from collections import defaultdict as _dd
-from datetime import datetime as _dt
+from collections import Counter, defaultdict
 
-from scheduler_engine.core.constraints import _pes_obligatori, sessio_in_group
-from scheduler_engine.core.date_mapping import DIES_CAT
+from scheduler_engine.core.constraints import (
+    _pes_obligatori,
+    get_restriccio_val,
+    percent_assignatura_fix,
+    recompte_limit_professor,
+    sessio_in_group,
+)
+from scheduler_engine.core.franja import dia_de_prefix
 from scheduler_engine.core.missatges import missatge
+from scheduler_engine.core.normalitzacio import dia_nom_per_horari
 from scheduler_engine.core.normalitzacio import normalitzar_dia as _normalitzar_dia
-from scheduler_engine.core.restriction_engine import RestrictionEngine
-from scheduler_engine.defaults import ETIQUETES_RESTRICCIONS
+from scheduler_engine.core.restriction_engine import RestrictionEngine, causa_principal
+from scheduler_engine.defaults import ETIQUETES_CAUSES
 
 _ISO_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# Missatge propi d'un examen fixat (dia i/o hora obligatoris) que no té cap
+# franja, segons què passa a la franja fixada (revisió 5.1)
+MISSATGE_FIXAT = {
+    "examen_fixat": "fixat_fora_de_dates",  # la franja fixada no és entre les planificades
+    "franja_prohibida": "fixat_a_franja_prohibida",
+    "nivell_sense_inici": "fixat_a_hora_sense_inici",
+}
 
 
 def _is_iso(s: str) -> bool:
@@ -68,7 +81,12 @@ class InfeasibilityDiagnostic:
         dies_efectius: list[tuple[str, str]],  # [(dia_nom, prefix_data)]
         hores_examen: list[str],
         nivells_actius: list[str],
+        analitza=None,
     ):
+        """`analitza(sessio, dia, hora, data_iso)` és l'anàlisi de disponibilitat
+        del motor: només es fa servir si hi ha professors amb horari estricte,
+        perquè el motor de restriccions els pugui comprovar (revisió B2)."""
+        self.analitza = analitza
         self.restriccions = restriccions
         self.dies_efectius = dies_efectius  # [(dia_nom, prefix)]
         self.hores_examen = list(hores_examen or [])
@@ -90,14 +108,15 @@ class InfeasibilityDiagnostic:
             return []
 
         # Calcular dates viables per ítem (sense context d'altres ítems)
-        dates_per_item: dict[str, set[str]] = {}
-        causa_per_item: dict[str, str] = {}
+        # Per examen (id de l'ítem), no per nom: dos exàmens amb el mateix nom
+        # es trepitjaven i el que quedava fora podia no sortir
+        dates_per_item: dict[int, set[str]] = {}
+        causa_per_item: dict[int, str] = {}
         for item in items:
-            label = _item_label(item)
             dates, causa = self._dates_viables(item)
-            dates_per_item[label] = dates
+            dates_per_item[id(item)] = dates
             if not dates:
-                causa_per_item[label] = causa
+                causa_per_item[id(item)] = causa
 
         msgs: list[dict] = []
 
@@ -110,16 +129,18 @@ class InfeasibilityDiagnostic:
         sense_slot_per_nivell_causa: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
         for item in items:
             label = _item_label(item)
-            if not dates_per_item.get(label):
-                causa = causa_per_item.get(label, "desconeguda")
+            if not dates_per_item[id(item)]:
+                causa = causa_per_item.get(id(item), "desconeguda")
+                fixat = self._missatge_fixat(item, causa)
+                if fixat:
+                    add(fixat)
+                    continue
                 sessions = item.get("sessions") or []
                 nivell = item.get("curs") or (_sessio_to_dict(sessions[0]).get("curs") if sessions else None) or ""
                 sense_slot_per_nivell_causa[nivell][causa].append(label)
 
         for nivell, per_causa in sorted(sense_slot_per_nivell_causa.items()):
-            for causa, labels in sorted(
-                per_causa.items(), key=lambda item: ETIQUETES_RESTRICCIONS.get(item[0], item[0])
-            ):
+            for causa, labels in sorted(per_causa.items(), key=lambda item: ETIQUETES_CAUSES.get(item[0], item[0])):
                 n = len(labels)
                 if n == 1:
                     add(missatge("examen_sense_hora_causa", nom=labels[0], causa=causa))
@@ -130,12 +151,16 @@ class InfeasibilityDiagnostic:
         # 2. Restriccions no_mateix_dia: parelles atrapades i sobrecàrrega per grup
         self._check_no_mateix_dia(items, dates_per_item, add)
 
-        slots_per_item = {_item_label(item): self._slots_viables(item) for item in items}
+        # 3. Límit d'exàmens per professor obligatori: més exàmens que no poden
+        # anar fora dels dies restringits que el màxim
+        self._check_limit_professor(items, dates_per_item, add)
 
-        # 3. Restriccions no_mateix_slot: més ítems incompatibles que hores possibles
+        slots_per_item = {id(item): self._slots_viables(item) for item in items}
+
+        # 4. Restriccions no_mateix_slot: més ítems incompatibles que hores possibles
         self._check_no_mateix_slot(items, slots_per_item, add)
 
-        # 4. Capacitat genèrica per nivell (sense restricció específica)
+        # 5. Capacitat genèrica per nivell (sense restricció específica)
         self._check_capacitat(items, slots_per_item, add)
 
         return msgs
@@ -144,6 +169,21 @@ class InfeasibilityDiagnostic:
     # Helpers privats
     # ------------------------------------------------------------------
 
+    def _viola(self, sessio, dia_nom: str, hora: str, prefix: str):
+        """La restricció dura que impedeix posar la sessió a la franja, sense
+        context d'altres exàmens (dia_sessions=None: ni el límit per
+        professor ni la preferència de dia, que es comproven a part). Amb
+        professors d'horari estricte, també els seus (cal l'anàlisi)."""
+        s_dict = _sessio_to_dict(sessio)
+        analisi = None
+        if self.analitza and self.engine.professors_estrictes:
+            analisi = self.analitza(
+                sessio if isinstance(sessio, dict) else s_dict, dia_nom, hora, prefix if _is_iso(prefix) else None
+            )
+        return self.engine.check_hard(
+            s_dict, dia_nom, hora, prefix, sessions_dia=[], sessions_slot=[], dia_sessions=None, analisi=analisi
+        )
+
     def _slots_viables(self, item: dict) -> set[str]:
         """Les hores (prefix_hora) on l'ítem es pot col·locar sense context
         d'altres ítems."""
@@ -151,12 +191,7 @@ class InfeasibilityDiagnostic:
         slots: set[str] = set()
         for dia_nom, prefix in self.dies_efectius:
             for hora in self.hores_examen:
-                if not any(
-                    self.engine.check_hard(
-                        _sessio_to_dict(s), dia_nom, hora, prefix, sessions_dia=[], sessions_slot=[], dia_sessions=None
-                    )
-                    for s in sessions
-                ):
+                if not any(self._viola(s, dia_nom, hora, prefix) for s in sessions):
                     slots.add(f"{prefix}_{hora}")
         return slots
 
@@ -166,28 +201,21 @@ class InfeasibilityDiagnostic:
 
         Comprova cada (dia, hora) cridant engine.check_hard() sense context
         d'altres ítems (sessions_dia=[], sessions_slot=[], dia_sessions=None).
-        Retorna la causa MÉS FREQÜENT entre tots els slots bloquejats.
+        La causa és la que bloqueja més franges, i «examen fixat» només si no
+        n'hi ha cap altra (`causa_principal`): d'un examen fixat interessa què
+        passa a la seva franja.
         """
         sessions = item.get("sessions") or []
         dates: set[str] = set()
-        causa_counts: dict[str, int] = {}
+        causa_counts: Counter = Counter()
 
         for dia_nom, prefix in self.dies_efectius:
             for hora in self.hores_examen:
                 ok = True
                 for sessio in sessions:
-                    s_dict = _sessio_to_dict(sessio)
-                    violation = self.engine.check_hard(
-                        s_dict,
-                        dia_nom,
-                        hora,
-                        prefix,
-                        sessions_dia=[],
-                        sessions_slot=[],
-                        dia_sessions=None,  # evita checks de context (limit_dies, preferencia_dia)
-                    )
+                    violation = self._viola(sessio, dia_nom, hora, prefix)
                     if violation:
-                        causa_counts[violation.restriction] = causa_counts.get(violation.restriction, 0) + 1
+                        causa_counts[violation.restriction] += 1
                         ok = False
                         break
                 if ok:
@@ -197,11 +225,33 @@ class InfeasibilityDiagnostic:
         if dates:
             return dates, ""
 
-        # Retornar la causa més freqüent
-        causa = max(causa_counts, key=causa_counts.get) if causa_counts else "desconeguda"
-        return dates, causa
+        return dates, causa_principal(causa_counts) or "desconeguda"
 
-    def _check_no_mateix_dia(self, items: list[dict], dates_per_item: dict[str, set[str]], add) -> None:
+    def _missatge_fixat(self, item: dict, causa: str) -> dict | None:
+        """Per a un examen amb dia i/o hora fixats (obligatoris) que no té cap
+        franja: què passa a la franja fixada. Sense pin, o amb una altra
+        causa (p. ex. l'horari estricte d'un professor), None: surt el
+        missatge general amb la causa."""
+        codi = MISSATGE_FIXAT.get(causa)
+        if not codi:
+            return None
+        dures = self.restriccions.get("restriccions_dures", {})
+        dies_fixos = {k: v for k, v in (dures.get("assignatures_dia_fix") or {}).items() if not k.startswith("_")}
+        hores_fixes = {k: v for k, v in (dures.get("assignatures_hora_fix") or {}).items() if not k.startswith("_")}
+        for sessio in item.get("sessions") or []:
+            s_dict = _sessio_to_dict(sessio)
+            dia = get_restriccio_val(dies_fixos, s_dict)
+            dia = dia.get("data") if isinstance(dia, dict) else dia  # com a _check_no_mateix_dia
+            hora = get_restriccio_val(hores_fixes, s_dict)
+            if not (dia or hora) or percent_assignatura_fix(s_dict, dures) < 100:
+                continue
+            params = {"nom": s_dict.get("nom") or _item_label(item), "dia": str(dia or ""), "hora": str(hora or "")}
+            if causa == "nivell_sense_inici":
+                params["nivell"] = s_dict.get("curs") or item.get("curs") or ""
+            return missatge(codi, **params)
+        return None
+
+    def _check_no_mateix_dia(self, items: list[dict], dates_per_item: dict[int, set[str]], add) -> None:
         """
         Detecta problemes amb restriccions 'no_mateix_dia':
         - Parelles d'ítems que no es poden separar en dies distints
@@ -243,8 +293,7 @@ class InfeasibilityDiagnostic:
             for item in items:
                 for s in item.get("sessions") or []:
                     if sessio_in_group(_sessio_to_dict(s), assignatures):
-                        label = _item_label(item)
-                        items_grup.append((label, dates_per_item.get(label, set())))
+                        items_grup.append((_item_label(item), dates_per_item[id(item)]))
                         break
 
             if len(items_grup) < 2:
@@ -268,7 +317,7 @@ class InfeasibilityDiagnostic:
                         fixes_per_label[label] = date_fix
                     break
 
-            per_data: dict[str, list[str]] = _dd(list)
+            per_data: dict[str, list[str]] = defaultdict(list)
             for label, date_fix in fixes_per_label.items():
                 per_data[date_fix].append(label)
             for date_fix, conflicting in per_data.items():
@@ -301,7 +350,50 @@ class InfeasibilityDiagnostic:
                         dates_fmt = ", ".join(sorted(dates_b)[:3])
                         add(missatge("examen_dies_solapats", **referencia, nom=lbl_b, altre=lbl_a, dies=dates_fmt))
 
-    def _check_no_mateix_slot(self, items: list[dict], slots_per_item: dict[str, set[str]], add) -> None:
+    def _check_limit_professor(self, items: list[dict], dates_per_item: dict[int, set[str]], add) -> None:
+        """Límit d'exàmens per professor obligatori (pes >= 100, revisió 5.2):
+        els exàmens del professor (de les assignatures del límit) que només
+        tenen dates possibles en dies restringits hi aniran per força; si en
+        són més que el màxim, no hi ha horari. Es compten amb la mateixa regla
+        que el motor i el cost (`recompte_limit_professor`). El check_hard del
+        diagnòstic no ho pot veure: va sense context d'altres exàmens."""
+        limits = self.restriccions.get("restriccions_dures", {}).get("professors_limit_dies_especifics") or {}
+        if not isinstance(limits, dict):
+            return
+        dia_de = {prefix: dia for dia, prefix in self.dies_efectius}
+        for professor, cfg in limits.items():
+            if str(professor).startswith("_") or not isinstance(cfg, dict) or cfg.get("max_examens") is None:
+                continue
+            if not _pes_obligatori(cfg.get("pes_penalitzacio", 0)):
+                continue
+            restringits = {_normalitzar_dia(d) for d in cfg.get("dies_restringits", [])}
+            forcades: dict[str, list[dict]] = defaultdict(list)  # data → sessions que hi aniran per força
+            noms: list[str] = []
+            for item in items:
+                dates = dates_per_item[id(item)]
+                if not dates:
+                    continue  # sense cap data ja surt com a «sense cap hora»
+                if any(dia_nom_per_horari(dia_de.get(p, p)) not in restringits for p in dates):
+                    continue  # té alguna data fora dels dies restringits
+                sessions = [_sessio_to_dict(s) for s in item.get("sessions") or []]
+                if not recompte_limit_professor(professor, cfg, {}, sessions).examens:
+                    continue  # no és del professor (o no és de les assignatures del límit)
+                forcades[min(dates)].extend(sessions)
+                noms.append(_item_label(item))
+            recompte = recompte_limit_professor(professor, cfg, forcades)
+            if recompte.excedent:
+                add(
+                    missatge(
+                        "limit_professor_insuficient",
+                        professor=professor,
+                        max=int(cfg["max_examens"]),
+                        count=recompte.examens,
+                        noms=noms,
+                        dies=", ".join(cfg.get("dies_restringits", [])),
+                    )
+                )
+
+    def _check_no_mateix_slot(self, items: list[dict], slots_per_item: dict[int, set[str]], add) -> None:
         """Detecta grups no_mateix_slot que no hi caben: dos ítems limitats a
         la mateixa hora única, o més ítems que hores possibles entre tots."""
         dures = self.restriccions.get("restriccions_dures", {})
@@ -323,7 +415,7 @@ class InfeasibilityDiagnostic:
             items_grup: list[tuple[str, set[str]]] = []
             for item in items:
                 if any(sessio_in_group(_sessio_to_dict(s), assignatures) for s in (item.get("sessions") or [])):
-                    slots = slots_per_item[_item_label(item)]
+                    slots = slots_per_item[id(item)]
                     if slots:
                         items_grup.append((_item_label(item), slots))
 
@@ -344,7 +436,7 @@ class InfeasibilityDiagnostic:
             if not parelles and len(items_grup) > len(hores_conjunt):
                 add(missatge("hores_insuficients", **referencia, count=len(items_grup), hores=len(hores_conjunt)))
 
-    def _check_capacitat(self, items: list[dict], slots_per_item: dict[str, set[str]], add) -> None:
+    def _check_capacitat(self, items: list[dict], slots_per_item: dict[int, set[str]], add) -> None:
         """Detecta nivells amb més ítems que hores possibles (la unió de les
         de tots els ítems del nivell). Exclou els ítems sense cap hora, que ja
         surten per separat."""
@@ -357,7 +449,7 @@ class InfeasibilityDiagnostic:
             nivell = item.get("curs") or (_sessio_to_dict(sessions[0]).get("curs") if sessions else None)
             if not nivell:
                 continue
-            slots = slots_per_item.get(_item_label(item), set())
+            slots = slots_per_item[id(item)]
             if not slots:
                 continue  # Ja reportat com "sense cap slot" — no comptar aquí
             items_per_nivell[nivell] += 1
@@ -390,11 +482,9 @@ def construir_dies_efectius(
     result: list[tuple[str, str]] = []
     for d in dies_utilitzar or []:
         if _is_iso(d):
-            try:
-                dia_nom = DIES_CAT[_dt.strptime(d, "%Y-%m-%d").weekday()]
-                result.append((dia_nom, d))
-            except Exception:
-                pass
+            dia_nom, iso = dia_de_prefix(d)
+            if iso:
+                result.append((dia_nom, iso))
         else:
             _map = dia_a_data_iso or {}
             iso = _map.get(_normalitzar_dia(d)) or _map.get(d)

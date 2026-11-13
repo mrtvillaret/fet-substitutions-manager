@@ -4,7 +4,6 @@ PDF exportats i versions d'XML d'un interval de dates, sense tocar res de fora
 de l'interval ni de cap altre centre.
 """
 
-import uuid
 from datetime import date
 from pathlib import Path
 
@@ -12,6 +11,7 @@ import pytest
 from fastapi import Depends
 from fastapi.testclient import TestClient
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 from suport_xml import amb_versions, dia, professor_que_plega
 
 from auth.dependencies import require_admin
@@ -90,7 +90,7 @@ def centre():
 
 @pytest.fixture
 def admin(centre):
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 
@@ -182,7 +182,7 @@ def test_un_interval_al_reves_dona_400(admin, centre):
 
 
 def test_un_usuari_no_admin_no_pot_purgar(centre):
-    nom = f"user_{uuid.uuid4().hex[:8]}"
+    nom = f"user_{unic()}"
     crea_usuari(nom, centre, "user")
     client = entra(client_per(APP), nom)
     assert client.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).status_code == 403
@@ -279,7 +279,7 @@ def test_un_ultim_horari_de_fora_de_l_interval_es_conserva(admin, centre):
 def test_si_falla_abans_del_commit_no_s_esborra_cap_fitxer(centre, monkeypatch):
     # Abans, els fitxers s'esborraven abans del commit: si la BD fallava, les
     # versions i les files hi eren, però els fitxers ja no
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(TestClient(APP, base_url="https://testserver", raise_server_exceptions=False), nom)
 
@@ -333,7 +333,7 @@ def test_purgar_una_versio_d_xml_buida_la_memoria_cau_i_resincronitza_els_profes
     centre = amb_versions(
         ("actual.xml", dia(-90), dia(-31)), ("futur.xml", dia(-30), dia(10)), ("actual.xml", dia(11), None)
     )
-    nom = f"admin_{uuid.uuid4().hex[:8]}"
+    nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     client = entra(client_per(APP), nom)  # la primera petició del dia sincronitza amb futur.xml
     assert client.post("/api/dades/purga/analitzar", json=INTERVAL).status_code == 200

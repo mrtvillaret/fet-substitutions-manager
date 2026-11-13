@@ -4,8 +4,6 @@ Helpers per gestionar la durada d'examen per nivell i per sessió.
 
 from typing import Any
 
-from scheduler_engine.core.constraints import detectar_nivell_grup
-
 
 def get_durada_per_nivell(nivell: str | None, alliberaments_per_nivell: dict[str, Any] | None, default: int) -> int:
     """Retorna la durada per nivell si existeix, o el default."""
@@ -53,25 +51,11 @@ def get_durada_per_sessio_key(
     return default
 
 
-def detectar_nivell_sessio(sessio: Any, nivells_actius: list[str]) -> str | None:
-    """Detecta el nivell d'una sessio a partir del camp curs o dels grups."""
+def detectar_nivell_sessio(sessio: Any) -> str | None:
+    """El nivell d'una sessió: el seu camp «curs» (o «nivell»). No es dedueix
+    dels grups dels exàmens: cada sessió es crea ja amb el seu nivell."""
     if not sessio:
         return None
-
     if isinstance(sessio, dict):
-        curs = sessio.get("curs") or sessio.get("nivell")
-        examens = sessio.get("examens", [])
-    else:
-        curs = getattr(sessio, "curs", None) or getattr(sessio, "nivell", None)
-        examens = getattr(sessio, "examens", []) or []
-
-    if curs and (not nivells_actius or curs in nivells_actius):
-        return curs
-
-    for ex in examens:
-        grup = ex.get("grup") if isinstance(ex, dict) else getattr(ex, "grup", None)
-        nivell = detectar_nivell_grup(grup or "", nivells_actius)
-        if nivell:
-            return nivell
-
-    return curs
+        return sessio.get("curs") or sessio.get("nivell")
+    return getattr(sessio, "curs", None) or getattr(sessio, "nivell", None)

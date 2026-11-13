@@ -4,7 +4,6 @@ un examen i les franges vàlides de cada nivell."""
 
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from datetime import datetime as _dt
 
 from scheduler_engine.core.normalitzacio import normalitzar_dia
 from textos import normalitzar_hora as _normalitzar_hora
@@ -165,7 +164,7 @@ def _build_slots_valids_from_alliberaments(
         dia_a_data_nivell: dict[str, list[str]] = {}
         for d_str in nivell_dates:
             try:
-                dt = _dt.strptime(d_str, "%Y-%m-%d")
+                dt = datetime.strptime(d_str, "%Y-%m-%d")
                 dia_norm = normalitzar_dia(_DIES_CAT[dt.weekday()])
                 dia_a_data_nivell.setdefault(dia_norm, []).append(d_str)
             except (ValueError, IndexError):

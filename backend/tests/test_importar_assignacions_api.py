@@ -8,10 +8,9 @@ Treballen sobre una institució temporal amb l'horari d'exemple, on Prof 15
 fa Anglès amb 3-ESO-A (entre d'altres).
 """
 
-import uuid
-
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_noms import unic
 
 from configuracio_examens import router as config_examens
 from configuracio_examens.repositories import ConfiguracioExamenRepository, MasterConfigRepository
@@ -31,7 +30,7 @@ def _limiter_net():
 
 
 def _usuari_de(institucio, role="admin"):
-    nom = f"{role}_{uuid.uuid4().hex[:8]}"
+    nom = f"{role}_{unic()}"
     crea_usuari(nom, institucio, role)
     return entra(client_per(APP), nom)
 
