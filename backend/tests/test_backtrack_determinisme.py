@@ -31,7 +31,6 @@ def horari_amb_empats(random_seed: int, shuffle_top_n: int = 0) -> list:
     gen.get_durada_per_sessio_key = lambda *_: 1
     gen._get_hores_ocupades = lambda hora, *_: [hora]
     gen.analitzar_disponibilitat_sessio = lambda *_, **__: {}
-    gen._calcular_penalitzacio_professors_dies = lambda *_: 0
 
     def construeix(slots_occ, *_):
         franges = sorted((sk, sorted(it["label"] for it in its)) for sk, its in slots_occ.items())

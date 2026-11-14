@@ -163,6 +163,25 @@ def _dies_restringits(config_prof: dict) -> set[str]:
     return {normalitzar_dia(d) for d in config_prof.get("dies_restringits", [])}
 
 
+def _es_del_limit(professor: str, config_prof: dict, sessio: dict) -> bool:
+    """La sessió és de les que compten per al límit del professor: n'és
+    titular i és una de les assignatures del límit."""
+    titulars = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
+    return professor in titulars and sessio_in_group(sessio, config_prof.get("assignatures", []))
+
+
+def compta_per_algun_limit(sessio: dict, restriccions: dict) -> bool:
+    """La sessió compta per al límit d'exàmens d'algun professor (si cau en
+    un dels seus dies restringits). Una sessió que no hi compta no pot canviar
+    cap `recompte_limit_professor`."""
+    limits = restriccions.get("restriccions_dures", {}).get("professors_limit_dies_especifics", {})
+    return any(
+        _es_del_limit(professor, config_prof, sessio)
+        for professor, config_prof in limits.items()
+        if not professor.startswith("_")
+    )
+
+
 class RecompteLimitProfessor(NamedTuple):
     """Exàmens d'un professor als dies restringits i quants en sobren."""
 
@@ -186,7 +205,6 @@ def recompte_limit_professor(
     És l'únic lloc on es normalitzen els dies i es calcula l'excedent: l'usen la
     versió dura, les toves, el cost final, la validació i el resum de la pantalla.
     """
-    assignatures = config_prof.get("assignatures", [])
     dies = _dies_restringits(config_prof)
     _max = config_prof.get("max_examens")
     max_examens = int(_max) if _max is not None else 999
@@ -194,10 +212,7 @@ def recompte_limit_professor(
     vistes: set[int] = set()
 
     def compta(sessio: dict) -> bool:
-        if id(sessio) in vistes:
-            return False
-        titulars = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
-        if professor not in titulars or not sessio_in_group(sessio, assignatures):
+        if id(sessio) in vistes or not _es_del_limit(professor, config_prof, sessio):
             return False
         vistes.add(id(sessio))
         return True

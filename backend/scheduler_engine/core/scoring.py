@@ -38,6 +38,16 @@ def pes_professor(restriccions: dict, professor: str, tipus: str) -> int:
     return (costos.get("globals") or {}).get(tipus, DEFAULT_COST_PROFESSORS[tipus])
 
 
+def costos_professors_no_negatius(restriccions: dict) -> bool:
+    """Cap cost de professor (global o individual) és negatiu: afegir un
+    examen a una franja no pot abaratir el cost dels professors."""
+    costos = restriccions.get("costos_professors") or {}
+    valors = list({**DEFAULT_COST_PROFESSORS, **(costos.get("globals") or {})}.values())
+    for individual in (costos.get("individuals") or {}).values():
+        valors += list((individual or {}).values())
+    return all(v >= 0 for v in valors if isinstance(v, (int, float)))
+
+
 def costos_professors_analisi(
     analisi: dict, hora: str, restriccions: dict, ja_comptats: set[tuple] | None = None
 ) -> dict[tuple, int]:

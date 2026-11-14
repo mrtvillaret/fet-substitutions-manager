@@ -10,6 +10,7 @@ i el desglossament (quantitat × pes = punts) també hi quadra.
 """
 
 import copy
+import random
 import re
 
 import pytest
@@ -124,6 +125,77 @@ def test_la_suma_de_les_incidencies_es_el_cost_total(amb_restriccions, motor):
         "preferencia_mateix_dia",
         "preferencia_mateix_slot",
     } <= conceptes_vistos
+
+
+def _recalculat(client, horari):
+    return client.post(
+        "/api/scheduler/recalcular-cost", json={"horari": horari, "data_referencia": DATES[0], "selected_dates": DATES}
+    ).json()["cost_total"]
+
+
+@pytest.fixture
+def amb_durades():
+    """Dos nivells, Filosofia de dues hores i cinc hores d'inici."""
+    _, client = centre_amb_examens(nivells=DOS)
+    hores = ("08:00", "09:00", "10:00", "11:30", "12:30")
+    configura(
+        client,
+        nivells_actius=list(DOS),
+        alliberaments_per_nivell=alliberaments(nivells=DOS, hores_inici=hores),
+        durades_grups=[{"assignatures": ["Filosofia (1-BAT)", "Filosofia (2-BAT)"], "durada": 2, "durada_examen": 2}],
+    )
+    return client
+
+
+@pytest.mark.parametrize("escenari", ["amb_restriccions", "amb_durades"])
+@pytest.mark.parametrize("motor", ["v2", "v3", "v2-backtrack"])
+def test_el_cost_de_la_resposta_de_generar_es_el_del_recalcul(request, escenari, motor):
+    """La pantalla recalcula el cost tot seguit de generar; si el recàlcul
+    fallés, mostraria el de la resposta: han de ser el mateix. Abans el recuit
+    i el backtracking hi posaven el seu cost intern (1140 i 1110 punts on el
+    recàlcul en deia 140 i 350)."""
+    client = request.getfixturevalue(escenari)
+    random.seed(1)
+    resposta = client.post("/api/scheduler/generate", json=dict(PETICIO, motor=motor, random_seed=1))
+    horari = resposta.json()["horari"]
+    assert horari["metadata"].get("viable", True)
+    assert horari["metadata"]["cost_total"] == _recalculat(client, horari)
+
+
+@pytest.mark.parametrize("escenari", ["amb_restriccions", "amb_durades"])
+def test_el_cost_que_porta_la_cerca_del_backtracking_es_el_validat(request, monkeypatch, escenari):
+    """El cost que la cerca minimitza (sumat pas a pas) és el mateix número
+    que el cost validat de l'horari que retorna."""
+    from scheduler_engine.generators import v2_backtrack as bt
+
+    client = request.getfixturevalue(escenari)
+    de_la_cerca = []
+    desa = bt.GeneradorV2Backtrack._desa_solucio
+    monkeypatch.setattr(
+        bt.GeneradorV2Backtrack,
+        "_desa_solucio",
+        lambda gen, cerca, cost: de_la_cerca.append(cost) or desa(gen, cerca, cost),
+    )
+    peticio = dict(PETICIO, motor="v2-backtrack", random_seed=1)
+    horari = client.post("/api/scheduler/generate", json=peticio).json()["horari"]
+    assert de_la_cerca[-1] == horari["metadata"]["cost_total"] == _recalculat(client, horari)
+
+
+def test_el_backtracking_sense_tall_no_dona_un_horari_mes_car_que_el_greedy(amb_restriccions):
+    """La cerca exhaustiva minimitza el cost que es mostra. Abans en sumava un
+    de propi (sense les preferències de dia ni el «no el mateix dia» no
+    obligatori, i amb el límit per professor acumulat) i en aquest escenari
+    acabava sense tall amb un horari de 350 punts; el greedy en troba un de 140."""
+    random.seed(1)
+    greedy = amb_restriccions.post("/api/scheduler/generate", json=dict(PETICIO, motor="v2")).json()["horari"]
+    for llavor in (1, 2, 3):
+        limiter.reset()
+        peticio = dict(PETICIO, motor="v2-backtrack", random_seed=llavor)
+        horari = amb_restriccions.post("/api/scheduler/generate", json=peticio).json()["horari"]
+        assert "motiu_aturada" not in horari["metadata"]
+        cost = _recalculat(amb_restriccions, horari)
+        assert cost == 140
+        assert cost <= _recalculat(amb_restriccions, greedy)
 
 
 def test_cada_restriccio_tova_te_la_seva_linia_amb_punts(amb_restriccions):

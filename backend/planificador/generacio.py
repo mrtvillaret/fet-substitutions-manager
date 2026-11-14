@@ -10,6 +10,7 @@ from datetime import datetime
 from errors_domini import NoValid
 from errors_servidor import registra_excepcio
 from grups.abreviatures import aplicar_abreviatura_grup
+from planificador.cost import cost_de_la_planificacio
 from planificador.diagnostic import (
     _afegir_recompte_nivells,
     _diagnosticar_incompatibilitats,
@@ -207,6 +208,10 @@ def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
             if not meta.get("viable", True):
                 _explica_no_viable(horari, gen, pla, del_precheck=bool(incompatibilitats))
                 return {"status": "ok", "horari": horari}
+
+            # El cost de la resposta és el validat (el que donarà el recàlcul de la
+            # pantalla), no el que ha fet servir cada motor per buscar
+            meta["cost_total"] = cost_de_la_planificacio(horari, pla)["cost_total"]
 
             # Incidències: les del motor, la sortida capturada i la validació
 

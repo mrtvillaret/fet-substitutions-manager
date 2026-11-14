@@ -1583,7 +1583,10 @@
         "scheduleUpdated": "Schedule updated",
         "localChangesApplied": "Changes were applied locally",
         "notViable": "Not viable",
-        "notViableDetail": "{message} ({items} items > {slots} slots)"
+        "notViableDetail": "{message} ({items} items > {slots} slots)",
+        "searchCut": "The search did not finish",
+        "searchCutTime": "It stopped at the time limit: the timetable is the best one found so far. A longer maximum time might improve it",
+        "searchCutNodes": "It stopped at the calculation limit (nodes): the timetable is the best one found so far. More nodes might improve it"
       },
       "staleSubjects": {
         "text": "Some restrictions contain subjects that are no longer in the exam configuration (from a previous year or before a level was renamed) and do not apply to any exam:",

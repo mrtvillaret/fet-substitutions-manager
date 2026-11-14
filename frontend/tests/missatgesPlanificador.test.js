@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createI18n } from 'vue-i18n'
-import { avisosDeConfiguracio, avisosDeGrupsSenseNivell, tradueixMissatge } from '../src/views/scheduler/missatges.js'
+import { avisDeCercaTallada, avisosDeConfiguracio, avisosDeGrupsSenseNivell, tradueixMissatge } from '../src/views/scheduler/missatges.js'
 
 const messages = Object.fromEntries(['ca', 'es', 'en', 'it'].map(lang => [lang, JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), 'utf8'))]))
 const i18n = createI18n({ legacy: false, locale: 'ca', fallbackLocale: false, messages })
@@ -134,4 +134,13 @@ test('el diàleg de no viable i l’anàlisi només mostren els grups sense nive
   i18n.global.locale.value = 'ca'
   assert.deepEqual(avisosDeGrupsSenseNivell(logs, t), [tradueixMissatge(grup, t)])
   assert.deepEqual(avisosDeGrupsSenseNivell(undefined, t), [])
+})
+
+test('un horari viable d’una cerca tallada pel temps o pels nodes porta un avís; si ha acabat o no és viable, no', () => {
+  const t = (clau) => clau
+  assert.equal(avisDeCercaTallada({ viable: true, motiu_aturada: 'temps' }, t), 'scheduler.view.messages.searchCutTime')
+  assert.equal(avisDeCercaTallada({ motiu_aturada: 'nodes' }, t), 'scheduler.view.messages.searchCutNodes')
+  assert.equal(avisDeCercaTallada({ viable: true }, t), null)
+  assert.equal(avisDeCercaTallada({ viable: false, motiu_aturada: 'temps' }, t), null)
+  assert.equal(avisDeCercaTallada(null, t), null)
 })

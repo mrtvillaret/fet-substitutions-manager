@@ -1583,7 +1583,10 @@
         "scheduleUpdated": "Horario actualizado",
         "localChangesApplied": "Los cambios se han aplicado localmente",
         "notViable": "No viable",
-        "notViableDetail": "{message} ({items} items > {slots} slots)"
+        "notViableDetail": "{message} ({items} items > {slots} slots)",
+        "searchCut": "La búsqueda no ha terminado",
+        "searchCutTime": "Se ha detenido por el límite de tiempo: el horario es el mejor que se ha encontrado hasta entonces. Con más tiempo máximo podría mejorar",
+        "searchCutNodes": "Se ha detenido por el límite de cálculo (nodos): el horario es el mejor que se ha encontrado hasta entonces. Con más nodos podría mejorar"
       },
       "staleSubjects": {
         "text": "Hay restricciones con asignaturas que ya no están en la configuración de exámenes (de un curso anterior o de antes de cambiar el nombre de un nivel) y no se aplican a ningún examen:",

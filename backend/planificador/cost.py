@@ -151,6 +151,35 @@ def hores_lectives(root, hores_examen) -> list[str]:
     return hores
 
 
+def context_del_cost(
+    cfg, restriccions: dict, xml_path: str, nivells_actius: list, dia_a_data_iso: dict, hores_examen: list
+) -> SimpleNamespace:
+    """El que cal per puntuar un horari amb `recalcular_cost_i_breakdown`: la
+    configuració, les restriccions i l'horari dels professors (XML). És el
+    mateix per a l'horari acabat de generar i per al recàlcul d'un d'editat."""
+    root = ET.parse(xml_path).getroot()
+    return SimpleNamespace(
+        restriccions=restriccions,
+        horaris_professors=llegeix_horaris_professors(root, cfg.ultim_professor, normalitza_hores=True),
+        hores_examen=hores_examen,
+        durada_titular=cfg.durada_titular,
+        no_substituir_norm={normalitzar_text(a) for a in cfg.no_substituir if a},
+        totes_hores=hores_lectives(root, hores_examen),
+        nivells_actius=nivells_actius,
+        dia_a_data_iso=dia_a_data_iso,
+        alliberaments_per_nivell=cfg.alliberaments,
+        durades_per_sessio=cfg.durades_per_sessio,
+        nivells_dels_grups=cfg.nivells_dels_grups,
+    )
+
+
+def cost_de_la_planificacio(horari: dict, pla) -> dict:
+    """El cost validat d'un horari acabat de generar (`pla`: la Planificacio
+    amb què s'ha generat): el mateix càlcul que farà el recàlcul de la pantalla."""
+    ctx = context_del_cost(pla.cfg, pla.restriccions, pla.xml_path, pla.nivells, pla.dia_a_data_iso, pla.hores_examen)
+    return recalcular_cost_i_breakdown(horari, ctx)
+
+
 def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
     """El cost, els avisos i els conflictes d'un horari editat a mà (sense
     regenerar-lo); el desa com a últim horari. L'horari (XML) és el de la data
@@ -164,7 +193,6 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
     restriccions = cfg.restriccions
     nivells_actius = cfg.nivells_actius()
     selected_dates = cfg.dates(payload.selected_dates, nivells_actius)
-    no_subst_norm = {normalitzar_text(a) for a in cfg.no_substituir if a}
 
     hores_examen, _ = extreure_hores_examen_des_alliberaments(cfg.alliberaments)
 
@@ -179,35 +207,15 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
         data_inici_iso=data_ref,
     )
 
-    xml_path = xml_del_dia(dia)
-
-    # Carregar horaris professors
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-
-    totes_hores = hores_lectives(root, hores_examen)
+    ctx = context_del_cost(cfg, restriccions, xml_del_dia(dia), nivells_actius, dia_a_data_iso, hores_examen)
+    totes_hores, horaris_professors, no_subst_norm = ctx.totes_hores, ctx.horaris_professors, ctx.no_substituir_norm
 
     # Aplicar també en recàlcul la restricció derivada de slots vàlids per nivell (marques 🟦).
     aplica_restriccions_derivades(
         restriccions, cfg.alliberaments, nivells_actius, dies_horari, dia_a_data_iso, totes_hores
     )
 
-    horaris_professors = llegeix_horaris_professors(root, cfg.ultim_professor, normalitza_hores=True)
-
     # Recalcular cost amb el mòdul d'estadístiques
-    ctx = SimpleNamespace(
-        restriccions=restriccions,
-        horaris_professors=horaris_professors,
-        hores_examen=hores_examen,
-        durada_titular=cfg.durada_titular,
-        no_substituir_norm=no_subst_norm,
-        totes_hores=totes_hores,
-        nivells_actius=nivells_actius,
-        dia_a_data_iso=dia_a_data_iso,
-        alliberaments_per_nivell=cfg.alliberaments,
-        durades_per_sessio=cfg.durades_per_sessio,
-        nivells_dels_grups=cfg.nivells_dels_grups,
-    )
     cost_info = recalcular_cost_i_breakdown(horari, ctx)
 
     # Cost, avisos i conflictes de cada franja

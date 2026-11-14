@@ -85,12 +85,16 @@ class ConfigPlanificador:
         return avisos + self.avisos_de_grups()
 
     def avisos_de_grups(self) -> list:
-        """Un avís per a cada grup de les assignacions que no és a cap nivell,
-        amb les seves assignatures (també al diàleg de no viable i a l'anàlisi)."""
+        """Un avís per a cada grup sense nivell de les assignacions que no es
+        planifiquen (cap dels seus grups és a cap nivell), amb les seves
+        assignatures (també al diàleg de no viable i a l'anàlisi)."""
         per_grup: dict[str, list] = {}
         for assignatura, dades in (self.config.get("assignatures") or {}).items():
             for assignacio in dades.get("assignacions", []):
-                for grup in self.nivells_dels_grups.sense_nivell(assignacio.get("grup") or ""):
+                text = assignacio.get("grup") or ""
+                if self.nivells_dels_grups.nivells(text):
+                    continue  # es planifica amb el nivell dels grups coneguts
+                for grup in self.nivells_dels_grups.sense_nivell(text):
                     noms = per_grup.setdefault(grup, [])
                     if assignatura not in noms:
                         noms.append(assignatura)

@@ -103,6 +103,12 @@ def aplicar_estadistiques(horari: dict) -> None:
     metadata.update(stats)
 
 
+def clau_de_data(dia: dict) -> str:
+    """La clau sota la qual es desen els exàmens d'un dia de l'horari: la
+    seva data ISO o, si no en porta, el nom del dia normalitzat."""
+    return dia.get("data", "") or normalitzar_dia(dia.get("dia", ""))
+
+
 def _sessions_per_dia_i_data(horari: dict) -> tuple[dict, dict]:
     """sessions_per_dia: per nom de dia normalitzat (límit per professor);
     sessions_per_data: per data ISO o nom de dia (no confondre setmanes)."""
@@ -110,7 +116,7 @@ def _sessions_per_dia_i_data(horari: dict) -> tuple[dict, dict]:
     sessions_per_data = defaultdict(list)
     for dia in horari.get("dies", []):
         dia_norm = normalitzar_dia(dia.get("dia", ""))
-        data_key = dia.get("data", "") or dia_norm
+        data_key = clau_de_data(dia)
         for slot in dia.get("sessions", []):
             for sessio in slot.get("sessions_simultanees", []):
                 sessions_per_dia[dia_norm].append(sessio)
@@ -123,6 +129,54 @@ def _data_iso(dia: dict, dia_a_data_iso: dict | None):
     return dia.get("data") or (_dates[0] if isinstance(_dates, list) else _dates)
 
 
+def incidencies_restriccions_dia(
+    dia: dict, sessions_per_data: dict, restriccions: dict, dia_a_data_iso: dict | None = None, nomes=None
+) -> list:
+    """Les incidències de restriccions i preferències dels exàmens d'un dia de
+    l'horari, amb els punts que sumen al cost final. `sessions_per_data`: els
+    exàmens de cada data (claus de `clau_de_data`), per saber quins
+    coincideixen de dia. No hi ha el límit per professor, que es compta amb
+    tot l'horari. `nomes`: si es passa, només les incidències d'aquests
+    exàmens (`id`); els altres hi són com a context.
+
+    És l'únic lloc on es calculen: el cost final, el validador i la cerca del
+    backtracking (que les suma dia a dia mentre col·loca exàmens) passen per aquí."""
+    dia_nom = dia.get("dia", "")
+    data_iso = _data_iso(dia, dia_a_data_iso)
+    data_key = data_iso if data_iso else normalitzar_dia(dia_nom)
+    incidencies = []
+    for slot in dia.get("sessions", []):
+        hora = slot.get("hora", "")
+        sessions_slot = slot.get("sessions_simultanees", [])
+        for sessio in sessions_slot:
+            if nomes is not None and id(sessio) not in nomes:
+                continue
+            de_la_sessio = []
+            calcular_cost_slot(
+                sessio=sessio,
+                dia=dia_nom,
+                hora=hora,
+                analisi={"substitucions": [], "abans_jornada": [], "despres_jornada": [], "no_treballa_dia": []},
+                restriccions=restriccions,
+                sessions_dia=sessions_per_data.get(data_key, []),
+                sessions_slot=sessions_slot,
+                include_limit_dies=False,
+                data_iso=data_iso,
+                incidencies=de_la_sessio,
+            )
+            incidencies += [
+                inc._replace(
+                    nom=sessio.get("nom", ""),
+                    curs=sessio.get("curs", ""),
+                    dia=dia_nom,
+                    hora=hora,
+                    data=dia.get("data") or "",
+                )
+                for inc in de_la_sessio
+            ]
+    return incidencies
+
+
 def incidencies_restriccions(horari: dict, restriccions: dict, dia_a_data_iso: dict | None = None) -> list:
     """Les incidències de restriccions i preferències de l'horari (tot el cost
     llevat del dels professors, que depèn del seu horari), amb els punts que
@@ -130,36 +184,7 @@ def incidencies_restriccions(horari: dict, restriccions: dict, dia_a_data_iso: d
     sessions_per_dia, sessions_per_data = _sessions_per_dia_i_data(horari)
     incidencies = []
     for dia in horari.get("dies", []):
-        dia_nom = dia.get("dia", "")
-        data_iso = _data_iso(dia, dia_a_data_iso)
-        data_key = data_iso if data_iso else normalitzar_dia(dia_nom)
-        for slot in dia.get("sessions", []):
-            hora = slot.get("hora", "")
-            sessions_slot = slot.get("sessions_simultanees", [])
-            for sessio in sessions_slot:
-                de_la_sessio = []
-                calcular_cost_slot(
-                    sessio=sessio,
-                    dia=dia_nom,
-                    hora=hora,
-                    analisi={"substitucions": [], "abans_jornada": [], "despres_jornada": [], "no_treballa_dia": []},
-                    restriccions=restriccions,
-                    sessions_dia=sessions_per_data.get(data_key, []),
-                    sessions_slot=sessions_slot,
-                    include_limit_dies=False,
-                    data_iso=data_iso,
-                    incidencies=de_la_sessio,
-                )
-                incidencies += [
-                    inc._replace(
-                        nom=sessio.get("nom", ""),
-                        curs=sessio.get("curs", ""),
-                        dia=dia_nom,
-                        hora=hora,
-                        data=dia.get("data") or "",
-                    )
-                    for inc in de_la_sessio
-                ]
+        incidencies += incidencies_restriccions_dia(dia, sessions_per_data, restriccions, dia_a_data_iso)
     # El límit per professor, un sol càlcul global
     incidencies += incidencies_limit_professors(sessions_per_dia, restriccions)
     return incidencies

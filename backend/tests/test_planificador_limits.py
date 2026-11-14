@@ -37,6 +37,7 @@ def client(monkeypatch):
         {"max_iteracions": -1},
         {"max_nodes": -1},
         {"temperatura_inicial": "Infinity"},
+        {"motor": "no_existeix"},
     ],
 )
 def test_parametres_invalids_son_422_abans_de_cridar_el_motor(client, camps):
@@ -178,3 +179,12 @@ def test_tots_els_defaults_publicats_dels_motors_son_valids(client):
 def test_dates_invertides_son_422(client):
     resposta = client.post("/api/scheduler/generate", json={"data_inici": "2026-04-20", "data_final": "2026-04-19"})
     assert resposta.status_code == 422
+
+
+def test_els_motors_que_accepta_la_peticio_son_els_del_registre():
+    from typing import get_args
+
+    from planificador.schemas import SchedulerGenerateRequest
+    from scheduler_engine.factory import MOTORS
+
+    assert set(get_args(SchedulerGenerateRequest.model_fields["motor"].annotation)) == set(MOTORS)

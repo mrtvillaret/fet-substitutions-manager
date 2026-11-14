@@ -1583,7 +1583,10 @@
         "scheduleUpdated": "Pianificazione aggiornata",
         "localChangesApplied": "Le modifiche sono state applicate localmente",
         "notViable": "Non fattibile",
-        "notViableDetail": "{message} ({items} elementi > {slots} fasce)"
+        "notViableDetail": "{message} ({items} elementi > {slots} fasce)",
+        "searchCut": "La ricerca non è terminata",
+        "searchCutTime": "Si è fermata per il limite di tempo: l’orario è il migliore trovato fino a quel momento. Con più tempo massimo potrebbe migliorare",
+        "searchCutNodes": "Si è fermata per il limite di calcolo (nodi): l’orario è il migliore trovato fino a quel momento. Con più nodi potrebbe migliorare"
       },
       "staleSubjects": {
         "text": "Alcune restrizioni contengono materie che non sono più nella configurazione degli esami (di un anno precedente o di prima di rinominare un livello) e non si applicano a nessun esame:",

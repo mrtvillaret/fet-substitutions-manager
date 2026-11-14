@@ -6,8 +6,9 @@ cada nivell), el de les classes de l'XML (si el professor queda alliberat) i
 el dels grups que es publiquen sense classe.
 
 Un text de grup pot ser una llista separada per comes (com a l'XML), una
-abreviatura («1-BAT-AB» → 1-BAT-A, 1-BAT-B) o el codi d'un nivell sencer; es
-desfà com a Vigilàncies (`vigilancies.assignacio.grups_de`). Un grup que no és
+abreviatura («1-BAT-AB» → 1-BAT-A, 1-BAT-B) o el codi d'un nivell sencer; el
+que no és a les taules tal com ve es desfà com a Vigilàncies
+(`vigilancies.assignacio.grups_de`). Un grup que no és
 a cap nivell no en té: no es dedueix res, i qui el fa servir ho avisa.
 """
 
@@ -45,11 +46,23 @@ class NivellsDelsGrups:
 
     # -------------------------------------------------------------- consultes
 
+    def _registrat(self, grup: str) -> bool:
+        return grup in self._nivell_de or grup in self.grups_per_nivell
+
     def _grups(self, text: str):
-        """Els grups d'un text: llista per comes i abreviatures desfetes."""
-        for part in (text or "").split(","):
-            part = part.strip()
-            if part:
+        """Els grups d'un text. El que ja és a les taules no es desfà: la
+        importació hi registra el grup tal com ve de l'horari, també una llista
+        amb comes («2-BAT-A,2-BAT-B») o una abreviatura. La resta, llista per
+        comes i abreviatures desfetes."""
+        parts = [part.strip() for part in (text or "").split(",") if part.strip()]
+        sencer = ",".join(parts)
+        if self._registrat(sencer):
+            yield sencer
+            return
+        for part in parts:
+            if self._registrat(part):
+                yield part
+            else:
                 yield from self.abreviatures.get(part, [part])
 
     def nivells(self, text: str) -> set[str]:

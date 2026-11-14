@@ -1583,7 +1583,10 @@
         "scheduleUpdated": "Horari actualitzat",
         "localChangesApplied": "Els canvis s'han aplicat localment",
         "notViable": "No viable",
-        "notViableDetail": "{message} ({items} exàmens > {slots} franges)"
+        "notViableDetail": "{message} ({items} exàmens > {slots} franges)",
+        "searchCut": "La cerca no ha acabat",
+        "searchCutTime": "S’ha aturat pel límit de temps: l’horari és el millor que s’ha trobat fins aleshores. Amb més temps màxim podria millorar",
+        "searchCutNodes": "S’ha aturat pel límit de càlcul (nodes): l’horari és el millor que s’ha trobat fins aleshores. Amb més nodes podria millorar"
       },
       "staleSubjects": {
         "text": "Hi ha restriccions amb assignatures que ja no són a la configuració d'exàmens (d'un curs anterior o d'abans de canviar el nom d'un nivell) i no s'apliquen a cap examen:",

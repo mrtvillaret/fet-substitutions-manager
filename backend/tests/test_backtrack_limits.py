@@ -72,7 +72,6 @@ def test_el_termini_talla_la_preparacio_i_la_cerca_d_una_llavor(monkeypatch, fas
     monkeypatch.setattr(gen, "get_durada_per_sessio_key", lambda *_: 1)
     monkeypatch.setattr(gen, "_get_hores_ocupades", lambda hora, *_: [hora])
     monkeypatch.setattr(bt, "calcular_cost_slot", lambda **_: {"cost_total": 0})
-    monkeypatch.setattr(gen, "_calcular_penalitzacio_professors_dies", lambda *_: 0)
     monkeypatch.setattr(gen, "_construir_horari_desde_slots", lambda *_: {"metadata": {}, "dies": []})
 
     def analitza(*args, **kwargs):

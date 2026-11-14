@@ -26,7 +26,7 @@ class SchedulerGenerateRequest(BaseModel):
     dies_utilitzar: list[str] | None = None
     nivells_actius: list[str] | None = None
     max_dies: int = Field(default=5, gt=0)
-    motor: str = "v3"
+    motor: Literal["v3", "v2", "v2-backtrack"] = "v3"  # els de scheduler_engine.factory.MOTORS
     estrategia: str = "ponderada"
     # Sostre = el màxim de la pantalla; a més, el motor s'atura al temps màxim (segons_maxims)
     max_intents_validacio: int = Field(default=250, gt=0, le=5000)

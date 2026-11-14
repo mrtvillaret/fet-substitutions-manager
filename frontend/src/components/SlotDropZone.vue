@@ -134,6 +134,7 @@ import { ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import draggable from 'vuedraggable'
 import { localizeIncidentText } from '../views/scheduler/textUtils'
+import { avisosDelsLogs, normalizeText } from './slotAvisos'
 
 const props = defineProps({
   slotKey: { type: String, required: true },
@@ -204,15 +205,6 @@ const getNivellColor = (curs) => {
   return nivellColors[curs] || '#94a3b8'
 }
 
-// Helper per normalitzar text (treure accents, minúscules)
-const normalizeText = (t) => (t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-
-// Helper per extreure hora d'un log (busca patró "a les HH:MM")
-const extractHour = (text) => {
-  const m = (text || '').match(/a(?: les)? (\d{1,2}:\d{2})/)
-  return m ? m[1] : null
-}
-
 // Extreure dia i hora del slotKey (format: "Dimarts_09:00")
 const getSlotDiaHora = () => {
   const parts = props.slotKey?.split('_') || []
@@ -240,35 +232,7 @@ const getItemWarnings = (item) => {
   if (!professors.length) return directWarnings
 
   const { dia, hora } = getSlotDiaHora()
-  const diaNorm = normalizeText(dia)
-  const horaNorm = hora
-
-  // Filtrar logs que:
-  // 1. Mencionen algun professor de l'ítem
-  // 2. Coincideixen amb el dia i hora del slot
-  const profsNorm = professors.map(normalizeText)
-
-  const logWarnings = logs.filter(log => {
-    const logNorm = normalizeText(log)
-    const logHour = extractHour(log)
-
-    // Ha de mencionar el professor
-    const matchesProf = profsNorm.some(prof => logNorm.includes(prof))
-    if (!matchesProf) return false
-
-    // Ha de coincidir amb el dia
-    if (!logNorm.includes(diaNorm)) return false
-
-    // Ha de coincidir amb l'hora (si es pot extreure)
-    if (logHour && logHour !== horaNorm) return false
-
-    // Només permetre avisos globals (enllaç, avisos, límit dies)
-    if (!(logNorm.includes('enllac') || logNorm.includes('avis') || logNorm.includes('limit dies'))) {
-      return false
-    }
-
-    return true
-  })
+  const logWarnings = avisosDelsLogs(logs, professors, dia, hora)
 
   if (!logWarnings.length) return directWarnings
   if (!directWarnings.length) return logWarnings

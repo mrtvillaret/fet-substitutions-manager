@@ -43,3 +43,11 @@ export function avisosDeConfiguracio(logs, t) {
 export function avisosDeGrupsSenseNivell(logs, t) {
   return (logs || []).filter((m) => m?.codi === 'grup_sense_nivell').map((m) => tradueixMissatge(m, t).trim())
 }
+
+// Un horari viable d'una cerca que s'ha aturat per un límit (temps o nodes):
+// el text de l'avís, o null si la cerca ha acabat.
+export function avisDeCercaTallada(metadata, t) {
+  if (metadata?.viable === false) return null
+  const clau = { temps: 'searchCutTime', nodes: 'searchCutNodes' }[metadata?.motiu_aturada]
+  return clau ? t('scheduler.view.messages.' + clau) : null
+}

@@ -1,5 +1,5 @@
 import { avisaError } from '../../errorsApi.js'
-import { tradueixMissatge } from './missatges.js'
+import { avisDeCercaTallada, tradueixMissatge } from './missatges.js'
 import * as apiPlanificador from '../../api/planificador'
 import { costosDesats } from './costos'
 import * as apiHorari from '../../api/horari'
@@ -261,6 +261,10 @@ export const useSchedulerApi = ({
         const maxSessions = result.value?.horari?.metadata?.total_sessions ?? null
         intentsLog.value = normalizeIntents(rawIntents, maxSessions)
         if (intentsLog.value.length) mostrarDialogIntents.value = true
+        const cercaTallada = avisDeCercaTallada(meta, t)
+        if (cercaTallada) {
+          toast.add({ severity: 'warn', summary: t('scheduler.view.messages.searchCut'), detail: cercaTallada, life: 10000 })
+        }
       }
 
       if (meta?.viable !== false) {

@@ -34,7 +34,6 @@ def backtrack(monkeypatch):
         monkeypatch.setattr(gen, "get_durada_per_sessio_key", lambda *_: 1)
         monkeypatch.setattr(gen, "_get_hores_ocupades", lambda hora, *_: [hora])
         monkeypatch.setattr(gen, "analitzar_disponibilitat_sessio", lambda *_, **__: {})
-        monkeypatch.setattr(gen, "_calcular_penalitzacio_professors_dies", lambda *_: 0)
         monkeypatch.setattr(gen, "_construir_horari_desde_slots", lambda *_: {"metadata": {}, "dies": [{}]})
         monkeypatch.setattr(bt, "calcular_cost_slot", lambda **_: {"cost_total": 0})
         return gen
@@ -110,6 +109,61 @@ def test_backtracking_amb_solucio_no_marca_cap_aturada(backtrack):
     meta = _genera_bt(backtrack(n=3, hores=3))["metadata"]
     assert meta["cost_total"] == 0
     assert "motiu_aturada" not in meta
+
+
+# ------------------------------------------------- diverses llavors
+
+
+def _amb_llavors(gen, monkeypatch, nodes_de_cada_llavor, llavors):
+    """Genera amb `llavors` llavors, cadascuna amb el seu límit de nodes (per
+    tallar-ne unes i deixar acabar les altres). Retorna (metadata, quantes
+    llavors s'han executat)."""
+    fetes = []
+    cerca_d_una_llavor = gen._backtrack_with_seed
+
+    def amb_el_seu_limit(seed, dies, _max_nodes, *resta):
+        fetes.append(seed)
+        return cerca_d_una_llavor(seed, dies, nodes_de_cada_llavor[len(fetes) - 1], *resta)
+
+    monkeypatch.setattr(gen, "_backtrack_with_seed", amb_el_seu_limit)
+    resultat = gen.generar_totes_solucions_optimes(random_seed=1, seeds_count=llavors, dies_utilitzar=["Dilluns"])
+    return resultat[0]["metadata"], len(fetes)
+
+
+def test_despres_d_una_llavor_acabada_no_se_n_executen_mes(backtrack, monkeypatch):
+    """Una cerca que acaba sense tall ja ha trobat el cost mínim: les altres
+    llavors no el poden millorar (abans es feien totes)."""
+    meta, fetes = _amb_llavors(backtrack(n=3, hores=3), monkeypatch, [100000] * 5, llavors=5)
+    assert fetes == 1
+    assert meta["cost_total"] == 0
+    assert "motiu_aturada" not in meta
+
+
+def test_una_llavor_tallada_no_marca_l_horari_d_una_altra_que_ha_acabat(backtrack, monkeypatch):
+    """La primera llavor es talla pels nodes sense cap horari; la segona
+    acaba. L'horari ve d'una cerca acabada: no porta `motiu_aturada` (abans hi
+    quedava «nodes» i la pantalla avisava que la cerca no havia acabat)."""
+    meta, fetes = _amb_llavors(backtrack(n=3, hores=3), monkeypatch, [3, 100000, 100000], llavors=3)
+    assert fetes == 2
+    assert meta["cost_total"] == 0
+    assert "motiu_aturada" not in meta
+
+
+def test_una_llavor_acabada_sense_horari_diu_que_no_n_hi_ha_encara_que_una_altra_s_hagi_tallat(backtrack, monkeypatch):
+    gen = backtrack(n=4, hores=3)  # quatre exàmens del mateix nivell, tres franges
+    meta, fetes = _amb_llavors(gen, monkeypatch, [2, 100000, 100000], llavors=3)
+    assert fetes == 2
+    assert meta["viable"] is False
+    assert meta["error"] == missatge("no_viable")
+    assert "motiu_aturada" not in meta
+    assert [m["codi"] for m in gen._incompatibilitats_bt] == ["examen_sense_hora_causa"]
+
+
+def test_si_totes_les_llavors_es_tallen_l_horari_ho_diu(backtrack, monkeypatch):
+    meta, fetes = _amb_llavors(backtrack(n=4, hores=3), monkeypatch, [2, 2, 2], llavors=3)
+    assert fetes == 3
+    assert meta["motiu_aturada"] == "nodes"
+    assert meta["error"] == missatge("cerca_tallada_nodes", nodes=100000)
 
 
 # ------------------------------------------------------------ greedy (v2)

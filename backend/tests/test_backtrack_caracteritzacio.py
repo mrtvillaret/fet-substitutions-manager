@@ -1,11 +1,12 @@
-"""Caracterització del backtracking del planificador: fixa el que fa avui
+"""Caracterització del backtracking del planificador: fixa el que fa
 cada fase —preparació dels ítems, matriu de
 compatibilitat i ordre, propagació, cerca amb fer/desfer, cost afegit, talls
-per nodes i per temps, empats amb la llavor— abans de partir
-`_backtrack_with_seed`. No diu que el comportament sigui el desitjat.
+per nodes i per temps, empats amb la llavor—.
 
-El motor és el real; se'n substitueixen la partició en ítems, el cost i
-l'anàlisi de cada franja (taules fixes), i a alguns casos les restriccions.
+El motor és el real; se'n substitueixen la partició en ítems, el cost dels
+professors i l'anàlisi de cada franja (taules fixes), i a alguns casos les
+restriccions. El cost de restriccions i preferències és el real (el del cost
+final): que la cerca el minimitza es comprova a `test_backtrack_cost_final.py`.
 """
 
 import json
@@ -42,7 +43,6 @@ def crea_motor(
     durades=None,
     professors=None,
     prohibides=None,
-    penalitzacions=None,
 ):
     """Generador amb taules fixes. `costos`: {(sessió, dia o data, hora): punts}
     o {sessió: punts}; `professors`: {(sessió, dia o data, hora): {professor:
@@ -67,9 +67,6 @@ def crea_motor(
         "hora": hora,
         "data": k.get("data_iso"),
     }
-    gen._calcular_penalitzacio_professors_dies = lambda s, dia, _sessions: (penalitzacions or {}).get(
-        (s["nom"], dia), 0
-    )
     gen._construir_horari_desde_slots = lambda slots_occ, *_: {
         "metadata": {},
         "dies": sorted((sk, sorted(it["label"] for it in its)) for sk, its in slots_occ.items()),
@@ -80,7 +77,11 @@ def crea_motor(
         clau = (nom, k["data_iso"] or k["dia"], k["hora"])
         gen.crides_cost.append({**k, "ja_comptats": set(k["ja_comptats"])})
         assert k["analisi"] == {"sessio": nom, "dia": k["dia"], "hora": k["hora"], "data": k["data_iso"] or None}
-        return {"cost_total": costos.get(clau, costos.get(nom, 0)), "costos_professors": dict(professors.get(clau, {}))}
+        punts = costos.get(clau, costos.get(nom, 0))
+        # El cost d'una sessió sola a una franja és el dels seus professors: si
+        # la taula de professors no en diu cap, un de propi amb tots els punts
+        comptats = professors.get(clau, {("cost", nom): punts} if punts else {})
+        return {"cost_total": punts, "costos_professors": dict(comptats)}
 
     monkeypatch.setattr(bt, "calcular_cost_slot", cost)
     if prohibides is not None:
@@ -257,7 +258,6 @@ def test_no_mateix_slot_obligatori_no_comparteix_franja(monkeypatch):
         return real(it, sessions_slot, restr)
 
     monkeypatch.setattr(bt, "es_item_compatible_amb_slot", compatible)
-    monkeypatch.setattr(bt, "percent_no_mateix_slot_violation", lambda *_: 0)
     solucions, _ = resol(gen)
     assert vist == [("A", ["B"])]
     franges = on_va(solucions[0])
@@ -332,18 +332,19 @@ def test_tall_per_temps_a_la_cerca(monkeypatch):
     ara = [0]
     monkeypatch.setattr(time, "monotonic", lambda: ara[0])
     gen._termini_bt = 20
-    penalitzacions = []
+    afegits = []
+    cost_afegit = gen._cost_afegit
 
-    def penalitzacio(s, *_):
-        penalitzacions.append(s["nom"])
-        if len(penalitzacions) == 2:
+    def amb_rellotge(it_info, *args):
+        afegits.append(it_info["label"])
+        if len(afegits) == 2:
             ara[0] = 25
-        return 0
+        return cost_afegit(it_info, *args)
 
-    gen._calcular_penalitzacio_professors_dies = penalitzacio
+    gen._cost_afegit = amb_rellotge
     solucions, registre = resol(gen)
     assert solucions == []
-    assert penalitzacions == ["A", "B"]
+    assert afegits == ["A", "B"]
     assert gen._incompatibilitats_bt == []
     assert gen._aturada_bt is None  # el marca qui reparteix les llavors
     assert registre[-1] == "   📊 Nodes explorats: 2, solucions trobades: 0"
@@ -386,40 +387,48 @@ def test_atzucac_amb_causa_estructural(monkeypatch):
     assert gen._incompatibilitats_bt == [missatge("examen_sense_hora_causa", nom="B", causa="dia_hora_fix")]
 
 
-def test_cost_afegit_penalitzacio_de_professors(monkeypatch):
-    gen = crea_motor(monkeypatch, [item("A")], costos={"A": 1}, penalitzacions={("A", "Dilluns"): 30})
-    assert resol(gen)[0][0][0] == 31
+def test_cost_afegit_limit_per_professor(monkeypatch):
+    """El límit d'exàmens per professor suma pels exàmens de més (aquí un,
+    al 30 % del pes dur), com al cost final."""
+    a = {"nom": "A", "curs": "1-ESO", "examens": [{"titular": "P"}]}
+    b = {"nom": "B", "curs": "2-ESO", "examens": [{"titular": "P"}]}
+    limit = {"assignatures": ["A", "B"], "dies_restringits": ["Dilluns"], "max_examens": 1, "pes_penalitzacio": 30}
+    restriccions = {"restriccions_dures": {"professors_limit_dies_especifics": {"P": limit}}}
+    gen = crea_motor(
+        monkeypatch, [item("A", sessions=[a]), item("B", sessions=[b])], costos={"A": 1}, restriccions=restriccions
+    )
+    assert resol(gen)[0][0][0] == 3001
 
 
 def test_cost_afegit_no_mateix_slot_parcial(monkeypatch):
-    """Compartir franja amb una incompatible no obligatòria suma el seu
-    percentatge del pes dur (per defecte, 10000)."""
-    gen = crea_motor(monkeypatch, [item("A"), item("B", "2-ESO")], hores=["08:00"])
-    monkeypatch.setattr(bt, "percent_no_mateix_slot_violation", lambda s, slot, _r: 50 if slot else 0)
-    assert resol(gen)[0][0][0] == 5000
+    """Compartir franja amb una incompatible no obligatòria suma, a cada
+    examen, el seu percentatge del pes dur (per defecte, 10000)."""
+    grup = {"no_mateix_slot": {"g": ["A", "B"], "_pes_g": 50}}
+    gen = crea_motor(
+        monkeypatch, [item("A"), item("B", "2-ESO")], hores=["08:00"], restriccions={"restriccions_dures": grup}
+    )
+    assert resol(gen)[0][0][0] == 10000
     gen = crea_motor(
         monkeypatch,
         [item("A"), item("B", "2-ESO")],
         hores=["08:00"],
-        restriccions={"pesos_optimitzacio": {"restriccio_dura": 200}},
+        restriccions={"restriccions_dures": grup, "pesos_optimitzacio": {"restriccio_dura": 200}},
     )
-    assert resol(gen)[0][0][0] == 100
+    assert resol(gen)[0][0][0] == 200
 
 
 def test_cost_afegit_preferencia_mateix_slot(monkeypatch):
-    """«Mateix dia i hora»: al 100% tanca la franja; per sota, suma punts."""
+    """«Mateix dia i hora»: al 100% tanca la franja; per sota, suma els punts
+    del cost final (les companyes el mateix dia a una altra hora)."""
     vist = []
 
-    def preferencia(pct):
-        def calcula(s, sk, ubicacions, _r):
-            vist.append((s["nom"], sk, [(u["nom"], k) for u, k in ubicacions]))
-            return pct if ubicacions and all(k != sk for _, k in ubicacions) else 0
-
-        return calcula
+    def obligatoria(s, sk, ubicacions, _r):
+        vist.append((s["nom"], sk, [(u["nom"], k) for u, k in ubicacions]))
+        return 100 if ubicacions and all(k != sk for _, k in ubicacions) else 0
 
     costos = {("A", "Dilluns", "08:00"): 0, "A": 9, ("B", "Dilluns", "09:00"): 0, "B": 3}
     gen = crea_motor(monkeypatch, [item("A"), item("B", "2-ESO")], costos, hores=HORES[:2])
-    monkeypatch.setattr(bt, "percent_pref_mateix_slot_violation", preferencia(100))
+    monkeypatch.setattr(bt, "percent_pref_mateix_slot_violation", obligatoria)
     solucions, _ = resol(gen)
     assert (solucions[0][0], on_va(solucions[0])) == (3, {"Dilluns_08:00": ["A", "B"]})
     assert vist == [
@@ -428,10 +437,12 @@ def test_cost_afegit_preferencia_mateix_slot(monkeypatch):
         ("B", "Dilluns_08:00", [("A", "Dilluns_08:00")]),
         # «A» a les 9:00 (9 punts) ja no pot millorar 3, i no se'n calcula el cost afegit
     ]
+    monkeypatch.undo()
 
-    gen = crea_motor(monkeypatch, [item("A"), item("B", "2-ESO")], costos, hores=HORES[:2])
-    monkeypatch.setattr(bt, "percent_pref_mateix_slot_violation", preferencia(1))
+    preferencia = {"preferencies": {"mateix_slot": [{"assignatures": ["A", "B"], "pes": 1}]}}
+    gen = crea_motor(monkeypatch, [item("A"), item("B", "2-ESO")], costos, hores=HORES[:2], restriccions=preferencia)
     solucions, _ = resol(gen)
+    # Separats costarien 100 punts a cada examen (l'1 % de 10000)
     assert (solucions[0][0], on_va(solucions[0])) == (3, {"Dilluns_08:00": ["A", "B"]})
 
 
@@ -517,19 +528,22 @@ def _escenari_llavors(monkeypatch, random_seed, seeds_count, shuffle_top_n, max_
 
 def test_la_preparacio_es_fa_una_sola_vegada_per_a_totes_les_llavors(monkeypatch):
     """Els costos de cada ítem a cada franja no depenen de la
-    llavor; amb quatre llavors es calculen tants cops com amb una."""
+    llavor; amb quatre llavors es calculen tants cops com amb una. Amb 12
+    nodes totes les llavors es tallen (si una acabés, no se'n farien més)."""
     crides = []
     for seeds_count in (1, 4):
-        cas = _escenari_llavors(monkeypatch, 1, seeds_count, 0, 100000, ("Dilluns", "Dimarts"))
+        cas = _escenari_llavors(monkeypatch, 1, seeds_count, 0, 12, ("Dilluns", "Dimarts"))
         assert len(cas["llavors"]) == seeds_count
         crides.append(cas["crides_cost"])
     assert crides[0] == crides[1] == 42  # set ítems (l'exclòs també) a sis franges
 
 
 def test_amb_llavors_empatades_queda_un_sol_horari(monkeypatch):
-    """Les quatre llavors arriben al mateix cost; abans es retornaven
-    totes quatre («alternatives»), ara només l'horari de la primera."""
-    cas = _escenari_llavors(monkeypatch, 1, 4, 0, 100000, ("Dilluns", "Dimarts"))
+    """Les quatre llavors (tallades als 12 nodes) arriben al mateix cost;
+    abans es retornaven totes quatre («alternatives»), ara només l'horari de
+    la primera."""
+    cas = _escenari_llavors(monkeypatch, 1, 4, 0, 12, ("Dilluns", "Dimarts"))
+    assert len(cas["llavors"]) == 4
     assert len({sol[0]["cost"] for sol in cas["llavors"]}) == 1
     assert len(cas["resultat"]) == 1
     assert "alternatives" not in cas["resultat"][0]["metadata"]
@@ -566,7 +580,8 @@ def calcula_instantania(monkeypatch):
 @pytest.mark.parametrize("cas", CASOS_LLAVORS, ids=_clau)
 def test_instantania_de_totes_les_llavors(monkeypatch, cas):
     """Resultat, solucions de cada llavor (amb l'ordre dels ítems i els rangs
-    dels empats), missatges i registre: iguals que abans de partir la funció."""
+    dels empats), missatges i registre. On la primera llavor acaba sense tall
+    només hi ha aquella llavor; amb 12 nodes es tallen i es fan totes."""
     esperat = json.loads(INSTANTANIA.read_text(encoding="utf-8"))[_clau(cas)]
     assert _instantania(monkeypatch, cas) == esperat
 
@@ -591,21 +606,21 @@ def test_exclosos_per_item_i_no_per_nom(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def _amb_compte_de_cost_extra(gen):
+def _amb_compte_de_cost_afegit(gen):
     crides = []
-    original = gen._cost_extra
+    original = gen._cost_afegit
 
     def compta(*args, **kwargs):
         crides.append(args[1].clau)
         return original(*args, **kwargs)
 
-    gen._cost_extra = compta
+    gen._cost_afegit = compta
     return crides
 
 
 def test_no_calcula_el_cost_afegit_d_una_franja_que_ja_no_pot_millorar(monkeypatch):
     gen = crea_motor(monkeypatch, [item("A"), item("B"), item("C")], COSTOS_OPTIM_UNIC)
-    crides = _amb_compte_de_cost_extra(gen)
+    crides = _amb_compte_de_cost_afegit(gen)
     solucions, registre = resol(gen)
     assert [(c, on_va((c, s))) for c, s in solucions] == [
         (7, {"Dilluns_09:00": ["A"], "Dilluns_08:00": ["B"], "Dilluns_10:00": ["C"]})
@@ -615,11 +630,13 @@ def test_no_calcula_el_cost_afegit_d_una_franja_que_ja_no_pot_millorar(monkeypat
     assert len(crides) == 7
 
 
-def test_amb_pesos_negatius_no_es_poda_abans(monkeypatch):
-    """Si un pes configurable és negatiu, el cost afegit pot restar: es calcula sempre."""
+def test_amb_pesos_negatius_no_es_poda(monkeypatch):
+    """Si un pes configurable és negatiu, el cost pot baixar en afegir
+    exàmens: la cerca no deixa cap branca (abans encara podava amb el cost a
+    mig fer, que aleshores no és cap fita)."""
     restriccions = {"pesos_optimitzacio": {"restriccio_dura": -10}}
     gen = crea_motor(monkeypatch, [item("A"), item("B"), item("C")], COSTOS_OPTIM_UNIC, restriccions=restriccions)
-    crides = _amb_compte_de_cost_extra(gen)
+    crides = _amb_compte_de_cost_afegit(gen)
     solucions, _ = resol(gen)
-    assert len(crides) == 10
+    assert len(crides) == 15  # 3 + 3·2 + 6·1: totes les col·locacions
     assert solucions[0][0] == 7

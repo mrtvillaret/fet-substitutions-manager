@@ -1,11 +1,18 @@
 """
 Motor de generació d'horaris V2 - Backtracking (Cerca exhaustiva).
 
+El cost que minimitza és el cost final que es mostra: el dels professors de
+cada franja més les incidències de restriccions i preferències i el límit
+d'exàmens per professor (`cost_cerca.CostDeLaCerca`, que les demana a les
+mateixes funcions que el cost final). Una cerca que acaba sense tall dona
+l'horari de cost mínim entre els que compleixen les restriccions obligatòries.
+
 Optimitzacions implementades:
 1. Matriu de compatibilitat pre-calculada entre items
 2. Bitmask per nivells ocupats (O(1) per detectar conflictes)
 3. Forward Checking (propaga restriccions, detecta dead-ends aviat)
 4. Undo/Redo en lloc de còpies profundes
+5. Poda amb una fita inferior del cost (vegeu `cost_cerca`)
 """
 
 import random
@@ -15,9 +22,7 @@ from dataclasses import dataclass, field
 from itertools import groupby
 
 from scheduler_engine.core.constraints import (
-    _percent_penalty,
     es_item_compatible_amb_slot,
-    percent_no_mateix_slot_violation,
     percent_pref_mateix_slot_violation,
     viola_restriccio_dura,
 )
@@ -26,11 +31,11 @@ from scheduler_engine.core.franja import Franja, dia_de_prefix
 from scheduler_engine.core.franja import franja as _franja
 from scheduler_engine.core.missatges import missatge
 from scheduler_engine.core.normalitzacio import normalitzar_dia
-from scheduler_engine.core.punts import pes_restriccio_dura, pes_restriccio_violada
 from scheduler_engine.core.restriction_engine import RestrictionEngine, causa_principal
 from scheduler_engine.core.scoring import calcular_cost_slot
 from scheduler_engine.defaults import DEFAULT_PES_RESTRICCIO_DURA, DIES_SETMANA
 from scheduler_engine.estadistiques import aplicar_estadistiques
+from scheduler_engine.generators.cost_cerca import ZERO, CostDeLaCerca, CostFita
 from scheduler_engine.generators.v2_intents import GeneradorV2Intents
 from scheduler_engine.informe import log
 
@@ -75,7 +80,12 @@ class EstatCerca:
         self.franja_item = [None] * len(items)  # Franja de cada ítem
         # Forward Checking: franges encara possibles de cada ítem no assignat
         self.franges_restants = [set(it["slots_possibles"]) for it in items]
-        self._fets = []  # (ítem, franja, franges tretes per la propagació)
+        # Per al cost: els (franja, ítem) de cada data, quants d'aquests ítems
+        # depenen dels altres i els (dia, ítem) que compten per a algun límit
+        self.collocats_data = defaultdict(frozenset)
+        self.dependents_data = Counter()
+        self.collocats_limit = frozenset()
+        self._fets = []  # (ítem, franja, franges tretes per la propagació, col·locats d'abans)
 
     def franja(self, clau: str) -> Franja:
         return self._franges[clau]
@@ -112,15 +122,22 @@ class EstatCerca:
         for s in it_info["item"]["sessions"]:
             self.sessions_dia[franja.dia].append(s)
             self.sessions_data[franja.prefix].append(s)
-        self._fets.append((idx, franja, self._propaga(idx, franja)))
+        abans = (self.collocats_data[franja.prefix], self.collocats_limit)
+        self.collocats_data[franja.prefix] = abans[0] | {(clau, it_info["id"])}
+        self.dependents_data[franja.prefix] += it_info.get("depen", False)
+        if it_info.get("compta_limit"):
+            self.collocats_limit = abans[1] | {(franja.dia, it_info["id"])}
+        self._fets.append((idx, franja, self._propaga(idx, franja), abans))
 
     def desfes(self) -> None:
         """Desfà l'última assignació."""
-        idx, franja, tretes = self._fets.pop()
+        idx, franja, tretes, abans = self._fets.pop()
         for altre, franges in tretes:
             self.franges_restants[altre] |= franges
         it_info = self._items[idx]
         clau = franja.clau
+        self.collocats_data[franja.prefix], self.collocats_limit = abans
+        self.dependents_data[franja.prefix] -= it_info.get("depen", False)
         self.mascara_nivells[clau] ^= it_info["nivell_mask"]
         self.items_franja[clau].pop()
         self.professors_franja[clau].subtract(it_info["claus_slot"].get(clau, {}).keys())
@@ -181,7 +198,9 @@ class _Cerca:
     millor_cost: float = float("inf")
     nodes: int = 0  # els nodes explorats (mai més que max_nodes)
     tallada_per_nodes: bool = False  # s'ha deixat algun node per explorar pel límit
-    poda_abans: bool = False  # es pot podar abans de calcular el cost afegit (pesos no negatius)
+    cost: CostDeLaCerca | None = None  # restriccions, preferències i límits de l'horari a mig fer
+    poda: bool = False  # la fita inferior del cost és vàlida (pesos no negatius): es pot podar
+    pendent: list = field(default_factory=list)  # bonificació que encara pot arribar des de cada ítem
     atzucac_idx: int = -1  # l'ítem més profund que s'ha quedat sense franges
     atzucac_label: str | None = None
 
@@ -199,6 +218,7 @@ class _Preparacio:
     engine: object
     items_info: list[dict]  # els ítems amb alguna franja, en l'ordre de la partició
     compat: list[list[bool]]  # compatibilitat entre ítems, amb aquest mateix ordre
+    cost: CostDeLaCerca | None = None  # el cost de restriccions i preferències de qualsevol col·locació
 
 
 class _PreparacioCompartida:
@@ -262,7 +282,12 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         """[horari]: el millor horari de totes les llavors (als empats de cost,
         el de la primera llavor que hi arriba) o, si no n'hi ha cap, un horari
         buit amb l'error. Abans també retornava les llavors empatades
-        («alternatives», que la pantalla no feia servir)."""
+        («alternatives», que la pantalla no feia servir).
+
+        Quan una llavor acaba la cerca sense cap tall ja no se n'executen més:
+        ha trobat el cost mínim (o ha vist que no hi ha cap horari) i totes les
+        llavors busquen entre els mateixos horaris. `motiu_aturada` només es
+        posa si cap llavor no ha acabat: aleshores l'horari pot no ser el millor."""
         self._termini_bt = time.monotonic() + self.segons_maxims
         if dies_utilitzar is None:
             dies_utilitzar = list(DIES_SETMANA)[:max_dies]
@@ -289,6 +314,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         self._aturada_bt = None
         best_cost = float("inf")
         best_solutions = []  # [(cost, {franja: [ítems]})] de la millor llavor
+        acabada = False  # alguna llavor ha acabat la cerca sense tall
 
         preparacio = _PreparacioCompartida(lambda: self._prepara_cerca(dies_utilitzar))
         for _ in range(seeds_count):
@@ -302,6 +328,9 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             if sols and sols[0][0] < best_cost:
                 best_cost = sols[0][0]
                 best_solutions = sols
+            if getattr(self, "_cerca_acabada", False):
+                acabada = True
+                break
 
         resultats = []
         for cost, s_occ in best_solutions:
@@ -309,6 +338,9 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             h["metadata"].update({"cost_total": cost, "motor": "v2-backtrack"})
             resultats.append(h)
 
+        if acabada:
+            # El tall d'una altra llavor no diu res de l'horari que es retorna
+            self._aturada_bt = None
         motiu = self._aturada_bt
         if resultats:
             if motiu:
@@ -332,11 +364,10 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         if self._temps_esgotat():
             raise _TempsEsgotat
 
-    def _cost_item_a_franja(self, item: dict, franja: Franja, engine) -> tuple[int, dict] | None:
-        """(cost, professors comptats) de posar l'ítem tot sol a la franja;
-        None si no hi pot anar: restricció dura, no hi caben les hores o
-        alguna sessió hi costa tant com una restricció dura."""
-        cost = 0
+    def _professors_item_a_franja(self, item: dict, franja: Franja, engine) -> dict | None:
+        """Els professors comptats (clau → cost) de posar l'ítem tot sol a la
+        franja; None si no hi pot anar: restricció dura, no hi caben les hores
+        o alguna sessió hi costa tant com una restricció dura."""
         # Professors comptats a la franja (per no tornar-los a comptar si un
         # altre bloc de la mateixa franja els fa deixar la mateixa classe)
         claus = {}
@@ -364,40 +395,53 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             )
             if res_c["cost_total"] >= DEFAULT_PES_RESTRICCIO_DURA:
                 return None
-            cost += res_c["cost_total"]
             claus.update(res_c.get("costos_professors") or {})
-        return cost, claus
+        return claus
 
     def _prepara_items(self, items: list[dict], franges: list[Franja], engine) -> list[dict]:
-        """Fase 1: per a cada ítem, què costa a cada franja on pot anar. Els
-        ítems sense cap franja no hi surten (queden fora de la cerca)."""
+        """Fase 1: per a cada ítem, a quines franges pot anar i quins
+        professors hi compten. Els ítems sense cap franja no hi surten (queden
+        fora de la cerca)."""
         items_info = []
         bits_nivell = {}
         for item in items:
             self._comprova_termini()
-            slots_costs = {}
             slots_claus = {}
             for franja in franges:
                 self._comprova_termini()
-                resultat = self._cost_item_a_franja(item, franja, engine)
-                if resultat is not None:
-                    slots_costs[franja.clau], slots_claus[franja.clau] = resultat
+                claus = self._professors_item_a_franja(item, franja, engine)
+                if claus is not None:
+                    slots_claus[franja.clau] = claus
 
-            if slots_costs:
+            if slots_claus:
                 items_info.append(
                     {
                         # Identificador dens (0..N-1) només dels ítems viables
                         "id": len(items_info),
                         "label": item["nom"],
                         "item": item,
-                        "millor_cost": min(slots_costs.values()),
-                        "tots_slots": slots_costs,
                         "claus_slot": slots_claus,
-                        "slots_possibles": set(slots_costs.keys()),  # Per Forward Checking
+                        "slots_possibles": set(slots_claus.keys()),  # Per Forward Checking
                         "nivell_mask": _get_nivell_mask(item["sessions"], bits_nivell),
                     }
                 )
         return items_info
+
+    def _posa_costos(self, items_info: list[dict], franges: list[Franja], cost: CostDeLaCerca) -> None:
+        """Apunta a cada ítem què costa a cada franja on pot anar: els seus
+        professors, els seus exàmens de cost fix i, per ordenar la cerca, el
+        cost de l'ítem tot sol."""
+        per_clau = {franja.clau: franja for franja in franges}
+        for it in items_info:
+            self._comprova_termini()
+            it["depen"] = cost.depen[it["id"]]
+            it["compta_limit"] = cost.compta_limit[it["id"]]
+            it["cost_professors"] = {sk: sum(claus.values()) for sk, claus in it["claus_slot"].items()}
+            it["cost_fix"] = {sk: cost.fix(it["id"], sk) for sk in it["claus_slot"]}
+            it["tots_slots"] = {
+                sk: it["cost_professors"][sk] + cost.sol(it["id"], per_clau[sk]) for sk in it["claus_slot"]
+            }
+            it["millor_cost"] = min(it["tots_slots"].values())
 
     def _causa_estructural(self, sessions: list[dict], franges: list[Franja], engine, amb_termini=False) -> str | None:
         """La restricció dura que treu més franges a un ítem tot sol (sense
@@ -521,14 +565,17 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             slots_to_try = top + slots_to_try[top_n:]
         return slots_to_try
 
-    def _cost_extra(self, it_info: dict, franja: Franja, estat: EstatCerca, ubicacions: list, engine) -> int | None:
+    def _cost_afegit(
+        self, it_info: dict, franja: Franja, estat: EstatCerca, ubicacions: list, cerca: _Cerca
+    ) -> CostFita | None:
         """El que suma (o resta) posar l'ítem a la franja pel que ja hi ha
-        col·locat; None si alguna restricció dura no ho deixa fer."""
+        col·locat, sense els seus professors ni el seu cost fix: el canvi de
+        les incidències del dia i del límit per professor (i el canvi de la
+        seva fita). None si alguna restricció obligatòria no ho deixa fer."""
         sk = franja.clau
         sessions_slot_ara = estat.sessions_a(sk)
-        cost_extra = 0
         for s in it_info["item"]["sessions"]:
-            if engine.check_hard(
+            if cerca.engine.check_hard(
                 s,
                 franja.dia,
                 franja.hora,
@@ -538,35 +585,39 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
                 estat.sessions_dia,
             ):
                 return None
-            cost_extra += self._calcular_penalitzacio_professors_dies(s, franja.dia, estat.sessions_dia)
-            pct_slot = percent_no_mateix_slot_violation(s, sessions_slot_ara, self.restriccions)
-            if pct_slot:
-                pesos_opt = self.restriccions.get("pesos_optimitzacio", {})
-                pes_d = pesos_opt.get("restriccio_dura", DEFAULT_PES_RESTRICCIO_DURA)
-                cost_extra += _percent_penalty(pes_d, pct_slot)
-            pct_pref = percent_pref_mateix_slot_violation(s, sk, ubicacions, self.restriccions)
-            if pct_pref >= 100:
+            # «Mateix dia i hora» obligatori: no pot anar a un altre moment que una companya
+            if percent_pref_mateix_slot_violation(s, sk, ubicacions, self.restriccions) >= 100:
                 return None
-            cost_extra += _percent_penalty(DEFAULT_PES_RESTRICCIO_DURA, pct_pref)
 
-        return cost_extra - self._descompte(it_info, sk, estat)
+        cost = fita = 0
+        if it_info["depen"] or estat.dependents_data[franja.prefix]:
+            del_dia = estat.collocats_data[franja.prefix]
+            abans, despres = cerca.cost.del_dia(del_dia), cerca.cost.del_dia(del_dia | {(sk, it_info["id"])})
+            cost += despres.cost - abans.cost
+            fita += despres.fita - abans.fita
+        if it_info["compta_limit"]:
+            del_limit = estat.collocats_limit
+            limit = cerca.cost.limit(del_limit | {(franja.dia, it_info["id"])}) - cerca.cost.limit(del_limit)
+            cost += limit
+            fita += limit
+        return CostFita(cost, fita) if cost or fita else ZERO
 
     @staticmethod
     def _descompte(it_info: dict, sk: str, estat: EstatCerca) -> int:
         """Un professor ja comptat a la franja per un altre bloc deixa la
-        mateixa classe: no es torna a comptar (l'única part del cost afegit
-        que resta, si els pesos no són negatius)."""
+        mateixa classe: no es torna a comptar."""
         claus_item = it_info["claus_slot"].get(sk, {})
         return sum(c for k, c in claus_item.items() if estat.professors_franja[sk][k] > 0)
 
-    def _poda_abans_del_cost_extra(self) -> bool:
-        """El cost afegit, sense el descompte, mai és negatiu si els pesos de
-        les restriccions no ho són: aleshores es pot podar abans de calcular-lo."""
-        return pes_restriccio_dura(self.restriccions) >= 0 and pes_restriccio_violada(self.restriccions) >= 0
+    @staticmethod
+    def _poda_valida(cost: CostDeLaCerca) -> bool:
+        """Amb algun pes negatiu el cost pot baixar en afegir exàmens i la
+        fita no val: la cerca no poda (és exhaustiva de debò, i lenta)."""
+        return cost.poda_valida
 
     def _desa_solucio(self, cerca: _Cerca, cost: float) -> None:
-        """Una solució completa. La poda és amb `>=` (a `_cerca`): només hi
-        arriben les que milloren la millor, i en queda una sola."""
+        """Una solució completa que millora la millor (als empats de cost es
+        queda la primera): en queda una sola."""
         sol_slots = {}
         for i, sk in enumerate(cerca.estat.franja_item):
             if sk is not None:
@@ -574,9 +625,14 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         cerca.millor_cost = cost
         cerca.solucions = [(cost, sol_slots)]
 
-    def _cerca(self, cerca: _Cerca, idx: int, cost_ac: float) -> None:
+    def _cerca(self, cerca: _Cerca, idx: int, cost_ac: float, fita_ac: float) -> None:
         """Fase 3: col·loca l'ítem idx a cada franja que li queda, de la més
-        barata a la més cara, i continua amb el següent."""
+        barata a la més cara, i continua amb el següent.
+
+        cost_ac és el cost (el final que es mostra) dels ítems ja col·locats;
+        fita_ac, el mínim que valdran quan l'horari sigui complet, sense les
+        bonificacions que encara poden arribar (`cerca.pendent`). Una branca
+        es deixa quan `fita - pendent` ja no pot millorar la millor solució."""
         if self._temps_esgotat():
             return
         # Al límit, la crida no és cap node explorat (abans també es comptava)
@@ -584,11 +640,12 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             cerca.tallada_per_nodes = True
             return
         cerca.nodes += 1
-        if cost_ac >= cerca.millor_cost:
-            return
 
         if idx >= len(cerca.items):
-            self._desa_solucio(cerca, cost_ac)
+            if cost_ac < cerca.millor_cost:
+                self._desa_solucio(cerca, cost_ac)
+            return
+        if cerca.poda and fita_ac - cerca.pendent[idx] >= cerca.millor_cost:
             return
 
         estat = cerca.estat
@@ -601,25 +658,28 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
         slots_to_try = self._franges_per_provar(cerca, idx)
         ubicacions = estat.ubicacions()
 
-        for sk, base_cost in slots_to_try:
+        for sk, _ in slots_to_try:
             if self._temps_esgotat():
                 return
             if not estat.hi_cap(idx, sk):
                 continue
-            if cerca.poda_abans and cost_ac + base_cost - self._descompte(it_info, sk, estat) >= cerca.millor_cost:
-                continue  # Poda: ni amb el millor cost afegit possible no milloraria
+            # Els professors de l'ítem (sense els ja comptats a la franja) i el seu cost fix
+            propi = it_info["cost_professors"][sk] - self._descompte(it_info, sk, estat) + it_info["cost_fix"][sk]
+            if cerca.poda and fita_ac + propi - cerca.pendent[idx] >= cerca.millor_cost:
+                continue  # Poda: ni amb la millor bonificació possible no milloraria
             franja = estat.franja(sk)
-            cost_extra = self._cost_extra(it_info, franja, estat, ubicacions, cerca.engine)
-            if cost_extra is None:
+            afegit = self._cost_afegit(it_info, franja, estat, ubicacions, cerca)
+            if afegit is None:
                 continue
-            new_cost = cost_ac + base_cost + cost_extra
-            if new_cost >= cerca.millor_cost:
+            new_cost = cost_ac + propi + afegit.cost
+            new_fita = fita_ac + propi + afegit.fita
+            if cerca.poda and new_fita - cerca.pendent[idx + 1] >= cerca.millor_cost:
                 continue  # Poda
 
             estat.assigna(idx, franja)
             sense_franges = estat.primer_sense_franges(idx + 1)
             if sense_franges is None:
-                self._cerca(cerca, idx + 1, new_cost)
+                self._cerca(cerca, idx + 1, new_cost, new_fita)
             else:
                 cerca.apunta_atzucac(sense_franges)
             estat.desfes()
@@ -669,20 +729,29 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             self._motius_exclosos(items, items_info, franges, engine)
             if not items_info:
                 return _Preparacio(franges, engine, [], [])
+            cost = CostDeLaCerca(
+                self.restriccions, getattr(self, "dia_a_data_iso", None), items_info, franges, self._comprova_termini
+            )
+            self._posa_costos(items_info, franges, cost)
             log.info(f"   Calculant matriu de compatibilitat {len(items_info)}x{len(items_info)}...")
             compat_matrix = self._matriu_compatibilitat(items_info)
         except _TempsEsgotat:
             return None
-        return _Preparacio(franges, engine, items_info, compat_matrix)
+        return _Preparacio(franges, engine, items_info, compat_matrix, cost)
 
     def _backtrack_with_seed(self, seed, dies_utilitzar, max_nodes=100000, shuffle_top_n=0, compartida=None):
         """La cerca d'una llavor: [(cost, {franja: [ítems]})] amb la millor
         solució, o [] si no n'ha trobat cap. `compartida` és la preparació de totes les llavors de la
         petició; sense, es prepara aquí."""
         rng = random.Random(seed)
+        # La cerca d'aquesta llavor ha acabat sense tall (ni temps ni nodes)
+        self._cerca_acabada = False
         compartida = compartida or _PreparacioCompartida(lambda: self._prepara_cerca(dies_utilitzar))
         preparacio = compartida.obte()
-        if preparacio is None or not preparacio.items_info:
+        if preparacio is None:
+            return []
+        if not preparacio.items_info:
+            self._cerca_acabada = True  # cap ítem per col·locar: no hi ha res a buscar
             return []
         engine, franges = preparacio.engine, preparacio.franges
         try:
@@ -694,8 +763,10 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
 
         estat = EstatCerca(franges, items_info, compat_matrix, self.restriccions, self._temps_esgotat)
         cerca = _Cerca(engine, items_info, estat, rng, max_nodes, shuffle_top_n)
-        cerca.poda_abans = self._poda_abans_del_cost_extra()
-        self._cerca(cerca, 0, 0)
+        cerca.cost = preparacio.cost
+        cerca.poda = self._poda_valida(preparacio.cost)
+        cerca.pendent = preparacio.cost.pendent([it["id"] for it in items_info])
+        self._cerca(cerca, 0, 0, 0)
 
         tallada_per_nodes = cerca.tallada_per_nodes
         if tallada_per_nodes:
@@ -703,6 +774,7 @@ class GeneradorV2Backtrack(GeneradorV2Intents):
             log.info(f"   ⚠️ Límit de nodes assolit ({max_nodes}), backtrack tallat")
         log.info(f"   📊 Nodes explorats: {cerca.nodes}, solucions trobades: {len(cerca.solucions)}")
         self._motiu_sense_solucio(cerca, franges, tallada_per_nodes)
+        self._cerca_acabada = not tallada_per_nodes and not self._temps_esgotat()
         return cerca.solucions
 
     def _construir_horari_desde_slots(self, slots_occ, data_inici, dies_utilitzar):

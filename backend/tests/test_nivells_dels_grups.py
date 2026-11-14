@@ -47,6 +47,23 @@ def test_un_grup_que_no_es_a_cap_nivell_no_en_te():
     assert TAULES.sense_nivell("1-ESO-AB") == []
 
 
+def test_un_grup_registrat_amb_coma_o_com_a_abreviatura_te_el_seu_nivell():
+    """La importació registra el grup tal com ve de l'horari: una llista amb
+    comes («2-BAT-A,2-BAT-B») o l'abreviatura. El text sencer que és a les
+    taules té el seu nivell encara que les parts no hi siguin."""
+    taules = NivellsDelsGrups(
+        {"2-BAT": ["2-BAT-A,2-BAT-B", "2-BAT-CD"], "1-BAT": ["1-BAT-A"]},
+        {"2-BAT-CD": ["2-BAT-C", "2-BAT-D"]},
+    )
+    assert taules.nivell("2-BAT-A,2-BAT-B") == "2-BAT"
+    assert taules.nivell("2-BAT-A, 2-BAT-B") == "2-BAT"  # amb espais, com a l'XML
+    assert taules.sense_nivell("2-BAT-A,2-BAT-B") == []
+    assert taules.nivell("2-BAT-CD") == "2-BAT"  # abreviatura registrada com a grup
+    assert taules.sense_nivell("2-BAT-CD") == []
+    assert taules.nivells("2-BAT-CD, 1-BAT-A") == {"2-BAT", "1-BAT"}  # una part registrada dins d'una llista
+    assert taules.nivell("2-BAT-A") is None  # la part sola no és a les taules: no es dedueix
+
+
 def test_grups_de_dos_nivells():
     assert TAULES.nivells("1-ESO-A,1-ESO-PDC-A") == {"1-ESO", "1-ESO-PDC"}
     assert TAULES.nivell("1-ESO-A,1-ESO-PDC-A") is None
@@ -187,6 +204,25 @@ def test_generar_avisa_dels_grups_que_no_son_a_cap_nivell():
         for e in ss["examens"]
     }
     assert "1-BAT-Z" not in grups
+
+
+def test_l_avis_nomes_surt_si_l_examen_no_es_planifica():
+    """Un text amb una part coneguda i una altra que no és a cap nivell sí que
+    es planifica (amb el nivell de la part coneguda): no s'avisa que no."""
+    from dataclasses import replace
+
+    def assignatura(grup):
+        return {"assignacions": [{"grup": grup}]}
+
+    cfg = replace(
+        _cfg({}),
+        config={"assignatures": {"Anglès": assignatura("1-ESO-A, 1-ESO-C"), "Dibuix": assignatura("1-ESO-C, 1-ESO-Z")}},
+        nivells_dels_grups=TAULES,
+    )
+    assert cfg.avisos_de_grups() == [
+        missatge("grup_sense_nivell", grup="1-ESO-C", assignatures=["Dibuix"]),
+        missatge("grup_sense_nivell", grup="1-ESO-Z", assignatures=["Dibuix"]),
+    ]
 
 
 # ---------------------------------------- avís: nivell sense hores alliberades
