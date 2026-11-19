@@ -17,6 +17,9 @@ from planificador.alliberaments import (
     _merge_slots_valids,
     _selected_dates_from_alliberaments,
 )
+from planificador.compartit.constants import DEFAULT_DURADA_TITULAR
+from planificador.compartit.missatges import missatge
+from planificador.compartit.nivells import NivellsDelsGrups
 from planificador.examens import nivells_dels_grups, nivells_master
 from planificador.repositories import (
     SCHEDULER_ALLIBERAMENTS_KEY,
@@ -28,9 +31,6 @@ from planificador.repositories import (
     llegeix_json,
 )
 from prioritats.repositories import NoSubstituirRepository
-from scheduler_engine.core.missatges import missatge
-from scheduler_engine.core.nivells import NivellsDelsGrups
-from scheduler_engine.defaults import DEFAULT_DURADA_TITULAR
 
 
 @dataclass

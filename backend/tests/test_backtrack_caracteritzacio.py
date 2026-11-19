@@ -3,22 +3,28 @@ cada fase —preparació dels ítems, matriu de
 compatibilitat i ordre, propagació, cerca amb fer/desfer, cost afegit, talls
 per nodes i per temps, empats amb la llavor—.
 
-El motor és el real; se'n substitueixen la partició en ítems, el cost dels
-professors i l'anàlisi de cada franja (taules fixes), i a alguns casos les
-restriccions. El cost de restriccions i preferències és el real (el del cost
+El motor és el real (`planificador/motor/estrategies/backtracking.py`); se'n
+substitueixen la partició en ítems, el cost dels professors i l'anàlisi de
+cada franja (taules fixes), i a alguns casos les restriccions. El cost de restriccions i preferències és el real (el del cost
 final): que la cerca el minimitza es comprova a `test_backtrack_cost_final.py`.
 """
 
 import json
-import time
+import random
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from scheduler_engine.core.missatges import missatge
-from scheduler_engine.generators import v2_backtrack as bt
-from scheduler_engine.informe import captura_informe
+from planificador.compartit.franja import franja
+from planificador.compartit.missatges import missatge
+from planificador.motor.compatibilitat import BACKTRACKING
+from planificador.motor.cost_cerca import CostCercaBacktracking
+from planificador.motor.estrategies import backtracking as bt
+from planificador.motor.estrategies.base import Pressupost
+from planificador.motor.model import Item, congela
+from planificador.motor.regles import construeix_regles
+from planificador.motor.sortida import horari_backtracking
 
 HORES = ["08:00", "09:00", "10:00"]
 INSTANTANIA = Path(__file__).parent / "caracteritzacio" / "backtrack_llavors.json"
@@ -30,6 +36,39 @@ def sessio(nom, curs="1-ESO"):
 
 def item(nom, curs="1-ESO", sessions=None):
     return {"nom": nom, "sessions": sessions or [sessio(nom, curs)]}
+
+
+class MotorAmbTaules(bt.Backtracking):
+    """El backtracking real amb taules fixes. Conserva el que necessita la
+    cerca d'una llavor (`_cerca_amb_llavor`) entre crides, com el motor d'una
+    petició: les causes apuntades per una llavor no es tornen a apuntar."""
+
+    def prepara(self, dies):
+        if getattr(self, "problema", None) is not None:
+            return
+        prefixos = self.dates or list(dies)
+        self.problema = SimpleNamespace(
+            franges=tuple(franja(f"{p}_{h}") for p in prefixos for h in self.hores),
+            regles=construeix_regles(self.restriccions_originals),
+            nivells=tuple(self.nivells),
+            dies=tuple(dies),
+            durades_vigilancia=self.durades,
+            durada_titular=1,
+            graella=tuple(self.hores),
+            mapa_dies={},
+        )
+        self.politiques = BACKTRACKING
+        self.cost_cerca = CostCercaBacktracking(self.problema)
+        self.pressupost = Pressupost(20, lambda: self.ara[0])
+        self.pressupost.inicia()
+        self.restriccions = self.problema.regles.a_diccionari()
+        self.nivells_actius = list(self.nivells)
+        self.items = ()
+        self.registre = []
+        self.causes = []
+        self.aturada = None
+        self.cerca_acabada = False
+        self.disponibilitat = None
 
 
 def crea_motor(
@@ -44,32 +83,30 @@ def crea_motor(
     professors=None,
     prohibides=None,
 ):
-    """Generador amb taules fixes. `costos`: {(sessió, dia o data, hora): punts}
+    """Motor amb taules fixes. `costos`: {(sessió, dia o data, hora): punts}
     o {sessió: punts}; `professors`: {(sessió, dia o data, hora): {professor:
     punts}}; `prohibides`: {(sessió, dia o data, hora): restricció dura}."""
     costos, professors, durades = costos or {}, professors or {}, durades or {}
-    gen = object.__new__(bt.GeneradorV2Backtrack)
-    gen.restriccions = restriccions or {}
-    gen.nivells_actius = sorted({s["curs"] for it in items for s in it["sessions"]})
-    gen.hores_examen = list(hores)
-    gen.selected_dates = list(dates or [])
-    gen._incompatibilitats_bt = []
-    gen._aturada_bt = None
+    gen = MotorAmbTaules()
+    gen.problema = None
+    gen.restriccions_originals = restriccions or {}
+    gen.nivells = sorted({s["curs"] for it in items for s in it["sessions"]})
+    gen.hores = list(hores)
+    gen.dates = list(dates or [])
+    gen.durades = durades
+    gen.ara = [0]
     gen.crides_cost = []
-    gen.preparar_particio_nivells = lambda **_: [dict(it, sessions=list(it["sessions"])) for it in items]
-    gen.get_durada_per_sessio_key = lambda nom, _curs: durades.get(nom, 1)
-    gen._get_hores_ocupades = lambda hora, _curs, nom: hores[
-        hores.index(hora) : hores.index(hora) + durades.get(nom, 1)
-    ]
-    gen.analitzar_disponibilitat_sessio = lambda s, dia, hora, **k: {
+    particio_fixa = tuple(
+        Item(f"item_{i}", it["nom"], (), congela({**it, "item_id": f"item_{i}", "sessions": list(it["sessions"])}))
+        for i, it in enumerate(items)
+    )
+    monkeypatch.setattr(bt, "particio", lambda *_: particio_fixa)
+    monkeypatch.setattr(bt, "Disponibilitat", lambda _: None)  # l'anàlisi és la taula fixa
+    gen._analitza = lambda s, ubicacio, altres=(): {
         "sessio": s["nom"],
-        "dia": dia,
-        "hora": hora,
-        "data": k.get("data_iso"),
-    }
-    gen._construir_horari_desde_slots = lambda slots_occ, *_: {
-        "metadata": {},
-        "dies": sorted((sk, sorted(it["label"] for it in its)) for sk, its in slots_occ.items()),
+        "dia": ubicacio.dia,
+        "hora": ubicacio.hora,
+        "data": ubicacio.data_iso,
     }
 
     def cost(**k):
@@ -83,31 +120,36 @@ def crea_motor(
         comptats = professors.get(clau, {("cost", nom): punts} if punts else {})
         return {"cost_total": punts, "costos_professors": dict(comptats)}
 
-    monkeypatch.setattr(bt, "calcular_cost_slot", cost)
+    monkeypatch.setattr(bt, "cost_sessio", cost)
     if prohibides is not None:
 
-        def check_hard(s, dia, hora, prefix, *_):
-            causa = prohibides.get((s["nom"], prefix, hora))
-            return SimpleNamespace(restriction=causa) if causa else None
+        class Dures:
+            def __init__(self, *_):
+                pass
 
-        monkeypatch.setattr(bt, "RestrictionEngine", lambda *_: SimpleNamespace(check_hard=check_hard))
+            def comprova(self, s, dia, hora, prefix, *_):
+                causa = prohibides.get((s["nom"], prefix, hora))
+                return SimpleNamespace(clau=causa) if causa else None
+
+        monkeypatch.setattr(bt, "_Dures", Dures)
     return gen
 
 
 def resol(gen, llavor=1, dies=("Dilluns",), max_nodes=100000, shuffle_top_n=0):
     """(solucions, línies del registre) d'una sola llavor."""
-    with captura_informe() as registre:
-        solucions = gen._backtrack_with_seed(llavor, list(dies), max_nodes, shuffle_top_n)
-    return solucions, registre.getvalue().splitlines()
+    gen.prepara(dies)
+    abans = len(gen.registre)
+    solucions = gen._cerca_amb_llavor(llavor, list(dies), max_nodes, shuffle_top_n)
+    return solucions, gen.registre[abans:]
 
 
 def on_va(solucio):
     """{franja: [ítems]} d'una solució (cost, {franja: [info de l'ítem]})."""
-    return {sk: sorted(it["label"] for it in its) for sk, its in solucio[1].items()}
+    return {sk: sorted(it["etiqueta"] for it in its) for sk, its in solucio[1].items()}
 
 
 def info(solucio, label):
-    return next(it for its in solucio[1].values() for it in its if it["label"] == label)
+    return next(it for its in solucio[1].values() for it in its if it["etiqueta"] == label)
 
 
 # ---------------------------------------------------------------------------
@@ -130,14 +172,14 @@ def test_preparacio_costos_i_franges_possibles(monkeypatch):
     assert solucions[0][0] == 7
     assert on_va(solucions[0]) == {"Dilluns_10:00": ["A"], "Dilluns_09:00": ["B"]}
     a, b = info(solucions[0], "A"), info(solucions[0], "B")
-    assert a["tots_slots"] == {"Dilluns_10:00": 5}
-    assert a["slots_possibles"] == {"Dilluns_10:00"}
-    assert (a["millor_cost"], a["nivell_mask"], a["id"]) == (5, 1, 0)
-    assert b["tots_slots"] == {"Dilluns_08:00": 3, "Dilluns_09:00": 2}
-    assert (b["millor_cost"], b["nivell_mask"], b["id"]) == (2, 2, 1)
+    assert a["totes_franges"] == {"Dilluns_10:00": 5}
+    assert a["franges_possibles"] == {"Dilluns_10:00"}
+    assert (a["millor_cost"], a["mascara_nivell"], a["id"]) == (5, 1, 0)
+    assert b["totes_franges"] == {"Dilluns_08:00": 3, "Dilluns_09:00": 2}
+    assert (b["millor_cost"], b["mascara_nivell"], b["id"]) == (2, 2, 1)
     assert a["item"]["nom"] == "A"
-    assert gen._incompatibilitats_bt == []
-    assert gen._aturada_bt is None
+    assert gen.causes == []
+    assert gen.aturada is None
     # La franja prohibida i la que no té prou hores no arriben a calcular cost
     assert [(c["sessio"]["nom"], c["hora"]) for c in gen.crides_cost] == [
         ("A", "09:00"),
@@ -172,7 +214,7 @@ def test_exclosos_sense_cap_franja_i_el_seu_motiu(monkeypatch):
     gen = crea_motor(monkeypatch, [item("A"), item("B"), item("C")], costos={"B": 10000, "C": 1}, prohibides=prohibides)
     solucions, registre = resol(gen)
     assert [(cost, list(on_va((cost, sol)).values())) for cost, sol in solucions] == [(1, [["C"]])]
-    assert gen._incompatibilitats_bt == [
+    assert gen.causes == [
         missatge("examen_sense_hora_causa", nom="A", causa="dia_hora_fix"),
         missatge("examen_sense_hora_motor", nom="B"),
     ]
@@ -180,14 +222,14 @@ def test_exclosos_sense_cap_franja_i_el_seu_motiu(monkeypatch):
     assert info(solucions[0], "C")["id"] == 0
     # Una altra llavor no torna a apuntar els motius
     resol(gen, llavor=2)
-    assert len(gen._incompatibilitats_bt) == 2
+    assert len(gen.causes) == 2
 
 
 def test_tots_exclosos_no_hi_ha_cerca(monkeypatch):
     gen = crea_motor(monkeypatch, [item("A")], costos={"A": 10000})
     solucions, registre = resol(gen)
     assert solucions == []
-    assert gen._incompatibilitats_bt == [missatge("examen_sense_hora_motor", nom="A")]
+    assert gen.causes == [missatge("examen_sense_hora_motor", nom="A")]
     assert len(registre) == 2
 
 
@@ -209,7 +251,7 @@ def test_professors_ja_comptats_dins_d_un_item(monkeypatch):
     solucions, _ = resol(gen)
     assert solucions[0][0] == 10
     assert [c["ja_comptats"] for c in gen.crides_cost] == [set(), {"P1"}]
-    assert info(solucions[0], "G")["claus_slot"] == {"Dilluns_08:00": {"P1": 4, "P2": 6}}
+    assert info(solucions[0], "G")["claus_franja"] == {"Dilluns_08:00": {"P1": 4, "P2": 6}}
 
 
 # ---------------------------------------------------------------------------
@@ -221,7 +263,7 @@ def test_mateix_nivell_no_comparteix_franja(monkeypatch):
     gen = crea_motor(monkeypatch, [item("A"), item("B")], hores=["08:00"])
     solucions, _ = resol(gen)
     assert solucions == []
-    assert gen._incompatibilitats_bt == [missatge("examen_sense_hora_causa", nom="B", causa="conflicte_restriccions")]
+    assert gen.causes == [missatge("examen_sense_hora_causa", nom="B", causa="conflicte_restriccions")]
 
 
 def test_qualsevol_nivell_te_bit_i_no_comparteix_franja(monkeypatch):
@@ -238,7 +280,7 @@ def test_qualsevol_nivell_te_bit_i_no_comparteix_franja(monkeypatch):
 
     gen._prepara_items = amb_captura
     assert resol(gen)[0] == []
-    assert [it["nivell_mask"] for it in capturats] == [1, 1, 0]  # sense nivell, cap bit
+    assert [it["mascara_nivell"] for it in capturats] == [1, 1, 0]  # sense nivell, cap bit
 
 
 def test_nivells_diferents_comparteixen_franja(monkeypatch):
@@ -272,7 +314,7 @@ def test_ordre_dels_items_mes_restringits_primer(monkeypatch):
     noms = ["Y", "V", "Z", "W", "X"]
     gen = crea_motor(monkeypatch, [item(n, f"{i + 1}-ESO" if i < 4 else "CFGM") for i, n in enumerate(noms)], costos)
     solucions, _ = resol(gen)
-    ordre = sorted(noms, key=lambda n: info(solucions[0], n)["sorted_id"])
+    ordre = sorted(noms, key=lambda n: info(solucions[0], n)["index_ordre"])
     assert ordre == ["X", "W", "Z", "Y", "V"]
     assert [info(solucions[0], n)["id"] for n in noms] == [0, 1, 2, 3, 4]
 
@@ -302,7 +344,7 @@ def test_cerca_troba_l_optim_unic(monkeypatch, llavor):
         (7, {"Dilluns_09:00": ["A"], "Dilluns_08:00": ["B"], "Dilluns_10:00": ["C"]})
     ]
     assert registre[-1] == "   📊 Nodes explorats: 8, solucions trobades: 1"
-    assert gen._aturada_bt is None
+    assert gen.aturada is None
 
 
 def test_tall_per_nodes(monkeypatch):
@@ -318,25 +360,23 @@ def test_tall_per_nodes(monkeypatch):
         # Les crides tallades ja no compten; abans deia 7
         "   📊 Nodes explorats: 4, solucions trobades: 1",
     ]
-    assert gen._aturada_bt == "nodes"
+    assert gen.aturada == "nodes"
 
     gen = crea_motor(monkeypatch, [item("A"), item("B"), item("C")], COSTOS_OPTIM_UNIC)
     solucions, _ = resol(gen, max_nodes=2)
     assert solucions == []
-    assert gen._aturada_bt == "nodes"
-    assert gen._incompatibilitats_bt == []
+    assert gen.aturada == "nodes"
+    assert gen.causes == []
 
 
 def test_tall_per_temps_a_la_cerca(monkeypatch):
     gen = crea_motor(monkeypatch, [item("A"), item("B"), item("C")], COSTOS_OPTIM_UNIC)
-    ara = [0]
-    monkeypatch.setattr(time, "monotonic", lambda: ara[0])
-    gen._termini_bt = 20
+    ara = gen.ara
     afegits = []
     cost_afegit = gen._cost_afegit
 
     def amb_rellotge(it_info, *args):
-        afegits.append(it_info["label"])
+        afegits.append(it_info["etiqueta"])
         if len(afegits) == 2:
             ara[0] = 25
         return cost_afegit(it_info, *args)
@@ -345,8 +385,8 @@ def test_tall_per_temps_a_la_cerca(monkeypatch):
     solucions, registre = resol(gen)
     assert solucions == []
     assert afegits == ["A", "B"]
-    assert gen._incompatibilitats_bt == []
-    assert gen._aturada_bt is None  # el marca qui reparteix les llavors
+    assert gen.causes == []
+    assert gen.aturada is None  # el marca qui reparteix les llavors
     assert registre[-1] == "   📊 Nodes explorats: 2, solucions trobades: 0"
 
 
@@ -365,7 +405,7 @@ def test_propagacio_no_mateix_dia(monkeypatch):
     gen = crea_motor(monkeypatch, [item("A"), item("B", "2-ESO")], restriccions=restriccions)
     solucions, registre = resol(gen)
     assert solucions == []
-    assert gen._incompatibilitats_bt == [missatge("examen_sense_hora_causa", nom="B", causa="conflicte_restriccions")]
+    assert gen.causes == [missatge("examen_sense_hora_causa", nom="B", causa="conflicte_restriccions")]
     assert registre[-1] == "   📊 Nodes explorats: 1, solucions trobades: 0"
 
     gen = crea_motor(monkeypatch, [item("A"), item("B", "2-ESO")], restriccions=restriccions)
@@ -384,7 +424,7 @@ def test_atzucac_amb_causa_estructural(monkeypatch):
     )
     solucions, _ = resol(gen)
     assert solucions == []
-    assert gen._incompatibilitats_bt == [missatge("examen_sense_hora_causa", nom="B", causa="dia_hora_fix")]
+    assert gen.causes == [missatge("examen_sense_hora_causa", nom="B", causa="dia_hora_fix")]
 
 
 def test_cost_afegit_limit_per_professor(monkeypatch):
@@ -428,7 +468,7 @@ def test_cost_afegit_preferencia_mateix_slot(monkeypatch):
 
     costos = {("A", "Dilluns", "08:00"): 0, "A": 9, ("B", "Dilluns", "09:00"): 0, "B": 3}
     gen = crea_motor(monkeypatch, [item("A"), item("B", "2-ESO")], costos, hores=HORES[:2])
-    monkeypatch.setattr(bt, "percent_pref_mateix_slot_violation", obligatoria)
+    monkeypatch.setattr(bt, "percentatge_preferencia_mateix_slot", obligatoria)
     solucions, _ = resol(gen)
     assert (solucions[0][0], on_va(solucions[0])) == (3, {"Dilluns_08:00": ["A", "B"]})
     assert vist == [
@@ -486,7 +526,7 @@ def _escenari_llavors(monkeypatch, random_seed, seeds_count, shuffle_top_n, max_
         monkeypatch, [item(n, c) for n, c in noms], costos, restriccions=restriccions, professors=professors
     )
     solucions_llavor = []
-    real = gen._backtrack_with_seed
+    real = gen._cerca_amb_llavor
 
     def amb_llavor(*args, **kwargs):
         sols = real(*args, **kwargs)
@@ -494,10 +534,12 @@ def _escenari_llavors(monkeypatch, random_seed, seeds_count, shuffle_top_n, max_
             [
                 {
                     "cost": cost,
-                    "franges": sorted((sk, sorted(it["label"] for it in its)) for sk, its in sol.items()),
-                    "ordre": sorted((it["sorted_id"], it["id"], it["label"]) for its in sol.values() for it in its),
+                    "franges": sorted((sk, sorted(it["etiqueta"] for it in its)) for sk, its in sol.items()),
+                    "ordre": sorted(
+                        (it["index_ordre"], it["id"], it["etiqueta"]) for its in sol.values() for it in its
+                    ),
                     "empats": {
-                        it["label"]: sorted(it["rang_empat"], key=it["rang_empat"].get)
+                        it["etiqueta"]: sorted(it["rang_empat"], key=it["rang_empat"].get)
                         for its in sol.values()
                         for it in its
                     },
@@ -507,22 +549,30 @@ def _escenari_llavors(monkeypatch, random_seed, seeds_count, shuffle_top_n, max_
         )
         return sols
 
-    gen._backtrack_with_seed = amb_llavor
-    with captura_informe() as registre:
-        resultat = gen.generar_totes_solucions_optimes(
-            random_seed=random_seed,
-            seeds_count=seeds_count,
-            dies_utilitzar=list(dies),
-            shuffle_top_n=shuffle_top_n,
-            max_nodes=max_nodes,
-        )
+    gen._cerca_amb_llavor = amb_llavor
+    gen.prepara(dies)
+    parametres = {"seeds_count": seeds_count, "shuffle_top_n": shuffle_top_n, "max_nodes": max_nodes}
+    cerca = gen.cerca(
+        gen.problema, BACKTRACKING, gen.cost_cerca, parametres, Pressupost(20, lambda: 0), random.Random(random_seed)
+    )
+    if cerca.assignacio is None:
+        horari = horari_backtracking(cerca, gen.problema, BACKTRACKING, None, 20, max_nodes)
+    else:
+        etiquetes = {it.id: it.nom for it in cerca.items}
+        per_franja = {}
+        for identificador, ubicacio in cerca.assignacio.items():
+            per_franja.setdefault(ubicacio.clau, []).append(etiquetes[identificador])
+        meta = {"cost_total": cerca.cost, "motor": "v2-backtrack"}
+        if cerca.motiu_aturada:
+            meta["motiu_aturada"] = cerca.motiu_aturada
+        horari = {"dies": sorted((sk, sorted(noms)) for sk, noms in per_franja.items()), "metadata": meta}
     return {
         "crides_cost": len(gen.crides_cost),
-        "resultat": resultat,
+        "resultat": [horari],
         "llavors": solucions_llavor,
-        "incompatibilitats": gen._incompatibilitats_bt,
-        "aturada": gen._aturada_bt,
-        "registre": registre.getvalue().splitlines(),
+        "incompatibilitats": cerca.causes,
+        "aturada": cerca.motiu_aturada,
+        "registre": cerca.registre,
     }
 
 
@@ -591,14 +641,12 @@ def test_exclosos_per_item_i_no_per_nom(monkeypatch):
     Abans es buscaven pel nom: el registre deia «1 items … : []» i el que
     quedava fora no tenia missatge."""
     gen = crea_motor(monkeypatch, [item("A")])
+    gen.prepara(["Dilluns"])
     dins, fora = item("A", "1-ESO"), item("A", "2-ESO")
-    engine = SimpleNamespace(check_hard=lambda *_: SimpleNamespace(restriction="franja_prohibida"))
-    gen._incompatibilitats_bt = []
-    franges = gen._franges(["Dilluns"])
-    with captura_informe() as registre:
-        gen._motius_exclosos([dins, fora], [{"item": dins, "label": "A"}], franges, engine)
-    assert "1 items sense cap slot viable (exclosos del backtrack): ['A']" in registre.getvalue()
-    assert gen._incompatibilitats_bt == [missatge("examen_sense_hora_causa", nom="A", causa="franja_prohibida")]
+    dures = SimpleNamespace(comprova=lambda *_: SimpleNamespace(clau="franja_prohibida"))
+    gen._motius_exclosos([dins, fora], [{"item": dins, "etiqueta": "A"}], list(gen.problema.franges), dures)
+    assert "   ⚠️ 1 items sense cap slot viable (exclosos del backtrack): ['A']" in gen.registre
+    assert gen.causes == [missatge("examen_sense_hora_causa", nom="A", causa="franja_prohibida")]
 
 
 # ---------------------------------------------------------------------------

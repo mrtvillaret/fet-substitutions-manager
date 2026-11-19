@@ -81,8 +81,8 @@ data/
   (`DiaEscolar`) i la regla de quan un substitut ja no pot ser-ho, generar
   les substitucions d'un dia, marcar absències, cobertures dels vigilants,
   i validar abans del PDF. Cap servei no depèn de `routes/`
-- `scheduler_engine/` — motor de planificació d'exàmens amb 3 generadors
-  (v2-intents, v2-backtrack, v3-SA Simulated Annealing) i model de
+- `planificador/motor/` — motor de planificació d'exàmens amb 3 estratègies
+  (greedy v2, backtracking v2-backtrack, recuit simulat v3) i model de
   restriccions configurable
 - `export/` — exportadors PDF (substitucions, vigilàncies, intervals,
   informes de direcció i professorat)
@@ -292,7 +292,7 @@ fet-substitutions-manager/
 │   ├── routes/                # Endpoints: substitucions, vigilancies, scheduler...
 │   ├── core/                  # Lògica de negoci (motor, alliberats, absències)
 │   ├── serveis/               # Lògica que criden les rutes (DiaEscolar, generació, PDF...)
-│   ├── scheduler_engine/      # Motor de planificació d'exàmens
+│   ├── planificador/          # Planificador d'exàmens (motor/: el motor)
 │   ├── config/                # Configuració, constants, settings
 │   ├── repositories.py        # Accés a dades (SQLAlchemy)
 │   ├── requirements.txt

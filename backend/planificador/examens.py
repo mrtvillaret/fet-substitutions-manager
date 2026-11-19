@@ -4,7 +4,7 @@ fan servir les restriccions i els motors). El nivell surt de les taules de la
 configuració d'exàmens (grups de cada nivell i abreviatures), no del nom del grup."""
 
 from configuracio_examens.repositories import MasterConfigRepository
-from scheduler_engine.core.nivells import NivellsDelsGrups
+from planificador.compartit.nivells import NivellsDelsGrups
 
 
 def nivells_master(db) -> list[str]:

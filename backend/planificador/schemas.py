@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from noms import NomNet
 from parametres import DataISO
-from scheduler_engine.defaults import SEGONS_MAXIMS_LIMIT, SEGONS_MAXIMS_PER_DEFECTE
+from planificador.compartit.constants import SEGONS_MAXIMS_LIMIT, SEGONS_MAXIMS_PER_DEFECTE
 
 # ---------------------------------------------------------------- peticions
 # Un camp d'un tipus que no toca, 422; una data que no és AAAA-MM-DD, 400
@@ -26,7 +26,7 @@ class SchedulerGenerateRequest(BaseModel):
     dies_utilitzar: list[str] | None = None
     nivells_actius: list[str] | None = None
     max_dies: int = Field(default=5, gt=0)
-    motor: Literal["v3", "v2", "v2-backtrack"] = "v3"  # els de scheduler_engine.factory.MOTORS
+    motor: Literal["v3", "v2", "v2-backtrack"] = "v3"  # els de planificador.motor.cataleg.MOTORS
     estrategia: str = "ponderada"
     # Sostre = el màxim de la pantalla; a més, el motor s'atura al temps màxim (segons_maxims)
     max_intents_validacio: int = Field(default=250, gt=0, le=5000)
@@ -351,7 +351,7 @@ class CostFranja(BaseModel):
 class ConcepteCost(BaseModel):
     """Una fila del desglossament del cost: quantitat × pes = punts."""
 
-    concepte: str  # scheduler_engine.core.punts.CONCEPTES
+    concepte: str  # planificador.compartit.punts.CONCEPTES
     quantitat: int
     pes: int
     punts: int

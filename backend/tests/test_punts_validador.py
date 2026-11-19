@@ -3,17 +3,17 @@
 Abans el validador tenia uns pesos per defecte propis (restricció dura 1000 en
 lloc de 10000, violada = dura en lloc de 20000, dies diferents 500 en lloc de 0)
 i el límit per professor hi valia 600 on el cost en comptava 6000. Ara tots dos
-treuen els punts de `scheduler_engine/core/punts.py`.
+treuen els punts de `planificador/compartit/punts.py`.
 """
 
 import re
 
 import pytest
 
-from scheduler_engine.core.constraints import calcular_penalitzacio_total_professors
-from scheduler_engine.core.punts import punts_limit_professor, punts_restriccio
-from scheduler_engine.core.scoring import calcular_cost_slot
-from scheduler_engine.validacio import ValidadorHorari
+from planificador.compartit.punts import punts_limit_professor, punts_restriccio
+from planificador.motor.avaluador import cost_sessio
+from planificador.motor.registre import ValidadorHorari
+from planificador.motor.regles import calcular_penalitzacio_total_professors
 
 PROF = "Prof 1"
 
@@ -90,7 +90,7 @@ def test_no_mateix_slot_val_el_mateix_que_cada_sessio_al_cost(pes):
     # Una línia per examen, com el cost (cada examen del grup en suma)
     linia, _ = _linies(restr, horari, "NO AL MATEIX MOMENT")
     buida = {"substitucions": [], "abans_jornada": [], "despres_jornada": [], "no_treballa_dia": []}
-    cost = calcular_cost_slot(a, "Dilluns", "08:00", buida, restr, sessions_dia=[a, b], sessions_slot=[a, b])
+    cost = cost_sessio(a, "Dilluns", "08:00", buida, restr, sessions_dia=[a, b], sessions_slot=[a, b])
     assert _punts(linia) == cost["breakdown"]["no_mateix_slot"] == punts_restriccio(restr, pes)
 
 
@@ -101,5 +101,5 @@ def test_no_mateix_dia_val_el_mateix_que_cada_sessio_al_cost(pes):
     horari = _horari(("Dilluns", "08:00", [a]), ("Dilluns", "09:00", [b]))
     linia, _ = _linies(restr, horari, "DIES DISTINTS")
     buida = {"substitucions": [], "abans_jornada": [], "despres_jornada": [], "no_treballa_dia": []}
-    cost = calcular_cost_slot(a, "Dilluns", "08:00", buida, restr, sessions_dia=[a, b], sessions_slot=[a])
+    cost = cost_sessio(a, "Dilluns", "08:00", buida, restr, sessions_dia=[a, b], sessions_slot=[a])
     assert _punts(linia) == cost["breakdown"]["restriccio_dura"] == punts_restriccio(restr, pes)

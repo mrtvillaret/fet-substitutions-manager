@@ -71,8 +71,8 @@ El backend (FastAPI) expone la API en `/api/*`, gestiona el parseo del horario X
 la asignación automática de sustitutos y vigilantes, y la exportación a PDF. El
 frontend (Vue 3 + PrimeVue) organiza la navegación por pestañas: sustituciones,
 vigilancias, grupos y planificador de exámenes. El motor de planificación
-(`scheduler_engine/`) incluye 3 generadores (intentos, backtracking y Simulated
-Annealing) con un modelo de restricciones configurable.
+(`planificador/motor/`) incluye 3 estrategias (voraz, backtracking y recocido
+simulado) con un modelo de restricciones configurable.
 
 La lógica que llaman las rutas está en `serveis/` (el estado de un día,
 `DiaEscolar`, y la regla de cuándo un sustituto ya no puede serlo; generar las

@@ -3,8 +3,8 @@ sigui `PYTHONHASHSEED`: els empats de cost es resolen a l'atzar amb el rng de
 la llavor, no per l'ordre d'un `set`.
 
 Cada execució es fa en un subprocés, perquè `PYTHONHASHSEED` només es pot
-triar en arrencar l'intèrpret. El motor és el real; només se'n substitueixen
-el cost i l'anàlisi de cada franja (tot val 0: tot són empats)."""
+triar en arrencar l'intèrpret. El motor és el real (el nou); només se'n
+substitueixen la partició i l'anàlisi de cada franja (tot val 0: tot són empats)."""
 
 import json
 import os
@@ -19,33 +19,10 @@ DIES = ["Dilluns", "Dimarts", "Dimecres"]
 
 def horari_amb_empats(random_seed: int, shuffle_top_n: int = 0) -> list:
     """Quatre exàmens del mateix nivell, cost 0 a les 18 franges: retorna on
-    ha anat cadascun (franja → exàmens)."""
-    from scheduler_engine.generators import v2_backtrack as bt
+    ha anat cadascun ([(ítem, franja)], ordenat)."""
+    from test_planificador_backtracking_nou import horari_amb_empats as amb_motor_nou
 
-    gen = object.__new__(bt.GeneradorV2Backtrack)
-    gen.restriccions = {}
-    gen.nivells_actius = ["1-ESO"]
-    gen.hores_examen = list(HORES)
-    items = [{"nom": f"Examen {n}", "sessions": [{"nom": f"Examen {n}", "curs": "1-ESO"}]} for n in "ABCD"]
-    gen.preparar_particio_nivells = lambda **_: items
-    gen.get_durada_per_sessio_key = lambda *_: 1
-    gen._get_hores_ocupades = lambda hora, *_: [hora]
-    gen.analitzar_disponibilitat_sessio = lambda *_, **__: {}
-
-    def construeix(slots_occ, *_):
-        franges = sorted((sk, sorted(it["label"] for it in its)) for sk, its in slots_occ.items())
-        return {"metadata": {}, "dies": franges}
-
-    gen._construir_horari_desde_slots = construeix
-    cost_real = bt.calcular_cost_slot
-    bt.calcular_cost_slot = lambda **_: {"cost_total": 0}
-    try:
-        resultat = gen.generar_totes_solucions_optimes(
-            random_seed=random_seed, seeds_count=1, dies_utilitzar=list(DIES), shuffle_top_n=shuffle_top_n
-        )
-    finally:
-        bt.calcular_cost_slot = cost_real
-    return resultat[0]["dies"]
+    return [list(parella) for parella in amb_motor_nou(random_seed, shuffle_top_n)]
 
 
 def _en_subproces(hashseed: int, random_seed: int, shuffle_top_n: int = 0) -> list:
@@ -65,7 +42,7 @@ def _en_subproces(hashseed: int, random_seed: int, shuffle_top_n: int = 0) -> li
 def test_mateixa_llavor_mateix_horari_amb_qualsevol_pythonhashseed():
     horaris = [_en_subproces(hashseed, random_seed=1) for hashseed in (0, 1, 2)]
     assert horaris[0] == horaris[1] == horaris[2]
-    assert sum(len(examens) for _, examens in horaris[0]) == 4
+    assert len(horaris[0]) == 4
 
 
 def test_mateixa_llavor_amb_barreja_mateix_horari_amb_qualsevol_pythonhashseed():
@@ -94,5 +71,5 @@ def test_sense_barreja_la_mateixa_llavor_repeteix_l_horari():
 def test_els_empats_ja_no_van_a_les_primeres_franges_per_data_i_hora():
     # Amb data i hora, tots quatre anaven a les quatre primeres franges del dilluns
     primeres = [f"{DIES[0]}_{hora}" for hora in HORES[:4]]
-    franges = [{franja for franja, _ in horari_amb_empats(llavor)} for llavor in range(1, 6)]
+    franges = [{franja for _, franja in horari_amb_empats(llavor)} for llavor in range(1, 6)]
     assert any(f != set(primeres) for f in franges)

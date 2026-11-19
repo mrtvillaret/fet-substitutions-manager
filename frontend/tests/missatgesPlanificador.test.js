@@ -39,7 +39,7 @@ test('mateix codi es torna a traduir quan canvia l’idioma', () => {
 })
 
 test('tots els codis emesos pel backend tenen text i paràmetres resolts als quatre idiomes', () => {
-  const files = ['planificador/config.py', 'planificador/diagnostic.py', 'planificador/generacio.py', 'scheduler_engine/core/diagnostic.py', 'scheduler_engine/generators/v2_intents.py', 'scheduler_engine/generators/v2_backtrack.py', 'scheduler_engine/generators/v3_sa.py']
+  const files = ['planificador/config.py', 'planificador/generacio_nova.py', 'planificador/motor/diagnostic.py', 'planificador/motor/sortida.py', 'planificador/motor/estrategies/greedy.py', 'planificador/motor/estrategies/backtracking.py', 'planificador/motor/estrategies/recuit.py']
   const codes = new Set(files.flatMap(file => [...readFileSync(new URL(`../../backend/${file}`, import.meta.url), 'utf8').matchAll(/missatge\("([^"]+)"/g)].map(m => m[1])))
   const params = { nivell: 'N', nom: 'A', altre: 'B', count: 3, hores: 2, dies: 2, causa: 'dia_hora_fix', assignatures: ['A', 'B'], noms: ['A', 'B'], grup: 'G', index: 1, dia: 'Dilluns', hora: '09:00', collocats: 1, esperats: 3, segons: 20, nodes: 1000, professor: 'P', max: 1 }
   for (const lang of Object.keys(messages)) {

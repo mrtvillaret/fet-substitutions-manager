@@ -7,8 +7,8 @@ Què és cada fila de substitució i què compta cada pantalla, PDF i informe:
 
 ### Capes del backend i peces compartides
 
-El graf de dependències és acíclic, comptant també els imports interiors i els
-motors del registre dinàmic de `scheduler_engine/factory.py`. Ho comprova el guardià AST
+El graf de dependències és acíclic, comptant també els imports interiors (no hi
+ha cap import dinàmic). Ho comprova el guardià AST
 `tests/test_dependencies_capes.py`, juntament amb les regles següents:
 
 ```mermaid
@@ -21,7 +21,7 @@ flowchart TD
     REPO --> FILES["Valors purs: files del domini"]
     DOMINI --> FILES
     HTTP --> TIPUS["Esquemes i dependències HTTP"]
-    MOTOR["scheduler_engine"] --> TEXTOS["textos.py: noms i hores purs"]
+    MOTOR["planificador/motor (peces pures)"] --> TEXTOS["textos.py: noms i hores purs"]
     BASE --> TEXTOS
 ```
 
@@ -39,10 +39,14 @@ flowchart TD
   `disponibles`, `importacio`, `cost` i `publicacio` també són casos d’ús.
 - Routers: HTTP, serveis, tipus i dependències. Les preferències i el recompte
   de vigilàncies sense nivell del PDF passen per `pdf/services.py`.
-- Motor: sense FastAPI, Pydantic, SQLAlchemy, BD ni context de petició. L’única
-  peça compartida amb l’aplicació és `textos.py`, de biblioteca estàndard.
-  L’informe de professors rep explícitament la funció d’abreviatures des de
-  `planificador/generacio.py`; la lògica de cerca i de cost es conserva.
+- Motor del planificador (`planificador/motor/`): les peces pures (regles, cost,
+  disponibilitat, registre, sortida, model, catàleg, cost de la cerca i el
+  contracte de les estratègies) no depenen de FastAPI, Pydantic, SQLAlchemy, la
+  BD ni el context de petició; només d’elles mateixes, de les peces neutres de
+  `planificador/compartit/` i de `textos.py`. La construcció del problema, el
+  diagnòstic, els textos de l’anàlisi, el recàlcul i les estratègies depenen de
+  `planificador.config` i no hi entren. L’informe de professors rep
+  explícitament la funció d’abreviatures des de `planificador/analisi_nova.py`.
 
 Peces compartides, cadascuna en un únic lloc:
 
@@ -160,12 +164,13 @@ locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
 │        │                      fixats, costos, últim horari i     │
 │        │                      avís de curs anterior              │
 │        ├── config.py        ← ConfigPlanificador, durades        │
-│        ├── planificacio.py  ← prepara_planificacio (generar i    │
-│        │                      analitzar) i l'XML de la data      │
-│        ├── generacio.py     ← generar i analitzar amb el motor   │
-│        ├── diagnostic.py    ← per què no és viable               │
-│        ├── cost.py          ← recàlcul del cost d'un horari      │
-│        │                      editat                             │
+│        ├── generacio_nova.py ← generar (tres motors), precheck i │
+│        │                       explicació del no viable          │
+│        ├── analisi_nova.py  ← els tres informes de l'anàlisi     │
+│        ├── compartit/       ← preparació de la petició i peces   │
+│        │                      neutres (constants, dates, punts)  │
+│        ├── motor/           ← model, regles, cost, diagnòstic,   │
+│        │                      recàlcul i estratègies             │
 │        ├── publicacio.py    ← publicar com a vigilàncies         │
 │        ├── restriccions.py  ← llegir i desar les restriccions    │
 │        ├── alliberaments.py ← hores marcades, dates i franges    │
@@ -191,19 +196,21 @@ locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
 │  ├── vigilancies/context.py      ← lògica vigilàncies           │
 │  └── vigilancies/prioritats.py                               │
 │                                                                  │
-│  SCHEDULER ENGINE (planificador exàmens)                         │
-│  ├── factory.py                   ← selecciona motor             │
-│  ├── defaults.py                  ← valors per defecte           │
-│  ├── validacio.py                 ← logs d'incidències (punts)   │
-│  ├── estadistiques.py             ← estadístiques i cost final   │
-│  ├── domain/models.py             ← models de domini             │
-│  ├── generators/base.py           ← classe base motors           │
-│  ├── generators/v2_intents.py                                    │
-│  ├── generators/v2_backtrack.py                                  │
-│  ├── generators/v3_sa.py          ← Simulated Annealing          │
-│  └── core/: context, constraints, scoring, punts, availability,  │
-│             durada, date_mapping, diagnostic,                    │
-│             normalitzacio, restriction_engine                    │
+│  MOTOR DEL PLANIFICADOR (backend/planificador/motor/)            │
+│  ├── construccio.py         ← el problema i la partició en ítems │
+│  ├── model.py, immutables.py ← dades immutables i editables      │
+│  ├── regles.py, compatibilitat.py ← restriccions i polítiques    │
+│  ├── disponibilitat.py      ← anàlisi dels professors            │
+│  ├── avaluador.py           ← cost mostrat i incidències         │
+│  ├── cost_cerca.py          ← cost incremental de cada cerca     │
+│  ├── registre.py            ← logs d'incidències (punts)         │
+│  ├── sortida.py             ← resposta de cada motor             │
+│  ├── diagnostic.py          ← precheck i per què no és viable    │
+│  ├── recalcul.py            ← recàlcul d'un horari editat        │
+│  ├── textos_analisi.py      ← informes de l'anàlisi              │
+│  ├── cataleg.py             ← motors i paràmetres públics        │
+│  └── estrategies/: greedy (v2), backtracking (v2-backtrack),     │
+│                    recuit (v3) i el contracte base               │
 │                                                                  │
 │  CAPA D'ACCÉS A DADES                                            │
 │  ├── database.py          ← sessions SQLAlchemy (auth + dades)   │

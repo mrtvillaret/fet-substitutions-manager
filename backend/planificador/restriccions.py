@@ -8,9 +8,9 @@ import re
 
 from sqlalchemy.orm import Session
 
+from planificador.compartit.constants import DEFAULT_COST_PROFESSORS
 from planificador.repositories import CostProfessorRepository, RestriccioRepository, carrega_json
 from planificador.schemas import Restriccions
-from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS
 
 
 def llegeix(db: Session) -> dict:

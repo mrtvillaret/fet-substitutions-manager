@@ -8,9 +8,9 @@ són 3 hores.
 
 import pytest
 
-from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-from scheduler_engine.core.normalitzacio import normalitzar_dia
-from scheduler_engine.core.scoring import costos_professors_analisi
+from planificador.compartit.normalitzacio import normalitzar_dia
+from planificador.motor.avaluador import costos_professors_analisi
+from planificador.motor.disponibilitat import analitzar_disponibilitat_sessio
 
 HORES = ["08:00", "09:00", "10:00", "PATI", "11:30", "12:30", "13:30", "14:30"]
 CLASSES = {

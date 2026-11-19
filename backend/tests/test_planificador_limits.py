@@ -1,4 +1,4 @@
-"""Entrades acotades i temps del recuit comprovat dins de les iteracions."""
+"""Entrades acotades de la petició i del contracte de la pantalla."""
 
 from types import SimpleNamespace
 
@@ -7,11 +7,10 @@ from fastapi.testclient import TestClient
 from suport_api import crea_app, nova_institucio
 
 from auth.dependencies import get_current_user
-from planificador import generacio
+from planificador import generacio_nova
+from planificador.compartit.constants import DEFAULT_SA_PARAMS
 from planificador.router import router
 from planificador.schemas import HorariRecalcularRequest, SchedulerGenerateRequest, SchedulerPublicarRequest
-from scheduler_engine.defaults import DEFAULT_SA_PARAMS
-from scheduler_engine.generators import v3_sa
 
 
 @pytest.fixture
@@ -20,7 +19,7 @@ def client(monkeypatch):
     app = crea_app(router)
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(institucio=centre, es_admin=True)
     # Una entrada acceptada no ha d'executar mai un motor amb paràmetres dolents.
-    monkeypatch.setattr(generacio, "genera", lambda *_: {"horari": {"dies": []}})
+    monkeypatch.setattr(generacio_nova, "genera", lambda *_: {"horari": {"dies": []}})
     return TestClient(app, base_url="https://testserver", raise_server_exceptions=False)
 
 
@@ -65,36 +64,9 @@ def test_valors_per_defecte_actuals_valids():
     assert SchedulerGenerateRequest(data_inici="2026-04-20")
 
 
-@pytest.mark.parametrize("durada_inicial, veins_esperats", [(0, 20), (25, 0)])
-def test_el_termini_atura_un_reinici_en_curs(monkeypatch, durada_inicial, veins_esperats):
-    gen = object.__new__(v3_sa.GeneradorV3SA)
-    gen.items_congelats_ids = set()
-    gen.items_mobils = [object(), object(), object()]
-    gen.iteracions_per_temperatura = 50
-    gen.max_iteracions = 100
-    gen.temperatura_inicial = 100
-    gen.temperatura_final = 0.01
-    gen.factor_refredament = 0.9
-    ara = [0]
-    veins = [0]
-
-    def inicial():
-        ara[0] += durada_inicial
-        return v3_sa.Solucio(assignacions={}, cost=5)
-
-    def vei(solucio):
-        veins[0] += 1
-        ara[0] += 1
-        return solucio
-
-    monkeypatch.setattr(v3_sa.time, "monotonic", lambda: ara[0])
-    monkeypatch.setattr(gen, "_detectar_items_congelats", lambda: None)
-    monkeypatch.setattr(gen, "_precalcular_slots_candidats", lambda: None)
-    monkeypatch.setattr(gen, "_generar_solucio_inicial", inicial)
-    monkeypatch.setattr(gen, "_generar_veí", vei)
-    millor = gen.executar_simulated_annealing(verbose=False, reinicis=1)
-    assert veins[0] == veins_esperats
-    assert millor.cost == 5
+# El termini que atura un reinici en curs del recuit (amb la solució inicial
+# dins o fora del temps): test_planificador_recuit_nou.py::
+# test_solucio_inicial_dins_del_temps_sense_interrupcio.
 
 
 @pytest.mark.parametrize("ruta", ["recalcular-cost", "publicar"])
@@ -184,7 +156,7 @@ def test_dates_invertides_son_422(client):
 def test_els_motors_que_accepta_la_peticio_son_els_del_registre():
     from typing import get_args
 
+    from planificador.motor.cataleg import MOTORS
     from planificador.schemas import SchedulerGenerateRequest
-    from scheduler_engine.factory import MOTORS
 
     assert set(get_args(SchedulerGenerateRequest.model_fields["motor"].annotation)) == set(MOTORS)

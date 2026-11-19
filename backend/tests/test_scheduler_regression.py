@@ -10,13 +10,9 @@ Si un canvi al motor fa variar EXPECTED_SNAPSHOT de manera intencionada,
 torna a executar el test, revisa els valors nous i actualitza'ls.
 """
 
-import io
-import json
 import random
 import sys
-import tempfile
 import unittest
-from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
 
@@ -26,10 +22,19 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from planificador.alliberaments import extreure_hores_examen_des_alliberaments
-from planificador.diagnostic import analitza_de
-from scheduler_engine.core.date_mapping import construir_mapa_dia_data_iso
-from scheduler_engine.core.diagnostic import InfeasibilityDiagnostic
-from scheduler_engine.factory import crear_motor
+from planificador.compartit.dates import construir_mapa_dia_data_iso
+from planificador.compartit.nivells import NivellsDelsGrups
+from planificador.config import ConfigPlanificador
+from planificador.motor.compatibilitat import BACKTRACKING, GREEDY, RECUIT
+from planificador.motor.construccio import construeix_problema
+from planificador.motor.cost_cerca import CostCercaBacktracking, CostCercaGreedy, CostCercaRecuit
+from planificador.motor.diagnostic import Diagnostic, DiagnosticIncompatibilitats
+from planificador.motor.disponibilitat import Disponibilitat
+from planificador.motor.estrategies.backtracking import Backtracking
+from planificador.motor.estrategies.base import Pressupost
+from planificador.motor.estrategies.greedy import Greedy
+from planificador.motor.estrategies.recuit import Recuit
+from planificador.motor.sortida import horari_backtracking, horari_greedy, horari_recuit
 
 XML_PATH = BACKEND_DIR.parent / "data" / "exemple" / "teachers.xml"
 
@@ -161,28 +166,55 @@ class _MotorsExemple(unittest.TestCase):
             data_inici_iso=min(DATES),
         )
 
-        cls._tmpdir = tempfile.TemporaryDirectory()
-        tmp = Path(cls._tmpdir.name)
-        cls.cfg_path = tmp / "config.json"
-        cls.restr_path = tmp / "restriccions.json"
-        cls.cfg_path.write_text(json.dumps(_config_examens(), ensure_ascii=False), encoding="utf-8")
         restriccions = _restriccions()
         restriccions["restriccions_dures"]["professors_horari_estricte"] = list(cls.ESTRICTES)
-        cls.restr_path.write_text(json.dumps(restriccions, ensure_ascii=False), encoding="utf-8")
+        cls.restriccions = restriccions
+        config = _config_examens()
+        cls.cfg = ConfigPlanificador(
+            config=config,
+            restriccions=restriccions,
+            durada_titular=DURADA_TITULAR,
+            durada_examen=DURADA_TITULAR,
+            nivells_configurats=[NIVELL],
+            nivells_master=[NIVELL],
+            dates_configurades=list(DATES),
+            alliberaments=cls.alliberaments,
+            durades_per_sessio={},
+            durades_examen_per_sessio={},
+            no_substituir=frozenset({"Guàrdia"}),
+            ultim_professor="",
+            nivells_dels_grups=NivellsDelsGrups.de_config(config),
+        )
 
-        cls.gens = {}
+        cls.problemes = {}
         cls.results = {motor: cls._run_motor(motor) for motor in EXPECTED_SNAPSHOT}
 
     @classmethod
-    def tearDownClass(cls):
-        cls._tmpdir.cleanup()
-
-    @classmethod
     def _run_motor(cls, motor):
+        """El motor nou com el crida la generació, amb les dades d'aquest fitxer."""
+        politiques = {"v2": GREEDY, "v2-backtrack": BACKTRACKING, "v3": RECUIT}[motor]
+        problema = construeix_problema(
+            cls.cfg,
+            str(XML_PATH),
+            [NIVELL],
+            cls.dies_utilitzar,
+            [],
+            cls.dia_a_data_iso,
+            cls.hores_examen,
+            politiques,
+            restriccions_resoltes=cls.restriccions,
+        )
+        cls.problemes[motor] = (problema, politiques)
         random.seed(12345)
-        override_params = {}
+        segons = 20
+        if motor == "v2":
+            parametres = {"max_intents_validacio": 40, "estrategia": "ponderada", "track_intents": True}
+            resultat = Greedy().cerca(
+                problema, politiques, CostCercaGreedy(problema), parametres, Pressupost(segons), random
+            )
+            return horari_greedy(resultat, segons, True)
         if motor == "v3":
-            override_params = {
+            parametres = {
                 "temperatura_inicial": 300.0,
                 "temperatura_final": 0.1,
                 "factor_refredament": 0.95,
@@ -190,51 +222,15 @@ class _MotorsExemple(unittest.TestCase):
                 "max_iteracions": 2500,
                 "intents_solucio_inicial": 5,
             }
-
-        gen, method_name = crear_motor(
-            motor,
-            str(cls.cfg_path),
-            str(XML_PATH),
-            restriccions_path=str(cls.restr_path),
-            ultim_professor="",
-            nivells_actius=[NIVELL],
-            hores_examen=cls.hores_examen,
-            hores_per_nivell=cls.hores_per_nivell,
-            durada_titular=DURADA_TITULAR,
-            no_substituir={"Guàrdia"},
-            alliberaments_per_nivell=cls.alliberaments,
-            **override_params,
-        )
-        gen.carregar_dades()
-        gen.carregar_horaris_professors()
-        cls.gens[motor] = gen
-
-        kwargs = {
-            "data_inici": datetime.strptime(min(DATES), "%Y-%m-%d").strftime("%d/%m/%Y"),
-            "data_inici_iso": min(DATES),
-            "dies_utilitzar": cls.dies_utilitzar,
-            "dia_a_data_iso": cls.dia_a_data_iso,
-            "max_dies": len(cls.dies_utilitzar),
-        }
-        if motor == "v2":
-            kwargs.update(
-                {
-                    "max_intents_validacio": 40,
-                    "estrategia": "ponderada",
-                    "track_intents": True,
-                }
+            resultat = Recuit().cerca(
+                problema, politiques, CostCercaRecuit(problema), parametres, Pressupost(segons), random
             )
-        elif motor == "v2-backtrack":
-            kwargs.update({"random_seed": 12345, "seeds_count": 1})
-
-        # Silencia logs de traça dels motors durant test.
-        with redirect_stdout(io.StringIO()):
-            result = getattr(gen, method_name)(**kwargs)
-
-        if motor == "v2-backtrack":
-            result = result[0] if result else {"metadata": {}}
-
-        return result
+            return horari_recuit(resultat, problema, Disponibilitat(problema))
+        parametres = {"seeds_count": 1}
+        resultat = Backtracking().cerca(
+            problema, politiques, CostCercaBacktracking(problema), parametres, Pressupost(segons), random.Random(12345)
+        )
+        return horari_backtracking(resultat, problema, politiques, Disponibilitat(problema), segons, 100000)
 
 
 class SchedulerRegressioExempleTest(_MotorsExemple):
@@ -326,17 +322,23 @@ class SchedulerHorariEstricteTest(_MotorsExemple):
     def test_el_diagnostic_hi_veu_l_horari_estricte_amb_qualsevol_motor(self):
         """Revisió B2: amb només el dimarts, el diagnòstic diu que l'examen no
         hi cap per l'horari estricte (abans no ho comprovava: no deia res)."""
-        sessio = next(s for s in self.gens["v2"].sessions_per_nivell[NIVELL] if s["nom"] == "2.4 (2-BAT)")
+        problema_v2, _ = self.problemes["v2"]
+        sessio = next(e.a_diccionari() for e in problema_v2.examens if e.nom == "2.4 (2-BAT)")
         item = {"nom": sessio["nom"], "curs": NIVELL, "sessions": [sessio]}
-        restriccions = json.loads(self.restr_path.read_text(encoding="utf-8"))
+        restriccions = self.restriccions
         dimarts = [("Dimarts", "2026-04-21")]
-        for motor, gen in self.gens.items():
+        for motor, (problema, politiques) in self.problemes.items():
             with self.subTest(motor=motor):
-                diag = InfeasibilityDiagnostic(
-                    restriccions, dimarts, self.hores_examen, [NIVELL], analitza=analitza_de(gen)
+                diagnostic = Diagnostic(problema, politiques)
+
+                def analitza(sessio, dia, hora, data_iso, diagnostic=diagnostic):
+                    return diagnostic.analitzar_disponibilitat_sessio(sessio, dia, hora, data_iso=data_iso)
+
+                diag = DiagnosticIncompatibilitats(
+                    restriccions, dimarts, self.hores_examen, [NIVELL], analitza=analitza
                 )
                 self.assertEqual(
-                    diag.run([item]),
+                    diag.executa([item]),
                     [
                         {
                             "codi": "examen_sense_hora_causa",
@@ -344,8 +346,8 @@ class SchedulerHorariEstricteTest(_MotorsExemple):
                         }
                     ],
                 )
-        sense = InfeasibilityDiagnostic(restriccions, dimarts, self.hores_examen, [NIVELL])
-        self.assertEqual(sense.run([item]), [])
+        sense = DiagnosticIncompatibilitats(restriccions, dimarts, self.hores_examen, [NIVELL])
+        self.assertEqual(sense.executa([item]), [])
 
 
 if __name__ == "__main__":

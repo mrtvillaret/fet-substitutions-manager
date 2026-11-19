@@ -14,7 +14,7 @@ import pytest
 from suport_api import XML_EXEMPLE
 
 from horari.lector import GestorHorariWeb
-from scheduler_engine.core.horaris_xml import horaris_professors
+from planificador.compartit.horaris_xml import horaris_professors
 
 BACKEND = Path(__file__).resolve().parent.parent
 

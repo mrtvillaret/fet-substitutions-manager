@@ -15,8 +15,9 @@ from auth.dependencies import get_current_user, require_admin
 from dependencies import dia_d_avui, dia_de_la_planificacio, get_db
 from horari.domain import Dia
 from parametres import data_iso
-from planificador import cost, generacio, publicacio, services
+from planificador import analisi_nova, generacio_nova, publicacio, services
 from planificador.config import horari_de_la_planificacio
+from planificador.motor import recalcul
 from planificador.schemas import (
     AnalisiResponse,
     AssignaturesTretesResponse,
@@ -143,12 +144,12 @@ def scheduler_curs_dates(dates: str = "", db: Session = Depends(get_db), avui: D
 
 @router.post("/generate", response_model=GeneracioResponse, response_model_exclude_unset=True)
 def scheduler_generate(payload: SchedulerGenerateRequest, current_user=Depends(get_current_user)):
-    return generacio.genera(payload, current_user.institucio)
+    return generacio_nova.genera(payload, current_user.institucio)
 
 
 @router.post("/analisi", response_model=AnalisiResponse)
 def scheduler_analisi(payload: SchedulerGenerateRequest, current_user=Depends(get_current_user)):
-    return generacio.analitza(payload, current_user.institucio)
+    return analisi_nova.analitza(payload, current_user.institucio)
 
 
 @router.post("/publicar", response_model=PublicacioResponse)
@@ -166,4 +167,4 @@ def recalcular_cost(
     planificacio: Dia = Depends(dia_de_la_planificacio),
 ):
     """Recalcula el cost d'un horari editat a mà, sense regenerar-lo."""
-    return cost.recalcula(payload, current_user.institucio, planificacio)
+    return recalcul.recalcula(payload, current_user.institucio, planificacio)

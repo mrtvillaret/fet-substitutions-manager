@@ -5,7 +5,7 @@ un examen i les franges vàlides de cada nivell."""
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-from scheduler_engine.core.normalitzacio import normalitzar_dia
+from planificador.compartit.normalitzacio import normalitzar_dia
 from textos import normalitzar_hora as _normalitzar_hora
 
 

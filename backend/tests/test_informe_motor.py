@@ -48,55 +48,44 @@ def test_cap_mutacio_de_builtins():
     assert trobats == []
 
 
-def test_informe_no_canvia_stdout_i_conserva_text():
-    from scheduler_engine.informe import captura_informe, log
+def _registre_de_la_cerca(monkeypatch, n):
+    from test_planificador_aturada import MotorAmbCostZero
 
+    resultat, _ = MotorAmbCostZero(monkeypatch, n=n, hores=n).genera()
+    return resultat.registre
+
+
+def test_el_registre_no_canvia_stdout_i_conserva_text(monkeypatch, capsys):
     stdout = sys.stdout
-    with captura_informe() as sortida:
-        log.info("primera línia")
-        log.info("\n   segona línia: %s", 3)
-    assert sortida.getvalue() == "primera línia\n\n   segona línia: 3\n"
+    registre = _registre_de_la_cerca(monkeypatch, 2)
+    assert registre == [
+        "🔍 Pre-calculant costos i compatibilitats per 2 items...",
+        "   Calculant matriu de compatibilitat 2x2...",
+        "   ✅ 2 items preparats",
+        "   📊 Nodes explorats: 3, solucions trobades: 1",
+    ]
     assert sys.stdout is stdout
+    assert capsys.readouterr() == ("", "")
 
 
-def test_informes_concurrents_no_es_barregen():
-    from scheduler_engine.informe import captura_informe, log
-
+def test_registres_concurrents_no_es_barregen(monkeypatch):
+    """Cada execució porta el seu registre (no hi ha cap destí global): quatre
+    cerques alhora donen el mateix registre que cadascuna sola."""
+    sols = [_registre_de_la_cerca(monkeypatch, n) for n in range(1, 5)]
     barrera = Barrier(4)
 
     def executa(n):
-        with captura_informe() as sortida:
-            for i in range(20):
-                barrera.wait(timeout=10)
-                log.info("execució %s, missatge %s", n, i)
-        return sortida.getvalue().splitlines()
+        barrera.wait(timeout=10)
+        return _registre_de_la_cerca(monkeypatch, n)
 
     with ThreadPoolExecutor(max_workers=4) as pool:
-        informes = list(pool.map(executa, range(4)))
-    for n, linies in enumerate(informes):
-        assert linies == [f"execució {n}, missatge {i}" for i in range(20)]
-
-
-def test_informe_imbricat_i_excepcio_restauren_el_context():
-    from scheduler_engine.informe import captura_informe, log
-
-    with captura_informe() as exterior:
-        log.info("abans")
-        with pytest.raises(RuntimeError), captura_informe() as interior:
-            log.info("interior")
-            raise RuntimeError("fallada simulada")
-        log.info("després")
-    log.info("fora")
-    assert exterior.getvalue() == "abans\ndesprés\n"
-    assert interior.getvalue() == "interior\n"
-    with captura_informe() as nou:
-        log.info("nou")
-    assert nou.getvalue() == "nou\n"
+        registres = list(pool.map(executa, range(1, 5)))
+    assert registres == sols
 
 
 def test_cap_print_al_motor_ni_captura_de_stdout():
     assert not (BACKEND / "captura_sortida.py").exists()
-    for cami in (BACKEND / "scheduler_engine").rglob("*.py"):
+    for cami in (BACKEND / "planificador").rglob("*.py"):
         for n in ast.walk(ast.parse(cami.read_text())):
             assert not (isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "print"), cami
 

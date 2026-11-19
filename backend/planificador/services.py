@@ -19,7 +19,9 @@ from database import get_data_db_session
 from errors_domini import NoValid
 from planificador import restriccions as regles
 from planificador.alliberaments import extreure_hores_examen_des_alliberaments
+from planificador.compartit.constants import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
 from planificador.examens import examens, nivells_dels_grups
+from planificador.motor.cataleg import informacio_motors
 from planificador.repositories import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DATES_KEY,
@@ -33,8 +35,6 @@ from planificador.repositories import (
     RestriccioRepository,
     llegeix_json,
 )
-from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
-from scheduler_engine.factory import get_motors_info
 from textos import nom_net
 
 # ---------------------------------------------------------------- motors
@@ -43,7 +43,7 @@ from textos import nom_net
 def motors() -> dict:
     """Els motors disponibles amb els seus paràmetres i valors per defecte."""
 
-    return {"motors": get_motors_info()}
+    return {"motors": informacio_motors()}
 
 
 # ---------------------------------------------------------------- configuració

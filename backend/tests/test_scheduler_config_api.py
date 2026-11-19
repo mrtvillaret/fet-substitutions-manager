@@ -329,7 +329,7 @@ def test_fixar_i_desfixar_un_examen(client):
 
 
 def test_sense_costos_desats_es_tornen_els_de_per_defecte(client):
-    from scheduler_engine.defaults import DEFAULT_COST_PROFESSORS
+    from planificador.compartit.constants import DEFAULT_COST_PROFESSORS
 
     costos = client.get("/api/scheduler/costos-professors").json()["costos_professors"]
     assert costos == {"globals": dict(DEFAULT_COST_PROFESSORS), "individuals": {}}

@@ -69,8 +69,8 @@ data/
 The FastAPI backend exposes the API under `/api/*`, handles XML timetable parsing,
 automatic assignment of substitutes and invigilators, and PDF export. The Vue 3 +
 PrimeVue frontend organises navigation into tabs: substitutions, invigilation,
-groups and the exam scheduler. The scheduling engine (`scheduler_engine/`) ships
-three generators (attempts, backtracking and Simulated Annealing) with a
+groups and the exam scheduler. The scheduling engine (`planificador/motor/`) ships
+three strategies (greedy, backtracking and simulated annealing) with a
 configurable constraint model.
 
 The logic called by the routes lives in `serveis/` (the state of a day,

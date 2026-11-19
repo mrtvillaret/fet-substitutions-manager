@@ -81,22 +81,5 @@ def test_mentre_es_genera_un_horari_les_altres_peticions_responen(servidor):
     assert resposta - inici < 1.0
 
 
-def test_la_captura_de_missatges_no_barreja_peticions_simultanies():
-    from concurrent.futures import ThreadPoolExecutor
-
-    from scheduler_engine.informe import captura_informe, log
-
-    barrera = threading.Barrier(4)
-
-    def peticio(n):
-        with captura_informe() as sortida:
-            barrera.wait()  # totes quatre capturant alhora
-            for i in range(50):
-                log.info(f"peticio {n} linia {i}")
-                time.sleep(0.001)
-        return sortida.getvalue().splitlines()
-
-    with ThreadPoolExecutor(max_workers=4) as ex:
-        resultats = list(ex.map(peticio, range(4)))
-    for n, linies in enumerate(resultats):
-        assert linies == [f"peticio {n} linia {i}" for i in range(50)]
+# La separació del registre entre execucions simultànies:
+# test_informe_motor.py::test_registres_concurrents_no_es_barregen.

@@ -4,7 +4,7 @@ La pantalla mostra el cost total i les incidències amb «(cost: N)». Abans les
 restriccions toves (preferències, mateixa franja, no el mateix dia, dies
 exclosos...) costaven punts però la seva línia no deia quant (o no sortia), i
 el «no treballa aquest dia» no tenia línia. Ara el validador escriu les
-mateixes incidències que suma el cost final (estadistiques.incidencies_restriccions
+mateixes incidències que suma el cost final (avaluador.incidencies_restriccions
 i el cost de cada professor): la suma dels punts del registre és el cost total,
 i el desglossament (quantitat × pes = punts) també hi quadra.
 """
@@ -16,9 +16,9 @@ import re
 import pytest
 from suport_planificador import DATES, DIES, alliberaments, centre_amb_examens, configura
 
+from planificador.compartit.punts import CONCEPTES
+from planificador.motor.avaluador import cost_sessio
 from rate_limit import limiter
-from scheduler_engine.core.punts import CONCEPTES
-from scheduler_engine.core.scoring import calcular_cost_slot
 
 PETICIO = {"data_inici": DATES[0], "data_final": DATES[-1], "selected_dates": DATES, "dies_utilitzar": DIES}
 DOS = ("1-BAT", "2-BAT")
@@ -166,15 +166,16 @@ def test_el_cost_de_la_resposta_de_generar_es_el_del_recalcul(request, escenari,
 def test_el_cost_que_porta_la_cerca_del_backtracking_es_el_validat(request, monkeypatch, escenari):
     """El cost que la cerca minimitza (sumat pas a pas) és el mateix número
     que el cost validat de l'horari que retorna."""
-    from scheduler_engine.generators import v2_backtrack as bt
+    from planificador.motor.estrategies.backtracking import Backtracking
 
     client = request.getfixturevalue(escenari)
     de_la_cerca = []
-    desa = bt.GeneradorV2Backtrack._desa_solucio
+
+    desa_nou = Backtracking._desa_solucio
     monkeypatch.setattr(
-        bt.GeneradorV2Backtrack,
+        Backtracking,
         "_desa_solucio",
-        lambda gen, cerca, cost: de_la_cerca.append(cost) or desa(gen, cerca, cost),
+        lambda gen, cerca, cost: de_la_cerca.append(cost) or desa_nou(gen, cerca, cost),
     )
     peticio = dict(PETICIO, motor="v2-backtrack", random_seed=1)
     horari = client.post("/api/scheduler/generate", json=peticio).json()["horari"]
@@ -234,7 +235,7 @@ def test_la_preferencia_mateix_dia_amb_pes_negatiu_va_amb_signe(amb_restriccions
 
 def test_el_professor_que_no_treballa_aquell_dia_te_linia_amb_punts():
     # Sense cap classe a l'XML el dia de l'examen: «no treballa aquest dia»
-    from scheduler_engine.validacio import ValidadorHorari
+    from planificador.motor.registre import ValidadorHorari
 
     horari = {
         "dies": [
@@ -288,7 +289,7 @@ def test_les_incidencies_d_una_franja_sumen_el_seu_cost(pes_base):
         "no_treballa_dia": [],
     }
     incidencies = []
-    cost = calcular_cost_slot(
+    cost = cost_sessio(
         a, "Dilluns", "09:00", analisi, restr, sessions_dia=[a, b, c], sessions_slot=[a, b], incidencies=incidencies
     )
     assert sum(inc.punts for inc in incidencies) == cost["cost_total"]

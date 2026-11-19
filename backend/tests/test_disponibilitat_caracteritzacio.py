@@ -13,8 +13,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-from scheduler_engine.core.nivells import NivellsDelsGrups
+from planificador.compartit.nivells import NivellsDelsGrups
+from planificador.compartit.normalitzacio import normalitzar_dia
+from planificador.motor.disponibilitat import analitzar_disponibilitat_sessio, horari_del_dia_normalitzat
 
 INSTANTANIA = Path(__file__).parent / "caracteritzacio" / "disponibilitat.json"
 HORES = ["08:00", "09:00", "10:00", "11:00", "11:30", "12:30"]  # 11:00 és el pati
@@ -273,10 +274,12 @@ def test_sessio_i_examens_com_a_objectes():
 
 
 def horaris_normalitzats(horaris):
-    """El que passen els motors: `GeneradorBase._pre_normalitzar_horaris`."""
-    from scheduler_engine.generators.base import GeneradorSessionsExamensBase
-
-    return GeneradorSessionsExamensBase._pre_normalitzar_horaris(SimpleNamespace(horaris_professors=horaris))
+    """L'horari normalitzat (dia i hores), com el prepara el motor
+    (`Disponibilitat`) a partir de l'horari del problema."""
+    return {
+        prof: {normalitzar_dia(dia): horari_del_dia_normalitzat(hores) for dia, hores in dies.items()}
+        for prof, dies in (horaris or {}).items()
+    }
 
 
 CASOS = {
@@ -356,8 +359,7 @@ def test_amb_l_xml_d_exemple_els_dos_camins_donen_el_mateix_horari():
 
     from suport_api import XML_EXEMPLE
 
-    from scheduler_engine.core.availability import horari_del_dia_normalitzat
-    from scheduler_engine.core.horaris_xml import horaris_professors
+    from planificador.compartit.horaris_xml import horaris_professors
 
     horaris = horaris_professors(ET.parse(XML_EXEMPLE).getroot())
     norm = horaris_normalitzats(horaris)

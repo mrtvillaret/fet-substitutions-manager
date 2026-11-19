@@ -32,7 +32,7 @@ test('desglossament del cost: sense punts no hi ha files (la icona no surt)', ()
 })
 
 test('desglossament del cost: els conceptes del backend tenen text als quatre idiomes', () => {
-  const punts = readFileSync(new URL('../backend/scheduler_engine/core/punts.py', arrel), 'utf8')
+  const punts = readFileSync(new URL('../backend/planificador/compartit/punts.py', arrel), 'utf8')
   const bloc = punts.match(/CONCEPTES = \(([\s\S]*?)\n\)/)[1]
   const delBackend = [...bloc.matchAll(/"([a-z_]+)"/g)].map((m) => m[1])
   assert.deepEqual(CONCEPTES_COST, delBackend)

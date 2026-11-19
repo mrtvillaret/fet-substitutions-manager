@@ -396,7 +396,7 @@ que la recull (a l’exemple de Compose, rotació per mida de Docker).
 
 Cada motor del planificador té un temps màxim de cerca que es tria a la
 pantalla (paràmetres avançats del motor): 20 s per defecte i **120 s com a
-màxim** (`scheduler_engine/defaults.py`: `SEGONS_MAXIMS_PER_DEFECTE` i
+màxim** (`planificador/compartit/constants.py`: `SEGONS_MAXIMS_PER_DEFECTE` i
 `SEGONS_MAXIMS_LIMIT`; el servidor respon 422 per sobre). Quan s’acaba el temps,
 el motor es queda amb la millor solució trobada i ho diu (`motiu_aturada`).
 La petició de generar dura aquest temps més la preparació i la validació, i

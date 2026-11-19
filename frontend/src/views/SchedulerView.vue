@@ -481,7 +481,7 @@ const pesosInfo = computed(() => ({
   }
 }))
 
-// Defaults sincronitzats amb backend (scheduler_engine/defaults.py)
+// Defaults sincronitzats amb backend (planificador/compartit/constants.py)
 const costosProfessors = ref({
   globals: { substitucio: 80, abans_jornada: 30, despres_jornada: 30, no_treballa_dia: 60 },
   individuals: {}

@@ -10,17 +10,19 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from suport_motor_nou import config_inventada as config_inventada
+from suport_motor_nou import xml_inventat as xml_inventat
 from suport_planificador import DATES, DIES, alliberaments, centre_amb_examens, configura
 
+from planificador.compartit.missatges import missatge
+from planificador.compartit.nivells import NivellsDelsGrups
 from planificador.examens import examens
+from planificador.motor.compatibilitat import GREEDY, RECUIT
+from planificador.motor.construccio import construeix_problema
+from planificador.motor.disponibilitat import analitzar_disponibilitat_sessio
+from planificador.motor.regles import es_slot_valid_per_nivell
 from planificador.publicacio import PublicacioExamens
 from rate_limit import limiter
-from scheduler_engine.core.availability import analitzar_disponibilitat_sessio
-from scheduler_engine.core.constraints import es_slot_valid_per_nivell
-from scheduler_engine.core.missatges import missatge
-from scheduler_engine.core.nivells import NivellsDelsGrups
-from scheduler_engine.generators.v2_intents import GeneradorV2Intents
-from scheduler_engine.generators.v3_sa import GeneradorV3SA
 
 NIVELLS = ["1-ESO", "1-ESO-PDC"]
 TAULES = NivellsDelsGrups(
@@ -90,26 +92,29 @@ def test_de_la_configuracio_mestra_i_anada_i_tornada_pels_motors():
 # ------------------------------------------------------- exàmens de cada nivell
 
 
-def _config(tmp_path, assignacions):
+@pytest.mark.parametrize("politiques", [GREEDY, RECUIT])
+def test_cada_examen_va_al_nivell_del_seu_grup(config_inventada, xml_inventat, politiques):
+    assignacions = [
+        {"grup": "1-ESO-A", "titular": "Anna", "aula": ""},
+        {"grup": "1-ESO-PDC-A", "titular": "Pere", "aula": ""},
+        {"grup": "1-ESO-C", "titular": "Joan", "aula": ""},  # a cap nivell
+    ]
     config = {"assignatures": {"Mates": {"assignacions": assignacions}}, **TAULES.a_config()}
-    ruta = tmp_path / "config.json"
-    ruta.write_text(json.dumps(config), encoding="utf-8")
-    return str(ruta)
-
-
-@pytest.mark.parametrize("motor", [GeneradorV2Intents, GeneradorV3SA])
-def test_cada_examen_va_al_nivell_del_seu_grup(tmp_path, motor):
-    ruta = _config(
-        tmp_path,
-        [
-            {"grup": "1-ESO-A", "titular": "Anna", "aula": ""},
-            {"grup": "1-ESO-PDC-A", "titular": "Pere", "aula": ""},
-            {"grup": "1-ESO-C", "titular": "Joan", "aula": ""},  # a cap nivell
-        ],
+    config_inventada.config = json.loads(json.dumps(config))
+    config_inventada.nivells_dels_grups = NivellsDelsGrups.de_config(config_inventada.config)
+    problema = construeix_problema(
+        config_inventada,
+        xml_inventat,
+        NIVELLS,
+        ["Dilluns"],
+        ["2027-03-01"],
+        {"dilluns": ["2027-03-01"]},
+        ["09:00"],
+        politiques,
     )
-    gen = motor(ruta, "", nivells_actius=NIVELLS)
-    gen.carregar_dades()
-    grups = {n: [g for s in ss for g in (e["grup"] for e in s["examens"])] for n, ss in gen.sessions_per_nivell.items()}
+    grups = {}
+    for e in problema.examens:
+        grups.setdefault(e.curs, []).extend(a["grup"] for a in e.dades["examens"])
     assert grups == {"1-ESO": ["1-ESO-A"], "1-ESO-PDC": ["1-ESO-PDC-A"]}
 
 

@@ -21,8 +21,8 @@ from suport_planificador import (
     configura,
 )
 
+from planificador.compartit.missatges import missatge
 from rate_limit import limiter
-from scheduler_engine.core.missatges import missatge
 
 URL = "/api/scheduler/generate"
 PETICIO = {"data_inici": DATES[0], "data_final": DATES[-1], "selected_dates": DATES, "dies_utilitzar": DIES}
@@ -246,12 +246,12 @@ def test_el_diagnostic_veu_el_limit_per_professor_i_despres_surt_el_del_motor(un
 
 
 def test_si_no_es_pot_preparar_l_explicacio_la_resposta_ho_diu(un_nivell, monkeypatch, caplog):
-    from scheduler_engine.core import diagnostic
+    from planificador.motor.diagnostic import DiagnosticIncompatibilitats
 
     def falla(*_args, **_kwargs):
         raise RuntimeError("detall intern del diagnòstic")
 
-    monkeypatch.setattr(diagnostic.InfeasibilityDiagnostic, "run", falla)
+    monkeypatch.setattr(DiagnosticIncompatibilitats, "executa", falla)
     _amb_limit_de_prof_48(un_nivell)
     meta = _genera(un_nivell)["metadata"]
     assert meta["viable"] is False
@@ -266,12 +266,12 @@ def test_si_no_es_pot_preparar_l_explicacio_la_resposta_ho_diu(un_nivell, monkey
 
 
 def test_si_falla_la_comprovacio_previa_es_genera_igualment(un_nivell, monkeypatch, caplog):
-    from planificador import generacio
+    from planificador.motor.diagnostic import Diagnostic
 
     def falla(*_args, **_kwargs):
         raise RuntimeError("detall intern de la comprovació")
 
-    monkeypatch.setattr(generacio, "_precheck_incompatibilitats_deterministes", falla)
+    monkeypatch.setattr(Diagnostic, "_precheck", falla)
     meta = _genera(un_nivell)["metadata"]
     assert meta.get("viable", True)
     assert "explicacio_no_disponible" not in meta
@@ -366,7 +366,7 @@ def test_els_costos_individuals_dels_professors_compten(filosofia_i_angles_fixat
 def test_el_motor_v3_fa_tots_els_reinicis(dos_nivells):
     # Abans s'aturava al primer reinici viable: cada reinici acaba en un mínim
     # local diferent i quedar-se amb el primer donava horaris pitjors.
-    from scheduler_engine.generators.v3_sa import REINICIS
+    from planificador.motor.estrategies.recuit import REINICIS
 
     logs = _genera(dos_nivells)["metadata"]["logs"]
     assert any(f"Reinici {REINICIS}/{REINICIS}" in linia for linia in logs) or any(

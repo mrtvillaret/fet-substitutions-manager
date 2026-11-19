@@ -35,11 +35,39 @@ CASOS_D_US = {
     "pdf.informe_direccio",
     "pdf.informe_professors",
     "configuracio_examens.importacio",
-    "planificador.cost",
-    "planificador.generacio",
     "planificador.publicacio",
     "planificador.config",
+    "planificador.generacio_nova",
+    "planificador.analisi_nova",
+    "planificador.motor.recalcul",
     "recomptes.services",
+}
+# Les vuit peces compartides del planificador són pures. El servei d'accés a
+# l'XML (compartit.horari) queda fora: depèn del domini de l'aplicació.
+PECES_NEUTRES_PLANIFICADOR = {
+    f"planificador.compartit.{nom}"
+    for nom in ("constants", "dates", "franja", "horaris_xml", "missatges", "nivells", "normalitzacio", "punts")
+}
+# Les peces del motor que no depenen de l'aplicació web (regles, cost,
+# disponibilitat, registre, sortida...). La construcció del problema, el
+# diagnòstic, els textos, el recàlcul i les estratègies hi depenen a través de
+# planificador.config: no hi són.
+MOTOR_PUR = {
+    f"planificador.motor.{nom}"
+    for nom in (
+        "avaluador",
+        "cataleg",
+        "compatibilitat",
+        "cost_cerca",
+        "disponibilitat",
+        "durades",
+        "estrategies.base",
+        "immutables",
+        "model",
+        "registre",
+        "regles",
+        "sortida",
+    )
 }
 # (fitxer, funció qualificada, import) -> motiu exacte escrit al costat.
 # Les proves queden fora d’aquest inventari de producció: imports locals per
@@ -159,17 +187,6 @@ def _violacions(fonts, excepcions=None, comprova_excepcions=True):
     for path, text in sorted(fonts.items()):
         modul = _modul(path)
         tree = ast.parse(text, filename=path)
-        # El registre tancat de la factory també afegeix arestes al graf.
-        if modul == "scheduler_engine.factory":
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Dict):
-                    continue
-                for clau, valor in zip(node.keys, node.values, strict=True):
-                    if isinstance(clau, ast.Constant) and clau.value == "module" and isinstance(valor, ast.Constant):
-                        if valor.value in moduls:
-                            graf[modul].add(valor.value)
-                        if not valor.value.startswith("scheduler_engine.generators."):
-                            errors.append(f"{path}:{valor.lineno}: motor depèn de l’aplicació web pel registre")
         ruta = path.endswith("/router.py") or any(
             isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "APIRouter"
             for n in ast.walk(tree)
@@ -217,10 +234,22 @@ def _violacions(fonts, excepcions=None, comprova_excepcions=True):
                     )
                     if not perm:
                         errors.append(f"{lloc}: ruta importa una capa no HTTP: {desti}")
-                if modul.startswith("scheduler_engine."):
-                    if (intern and not (desti.startswith("scheduler_engine.") or desti == "textos")) or desti.split(
-                        "."
-                    )[0] in {"fastapi", "starlette", "sqlalchemy", "pydantic"}:
+                if (
+                    modul in PECES_NEUTRES_PLANIFICADOR
+                    and intern
+                    and not (desti in PECES_NEUTRES_PLANIFICADOR or desti == "textos")
+                ):
+                    errors.append(f"{lloc}: peça neutra depèn de l’aplicació: {desti}")
+                if modul in MOTOR_PUR:
+                    if (
+                        intern
+                        and not (
+                            desti in MOTOR_PUR
+                            or desti in {"planificador.motor", "planificador.motor.estrategies"}
+                            or desti == "textos"
+                            or desti in PECES_NEUTRES_PLANIFICADOR
+                        )
+                    ) or desti.split(".")[0] in {"fastapi", "starlette", "sqlalchemy", "pydantic"}:
                         errors.append(f"{lloc}: motor depèn de l’aplicació web: {desti}")
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
@@ -232,12 +261,7 @@ def _violacions(fonts, excepcions=None, comprova_excepcions=True):
                 and node.func.attr == "import_module"
             )
             if dinamic:
-                permes = (
-                    modul == "scheduler_engine.factory"
-                    and ast.unparse(node) == "importlib.import_module(motor_info['module'])"
-                )
-                if not permes:
-                    errors.append(f"{path}:{node.lineno}: import dinàmic fora del registre justificat")
+                errors.append(f"{path}:{node.lineno}: import dinàmic")
         if ruta:
             for node in ast.walk(tree):
                 if isinstance(node, ast.Call) and (
@@ -310,9 +334,9 @@ def test_dependències_del_backend_respecten_les_capes():
         ("grups/services.py", "def f():\n    from models import Grup", "import interior"),
         ("grups/services.py", "async def f():\n    import models", "import interior"),
         ("grups/services.py", "def f():\n    def g():\n        import models", "import interior"),
-        ("scheduler_engine/factory.py", "from grups.abreviatures import aplicar_abreviatura", "motor depèn"),
-        ("scheduler_engine/factory.py", "from fastapi import Request", "motor depèn"),
-        ("scheduler_engine/factory.py", "from noms import NomNet", "motor depèn"),
+        ("planificador/motor/avaluador.py", "from grups.abreviatures import aplicar_abreviatura", "motor depèn"),
+        ("planificador/motor/avaluador.py", "from fastapi import Request", "motor depèn"),
+        ("planificador/motor/avaluador.py", "from noms import NomNet", "motor depèn"),
     ],
 )
 def test_el_guardia_rebutja_violacions_introduïdes(path, text, esperat):
@@ -363,39 +387,12 @@ def test_repositori_tampoc_no_pot_llegir_context_a_traves_de_constants():
     assert any("transitivament del context" in e for e in _violacions(fonts, {}, False))
 
 
-def test_registre_d_importacions_dinamiques_del_motor_es_tancat():
-    arbre = ast.parse((BACKEND / "scheduler_engine/factory.py").read_text())
-    destins = [
-        valor.value
-        for node in ast.walk(arbre)
-        if isinstance(node, ast.Dict)
-        for clau, valor in zip(node.keys, node.values, strict=True)
-        if isinstance(clau, ast.Constant) and clau.value == "module" and isinstance(valor, ast.Constant)
-    ]
-    assert destins and all(d.startswith("scheduler_engine.generators.") for d in destins)
-
-
-def test_el_guardia_rebutja_una_importacio_web_al_registre_del_motor():
-    fonts = {"scheduler_engine/factory.py": 'MOTORS = {"x": {"module": "grups.services"}}', "grups/services.py": ""}
-    assert any("pel registre" in e for e in _violacions(fonts, {}, False))
-
-
-def test_el_guardia_detecta_cicles_amb_el_registre_dinamic():
-    fonts = {
-        "scheduler_engine/factory.py": 'MOTORS = {"x": {"module": "scheduler_engine.generators.x"}}',
-        "scheduler_engine/generators/x.py": "import scheduler_engine.factory",
-    }
-    assert any("cicle:" in e for e in _violacions(fonts, {}, False))
-
-
 def test_motor_es_pot_importar_sense_carregar_l_aplicacio_web(tmp_path):
-    codi = """
+    codi = f"""
 import sys
-import scheduler_engine.factory
-import scheduler_engine.generators.v2_intents
-import scheduler_engine.generators.v2_backtrack
-import scheduler_engine.generators.v3_sa
-prohibits = {"fastapi", "starlette", "sqlalchemy", "pydantic", "database", "models", "config", "horari", "grups", "noms"}
+for modul in {sorted(MOTOR_PUR)!r}:
+    __import__(modul)
+prohibits = {{"fastapi", "starlette", "sqlalchemy", "pydantic", "database", "models", "config", "horari", "grups", "noms"}}
 assert not prohibits.intersection(m.split(".")[0] for m in sys.modules)
 """
     env = {

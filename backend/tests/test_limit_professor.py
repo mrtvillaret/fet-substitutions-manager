@@ -6,8 +6,8 @@ i al cost final: els exàmens ja posats als dies restringits més el candidat.
 
 import pytest
 
-from planificador.cost import excessos_limit_dies
-from scheduler_engine.core.constraints import (
+from planificador.motor.registre import excessos_limit_dies
+from planificador.motor.regles import (
     calcular_penalitzacio_professors_dies,
     calcular_penalitzacio_professors_dies_item,
     calcular_penalitzacio_total_professors,

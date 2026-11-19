@@ -1,14 +1,18 @@
 """Les tres causes de «dia_hora_fix» per separat: el pin de l'examen,
 la franja prohibida i l'hora que el nivell no té
 marcada com a inici. Quines franges són vàlides no canvia: la composició
-(`percent_dia_hora_fix_violation`, la del cost) dona el mateix que abans."""
+(`percentatge_dia_hora_fix`, la del cost) dona el mateix que abans."""
 
 from collections import Counter
 
 import pytest
 
-from scheduler_engine.core.constraints import causa_dia_hora_fix, percent_dia_hora_fix_violation
-from scheduler_engine.core.restriction_engine import RestrictionEngine, causa_principal
+from planificador.compartit.franja import Franja
+from planificador.motor.avaluador import causa_dura
+from planificador.motor.compatibilitat import DIAGNOSTIC
+from planificador.motor.estrategies.backtracking import causa_principal
+from planificador.motor.regles import causa_dia_hora_fix
+from planificador.motor.regles import percentatge_dia_hora_fix as percent_dia_hora_fix_violation
 
 SESSIO = {"nom": "Fil (1-BAT)", "curs": "1-BAT", "examens": []}
 INICIS = {"1-BAT": {"Dilluns": ["09:00"], "Dimarts": ["09:00", "11:30"]}}
@@ -19,8 +23,9 @@ def _restriccions(**dures):
 
 
 def _check(dia, hora, prefix, **dures):
-    violacio = RestrictionEngine(_restriccions(**dures), ["1-BAT"]).check_hard(SESSIO, dia, hora, prefix, [], [], None)
-    return violacio.restriction if violacio else None
+    ubicacio = Franja(f"{prefix}_{hora}", prefix, dia, prefix, hora)
+    violacio = causa_dura(SESSIO, ubicacio, None, ["1-BAT"], politiques=DIAGNOSTIC, restriccions=_restriccions(**dures))
+    return violacio.clau if violacio else None
 
 
 @pytest.mark.parametrize(
