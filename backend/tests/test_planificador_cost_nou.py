@@ -164,13 +164,14 @@ def test_recalcul_desa_un_document_i_no_modifica_la_peticio(
     [
         ("sense_dies", NoValid, "L'horari no conté dies"),
         ("referencia_laxa", ValueError, "Invalid isoformat string: '2027-3-1'"),
-        ("titular_llista", TypeError, "cannot use 'list' as a dict key (unhashable type: 'list')"),
+        ("titular_llista", TypeError, "unhashable type: 'list'"),
         ("metadades_nulles", AttributeError, "'NoneType' object has no attribute 'get'"),
     ],
 )
 def test_els_errors_del_recalcul_no_desen_cap_resultat(monkeypatch, config_inventada, xml_inventat, error, tipus, text):
     """L'error (tipus i text) és el que donava el recàlcul antic (fixat abans de
-    retirar-lo); cap error no desa res."""
+    retirar-lo); cap error no desa res. Del text de Python només es mira la part
+    que no canvia entre versions."""
     document = _horari()
     dades = {"horari": document}
     if error == "sense_dies":
@@ -185,7 +186,8 @@ def test_els_errors_del_recalcul_no_desen_cap_resultat(monkeypatch, config_inven
     payload = HorariRecalcularRequest.model_validate(dades)
     with pytest.raises(Exception) as captura:
         recalcul.recalcula(payload, "inventat", Dia.de_text(DATA, "inventat"))
-    assert (type(captura.value), str(captura.value)) == (tipus, text)
+    assert type(captura.value) is tipus
+    assert text in str(captura.value)
     assert desats == []
 
 
