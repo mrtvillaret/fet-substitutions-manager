@@ -69,6 +69,7 @@
             :nivells="nivells"
             :afegir-nivell="afegirNivell"
             :eliminar-nivell="eliminarNivell"
+            :mou-nivell="mouNivell"
           />
         </TabPanel>
 
@@ -271,6 +272,7 @@ const {
   esborrantAmbAssignacions,
   esborra,
   eliminarNivell,
+  mouNivell,
   afegirAssignatura,
   eliminarAssignatura,
   carregarGrups,

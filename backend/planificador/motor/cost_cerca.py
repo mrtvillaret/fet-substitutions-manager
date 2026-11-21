@@ -37,39 +37,40 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field, replace
 from typing import NamedTuple
 
-from planificador.compartit.franja import Franja
-from planificador.compartit.normalitzacio import normalitzar_dia, normalitzar_text
-from planificador.compartit.punts import pes_restriccio_dura, pes_restriccio_violada
+from planificador.compartit.franja import Franja, dia_de_prefix
+from planificador.compartit.normalitzacio import normalitzar_dia
+from planificador.compartit.punts import pes_restriccio_dura, pes_restriccio_violada, punts_horari_estricte
+from planificador.motor.avaluador import _sessions_per_dia_i_data as sessions_per_dia_i_data
 from planificador.motor.avaluador import (
     causa_dura,
     clau_de_data,
     cost,
     cost_sessio,
+    costos_professors_analisi,
     costos_professors_no_negatius,
+    estrictes_afectats,
     incidencies_restriccions_dia,
-    supera_tall,
+    professors_horari_estricte,
 )
-from planificador.motor.compatibilitat import BASE_MATEIX_MOMENT, COST_PROHIBITIU, COST_ZONA_EXAMEN
 from planificador.motor.disponibilitat import Disponibilitat, analitza_motor
-from planificador.motor.durades import hores_ocupades, vigilancia
+from planificador.motor.durades import encavalca_amb_el_nivell, examen_hi_cap, hores_ocupades, vigilancia
 from planificador.motor.model import descongela
 from planificador.motor.regles import (
-    _punts_percentatge,
     calcular_penalitzacio_professors_dies_item,
     calcular_penalitzacio_total_professors,
     compta_per_algun_limit,
     es_item_compatible_amb_slot,
+    incidencies_limit_professors,
     percentatge_preferencia_mateix_slot,
 )
 from textos import normalitzar_hora
 
 
 class CostCercaGreedy:
-    """Cost de col·locació propi del greedy i cost mostrat per triar l'intent.
+    """Cost de col·locació del greedy (el de cada sessió) i cost mostrat per triar l'intent.
 
     Les sessions ja col·locades a la franja conserven la projecció embolcallada
     del motor antic: les regles que hi busquen nom_base no el troben.
-    El +5 de zona d'examen tampoc forma part del cost que tria l'intent.
     """
 
     def __init__(self, problema):
@@ -82,8 +83,11 @@ class CostCercaGreedy:
         }
 
     def sessio(self, sessio, ubicacio, sessions_dia, sessions_franja, comptats):
+        return self._resultat_sessio(sessio, ubicacio, sessions_dia, sessions_franja, comptats)["cost_total"]
+
+    def _resultat_sessio(self, sessio, ubicacio, sessions_dia, sessions_franja, comptats):
         analisi = analitza_motor(self.problema, self.disponibilitat, sessio, ubicacio, sessions_franja, copia=False)
-        resultat = cost_sessio(
+        return cost_sessio(
             sessio,
             ubicacio.dia,
             ubicacio.hora,
@@ -95,14 +99,25 @@ class CostCercaGreedy:
             data_iso=ubicacio.data_iso or "",
             ja_comptats=comptats,
         )
-        zona = {(i["professor"], i.get("hora", ubicacio.hora)) for i in analisi.get("zona_examen", [])}
-        return resultat["cost_total"] + COST_ZONA_EXAMEN * len(zona)
 
     def item(
-        self, item, ubicacio, sessions_dia, sessions_franja, sessions_per_dia, ubicacions, ja_comptats, politiques
+        self,
+        item,
+        ubicacio,
+        sessions_dia,
+        sessions_franja,
+        sessions_per_dia,
+        ubicacions,
+        ja_comptats,
+        politiques,
+        sessions_per_data=None,
     ):
         if not es_item_compatible_amb_slot(item, sessions_franja, self.restriccions)[0]:
             return None
+        if not all(examen_hi_cap(s.get("nom"), ubicacio.hora, self.problema) for s in item["sessions"]):
+            return None  # l'examen no hi cap sencer
+        if encavalca_amb_el_nivell(item["sessions"], ubicacio.clau, ubicacions, self.problema):
+            return None  # s'encavalcaria amb un altre examen del mateix nivell
         punts, comptats = 0, set(ja_comptats)
         # Com al comprovador antic, només el prefix ISO amb zeros és una data.
         franja_dura = self._franges_dures[ubicacio.clau]
@@ -117,17 +132,24 @@ class CostCercaGreedy:
                 sessions_per_dia,
                 politiques=politiques,
                 restriccions=self.restriccions,
+                sessions_per_data=sessions_per_data,
             ):
                 return None
-            cost_individual = self.sessio(sessio, ubicacio, sessions_dia, sessions_franja, comptats)
-            if supera_tall(cost_individual):
+            resultat = self._resultat_sessio(sessio, ubicacio, sessions_dia, sessions_franja, comptats)
+            if resultat.get("professors_estrictes_violats"):
+                return None  # horari estricte: obligatori
+            punts += resultat["cost_total"]
+            # «Mateixa data i hora» obligatòria: no pot anar a un altre moment que una companya.
+            # La tova ja és al cost de la sessió (el mostrat); abans s'hi sumava, a més,
+            # un 10000 × % que no sortia enlloc.
+            if percentatge_preferencia_mateix_slot(sessio, ubicacio.clau, ubicacions, self.restriccions) >= 100:
                 return None
-            punts += cost_individual
-            percent = percentatge_preferencia_mateix_slot(sessio, ubicacio.clau, ubicacions, self.restriccions)
-            if percent >= 100:
-                return None
-            punts += _punts_percentatge(BASE_MATEIX_MOMENT, percent)
-        punts += calcular_penalitzacio_professors_dies_item(item, ubicacio.dia, sessions_per_dia, self.restriccions)
+        punts += calcular_penalitzacio_professors_dies_item(
+            item,
+            ubicacio.prefix,
+            sessions_per_data if sessions_per_data is not None else sessions_per_dia,
+            self.restriccions,
+        )  # per data
         return punts, comptats
 
     def intent(self, horari):
@@ -329,7 +351,7 @@ class CostCercaBacktracking:
     def sol(self, item: int, franja: Franja) -> int:
         """Restriccions, preferències i límits de l'ítem tot sol a la franja."""
         de_l_item = frozenset({(franja.clau, item)})
-        limit = self.limit(frozenset({(franja.dia, item)})) if self.compta_limit[item] else 0
+        limit = self.limit(frozenset({(franja.prefix, item)})) if self.compta_limit[item] else 0
         return self.fix(item, franja.clau) + self.del_dia(de_l_item).cost + limit
 
     # ------------------------------------------------------------------
@@ -352,7 +374,7 @@ class CostCercaBacktracking:
 
 @dataclass
 class SolucioRecuit:
-    """Estat mutable de cerca; els costos desats poden quedar desfasats."""
+    """Estat mutable de cerca: `cost_per_franja` és el cost de cada data."""
 
     assignacions: dict
     cost: float = 0.0
@@ -362,19 +384,31 @@ class SolucioRecuit:
 
 
 class CostCercaRecuit:
-    """Cost propi per sessió i dia, amb delta només a origen i destí.
+    """Compatibilitat de les franges (la del recuit) i el cost mostrat exacte.
 
-    L'ordre del conjunt de franges afectades també es conserva: canviar la
-    suma incremental pot alterar els decimals i la trajectòria del recuit.
+    `mostrat`: el problema projectat com el veu el cost final (graella i horaris
+    normalitzats); sense, el mateix problema.
     """
 
-    def __init__(self, problema):
+    def __init__(self, problema, mostrat=None):
         self.problema = problema
+        self.mostrat = mostrat or problema
         self.restriccions = problema.regles.a_diccionari()
         self.disponibilitat = Disponibilitat(problema)
         self.franges = {f.clau: f for f in problema.franges}
-        self.preferencies = self.restriccions.get("preferencies", {}).get("mateix_slot", [])
         self.estrictes = self.restriccions.get("restriccions_dures", {}).get("professors_horari_estricte", [])
+        self._restriccions_mostrat = self.mostrat.regles.a_diccionari()
+        self._disponibilitat_mostrat = Disponibilitat(self.mostrat)
+        self._graella = [normalitzar_hora(h) for h in self.mostrat.graella]
+        self._mapa_dies = descongela(self.mostrat.mapa_dies)
+        self._ordre_hores = {h: i for i, h in enumerate(problema.hores_inici)}
+        self._mem_professors, self._mem_restriccions = {}, {}
+        self._estrictes_mostrat = set(professors_horari_estricte(self._restriccions_mostrat))
+        self._punts_estricte = punts_horari_estricte(self._restriccions_mostrat)
+        self._mateix_moment_obligatori = any(
+            isinstance(p, dict) and p.get("pes", 0) >= 100
+            for p in self.restriccions.get("preferencies", {}).get("mateix_slot", [])
+        )
 
     def prepara(self, items, politiques):
         self.items, self.politiques = items, politiques
@@ -419,6 +453,16 @@ class CostCercaRecuit:
                 del_dia.append(entrada["sessio"])
                 per_dia[clau_dia].append(entrada["sessio"])
         sessions = [self.examens[e.id] for e in item.examens]
+        if not all(examen_hi_cap(s.get("nom"), franja.hora, self.problema) for s in sessions):
+            return False  # l'examen no hi cap sencer
+        mateixa_data = [
+            (self.examens[e.id], altra.clau)
+            for identificador, altra in solucio.assignacions.items()
+            if identificador != item.id and altra.prefix == franja.prefix
+            for e in self.per_id[identificador].examens
+        ]
+        if encavalca_amb_el_nivell(sessions, franja.clau, mateixa_data, self.problema):
+            return False  # s'encavalcaria amb un altre examen del mateix nivell
         if not es_item_compatible_amb_slot({"sessions": sessions}, simultanies, self.restriccions)[0]:
             return False
         for sessio in sessions:
@@ -448,6 +492,19 @@ class CostCercaRecuit:
                 restriccions=self.restriccions,
             ):
                 return False
+        if self._mateix_moment_obligatori:
+            # «Mateixa data i hora» al 100%: obligatòria, com al greedy i al backtracking.
+            ubicacions = [
+                (self.examens[e.id], altra.clau)
+                for identificador, altra in solucio.assignacions.items()
+                if identificador != item.id
+                for e in self.per_id[identificador].examens
+            ]
+            if any(
+                percentatge_preferencia_mateix_slot(s, franja.clau, ubicacions, self.restriccions) >= 100
+                for s in sessions
+            ):
+                return False
         return True
 
     def causa_infactible(self, item):
@@ -471,101 +528,99 @@ class CostCercaRecuit:
         altres = Counter({clau: n for clau, n in raons.items() if clau != "examen_fixat"})
         return (altres or raons).most_common(1)[0][0] if raons else None
 
-    def franja(self, clau, items, per_dia):
-        if not items:
-            return 0.0, []
-        ubicacio = self.franges[clau]
-        dates = self.problema.mapa_dies.get(normalitzar_dia(ubicacio.prefix))
-        data_iso = ubicacio.data_iso
+    # --- Cost: el cost mostrat, exacte i incremental -----------------
+    # El cost mostrat és la suma, per a cada data, dels costos dels professors de
+    # cada franja (només depenen de les sessions de la franja) i de les incidències
+    # de restriccions del dia (només depenen de les sessions de la data), més el
+    # límit per professor, global. En moure un ítem es recalculen les dates
+    # d'origen i de destí; els dos costos es desen per combinació de sessions.
+
+    def _dia_i_data(self, prefix):
+        dia_nom, data_iso = dia_de_prefix(prefix)
         if data_iso is None:
-            data_iso = dates[0] if isinstance(dates, (tuple, list)) else dates
-        del_dia = per_dia.get(data_iso or normalitzar_dia(ubicacio.dia), [])
-        sessions = [self.examens[e.id] for it in items for e in it.examens]
-        punts, violacions, comptats = 0.0, [], set()
-        for sessio in sessions:
-            altres = [s for s in sessions if s is not sessio]
-            analisi = analitza_motor(self.problema, self.disponibilitat, sessio, ubicacio, altres, copia=False)
-            resultat = cost_sessio(
-                sessio,
-                ubicacio.dia,
-                ubicacio.hora,
-                analisi,
-                self.restriccions,
-                del_dia,
-                altres,
-                data_iso=data_iso,
-                ja_comptats=comptats,
-            )
-            punts += resultat.get("cost_total", 0)
-            zona = {(i["professor"], i.get("hora", ubicacio.hora)) for i in analisi.get("zona_examen", [])}
-            punts += len(zona) * COST_ZONA_EXAMEN
-            for professor in resultat.get("professors_estrictes_violats", []):
-                violacions.append(
-                    {
-                        "tipus": "professor_estricte",
-                        "pes": resultat.get("cost_total", 0),
-                        "missatge": f"{professor} horari estricte violat",
-                    }
+            dates = self.problema.mapa_dies.get(normalitzar_dia(dia_nom)) or []
+            data_iso = dates[0] if isinstance(dates, (list, tuple)) and dates else None
+        return dia_nom, data_iso
+
+    def _sessions(self, ids):
+        return [self.examens[e.id] for i in ids for e in self.per_id[i].examens]
+
+    def _cost_professors(self, prefix, hora, ids):
+        clau = (prefix, hora, ids)
+        if clau not in self._mem_professors:
+            dia_nom, data_iso = self._dia_i_data(prefix)
+            sessions = self._sessions(ids)
+            hora_normalitzada = normalitzar_hora(hora)
+            costos, estrictes = {}, set()
+            for index, sessio in enumerate(sessions):
+                altres = [s for k, s in enumerate(sessions) if k != index]
+                durada = vigilancia(sessio.get("nom"), self.mostrat.durades_vigilancia, self.mostrat.durada_titular)
+                hores = hores_ocupades(hora_normalitzada, self._graella, durada)
+                analisi = self._disponibilitat_mostrat.consulta(
+                    sessio, dia_nom, hora_normalitzada, data_iso, hores, hores, altres
                 )
-        return punts, violacions
+                costos.update(costos_professors_analisi(analisi, hora, self._restriccions_mostrat, set(costos)))
+                estrictes |= estrictes_afectats(analisi, self._estrictes_mostrat)
+            # Les claus dels professors (es fusionen per data) i els punts de l'horari estricte
+            # (per franja)
+            self._mem_professors[clau] = (costos, float(len(estrictes) * self._punts_estricte))
+        return self._mem_professors[clau]
 
-    def global_mateix_moment(self, solucio):
-        punts, violacions = 0.0, []
-        for preferencia in self.preferencies:
-            pes = preferencia.get("pes", 75) if isinstance(preferencia, dict) else 75
-            noms = preferencia.get("assignatures", []) if isinstance(preferencia, dict) else preferencia
-            normalitzats = {normalitzar_text(n) for n in noms}
-            franges = set()
-            for item in self.items:
-                if any(
-                    normalitzar_text(e.nom) in normalitzats or normalitzar_text(e.nom_base) in normalitzats
-                    for e in item.examens
-                ):
-                    if item.id in solucio.assignacions:
-                        franges.add(solucio.assignacions[item.id].clau)
-            if len(franges) > 1:
-                cost = float(COST_PROHIBITIU if pes >= 100 else _punts_percentatge(BASE_MATEIX_MOMENT, pes))
-                punts += cost * (len(franges) - 1)
-                violacions.append({"tipus": "pref_mateix_slot", "pes": pes, "missatge": f"Slots separats: {noms}"})
-        return punts, violacions
+    def _cost_restriccions(self, prefix, franges):
+        clau = (prefix, franges)
+        if clau not in self._mem_restriccions:
+            dia_nom, data_iso = self._dia_i_data(prefix)
+            dia = {
+                "dia": dia_nom,
+                "sessions": [{"hora": hora, "sessions_simultanees": self._sessions(ids)} for hora, ids in franges],
+            }
+            if data_iso:
+                dia["data"] = data_iso
+            _, per_data = sessions_per_dia_i_data({"dies": [dia]})
+            incidencies = incidencies_restriccions_dia(dia, per_data, self._restriccions_mostrat, self._mapa_dies)
+            self._mem_restriccions[clau] = float(sum(i.punts for i in incidencies))
+        return self._mem_restriccions[clau]
 
-    def _agrupa(self, assignacions, afectades=None):
-        per_franja, per_dia = defaultdict(list), defaultdict(list)
+    def _cost_data(self, prefix, per_hora):
+        if not per_hora:
+            return 0.0
+        franges = tuple((h, tuple(per_hora[h])) for h in sorted(per_hora, key=lambda h: self._ordre_hores.get(h, 99)))
+        professors, estrictes = {}, 0.0
+        for h, ids in franges:
+            costos, punts_estrictes = self._cost_professors(prefix, h, ids)
+            professors.update(costos)  # cada hora d'un professor un sol cop per data
+            estrictes += punts_estrictes
+        return float(sum(professors.values())) + estrictes + self._cost_restriccions(prefix, franges)
+
+    @staticmethod
+    def _per_data(assignacions):
+        per = {}
         for identificador, franja in assignacions.items():
-            item = self.per_id[identificador]
-            if afectades is None or franja.clau in afectades:
-                per_franja[franja.clau].append(item)
-            per_dia[franja.data_iso or normalitzar_dia(franja.dia)].extend(self.examens[e.id] for e in item.examens)
-        return per_franja, per_dia
+            per.setdefault(franja.prefix, {}).setdefault(franja.hora, []).append(identificador)
+        return per
+
+    def _cost_limit(self, assignacions):
+        per_dia = defaultdict(list)
+        for identificador, franja in assignacions.items():
+            per_dia[franja.prefix].extend(self._sessions((identificador,)))  # per data
+        return float(sum(i.punts for i in incidencies_limit_professors(per_dia, self._restriccions_mostrat)))
 
     def total(self, solucio):
-        punts, violacions = 0.0, []
-        solucio.cost_per_franja = {}
-        per_franja, per_dia = self._agrupa(solucio.assignacions)
-        for clau, items in per_franja.items():
-            cost, incidencies = self.franja(clau, items, per_dia)
-            solucio.cost_per_franja[clau] = cost
-            punts += cost
-            violacions.extend(incidencies)
-        solucio.cost_global, incidencies = self.global_mateix_moment(solucio)
-        punts += solucio.cost_global
-        violacions.extend(incidencies)
-        return punts, violacions
+        solucio.cost_per_franja = {p: self._cost_data(p, h) for p, h in self._per_data(solucio.assignacions).items()}
+        solucio.cost_global = self._cost_limit(solucio.assignacions)
+        return sum(solucio.cost_per_franja.values()) + solucio.cost_global, []
 
     def delta(self, anterior, nova, afectades):
-        if afectades:
-            per_franja, per_dia = self._agrupa(nova.assignacions, afectades)
-            # No s'ordena: el motor antic recorria aquest mateix conjunt de claus.
-            for clau in afectades:
-                antic = nova.cost_per_franja.get(clau, 0.0)
-                cost, violacions = self.franja(clau, per_franja.get(clau, []), per_dia)
-                nova.cost_per_franja[clau] = cost
-                nova.cost = nova.cost - antic + cost
-                nova.violacions.extend(violacions)
-            antic = nova.cost_global
-            nova.cost_global, violacions = self.global_mateix_moment(nova)
-            nova.violacions.extend(violacions)
-            nova.cost = nova.cost - antic + nova.cost_global
-        else:
+        if not afectades:
             nova.violacions = list(anterior.violacions)
+            return nova
+        prefixos = {self.franges[c].prefix for c in afectades}
+        per = self._per_data({i: f for i, f in nova.assignacions.items() if f.prefix in prefixos})
+        costos = dict(nova.cost_per_franja)
+        for prefix in prefixos:
+            costos[prefix] = self._cost_data(prefix, per.get(prefix, {}))
+        nova.cost_per_franja = costos
+        nova.cost_global = self._cost_limit(nova.assignacions)
+        nova.cost = sum(costos.values()) + nova.cost_global
+        nova.violacions = []
         return nova

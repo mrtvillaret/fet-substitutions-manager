@@ -110,6 +110,61 @@ def test_publicar_desfa_vigilancies_grups_i_cobertures_si_falla_el_refresc(clien
 
     resposta = _publica(client, "1-BAT-B")
 
-    assert resposta.status_code == 500
-    assert "error_ref" in resposta.json()
+    # Un error controlat (abans un 500), amb referència, i no es desa res
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["success"] is False
+    [error] = resposta.json()["errors"]
+    assert "cobertures" in error and "ref " in error
     assert _bolcat(centre) == abans
+
+
+def test_una_sessio_repetida_a_la_peticio_crea_una_sola_vigilancia(client, centre):
+    """La mateixa (hora, nivell, grup, aula) dues vegades a la petició (un horari editat amb
+    una sessió duplicada) feia dues files."""
+    horari = _horari("1-BAT-A")
+    franja = horari["dies"][0]["sessions"][0]
+    franja["sessions_simultanees"] *= 2
+    resposta = client.post(
+        URL,
+        json={
+            "horari": horari,
+            "setmanes": [{"Dilluns": DATA}],
+            "opcions": {"auto_assign_titulars": False, "netejar_existents": False},
+        },
+    )
+    assert resposta.status_code == 200 and resposta.json()["success"], resposta.text
+    assert resposta.json()["vigilancies_creades"] == 1
+    assert len(_bolcat(centre)["vigilancies"]) == 1
+
+
+def test_dos_examens_a_la_mateixa_aula_i_hora_en_fan_una_i_avisen(client, centre):
+    """Dos exàmens diferents del mateix grup a la mateixa aula i hora (un conflicte publicat
+    igualment): una sola vigilància, la del primer, i un avís amb tots dos."""
+    horari = _horari("1-BAT-A")
+    sessions = horari["dies"][0]["sessions"][0]["sessions_simultanees"]
+    sessions.append(
+        {**sessions[0], "nom": "Història", "examens": [{**sessions[0]["examens"][0], "assignatura": "Història"}]}
+    )
+    resposta = client.post(
+        URL,
+        json={
+            "horari": horari,
+            "setmanes": [{"Dilluns": DATA}],
+            "opcions": {"auto_assign_titulars": False, "netejar_existents": False},
+        },
+    )
+    assert resposta.status_code == 200 and resposta.json()["success"], resposta.text
+    assert [v[2] for v in _bolcat(centre)["vigilancies"]] == ["Filosofia"]
+    assert resposta.json()["avisos"] == [
+        {
+            "codi": "examens_mateixa_aula_i_hora",
+            "params": {
+                "data": DATA,
+                "hora": "10:00",
+                "grups": "1-BAT-A",
+                "aula": "A01",
+                "assignatura": "Filosofia",
+                "altra": "Història",
+            },
+        }
+    ]

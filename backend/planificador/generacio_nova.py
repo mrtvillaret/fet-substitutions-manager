@@ -7,10 +7,10 @@ from dataclasses import replace
 from errors_domini import NoValid
 from errors_servidor import registra_excepcio
 from planificador.compartit.constants import DEFAULT_NIVELLS_ACTIUS, SEGONS_MAXIMS_PER_DEFECTE
-from planificador.compartit.missatges import missatge
+from planificador.compartit.missatges import missatge, unics
 from planificador.compartit.preparacio import prepara_planificacio
 from planificador.motor.avaluador import cost
-from planificador.motor.compatibilitat import BACKTRACKING, COST_MOSTRAT, GREEDY, RECUIT
+from planificador.motor.compatibilitat import BACKTRACKING, GREEDY, RECUIT
 from planificador.motor.construccio import construeix_problema, graella_cost_de_hores
 from planificador.motor.cost_cerca import CostCercaBacktracking, CostCercaGreedy, CostCercaRecuit
 from planificador.motor.diagnostic import Diagnostic
@@ -20,11 +20,13 @@ from planificador.motor.estrategies.base import Pressupost
 from planificador.motor.estrategies.greedy import Greedy
 from planificador.motor.estrategies.recuit import Recuit
 from planificador.motor.model import HorariEditable, congela
-from planificador.motor.registre import ValidadorHorari
+from planificador.motor.registre import FORMAT_INCIDENCIES, ValidadorHorari
 from planificador.motor.regles import construeix_regles
 from planificador.motor.sortida import horari_backtracking, horari_greedy, horari_recuit
 from planificador.services import desa_ultim_resultat
 from textos import normalitzar_hora
+
+RECOMPTES = ("total_substitucions", "professors_abans", "professors_despres", "professors_no_treballa")
 
 PARAMETRES_V3 = (
     "temperatura_inicial",
@@ -44,7 +46,7 @@ def _problema_cost_mostrat(problema):
     return replace(
         problema,
         graella=tuple(graella_cost_de_hores(problema.graella, problema.hores_inici)),
-        regles=construeix_regles(problema.regles.a_diccionari(), problema.examens, COST_MOSTRAT),
+        regles=construeix_regles(problema.regles.a_diccionari(), problema.examens),
         horaris_professors=congela(
             {
                 professor: {
@@ -76,6 +78,7 @@ def genera(payload, institucio):
             politiques,
             restriccions_resoltes=pla.restriccions,
         )
+        mostrat = _problema_cost_mostrat(problema)
         diagnostic = Diagnostic(problema, politiques)
         try:
             incompatibilitats = diagnostic.precheck(pla)
@@ -98,6 +101,9 @@ def genera(payload, institucio):
             segons = payload.segons_maxims if payload.segons_maxims is not None else SEGONS_MAXIMS_PER_DEFECTE
             pressupost = Pressupost(segons)
             t0 = time.monotonic()
+            # Amb `random_seed`, el greedy i el recuit també són reproduïbles; sense, el
+            # generador global (el backtracking sense llavor, en té un del sistema)
+            atzar = random if payload.random_seed is None else random.Random(payload.random_seed)
             if motor == "v2":
                 resultat = Greedy().cerca(
                     problema,
@@ -109,7 +115,7 @@ def genera(payload, institucio):
                         "track_intents": True,
                     },
                     pressupost,
-                    random,
+                    atzar,
                 )
                 horari = horari_greedy(resultat, segons, True)
             elif motor == "v3":
@@ -117,7 +123,7 @@ def genera(payload, institucio):
                     clau: getattr(payload, clau) for clau in PARAMETRES_V3 if getattr(payload, clau) is not None
                 }
                 resultat = Recuit().cerca(
-                    problema, politiques, CostCercaRecuit(problema), parametres, pressupost, random
+                    problema, politiques, CostCercaRecuit(problema, mostrat), parametres, pressupost, atzar
                 )
                 horari = horari_recuit(resultat, problema, Disponibilitat(problema))
             else:
@@ -148,13 +154,19 @@ def genera(payload, institucio):
         if not meta.get("viable", True):
             diagnostic.explica_no_viable(horari, pla, resultat.causes if resultat else [], bool(incompatibilitats))
             return {"status": "ok", "horari": horari}
-        meta["cost_total"] = cost(HorariEditable(horari), _problema_cost_mostrat(problema)).total
+        # El cost, el desglossament i els recomptes, els mateixos que el recàlcul:
+        # la pantalla no ha de recalcular just després de generar
+        info = cost(HorariEditable(horari), mostrat).a_info()
+        meta["cost_total"] = info["cost_total"]
+        meta["cost_desglossament"] = info["cost_desglossament"]
+        meta.update({clau: info[clau] for clau in RECOMPTES if clau in info})
         validacio = ValidadorHorari(
             horari, problema.regles.a_diccionari(), problema.no_substituir, pla.dia_a_data_iso
         ).validar()
         logs = [linia.strip() for linia in meta.get("logs", []) if linia.strip()]
         logs += [linia.strip() for linia in resultat.registre if linia.strip()]
         logs += validacio["logs"]
-        meta["logs"] = pla.cfg.avisos(pla.nivells) + list(dict.fromkeys(logs))
+        meta["logs"] = pla.cfg.avisos(pla.nivells) + unics(logs)
+        meta["format_incidencies"] = FORMAT_INCIDENCIES
         desa_ultim_resultat(institucio, horari, pla.dies)
         return {"dies_utilitzar": pla.dies, "horari": horari}

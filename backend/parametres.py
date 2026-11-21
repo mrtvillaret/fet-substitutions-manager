@@ -18,13 +18,13 @@ def data_iso(valor: str) -> date:
 
 
 def _comprova_data_iso(valor):
-    if valor is not None:
-        data_iso(valor)
-    return valor
+    # Normalitzada (2027-3-1 → 2027-03-01): la resta del codi la compara com a
+    # text i la llegeix amb date.fromisoformat, que no accepta dates sense zeros.
+    return data_iso(valor).isoformat() if valor is not None else None
 
 
 # Tipus per als paràmetres de data de les rutes: es validen sols (400 si no
-# són AAAA-MM-DD o no existeixen) i arriben com a text.
+# són AAAA-MM-DD o no existeixen) i arriben com a text AAAA-MM-DD amb zeros.
 #   def ruta(data: DataISO) / def ruta(data_inici: Optional[DataISO] = None)
 DataISO = Annotated[str, AfterValidator(_comprova_data_iso)]
 

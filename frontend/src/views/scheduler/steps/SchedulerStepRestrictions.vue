@@ -73,7 +73,7 @@
             <Column field="durada_examen" :header="t('scheduler.steps.restrictions.durades.columns.examDuration')" style="width: 90px">
               <template #body="s">
                 <div >
-                  <Tag :value="`${s.data.durada_examen ?? s.data.durada}h`" severity="info" class="tiny-tag" />
+                  <Tag :value="`${horesExamenDelGrup(s.data)}h`" severity="info" class="tiny-tag" />
                 </div>
               </template>
             </Column>
@@ -172,6 +172,7 @@
       <TabPanel :header="`⏰ ${t('scheduler.steps.restrictions.tabs.strictSchedule')}`">
         <div class="subtab-content">
           <p >{{ t('scheduler.steps.restrictions.strictSchedule.description') }}</p>
+          <p class="estrictes-ajuda">{{ t('scheduler.steps.restrictions.strictSchedule.hint') }}</p>
           <div class="professors-estrictes-grid">
             <div v-for="prof in llistaProfessors" :key="prof" class="prof-checkbox-item">
               <Checkbox
@@ -273,8 +274,8 @@
                     buttonLayout="horizontal"
                     incrementButtonIcon="pi pi-plus"
                     decrementButtonIcon="pi pi-minus"
-                    :min="clau.includes('preferencia') ? -1000 : 0"
-                    :max="clau.includes('dura') ? 5000 : 500"
+                    :min="0"
+                    :max="clau === 'restriccio_dura_violada' ? 100000 : clau.includes('dura') ? 5000 : 500"
                     class="scheduler-inputnumber"
                   />
                 </div>
@@ -346,7 +347,8 @@
 <script setup>
 import { useId } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { localizeBackendDayName } from '../textUtils'
+import { etiquetaDiaRestringit, localizeBackendDayName } from '../textUtils'
+import { horesExamenDelGrup } from '../duradaExamen'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -399,6 +401,6 @@ const preferenciaLabel = (tipus) => {
 
 const formatRestrictedDays = (days) => {
   if (!Array.isArray(days) || !days.length) return t('common.noneDash')
-  return days.map((day) => dayLabel(day)).join(', ')
+  return days.map((day) => etiquetaDiaRestringit(day, t)).join(', ')
 }
 </script>

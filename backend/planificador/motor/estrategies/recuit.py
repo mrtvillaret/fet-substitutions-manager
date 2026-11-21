@@ -35,6 +35,8 @@ class Recuit:
     def cerca(self, problema, politiques, cost_cerca, parametres, pressupost, rng):
         self.problema, self.politiques = problema, politiques
         self.cost_cerca, self.pressupost, self.rng = cost_cerca, pressupost, rng
+        # El termini compta des de l'entrada, amb la preparació dins (com al backtracking).
+        pressupost.inicia()
         self.registre = []
         self.franges = list(problema.franges)
         self.items = particio(problema, politiques)
@@ -62,7 +64,15 @@ class Recuit:
             return self._resultat(None)
         cost_cerca.prepara(self.items, politiques)
         solucio = self._executa(reinicis=parametres.get("reinicis"))
-        if solucio is None:
+        if solucio is None and self.aturat_pel_temps:
+            # Tallada pel temps: cap causa demostrada, com al backtracking.
+            self.error = {
+                "viable": False,
+                "error": missatge("cerca_tallada_temps", segons=pressupost.segons),
+                "motiu_aturada": "temps",
+                "motor": "v3-sa",
+            }
+        elif solucio is None:
             incompatibilitats = []
             if self.item_infactible:
                 nom = self.item_infactible.id or str(self.item_infactible)
@@ -90,7 +100,7 @@ class Recuit:
         resultat = ResultatCerca(
             solucio.assignacions if solucio else None,
             complet,
-            "temps" if self.aturat_pel_temps and solucio is not None else None,
+            "temps" if self.aturat_pel_temps else None,
             registre=self.registre,
             cost=solucio.cost if solucio else None,
             items=self.items,
@@ -222,7 +232,6 @@ class Recuit:
             iteracions_per_temperatura = self.iteracions_per_temperatura
             maxim_iteracions = self.max_iteracions
 
-        self.pressupost.inicia()
         self.aturat_pel_temps = False
         for reinici in range(reinicis):
             if reinici > 0 and self.pressupost.temps_transcorregut_esgotat():
@@ -242,15 +251,17 @@ class Recuit:
 
             ms = deepcopy(sa)
 
-            violacions_dures = len([v for v in ms.violacions if v.get("pes", 0) >= 100])
             if amb_registre:
-                self.registre.append(f"   Solució inicial: cost={sa.cost:.2f}, {violacions_dures} violacions dures")
+                self.registre.append(f"   Solució inicial: cost={sa.cost:.2f}")
 
-            # Si ja és viable i hi ha poques sessions mòbils, podem acabar aviat
-            if violacions_dures == 0 and n_mob <= 1:
+            # Amb un sol ítem mòbil no cal recuit: es proven totes les seves franges
+            # (abans es quedava la millor de les solucions inicials, triades a l'atzar).
+            if n_mob <= 1:
+                millor_global = self._millor_franja_de_l_unic_mobil(ms)
                 if amb_registre:
-                    self.registre.append(f"   ✨ Solució inicial viable amb {n_mob} mòbil(s), saltant SA")
-                millor_global = ms
+                    self.registre.append(
+                        f"   ✨ {n_mob} mòbil: totes les franges provades, cost={millor_global.cost:.2f}, saltant SA"
+                    )
                 break
 
             t, it = self.temperatura_inicial, 0
@@ -311,6 +322,22 @@ class Recuit:
             self.registre.append(f"✅ SA completat. Millor cost: {millor_global.cost:.2f}")
 
         return millor_global
+
+    def _millor_franja_de_l_unic_mobil(self, solucio):
+        """La solució més barata movent només l'únic ítem mòbil per totes les franges
+        compatibles; en cas d'empat, es queda la de partida."""
+        if len(self.items_mobils) != 1:
+            return solucio
+        item = self.items_mobils[0]
+        base = SolucioRecuit({k: v for k, v in solucio.assignacions.items() if k != item.id})
+        millor = solucio
+        for franja in self.franges:
+            if self._compatible(base, item, franja):
+                candidata = SolucioRecuit({**base.assignacions, item.id: franja})
+                candidata.cost, candidata.violacions = self.calcular_cost(candidata)
+                if candidata.cost < millor.cost:
+                    millor = candidata
+        return millor
 
     def _solucio_inicial(self):
         # Heurística: prioritzar ítems amb menys slots compatibles

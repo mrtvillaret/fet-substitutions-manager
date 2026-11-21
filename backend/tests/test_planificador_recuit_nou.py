@@ -100,7 +100,24 @@ def test_reinicis_i_limits_per_nombre_de_mobils(monkeypatch, config_inventada, x
     assert len(reinicis) == (0 if mobils <= 1 else 1 if mobils == 2 else 12)
 
 
-def test_delta_conserva_les_altres_franges_desfasades(config_inventada, xml_inventat):
+def _cost_mostrat(problema, items, solucio):
+    """El cost que veu la pantalla de l'horari d'una solució del recuit."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from planificador.motor.avaluador import cost as cost_mostrat  # noqa: PLC0415
+    from planificador.motor.disponibilitat import Disponibilitat  # noqa: PLC0415
+    from planificador.motor.model import HorariEditable  # noqa: PLC0415
+    from planificador.motor.sortida import horari_recuit  # noqa: PLC0415
+
+    resultat = SimpleNamespace(
+        error=None, items=items, assignacio=solucio.assignacions, cost=0.0, violacions=[], motiu_aturada=None
+    )
+    return cost_mostrat(HorariEditable(horari_recuit(resultat, problema, Disponibilitat(problema))), problema).total
+
+
+def test_el_delta_dona_el_cost_mostrat(config_inventada, xml_inventat):
+    """El delta recalcula les dates afectades senceres (abans només les dues
+    franges i deixava desfasades les altres franges del dia)."""
     cfg = config_inventada
     cfg.restriccions = {
         "preferencies": {"dies_diferents": [{"assignatures": ["A (N1)", "B (N1)"], "pes": 50}]},
@@ -117,9 +134,9 @@ def test_delta_conserva_les_altres_franges_desfasades(config_inventada, xml_inve
     afectades = {problema.franges[0].clau, problema.franges[3].clau}
     cost.delta(antiga, nova, afectades)
     sencer, _ = cost.total(deepcopy(nova))
-    assert nova.cost_per_franja[problema.franges[1].clau] == antiga.cost_per_franja[problema.franges[1].clau]
-    assert nova.cost != sencer
-    assert nova.cost - sencer == 50
+    assert nova.cost == sencer == _cost_mostrat(problema, items, nova)
+    assert antiga.cost == _cost_mostrat(problema, items, antiga)
+    assert antiga.cost != nova.cost
 
 
 def test_regressio_nou_sessions_cost_330(monkeypatch, config_inventada):
@@ -164,7 +181,7 @@ def test_regressio_nou_sessions_cost_330(monkeypatch, config_inventada):
     assert cost(HorariEditable(horari), problema).total == 330
 
 
-@pytest.mark.parametrize("durada_inicial,veins", [(0, 3), (3, 0)])
+@pytest.mark.parametrize("durada_inicial,veins", [(0, 2), (3, 0)])
 def test_solucio_inicial_dins_del_temps_sense_interrupcio(
     monkeypatch, config_inventada, xml_inventat, durada_inicial, veins
 ):
@@ -174,7 +191,7 @@ def test_solucio_inicial_dins_del_temps_sense_interrupcio(
 
     def prepara(motor):
         original(motor)
-        ara[0] += 100  # Preparació fora del termini.
+        ara[0] += 1  # la preparació compta dins del termini.
 
     def rellotge():
         consultes.append(ara[0])
@@ -195,7 +212,7 @@ def test_solucio_inicial_dins_del_temps_sense_interrupcio(
     resultat = Recuit().cerca(
         problema, RECUIT, CostCercaRecuit(problema), dict(PARAMETRES, reinicis=2), Pressupost(3, rellotge), random
     )
-    assert consultes[0] == 200
+    assert consultes[0] == 100  # el termini comença en entrar a la cerca
     assert len(moviments) == veins
     assert resultat.cost == 5
     assert resultat.motiu_aturada == "temps"
@@ -232,27 +249,30 @@ def test_sostres_d_iteracions_i_temperatura(
     assert any(f": {esperats} iteracions" in linia for linia in resultat.registre)
 
 
-def test_aturada_sense_solucio_perd_el_motiu(monkeypatch, config_inventada, xml_inventat):
+def test_aturada_sense_solucio_conserva_el_motiu(monkeypatch, config_inventada, xml_inventat):
+    """Tallada pel temps sense cap solució, diu que s'ha tallat (cap causa falsa)."""
     problema = problema_de(config_inventada, xml_inventat)
     monkeypatch.setattr(Recuit, "_solucio_inicial", lambda *_: None)
     horari, resultat, rellotge, _ = executa_nou(problema, tic=30)
-    assert resultat.assignacio is None and resultat.motiu_aturada is None
-    assert "motiu_aturada" not in horari["metadata"]
+    assert resultat.assignacio is None and resultat.motiu_aturada == "temps"
+    assert horari["metadata"]["motiu_aturada"] == "temps"
     assert rellotge.consultes == 2
-    assert horari["metadata"]["error"]["codi"] == "sense_hora_compatible"
+    assert horari["metadata"]["error"]["codi"] == "cerca_tallada_temps"
 
 
-@pytest.mark.parametrize("pes,esperat", [(75, 7500), (100, 10000000)])
-def test_mateix_moment_es_cost_global_i_no_dura(config_inventada, xml_inventat, pes, esperat):
+@pytest.mark.parametrize("pes", [75, 100])
+def test_mateix_moment_al_100_es_dur_al_recuit_i_compta_com_el_cost_mostrat(config_inventada, xml_inventat, pes):
+    """Al 100%, obligatòria com al greedy i al backtracking; per sota, cost."""
     cfg = config_inventada
-    cfg.restriccions = {"preferencies": {"mateix_slot": [{"assignatures": [" a ", "b"], "pes": pes}]}}
+    cfg.restriccions = {"preferencies": {"mateix_slot": [{"assignatures": ["A (N1)", "B (N1)"], "pes": pes}]}}
     problema = problema_de(cfg, xml_inventat)
     cost = CostCercaRecuit(problema)
     items = particio(problema, RECUIT)
     cost.prepara(items, RECUIT)
     solucio = SolucioRecuit({items[0].id: problema.franges[0], items[1].id: problema.franges[3]})
-    assert cost.global_mateix_moment(solucio)[0] == esperat
-    assert cost.compatible(SolucioRecuit({items[0].id: problema.franges[0]}), items[1], problema.franges[3])
+    assert cost.total(solucio)[0] == _cost_mostrat(problema, items, solucio)
+    separada = cost.compatible(SolucioRecuit({items[0].id: problema.franges[0]}), items[1], problema.franges[3])
+    assert separada is (pes < 100)
 
 
 def test_deu_solucions_inicials_viables_i_cinquanta_intents_fallits(monkeypatch, config_inventada, xml_inventat):
@@ -298,8 +318,8 @@ def test_limit_per_sessio_i_dia_no_es_el_limit_global(config_inventada, xml_inve
     items = particio(problema, RECUIT)
     cost.prepara(items, RECUIT)
     solucio = SolucioRecuit({it.id: problema.franges[i] for i, it in enumerate(items)})
-    # 3 sessions × 2 exàmens de més × 50% de 1000; no pas un sol límit global.
-    assert cost.total(solucio)[0] == 3000
+    # Com el cost mostrat: un sol límit global (abans, un per sessió i dia: 3000).
+    assert cost.total(solucio)[0] == _cost_mostrat(problema, items, solucio) < 3000
 
 
 def test_homonims_i_identificadors_publics(monkeypatch, config_inventada, xml_inventat):
@@ -345,3 +365,27 @@ def test_rellotge_conserva_la_resta_abans_de_comparar():
     pressupost = Pressupost(1, lambda: 1e16)
     pressupost.inicia()
     assert pressupost.temps_transcorregut_esgotat() is False
+
+
+def test_amb_un_sol_mobil_prova_totes_les_franges(monkeypatch, config_inventada, xml_inventat):
+    """Revisió de la fase 2: amb un sol ítem mòbil el recuit no fa iteracions; abans es quedava
+    la millor de les solucions inicials (franges a l'atzar) i no sempre trobava la més barata."""
+    problema = problema_de(config_inventada, xml_inventat)
+    barata = problema.franges[-1]
+    item = particio(problema, RECUIT)[0]
+
+    def detecta(motor):
+        motor.items_congelats_ids, motor.items_mobils, motor.franja_congelada = set(), [item], {}
+
+    def cost(motor, solucio):
+        return (30 if solucio.assignacions[item.id] == barata else 80), []
+
+    monkeypatch.setattr(Recuit, "_detecta_congelats", detecta)
+    monkeypatch.setattr(Recuit, "_compatible", lambda *_: True)
+    monkeypatch.setattr(Recuit, "calcular_cost", cost)
+    monkeypatch.setattr("planificador.motor.estrategies.recuit.particio", lambda *_: [item])
+    for llavor in range(10):
+        resultat = Recuit().cerca(
+            problema, RECUIT, CostCercaRecuit(problema), PARAMETRES, Pressupost(5), random.Random(llavor)
+        )
+        assert (resultat.cost, resultat.assignacio[item.id]) == (30, barata), llavor

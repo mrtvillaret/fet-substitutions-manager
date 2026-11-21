@@ -16,8 +16,8 @@ export function useHorariEditable(dependents) {
   const horariLocal = ref(null)
   const horariOriginal = ref(null)
   const costTotal = ref(0)
-  const costBreakdown = ref({})
-  const costBreakdownDetails = ref({})
+  // El mateix desglossament que la pantalla de resultats: un de sol
+  const costDesglossament = ref([])
   const costsPerSlot = ref({})
   const isValid = ref(true)
   const carregant = ref(false)
@@ -148,40 +148,6 @@ export function useHorariEditable(dependents) {
            itemsAparcats.value.length > 0 ||
            grupsAparcats.value.length > 0
   })
-
-  const costBreakdownFiltered = computed(() => {
-    const filtered = {}
-    for (const [k, v] of Object.entries(costBreakdown.value || {})) {
-      if (v && !k.includes('unitari')) {
-        filtered[k] = v
-      }
-    }
-    return filtered
-  })
-
-  const formatBreakdownKey = (key) => {
-    const map = {
-      substitucio: t('scheduler.editable.breakdown.substitucions'),
-      abans_jornada: t('scheduler.editable.breakdown.abans_jornada'),
-      despres_jornada: t('scheduler.editable.breakdown.despres_jornada'),
-      no_treballa_dia: t('scheduler.editable.breakdown.no_treballa_dia'),
-      limit_dies_professor: t('scheduler.editable.breakdown.limit_dies_professor'),
-    }
-    return map[key] || key
-  }
-
-  const formatBreakdownDetails = (key) => {
-    const details = costBreakdownDetails.value?.[key]
-    if (!details || !details.length) return ''
-    return details.join(', ')
-  }
-
-  const formatBreakdownSuffix = (key) => {
-    const details = costBreakdownDetails.value?.[key]
-    if (!details || !details.length) return ''
-    if (details.length <= 2) return details.join(', ')
-    return t('scheduler.editable.breakdown.profCount', { count: details.length })
-  }
 
   const transformarHorariAItems = (horari) => {
     if (!horari?.dies) return
@@ -357,15 +323,16 @@ export function useHorariEditable(dependents) {
         }
       }
 
+      // Previsualització: no desa. L'horari editat es desa en prémer «Aplicar».
       const { data } = await apiPlanificador.recalculaCost({
         horari: horariPerEnviar,
         data_referencia: props.dataReferencia,
-        selected_dates: props.selectedDates
+        selected_dates: props.selectedDates,
+        desa: false
       })
 
       costTotal.value = data.cost_total
-      costBreakdown.value = data.cost_breakdown || {}
-      costBreakdownDetails.value = data.cost_breakdown_details || {}
+      costDesglossament.value = data.cost_desglossament || []
       isValid.value = data.valid
 
       const slotsMap = {}
@@ -510,7 +477,17 @@ export function useHorariEditable(dependents) {
     recalcularCost()
   }
 
-  const aplicarCanvis = () => {
+  const aplicarCanvis = async () => {
+    // Un examen aparcat no és a l'horari: si s'aplica, es desaria sense
+    if (itemsAparcats.value.length || grupsAparcats.value.length) {
+      toast.add({
+        severity: 'warn',
+        summary: t('scheduler.editable.toasts.parkedPendingTitle'),
+        detail: t('scheduler.editable.toasts.parkedPendingDetail'),
+        life: 4000
+      })
+      return
+    }
     if (!isValid.value) {
       toast.add({
         severity: 'warn',
@@ -531,6 +508,24 @@ export function useHorariEditable(dependents) {
     horariPerEmetre.metadata = horariPerEmetre.metadata || {}
     horariPerEmetre.metadata.editat_manualment = true
     horariPerEmetre.metadata.cost_total = costTotal.value
+
+    // Es desa com a últim resultat (el recàlcul amb desa)
+    try {
+      await apiPlanificador.recalculaCost({
+        horari: horariPerEmetre,
+        data_referencia: props.dataReferencia,
+        selected_dates: props.selectedDates,
+        desa: true
+      })
+    } catch (error) {
+      avisaError(error, () => toast.add({
+        severity: 'error',
+        summary: t('scheduler.editable.toasts.saveErrorTitle'),
+        detail: detallDError(error) || t('scheduler.editable.toasts.saveErrorDetail'),
+        life: 4000
+      }))
+      return
+    }
 
     horariOriginal.value = JSON.parse(JSON.stringify(horariLocal.value))
 
@@ -569,8 +564,7 @@ export function useHorariEditable(dependents) {
     horariLocal,
     horariOriginal,
     costTotal,
-    costBreakdown,
-    costBreakdownDetails,
+    costDesglossament,
     costsPerSlot,
     isValid,
     carregant,
@@ -588,10 +582,6 @@ export function useHorariEditable(dependents) {
     dies,
     hores,
     haCanvis,
-    costBreakdownFiltered,
-    formatBreakdownKey,
-    formatBreakdownDetails,
-    formatBreakdownSuffix,
     transformarHorariAItems,
     getItemsSlot,
     getCostSlot,

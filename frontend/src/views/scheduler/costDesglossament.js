@@ -13,11 +13,10 @@ const CONCEPTES = [
   'preferencia_mateix_slot',
   'no_mateix_slot',
   'no_mateix_dia',
-  'combinacio_no_permesa',
   'dia_hora_fix',
-  'assignatures_dies_exclosos',
   'limit_dies_professor',
   'professor_estricte',
+  'mateix_dia_obligatori',
 ]
 
 export const CONCEPTES_COST = CONCEPTES

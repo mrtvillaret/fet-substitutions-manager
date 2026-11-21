@@ -61,11 +61,15 @@ test('Horari editable: mou un ítem i aparca el conflictiu del mateix nivell', a
 test('Horari editable: aplicar vàlid emet una còpia neta i invàlid només avisa', async () => {
   const p = await muntat()
   p.isValid.value = false
-  p.aplicarCanvis()
+  await p.aplicarCanvis()
   assert.deepEqual(p.esdeveniments, [])
   assert.equal(p.avisos.at(-1).severity, 'warn')
   p.isValid.value = true
-  p.aplicarCanvis()
+  await p.aplicarCanvis()
+  // En aplicar, es desa (el recàlcul amb desa); la previsualització no
+  const [tipus, cos] = p.peticions.at(-1)
+  assert.equal(tipus, 'cost')
+  assert.equal(cos.desa, true)
   const [event, horari] = p.esdeveniments.at(-1)
   assert.equal(event, 'actualitzat')
   assert.equal(horari.metadata.editat_manualment, true)
@@ -90,4 +94,20 @@ test('Horari editable: fixar, desfixar i desfer conserven peticions i esdevenime
   assert.deepEqual(p.itemsAparcats.value, [])
   assert.deepEqual(p.grupsAparcats.value, [])
   assert.equal(p.getItemsSlot('2026-04-20', '8h')[0].nom, 'Examen A')
+})
+
+test('Horari editable: amb exàmens aparcats no s\'aplica ni es desa', async () => {
+  const p = await muntat()
+  const item = p.getItemsSlot('2026-04-20', '9h')[0]
+  p.itemsAparcats.value.push(item)
+  await p.aplicarCanvis()
+  assert.deepEqual(p.esdeveniments, [])
+  assert.deepEqual(p.peticions, [])
+  assert.equal(p.avisos.at(-1).summary, 'scheduler.editable.toasts.parkedPendingTitle')
+})
+
+test('Horari editable: el recàlcul de cada moviment no desa', async () => {
+  const p = await muntat()
+  await p.recalcularCost()
+  assert.equal(p.peticions.at(-1)[1].desa, false)
 })

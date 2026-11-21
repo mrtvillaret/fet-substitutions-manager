@@ -27,6 +27,13 @@ def afegeix_nivell(db: Session, codi: str | None, nom: str | None) -> None:
     db.commit()
 
 
+def mou_nivell(db: Session, codi: str, direccio: int) -> None:
+    """L'ordre dels nivells és el de tot el planificador (selector, calendari, editor)."""
+    if not MasterConfigRepository.mou_nivell(db, codi, direccio):
+        raise NoTrobat("Nivell no trobat", codi="nivell_no_trobat")
+    db.commit()
+
+
 # Les assignacions que fan servir un nivell o un grup (comptades a la
 # configuració d'exàmens: les dels grups del nivell, o les del grup). En
 # esborrar-lo, la pantalla pregunta si s'esborren també (en la mateixa

@@ -180,6 +180,17 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
 
   const eliminarNivell = (codi) => eliminarAmbAssignacions('nivell', codi)
 
+  // L'ordre dels nivells és el de tot el planificador (selector, calendari, editor)
+  const mouNivell = async (codi, direccio) => {
+    try {
+      await apiExamens.mouNivell(codi, direccio)
+      await carregarNivells()
+    } catch (error) {
+      console.error('Error movent el nivell:', error)
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: detallDError(error) || t('examConfig.errors.moveLevel'), life: 3000 }))
+    }
+  }
+
   const afegirAssignatura = async () => {
     if (!novaAssignatura.value || !nivellSeleccionat.value) return
 
@@ -497,5 +508,5 @@ export function useCatalegsExamens({ toast, t, confirmaEsborrar, assignacions, c
     }
   }
 
-  return { nivells, itemEditant, mostrarDialogRenomItem, renomValor, mostrarDialogAfegirNivell, nouNivell, nivellSeleccionat, assignatures, mostrarDialogAfegirAssignatura, novaAssignatura, nivellSeleccionatGrups, grups, mostrarDialogAfegirGrup, nouGrup, aules, mostrarDialogAfegirAula, novaAula, totesAssignatures, totsGrups, professors, carregarNivells, carregarAssignatures, afegirNivell, ELIMINAR, esborrantAmbAssignacions, esborra, eliminarNivell, afegirAssignatura, eliminarAssignatura, carregarGrups, afegirGrup, eliminarGrup, carregarAules, afegirAula, eliminarAula, carregarTotesAssignatures, carregarTotsGrups, horariPlanificacio, carregarProfessors, prepararRenomAssignatura, prepararRenomGrup, prepararRenomAula, reanomenarItem }
+  return { nivells, itemEditant, mostrarDialogRenomItem, renomValor, mostrarDialogAfegirNivell, nouNivell, nivellSeleccionat, assignatures, mostrarDialogAfegirAssignatura, novaAssignatura, nivellSeleccionatGrups, grups, mostrarDialogAfegirGrup, nouGrup, aules, mostrarDialogAfegirAula, novaAula, totesAssignatures, totsGrups, professors, carregarNivells, carregarAssignatures, afegirNivell, ELIMINAR, esborrantAmbAssignacions, esborra, eliminarNivell, mouNivell, afegirAssignatura, eliminarAssignatura, carregarGrups, afegirGrup, eliminarGrup, carregarAules, afegirAula, eliminarAula, carregarTotesAssignatures, carregarTotsGrups, horariPlanificacio, carregarProfessors, prepararRenomAssignatura, prepararRenomGrup, prepararRenomAula, reanomenarItem }
 }

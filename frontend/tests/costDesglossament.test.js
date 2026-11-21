@@ -19,7 +19,7 @@ test('desglossament del cost: quantitat × pes, només conceptes amb punts, i el
   assert.deepEqual(files.map((f) => [f.etiqueta, f.calcul, f.punts]), [
     ['Substitucions', '2 × 80 + 1 × 10', 170],
     ['Arriben abans', '2 × 30', 60],
-    ['Preferència mateix dia', '1 × -120', -120],
+    ['Preferència mateixa data', '1 × -120', -120],
     ["Límit d'exàmens per professor", '1 × 12.000', 12000],
   ])
   assert.equal(total, 12110)

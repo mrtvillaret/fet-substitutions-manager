@@ -8,7 +8,7 @@ from typing import Any
 
 from planificador.compartit.nivells import NivellsDelsGrups
 from planificador.compartit.normalitzacio import normalitzar_dia, normalitzar_text
-from planificador.motor.durades import examen_motor, hores_ocupades, vigilancia
+from planificador.motor.durades import examen_del_problema, hores_ocupades, vigilancia
 from planificador.motor.model import Problema, descongela
 from textos import normalitzar_hora as _normalitzar_hora
 
@@ -450,7 +450,7 @@ def analitza_motor(
     """
     nom = sessio.get("nom")
     supervisio = vigilancia(nom, problema.durades_vigilancia, problema.durada_titular)
-    durada = examen_motor(nom, problema.durades_examen, problema.durades_vigilancia, problema.durada_titular)
+    durada = examen_del_problema(nom, problema)
     data_iso = franja.data_iso
     if data_iso is None:
         dates = problema.mapa_dies.get(normalitzar_dia(franja.dia))

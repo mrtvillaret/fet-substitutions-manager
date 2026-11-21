@@ -1,98 +1,49 @@
 import { tradueixMissatge } from './missatges.js'
 import { computed } from 'vue'
 
-import { normalizeText, extractHour, getAvisEmoji, getIncidentEmoji, isCriticalIncident, isZonaExamenIncident, stripIncidentDecorators, localizeIncidentText } from './textUtils'
+import { esCritica, esDeLExamen, esEnllac, esIncidencia, esZonaExamen, iconaIncidencia, textCurtIncidencia, textIncidencia } from './incidencies.js'
 
+// Hores comparables («09:00» i «9:00» són la mateixa)
+const hora = (h) => String(h || '').replace(/^0(\d:)/, '$1')
+
+// Les incidències del calendari: pel titular de l'examen, la data i l'hora de la fila
 export function useSchedulerIncidencies({ t, logsIncidencies, logsEnllacos, result }) {
-  const formatWarningText = (text) => localizeIncidentText(text, t)
+  const deLExamen = (llista, ex, dia, horaFila) => (llista || []).filter((m) => esIncidencia(m) && esDeLExamen(
+    { ...m, params: { ...m.params, hora: hora(m.params?.hora) } },
+    ex?.titular,
+    { dia: dia?.dia, data: dia?.dataIso, hora: hora(horaFila) }
+  ))
 
-  const getAvisosExamen = (ex, dia, hora) => {
-    const logs = logsIncidencies.value || []
-    const avisos = new Set()
-    const prof = normalizeText(ex?.titular || '')
-    const diaNorm = normalizeText(dia)
-    const horaNorm = extractHour(hora)
-    if (!prof || !diaNorm || !horaNorm) return []
+  const getAvisosExamen = (ex, dia, horaFila) => deLExamen(logsIncidencies.value, ex, dia, horaFila)
+  const getEnllacosExamen = (ex, dia, horaFila) => deLExamen(logsEnllacos.value, ex, dia, horaFila)
 
-    logs.forEach((log) => {
-      const logNorm = normalizeText(log)
-      if (!logNorm.includes(prof)) return
-      if (!logNorm.includes(diaNorm)) return
-      // Comprovar l'hora exacta del log (el backend genera una entrada per cada hora)
-      const logHour = extractHour(log)
-      if (logHour !== horaNorm) return
-      avisos.add(stripIncidentDecorators(log))
-    })
-    return Array.from(avisos)
+  // La zona d'examen (sense cost), l'última
+  const ORDRE = ['🚨', '🕐', '🚫', '🔗', '⚠️', '⛔', '👁️']
+
+  const getAvisosIconsExamen = (ex, dia, horaFila) => {
+    const icones = new Set([...getAvisosExamen(ex, dia, horaFila), ...getEnllacosExamen(ex, dia, horaFila)].map(iconaIncidencia))
+    return ORDRE.filter((e) => icones.has(e))
   }
 
-  const getEnllacosExamen = (ex, dia, hora) => {
-    const logs = logsEnllacos.value || []
-    const avisos = new Set()
-    const prof = normalizeText(ex?.titular || '')
-    const diaNorm = normalizeText(dia)
-    const horaNorm = extractHour(hora)
-    if (!prof || !diaNorm || !horaNorm) return []
-
-    logs.forEach((log) => {
-      const logNorm = normalizeText(log)
-      if (!logNorm.includes(prof)) return
-      if (!logNorm.includes(diaNorm)) return
-      const logHour = extractHour(log)
-      if (logHour !== horaNorm) return
-      avisos.add(stripIncidentDecorators(log))
-    })
-    return Array.from(avisos)
+  // Primer els avisos amb cost, després els enllaços i, al final, la zona d'examen
+  const getAvisosTitleExamen = (ex, dia, horaFila) => {
+    const avisos = getAvisosExamen(ex, dia, horaFila)
+    return [...avisos.filter((m) => !esZonaExamen(m)), ...getEnllacosExamen(ex, dia, horaFila), ...avisos.filter(esZonaExamen)]
+      .map((m) => textIncidencia(m, t))
+      .join('\n')
   }
 
-  const getAvisosIconsExamen = (ex, dia, hora) => {
-    const avisos = getAvisosExamen(ex, dia, hora)
-    const enllacos = getEnllacosExamen(ex, dia, hora)
-    const order = ['🚨', '🕐', '🚫', '🔗', '👁️', '⚠️']
-    const set = new Set()
-    avisos.forEach((a) => set.add(getAvisEmoji(a)))
-    if (enllacos.length) set.add('🔗')
-    return order.filter((e) => set.has(e))
+  const classe = (examens, dia, horaFila, prefix) => {
+    const avisos = examens.flatMap((ex) => getAvisosExamen(ex, dia, horaFila)).filter((m) => !esEnllac(m))
+    if (avisos.some(esCritica)) return `${prefix}-with-subs`
+    if (avisos.some((m) => !esZonaExamen(m))) return `${prefix}-with-warnings`
+    return avisos.length ? `${prefix}-with-zona-examen` : ''
   }
 
-  const getAvisosTitleExamen = (ex, dia, hora) => {
-    const avisos = getAvisosExamen(ex, dia, hora)
-    const enllacos = getEnllacosExamen(ex, dia, hora)
-    return [...avisos, ...enllacos].map(formatWarningText).join('\n')
-  }
+  const getSessioClass = (s, dia, horaFila) => classe(s.examens || [], dia, horaFila, 'sessio')
+  const getNivellClass = (nivellInfo, dia, horaFila) => classe(nivellInfo.examens || [], dia, horaFila, 'nivell')
 
-  const getSessioClass = (s, dia, hora) => {
-    let w = false
-    let sb = false
-    let ze = false
-    s.examens.forEach((ex) => {
-      const av = getAvisosExamen(ex, dia, hora)
-      av.forEach((a) => {
-        if (isCriticalIncident(a)) sb = true
-        else if (isZonaExamenIncident(a)) ze = true
-        else w = true
-      })
-    })
-    return sb ? 'sessio-with-subs' : (w ? 'sessio-with-warnings' : (ze ? 'sessio-with-zona-examen' : ''))
-  }
-
-  const getIncidentIcon = (text) => getIncidentEmoji(text)
-
-  // Obtenir classe CSS per nivell
-  const getNivellClass = (nivellInfo, dia, hora) => {
-    let hasWarning = false
-    let hasSub = false
-    let hasZona = false
-    nivellInfo.examens.forEach((ex) => {
-      const avisos = getAvisosExamen(ex, dia, hora)
-      avisos.forEach((a) => {
-        if (isCriticalIncident(a)) hasSub = true
-        else if (isZonaExamenIncident(a)) hasZona = true
-        else hasWarning = true
-      })
-    })
-    return hasSub ? 'nivell-with-subs' : (hasWarning ? 'nivell-with-warnings' : (hasZona ? 'nivell-with-zona-examen' : ''))
-  }
+  const getIncidentIcon = (m) => iconaIncidencia(m)
 
   const incidenciesDetallades = computed(() => {
     const meta = result.value?.horari?.metadata || {}
@@ -100,7 +51,7 @@ export function useSchedulerIncidencies({ t, logsIncidencies, logsEnllacos, resu
     if (meta.professors_slots_duplicats) {
       meta.professors_slots_duplicats.forEach((d) => l.push(`❌ SIMULTANI: ${d.professor} a ${d.dia} ${d.hora}`))
     }
-    if (meta.logs) l.push(...meta.logs.map(m => tradueixMissatge(m, t)))
+    if (meta.logs) l.push(...meta.logs.map((m) => (esIncidencia(m) ? textCurtIncidencia(m, t) : tradueixMissatge(m, t))))
     return l
   })
 

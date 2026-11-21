@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "📚 Substitution Manager",
-    "footer": "FastAPI + Vue 3 Prototype | FET Substitution Manager",
+    "footer": "FET Substitution Manager",
     "login": {
       "title": "Substitution Manager",
       "subtitle": "Sign in to continue",
@@ -44,7 +44,8 @@
       "vigilancies": "Invigilations"
     },
     "newVersion": "A new version of the application is available.",
-    "reload": "Reload"
+    "reload": "Reload",
+    "footerLliure": "free software"
   },
   "common": {
     "roles": {
@@ -215,7 +216,6 @@
       "noAbbrev": "No abbreviations configured",
       "abbrevHint": "Abbreviations simplify the display of combined groups (e.g. \"1-ESO-A,1-ESO-B\" → \"1-ESO-AB\")",
       "editAbbrevTitle": "✏️ Edit abbreviation",
-      "addAbbrevTitle": "➕ Add abbreviation",
       "originalGroups": "Original groups",
       "selectGroups": "Select groups...",
       "selectGroupsHint": "Select the groups to abbreviate.",
@@ -670,14 +670,16 @@
     "levels": {
       "count": "{count} level | {count} levels",
       "empty": "No levels configured",
-      "hint": "Levels define the organizational structure (1-ESO, 2-ESO, 1-BACH, etc.)",
+      "hint": "Levels define the organizational structure (1-ESO, 2-ESO, 1-BACH, etc.) The order of this list is the one used by the scheduler (calendar and editor).",
       "addTitle": "➕ Add level",
       "codeLabel": "Level code",
       "codePlaceholder": "e.g. 3-BACH, CFGM, etc.",
       "added": "Level added successfully",
       "deleted": "Level deleted successfully",
       "deleteConfirmMessage": "Do you want to delete level \"{code}\"? This will also remove its subjects and groups.",
-      "usedByAssignments": "1 assignment uses this level. Do you want to delete it too? | {count} assignments use this level. Do you want to delete them too?"
+      "usedByAssignments": "1 assignment uses this level. Do you want to delete it too? | {count} assignments use this level. Do you want to delete them too?",
+      "moveUp": "Move level up",
+      "moveDown": "Move level down"
     },
     "groups": {
       "selectLevel": "Select level",
@@ -797,7 +799,8 @@
       "createAssignment": "Could not create assignment",
       "updateAssignment": "Could not update",
       "deleteAssignment": "Could not delete assignment",
-      "saveAffinities": "Could not save affinities"
+      "saveAffinities": "Could not save affinities",
+      "moveLevel": "Error moving the level"
     },
     "stillUsedByAssignments": "1 exam assignment still uses it; it has been kept as it was. | {count} exam assignments still use it; they have been kept as they were.",
     "deleteAssignments": {
@@ -1442,22 +1445,17 @@
         "hour": "Hour",
         "dragHere": "Drag here"
       },
-      "breakdown": {
-        "title": "Breakdown",
-        "substitucions": "Substitutions",
-        "abans_jornada": "Before shift",
-        "despres_jornada": "After shift",
-        "no_treballa_dia": "No work day",
-        "limit_dies_professor": "Prof. day limit",
-        "profCount": "{count} teachers"
-      },
       "toasts": {
         "recalcErrorTitle": "Error",
         "recalcErrorDetail": "Could not recalculate cost",
         "pendingConflictsTitle": "Pending conflicts",
         "pendingConflictsDetail": "Resolve level conflicts before applying",
         "changesAppliedTitle": "Changes applied",
-        "changesAppliedDetail": "New cost: {cost}"
+        "changesAppliedDetail": "New cost: {cost}",
+        "parkedPendingTitle": "Parked exams",
+        "parkedPendingDetail": "Put the parked exams back in the timetable before applying",
+        "saveErrorTitle": "Could not save",
+        "saveErrorDetail": "The changes have not been saved; try again"
       }
     },
     "duplicatesTitle": "Teachers with simultaneous exams",
@@ -1492,6 +1490,7 @@
       "titularsAssigned": "Titulars assigned:",
       "warnings": "Warnings",
       "warningTitularAbsenciaCoberta": "{data} {hora}: the regular teacher {titular} ({assignatura}, {grups}) has a covered absence; the invigilation has no invigilator",
+      "warningMateixaAulaIHora": "{data} {hora}: {assignatura} and {altra} coincide for group {grups} in room {aula}; only the invigilation for {assignatura} has been created",
       "errors": "Errors:",
       "goToVigilancies": "Go to Vigilancies",
       "close": "Close",
@@ -1556,19 +1555,19 @@
       "weights": {
         "restriccioDura": {
           "label": "Hard restriction",
-          "desc": "Penalizes violations of mandatory restrictions."
+          "desc": "Points of a non-mandatory rule at 100%: the base for the percentages of incompatibilities, the per-teacher limit and «same date and time» (a rule at 90% is worth 90%)."
         },
         "preferenciaMateixDia": {
-          "label": "Same day preference",
-          "desc": "Rewards/penalizes having subjects on the same day."
-        },
-        "preferenciaMateixSlot": {
-          "label": "Same slot preference",
-          "desc": "Rewards/penalizes sharing the same slot."
+          "label": "Same date preference",
+          "desc": "Points subtracted from the cost for each exam that has a partner of the preference on the same date, times the preference %. With 0, these preferences do nothing."
         },
         "preferenciaDiesDiferents": {
-          "label": "Different days preference",
-          "desc": "Rewards/penalizes separating subjects on different days."
+          "label": "Different dates preference",
+          "desc": "Points added to the cost for each exam that has a partner of the preference on the same date, times the preference % (two exams together count twice). With 0, these preferences do nothing."
+        },
+        "restriccioDuraViolada": {
+          "label": "Mandatory rule broken",
+          "desc": "Points for each mandatory rule not met in a hand-edited schedule (generation never breaks them)."
         }
       },
       "costs": {
@@ -1622,7 +1621,8 @@
           "deleteSavedConfigMessage": "Day {day} has saved configuration. Do you want to delete it?"
         },
         "noDatesMessage": "Select dates in the calendar to configure no-class slots.",
-        "noLevelsMessage": "Select the levels you want to plan."
+        "noLevelsMessage": "Select the levels you want to plan.",
+        "startDoesNotFit": "No exam of this level fits entirely if it starts here (the shortest lasts {hores} h): generation will not use this mark."
       },
       "groups": {
         "title": "Exam groupings",
@@ -1700,11 +1700,12 @@
           }
         },
         "strictSchedule": {
-          "description": "Teachers who CANNOT arrive earlier or leave later than their usual schedule"
+          "description": "Teachers who CANNOT arrive earlier, stay later or come on a day they do not work.",
+          "hint": "Generation will never break it. If you move an exam by hand and break it, the schedule warns you and adds the “Mandatory rule broken” weight. For a “rather not”, give the teacher a high individual cost in “Teacher costs”."
         },
         "dayPreferences": {
-          "title": "Preferences: same day or different days (with individual weight)",
-          "description": "Example: Modalities 1.x on different days (weight 100).",
+          "title": "Preferences: same date or different dates (with individual weight)",
+          "description": "Example: Modalities 1.x on different dates (weight 100).",
           "emptyMessage": "No day preference defined",
           "columns": {
             "subjects": "Subjects",
@@ -1712,14 +1713,14 @@
             "weightPercent": "Weight %"
           },
           "type": {
-            "sameDay": "Same day",
-            "sameSlot": "Same day and time",
-            "differentDays": "Different days"
+            "sameDay": "Same date",
+            "sameSlot": "Same date and time",
+            "differentDays": "Different dates"
           }
         },
         "incompatibilities": {
           "title": "Subject groups that CANNOT coincide in the same slot",
-          "description": "Subject groups that cannot coincide on the same day and time (slot). Useful to avoid simultaneous exams for the same teacher.",
+          "description": "Subject groups that cannot coincide on the same date and time (slot). Useful to avoid simultaneous exams for the same teacher.",
           "example": "Example: Math → Modality 1.1 (1), Modality 2.1 (2), PHILOSOPHY 1.",
           "emptyMessage": "No incompatibility defined",
           "columns": {
@@ -1757,7 +1758,6 @@
           "byGrouping": "By Grouping",
           "teachersPerSlot": "Teachers per Slot"
         },
-        "substitutionsTitle": "Substitutions",
         "teachersPrefix": "Teachers:",
         "pills": {
           "optimal": "Optimal",
@@ -1777,9 +1777,16 @@
           "availableCount": "Available ({count})",
           "releasedCount": "Released ({count})"
         },
-        "hourPrefix": "Hour {hour}",
         "noneShort": "(None)",
-        "noneReason": "(All teachers have classes in other levels or no activity)"
+        "noneReason": "(All teachers have classes in other levels or no activity)",
+        "detalls": {
+          "subst": "Subst",
+          "abans": "Before",
+          "despres": "After",
+          "no_treballa": "No work",
+          "zona": "👁️ Exam zone, no cost",
+          "cap": "no conflicts"
+        }
       },
       "results": {
         "motorLabel": "Engine",
@@ -1815,20 +1822,7 @@
             "others": "Others"
           },
           "short": {
-            "before": "before",
-            "after": "after",
-            "first": "first",
-            "last": "last",
-            "noWork": "no work",
-            "cost": "cost",
-            "exams": "exams"
-          },
-          "full": {
-            "substitution": "{teacher} → must be substituted in {subject} with {group} at {hour} on {day}",
-            "manage": "{teacher} → handles {count} {exams} for {level} at {hour} on {day}: {subject}",
-            "arriveEarly": "{teacher} → arrives early at {hour} on {day} (first hour: {firstHour})",
-            "stayLate": "{teacher} → stays later at {hour} on {day} (last hour: {lastHour})",
-            "noWork": "{teacher} → does not work that day at {hour} on {day}"
+            "cost": "cost"
           }
         },
         "otherLevel": "Others",
@@ -1845,12 +1839,11 @@
             "preferencia_dies_diferents": "Different-days preference",
             "preferencia_mateix_slot": "Same-slot preference",
             "no_mateix_slot": "Not at the same time",
-            "no_mateix_dia": "Not on the same day",
-            "combinacio_no_permesa": "Combination not allowed",
+            "no_mateix_dia": "Not on the same date",
             "dia_hora_fix": "Fixed day or time",
-            "assignatures_dies_exclosos": "Excluded days",
             "limit_dies_professor": "Exam limit per teacher",
-            "professor_estricte": "Teacher's strict timetable"
+            "professor_estricte": "Teacher's strict timetable",
+            "mateix_dia_obligatori": "Required same date not met"
           }
         }
       }
@@ -1915,6 +1908,7 @@
         "subjects": "Subjects",
         "sessionsPlaceholder": "Choose sessions...",
         "restrictedDays": "Restricted days",
+        "restrictedDaysHint": "With dates, the maximum counts only those dates (add one row per week or per day). With a weekday name, every planned day with that name counts.",
         "maxExams": "Max exams",
         "weightPercent": "Weight (%)",
         "subject": "Subject",
@@ -1945,10 +1939,9 @@
       "examen_sense_hora_motor": "“{nom}” has no available time",
       "examen_sense_hora_causa": "“{nom}” has no available time — reason: {causa}",
       "examens_sense_hora_causa": "{nivell}: {examens} with no available time — reason: {causa} (e.g. “{nom}”)",
-      "fixats_mateix_dia": "Different days #{index} [{assignatures}]: {noms} must be on different days, but are fixed to {dia}",
-      "dies_insuficients": "Different days #{index} [{assignatures}]: {examens} must be on different days, with only {diesText} available; reduce the group or add days",
-      "parella_mateixos_dies": "Different days #{index} [{assignatures}]: “{nom}” and “{altre}” must be on different days, but are limited to the same days: {dies}",
-      "examen_dies_solapats": "Different days #{index} [{assignatures}]: “{nom}” can only be on {dies}, which overlaps with “{altre}”",
+      "fixats_mateix_dia": "Different dates #{index} [{assignatures}]: {noms} must be on different dates, but are fixed to {dia}",
+      "dies_insuficients": "Different dates #{index} [{assignatures}]: {examens} must be on different dates, with only {diesText} available; reduce the group or add days",
+      "dates_insuficients_examens": "Different dates #{index} [{assignatures}]: {noms} must be on different dates, but between them they can only go on {dies}",
       "parella_mateixa_hora": "Not at the same time “{grup}” [{assignatures}]: “{nom}” and “{altre}” cannot coincide, but are limited to the same time",
       "hores_insuficients": "Not at the same time “{grup}” [{assignatures}]: {examens} cannot coincide, but between them only have {horesText}",
       "nivell_cap_collocat": "{nivell}: no exams placed ({examens} planned). Review restrictions or extend the dates",
@@ -1981,13 +1974,42 @@
         "examen_fixat": "Exam pinned to another slot",
         "franja_prohibida": "Forbidden slot",
         "nivell_sense_inici": "Not an exam start time for the level",
-        "no_mateix_dia": "Different days",
-        "combinacions_permeses": "Combination not allowed",
+        "no_mateix_dia": "Different dates",
         "limit_dies_professor": "Teacher exam limit",
         "preferencia_dia": "Day preference",
         "professors_estrictes": "Strict teacher timetable",
         "desconeguda": "Unknown restriction",
         "conflicte_restriccions": "Conflicting restrictions"
+      }
+    },
+    "incidencies": {
+      "inc_enllac": "Link: {professor} → handles {count} exams of {nivell} at {hora} on {dia}: {assignatures}",
+      "inc_nivells_diferents": "Warning: {professor} → has exams of different levels at {hora} on {dia}: {examens_nivells}",
+      "inc_enllac_nivells": "Link: {professor} → handles {count} exams of different levels at {hora} on {dia}: {examens_nivells}",
+      "inc_conflicte_alumnes": "Student conflict: {nivell} → {count} exams at the same time at {hora} on {dia}: {assignatures}",
+      "inc_agrupacio_separada": "Split group: {assignatures} should go together but are split: {ubicacions}",
+      "inc_limit_dies_professor": "Day limit: {professor} → {count} exams on {dies_limit} (maximum {max}, weight {pes}%)",
+      "inc_no_mateix_slot": "Not at the same time: {nom} → coincides with {amb} at {hora} on {dia}",
+      "inc_no_mateix_dia": "Different dates: {nom} → coincides with {amb} on {dia}",
+      "inc_dia_hora_fix": "Fixed day/time: {nom} → at {hora} on {dia}, outside the allowed day, time or slots",
+      "inc_preferencia_dies_diferents": "Different dates: {nom} → the same date as {amb} (on {dia})",
+      "inc_preferencia_mateix_dia": "Same date: {nom} → the same date as {amb} (on {dia})",
+      "inc_mateix_dia_obligatori": "Same date: {nom} → on different dates ({dates}) (mandatory rule)",
+      "inc_preferencia_mateix_slot": "Same date and time: {nom} → {amb} the same date (on {dia}) but not at {hora}",
+      "inc_abans": "{professor}{ambExamens} → arrives early at {hora} on {dia} (first hour: {primera})",
+      "inc_despres": "{professor}{ambExamens} → stays later at {hora} on {dia} (last hour: {ultima})",
+      "inc_no_treballa": "{professor}{ambExamens} → does not work that day at {hora} on {dia}",
+      "inc_substitucio": "{professor}{ambExamens} → must be substituted in {assignatura} with {grup} at {hora} on {dia}",
+      "inc_horari_estricte": "Strict timetable: {professor} → outside their timetable at {hora} on {dia} (mandatory rule)",
+      "inc_zona_examen": "{professor}{ambExamens} → teaches {assignatura} with {grup} at {hora} on {dia} while the exam goes on (not needed there, no cost)",
+      "inc_encavalca": "Overlaps another exam of the same level ({noms})",
+      "inc_mateix_nivell": "Several exams of the same level at the same time",
+      "curt": {
+        "inc_substitucio": "{professor}{ambExamens} · {assignatura} · {grup} · {dia} {hora}",
+        "inc_abans": "{professor}{ambExamens} · before {dia} {hora} · first {primera}",
+        "inc_despres": "{professor}{ambExamens} · after {dia} {hora} · last {ultima}",
+        "inc_no_treballa": "{professor}{ambExamens} · no work {dia} {hora}",
+        "inc_zona_examen": "{professor}{ambExamens} · {assignatura} · {grup} · {dia} {hora}"
       }
     }
   },
@@ -2014,7 +2036,7 @@
     "absencia_coberta_no_trobada": "Covered absence not found",
     "activitat_no_configurada": "Activity not configured",
     "activitat_no_substituible": "❌ A substitute cannot be assigned: '{assignatura}' is in the list of activities that are NOT substituted",
-    "agrupacio_de_diversos_nivells": "A grouping must contain exams of a single level: {agrupacions}. To put exams of different levels at the same time, use the \"Same day and time\" preference.",
+    "agrupacio_de_diversos_nivells": "A grouping must contain exams of a single level: {agrupacions}. To put exams of different levels at the same time, use the \"Same date and time\" preference.",
     "assignacio_incompleta": "Subject and group are required",
     "assignacio_no_trobada": "Assignment not found",
     "assignatura_no_afegida": "The subject already exists or the level was not found",

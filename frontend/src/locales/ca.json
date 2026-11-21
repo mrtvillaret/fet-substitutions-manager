@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "📚 Gestor de Substitucions",
-    "footer": "Prototip FastAPI + Vue 3 | Gestor Substitucions FET",
+    "footer": "Gestor de Substitucions FET",
     "login": {
       "title": "Gestor de Substitucions",
       "subtitle": "Inicia sessió per continuar",
@@ -44,7 +44,8 @@
       "vigilancies": "Vigilàncies"
     },
     "newVersion": "Hi ha una versió nova de l'aplicació.",
-    "reload": "Actualitza"
+    "reload": "Actualitza",
+    "footerLliure": "programari lliure"
   },
   "common": {
     "roles": {
@@ -211,11 +212,10 @@
       "detectHint": "Prem \"Detecta grups\" per carregar els grups de l'XML",
       "abbrevLabel": "Abreviatures de grups",
       "addAbbrev": "Afegeix abreviatura",
-      "addAbbrevTitle": "➕ Afegeix abreviatura",
+      "addAbbrevTitle": "➕ Afegeix Abreviatura",
       "noAbbrev": "No hi ha abreviatures configurades",
       "abbrevHint": "Les abreviatures simplifiquen la visualització de grups combinats (ex: \"1-ESO-A,1-ESO-B\" → \"1-ESO-AB\")",
       "editAbbrevTitle": "✏️ Edita Abreviatura",
-      "addAbbrevTitle": "➕ Afegeix Abreviatura",
       "originalGroups": "Grups originals",
       "selectGroups": "Selecciona grups...",
       "selectGroupsHint": "Selecciona els grups que s'abreviaran.",
@@ -670,14 +670,16 @@
     "levels": {
       "count": "{count} nivell | {count} nivells",
       "empty": "No hi ha nivells configurats",
-      "hint": "Els nivells determinen l'estructura organitzativa (1-ESO, 2-ESO, 1-BATX, etc.)",
+      "hint": "Els nivells determinen l'estructura organitzativa (1-ESO, 2-ESO, 1-BATX, etc.). L'ordre d'aquesta llista és el del planificador (calendari i editor).",
       "addTitle": "➕ Afegeix Nivell",
       "codeLabel": "Codi del nivell",
       "codePlaceholder": "Ex: 3-BATX, CFGM, etc.",
       "added": "Nivell afegit correctament",
       "deleted": "Nivell eliminat correctament",
       "deleteConfirmMessage": "Vols eliminar el nivell \"{code}\"? Això eliminarà també totes les seves assignatures i grups.",
-      "usedByAssignments": "Hi ha 1 assignació que fa servir aquest nivell. La vols esborrar també? | Hi ha {count} assignacions que fan servir aquest nivell. Les vols esborrar també?"
+      "usedByAssignments": "Hi ha 1 assignació que fa servir aquest nivell. La vols esborrar també? | Hi ha {count} assignacions que fan servir aquest nivell. Les vols esborrar també?",
+      "moveUp": "Puja el nivell",
+      "moveDown": "Baixa el nivell"
     },
     "groups": {
       "selectLevel": "Selecciona nivell",
@@ -797,7 +799,8 @@
       "createAssignment": "No s'ha pogut crear l'assignació",
       "updateAssignment": "No s'ha pogut actualitzar",
       "deleteAssignment": "No s'ha pogut eliminar l'assignació",
-      "saveAffinities": "No s'han pogut desar les afinitats"
+      "saveAffinities": "No s'han pogut desar les afinitats",
+      "moveLevel": "Error movent el nivell"
     },
     "stillUsedByAssignments": "1 assignació de la configuració d'exàmens el fa servir; es manté tal com era. | {count} assignacions de la configuració d'exàmens el fan servir; es mantenen tal com eren.",
     "deleteAssignments": {
@@ -1442,22 +1445,17 @@
         "hour": "Hora",
         "dragHere": "Arrossega aquí"
       },
-      "breakdown": {
-        "title": "Desglossament",
-        "substitucions": "Substitucions",
-        "abans_jornada": "Abans jornada",
-        "despres_jornada": "Després jornada",
-        "no_treballa_dia": "No treballa",
-        "limit_dies_professor": "Límit dies prof.",
-        "profCount": "{count} prof."
-      },
       "toasts": {
         "recalcErrorTitle": "Error",
         "recalcErrorDetail": "No s'ha pogut recalcular el cost",
         "pendingConflictsTitle": "Conflictes pendents",
         "pendingConflictsDetail": "Resol els conflictes de nivell abans d'aplicar",
         "changesAppliedTitle": "Canvis aplicats",
-        "changesAppliedDetail": "Nou cost: {cost}"
+        "changesAppliedDetail": "Nou cost: {cost}",
+        "parkedPendingTitle": "Exàmens aparcats",
+        "parkedPendingDetail": "Torna a posar a l'horari els exàmens aparcats abans d'aplicar",
+        "saveErrorTitle": "No s'ha pogut desar",
+        "saveErrorDetail": "Els canvis no s'han desat; torna-ho a provar"
       }
     },
     "duplicatesTitle": "Professors amb exàmens simultanis",
@@ -1492,6 +1490,7 @@
       "titularsAssigned": "Titulars assignats:",
       "warnings": "Avisos",
       "warningTitularAbsenciaCoberta": "{data} {hora}: el titular {titular} ({assignatura}, {grups}) té una absència coberta; la vigilància ha quedat sense vigilant",
+      "warningMateixaAulaIHora": "{data} {hora}: {assignatura} i {altra} coincideixen amb el grup {grups} a l'aula {aula}; només s'ha creat la vigilància de {assignatura}",
       "errors": "Errors:",
       "goToVigilancies": "Anar a Vigilàncies",
       "close": "Tancar",
@@ -1556,19 +1555,19 @@
       "weights": {
         "restriccioDura": {
           "label": "Restricció dura",
-          "desc": "Penalitza violacions de restriccions obligatòries."
+          "desc": "Punts d'una regla no obligatòria al 100%: la base dels percentatges de les incompatibilitats, del límit per professor i de «mateixa data i hora» (una regla al 90% en val el 90%)."
         },
         "preferenciaMateixDia": {
-          "label": "Preferència mateix dia",
-          "desc": "Bonifica/penalitza tenir assignatures el mateix dia."
-        },
-        "preferenciaMateixSlot": {
-          "label": "Preferència per la mateixa franja",
-          "desc": "Bonifica/penalitza compartir la mateixa franja."
+          "label": "Preferència mateixa data",
+          "desc": "Punts que es resten del cost per cada examen que té una companya de la preferència la mateixa data, pel % de la preferència. Amb 0, aquestes preferències no fan res."
         },
         "preferenciaDiesDiferents": {
-          "label": "Preferència dies diferents",
-          "desc": "Bonifica/penalitza separar assignatures en dies diferents."
+          "label": "Preferència dates diferents",
+          "desc": "Punts que se sumen al cost per cada examen que té una companya de la preferència la mateixa data, pel % de la preferència (dos exàmens junts compten dues vegades). Amb 0, aquestes preferències no fan res."
+        },
+        "restriccioDuraViolada": {
+          "label": "Obligatòria incomplerta",
+          "desc": "Punts de cada regla obligatòria que no es compleix en un horari editat a mà (la generació no les trenca mai)."
         }
       },
       "costs": {
@@ -1622,7 +1621,8 @@
           "deleteSavedConfigMessage": "El dia {day} té configuració guardada. Vols esborrar-la?"
         },
         "noDatesMessage": "Selecciona dates al calendari per configurar les franges sense classe.",
-        "noLevelsMessage": "Selecciona els nivells que vols planificar."
+        "noLevelsMessage": "Selecciona els nivells que vols planificar.",
+        "startDoesNotFit": "Cap examen d'aquest nivell hi cap sencer si comença aquí (el més curt dura {hores} h): la generació no farà servir aquesta marca."
       },
       "groups": {
         "title": "Agrupacions d'exàmens",
@@ -1700,11 +1700,12 @@
           }
         },
         "strictSchedule": {
-          "description": "Professors que NO poden venir abans ni sortir després del seu horari habitual"
+          "description": "Professors que NO poden venir abans, quedar-se més tard ni venir un dia que no treballen.",
+          "hint": "La generació no ho trencarà mai. Si mous un examen a mà i ho trenques, l'horari ho avisa i hi suma el pes «Obligatòria incomplerta». Per a un «millor que no», posa-li un cost individual alt a «Costos de professors»."
         },
         "dayPreferences": {
-          "title": "Preferències: mateix dia o dies diferents (amb pes individual)",
-          "description": "Exemple: Modalitats 1.x en dies diferents (pes 100).",
+          "title": "Preferències: mateixa data o dates diferents (amb pes individual)",
+          "description": "Exemple: Modalitats 1.x en dates diferents (pes 100).",
           "emptyMessage": "Cap preferència de dia definida",
           "columns": {
             "subjects": "Assignatures",
@@ -1712,14 +1713,14 @@
             "weightPercent": "Pes %"
           },
           "type": {
-            "sameDay": "Mateix dia",
-            "sameSlot": "Mateix dia i hora",
-            "differentDays": "Dies diferents"
+            "sameDay": "Mateixa data",
+            "sameSlot": "Mateixa data i hora",
+            "differentDays": "Dates diferents"
           }
         },
         "incompatibilities": {
           "title": "Grups d’assignatures que NO poden coincidir a la mateixa franja",
-          "description": "Grups d’assignatures que no poden coincidir el mateix dia i hora. Útil per evitar exàmens simultanis d’un mateix professor.",
+          "description": "Grups d’assignatures que no poden coincidir la mateixa data i hora. Útil per evitar exàmens simultanis d’un mateix professor.",
           "example": "Exemple: Mates → Modalitat 1.1 (1), Modalitat 2.1 (2), FILOSOFIA 1.",
           "emptyMessage": "Cap incompatibilitat definida",
           "columns": {
@@ -1757,7 +1758,6 @@
           "byGrouping": "Per Agrupació",
           "teachersPerSlot": "Professors per franja"
         },
-        "substitutionsTitle": "Substitucions",
         "teachersPrefix": "Professors:",
         "pills": {
           "optimal": "Òptimes",
@@ -1777,9 +1777,16 @@
           "availableCount": "Disponibles ({count})",
           "releasedCount": "Alliberats ({count})"
         },
-        "hourPrefix": "Hora {hour}",
         "noneShort": "(Cap)",
-        "noneReason": "(Tots els professors tenen classe d'altres nivells o no tenen activitat)"
+        "noneReason": "(Tots els professors tenen classe d'altres nivells o no tenen activitat)",
+        "detalls": {
+          "subst": "Subst",
+          "abans": "Abans",
+          "despres": "Després",
+          "no_treballa": "No treb",
+          "zona": "👁️ Zona d'examen, sense cost",
+          "cap": "cap conflicte"
+        }
       },
       "results": {
         "motorLabel": "Motor",
@@ -1815,20 +1822,7 @@
             "others": "Altres"
           },
           "short": {
-            "before": "abans",
-            "after": "després",
-            "first": "primera",
-            "last": "última",
-            "noWork": "no treballa",
-            "cost": "cost",
-            "exams": "exàmens"
-          },
-          "full": {
-            "substitution": "{teacher} → ha de ser substituït a {subject} amb {group} a les {hour} el {day}",
-            "manage": "{teacher} → gestiona {count} {exams} de {level} a {hour} el {day}: {subject}",
-            "arriveEarly": "{teacher} → arriba abans a {hour} el {day} (primera hora: {firstHour})",
-            "stayLate": "{teacher} → queda més estona a {hour} el {day} (última hora: {lastHour})",
-            "noWork": "{teacher} → no treballa aquest dia a les {hour} el {day}"
+            "cost": "cost"
           }
         },
         "otherLevel": "Altres",
@@ -1841,16 +1835,15 @@
             "abans_jornada": "Arriben abans",
             "despres_jornada": "Queden després",
             "no_treballa_dia": "No treballen aquell dia",
-            "preferencia_mateix_dia": "Preferència mateix dia",
-            "preferencia_dies_diferents": "Preferència dies diferents",
+            "preferencia_mateix_dia": "Preferència mateixa data",
+            "preferencia_dies_diferents": "Preferència dates diferents",
             "preferencia_mateix_slot": "Preferència mateixa franja",
             "no_mateix_slot": "No al mateix moment",
-            "no_mateix_dia": "No el mateix dia",
-            "combinacio_no_permesa": "Combinació no permesa",
+            "no_mateix_dia": "No la mateixa data",
             "dia_hora_fix": "Dia o hora fixats",
-            "assignatures_dies_exclosos": "Dies exclosos",
             "limit_dies_professor": "Límit d'exàmens per professor",
-            "professor_estricte": "Horari estricte del professor"
+            "professor_estricte": "Horari estricte del professor",
+            "mateix_dia_obligatori": "Mateixa data obligatòria incomplerta"
           }
         }
       }
@@ -1915,6 +1908,7 @@
         "subjects": "Assignatures",
         "sessionsPlaceholder": "Tria sessions...",
         "restrictedDays": "Dies restringits",
+        "restrictedDaysHint": "Amb dates, el màxim compta només aquestes dates (fes una fila per setmana o per dia). Amb un nom de dia, compten tots els dies de la planificació amb aquest nom.",
         "maxExams": "Màxim exàmens",
         "weightPercent": "Pes (%)",
         "subject": "Assignatura",
@@ -1945,10 +1939,9 @@
       "examen_sense_hora_motor": "«{nom}» no té cap hora disponible",
       "examen_sense_hora_causa": "«{nom}» no té cap hora disponible — causa: {causa}",
       "examens_sense_hora_causa": "{nivell}: {examens} sense cap hora disponible — causa: {causa} (p. ex. «{nom}»)",
-      "fixats_mateix_dia": "Dies distints #{index} [{assignatures}]: {noms} han d’anar en dies distints, però estan fixats al dia {dia}",
-      "dies_insuficients": "Dies distints #{index} [{assignatures}]: {examens} han d’anar en dies distints, però només hi ha {diesText}; cal reduir el grup o afegir dies",
-      "parella_mateixos_dies": "Dies distints #{index} [{assignatures}]: «{nom}» i «{altre}» han d’anar en dies distints, però estan limitats als mateixos dies: {dies}",
-      "examen_dies_solapats": "Dies distints #{index} [{assignatures}]: «{nom}» només pot anar a {dies}, que coincideix amb «{altre}»",
+      "fixats_mateix_dia": "Dates diferents #{index} [{assignatures}]: {noms} han d’anar en dates diferents, però estan fixats a {dia}",
+      "dies_insuficients": "Dates diferents #{index} [{assignatures}]: {examens} han d’anar en dates diferents, però només hi ha {diesText}; cal reduir el grup o afegir dies",
+      "dates_insuficients_examens": "Dates diferents #{index} [{assignatures}]: {noms} han d’anar en dates diferents, però entre tots només poden anar a {dies}",
       "parella_mateixa_hora": "No al mateix moment «{grup}» [{assignatures}]: «{nom}» i «{altre}» no poden coincidir, però estan limitats a la mateixa hora",
       "hores_insuficients": "No al mateix moment «{grup}» [{assignatures}]: {examens} no poden coincidir, però entre tots només tenen {horesText}",
       "nivell_cap_collocat": "{nivell}: cap examen col·locat ({examens} en total). Reviseu les restriccions o amplieu les dates",
@@ -1981,13 +1974,42 @@
         "examen_fixat": "Examen fixat a una altra franja",
         "franja_prohibida": "Franja prohibida",
         "nivell_sense_inici": "Hora sense inici d’examen per al nivell",
-        "no_mateix_dia": "Dies distints",
-        "combinacions_permeses": "Combinació no permesa",
+        "no_mateix_dia": "Dates diferents",
         "limit_dies_professor": "Límit d’exàmens del professor",
         "preferencia_dia": "Preferència de dia",
         "professors_estrictes": "Horari estricte del professor",
         "desconeguda": "Restricció desconeguda",
         "conflicte_restriccions": "Conflicte entre restriccions"
+      }
+    },
+    "incidencies": {
+      "inc_enllac": "Enllaç: {professor} → gestiona {count} exàmens de {nivell} a les {hora} el {dia}: {assignatures}",
+      "inc_nivells_diferents": "Avís: {professor} → té exàmens de nivells diferents a les {hora} el {dia}: {examens_nivells}",
+      "inc_enllac_nivells": "Enllaç: {professor} → gestiona {count} exàmens de nivells diferents a les {hora} el {dia}: {examens_nivells}",
+      "inc_conflicte_alumnes": "Conflicte d'alumnes: {nivell} → {count} exàmens alhora a les {hora} el {dia}: {assignatures}",
+      "inc_agrupacio_separada": "Agrupació separada: {assignatures} haurien d'anar juntes però estan separades: {ubicacions}",
+      "inc_limit_dies_professor": "Límit de dies: {professor} → {count} exàmens en {dies_limit} (màxim {max}, pes {pes}%)",
+      "inc_no_mateix_slot": "No al mateix moment: {nom} → coincideix amb {amb} a les {hora} el {dia}",
+      "inc_no_mateix_dia": "Dates diferents: {nom} → coincideix amb {amb} el {dia}",
+      "inc_dia_hora_fix": "Dia/hora fixats: {nom} → a les {hora} el {dia}, fora del dia, l'hora o les franges permeses",
+      "inc_preferencia_dies_diferents": "Dates diferents: {nom} → la mateixa data que {amb} (el {dia})",
+      "inc_preferencia_mateix_dia": "Mateixa data: {nom} → la mateixa data que {amb} (el {dia})",
+      "inc_mateix_dia_obligatori": "Mateixa data: {nom} → en dates diferents ({dates}) (regla obligatòria)",
+      "inc_preferencia_mateix_slot": "Mateixa data i hora: {nom} → {amb} la mateixa data (el {dia}) però no a les {hora}",
+      "inc_abans": "{professor}{ambExamens} → arriba abans a les {hora} el {dia} (primera hora: {primera})",
+      "inc_despres": "{professor}{ambExamens} → queda més estona a les {hora} el {dia} (última hora: {ultima})",
+      "inc_no_treballa": "{professor}{ambExamens} → no treballa aquest dia a les {hora} el {dia}",
+      "inc_substitucio": "{professor}{ambExamens} → ha de ser substituït a {assignatura} amb {grup} a les {hora} el {dia}",
+      "inc_horari_estricte": "Horari estricte: {professor} → fora del seu horari a les {hora} el {dia} (regla obligatòria)",
+      "inc_zona_examen": "{professor}{ambExamens} → fa classe de {assignatura} amb {grup} a les {hora} el {dia} mentre l'examen continua (no cal que hi sigui, sense cost)",
+      "inc_encavalca": "S'encavalca amb un altre examen del mateix nivell ({noms})",
+      "inc_mateix_nivell": "Diversos exàmens del mateix nivell a la mateixa hora",
+      "curt": {
+        "inc_substitucio": "{professor}{ambExamens} · {assignatura} · {grup} · {dia} {hora}",
+        "inc_abans": "{professor}{ambExamens} · abans {dia} {hora} · primera {primera}",
+        "inc_despres": "{professor}{ambExamens} · després {dia} {hora} · última {ultima}",
+        "inc_no_treballa": "{professor}{ambExamens} · no treballa {dia} {hora}",
+        "inc_zona_examen": "{professor}{ambExamens} · {assignatura} · {grup} · {dia} {hora}"
       }
     }
   },
@@ -2014,7 +2036,7 @@
     "absencia_coberta_no_trobada": "Absència coberta no trobada",
     "activitat_no_configurada": "Activitat no configurada",
     "activitat_no_substituible": "❌ No es pot assignar substitut: '{assignatura}' està a la llista d'activitats que NO es substitueixen",
-    "agrupacio_de_diversos_nivells": "Una agrupació ha de ser d'exàmens d'un mateix nivell: {agrupacions}. Per posar exàmens de nivells diferents al mateix moment, feu servir la preferència \"Mateix dia i hora\".",
+    "agrupacio_de_diversos_nivells": "Una agrupació ha de ser d'exàmens d'un mateix nivell: {agrupacions}. Per posar exàmens de nivells diferents al mateix moment, feu servir la preferència \"Mateixa data i hora\".",
     "assignacio_incompleta": "Assignatura i grup són obligatoris",
     "assignacio_no_trobada": "Assignació no trobada",
     "assignatura_no_afegida": "Assignatura ja existeix o nivell no trobat",

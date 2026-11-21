@@ -11,9 +11,9 @@ i el desglossament (quantitat × pes = punts) també hi quadra.
 
 import copy
 import random
-import re
 
 import pytest
+from suport_incidencies import amb_codi, es_incidencia, punts
 from suport_planificador import DATES, DIES, alliberaments, centre_amb_examens, configura
 
 from planificador.compartit.punts import CONCEPTES
@@ -31,7 +31,7 @@ def _limiter_net():
 
 
 def _punts(logs):
-    return sum(int(m.group(1)) for linia in logs if (m := re.search(r"\(punt: *(-?\d+)\)$", linia)))
+    return punts(logs)
 
 
 @pytest.fixture
@@ -208,18 +208,18 @@ def test_cada_restriccio_tova_te_la_seva_linia_amb_punts(amb_restriccions):
             "/api/scheduler/recalcular-cost",
             json={"horari": h, "data_referencia": DATES[0], "selected_dates": DATES},
         ).json()["logs"]
-    for marca in (
-        "NO AL MATEIX MOMENT",
-        "DIES DISTINTS",
-        "DIES DIFERENTS",
-        "MATEIX DIA",
-        "MATEIXA FRANJA",
-        "LÍMIT DIES",
+    for codi in (
+        "inc_no_mateix_slot",
+        "inc_no_mateix_dia",
+        "inc_preferencia_dies_diferents",
+        "inc_preferencia_mateix_dia",
+        "inc_preferencia_mateix_slot",
+        "inc_limit_dies_professor",
     ):
-        linies = [linia for linia in logs if marca in linia]
-        assert linies, marca
-        # Visibles a la pantalla (porten «→») i amb els punts
-        assert all("→" in linia and re.search(r"\(punt: -?\d+\)$", linia) for linia in linies), linies
+        linies = amb_codi(logs, codi)
+        assert linies, codi
+        # Amb els punts (la pantalla els mostra)
+        assert all(isinstance(m.get("punts"), int) for m in linies), linies
 
 
 def test_la_preferencia_mateix_dia_amb_pes_negatiu_va_amb_signe(amb_restriccions):
@@ -230,7 +230,7 @@ def test_la_preferencia_mateix_dia_amb_pes_negatiu_va_amb_signe(amb_restriccions
         "/api/scheduler/recalcular-cost",
         json={"horari": amuntegada, "data_referencia": DATES[0], "selected_dates": DATES},
     ).json()["logs"]
-    assert [linia for linia in logs if "MATEIX DIA" in linia and linia.endswith("(punt: 120)")]
+    assert [m for m in amb_codi(logs, "inc_preferencia_mateix_dia") if m["punts"] == 120]
 
 
 def test_el_professor_que_no_treballa_aquell_dia_te_linia_amb_punts():
@@ -260,7 +260,17 @@ def test_el_professor_que_no_treballa_aquell_dia_te_linia_amb_punts():
     }
     restr = {"costos_professors": {"globals": {"no_treballa_dia": 90}}}
     logs = ValidadorHorari(horari, restr, set()).validar()["logs"]
-    assert "🚫 Prof 1 (Física (1-BAT))->1-BAT → no treballa aquest dia a les 09:00 el Dilluns 20/04 (punt: 90)" in logs
+    assert {
+        "codi": "inc_no_treballa",
+        "params": {
+            "professor": "Prof 1",
+            "examens": [{"nom": "Física (1-BAT)", "curs": "1-BAT"}],
+            "hora": "09:00",
+            "dia": "Dilluns",
+            "data": "2026-04-20",
+        },
+        "punts": 90,
+    } in logs
 
 
 @pytest.mark.parametrize("pes_base", [500, -500])
@@ -273,6 +283,7 @@ def test_les_incidencies_d_una_franja_sumen_el_seu_cost(pes_base):
         "restriccions_dures": {
             "no_mateix_slot": {"G": ["Física (1-BAT)", "Química (1-BAT)"], "_pes_G": 100},
             "no_mateix_dia": [{"assignatures": ["Física (1-BAT)", "Física (2-BAT)"], "pes": 70}],
+            # S'accepten però no compten.
             "combinacions_permeses": [["Física", "Biologia"]],
             "assignatures_dies_exclosos": [{"assignatures": ["Física (1-BAT)"], "dies": ["Dilluns"], "pes": 30}],
         },
@@ -297,8 +308,50 @@ def test_les_incidencies_d_una_franja_sumen_el_seu_cost(pes_base):
         "substitucio",
         "no_mateix_slot",
         "no_mateix_dia",
-        "combinacio_no_permesa",
-        "assignatures_dies_exclosos",
         "preferencia_dies_diferents",
         "preferencia_mateix_dia",
     }
+
+
+def _professors_fora_d_horari(logs):
+    codis = ("inc_abans", "inc_despres", "inc_no_treballa")
+    return {m["params"]["professor"] for m in logs if es_incidencia(m) and m["codi"] in codis}
+
+
+def test_l_horari_estricte_obligatori_als_motors_i_amb_punts_si_s_edita_a_ma():
+    """Cap motor no deixa fora del seu horari un professor amb horari
+    estricte; si l'horari s'edita a mà, el cost hi suma la regla obligatòria
+    incomplerta (per defecte 10000) un cop per professor i franja, amb la seva
+    línia al registre."""
+    _, client = centre_amb_examens(nivells=DOS)
+    configura(client, nivells_actius=list(DOS), alliberaments_per_nivell=alliberaments(nivells=DOS))
+
+    def recalcula(horari):
+        resposta = client.post(
+            "/api/scheduler/recalcular-cost",
+            json={"horari": horari, "data_referencia": DATES[0], "selected_dates": DATES},
+        )
+        assert resposta.status_code == 200, (resposta.status_code, resposta.text[:300])
+        return resposta.json()
+
+    random.seed(3)
+    generat = client.post("/api/scheduler/generate", json=dict(PETICIO, motor="v2")).json()["horari"]
+    editat, estrictes = next(
+        (h, fora) for _, h in _variants(generat) if (fora := _professors_fora_d_horari(recalcula(h)["logs"]))
+    )
+    restr = client.get("/api/scheduler/restriccions").json()["restriccions"]
+    restr["restriccions_dures"]["professors_horari_estricte"] = sorted(estrictes)
+    assert client.put("/api/scheduler/restriccions", json={"restriccions": restr}).status_code == 200
+
+    for motor in ("v2", "v2-backtrack", "v3"):
+        horari = client.post("/api/scheduler/generate", json=dict(PETICIO, motor=motor)).json()["horari"]
+        # Hi ha solució sense trencar l'horari estricte: si un motor no en troba, és un error
+        assert horari["metadata"].get("viable", True) and horari["dies"], motor
+        assert not _professors_fora_d_horari(recalcula(horari)["logs"]) & estrictes, motor
+
+    r = recalcula(editat)
+    files = {f["concepte"]: f for f in r["cost_desglossament"]}
+    linies = amb_codi(r["logs"], "inc_horari_estricte")
+    assert files["professor_estricte"]["pes"] == 10000
+    assert files["professor_estricte"]["quantitat"] == len(linies) >= 1
+    assert _punts(r["logs"]) == r["cost_total"]

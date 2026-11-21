@@ -19,12 +19,28 @@
             <div class="items-list">
               <div
                 v-for="(nivell, idx) in nivells"
-                :key="idx"
+                :key="nivell"
                 class="item-card"
               >
                 <span class="item-name">{{ nivell }}</span>
                 <!-- Un nivell no s'edita: el codi és la clau del planificador -->
                 <div class="item-actions">
+                  <Button
+                    icon="pi pi-arrow-up"
+                    @click="mouNivell(nivell, -1)"
+                    :disabled="idx === 0"
+                    :aria-label="$t('examConfig.levels.moveUp')"
+                    class="p-button-rounded p-button-text p-button-sm"
+                    v-tooltip.top="$t('examConfig.levels.moveUp')"
+                  />
+                  <Button
+                    icon="pi pi-arrow-down"
+                    @click="mouNivell(nivell, 1)"
+                    :disabled="idx === nivells.length - 1"
+                    :aria-label="$t('examConfig.levels.moveDown')"
+                    class="p-button-rounded p-button-text p-button-sm"
+                    v-tooltip.top="$t('examConfig.levels.moveDown')"
+                  />
                   <Button
                     icon="pi pi-trash"
                     @click="eliminarNivell(nivell)"
@@ -89,6 +105,7 @@ defineProps({
   nivells: Array,
   afegirNivell: Function,
   eliminarNivell: Function,
+  mouNivell: Function,
 })
 </script>
 

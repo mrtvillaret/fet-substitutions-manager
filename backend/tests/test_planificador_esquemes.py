@@ -109,3 +109,30 @@ def test_els_grups_de_durada_tenen_els_noms_nets(client):
     cos = {"durades_grups": [{"nom": "Llargs", "assignatures": [" Anglès (1-BAT) "], "durada": 2, "durada_examen": 2}]}
     assert client.put("/api/scheduler/config", json=cos).status_code == 200
     assert client.get("/api/scheduler/config").json()["durades_grups"][0]["assignatures"] == ["Anglès (1-BAT)"]
+
+
+def test_dates_sense_zeros_es_normalitzen_a_la_peticio_de_generar():
+    """«2027-3-1» arriba com a «2027-03-01» (abans: 500 o 422 segons el camp)."""
+    from planificador.schemas import SchedulerGenerateRequest
+
+    peticio = SchedulerGenerateRequest.model_validate(
+        {"data_inici": "2027-3-1", "data_final": "2027-03-02", "selected_dates": ["2027-3-2"]}
+    )
+    assert (peticio.data_inici, peticio.data_final, peticio.selected_dates) == (
+        "2027-03-01",
+        "2027-03-02",
+        ["2027-03-02"],
+    )
+
+
+def test_els_pins_a_una_data_sense_zeros_es_normalitzen():
+    """Un pin «2027-3-1» arriba com a «2027-03-01»; els noms de dia i les hores, tal qual."""
+    from planificador.schemas import RestriccionsDures
+
+    dures = RestriccionsDures.model_validate(
+        {"assignatures_dia_fix": {"A (1-BAT)": "2027-3-1", "B (1-BAT)": "Dilluns", "_pes_A (1-BAT)": 100}}
+    )
+    assert dures.assignatures_dia_fix == {"A (1-BAT)": "2027-03-01", "B (1-BAT)": "Dilluns", "_pes_A (1-BAT)": 100}
+    from planificador.schemas import PinItem
+
+    assert PinItem(nom="A (1-BAT)", dia="2027-3-1", hora="09:00").dia == "2027-03-01"

@@ -264,7 +264,10 @@
       </nav>
 
       <footer class="footer">
-        <p>{{ $t('app.footer') }}</p>
+        <p>
+          {{ $t('app.footer') }} ·
+          <a href="https://github.com/mrtvillaret/fet-substitutions-manager" target="_blank" rel="noopener noreferrer">{{ $t('app.footerLliure') }}</a>
+        </p>
       </footer>
 
       <!-- Diàlegs -->

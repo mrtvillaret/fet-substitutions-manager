@@ -1,7 +1,9 @@
-import { avisosDeConfiguracio, esAvisDeConfiguracio, tradueixMissatge } from './missatges.js'
+import { avisosDeConfiguracio } from './missatges.js'
 import { computed } from 'vue'
+import { horesExamen } from './duradaExamen.js'
 import { dataIso } from '../../dates'
-import { classifyIncidentKind, INCIDENT_KINDS, extractIncidentScore, isIncidentLogLine, isLinkIncident } from './textUtils'
+import { comparaSegonsOrdre } from './textUtils'
+import { esEnllac, esIncidencia, grupIncidencia } from './incidencies.js'
 
 export const useSchedulerResults = ({
   t,
@@ -27,41 +29,25 @@ export const useSchedulerResults = ({
 
   const incidenciesAgrupades = computed(() => {
     const logs = result.value?.horari?.metadata?.logs || []
-    const filtered = logs
-      .filter((line) => !esAvisDeConfiguracio(line))
-      .map((line) => tradueixMissatge(line, t).trim())
-      .filter(isIncidentLogLine)
-
     const grups = {
-      conflictes: { id: 'conflicts', titol: `🚨 ${t('scheduler.steps.results.incidents.groups.conflicts')}`, items: [], severity: 'error' },
-      substitucions: { id: 'substitutions', titol: `🚨 ${t('scheduler.steps.results.incidents.groups.substitutions')}`, items: [], severity: 'error' },
-      quedaMes: { id: 'stayLate', titol: `🕐 ${t('scheduler.steps.results.incidents.groups.stayLate')}`, items: [], severity: 'warn' },
-      arribenAbans: { id: 'arriveEarly', titol: `🕐 ${t('scheduler.steps.results.incidents.groups.arriveEarly')}`, items: [], severity: 'warn' },
-      zonaExamen: { id: 'zoneExam', titol: `👁️ ${t('scheduler.steps.results.incidents.groups.zoneExam')}`, items: [], severity: 'error' },
-      enllacos: { id: 'links', titol: `🔗 ${t('scheduler.steps.results.incidents.groups.links')}`, items: [], severity: 'info' },
-      altres: { id: 'others', titol: `📋 ${t('scheduler.steps.results.incidents.groups.others')}`, items: [], severity: 'info' }
+      conflicts: { id: 'conflicts', titol: `🚨 ${t('scheduler.steps.results.incidents.groups.conflicts')}`, items: [], severity: 'error' },
+      substitutions: { id: 'substitutions', titol: `🚨 ${t('scheduler.steps.results.incidents.groups.substitutions')}`, items: [], severity: 'error' },
+      stayLate: { id: 'stayLate', titol: `🕐 ${t('scheduler.steps.results.incidents.groups.stayLate')}`, items: [], severity: 'warn' },
+      arriveEarly: { id: 'arriveEarly', titol: `🕐 ${t('scheduler.steps.results.incidents.groups.arriveEarly')}`, items: [], severity: 'warn' },
+      links: { id: 'links', titol: `🔗 ${t('scheduler.steps.results.incidents.groups.links')}`, items: [], severity: 'info' },
+      others: { id: 'others', titol: `📋 ${t('scheduler.steps.results.incidents.groups.others')}`, items: [], severity: 'info' },
+      zoneExam: { id: 'zoneExam', titol: `👁️ ${t('scheduler.steps.results.incidents.groups.zoneExam')}`, items: [], severity: 'error' }
     }
 
-    // Els avisos de la configuració (grups sense nivell...), primer de tot a «Altres»
-    grups.altres.items.push(...avisosDeConfiguracio(logs, t))
-    filtered.forEach((line) => {
-      const kind = classifyIncidentKind(line)
-      if (kind === INCIDENT_KINDS.conflict) grups.conflictes.items.push(line)
-      else if (kind === INCIDENT_KINDS.substitution) grups.substitucions.items.push(line)
-      else if (kind === INCIDENT_KINDS.stayLate) grups.quedaMes.items.push(line)
-      else if (kind === INCIDENT_KINDS.arriveEarly) grups.arribenAbans.items.push(line)
-      else if (kind === INCIDENT_KINDS.zonaExamen) grups.zonaExamen.items.push(line)
-      else if (kind === INCIDENT_KINDS.link) grups.enllacos.items.push(line)
-      else grups.altres.items.push(line)
-    })
+    // Els avisos de la configuració (grups sense nivell...), primer de tot a «Altres» (text)
+    grups.others.items.push(...avisosDeConfiguracio(logs, t))
+    // Les incidències, pel codi; la resta de línies (el progrés del motor) no ho són
+    logs.filter(esIncidencia).forEach((m) => grups[grupIncidencia(m)].items.push(m))
 
     return Object.values(grups).filter((group) => group.items.length > 0)
   })
 
-  const logsEnllacos = computed(() => {
-    const logs = result.value?.horari?.metadata?.logs || []
-    return logs.map((line) => tradueixMissatge(line, t).trim()).filter(isLinkIncident)
-  })
+  const logsEnllacos = computed(() => (result.value?.horari?.metadata?.logs || []).filter(esEnllac))
 
   const logsIncidencies = computed(() => {
     return incidenciesAgrupades.value
@@ -72,20 +58,12 @@ export const useSchedulerResults = ({
   const incidenciesCount = computed(() => logsIncidencies.value.length)
 
   const incidenciesStats = computed(() => {
-    const logs = logsIncidencies.value || []
-    let totalScore = 0
-    let substitucions = 0
-    let arribenAbans = 0
-    logs.forEach((log) => {
-      const scoreToken = extractIncidentScore(log)
-      const scoreValue = scoreToken.match(/(-?\d+)/)?.[1]
-      if (scoreValue) totalScore += Number(scoreValue)
-
-      const kind = classifyIncidentKind(log)
-      if (kind === INCIDENT_KINDS.substitution) substitucions += 1
-      if (kind === INCIDENT_KINDS.arriveEarly) arribenAbans += 1
-    })
-    return { totalScore, substitucions, arribenAbans }
+    const incidencies = (logsIncidencies.value || []).filter(esIncidencia)
+    return {
+      totalScore: incidencies.reduce((suma, m) => suma + (m.punts || 0), 0),
+      substitucions: incidencies.filter((m) => m.codi === 'inc_substitucio').length,
+      arribenAbans: incidencies.filter((m) => m.codi === 'inc_abans').length
+    }
   })
 
   const bestIntent = computed(() => {
@@ -97,20 +75,13 @@ export const useSchedulerResults = ({
 
   const horesExamenConfig = computed(() => llistaHoresDisponibles.value.length ? llistaHoresDisponibles.value : ['09:00', '11:30'])
 
-  const getDuradaSessio = (nomSessio, _nivell) => {
-    // 1. Buscar en duradesGrups per nom de sessió — usa durada_examen per la graella
-    if (nomSessio && duradesGrups?.value?.length) {
-      for (const grup of duradesGrups.value) {
-        if (Array.isArray(grup.assignatures) && grup.assignatures.includes(nomSessio)) {
-          return Math.max(1, Number(grup.durada_examen ?? grup.durada) || 1)
-        }
-      }
-    }
-    // 2. Fallback: durada_examen global o durada_titular
-    const globalExamen = duradaExamen?.value
-    const durada = Number(globalExamen || config.value?.durada_examen || config.value?.durada_titular || 1)
-    return Math.max(1, durada)
-  }
+  const getDuradaSessio = (nomSessio, _nivell) =>
+    horesExamen({
+      nom: nomSessio,
+      grups: duradesGrups?.value,
+      generalExamen: duradaExamen?.value || config.value?.durada_examen,
+      generalTitular: config.value?.durada_titular,
+    })
 
   // Mantenim per compatibilitat (usada externament si cal)
   const getDuradaPerNivell = (nivell) => getDuradaSessio(null, nivell)
@@ -179,6 +150,7 @@ export const useSchedulerResults = ({
           dia: diaNom,
           diaLabel: getDayLabel ? getDayLabel(diaNom) : diaNom,
           data: data ? data.toLocaleDateString(resolveLocale(), { day: '2-digit', month: '2-digit' }) : null,
+          dataIso: data ? formatIso(data) : null,
           sessions: diesAmbDades[isoKey]?.sessions || [],
           teExamens: !!data && !!diesAmbDades[isoKey]?.sessions?.length,
           estaSeleccionat: !!data
@@ -202,7 +174,8 @@ export const useSchedulerResults = ({
         })
       }
     })
-    return Object.values(perNivell).sort((a, b) => b.nivell.localeCompare(a.nivell))
+    const compara = comparaSegonsOrdre(config.value?.nivells)
+    return Object.values(perNivell).sort((a, b) => compara(a.nivell, b.nivell))
   }
 
   const onHorariActualitzat = (nouHorari) => {

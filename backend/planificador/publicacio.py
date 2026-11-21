@@ -153,7 +153,7 @@ class PublicacioExamens:
             (v.hora, v.nivell or "", v.grups or "", v.aula or ""): v
             for v in VigilanciaRepository.del_dia_dels_nivells(db, data_iso, nivells_dia)
         }
-        noves = set()
+        noves = {}  # clau → tipus de la primera sessió que l'ocupa
         for slot in dia_info.get("sessions", []):
             hora_inici = slot.get("hora", "")
             if not hora_inici:
@@ -168,8 +168,14 @@ class PublicacioExamens:
                     tipus = examen.get("assignatura") or sessio.get("nom_base") or sessio.get("nom", "")
                     for hora in hores:
                         clau = (hora, curs, grup, aula)
+                        if clau in noves:
+                            # Repetida a la mateixa petició: una sola fila. Si és un altre
+                            # examen (dos a la mateixa aula i hora), l'usuari ho ha de saber.
+                            if noves[clau] != tipus:
+                                self._avisa_aula_ocupada(data_iso, clau, noves[clau], tipus)
+                            continue
                         self._publicades.add((data_iso, *clau))
-                        noves.add(clau)
+                        noves[clau] = tipus
                         if clau not in existents:
                             VigilanciaRepository.afegeix(
                                 db,
@@ -193,6 +199,22 @@ class PublicacioExamens:
                 self.resum.hores_esborrades.add((data_iso, v.hora))
                 VigilanciaRepository.esborra(db, v)
                 self.resum.eliminades += 1
+
+    def _avisa_aula_ocupada(self, data_iso: str, clau: tuple, primer: str, segon: str) -> None:
+        hora, _, grup, aula = clau
+        avis = {
+            "codi": "examens_mateixa_aula_i_hora",
+            "params": {
+                "data": data_iso,
+                "hora": hora,
+                "grups": grup,
+                "aula": aula,
+                "assignatura": primer,
+                "altra": segon,
+            },
+        }
+        if avis not in self.resum.avisos:
+            self.resum.avisos.append(avis)
 
     def _nivells_marcats(self, data_iso: str) -> list:
         """Nivells seleccionats al planificador amb alguna hora marcada sense classe aquell dia."""
@@ -360,9 +382,15 @@ def publica(payload, institucio: str, avui: str) -> dict:
         else:
             db.flush()
 
-            for data_iso, hora in sorted(resum.hores_esborrades):
-                cobertures.refresca_cobertures(data_iso, hora, db)
-            db.commit()
+            try:
+                for data_iso, hora in sorted(resum.hores_esborrades):
+                    cobertures.refresca_cobertures(data_iso, hora, db)
+            except Exception:
+                # Un error en refrescar les cobertures no desa res (abans, un 500 a mitges)
+                db.rollback()
+                resum.errors.append(error_intern("no s'han pogut actualitzar les cobertures de classe"))
+            else:
+                db.commit()
 
     return {
         "success": len(resum.errors) == 0,

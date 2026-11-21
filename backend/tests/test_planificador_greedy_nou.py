@@ -111,6 +111,7 @@ def test_cost_zero_no_s_apunta_i_els_empats_no_substitueixen_el_primer(monkeypat
     # Sense cap cost: es para al primer intent, però no s'apunta a la traça.
     problema = replace(
         problema,
+        durada_examen=1,  # exàmens d'una hora: hi caben a totes les franges
         regles=construeix_regles(
             {
                 "costos_professors": {
@@ -135,7 +136,9 @@ def test_cost_zero_no_s_apunta_i_els_empats_no_substitueixen_el_primer(monkeypat
     assert bytes_de(primer) == bytes_de(molts)
 
 
-def test_zona_examen_costa_cinc_per_professor_i_hora(monkeypatch, config_inventada, xml_inventat):
+def test_la_zona_examen_no_costa_res(monkeypatch, config_inventada, xml_inventat):
+    """El greedy col·loca amb el cost de la sessió, sense el +5 per professor
+    en zona d'examen (que el cost mostrat no compta)."""
     from planificador.motor import cost_cerca  # noqa: PLC0415
 
     problema = problema_de(config_inventada, xml_inventat)
@@ -143,10 +146,9 @@ def test_zona_examen_costa_cinc_per_professor_i_hora(monkeypatch, config_inventa
     monkeypatch.setattr(cost_cerca, "analitza_motor", lambda *_, **__: {"zona_examen": zona})
     comptats = set()
     assert (
-        CostCercaGreedy(problema).sessio(problema.examens[0].a_diccionari(), problema.franges[0], [], [], comptats)
-        == 10
+        CostCercaGreedy(problema).sessio(problema.examens[0].a_diccionari(), problema.franges[0], [], [], comptats) == 0
     )
-    assert comptats == set()  # La zona no deduplica amb les incidències de vigilància.
+    assert comptats == set()
 
 
 def test_barreja_acumulada_i_seqüencia_exacta_de_crides(monkeypatch, config_inventada, xml_inventat):
@@ -271,3 +273,23 @@ def test_el_termini_comenca_despres_de_preparar_i_nomes_es_mira_entre_intents(
     assert consultes == [100, 107, 114, 121]
     assert resultat.motiu_aturada == "temps"
     assert resultat.registre == ["⏱️ Límit de temps (20 s): s'han fet 3 intents dels 10 demanats"]
+
+
+def test_mateix_moment_tou_sense_punts_amagats(config_inventada, xml_inventat):
+    """El greedy col·loca amb el cost de la sessió (el mostrat). Una «mateixa data i hora» tova
+    amb la companya en un altre moment ja hi és com a preferència; abans s'hi sumava, a més,
+    10000 × % (7500 a 75 %) que no sortia enlloc. Al 100 %, la franja queda descartada."""
+    for pes in (75, 100):
+        cfg = config_inventada
+        cfg.restriccions = {"preferencies": {"mateix_slot": [{"assignatures": ["A (N1)", "B (N1)"], "pes": pes}]}}
+        problema = problema_de(cfg, xml_inventat)
+        a, b = (e.a_diccionari() for e in problema.examens[:2])
+        cerca = CostCercaGreedy(problema)
+        franja_b = problema.franges[-1]
+        ubicacions = [(b, franja_b.clau)]
+        resultat = cerca.item({"sessions": [a]}, problema.franges[0], [], [], {}, ubicacions, set(), GREEDY)
+        if pes == 100:
+            assert resultat is None
+        else:
+            sol = cerca.sessio(a, problema.franges[0], [], [], set())
+            assert resultat[0] == sol < 7500

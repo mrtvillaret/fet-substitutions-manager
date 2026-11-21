@@ -82,7 +82,6 @@ def _examen(dades, cfg, politiques) -> Examen:
             cfg.durades_per_sessio,
             cfg.durada_examen,
             cfg.durada_titular,
-            politiques,
         ),
         dades=congela(dades),
     )
@@ -152,7 +151,7 @@ def construeix_problema(
         dies=tuple(dies),
         dates=tuple(procedencia),
         mapa_dies=congela(dia_a_data_iso),
-        regles=construeix_regles(restriccions, examens, politiques),
+        regles=construeix_regles(restriccions, examens),
         alliberaments=congela(cfg.alliberaments),
         durades_vigilancia=congela(cfg.durades_per_sessio),
         durades_examen=congela(cfg.durades_examen_per_sessio),
@@ -305,12 +304,6 @@ def _particio_nova(sessions_per_nivell, nivells_actius, restriccions, grups_amb_
         for g in grups_amb_noms
         if g.get("assignatures")
     ]
-    combs_raw = restriccions.get("restriccions_dures", {}).get("combinacions_permeses", [])
-    combs_opt = []
-    for c in combs_raw:
-        assignatures = c.get("assignatures", []) if isinstance(c, dict) else c
-        if isinstance(assignatures, list) and assignatures:
-            combs_opt.append({normalitzar_text(n) for n in assignatures})
 
     for nivell in nivells_actius:
         sessions_pendents = sessions_per_nivell.get(nivell, [])
@@ -346,32 +339,7 @@ def _particio_nova(sessions_per_nivell, nivells_actius, restriccions, grups_amb_
                 items_nivell.append(item)
                 visitats.add(sid)
 
-        # C. Fusionar per espai o per combinacions
-        # Només fusionem si hi ha combinacions permeses
-        if combs_opt:
-            canviat = True
-            while canviat:
-                canviat = False
-                for c_set in sorted(combs_opt, key=len, reverse=True):
-                    compat = []
-                    for idx, it in enumerate(items_nivell):
-                        it_noms = {normalitzar_text(s["nom_base"]) for s in it["sessions"]}
-                        if it_noms.issubset(c_set):
-                            compat.append(idx)
-
-                    if len(compat) >= 2:
-                        # Unir tot en el primer ítem i eliminar la resta
-                        index_principal = compat[0]
-                        for idx in sorted(compat[1:], reverse=True):
-                            items_nivell[index_principal]["sessions"].extend(items_nivell.pop(idx)["sessions"])
-                        items_nivell[index_principal]["nom"] = (
-                            items_nivell[index_principal]["sessions"][0]["nom_base"] + " (+)"
-                        )
-                        _assigna_id(items_nivell[index_principal])
-                        canviat = True
-                        break
-
-        # D. Treure ítems repetits exactes
+        # C. Treure ítems repetits exactes
         uniques = []
         vistos = set()
         for it in items_nivell:

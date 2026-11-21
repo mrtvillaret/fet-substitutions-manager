@@ -9,22 +9,29 @@ from typing import Any
 
 from planificador.compartit.constants import DEFAULT_COST_PROFESSORS, ETIQUETES_CAUSES, ETIQUETES_RESTRICCIONS
 from planificador.compartit.normalitzacio import normalitzar_dia
-from planificador.compartit.punts import CLAU_BREAKDOWN, IncidenciaCost, desglossament, punts_restriccio
+from planificador.compartit.punts import (
+    CLAU_BREAKDOWN,
+    IncidenciaCost,
+    desglossament,
+    punts_horari_estricte,
+    punts_obligatoria_incomplerta,
+    punts_restriccio,
+)
 from planificador.compartit.punts import pes_restriccio_dura as pes_dura
 from planificador.compartit.punts import pes_restriccio_violada as pes_violada
-from planificador.motor.compatibilitat import BACKTRACKING, TALL_COST_SESSIO, Estricte, Politiques
+from planificador.motor.compatibilitat import BACKTRACKING, Estricte, Politiques
 from planificador.motor.disponibilitat import Disponibilitat
 from planificador.motor.durades import hores_ocupades, vigilancia
 from planificador.motor.model import HorariEditable, Problema, congela, descongela
 from planificador.motor.regles import (
+    _pes_obligatori,
     _punts_percentatge,
-    calcular_penalitzacio_assignatures_dies_exclosos,
     calcular_penalitzacio_professors_dies,
     causa_dia_hora_fix,
+    coincideix_exacte,
     incidencies_limit_professors,
     percentatge_dia_hora_fix,
     sessio_al_grup,
-    viola_combinacions_permeses,
     viola_limit_dies_professor_obligatori,
     viola_preferencia_dia_obligatoria,
     viola_restriccio_dura,
@@ -62,15 +69,34 @@ def costos_professors_no_negatius(restriccions: dict) -> bool:
     return all(v >= 0 for v in valors if isinstance(v, (int, float)))
 
 
+def professors_horari_estricte(restriccions: dict) -> list[str]:
+    """Els professors amb horari estricte de les restriccions."""
+    estrictes = (restriccions.get("restriccions_dures") or {}).get("professors_horari_estricte", [])
+    if isinstance(estrictes, dict):
+        return [k for k in estrictes if not k.startswith("_")]
+    return list(estrictes) if isinstance(estrictes, list) else []
+
+
+def estrictes_afectats(analisi: dict, estrictes: set) -> set:
+    """Els professors amb horari estricte que l'anàlisi deixa fora del seu horari."""
+    if not estrictes:
+        return set()
+    return {
+        i["professor"]
+        for clau in ("abans_jornada", "despres_jornada", "no_treballa_dia")
+        for i in analisi.get(clau, [])
+    } & estrictes
+
+
 def costos_professors_analisi(
     analisi: dict, hora: str, restriccions: dict, ja_comptats: set[tuple] | None = None
 ) -> dict[tuple, int]:
     """{(tipus, professor, hora): cost} de les incidències dels professors, una
     sola vegada per professor i hora.
 
-    ja_comptats: claus ja comptades per altres exàmens de la mateixa franja. Un
-    professor que vigila dos exàmens alhora deixa una sola classe: no es torna
-    a comptar. Les claus noves s'hi afegeixen.
+    ja_comptats: claus ja comptades per altres exàmens de la mateixa data. Un
+    professor que vigila dos exàmens alhora deixa una sola classe, i una hora
+    d'espera és una sola hora: no es tornen a comptar. Les claus noves s'hi afegeixen.
     """
     costos = {}
     for camp, tipus in TIPUS_COST_PROFESSOR.items():
@@ -120,17 +146,7 @@ def cost_sessio(
     pes_restriccio_violada = pes_violada(restriccions)
 
     # 2. Verificar professors amb horari estricte
-    professors_estrictes = restriccions.get("restriccions_dures", {}).get("professors_horari_estricte", [])
-    if isinstance(professors_estrictes, dict):
-        professors_estrictes = [k for k in professors_estrictes.keys() if not k.startswith("_")]
-    elif not isinstance(professors_estrictes, list):
-        professors_estrictes = []
-
-    professors_estrictes_afectats = (
-        {i["professor"] for i in analisi.get("abans_jornada", [])}
-        | {i["professor"] for i in analisi.get("despres_jornada", [])}
-        | {i["professor"] for i in analisi.get("no_treballa_dia", [])}
-    ) & set(professors_estrictes)
+    professors_estrictes_afectats = estrictes_afectats(analisi, set(professors_horari_estricte(restriccions)))
 
     # Si es viola un horari estricte, el cost és el màxim permès
     if professors_estrictes_afectats:
@@ -160,20 +176,24 @@ def cost_sessio(
     # 4. Calcular preferències d’alumnes (mateix dia, dies diferents i mateixa franja)
     cost_preferencies = 0
 
-    def _get_nom(s):
-        return s.get("nom") if isinstance(s, dict) else getattr(s, "nom", None)
-
-    nom_actual = _get_nom(sessio)
     prefs = restriccions.get("preferencies", {})
 
     if sessions_dia:
-        noms_dia = [_get_nom(s) for s in sessions_dia if _get_nom(s)]
+
+        def _companyes(assignatures, sessions):
+            """Les assignatures del grup (menys la pròpia) que tenen alguna sessió a `sessions`, pel
+            nom complet o sense nivell, com la sessió pròpia."""
+            return [
+                a
+                for a in assignatures
+                if not coincideix_exacte(a, sessio) and any(coincideix_exacte(a, s) for s in sessions)
+            ]
 
         # Mateix dia (percentatge)
         for pref in prefs.get("mateix_dia", []):
             assignatures = pref.get("assignatures", []) if isinstance(pref, dict) else pref
             if sessio_al_grup(sessio, assignatures):
-                altres_al_dia = [a for a in assignatures if a != nom_actual and a in noms_dia]
+                altres_al_dia = _companyes(assignatures, sessions_dia)
                 if altres_al_dia:
                     percent = pref.get("pes", 0) if isinstance(pref, dict) else 0
                     base = pesos_opt.get("preferencia_mateix_dia", 0)
@@ -186,7 +206,7 @@ def cost_sessio(
         for pref in prefs.get("dies_diferents", []):
             assignatures = pref.get("assignatures", []) if isinstance(pref, dict) else pref
             if sessio_al_grup(sessio, assignatures):
-                altres_al_dia = [a for a in assignatures if a != nom_actual and a in noms_dia]
+                altres_al_dia = _companyes(assignatures, sessions_dia)
                 if altres_al_dia:
                     percent = pref.get("pes", 0) if isinstance(pref, dict) else 0
                     base = pesos_opt.get("preferencia_dies_diferents", 0)
@@ -197,15 +217,13 @@ def cost_sessio(
 
         # Mateix slot: penalitza si companyes del grup estan al mateix dia però hora diferent
         if sessions_slot is not None:
-            noms_slot = [_get_nom(s) for s in sessions_slot if _get_nom(s)]
             for pref in prefs.get("mateix_slot", []):
                 assignatures = pref.get("assignatures", []) if isinstance(pref, dict) else pref
                 if sessio_al_grup(sessio, assignatures):
                     percent = pref.get("pes", 0) if isinstance(pref, dict) else 0
                     # Companyes al mateix dia però en hora diferent (no al slot actual)
-                    altres_dia_no_slot = [
-                        a for a in assignatures if a != nom_actual and a in noms_dia and a not in noms_slot
-                    ]
+                    al_slot = set(_companyes(assignatures, sessions_slot))
+                    altres_dia_no_slot = [a for a in _companyes(assignatures, sessions_dia) if a not in al_slot]
                     if altres_dia_no_slot:
                         if percent >= 100:
                             val = pes_restriccio_violada
@@ -227,15 +245,6 @@ def cost_sessio(
             cost_restriccions += pen
             breakdown["no_mateix_slot"] = breakdown.get("no_mateix_slot", 0) + pen
             _apunta("no_mateix_slot", pen, amb_no_slot)
-
-        # Combinacions permeses (obligatòries)
-        if viola_combinacions_permeses(sessio, sessions_slot, restriccions):
-            cost_restriccions += pes_restriccio_dura
-            breakdown["combinacio_no_permesa"] = pes_restriccio_dura
-            if incidencies is not None:
-                curs = sessio.get("curs", "")
-                mateix_nivell = [s.get("nom") for s in sessions_slot if s is not sessio and s.get("curs", "") == curs]
-                _apunta("combinacio_no_permesa", pes_restriccio_dura, mateix_nivell)
 
     # Dia/Hora fixos
     # Els nivells són les claus del dict analisi que comencen per 'classe_'
@@ -260,20 +269,14 @@ def cost_sessio(
     # Penalitzacions de professors (dies límit)
     # Nota: sessions_dia a V2 és List[Sessio], calcular_penalitzacio espera Dict[dia, List[Sessio]]
     # Adaptem el mapa temporal de les sessions del dia
-    sess_map = {dia: sessions_dia} if sessions_dia else {}
+    clau_dia = data_iso or dia  # el límit pot portar dates
+    sess_map = {clau_dia: sessions_dia} if sessions_dia else {}
     if inclou_limit_dies:
-        p_prof_dies = calcular_penalitzacio_professors_dies(sessio, dia, sess_map, restriccions)
+        p_prof_dies = calcular_penalitzacio_professors_dies(sessio, clau_dia, sess_map, restriccions)
         cost_restriccions += p_prof_dies
         if p_prof_dies:
             breakdown["professors_limit_dies"] = breakdown.get("professors_limit_dies", 0) + p_prof_dies
             _apunta("limit_dies_professor", p_prof_dies)
-
-    # Assignatures dies exclosos
-    p_exclosos = calcular_penalitzacio_assignatures_dies_exclosos(sessio, dia, restriccions)
-    cost_restriccions += p_exclosos
-    if p_exclosos:
-        breakdown["assignatures_dies_exclosos"] = p_exclosos
-        _apunta("assignatures_dies_exclosos", p_exclosos)
 
     return {
         "cost_total": cost_base + cost_preferencies + cost_restriccions,
@@ -364,8 +367,36 @@ def incidencies_restriccions(horari: dict, restriccions: dict, dia_a_data_iso: d
     incidencies = []
     for dia in horari.get("dies", []):
         incidencies += incidencies_restriccions_dia(dia, sessions_per_data, restriccions, dia_a_data_iso)
-    # El límit per professor, un sol càlcul global
-    incidencies += incidencies_limit_professors(sessions_per_dia, restriccions)
+    # El límit per professor, un sol càlcul global, per data (les regles poden portar dates)
+    incidencies += incidencies_limit_professors(sessions_per_data, restriccions)
+    incidencies += incidencies_mateix_dia_obligatori(sessions_per_data, restriccions)
+    return incidencies
+
+
+def incidencies_mateix_dia_obligatori(sessions_per_data: dict, restriccions: dict) -> list:
+    """Una «mateixa data» obligatòria amb els exàmens en dates diferents. Els motors
+    no la trenquen mai; editant a mà sí, i suma `restriccio_dura_violada` un cop per regla
+    (com l'horari estricte). Les dates són les claus de `sessions_per_data`."""
+    incidencies = []
+    for pref in (restriccions.get("preferencies") or {}).get("mateix_dia", []):
+        grup = pref.get("assignatures", []) if isinstance(pref, dict) else pref
+        if not _pes_obligatori(pref.get("pes", 0) if isinstance(pref, dict) else 0):
+            continue
+        per_data = {
+            data: sorted({s.get("nom", "") for s in sessions if sessio_al_grup(s, grup)})
+            for data, sessions in sessions_per_data.items()
+        }
+        per_data = {data: noms for data, noms in per_data.items() if noms}
+        if len(per_data) > 1:
+            noms = sorted({nom for llista in per_data.values() for nom in llista})
+            incidencies.append(
+                IncidenciaCost(
+                    "mateix_dia_obligatori",
+                    punts_obligatoria_incomplerta(restriccions),
+                    nom=", ".join(noms),
+                    amb=tuple(sorted(per_data)),
+                )
+            )
     return incidencies
 
 
@@ -387,10 +418,12 @@ class Cost:
 
 
 def cost(horari: HorariEditable | dict, problema: Problema, disponibilitat: Disponibilitat | None = None) -> Cost:
-    """Cost mostrat: deduplica professors per franja i compta totes les ocurrències.
+    """Cost mostrat: cada hora d'un professor un sol cop per data, i totes les ocurrències.
 
-    L'anàlisi usada per puntuar restriccions és buida: l'horari estricte no
-    entra aquí. La regla d'or i les agrupacions separades tampoc sumen punts.
+    Un professor amb horari estricte que en queda fora (arriba abans, es queda
+    més o no treballa aquell dia) suma `restriccio_dura_violada` un cop per
+    franja: els motors no ho fan mai, però a mà sí que es pot.
+    La regla d'or i les agrupacions separades no sumen punts.
     Només llegeix el document: la cerca pot passar el seu horari sense copiar-lo.
     """
     document = horari.document if isinstance(horari, HorariEditable) else horari
@@ -406,23 +439,36 @@ def cost(horari: HorariEditable | dict, problema: Problema, disponibilitat: Disp
         "no_treballa_dia": "professors_no_treballa",
     }
     graella = [normalitzar_hora(h) for h in problema.graella]
+    estrictes = set(professors_horari_estricte(restriccions))
+    punts_estricte = punts_horari_estricte(restriccions)
     hi_ha_sessions = False
     mapa_dies = descongela(problema.mapa_dies)
     for dia in document.get("dies", []):
         dia_nom = dia.get("dia", "")
         data_iso = _data_iso(dia, mapa_dies)
+        # Cada hora d'un professor (substitució, espera abans o després, no treballa)
+        # compta un sol cop per data, encara que surti en exàmens de franges diferents.
+        comptats_data = set()
         for franja in dia.get("sessions", []):
             hora = franja.get("hora", "")
             hora_normalitzada = normalitzar_hora(hora)
             sessions = franja.get("sessions_simultanees", [])
             hi_ha_sessions = hi_ha_sessions or bool(sessions)
-            costos_franja = {}
+            costos_franja, estrictes_franja = {}, set()
             for index, sessio in enumerate(sessions):
                 altres = [s for i, s in enumerate(sessions) if i != index]
                 durada = vigilancia(sessio.get("nom"), problema.durades_vigilancia, problema.durada_titular)
                 hores = hores_ocupades(hora_normalitzada, graella, durada)
                 analisi = disponible.consulta(sessio, dia_nom, hora_normalitzada, data_iso, hores, hores, altres)
-                costos_franja.update(costos_professors_analisi(analisi, hora, restriccions, set(costos_franja)))
+                costos_franja.update(costos_professors_analisi(analisi, hora, restriccions, comptats_data))
+                for professor in sorted(estrictes_afectats(analisi, estrictes) - estrictes_franja):
+                    estrictes_franja.add(professor)
+                    incidencies.append(
+                        IncidenciaCost(
+                            "professor_estricte", punts_estricte, dia=dia_nom, hora=hora, professor=professor
+                        )
+                    )
+                    resum["professor_estricte"] += punts_estricte
             for (tipus, professor, hora_prof), punts in costos_franja.items():
                 incidencies.append(IncidenciaCost(tipus, punts, dia=dia_nom, hora=hora_prof, professor=professor))
                 resum[tipus] += punts
@@ -459,8 +505,14 @@ def causa_dura(
     politiques: Politiques = BACKTRACKING,
     *,
     restriccions: dict | None = None,
+    sessions_per_data=None,
 ) -> CausaDura | None:
-    """Primera causa obligatòria, amb l'ordre actual i el context del camí."""
+    """Primera causa obligatòria, amb l'ordre actual i el context del camí.
+
+    `sessions_per_dia` (per nom de dia) serveix al límit per professor;
+    `sessions_per_data` (per data, o per nom de dia sense dates), a les
+    preferències de dia obligatòries. Sense `sessions_per_data`, aquestes miren
+    `sessions_per_dia`."""
     if restriccions is None:
         restriccions = regles.a_diccionari()
     dia, hora, prefix = franja.dia, franja.hora, franja.prefix
@@ -474,27 +526,15 @@ def causa_dura(
         return resultat(causa, f"{nom} — slot {dia} {hora} no permès")
     if viola_restriccio_dura(sessio, list(sessions_dia), restriccions):
         return resultat("no_mateix_dia", f"{nom} — conflicte amb sessió al dia {prefix or dia}")
-    if sessions_franja and viola_combinacions_permeses(sessio, list(sessions_franja), restriccions):
-        return resultat("combinacions_permeses", f"{nom} — combinació no permesa al slot {dia} {hora}")
     if sessions_per_dia is not None:
-        if viola_limit_dies_professor_obligatori(sessio, dia, sessions_per_dia, restriccions):
+        per_data = sessions_per_dia if sessions_per_data is None else sessions_per_data
+        # Per data (les regles poden portar dates; un nom de dia compta totes les seves dates)
+        if viola_limit_dies_professor_obligatori(sessio, prefix or dia, per_data, restriccions):
             return resultat("limit_dies_professor", f"{nom} — professor supera límit el {dia}")
-        if viola_preferencia_dia_obligatoria(sessio, dia, sessions_per_dia, restriccions):
+        if viola_preferencia_dia_obligatoria(sessio, prefix or dia, per_data, restriccions):
             return resultat("preferencia_dia", f"{nom} — viola preferència de dia obligatòria el {dia}")
     if politiques.estricte == Estricte.DURA and analisi:
-        estrictes = restriccions.get("restriccions_dures", {}).get("professors_horari_estricte", [])
-        if isinstance(estrictes, dict):
-            estrictes = [k for k in estrictes if not k.startswith("_")]
-        afectats = {
-            i["professor"]
-            for clau in ("abans_jornada", "despres_jornada", "no_treballa_dia")
-            for i in analisi.get(clau, [])
-        } & set(estrictes or [])
+        afectats = estrictes_afectats(analisi, set(professors_horari_estricte(restriccions)))
         if afectats:
             return resultat("professors_estrictes", f"Professors {', '.join(sorted(afectats))} amb horari estricte")
     return None
-
-
-def supera_tall(cost_sessio: int | float) -> bool:
-    """El tall numèric és independent de les comprovacions dures prèvies."""
-    return cost_sessio >= TALL_COST_SESSIO

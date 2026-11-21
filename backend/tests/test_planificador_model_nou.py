@@ -20,11 +20,10 @@ from planificador.motor.construccio import (
     particio_nova,
 )
 from planificador.motor.disponibilitat import Disponibilitat, analitzar_disponibilitat_sessio
-from planificador.motor.durades import examen_config, examen_motor, examen_recalcul, per_nivell
+from planificador.motor.durades import examen
 from planificador.motor.model import DataAmbOrigen, HorariEditable, congela
 from planificador.motor.regles import (
     Agrupacio,
-    Ambit,
     Fixacio,
     LimitProfessor,
     coincideix_exacte,
@@ -45,7 +44,7 @@ def test_problema_es_una_instantania_profunda(config_inventada, xml_inventat):
         problema.examens[0].dades["examens"][0]["grup"] = "N2-A"
     config_inventada.config["assignatures"]["A"]["assignacions"][0]["grup"] = "N2-A"
     assert problema.examens[0].dades["examens"][0]["grup"] == "N1-A"
-    assert problema.examens[0].hores_examen == 1  # el recàlcul ignora la general d'examen
+    assert problema.examens[0].hores_examen == 1  # la general d'examen
     assert len(problema.franges) == 2
 
 
@@ -72,15 +71,12 @@ def test_editable_conserva_ocurrencies_extres_i_absencies():
     assert recompte_limit_professor("Prof 01", limit, {"Dilluns": sessions}, sessions).excedent == 1
 
 
-@pytest.mark.parametrize("propia,vigilancia,esperat", [(None, None, (3, 1, 1)), (1, 2, (2, 2, 1)), (4, 2, (4, 4, 4))])
-def test_tres_durades_es_conserven(propia, vigilancia, esperat):
+@pytest.mark.parametrize("propia,vigilancia,esperat", [(None, None, 3), (1, 2, 2), (4, 2, 4), (None, 5, 5)])
+def test_una_sola_durada_d_examen(propia, vigilancia, esperat):
+    """La pròpia o la general d'examen (3), mai menys que la vigilància
+    (pròpia o general del titular, 1); igual a motors, recàlcul i publicació."""
     examens, vigilancies = {"A": propia}, {"A": vigilancia}
-    assert (
-        examen_config("A", examens, vigilancies, 3, 1),
-        examen_recalcul("A", examens, vigilancies, 1),
-        examen_motor("A", examens, vigilancies, 1),
-    ) == esperat
-    assert per_nivell("N1", {"N1": {"durada": 2}}, 1) == 2
+    assert examen("A", examens, vigilancies, 3, 1) == esperat
 
 
 def test_dates_amb_procedencia_i_franges_no_filtrades(config_inventada, xml_inventat):
@@ -117,13 +113,13 @@ def test_regles_conserven_pes_ambit_text_i_posicio():
     assert regles.a_diccionari() == original
     assert isinstance(regles.regles_en_ordre[0], Agrupacio) and regles.regles_en_ordre[0].pes == 0
     assert regles.regles_en_ordre[0].noms == (" a ", "B")
-    assert isinstance(regles.regles_en_ordre[1], Fixacio) and regles.regles_en_ordre[1].ambit == Ambit.DATA
+    assert isinstance(regles.regles_en_ordre[1], Fixacio)
     assert regles.regles_en_ordre[1].origen == ("restriccions_dures", "assignatures_dia_fix", "A")
     assert isinstance(regles.regles_en_ordre[2], LimitProfessor) and regles.regles_en_ordre[2].pes == -5
     assert not coincideix_exacte(" a ", {"nom": "A", "nom_base": "A"})
     assert coincideix_normalitzat(" a ", {"nom": "A", "nom_base": "A"})
-    # L'error del pin de pes zero es conserva.
-    assert percent_examen_fixat({"nom": "A"}, "Dimarts", "09:00", original, "2027-03-02") == 100
+    # Un pin de pes zero no té cap efecte.
+    assert percent_examen_fixat({"nom": "A"}, "Dimarts", "09:00", original, "2027-03-02") == 0
 
 
 PARTICIO_ANTIGA = {
@@ -214,13 +210,13 @@ def test_cache_no_arrossega_alliberament_d_una_altra_franja(config_inventada, xm
     assert disponible.analitza(sessio, "Dilluns", "09:00", None, ["09:00"], ["09:00"])["alliberats"] == []
 
 
-def test_combinacions_fusionen_nomes_a_la_particio_nova(config_inventada, xml_inventat):
+def test_les_combinacions_permeses_no_fusionen_cap_particio(config_inventada, xml_inventat):
+    """Les combinacions permeses s'accepten però no fan res."""
     problema = problema_inventat(config_inventada, xml_inventat)
     regles = construeix_regles({"restriccions_dures": {"combinacions_permeses": [{"assignatures": ["a", "b"]}]}})
     nova = particio_nova(problema.examens, regles, ["N1"])
     antiga = particio_antiga(problema.examens, regles)
-    assert [[e.nom_base for e in it.examens] for it in nova] == [["A", "B"], ["C"]]
-    assert nova[0].nom == "A (+)"
+    assert [[e.nom_base for e in it.examens] for it in nova] == [["A"], ["B"], ["C"]]
     assert len(antiga) == 3
 
 
@@ -269,15 +265,6 @@ def test_resolucio_no_esborra_la_diferencia_entre_comparadors(config_inventada, 
     assert regla.resolucio_exacta == ((" a ", ()), ("absent", ()))
     assert regla.resolucio_normalitzada == ((" a ", ("A_N1",)), ("absent", ()))
     assert regla.valor["assignatures"] == (" a ", "absent")
-
-
-def test_preferencies_per_data_al_cost_i_per_nom_a_la_cerca():
-    original = {"preferencies": {"dies_diferents": [{"assignatures": ["A", "B"], "pes": 100}]}}
-    del_cost = construeix_regles(original, politiques=p.COST_MOSTRAT).regles_en_ordre[0]
-    del_recalcul = construeix_regles(original, politiques=p.RECALCUL).regles_en_ordre[0]
-    de_la_cerca = construeix_regles(original, politiques=p.BACKTRACKING).regles_en_ordre[0]
-    assert del_cost.ambit == del_recalcul.ambit == Ambit.DATA
-    assert de_la_cerca.ambit == Ambit.NOM_DIA
 
 
 def test_guardia_no_permet_dependencia_web_dins_una_peca_neutra():

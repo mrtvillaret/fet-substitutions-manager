@@ -91,6 +91,21 @@ def test_cinc_incompatibles_en_quatre_hores():
     )
 
 
+@pytest.mark.parametrize("pes", [90, 0])
+def test_incompatibles_tous_no_fan_inviable_res(pes):
+    """Un «no a la mateixa data i hora» per sota del 100% només costa punts."""
+    examens = [_examen(f"Ex{i} ({i}-N)", f"{i}-N") for i in range(5)]
+    grup = {**_incompatibles(*(e["nom"] for e in examens)), "_pes_G": pes}
+    assert _diagnostic(examens, no_mateix_slot=grup) == []
+    fixats = _diagnostic(
+        [FIL1, FIL2],
+        no_mateix_slot={**_incompatibles("Fil (1-BAT)", "Fil (2-BAT)"), "_pes_G": pes},
+        assignatures_dia_fix={"Fil (1-BAT)": "Dilluns", "Fil (2-BAT)": "Dilluns"},
+        assignatures_hora_fix={"Fil (1-BAT)": "09:00", "Fil (2-BAT)": "09:00"},
+    )
+    assert fixats == []
+
+
 def test_quatre_incompatibles_en_quatre_hores_hi_caben():
     examens = [_examen(f"Ex{i} ({i}-N)", f"{i}-N") for i in range(4)]
     assert _diagnostic(examens, no_mateix_slot=_incompatibles(*(e["nom"] for e in examens))) == []
@@ -125,7 +140,7 @@ def test_dos_examens_d_un_nivell_amb_una_hora_cada_dia_hi_caben():
 
 
 def test_fixat_a_hora_sense_inici_diu_l_hora_i_el_nivell():
-    # Revisió B1: bloquejat a totes les altres franges per «fixat» i a la seva
+    # Bloquejat a totes les altres franges per «fixat» i a la seva
     # per «nivell sense inici»; abans sortia la més freqüent, «Dia/hora fixat»
     msgs = _diagnostic(
         [FIL1],
@@ -278,9 +293,7 @@ def test_horari_estricte_sense_analisi_o_sense_estrictes_com_abans():
 @pytest.mark.parametrize("motiu", [None, "temps", "nodes"])
 def test_aturada_i_indicis_mantenen_el_text_i_l_ordre(monkeypatch, config_inventada, xml_inventat, motiu):
     diagnostic = Diagnostic(problema_de(config_inventada, xml_inventat), GREEDY)
-    indici = missatge(
-        "parella_mateixos_dies", index=1, assignatures=["A", "B"], nom="A", altre="B", dies="Dilluns, Dimarts"
-    )
+    indici = missatge("dates_insuficients_examens", index=1, assignatures=["A", "B"], noms=["A", "B"], dies="Dilluns")
     monkeypatch.setattr(diagnostic, "incompatibilitats", lambda _: [indici])
     error = missatge("cerca_tallada_nodes", nodes=0) if motiu else missatge("examens_pendents")
     meta = {"viable": False, "error": error, "logs": ["registre"]}
@@ -312,19 +325,16 @@ def test_diagnostic_expandeix_dates_sense_perdre_ordre_ni_repeticions():
     ) == [("Dilluns", "2027-03-01"), ("Dilluns", "2027-03-08"), ("Dilluns", "2027-03-01"), ("Dimarts", "2027-03-02")]
 
 
-def test_un_indici_de_dies_solapats_no_es_fa_servir_com_a_precheck(config_inventada, xml_inventat):
+def test_dos_examens_amb_les_mateixes_dues_dates_no_son_cap_causa(config_inventada, xml_inventat):
+    """Poden anar en dates diferents; abans el diagnòstic deia que estaven «limitats a les
+    mateixes dates» i enviava a mirar on no tocava."""
     examens = [_examen("A", "N1"), _examen("B", "N2")]
-    indicis = _diagnostic(examens, no_mateix_dia=[{"assignatures": ["A", "B"], "pes": 100}])
-    # Poden ocupar dies diferents; el diagnòstic igualment ho suggereix (com feia el motor antic).
-    assert indicis == [
-        missatge(
-            "parella_mateixos_dies", index=1, assignatures=["A", "B"], nom="A", altre="B", dies="2026-04-20, 2026-04-21"
-        )
-    ]
+    assert _diagnostic(examens, no_mateix_dia=[{"assignatures": ["A", "B"], "pes": 100}]) == []
 
     config_inventada.restriccions = {
         "restriccions_dures": {"no_mateix_dia": [{"assignatures": ["A", "B"], "pes": 100}]}
     }
+    config_inventada.durada_examen = 1  # exàmens d'una hora: hi caben a totes les franges
     diagnostic = Diagnostic(problema_de(config_inventada, xml_inventat), GREEDY)
     pla = SimpleNamespace(dies=["Dilluns", "Dimarts"], nivells=["N1"], dates=["2027-03-01", "2027-03-02"])
     assert diagnostic.precheck(pla) == []
@@ -351,15 +361,33 @@ def test_error_del_diagnostic_conserva_les_causes_i_la_referencia(
 
 
 @pytest.mark.parametrize("ordre", [False, True])
-def test_l_indici_de_dies_solapats_conserva_l_examen_mes_restringit(ordre):
+def test_un_examen_fixat_i_un_de_lliure_es_poden_repartir(ordre):
+    """A només pot anar dilluns, però B té el dimarts; abans sortia «només pot anar a
+    2026-04-20, que coincideix amb B»."""
     examens = [_examen("A", "N1"), _examen("B", "N2")]
     if ordre:
         examens.reverse()
-    assert _diagnostic(
-        examens,
-        no_mateix_dia=[{"assignatures": ["A", "B"], "pes": 100}],
-        assignatures_dia_fix={"A": "Dilluns"},
-    ) == [missatge("examen_dies_solapats", index=1, assignatures=["A", "B"], nom="A", altre="B", dies="2026-04-20")]
+    assert (
+        _diagnostic(
+            examens,
+            no_mateix_dia=[{"assignatures": ["A", "B"], "pes": 100}],
+            assignatures_dia_fix={"A": "Dilluns"},
+        )
+        == []
+    )
+
+
+def test_examens_sense_prou_dates_troba_el_conjunt_bloquejat():
+    from planificador.motor.diagnostic import _examens_sense_prou_dates  # noqa: PLC0415
+
+    d1, d2, d3 = "2026-04-20", "2026-04-21", "2026-04-22"
+    # A, B i C només tenen dues dates entre tots; D (la tercera) no hi té res a veure
+    items = [("D", {d3}), ("A", {d1, d2}), ("B", {d1, d2}), ("C", {d1, d2})]
+    assert _examens_sense_prou_dates(items) == (["A", "B", "C"], [d1, d2])
+    # Amb una data més per a C ja es poden repartir
+    assert _examens_sense_prou_dates([("A", {d1, d2}), ("B", {d1, d2}), ("C", {d1, d2, d3})]) is None
+    # Un examen sense cap data s'explica per una altra causa
+    assert _examens_sense_prou_dates([("A", set()), ("B", {d1})]) is None
 
 
 def test_dos_fixats_el_mateix_dia_conserven_les_dues_explicacions():
@@ -370,5 +398,5 @@ def test_dos_fixats_el_mateix_dia_conserven_les_dues_explicacions():
         assignatures_dia_fix={"A": "Dilluns", "B": "Dilluns"},
     ) == [
         missatge("fixats_mateix_dia", index=1, assignatures=["A", "B"], noms=["A", "B"], dia="Dilluns"),
-        missatge("parella_mateixos_dies", index=1, assignatures=["A", "B"], nom="A", altre="B", dies="2026-04-20"),
+        missatge("dates_insuficients_examens", index=1, assignatures=["A", "B"], noms=["A", "B"], dies="2026-04-20"),
     ]

@@ -25,15 +25,9 @@
           <div class="analysis-panel" :class="{ active: analysisActiveIndex === 0 }">
             <div v-if="perSlotsParsed.length" class="analysis-modern">
               <div v-for="dia in perSlotsParsed" :key="dia.dia" class="analysis-day">
-                <h4 class="analysis-day-title">📅 {{ dia.dia }}</h4>
+                <h4 class="analysis-day-title">📅 {{ etiquetaDiaInforme(dia.dia, t).toUpperCase() }}</h4>
                 <div v-for="slot in dia.slots" :key="`${dia.dia}-${slot.hora}`" class="analysis-slot">
                   <div class="analysis-slot-header">⏰ {{ slot.hora }}</div>
-                  <div v-if="slot.substitucions.length" class="analysis-substitucions">
-                    <div class="analysis-substitucions-title">🚨 {{ t('scheduler.steps.analysis.substitutionsTitle') }}</div>
-                    <ul class="analysis-list">
-                      <li v-for="item in slot.substitucions" :key="item">{{ item }}</li>
-                    </ul>
-                  </div>
                   <div v-for="nivell in slot.nivells" :key="nivell.nivell" class="analysis-level">
                     <div class="analysis-level-title">{{ nivell.nivell }}</div>
                     <table class="analysis-level-table">
@@ -50,7 +44,7 @@
                             <div v-for="(item, idx) in nivell.optimes" :key="`${item.label}-${idx}`" class="analysis-item-line">
                               <div class="analysis-item-label">{{ item.label }}</div>
                               <div v-if="item.details.length" class="analysis-item-details">
-                                <div v-for="(det, dIdx) in item.details" :key="`${item.label}-${dIdx}`" class="analysis-item-detail">{{ det }}</div>
+                                <div v-for="(det, dIdx) in item.details" :key="`${item.label}-${dIdx}`" class="analysis-item-detail">{{ textDetall(det, t, ' | ') }}</div>
                               </div>
                             </div>
                           </td>
@@ -61,7 +55,7 @@
                             <div v-for="(item, idx) in nivell.bones" :key="`${item.label}-${idx}`" class="analysis-item-line">
                               <div class="analysis-item-label">{{ item.label }}</div>
                               <div v-if="item.details.length" class="analysis-item-details">
-                                <div v-for="(det, dIdx) in item.details" :key="`${item.label}-${dIdx}`" class="analysis-item-detail">{{ det }}</div>
+                                <div v-for="(det, dIdx) in item.details" :key="`${item.label}-${dIdx}`" class="analysis-item-detail">{{ textDetall(det, t, ' | ') }}</div>
                               </div>
                             </div>
                           </td>
@@ -72,7 +66,7 @@
                             <div v-for="(item, idx) in nivell.acceptables" :key="`${item.label}-${idx}`" class="analysis-item-line">
                               <div class="analysis-item-label">{{ item.label }}</div>
                               <div v-if="item.details.length" class="analysis-item-details">
-                                <div v-for="(det, dIdx) in item.details" :key="`${item.label}-${dIdx}`" class="analysis-item-detail">{{ det }}</div>
+                                <div v-for="(det, dIdx) in item.details" :key="`${item.label}-${dIdx}`" class="analysis-item-detail">{{ textDetall(det, t, ' | ') }}</div>
                               </div>
                             </div>
                           </td>
@@ -83,7 +77,6 @@
                 </div>
               </div>
             </div>
-            <pre v-else class="analysis-text">{{ analisiResult?.per_slots }}</pre>
           </div>
         </TabPanel>
         <TabPanel :header="t('scheduler.steps.analysis.tabs.byGrouping')">
@@ -92,7 +85,7 @@
               <div v-for="sessio in perSessioParsed" :key="sessio.titol" class="analysis-session">
                 <div class="analysis-session-header">
                   <h4 class="analysis-session-title">📝 {{ sessio.titol }}</h4>
-                  <p class="analysis-session-sub">👥 {{ t('scheduler.steps.analysis.teachersPrefix') }} {{ sessio.professors || t('common.noneDash') }}</p>
+                  <p class="analysis-session-sub">👥 {{ t('scheduler.steps.analysis.teachersPrefix') }} {{ sessio.professors.join(', ') || t('common.noneDash') }}</p>
                 </div>
                 <table class="analysis-table">
                   <thead>
@@ -110,30 +103,28 @@
                   <tbody>
                     <tr v-for="(fila, idx) in sessio.files" :key="idx" :class="analysisFilaClass(fila, idx, sessio.files)">
                       <td class="emoji">{{ fila.emoji }}</td>
-                      <td>{{ fila.dia }}</td>
+                      <td>{{ etiquetaDiaInforme(fila.dia, t) }}</td>
                       <td>{{ fila.hora }}</td>
                       <td>{{ fila.subs }}</td>
                       <td>{{ fila.abans }}</td>
                       <td>{{ fila.despres }}</td>
                       <td>{{ fila.no_treballa }}</td>
-                      <td class="details">{{ fila.detalls }}</td>
+                      <td class="details">{{ textDetalls(fila.detalls, t) }}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
-            <pre v-else class="analysis-text">{{ analisiResult?.per_sessio }}</pre>
           </div>
         </TabPanel>
         <TabPanel :header="t('scheduler.steps.analysis.tabs.teachersPerSlot')">
           <div class="analysis-panel" :class="{ active: analysisActiveIndex === 2 }">
             <div v-if="professorsSlotParsed.length" class="analysis-modern">
               <div v-for="dia in professorsSlotParsed" :key="dia.dia" class="analysis-day">
-                <h4 class="analysis-day-title">📅 {{ dia.dia }}</h4>
-                <div v-for="slot in dia.slots" :key="`${dia.dia}-${slot.horaLabel}`" class="analysis-slot">
-                  <div class="analysis-slot-header">⏰ {{ slot.horaLabel }}</div>
-                  <div v-for="(horaBloc, idx) in slot.hores" :key="idx" class="analysis-hour">
-                    <div v-if="horaBloc.hora" class="analysis-hour-title">{{ t('scheduler.steps.analysis.hourPrefix', { hour: horaBloc.hora }) }}</div>
+                <h4 class="analysis-day-title">📅 {{ etiquetaDiaInforme(dia.dia, t) }}</h4>
+                <div v-for="horaBloc in dia.hores" :key="`${dia.dia}-${horaBloc.hora}`" class="analysis-slot">
+                  <div class="analysis-slot-header">⏰ {{ horaBloc.hora }}</div>
+                  <div class="analysis-hour">
                     <table class="analysis-prof-table">
                       <thead>
                         <tr>
@@ -145,13 +136,13 @@
                         <tr>
                           <td>
                             <ul v-if="horaBloc.disponibles.length" class="analysis-list">
-                              <li v-for="p in horaBloc.disponibles" :key="p">{{ p }}</li>
+                              <li v-for="p in horaBloc.disponibles" :key="textProfessor(p)">{{ textProfessor(p) }}</li>
                             </ul>
                             <div v-else class="analysis-muted">{{ t('scheduler.steps.analysis.noneShort') }}</div>
                           </td>
                           <td>
                             <ul v-if="horaBloc.alliberats.length" class="analysis-list">
-                              <li v-for="p in horaBloc.alliberats" :key="p">{{ p }}</li>
+                              <li v-for="p in horaBloc.alliberats" :key="textProfessor(p)">{{ textProfessor(p) }}</li>
                             </ul>
                             <div v-else class="analysis-muted">{{ t('scheduler.steps.analysis.noneShort') }}</div>
                           </td>
@@ -165,7 +156,6 @@
                 </div>
               </div>
             </div>
-            <pre v-else class="analysis-text">{{ analisiResult?.professors_slot }}</pre>
           </div>
         </TabPanel>
       </TabView>
@@ -179,6 +169,7 @@ import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import { avisosDeGrupsSenseNivell } from '../missatges.js'
+import { etiquetaDiaInforme, textDetall, textDetalls, textProfessor } from '../informesAnalisi.js'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 

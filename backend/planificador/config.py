@@ -21,6 +21,8 @@ from planificador.compartit.constants import DEFAULT_DURADA_TITULAR
 from planificador.compartit.missatges import missatge
 from planificador.compartit.nivells import NivellsDelsGrups
 from planificador.examens import nivells_dels_grups, nivells_master
+from planificador.motor.durades import examen as hores_examen
+from planificador.motor.durades import vigilancia
 from planificador.repositories import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DATES_KEY,
@@ -51,15 +53,14 @@ class ConfigPlanificador:
     nivells_dels_grups: NivellsDelsGrups = field(default_factory=NivellsDelsGrups)
 
     def durada_titular_de(self, examen: str) -> int:
-        """Hores que el titular vigila un examen: les del seu grup de durada
-        o, si no en té, la durada general del titular."""
-        return _positiu(self.durades_per_sessio.get(examen)) or self.durada_titular
+        """Hores que el titular vigila un examen (la regla única de `motor/durades.py`)."""
+        return vigilancia(examen, self.durades_per_sessio, self.durada_titular)
 
     def durada_examen_de(self, examen: str) -> int:
-        """Hores que dura un examen per a l'alumnat: les del seu grup de durada
-        o, si no en té, la durada general de l'examen; mai menys que les del titular."""
-        durada = _positiu(self.durades_examen_per_sessio.get(examen)) or self.durada_examen
-        return max(durada, self.durada_titular_de(examen))
+        """Hores que dura un examen per a l'alumnat (la regla única de `motor/durades.py`)."""
+        return hores_examen(
+            examen, self.durades_examen_per_sessio, self.durades_per_sessio, self.durada_examen, self.durada_titular
+        )
 
     def nivells_actius(self, demanats=None) -> list:
         return demanats or self.nivells_configurats or self.nivells_master
@@ -141,7 +142,8 @@ def _durades(db) -> tuple[dict, dict]:
     for grup in llegeix_json(db, SCHEDULER_DURADES_GRUPS_KEY, None) or []:
         for assignatura in grup.get("assignatures", []):
             vigilancia[assignatura] = grup.get("durada", 1)
-            examen[assignatura] = grup.get("durada_examen", grup.get("durada", 1))
+            # Sense durada d'examen (absent o buida), la del grup, com la pantalla (duradaExamen.js)
+            examen[assignatura] = grup.get("durada_examen") or grup.get("durada", 1)
     return vigilancia, examen
 
 

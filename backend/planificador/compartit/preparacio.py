@@ -34,15 +34,17 @@ class Preparacio:
 
 
 def _dies_entre_dates(data_inici: str, data_final: str) -> list[str]:
-    """Els dies de la setmana entre les dues dates (AAAA-MM-DD), sense repetir."""
+    """Els dies feiners entre les dues dates (AAAA-MM-DD), sense repetir: el cap
+    de setmana no hi entra."""
     inici = datetime.strptime(data_inici, "%Y-%m-%d").date()
     final = datetime.strptime(data_final, "%Y-%m-%d").date()
     dies = []
     actual = inici
     while actual <= final:
-        dia_nom = DIES_SETMANA[actual.weekday()]
-        if dia_nom not in dies:
-            dies.append(dia_nom)
+        if actual.weekday() < len(DIES_SETMANA):
+            dia_nom = DIES_SETMANA[actual.weekday()]
+            if dia_nom not in dies:
+                dies.append(dia_nom)
         actual += timedelta(days=1)
     return dies
 

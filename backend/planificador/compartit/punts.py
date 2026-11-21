@@ -33,6 +33,18 @@ def pes_restriccio_violada(restriccions: dict) -> int:
     return (restriccions.get("pesos_optimitzacio") or {}).get("restriccio_dura_violada", DEFAULT_PES_RESTRICCIO_VIOLADA)
 
 
+def punts_obligatoria_incomplerta(restriccions: dict) -> int:
+    """Els punts d'una regla obligatòria que els motors no trenquen mai però que
+    s'ha trencat editant a mà: `restriccio_dura_violada`, mai negatius (una regla
+    obligatòria trencada no pot bonificar)."""
+    return max(0, pes_restriccio_violada(restriccions))
+
+
+def punts_horari_estricte(restriccions: dict) -> int:
+    """Un professor amb horari estricte fora del seu horari (en editar a mà)."""
+    return punts_obligatoria_incomplerta(restriccions)
+
+
 def punts_percentatge(base: int, percent) -> int:
     """El `percent` (0–100) de `base`, arrodonit."""
     pct = _percent(percent)
@@ -72,7 +84,8 @@ class IncidenciaCost(NamedTuple):
     data: str = ""  # la data ISO del dia, si l'horari la porta
     amb: tuple[str, ...] = ()  # els altres exàmens que la provoquen
     professor: str = ""
-    detall: str = ""
+    # Dades pròpies del concepte, en parells (clau, valor): p. ex. el límit per professor
+    dades: tuple = ()
 
 
 # L'ordre en què es presenten els conceptes (desglossament i pantalla)
@@ -86,11 +99,10 @@ CONCEPTES = (
     "preferencia_mateix_slot",
     "no_mateix_slot",
     "no_mateix_dia",
-    "combinacio_no_permesa",
     "dia_hora_fix",
-    "assignatures_dies_exclosos",
     "limit_dies_professor",
     "professor_estricte",
+    "mateix_dia_obligatori",
 )
 
 # Concepte → clau de `cost_breakdown` (la resposta de sempre)

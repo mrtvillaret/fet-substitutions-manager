@@ -54,6 +54,7 @@
         :toggle-alliberat="toggleAlliberat"
         :is-inici-examen="isIniciExamen"
         :toggle-inici-examen="toggleIniciExamen"
+        :inici-no-hi-cap="iniciNoHiCap"
         :mostrar-menu-columna="mostrarMenuColumna"
         :mostrar-menu-fila="mostrarMenuFila"
         @update:nivellsActius="(value) => { genConfig.nivells_actius = value; onNivellsChange() }"
@@ -203,6 +204,7 @@
       :llista-professors="llistaProfessors"
       :llista-sessions="llistaSessions"
       :dies-setmana="diesSetmana"
+      :dates-planificades="selectedDates.map(dataIso)"
       :llista-hores-disponibles="llistaHoresDisponibles"
       :tipus-preferencia-dia="tipusPreferenciaDia"
       :sessions-filtrades="sessionsFiltrades"
@@ -255,7 +257,7 @@
 <script setup>
 import { avisaError } from '../errorsApi.js'
 import { avisosDeGrupsSenseNivell, tradueixMissatge } from './scheduler/missatges.js'
-import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick, provide } from 'vue'
 import * as apiPlanificador from '../api/planificador'
 import { ruta } from '../basePath'
 import { dataAmbAny, dataIso } from '../dates'
@@ -272,10 +274,10 @@ import PublicarVigilanciesDialog from '../components/PublicarVigilanciesDialog.v
 import SchedulerDialogs from './scheduler/steps/SchedulerDialogs.vue'
 import SchedulerStepAnalysis from './scheduler/steps/SchedulerStepAnalysis.vue'
 import SchedulerStepConfig from './scheduler/steps/SchedulerStepConfig.vue'
+import { iniciSenseCabuda } from './scheduler/duradaExamen.js'
 import SchedulerStepGroups from './scheduler/steps/SchedulerStepGroups.vue'
 import SchedulerStepRestrictions from './scheduler/steps/SchedulerStepRestrictions.vue'
 import SchedulerStepResults from './scheduler/steps/SchedulerStepResults.vue'
-import { parsePerSessioReport, parsePerSlotsReport, parseProfessorsSlotReport } from './scheduler/analysisParsers'
 import { getExamsUnics } from './scheduler/textUtils'
 import { formatDateLocal, toDomId, isSameDay, parseIsoLocal as _parseIsoLocal, formatLocalDate, getWeekNumber } from './scheduler/dateUtils'
 import { buildId, extreuNivell as _extreuNivell } from './scheduler/idUtils'
@@ -297,6 +299,8 @@ const pasActiu = ref(0)
 const stepperContainerRef = ref(null)
 const loading = ref(true), generating = ref(false), savingRestr = ref(false)
 const config = ref(null), selectedDates = ref([]), result = ref(null)
+// L'ordre dels nivells (el de la Configuració d'exàmens), per a l'editor manual
+provide('ordreNivells', computed(() => config.value?.nivells || []))
 const modeEdicio = ref(false)
 // Durades del titular i de l'examen
 const duradesGrups = ref([])  // [{ id, nom, assignatures, durada, durada_examen }]
@@ -353,6 +357,16 @@ const incompatErrorMsg = ref('')
 const explicacioNoDisponible = ref(null) // referència de l'error si no s'ha pogut preparar l'explicació
 const intentsLog = ref([])
 const llistaAssignatures = ref([]), llistaProfessors = ref([]), llistaGrups = ref([]), llistaSessions = ref([]), llistaHoresDisponibles = ref([]), genConfigHoresArray = ref([])
+// Una marca d'inici on no hi cap cap examen del nivell (avís a la graella)
+const iniciNoHiCap = (nivell, hora) => iniciSenseCabuda({
+  nivell,
+  hora,
+  hores: llistaHoresDisponibles.value,
+  examens: llistaSessions.value,
+  grups: duradesGrups.value,
+  generalExamen: duradaExamen.value || config.value?.durada_examen,
+  generalTitular: config.value?.durada_titular,
+})
 
 const recompteNivells = computed(() => result.value?.horari?.metadata?.recompte_nivells || {})
 const recompteTotals = computed(() => {
@@ -458,8 +472,9 @@ let configSaveTimer = null
 let configSaveIdleId = null
 const pesos = ref({
   restriccio_dura: 1000,
-  preferencia_mateix_dia: -500,
-  preferencia_mateix_slot: -2000,
+  restriccio_dura_violada: 10000,
+  // Positius: amb 0 la preferència no fa res. La «mateixa data i hora» té com a base restriccio_dura.
+  preferencia_mateix_dia: 500,
   preferencia_dies_diferents: 500
 })
 const pesosInfo = computed(() => ({
@@ -467,13 +482,13 @@ const pesosInfo = computed(() => ({
     label: t('scheduler.view.weights.restriccioDura.label'),
     desc: t('scheduler.view.weights.restriccioDura.desc')
   },
+  restriccio_dura_violada: {
+    label: t('scheduler.view.weights.restriccioDuraViolada.label'),
+    desc: t('scheduler.view.weights.restriccioDuraViolada.desc')
+  },
   preferencia_mateix_dia: {
     label: t('scheduler.view.weights.preferenciaMateixDia.label'),
     desc: t('scheduler.view.weights.preferenciaMateixDia.desc')
-  },
-  preferencia_mateix_slot: {
-    label: t('scheduler.view.weights.preferenciaMateixSlot.label'),
-    desc: t('scheduler.view.weights.preferenciaMateixSlot.desc')
   },
   preferencia_dies_diferents: {
     label: t('scheduler.view.weights.preferenciaDiesDiferents.label'),
@@ -568,6 +583,8 @@ const recuperarUltimResultat = async () => {
       result.value = data.resultat
       resultatRecuperat.value = data.resultat
       ultimResultatDesat.value = new Date(data.desat).toLocaleString(locale.value)
+      // Un horari desat abans de les incidències amb dades: es recalcula per tenir-les
+      if (data.resultat.horari.metadata?.format_incidencies !== 2) await recalcularCostVisualitzacio({ desa: false })
     }
   } catch {
     // Sense horari recuperat, la pantalla funciona igual
@@ -711,11 +728,16 @@ const imprimirHorari = async () => {
   }
 }
 
-const perSessioParsed = computed(() => parsePerSessioReport(analisiResult.value?.per_sessio))
-const perSlotsParsed = computed(() => parsePerSlotsReport(analisiResult.value?.per_slots))
-const professorsSlotParsed = computed(() => parseProfessorsSlotReport(analisiResult.value?.professors_slot))
+// Els informes d'Analitzar arriben com a dades
+const llista = (valor) => (Array.isArray(valor) ? valor : [])
+const perSessioParsed = computed(() => llista(analisiResult.value?.per_sessio))
+const perSlotsParsed = computed(() => llista(analisiResult.value?.per_slots))
+const professorsSlotParsed = computed(() => llista(analisiResult.value?.professors_slot))
 
+// Les restriccions tal com es van carregar: en desar, es conserva el que la pantalla no edita
+const restriccionsCarregades = ref({})
 const aplicarRestriccions = (r) => {
+  restriccionsCarregades.value = r || {}
   const dures = r.restriccions_dures || {}
 
   const profMap = dures.professors_limit_dies_especifics || {}
@@ -814,8 +836,6 @@ const aplicarRestriccions = (r) => {
     perNivell[nivell] = set
   })
   slotsValidsPerNivell.value = perNivell
-
-  // Nota: combinacions permeses i dies exclosos es gestionaran fora d'aquest flux simplificat.
 }
 
 // Serialitzar alliberaments per enviar al backend (dates a string YYYY-MM-DD local)
@@ -934,6 +954,7 @@ const {
   onNivellsChange,
   generarHorari,
   analitzarDisponibilitat,
+  recalcularCostVisualitzacio,
 } = useSchedulerApi({
   t,
   toast,
@@ -1033,6 +1054,7 @@ const {
   professorsHorariEstricte,
   costosProfessors,
   pesos,
+  restriccionsCarregades,
   savingRestr,
   flushPendingConfigSave,
   desarDates,

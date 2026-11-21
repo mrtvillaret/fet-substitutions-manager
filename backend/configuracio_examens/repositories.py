@@ -80,12 +80,27 @@ class MasterConfigRepository:
         if existing:
             return False
 
-        # Obtenir següent ordre
-        max_ordre = db.query(Nivell).count()
-
-        nivell = Nivell(codi=codi, nom=nom or codi, ordre=max_ordre, actiu=True)
+        # Al final (amb el màxim: el recompte es repetia si se n'havia esborrat algun)
+        max_ordre = db.query(func.max(Nivell.ordre)).scalar()
+        nivell = Nivell(codi=codi, nom=nom or codi, ordre=0 if max_ordre is None else max_ordre + 1, actiu=True)
         db.add(nivell)
         db.flush()  # el commit, qui crida (una importació és tot o res)
+        return True
+
+    @staticmethod
+    def mou_nivell(db: Session, codi: str, direccio: int) -> bool:
+        """Mou el nivell un lloc amunt (-1) o avall (+1) i renumera l'ordre de tots (0, 1, 2...).
+        Fals si no existeix; al principi o al final, no es mou."""
+        nivells = db.query(Nivell).order_by(Nivell.ordre, Nivell.id).all()
+        index = next((i for i, n in enumerate(nivells) if n.codi == codi), None)
+        if index is None:
+            return False
+        desti = index + direccio
+        if 0 <= desti < len(nivells):
+            nivells[index], nivells[desti] = nivells[desti], nivells[index]
+        for ordre, nivell in enumerate(nivells):
+            nivell.ordre = ordre
+        db.flush()
         return True
 
     @staticmethod

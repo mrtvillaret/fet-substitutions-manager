@@ -56,6 +56,12 @@ class MotorAmbCostZero:
             regles=construeix_regles({}),
             nivells=("1-ESO",),
             dies=("Dilluns",),
+            # Exàmens d'una hora (se'n mira la durada)
+            graella=tuple(f"{8 + h:02d}:00" for h in range(hores)),
+            durades_examen={},
+            durades_vigilancia={},
+            durada_examen=1,
+            durada_titular=1,
         )
         monkeypatch.setattr(bt, "particio", lambda *_: items)
         monkeypatch.setattr(bt, "Disponibilitat", lambda _: None)

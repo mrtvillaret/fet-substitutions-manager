@@ -1,6 +1,7 @@
 import { avisaError, detallDError } from '../../errorsApi.js'
 import { computed, ref } from 'vue'
 import * as apiPlanificador from '../../api/planificador'
+import { ambElQueNoConeix } from './restriccionsDesades.js'
 
 export const useSchedulerRestrictions = ({
   t,
@@ -16,6 +17,7 @@ export const useSchedulerRestrictions = ({
   professorsHorariEstricte,
   costosProfessors,
   pesos,
+  restriccionsCarregades,
   savingRestr,
   flushPendingConfigSave,
   desarDates,
@@ -351,9 +353,7 @@ export const useSchedulerRestrictions = ({
         assignatures_slot_prohibit: [],
         professors_horari_estricte: [...professorsHorariEstricte.value],
         professors_limit_dies_especifics: {},
-        slots_valids_per_nivell: serialitzarSlotsValidsPerNivell(),
-        combinacions_permeses: [],
-        assignatures_dies_exclosos: []
+        slots_valids_per_nivell: serialitzarSlotsValidsPerNivell()
       }
       const prefs = { mateix_dia: [], dies_diferents: [], mateix_slot: [] }
 
@@ -414,13 +414,13 @@ export const useSchedulerRestrictions = ({
         if (row.tipus === 'no_mateix_dia') dures.no_mateix_dia.push(assignatures)
       })
 
-      await apiPlanificador.desaRestriccions({
-        restriccions: {
-          restriccions_dures: dures,
-          preferencies: prefs,
-          pesos_optimitzacio: pesos.value
-        }
+      const restriccions = ambElQueNoConeix(restriccionsCarregades.value, {
+        restriccions_dures: dures,
+        preferencies: prefs,
+        pesos_optimitzacio: pesos.value
       })
+      await apiPlanificador.desaRestriccions({ restriccions })
+      restriccionsCarregades.value = restriccions
       await apiPlanificador.desaCostosProfessors(costosProfessors.value)
       if (!silent) toast.add({ severity: 'success', summary: t('common.saved') })
     } catch (error) {

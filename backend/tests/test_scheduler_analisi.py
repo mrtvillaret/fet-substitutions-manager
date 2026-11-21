@@ -37,23 +37,18 @@ def test_l_analisi_dona_els_tres_informes_amb_els_examens_del_nivell(client):
     informes = resp.json()
     assert set(informes) == {"per_slots", "per_sessio", "professors_slot", "avisos"}
     assert informes["avisos"] == []  # tots els grups són a un nivell
+    sessions = {s["titol"]: s for s in informes["per_sessio"]}
     for examen in ("Anglès (1-BAT)", "Català (1-BAT)", "Filosofia (1-BAT)"):
-        assert examen in informes["per_sessio"]
-    assert "Prof 25" in informes["per_sessio"]  # titular d'Anglès
+        assert examen in sessions
+    assert "Prof 25" in sessions["Anglès (1-BAT)"]["professors"]  # titular d'Anglès
 
 
 # ---------------------------------------- examens més llargs que la durada general
 
 
 def _files_de(informe, examen):
-    """Files (dia | hora | ...) de la secció d'un examen a l'informe per agrupacions."""
-    files, dins = [], False
-    for linia in informe.splitlines():
-        if linia.startswith("📝 "):
-            dins = linia == f"📝 {examen}"
-        elif dins and " | " in linia and not linia.startswith("Dia |"):
-            files.append(linia)
-    return files
+    """Files (una per dia i hora) de la secció d'un examen a l'informe per agrupacions."""
+    return [fila for sessio in informe if sessio["titol"] == examen for fila in sessio["files"]]
 
 
 def _analisi_filosofia(durades_grups=None):

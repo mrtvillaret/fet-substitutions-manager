@@ -108,7 +108,7 @@
         <div class="font-semibold text-orange-500 mb-1">{{ $t('scheduler.publish.warnings') }}</div>
         <ul class="pl-3 m-0">
           <li v-for="(avis, i) in resultat.avisos" :key="i" class="text-orange-600 text-sm">
-            {{ avis.codi === 'titular_amb_absencia_coberta' ? $t('scheduler.publish.warningTitularAbsenciaCoberta', avis.params) : avis.codi }}
+            {{ TEXTOS_AVIS[avis.codi] ? $t(TEXTOS_AVIS[avis.codi], avis.params) : avis.codi }}
           </li>
         </ul>
       </div>
@@ -186,6 +186,12 @@ import Checkbox from 'primevue/checkbox'
 import Divider from 'primevue/divider'
 import Message from 'primevue/message'
 import { detallDError } from '../errorsApi'
+
+// Avisos de la publicació (codi del backend → text)
+const TEXTOS_AVIS = {
+  titular_amb_absencia_coberta: 'scheduler.publish.warningTitularAbsenciaCoberta',
+  examens_mateixa_aula_i_hora: 'scheduler.publish.warningMateixaAulaIHora'
+}
 
 const props = defineProps({
   visible: { type: Boolean, default: false },

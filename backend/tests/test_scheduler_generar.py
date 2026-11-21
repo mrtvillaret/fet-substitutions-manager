@@ -9,9 +9,11 @@ d'exemple a través de la mateixa importació de l'aplicació.
 """
 
 import re
+from datetime import date, timedelta
 
 import pytest
 from suport_api import nova_institucio
+from suport_incidencies import amb_codi, punts
 from suport_planificador import (
     DATES,
     DIES,
@@ -21,6 +23,7 @@ from suport_planificador import (
     configura,
 )
 
+from planificador.compartit.constants import DIES_SETMANA
 from planificador.compartit.missatges import missatge
 from rate_limit import limiter
 
@@ -121,7 +124,7 @@ def test_una_franja_d_optatives_va_sencera_a_la_mateixa_hora():
 @pytest.mark.parametrize("motor", ["v3", "v2", "v2-backtrack"])
 def test_dos_examens_de_nivells_diferents_van_junts_amb_la_preferencia(dos_nivells, motor):
     # Una agrupació no pot barrejar nivells (es rebutja en desar-la): per això
-    # hi ha la preferència "Mateix dia i hora".
+    # hi ha la preferència "Mateixa data i hora".
     restr = dos_nivells.get("/api/scheduler/restriccions").json()["restriccions"]
     restr["preferencies"]["mateix_slot"] = [{"assignatures": ["Anglès (1-BAT)", "Anglès (2-BAT)"], "pes": 100}]
     dos_nivells.put("/api/scheduler/restriccions", json={"restriccions": restr})
@@ -194,7 +197,7 @@ def test_si_no_es_viable_diu_quina_restriccio_ho_impedeix(dos_nivells, motor):
 
 
 def test_examen_fixat_a_una_hora_sense_inici_diu_l_hora_i_el_nivell():
-    # Revisió B1 i 5.1: 1-BAT no pot començar exàmens a les 10:00 (2-BAT sí);
+    # 1-BAT no pot començar exàmens a les 10:00 (2-BAT sí);
     # abans la causa sortia com «Dia/hora fixat»
     _, client = centre_amb_examens(nivells=("1-BAT", "2-BAT"))
     allib = alliberaments(nivells=("1-BAT",)) | alliberaments(
@@ -294,16 +297,11 @@ def test_un_professor_amb_examens_de_dos_nivells_alhora_surt_a_les_incidencies(d
             ]
         },
     )
-    logs = [linia for linia in _genera(dos_nivells)["metadata"]["logs"] if "Prof 48 →" in linia]
-    assert any(
-        linia.startswith("⚠️ AVÍS: Prof 48 → té exàmens de nivells diferents a 09:00 el Dilluns 20/04") for linia in logs
-    )
-    assert any(
-        linia.startswith(
-            "🔗 ENLLAÇ: Prof 48 → gestiona 2 exàmens de nivells diferents a 09:00 el Dilluns 20/04: "
-            "Filosofia (1-BAT), Filosofia (2-BAT)"
-        )
-        for linia in logs
+    logs = _genera(dos_nivells)["metadata"]["logs"]
+    lloc = {"professor": "Prof 48", "hora": "09:00", "dia": "Dilluns", "data": "2026-04-20"}
+    assert amb_codi(logs, "inc_nivells_diferents", **lloc)
+    assert amb_codi(
+        logs, "inc_enllac_nivells", count=2, examens_nivells=["Filosofia (1-BAT)", "Filosofia (2-BAT)"], **lloc
     ), logs
 
 
@@ -314,7 +312,7 @@ def test_un_professor_amb_examens_de_dos_nivells_alhora_surt_a_les_incidencies(d
 
 
 def _punts(logs):
-    return sum(int(m.group(1)) for linia in logs if (m := re.search(r"\(punt: *(\d+)\)", linia)))
+    return punts(logs)
 
 
 def _costos(client, horari):
@@ -346,8 +344,12 @@ def filosofia_i_angles_fixats(dos_nivells):
 def test_un_professor_amb_dos_examens_alhora_es_compta_un_sol_cop(filosofia_i_angles_fixats, motor):
     horari = _genera(filosofia_i_angles_fixats, motor=motor)
     assert _costos(filosofia_i_angles_fixats, horari) == (160, 160, 160)
-    [linia] = [log for log in horari["metadata"]["logs"] if log.startswith("🚨 Prof 48 ")]
-    assert "(Filosofia (1-BAT))->1-BAT, (Filosofia (2-BAT))->2-BAT → ha de ser SUBSTITUÏT a Optativa42" in linia
+    [inc] = amb_codi(horari["metadata"]["logs"], "inc_substitucio", professor="Prof 48")
+    assert inc["params"]["examens"] == [
+        {"nom": "Filosofia (1-BAT)", "curs": "1-BAT"},
+        {"nom": "Filosofia (2-BAT)", "curs": "2-BAT"},
+    ]
+    assert inc["params"]["assignatura"] == "Optativa42"
 
 
 @pytest.mark.parametrize("motor", ["v3", "v2", "v2-backtrack"])
@@ -436,3 +438,14 @@ def test_sense_dates_no_es_pot_generar():
     resp = client.post(URL, json=dict(peticio, motor="v3"))
     assert resp.status_code == 400
     assert "dates" in resp.json()["detail"]
+
+
+def test_sense_dies_amb_cap_de_setmana_entre_les_dates_es_pot_generar():
+    """Sense `dies_utilitzar`, els dies surten de les dates i el cap de
+    setmana no hi entra (abans donava un error 500)."""
+    _, client = centre_amb_examens()
+    configura(client)
+    final = (date.fromisoformat(DATES[0]) + timedelta(days=9)).isoformat()
+    resp = client.post(URL, json={"data_inici": DATES[0], "data_final": final, "selected_dates": DATES, "motor": "v2"})
+    assert resp.status_code == 200, resp.text
+    assert {d.get("dia") for d in resp.json()["horari"]["dies"]} <= set(DIES_SETMANA)

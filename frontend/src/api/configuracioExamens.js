@@ -12,6 +12,8 @@ export const nivellsAmb = (client) => get(client, '/api/config/nivells')
 export const nivells = () => nivellsAmb(clientApi)
 export const creaNivellAmb = (client, cos) => post(client, '/api/config/nivells', cos)
 export const creaNivell = (cos) => creaNivellAmb(clientApi, cos)
+export const mouNivell = (codi, direccio) =>
+  put(clientApi, `/api/config/nivells/${encodeURIComponent(codi)}/ordre`, { direccio })
 export const assignaturesAmb = (client, nivell) => get(client, `/api/config/assignatures/${nivell}`)
 export const assignatures = (nivell) => assignaturesAmb(clientApi, nivell)
 export const creaAssignaturaAmb = (client, nivell, cos) => post(client, `/api/config/assignatures/${nivell}`, cos)

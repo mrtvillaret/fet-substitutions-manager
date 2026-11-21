@@ -130,11 +130,12 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { computed, inject, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import draggable from 'vuedraggable'
-import { localizeIncidentText } from '../views/scheduler/textUtils'
-import { avisosDelsLogs, normalizeText } from './slotAvisos'
+import { comparaSegonsOrdre } from '../views/scheduler/textUtils'
+import { grupIncidencia, iconaIncidencia, textIncidencia } from '../views/scheduler/incidencies.js'
+import { avisosDelsLogs } from './slotAvisos'
 
 const props = defineProps({
   slotKey: { type: String, required: true },
@@ -146,6 +147,7 @@ const props = defineProps({
 
 const emit = defineEmits(['move-item', 'items-changed', 'move-grup', 'move-rejected', 'toggle-pin'])
 const { t } = useI18n()
+const ordreNivells = inject('ordreNivells', computed(() => []))
 
 // Missatge de rebuig temporal
 const rejectMessage = ref(null)
@@ -184,7 +186,11 @@ const recalcularAgrupacions = () => {
     grupsMap.get(grupId).items.push(item)
   }
 
-  itemsAgrupats.value = Array.from(grupsMap.values())
+  // En l'ordre dels nivells de la configuració, com el calendari (no segons com s'han mogut).
+  // Dos exàmens del mateix nivell a la mateixa franja només hi són si són d'una agrupació.
+  const compara = comparaSegonsOrdre(ordreNivells.value)
+  const nivell = (grup) => grup.items[0]?.curs || ''
+  itemsAgrupats.value = Array.from(grupsMap.values()).sort((a, b) => compara(nivell(a), nivell(b)))
 }
 
 // Inicialitzar
@@ -205,16 +211,19 @@ const getNivellColor = (curs) => {
   return nivellColors[curs] || '#94a3b8'
 }
 
-// Extreure dia i hora del slotKey (format: "Dimarts_09:00")
+// Extreure dia i hora del slotKey («2027-03-01_09:00» o «Dimarts_09:00»: l'hora és l'últim tros)
 const getSlotDiaHora = () => {
-  const parts = props.slotKey?.split('_') || []
-  return { dia: parts[0] || '', hora: parts[1] || '' }
+  const clau = props.slotKey || ''
+  const idx = clau.lastIndexOf('_')
+  return { dia: clau.slice(0, idx), hora: clau.slice(idx + 1) }
 }
+
+const clauDe = (m) => JSON.stringify([m.codi, m.params])
 
 const getItemWarnings = (item) => {
   if (!item) return []
 
-  // Primer intentem amb item_avisos (clau directa)
+  // Primer els de l'ítem (item_avisos: per _uid i, si és l'únic amb aquell item_id, per item_id)
   const map = props.costInfo?.item_avisos || {}
   let directWarnings = item._uid ? (map[item._uid] || []) : []
   if (!directWarnings.length && item.item_id) {
@@ -224,47 +233,17 @@ const getItemWarnings = (item) => {
     }
   }
 
-  // Buscar als logs globals de l'horari (com fa SchedulerView)
-  const logs = props.logs || []
-  if (!logs.length) return directWarnings
-
+  // Els globals de l'horari (enllaços, nivells diferents, límit per professor) dels seus titulars
   const professors = (item.examens || []).map(ex => ex?.titular).filter(Boolean)
-  if (!professors.length) return directWarnings
-
+  if (!professors.length || !(props.logs || []).length) return directWarnings
   const { dia, hora } = getSlotDiaHora()
-  const logWarnings = avisosDelsLogs(logs, professors, dia, hora)
-
-  if (!logWarnings.length) return directWarnings
-  if (!directWarnings.length) return logWarnings
-  return Array.from(new Set([...directWarnings, ...logWarnings]))
+  const vistos = new Set(directWarnings.map(clauDe))
+  return [...directWarnings, ...avisosDelsLogs(props.logs, professors, dia, hora).filter(m => !vistos.has(clauDe(m)))]
 }
 
-const getAvisEmoji = (text) => {
-  const norm = normalizeText(text)
-  if (norm.includes('limit dies')) return '⚠️'
-  if (norm.includes('enllac')) return '🔗'
-  if (norm.includes('avis')) return '⚠️'
-  if (norm.includes('substitu') || norm.includes('conflicte')) return '🚨'
-  if (norm.includes('arriba abans') || norm.includes('queda mes estona')) return '🕐'
-  if (norm.includes('no treballa')) return '🚫'
-  const m = (text || '').trim().match(/^(🚨|🕐|⚠️|⚠|📋|🔗|🚫|❌|ℹ️)/u)
-  if (m) return m[0] === '⚠' ? '⚠️' : m[0]
-  return '⚠️'
-}
-
-const getAvisType = (text) => {
-  const norm = normalizeText(text)
-  if (norm.includes('substitu') || norm.includes('conflicte')) return 'sub'
-  if (norm.includes('arriba abans') || norm.includes('queda mes estona')) return 'time'
-  if (norm.includes('no treballa')) return 'no'
-  if (norm.includes('enllac')) return 'link'
-  if (norm.includes('limit dies') || norm.includes('avis')) return 'warn'
-  return 'warn'
-}
-
-const formatWarningText = (text) => {
-  return localizeIncidentText(text, t)
-}
+// Tipus de la icona del tooltip (el color)
+const TIPUS = { substitutions: 'sub', conflicts: 'sub', arriveEarly: 'time', stayLate: 'time', links: 'link' }
+const getAvisType = (m) => (m.codi === 'inc_no_treballa' ? 'no' : TIPUS[grupIncidencia(m)] || 'warn')
 
 const escapeHtml = (text) => {
   return (text || '')
@@ -278,21 +257,19 @@ const escapeHtml = (text) => {
 const getItemWarningsHtml = (item) => {
   const warnings = getItemWarnings(item)
   if (!warnings.length) return ''
-  const rows = warnings.map((warn) => {
-    const emoji = getAvisEmoji(warn)
-    const type = getAvisType(warn)
-    const text = escapeHtml(formatWarningText(warn))
-    return `<div class="warn-row"><span class="warn-emoji warn-emoji--${type}">${emoji}</span><span class="warn-text">${text}</span></div>`
+  const rows = warnings.map((m) => {
+    const emoji = iconaIncidencia(m)
+    const text = escapeHtml(textIncidencia(m, t))
+    return `<div class="warn-row"><span class="warn-emoji warn-emoji--${getAvisType(m)}">${emoji}</span><span class="warn-text">${text}</span></div>`
   })
   return `<div class="warn-tooltip">${rows.join('')}</div>`
 }
 
+// La zona d'examen (sense cost), l'última
+const ORDRE_ICONES = ['🚨', '🕐', '🚫', '🔗', '⚠️', '⛔', '👁️']
 const getItemWarningIcons = (item) => {
-  const warnings = getItemWarnings(item)
-  if (!warnings.length) return []
-  const order = ['🚨', '🕐', '🚫', '🔗', '⚠️']
-  const set = new Set(warnings.map(getAvisEmoji))
-  return order.filter(e => set.has(e))
+  const icones = new Set(getItemWarnings(item).map(iconaIncidencia))
+  return ORDRE_ICONES.filter(e => icones.has(e))
 }
 
 const isItemFixat = (item) => {

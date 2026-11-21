@@ -82,6 +82,13 @@
       </div>
       <div class="field">
         <label class="font-bold">{{ t('scheduler.dialogs.fields.restrictedDays') }}</label>
+        <div v-if="datesPlanificades.length" class="flex flex-wrap gap-3 mb-2">
+          <div v-for="data in datesPlanificades" :key="data" class="flex align-items-center gap-2">
+            <Checkbox :inputId="`data-${data}`" :modelValue="formularisLocals.formulariProfessor.dies" @update:modelValue="actualitzaCamp('formulariProfessor', 'dies', $event)" :value="data" />
+            <label :for="`data-${data}`">{{ etiquetaDiaRestringit(data, t) }}</label>
+          </div>
+        </div>
+        <small v-if="datesPlanificades.length" class="mb-2" style="display: block">{{ t('scheduler.dialogs.fields.restrictedDaysHint') }}</small>
         <div class="flex flex-wrap gap-3">
           <div v-for="dia in diesSetmana" :key="dia" class="flex align-items-center gap-2">
             <Checkbox :inputId="`dia-${dia}`" :modelValue="formularisLocals.formulariProfessor.dies" @update:modelValue="actualitzaCamp('formulariProfessor', 'dies', $event)" :value="dia" />
@@ -346,7 +353,7 @@
 import { useId } from 'vue'
 import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { localizeBackendDayName } from '../textUtils'
+import { etiquetaDiaRestringit, localizeBackendDayName } from '../textUtils'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
@@ -389,6 +396,7 @@ const props = defineProps({
   llistaProfessors: { type: Array, default: () => [] },
   llistaSessions: { type: Array, default: () => [] },
   diesSetmana: { type: Array, default: () => [] },
+  datesPlanificades: { type: Array, default: () => [] }, // AAAA-MM-DD, per al límit per professor
   llistaHoresDisponibles: { type: Array, default: () => [] },
   tipusPreferenciaDia: { type: Array, default: () => [] },
   sessionsFiltrades: { type: Array, default: () => [] },

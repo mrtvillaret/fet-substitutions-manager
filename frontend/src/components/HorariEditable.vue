@@ -6,6 +6,7 @@
         <span class="stat-value" :class="{ 'cost-alt': costTotal > 5000, 'cost-ok': costTotal <= 2000 }">
           {{ costTotal }}
         </span>
+        <CostDesglossament :desglossament="costDesglossament" />
         <span v-if="!isValid" class="stat-warning">
           {{ t('scheduler.editable.levelConflictsDetected') }}
         </span>
@@ -147,12 +148,6 @@
       </table>
     </div>
 
-    <div v-if="costBreakdown && Object.keys(costBreakdown).length" class="cost-breakdown">
-      <span class="breakdown-title">{{ t('scheduler.editable.breakdown.title') }}:</span>
-      <span v-for="(val, key) in costBreakdownFiltered" :key="key" class="breakdown-item" :title="formatBreakdownDetails(key)">
-        {{ formatBreakdownKey(key) }}: {{ val }}<span v-if="formatBreakdownSuffix(key)"> ({{ formatBreakdownSuffix(key) }})</span>
-      </span>
-    </div>
   </div>
 </template>
 
@@ -162,6 +157,7 @@ import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import ProgressSpinner from 'primevue/progressspinner'
 import SlotDropZone from './SlotDropZone.vue'
+import CostDesglossament from './CostDesglossament.vue'
 import draggable from 'vuedraggable'
 import { useHorariEditable } from '../composables/useHorariEditable'
 
@@ -179,7 +175,7 @@ const { t } = useI18n()
 const {
   horariLocal,
   costTotal,
-  costBreakdown,
+  costDesglossament,
   isValid,
   carregant,
   itemsAparcats,
@@ -193,10 +189,6 @@ const {
   dies,
   hores,
   haCanvis,
-  costBreakdownFiltered,
-  formatBreakdownKey,
-  formatBreakdownDetails,
-  formatBreakdownSuffix,
   getItemsSlot,
   getCostSlot,
   onItemsChanged,

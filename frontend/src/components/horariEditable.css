@@ -109,28 +109,6 @@
   padding: 2px;
 }
 
-.cost-breakdown {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 0.8rem;
-}
-
-.breakdown-title {
-  color: #64748b;
-  font-weight: 500;
-}
-
-.breakdown-item {
-  color: #475569;
-  background: #f1f5f9;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
 /* Staging area */
 .staging-area {
   margin-bottom: 16px;

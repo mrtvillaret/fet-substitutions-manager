@@ -223,15 +223,15 @@
                 <td class="hora-cell">{{ hora }}</td>
                 <td v-for="dia in setmana.dies" :key="`${dia.dia}-${hora}`" class="slot-cell" :class="{ 'slot-buit': !dia.estaSeleccionat }">
                   <template v-if="dia.estaSeleccionat && getSlotPerHora(dia, hora)">
-                    <div v-for="nivellInfo in getSessionsPerNivell(getSlotPerHora(dia, hora))" :key="nivellInfo.nivell" class="nivell-card" :class="getNivellClass(nivellInfo, dia.dia, hora)">
+                    <div v-for="nivellInfo in getSessionsPerNivell(getSlotPerHora(dia, hora))" :key="nivellInfo.nivell" class="nivell-card" :class="getNivellClass(nivellInfo, dia, hora)">
                       <div class="nivell-header">{{ nivellInfo.nivell }}</div>
                       <div class="nivell-examens">
                         <div v-for="ex in getExamsUnics(nivellInfo.examens)" :key="`${ex.assignatura}-${ex.titular}`" class="examen-item">
                           <span v-if="isSessioFixada(ex.sessioNom)" class="ex-pin" :title="t('scheduler.editable.pin')">📌</span>
                           <span class="ex-nom">{{ ex.sessioNom || ex.assignatura }}</span>
                           <span class="ex-prof">{{ ex.titular }}</span>
-                          <span v-if="getAvisosIconsExamen(ex, dia.dia, hora).length" class="ex-icons" :title="getAvisosTitleExamen(ex, dia.dia, hora)">
-                            <span v-for="(icon, idx) in getAvisosIconsExamen(ex, dia.dia, hora)" :key="idx">{{ icon }}</span>
+                          <span v-if="getAvisosIconsExamen(ex, dia, hora).length" class="ex-icons" :title="getAvisosTitleExamen(ex, dia, hora)">
+                            <span v-for="(icon, idx) in getAvisosIconsExamen(ex, dia, hora)" :key="idx">{{ icon }}</span>
                           </span>
                         </div>
                       </div>
@@ -268,7 +268,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { extractIncidentScore } from '../textUtils'
+import { teCost } from '../incidentFormatters.js'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
 import InputNumber from 'primevue/inputnumber'
@@ -325,8 +325,5 @@ const pinnedNomsList = computed(() => {
 
 const isSessioFixada = (sessioNom) => props.pinnedNoms?.has(sessioNom)
 
-const hasIncidentCost = (inc) => {
-  const val = extractIncidentScore(inc).match(/(-?\d+)/)?.[1]
-  return val !== undefined && Number(val) !== 0
-}
+const hasIncidentCost = teCost
 </script>

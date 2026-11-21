@@ -148,7 +148,7 @@ def desa_restriccions(db: Session, restriccions: dict) -> None:
         raise NoValid(
             f"Una agrupació ha de ser d'exàmens d'un mateix nivell: {', '.join(barrejades)}. "
             "Per posar exàmens de nivells diferents al mateix moment, feu servir la preferència "
-            '"Mateix dia i hora".',
+            '"Mateixa data i hora".',
             codi="agrupacio_de_diversos_nivells",
             params={"agrupacions": ", ".join(barrejades)},
         )

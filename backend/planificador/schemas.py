@@ -1,5 +1,7 @@
 """Peticions i respostes de l'API del planificador d'exàmens."""
 
+import re
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -84,8 +86,13 @@ class ConfigPlanificadorRequest(BaseModel):
 
 class PinItem(BaseModel):
     nom: NomNet  # Nom de la sessió (ex: "Matemàtiques (2-BATX)")
-    dia: str  # Dia de la setmana (ex: "Dilluns")
+    dia: str  # Dia de la setmana («Dilluns») o data («2027-03-01»)
     hora: str  # Hora lectiva (ex: "09:00")
+
+    @field_validator("dia")
+    @classmethod
+    def _data_amb_zeros(cls, dia):
+        return _data_amb_zeros(dia)
 
 
 class SchedulerPinRequest(BaseModel):
@@ -131,15 +138,32 @@ class SlotProhibit(_RestriccioInterna):
 
 class LimitDiesProfessor(_RestriccioInterna):
     assignatures: list[NomNet]
-    dies_restringits: list[str] = []
+    dies_restringits: list[str] = []  # noms de dia o dates AAAA-MM-DD
     max_examens: int = 0
     pes_penalitzacio: int = 0
+
+    @field_validator("dies_restringits")
+    @classmethod
+    def _dates_amb_zeros(cls, dies):
+        return [_data_amb_zeros(d) for d in dies]
 
 
 class DiesExclosos(_RestriccioInterna):
     assignatures: list[NomNet]
     dies: list[str]
     pes: int = 100
+
+
+_DATA_LAXA = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")
+
+
+def _data_amb_zeros(valor):
+    if isinstance(valor, str) and _DATA_LAXA.match(valor.strip()):
+        try:
+            return datetime.strptime(valor.strip(), "%Y-%m-%d").date().isoformat()
+        except ValueError:
+            return valor  # una data que no existeix es queda tal qual, com abans
+    return valor
 
 
 class RestriccionsDures(_RestriccioInterna):
@@ -149,10 +173,21 @@ class RestriccionsDures(_RestriccioInterna):
     mateix_slot: list[AgrupacioRestriccio | list[NomNet]] = []
     assignatures_dia_fix: dict[NomNet, str | int] = {}
     assignatures_hora_fix: dict[NomNet, str | int] = {}
+
+    @field_validator("assignatures_dia_fix")
+    @classmethod
+    def _dates_dels_pins_amb_zeros(cls, pins):
+        """Un pin a una data («2027-3-1») arriba com a «2027-03-01», com les dates de
+        les peticions: si no, no casaria mai amb la data de l'examen."""
+        return {nom: _data_amb_zeros(valor) for nom, valor in pins.items()}
+
     assignatures_slot_prohibit: list[SlotProhibit] = []
     professors_horari_estricte: list[NomNet] = []
     professors_limit_dies_especifics: dict[NomNet, LimitDiesProfessor | int] = {}
     slots_valids_per_nivell: dict[str, dict[str, list[str]] | int] = {}
+    # S'accepten (formes històriques) però no es desen ni fan res: per
+    # deixar coincidir exàmens hi ha les agrupacions; per excloure un dia, la
+    # franja prohibida només amb el dia.
     combinacions_permeses: list[AgrupacioRestriccio | list[NomNet]] = []
     assignatures_dies_exclosos: list[DiesExclosos] = []
 
@@ -204,6 +239,7 @@ class _ModelHorari(BaseModel):
 
 
 class ExamenHorari(_ModelHorari):
+    titular: NomNet | None = None  # el professor que fa l'examen (text o res)
     professor: NomNet | None = None
     grup: str | None = None
     assignatura: NomNet | None = None
@@ -246,6 +282,8 @@ class HorariRecalcularRequest(BaseModel):
     horari: HorariPlanificat  # Estructura completa de l'horari
     data_referencia: DataISO | None = None  # Data per carregar l'XML d'horaris
     selected_dates: list[DataISO] | None = None
+    # Fals: només previsualitza (l'editor, a cada moviment); l'horari es desa en aplicar
+    desa: bool = True
 
 
 # ---------------------------------------------------------------- respostes
@@ -319,9 +357,10 @@ class GeneracioResponse(BaseModel):
 
 
 class AnalisiResponse(BaseModel):
-    per_slots: str
-    per_sessio: str
-    professors_slot: str
+    # Els tres informes d'Analitzar, com a dades
+    per_slots: list[dict]
+    per_sessio: list[dict]
+    professors_slot: list[dict]
     avisos: list[dict] = []  # grups sense nivell ({codi, params})
 
 
@@ -344,8 +383,8 @@ class CostFranja(BaseModel):
     cost: int | float
     breakdown: dict
     conflicte_nivell: bool
-    avisos: list[str]
-    item_avisos: dict[str, list[str]]  # els avisos de cada examen (per _uid i per item_id)
+    avisos: list[dict]  # incidències {codi, params, punts}
+    item_avisos: dict[str, list[dict]]  # els avisos de cada examen (per _uid i per item_id)
 
 
 class ConcepteCost(BaseModel):
@@ -365,6 +404,6 @@ class RecalculResponse(BaseModel):
     cost_desglossament: list[ConcepteCost]
     slots: list[CostFranja]
     valid: bool  # False si hi ha conflictes de nivell
-    # Text del validador i avisos de la configuració ({codi, params}), com a la generació
+    # Incidències del validador ({codi, params, punts}) i avisos de la configuració ({codi, params})
     logs: list[str | dict]
     stats: dict

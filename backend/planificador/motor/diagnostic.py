@@ -18,7 +18,7 @@ from planificador.motor.avaluador import causa_dura
 from planificador.motor.compatibilitat import DIAGNOSTIC, Cami
 from planificador.motor.construccio import particio_nova
 from planificador.motor.disponibilitat import Disponibilitat, analitza_motor, analitzar_disponibilitat_sessio
-from planificador.motor.durades import hores_ocupades, per_nivell, vigilancia
+from planificador.motor.durades import examen_hi_cap, vigilancia
 from planificador.motor.estrategies.backtracking import causa_principal
 from planificador.motor.model import descongela
 from planificador.motor.regles import (
@@ -26,6 +26,7 @@ from planificador.motor.regles import (
     construeix_regles,
     es_slot_valid_per_nivell,
     percent_assignatura_fix,
+    percent_no_mateix_slot,
     recompte_limit_professor,
     sessio_al_grup,
     valor_restriccio,
@@ -41,6 +42,40 @@ MISSATGE_FIXAT = {
     "franja_prohibida": "fixat_a_franja_prohibida",
     "nivell_sense_inici": "fixat_a_hora_sense_inici",
 }
+
+
+def _examens_sense_prou_dates(items: list[tuple[str, set[str]]]) -> tuple[list[str], list[str]] | None:
+    """Exàmens que han d'anar en dates diferents i, entre tots, tenen menys dates possibles que
+    exàmens (Hall): (noms, dates) o None si es poden repartir. Es busca amb un aparellament
+    examen → data; si n'hi ha un sense data, els exàmens que s'hi poden arribar per camins
+    alternats són el conjunt bloquejat. Els que no tenen cap data s'expliquen per altres causes."""
+    items = [(nom, dates) for nom, dates in items if dates]
+    data_de: dict[int, str] = {}
+    examen_de: dict[str, int] = {}
+
+    def aparella(i: int, vistes: set[str]) -> bool:
+        for data in sorted(items[i][1]):
+            if data in vistes:
+                continue
+            vistes.add(data)
+            if data not in examen_de or aparella(examen_de[data], vistes):
+                data_de[i], examen_de[data] = data, i
+                return True
+        return False
+
+    for i in range(len(items)):
+        if not aparella(i, set()):
+            # Els exàmens que arriben a i per camins alternats (data → examen que la té)
+            conjunt, pendents = {i}, [i]
+            while pendents:
+                for data in items[pendents.pop()][1]:
+                    j = examen_de.get(data)
+                    if j is not None and j not in conjunt:
+                        conjunt.add(j)
+                        pendents.append(j)
+            ordre = sorted(conjunt)
+            return [items[j][0] for j in ordre], sorted(set().union(*(items[j][1] for j in ordre)))
+    return None
 
 
 def _es_data_iso(s: str) -> bool:
@@ -91,7 +126,7 @@ class DiagnosticIncompatibilitats:
     ):
         """`analitza(sessio, dia, hora, data_iso)` és l'anàlisi de disponibilitat
         del motor: només es fa servir si hi ha professors amb horari estricte,
-        perquè el motor de restriccions els pugui comprovar (revisió B2)."""
+        perquè el motor de restriccions els pugui comprovar."""
         self.analitza = analitza
         self.restriccions = restriccions
         self.dies_efectius = dies_efectius  # [(dia_nom, prefix)]
@@ -336,40 +371,14 @@ class DiagnosticIncompatibilitats:
             # Detectar sobrecàrrega: grup té més ítems que dies disponibles
             if n_items_grup > n_dies:
                 afegeix(missatge("dies_insuficients", **referencia, count=n_items_grup, dies=n_dies))
-                continue  # Les parelles ja no aporten informació addicional
+                continue  # Amb això ja n'hi ha prou
 
-            # Detectar parelles bloquejades (grup viable en teoria però parelles concretes no)
-            for i in range(len(items_grup)):
-                etiqueta_a, dates_a = items_grup[i]
-                for j in range(i + 1, len(items_grup)):
-                    etiqueta_b, dates_b = items_grup[j]
-                    comunes = dates_a & dates_b
-                    if not comunes:
-                        continue
-                    excl_a = dates_a - dates_b
-                    excl_b = dates_b - dates_a
-
-                    if not excl_a and not excl_b:
-                        dates_fmt = ", ".join(sorted(comunes)[:3])
-                        afegeix(
-                            missatge(
-                                "parella_mateixos_dies", **referencia, nom=etiqueta_a, altre=etiqueta_b, dies=dates_fmt
-                            )
-                        )
-                    elif not excl_a:
-                        dates_fmt = ", ".join(sorted(dates_a)[:3])
-                        afegeix(
-                            missatge(
-                                "examen_dies_solapats", **referencia, nom=etiqueta_a, altre=etiqueta_b, dies=dates_fmt
-                            )
-                        )
-                    elif not excl_b:
-                        dates_fmt = ", ".join(sorted(dates_b)[:3])
-                        afegeix(
-                            missatge(
-                                "examen_dies_solapats", **referencia, nom=etiqueta_b, altre=etiqueta_a, dies=dates_fmt
-                            )
-                        )
+            # Exàmens que, entre tots, tenen menys dates possibles que exàmens: demostra que no
+            # Hi caben. Abans es mirava per parelles i sortia també quan es podien repartir.
+            bloquejats = _examens_sense_prou_dates(items_grup)
+            if bloquejats:
+                noms, dates = bloquejats
+                afegeix(missatge("dates_insuficients_examens", **referencia, noms=noms, dies=", ".join(dates)))
 
     def _comprova_limit_professor(self, items: list[dict], dates_per_item: dict[int, set[str]], afegeix) -> None:
         """Límit d'exàmens per professor obligatori (pes >= 100, revisió 5.2):
@@ -388,13 +397,14 @@ class DiagnosticIncompatibilitats:
             if not _pes_obligatori(cfg.get("pes_penalitzacio", 0)):
                 continue
             restringits = {_normalitzar_dia(d) for d in cfg.get("dies_restringits", [])}
+            # Una data candidata compta si és del límit per la seva data o pel nom del dia
             forcades: dict[str, list[dict]] = defaultdict(list)  # data → sessions que hi aniran per força
             noms: list[str] = []
             for item in items:
                 dates = dates_per_item[id(item)]
                 if not dates:
                     continue  # sense cap data ja surt com a «sense cap hora»
-                if any(dia_nom_per_horari(dia_de.get(p, p)) not in restringits for p in dates):
+                if any(p not in restringits and dia_nom_per_horari(dia_de.get(p, p)) not in restringits for p in dates):
                     continue  # té alguna data fora dels dies restringits
                 sessions = [_sessio_a_diccionari(s) for s in item.get("sessions") or []]
                 if not recompte_limit_professor(professor, cfg, {}, sessions).examens:
@@ -426,8 +436,8 @@ class DiagnosticIncompatibilitats:
             if grup_nom.startswith("_"):
                 continue
             assignatures = grup_val if isinstance(grup_val, list) else grup_val.get("assignatures", [])
-            pes = grup_val.get("pes", 100) if isinstance(grup_val, dict) else 100
-            if not _pes_obligatori(pes):
+            # El pes real del grup (`_pes_<grup>` o «pes»): un de tou no fa inviable res.
+            if percent_no_mateix_slot(self.restriccions, grup_nom) < 100:
                 continue
 
             referencia = {"grup": grup_nom, "assignatures": assignatures}
@@ -656,17 +666,6 @@ class Diagnostic:
             for it in particio_nova(self.problema.examens, self.problema.regles, self.problema.nivells)
         ]
 
-    def get_durada_per_nivell(self, nivell):
-        return per_nivell(nivell, self.problema.alliberaments, self.problema.durada_titular)
-
-    def _get_hores_ocupades(self, hora, nivell=None, sessio_nom=None):
-        durada = (
-            vigilancia(sessio_nom, self.problema.durades_vigilancia, self.problema.durada_titular)
-            if sessio_nom
-            else self.get_durada_per_nivell(nivell)
-        )
-        return hores_ocupades(hora, self.problema.graella, durada)
-
     def analitzar_disponibilitat_sessio(self, sessio, dia, hora, sessions_al_slot=None, data_iso=None):
         if self.politiques.cami == Cami.RECUIT:
             # El diagnòstic del recuit només analitza vigilància; normalitza
@@ -794,10 +793,12 @@ class Diagnostic:
         if not items:
             return []
 
-        def _hores_ocupades(hora: str, nivell: str | None) -> list[dict]:
-            return self._get_hores_ocupades(hora, nivell)
+        def _hi_cap(sessions, hora: str) -> bool:
+            # La durada de cada examen (no una durada per nivell).
+            return all(examen_hi_cap(_sessio_a_diccionari(s).get("nom"), hora, self.problema) for s in sessions)
 
         nivells_items = set()
+        sessions_del_nivell = defaultdict(list)
         for item in items:
             sessions = item.get("sessions") or []
             nivell = None
@@ -807,15 +808,15 @@ class Diagnostic:
                 nivell = _sessio_a_diccionari(sessions[0]).get("curs")
             if nivell:
                 nivells_items.add(nivell)
+                sessions_del_nivell[nivell].extend(sessions)
 
         # Slots físics per nivell: només inici d'examen vàlid per durada + restricció franges_valids_per_nivell.
         slots_fisics_per_nivell = defaultdict(set)
         for nivell in sorted(nivells_items or set(nivells_actius or [])):
             for dia_nom, sk_prefix in dies_efectius:
                 for hora in hores_examen:
-                    durada = int(self.get_durada_per_nivell(nivell) or 1)
-                    hores_ocupades = _hores_ocupades(hora, nivell)
-                    if len(hores_ocupades) < durada:
+                    # Una franja compta per al nivell si hi cap almenys un dels seus exàmens.
+                    if not any(_hi_cap([s], hora) for s in sessions_del_nivell.get(nivell, [])):
                         continue
                     if not es_slot_valid_per_nivell(nivell, dia_nom, hora, restriccions):
                         continue
@@ -854,9 +855,7 @@ class Diagnostic:
             candidats = set()
             for dia_nom, sk_prefix in dies_efectius:
                 for hora in hores_examen:
-                    durada = int(self.get_durada_per_nivell(nivell) or 1)
-                    hores_ocupades = _hores_ocupades(hora, nivell)
-                    if len(hores_ocupades) < durada:
+                    if not _hi_cap(sessions, hora):
                         continue
                     slot_ok = True
                     for sessio in sessions:

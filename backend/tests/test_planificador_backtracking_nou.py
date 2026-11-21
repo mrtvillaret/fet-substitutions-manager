@@ -135,6 +135,12 @@ def horari_amb_empats(llavor, barreja):
         regles=construeix_regles({}),
         nivells=("N1",),
         dies=("Dilluns", "Dimarts", "Dimecres"),
+        # Exàmens d'una hora (se'n mira la durada)
+        graella=("08:00", "09:00", "10:00", "11:30", "12:30", "13:30"),
+        durades_examen={},
+        durades_vigilancia={},
+        durada_examen=1,
+        durada_titular=1,
     )
     motor = bt.Backtracking()
     motor._professors_item_a_franja = lambda *_: {}

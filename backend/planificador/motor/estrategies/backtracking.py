@@ -10,11 +10,10 @@ from planificador.compartit.franja import Franja
 from planificador.compartit.franja import franja as de_clau
 from planificador.compartit.missatges import missatge
 from planificador.motor.avaluador import causa_dura, cost_sessio
-from planificador.motor.compatibilitat import TALL_COST_SESSIO
 from planificador.motor.construccio import particio
 from planificador.motor.cost_cerca import ZERO, CostCercaBacktracking, CostFita
 from planificador.motor.disponibilitat import Disponibilitat, analitza_motor
-from planificador.motor.durades import hores_ocupades, vigilancia
+from planificador.motor.durades import encavalca_amb_el_nivell, examen_hi_cap
 from planificador.motor.estrategies.base import ResultatCerca, TempsEsgotat
 from planificador.motor.model import descongela
 from planificador.motor.regles import (
@@ -31,7 +30,9 @@ class _Dures:
         self.restriccions = problema.regles.a_diccionari()
         self._franges = {}
 
-    def comprova(self, sessio, dia, hora, prefix, sessions_dia, sessions_slot, sessions_per_dia):
+    def comprova(
+        self, sessio, dia, hora, prefix, sessions_dia, sessions_slot, sessions_per_dia, sessions_per_data=None
+    ):
         clau = f"{prefix}_{hora}"
         if clau not in self._franges:
             ubicacio = de_clau(clau)
@@ -50,6 +51,7 @@ class _Dures:
             sessions_per_dia,
             politiques=self.politiques,
             restriccions=self.restriccions,
+            sessions_per_data=sessions_per_data,
         )
 
 
@@ -90,7 +92,8 @@ class EstatCerca:
         self._temps_esgotat = temps_esgotat
         self.mascara_nivells = {clau: 0 for clau in self._franges}  # Màscara de bits de nivells ocupats per franja
         self.items_franja = {clau: [] for clau in self._franges}  # Ítems (índexs) de cada franja
-        self.professors_franja = {clau: Counter() for clau in self._franges}  # Professors comptats per franja
+        # Professors comptats per data: una hora d'un professor compta un sol cop per data
+        self.professors_data = defaultdict(Counter)
         self.sessions_dia = defaultdict(list)  # per nom de dia: límits per professor
         self.sessions_data = defaultdict(list)  # per data ISO (o nom de dia sense dates): no_mateix_dia
         self.franja_item = [None] * len(items)  # Franja de cada ítem
@@ -120,7 +123,7 @@ class EstatCerca:
         return sessions
 
     def ubicacions(self) -> list[tuple[dict, str]]:
-        """On són les sessions ja col·locades (per a «Mateix dia i hora» entre nivells)."""
+        """On són les sessions ja col·locades (per a «Mateixa data i hora» entre nivells)."""
         return [
             (s, clau)
             for clau, idxs in self.items_franja.items()
@@ -133,7 +136,7 @@ class EstatCerca:
         clau = franja.clau
         self.mascara_nivells[clau] |= it_info["mascara_nivell"]
         self.items_franja[clau].append(idx)
-        self.professors_franja[clau].update(it_info["claus_franja"].get(clau, {}).keys())
+        self.professors_data[franja.prefix].update(it_info["claus_franja"].get(clau, {}).keys())
         self.franja_item[idx] = clau
         for s in it_info["item"]["sessions"]:
             self.sessions_dia[franja.dia].append(s)
@@ -142,7 +145,7 @@ class EstatCerca:
         self.collocats_data[franja.prefix] = abans[0] | {(clau, it_info["id"])}
         self.dependents_data[franja.prefix] += it_info.get("depen", False)
         if it_info.get("compta_limit"):
-            self.collocats_limit = abans[1] | {(franja.dia, it_info["id"])}
+            self.collocats_limit = abans[1] | {(franja.prefix, it_info["id"])}  # per data
         self._fets.append((idx, franja, self._propaga(idx, franja), abans))
 
     def desfes(self) -> None:
@@ -156,7 +159,7 @@ class EstatCerca:
         self.dependents_data[franja.prefix] -= it_info.get("depen", False)
         self.mascara_nivells[clau] ^= it_info["mascara_nivell"]
         self.items_franja[clau].pop()
-        self.professors_franja[clau].subtract(it_info["claus_franja"].get(clau, {}).keys())
+        self.professors_data[franja.prefix].subtract(it_info["claus_franja"].get(clau, {}).keys())
         self.franja_item[idx] = None
         for _ in it_info["item"]["sessions"]:
             self.sessions_dia[franja.dia].pop()
@@ -332,7 +335,7 @@ class Backtracking:
     def _professors_item_a_franja(self, item: dict, franja: Franja, dures) -> dict | None:
         """Els professors comptats (clau → cost) de posar l'ítem tot sol a la
         franja; None si no hi pot anar: restricció dura, no hi caben les hores
-        o alguna sessió hi costa tant com una restricció dura."""
+        o un professor amb horari estricte en quedaria fora."""
         # Professors comptats a la franja (per no tornar-los a comptar si un
         # altre bloc de la mateixa franja els fa deixar la mateixa classe)
         claus = {}
@@ -340,8 +343,7 @@ class Backtracking:
             if dures.comprova(s, franja.dia, franja.hora, franja.prefix, [], [], {}):
                 return None
             nom_s = s.get("nom")
-            durada_supervisio = vigilancia(nom_s, self.problema.durades_vigilancia, self.problema.durada_titular)
-            if len(hores_ocupades(franja.hora, self.problema.graella, durada_supervisio)) < durada_supervisio:
+            if not examen_hi_cap(nom_s, franja.hora, self.problema):  # l'examen hi ha de cabre sencer
                 return None
             analisi = self._analitza(s, franja)
             res_c = cost_sessio(
@@ -355,8 +357,8 @@ class Backtracking:
                 data_iso=franja.data_iso or "",
                 ja_comptats=set(claus),
             )
-            if res_c["cost_total"] >= TALL_COST_SESSIO:
-                return None
+            if res_c.get("professors_estrictes_violats"):
+                return None  # horari estricte: obligatori
             claus.update(res_c.get("costos_professors") or {})
         return claus
 
@@ -545,11 +547,14 @@ class Backtracking:
                 estat.sessions_data.get(franja.prefix, []),
                 sessions_slot_ara,
                 estat.sessions_dia,
+                estat.sessions_data,
             ):
                 return None
-            # «Mateix dia i hora» obligatori: no pot anar a un altre moment que una companya
+            # «Mateixa data i hora» obligatori: no pot anar a un altre moment que una companya
             if percentatge_preferencia_mateix_slot(s, clau, ubicacions, self.restriccions) >= 100:
                 return None
+        if encavalca_amb_el_nivell(it_info["item"]["sessions"], clau, ubicacions, self.problema):
+            return None  # s'encavalcaria amb un altre examen del mateix nivell
 
         cost = fita = 0
         if it_info["depen"] or estat.dependents_data[franja.prefix]:
@@ -559,17 +564,18 @@ class Backtracking:
             fita += despres.fita - abans.fita
         if it_info["compta_limit"]:
             del_limit = estat.collocats_limit
-            limit = cerca.cost.limit(del_limit | {(franja.dia, it_info["id"])}) - cerca.cost.limit(del_limit)
+            limit = cerca.cost.limit(del_limit | {(franja.prefix, it_info["id"])}) - cerca.cost.limit(del_limit)
             cost += limit
             fita += limit
         return CostFita(cost, fita) if cost or fita else ZERO
 
     @staticmethod
     def _descompte(it_info: dict, clau: str, estat: EstatCerca) -> int:
-        """Un professor ja comptat a la franja per un altre bloc deixa la
-        mateixa classe: no es torna a comptar."""
+        """Una hora d'un professor ja comptada aquella data per un altre bloc (de la
+        mateixa franja o d'una altra) no es torna a comptar."""
         claus_item = it_info["claus_franja"].get(clau, {})
-        return sum(c for k, c in claus_item.items() if estat.professors_franja[clau][k] > 0)
+        comptats = estat.professors_data[estat.franja(clau).prefix]
+        return sum(c for k, c in claus_item.items() if comptats[k] > 0)
 
     @staticmethod
     def _poda_valida(cost: CostCercaBacktracking) -> bool:

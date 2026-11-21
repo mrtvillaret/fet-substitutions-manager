@@ -49,10 +49,8 @@ DEFAULT_NIVELLS_ACTIUS = ["1-BATX", "2-BATX"]
 DEFAULT_DURADA_TITULAR = 1  # Nombre d'hores lectives que dura l'examen
 
 # Pesos de restriccions per al càlcul de costos
-DEFAULT_PES_ZONA_EXAMEN = 5  # Soft cost per conflicte a la zona d'examen sense titular
 DEFAULT_PES_RESTRICCIO_DURA = 10000  # Cost base per restricció dura
-DEFAULT_PES_RESTRICCIO_VIOLADA = 20000  # Cost per restricció dura violada
-DEFAULT_PES_RESTRICCIO_PROHIBITIU = 10000000  # Cost prohibitiu (mandatori absolut)
+DEFAULT_PES_RESTRICCIO_VIOLADA = 10000  # Una regla obligatòria incomplerta (només en editar a mà)
 
 # Etiquetes llegibles per a cada clau de restricció (backend → frontend)
 ETIQUETES_RESTRICCIONS: dict[str, str] = {
@@ -65,7 +63,6 @@ ETIQUETES_RESTRICCIONS: dict[str, str] = {
     "no_mateix_dia": "Dies distints",
     "dia_hora_fix": "Dia/hora fixat",
     "limit_dies_professor": "Límit exàmens professor",
-    "combinacions_permeses": "Combinació no permesa",
     "preferencia_dia": "Preferència de dia",
     "professors_estrictes": "Horari estricte professor",
 }
@@ -86,7 +83,6 @@ DEFAULT_RESTRICCIONS = {
         "mateix_slot": [],
         "no_mateix_slot": {},
         "no_mateix_dia": [],
-        "combinacions_permeses": [],
         "assignatures_dia_fix": {},
         "assignatures_hora_fix": {},
     },

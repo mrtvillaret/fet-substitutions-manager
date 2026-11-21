@@ -203,6 +203,7 @@ def problema_escenari(base, escenari):
         franges=tuple(franja(f"{d}_{h}") for d in DATES for h in HORES),
         graella=tuple(HORES),
         hores_inici=tuple(HORES),
+        durada_examen=1,  # exàmens d'una hora, com els Examen de dalt (hi han de cabre)
         nivells=tuple(sorted({s["curs"] for s in sessions})),
         dies=tuple(DIES),
         dates=(),

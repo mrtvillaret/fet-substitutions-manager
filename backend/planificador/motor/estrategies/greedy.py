@@ -8,6 +8,7 @@ from planificador.compartit.missatges import missatge
 from planificador.motor.construccio import particio
 from planificador.motor.estrategies.base import ResultatCerca
 from planificador.motor.model import descongela
+from planificador.motor.regles import percent_assignatura_fix
 from planificador.motor.sortida import estadistiques_generacio, horari_intent_greedy
 
 
@@ -104,15 +105,18 @@ class Greedy:
         dures = cost_cerca.restriccions.get("restriccions_dures", {})
         fixos, flexibles = [], []
         for item in ordre:
-            # Cerca pel nom complet i presència de dia O hora, sense mirar-ne
-            # el pes, exactament com feia el motor antic.
+            # Cerca pel nom complet i presència de dia O hora; un pin de pes 0
+            # no té cap efecte (tampoc en l'ordre).
             fix = any(
-                dures.get("assignatures_dia_fix", {}).get(s["nom"])
-                or dures.get("assignatures_hora_fix", {}).get(s["nom"])
+                (
+                    dures.get("assignatures_dia_fix", {}).get(s["nom"])
+                    or dures.get("assignatures_hora_fix", {}).get(s["nom"])
+                )
+                and percent_assignatura_fix(s, dures) > 0
                 for s in item["sessions"]
             )
             (fixos if fix else flexibles).append(item)
-        comptats_franja = defaultdict(set)
+        comptats_data = defaultdict(set)  # les hores dels professors, un cop per data
         sessions_per_dia, sessions_per_data = defaultdict(list), defaultdict(list)
         assignacio = {}
         for item in fixos + flexibles:
@@ -131,15 +135,16 @@ class Greedy:
                     sessions_franja[ubicacio.clau],
                     sessions_per_dia,
                     ubicacions,
-                    comptats_franja[ubicacio.clau],
+                    comptats_data[ubicacio.prefix],
                     politiques,
+                    sessions_per_data,
                 )
                 if resultat is not None and resultat[0] < minim:
                     minim, millors_comptats = resultat
                     millor = ubicacio
             if millor:
                 assignacio[item["item_id"]] = millor
-                comptats_franja[millor.clau] = millors_comptats
+                comptats_data[millor.prefix] = millors_comptats
                 for sessio in item["sessions"]:
                     sessions_franja[millor.clau].append(
                         {"sessio": sessio, "nom": sessio["nom"], "curs": sessio["curs"]}

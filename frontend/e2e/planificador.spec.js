@@ -49,3 +49,34 @@ test('planificador: el cost total es desglossa (quantitat × pes = punts)', asyn
   await toca(boto, hasTouch)
   await expect(panell).toBeHidden()
 })
+
+// Una sola prova (una entrada): el límit d'entrades per usuari és de 5 per minut
+test('planificador: les incidències i els informes d\'Analitzar (dades) surten traduïts', async ({ page, hasTouch }, testInfo) => {
+  await toca(page.getByRole('navigation').getByText('Generació', { exact: true }), hasTouch)
+  await expect(page.getByRole('button', { name: 'Veure el desglossament del cost', exact: true })).toBeVisible()
+  const textos = [
+    ...await page.locator('.incident-text').allInnerTexts(),
+    ...await page.locator('.ex-icons').evaluateAll((els) => els.map((e) => e.getAttribute('title') || ''))
+  ]
+  testInfo.attach('incidencies', { body: textos.join('\n'), contentType: 'text/plain' })
+  expect(textos.length).toBeGreaterThan(0)
+  for (const text of textos) {
+    // Cap codi ni clau sense traduir, ni un objecte
+    expect(text).not.toMatch(/inc_|scheduler\.|\[object|undefined/)
+  }
+
+  await toca(page.getByRole('navigation').getByText('Anàlisi', { exact: true }), hasTouch)
+  await toca(page.getByRole('button', { name: 'Analitzar disponibilitat', exact: true }), hasTouch)
+  const informes = []
+  for (const pestanya of ['Per Hora/Dia', 'Per Agrupació', 'Professors per franja']) {
+    await toca(page.getByRole('tab', { name: pestanya, exact: true }), hasTouch)
+    const panell = page.locator('.analysis-panel.active .analysis-modern')
+    await expect(panell).toBeVisible()
+    informes.push(await panell.innerText())
+  }
+  testInfo.attach('analisi', { body: informes.join('\n-----\n'), contentType: 'text/plain' })
+  for (const text of informes) {
+    expect(text.length).toBeGreaterThan(20)
+    expect(text).not.toMatch(/\[object|undefined|scheduler\./)
+  }
+})

@@ -34,5 +34,6 @@ def recalcula(payload, institucio: str, dia_planificacio: Dia) -> dict:
     horari_desat, resposta = finalitza_recalcul(
         editable, problema, resultat_cost, disponible, lambda: cfg.avisos(nivells)
     )
-    desa_ultim_resultat(institucio, horari_desat)
+    if payload.desa:
+        desa_ultim_resultat(institucio, horari_desat)
     return resposta

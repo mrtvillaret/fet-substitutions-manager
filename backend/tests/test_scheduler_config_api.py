@@ -69,6 +69,19 @@ def test_les_durades_nomes_es_llegeixen_dels_grups_de_durada(centre, client):
     assert (cfg.durades_per_sessio, cfg.durades_examen_per_sessio) == ({}, {})
 
 
+@pytest.mark.parametrize("durada_examen", [None, "absent", 1])
+def test_un_grup_sense_durada_d_examen_fa_servir_la_del_grup(centre, client, durada_examen):
+    """Com la pantalla (duradaExamen.js): sense durada d'examen al grup (absent o buida), la del
+    grup; i mai menys que la vigilància. Abans, la buida agafava la general d'examen."""
+    grup = {"assignatures": ["Anglès (1-BAT)"], "durada": 3, "durada_examen": durada_examen}
+    if durada_examen == "absent":
+        del grup["durada_examen"]
+    configura(client, durada_titular=1, durada_examen=4, durades_grups=[grup])
+    cfg = carrega_config(centre[0])
+    assert (cfg.durada_titular_de("Anglès (1-BAT)"), cfg.durada_examen_de("Anglès (1-BAT)")) == (3, 3)
+    assert cfg.durada_examen_de("Altra (1-BAT)") == 4
+
+
 def test_la_configuracio_es_desa_i_es_torna(client):
     configura(client, durada_titular=1, durada_examen=2)
     config = client.get("/api/scheduler/config").json()
@@ -115,10 +128,11 @@ def _desa_restriccions(client, **dures):
 
 
 def test_les_agrupacions_i_incompatibilitats_es_desen_amb_el_seu_pes(client):
+    # Les agrupacions són sempre obligatòries: el pes que arribi s'ignora.
     dures = _desa_restriccions(
-        client, mateix_slot=[AGRUPACIO], no_mateix_slot={"Prof X": INCOMPATIBLES, "_pes_Prof X": 80}
+        client, mateix_slot=[dict(AGRUPACIO, pes=40)], no_mateix_slot={"Prof X": INCOMPATIBLES, "_pes_Prof X": 80}
     )
-    assert dures["mateix_slot"] == [dict(AGRUPACIO, pes=100)]
+    assert dures["mateix_slot"] == [AGRUPACIO]
     assert dures["no_mateix_slot"] == {"Prof X": INCOMPATIBLES, "_pes_Prof X": 80}
 
 
@@ -189,7 +203,9 @@ def test_totes_les_formes_internes_es_desen_i_es_poden_tornar_a_enviar(client):
     )
     assert dures["assignatures_slot_prohibit"] == [{"assignatures": INCOMPATIBLES, "dia": "", "hora": "09:00"}]
     assert dures["professors_limit_dies_especifics"]["Prof 1"]["max_examens"] == 0
-    assert dures["assignatures_dies_exclosos"][0]["pes"] == 80
+    # Combinacions permeses i dies exclosos s'accepten però no es desen.
+    assert "combinacions_permeses" not in dures
+    assert "assignatures_dies_exclosos" not in dures
     assert _desa_restriccions(client) == dures
 
 
@@ -215,7 +231,7 @@ def test_la_crida_interna_valida_abans_de_cap_esborrat(centre, monkeypatch):
 
 def test_una_agrupacio_no_pot_barrejar_nivells(client):
     # Els motors col·loquen cada agrupació dins d'un nivell: per a exàmens de
-    # nivells diferents al mateix moment hi ha la preferència "Mateix dia i hora".
+    # nivells diferents al mateix moment hi ha la preferència "Mateixa data i hora".
     _desa_restriccions(client, mateix_slot=[AGRUPACIO])
     restr = client.get("/api/scheduler/restriccions").json()["restriccions"]
     restr["restriccions_dures"]["mateix_slot"] = [
@@ -227,7 +243,7 @@ def test_una_agrupacio_no_pot_barrejar_nivells(client):
     assert "Anglès" in resp.json()["detail"]
     # No es desa res: es conserven les restriccions d'abans
     dures = client.get("/api/scheduler/restriccions").json()["restriccions"]["restriccions_dures"]
-    assert dures["mateix_slot"] == [dict(AGRUPACIO, pes=100)]
+    assert dures["mateix_slot"] == [AGRUPACIO]
 
 
 def test_els_examens_de_nivells_diferents_poden_anar_junts_amb_la_preferencia(client):
@@ -294,7 +310,7 @@ def test_treure_les_assignatures_que_ja_no_existeixen(client):
     assert restr["assignatures_inexistents"] == []
     dures = restr["restriccions"]["restriccions_dures"]
     # L'agrupació que es queda amb un examen es conserva; la que es queda buida, no
-    assert dures["mateix_slot"] == [{"nom": "Llengües", "assignatures": ["Català (1-BAT)"], "pes": 100}]
+    assert dures["mateix_slot"] == [{"nom": "Llengües", "assignatures": ["Català (1-BAT)"]}]
     # Una incompatibilitat amb un sol examen ja no té sentit; les altres es conserven amb el seu pes
     assert dures["no_mateix_slot"] == {"Prof 48": ["Filosofia (1-BAT)", "Anglès"], "_pes_Prof 48": 80}
     assert dures["assignatures_dia_fix"] == {}

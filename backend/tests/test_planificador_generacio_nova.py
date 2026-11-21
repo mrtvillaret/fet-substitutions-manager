@@ -107,9 +107,9 @@ def test_un_sol_problema_per_a_diagnostic_cost_i_projeccio(monkeypatch, config_i
         diagnostics.append(problema)
         return diagnostic_original(problema, politiques)
 
-    def cost_greedy(problema):
+    def cost_greedy(problema, *args):
         costos.append(problema)
-        return cost_original(problema)
+        return cost_original(problema, *args)
 
     def projeccio(problema):
         projeccions.append(problema)
@@ -154,7 +154,17 @@ def test_precheck_del_recuit_conserva_la_particio_nova_de_la_base(config_inventa
     from planificador.motor.construccio import particio  # noqa: PLC0415
     from planificador.motor.diagnostic import Diagnostic  # noqa: PLC0415
 
-    config_inventada.restriccions = {"restriccions_dures": {"combinacions_permeses": [["A", "B"]]}}
+    # Agrupacions superposades: la partició antiga del recuit i la nova del
+    # diagnòstic hi fan ítems diferents.
+    config_inventada.restriccions = {
+        "restriccions_dures": {
+            "mateix_slot": [
+                {"nom": "G1", "assignatures": ["B (N1)", "C (N1)"]},
+                {"nom": "G2", "assignatures": ["A (N1)", "B (N1)"]},
+            ]
+        }
+    }
     problema = problema_de(config_inventada, xml_inventat)
-    assert len(particio(problema, RECUIT)) == 3
-    assert len(Diagnostic(problema, RECUIT).preparar_particio_nivells(6)) == 2
+    assert [e.nom_base for e in particio(problema, RECUIT)[0].examens] == ["A", "B"]
+    items = Diagnostic(problema, RECUIT).preparar_particio_nivells(6)
+    assert [s["nom_base"] for s in items[0]["sessions"]] == ["B", "C"]

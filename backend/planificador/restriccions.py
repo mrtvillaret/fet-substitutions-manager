@@ -27,8 +27,6 @@ def llegeix(db: Session) -> dict:
             "professors_horari_estricte": [],
             "professors_limit_dies_especifics": {},
             "slots_valids_per_nivell": {},
-            "combinacions_permeses": [],
-            "assignatures_dies_exclosos": [],
         },
         "preferencies": {"mateix_dia": [], "dies_diferents": [], "mateix_slot": []},
         "pesos_optimitzacio": {},
@@ -44,14 +42,13 @@ def llegeix(db: Session) -> dict:
         # Tipus que van a restriccions_dures
         if t in data["restriccions_dures"]:
             if isinstance(data["restriccions_dures"][t], list):
-                if t in ("mateix_slot", "combinacions_permeses"):
+                if t == "mateix_slot":
+                    # Les agrupacions són sempre obligatòries: no tenen pes.
                     if isinstance(val, list):
-                        data["restriccions_dures"][t].append({"nom": r.clau or "", "assignatures": val, "pes": pes})
+                        data["restriccions_dures"][t].append({"nom": r.clau or "", "assignatures": val})
+                    elif isinstance(val, dict):
+                        data["restriccions_dures"][t].append({k: v for k, v in val.items() if k != "pes"})
                     elif val:
-                        data["restriccions_dures"][t].append(val)
-                elif t == "assignatures_dies_exclosos":
-                    if isinstance(val, dict) and val:
-                        val["pes"] = pes
                         data["restriccions_dures"][t].append(val)
                 else:
                     data["restriccions_dures"][t].append(val or r.clau)
@@ -129,8 +126,9 @@ def desa(db: Session, payload: dict) -> None:
                     clau_real = k[5:]  # Treure "_pes_"
                     pesos_especials[f"{tipus}_{clau_real}"] = _coerce_pes(v)
 
-    # Tipus derivats automàticament dels alliberaments — no desar del frontend
-    _SKIP_TIPUS = {"slots_valids_per_nivell"}
+    # Tipus derivats automàticament dels alliberaments — no desar del frontend.
+    # Combinacions permeses i dies exclosos: s'accepten però no es desen.
+    _SKIP_TIPUS = {"slots_valids_per_nivell", "combinacions_permeses", "assignatures_dies_exclosos"}
 
     for tipus, contingut in restr.items():
         if tipus in _SKIP_TIPUS:
@@ -149,23 +147,14 @@ def desa(db: Session, payload: dict) -> None:
                 )
         elif isinstance(contingut, list):
             for item in contingut:
-                if tipus in ("mateix_slot", "combinacions_permeses") and isinstance(item, dict):
-                    assignatures = item.get("assignatures", [])
-                    pes = _coerce_pes(item.get("pes", 100))
+                if tipus == "mateix_slot" and isinstance(item, dict):
+                    # Sempre obligatòria: el pes que arribi s'ignora.
                     RestriccioRepository.afegeix(
                         db,
                         tipus=tipus,
                         clau=item.get("nom") or None,
-                        configuracio=json.dumps(assignatures, ensure_ascii=False),
-                        pes=pes,
-                    )
-                elif tipus == "assignatures_dies_exclosos" and isinstance(item, dict):
-                    pes = _coerce_pes(item.pop("pes", 100) if "pes" in item else 100)
-                    RestriccioRepository.afegeix(
-                        db,
-                        tipus=tipus,
-                        configuracio=json.dumps(item, ensure_ascii=False),
-                        pes=pes,
+                        configuracio=json.dumps(item.get("assignatures", []), ensure_ascii=False),
+                        pes=100,
                     )
                 else:
                     RestriccioRepository.afegeix(
@@ -262,7 +251,7 @@ def assignatures_de(restr: dict) -> set[str]:
         if isinstance(cfg, dict):
             resultat.update(cfg.get("assignatures", []) or [])
 
-    for tipus in ("combinacions_permeses", "assignatures_dies_exclosos", "assignatures_slot_prohibit"):
+    for tipus in ("assignatures_slot_prohibit",):
         for item in dures.get(tipus, []) or []:
             if isinstance(item, dict):
                 resultat.update(item.get("assignatures", []) or [])
@@ -280,7 +269,7 @@ def assignatures_de(restr: dict) -> set[str]:
 def treu_assignatures(restr: dict, fora: set[str]) -> dict:
     """Còpia de les restriccions sense les assignatures `fora` (p.ex. d'un curs
     anterior). Les restriccions que es queden sense sentit s'eliminen: una
-    agrupació buida; una incompatibilitat, preferència o combinació amb menys
+    agrupació buida; una incompatibilitat o preferència amb menys
     de dos exàmens; un examen fixat o un límit de professor sense exàmens."""
 
     restr = copy.deepcopy(restr or {})
@@ -307,11 +296,7 @@ def treu_assignatures(restr: dict, fora: set[str]) -> dict:
         dures["mateix_slot"] = [i for i in (amb_llista(x, 1) for x in dures["mateix_slot"]) if i]
     if "no_mateix_dia" in dures:
         dures["no_mateix_dia"] = [i for i in (amb_llista(x, 2) for x in dures["no_mateix_dia"]) if i]
-    for tipus, minim in (
-        ("combinacions_permeses", 2),
-        ("assignatures_dies_exclosos", 1),
-        ("assignatures_slot_prohibit", 1),
-    ):
+    for tipus, minim in (("assignatures_slot_prohibit", 1),):
         if tipus in dures:
             dures[tipus] = [i for i in (amb_llista(x, minim) for x in dures[tipus] or []) if i]
 
@@ -354,7 +339,7 @@ def agrupacions_amb_diversos_nivells(restriccions: dict) -> list:
     """Noms de les agrupacions (mateix_slot) amb exàmens de més d'un nivell.
 
     Els motors col·loquen cada agrupació dins d'un nivell; per a exàmens de
-    nivells diferents al mateix moment hi ha la preferència "Mateix dia i hora".
+    nivells diferents al mateix moment hi ha la preferència "Mateixa data i hora".
     El nivell és el sufix del nom de la sessió: "Anglès (1-BAT)" -> "1-BAT".
     """
     barrejades = []

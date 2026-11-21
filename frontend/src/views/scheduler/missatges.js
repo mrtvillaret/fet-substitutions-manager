@@ -1,10 +1,12 @@
 import { localizeBackendDayName } from './textUtils.js'
+import { esIncidencia, textIncidencia } from './incidencies.js'
 
 const prefix = 'scheduler.diagnostic.'
 
 export function tradueixMissatge(missatge, t) {
   // Compatible amb resultats anteriors; els nous missatges són codi + paràmetres.
   if (!missatge || typeof missatge === 'string') return missatge || ''
+  if (esIncidencia(missatge)) return textIncidencia(missatge, t)
   const params = { ...missatge.params }
   for (const key of ['assignatures', 'noms']) {
     if (!Array.isArray(params[key])) continue

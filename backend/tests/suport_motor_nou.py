@@ -18,7 +18,7 @@ def config_inventada():
         },
         restriccions={},
         durada_titular=1,
-        durada_examen=3,
+        durada_examen=1,
         nivells_configurats=["N1"],
         nivells_master=["N1"],
         dates_configurades=["2027-03-01"],

@@ -424,3 +424,36 @@ def test_esborrar_amb_les_assignacions_es_tot_o_res(centre, monkeypatch):
 
     assert client.delete(f"{C}/nivells/1-ESO", params={"amb_assignacions": True}).status_code == 500
     assert (_estat_config(centre), _assignacions(centre)) == abans
+
+
+def test_els_nivells_es_mouen_amunt_i_avall(admin):
+    """L'ordre dels nivells (el de tot el planificador) es canvia d'un en un, sense esborrar res."""
+    for codi in ("2-ESO", "1-BAT"):
+        assert admin.post(f"{C}/nivells", json={"codi": codi}).status_code == 200
+    admin.post(f"{C}/assignatures/1-BAT", json={"nom": "Física"})
+
+    assert admin.put(f"{C}/nivells/1-BAT/ordre", json={"direccio": -1}).status_code == 200
+    assert admin.get(f"{C}/nivells").json()["nivells"] == ["1-ESO", "1-BAT", "2-ESO"]
+    assert admin.put(f"{C}/nivells/1-ESO/ordre", json={"direccio": 1}).status_code == 200
+    assert admin.get(f"{C}/nivells").json()["nivells"] == ["1-BAT", "1-ESO", "2-ESO"]
+    # Al principi no es mou; les assignatures del nivell hi continuen
+    assert admin.put(f"{C}/nivells/1-BAT/ordre", json={"direccio": -1}).status_code == 200
+    assert admin.get(f"{C}/nivells").json()["nivells"] == ["1-BAT", "1-ESO", "2-ESO"]
+    assert admin.get(f"{C}/assignatures/1-BAT").json()["assignatures"] == ["Física"]
+
+    assert admin.put(f"{C}/nivells/NO-HI-ES/ordre", json={"direccio": 1}).status_code == 404
+    assert admin.put(f"{C}/nivells/1-BAT/ordre", json={"direccio": 2}).status_code == 422
+
+
+def test_un_nivell_nou_va_al_final_encara_que_se_n_hagi_esborrat_un(admin, centre):
+    """Abans l'ordre nou era el recompte: després d'esborrar-ne un, es repetia."""
+    from models import Nivell  # noqa: PLC0415
+
+    for codi in ("2-ESO", "3-ESO"):
+        admin.post(f"{C}/nivells", json={"codi": codi})
+    assert admin.delete(f"{C}/nivells/1-ESO").status_code == 200
+    admin.post(f"{C}/nivells", json={"codi": "4-ESO"})
+    assert admin.get(f"{C}/nivells").json()["nivells"] == ["2-ESO", "3-ESO", "4-ESO"]
+    with get_data_db_session(centre) as db:
+        ordres = [n.ordre for n in db.query(Nivell).order_by(Nivell.ordre)]
+    assert len(set(ordres)) == 3

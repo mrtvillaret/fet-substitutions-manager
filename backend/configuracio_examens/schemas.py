@@ -2,6 +2,8 @@
 són estrictes: un camp obligatori que falta o d'un tipus que no toca, 422.
 Un text buit (o de només espais, en un nom) continua sent 400 als serveis."""
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 from noms import NomNet
@@ -26,6 +28,10 @@ class NovaAssignaturaRequest(BaseModel):
 class NouNivellRequest(BaseModel):
     codi: str
     nom: str | None = None  # sense nom: el codi
+
+
+class MouNivellRequest(BaseModel):
+    direccio: Literal[-1, 1]  # -1 amunt, 1 avall
 
 
 class NouGrupRequest(BaseModel):

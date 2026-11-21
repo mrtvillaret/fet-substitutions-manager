@@ -192,7 +192,7 @@ export const useSchedulerApi = ({
     await desarMotorConfig()
   }
 
-  const recalcularCostVisualitzacio = async () => {
+  const recalcularCostVisualitzacio = async ({ desa = true } = {}) => {
     if (!result.value?.horari?.dies?.length) return
     try {
       const horariPerEnviar = JSON.parse(JSON.stringify(result.value.horari))
@@ -204,9 +204,11 @@ export const useSchedulerApi = ({
       const { data } = await apiPlanificador.recalculaCost({
         horari: horariPerEnviar,
         data_referencia: getDataReferenciaScheduler(),
-        selected_dates: selectedDates.value.map(formatLocalDate)
+        selected_dates: selectedDates.value.map(formatLocalDate),
+        desa
       })
       result.value.horari.metadata = result.value.horari.metadata || {}
+      result.value.horari.metadata.format_incidencies = 2
       result.value.horari.metadata.cost_total = data.cost_total
       result.value.horari.metadata.cost_desglossament = data.cost_desglossament || []
       result.value.horari.metadata.logs = data.logs || []
@@ -267,7 +269,8 @@ export const useSchedulerApi = ({
         }
       }
 
-      if (meta?.viable !== false) {
+      // Generar ja porta el desglossament i els recomptes; un resultat antic, no
+      if (meta?.viable !== false && !meta?.cost_desglossament) {
         await recalcularCostVisualitzacio()
       }
     } catch (errorCapturat) {

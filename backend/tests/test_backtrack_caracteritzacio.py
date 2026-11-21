@@ -54,6 +54,9 @@ class MotorAmbTaules(bt.Backtracking):
             dies=tuple(dies),
             durades_vigilancia=self.durades,
             durada_titular=1,
+            # Sense durades d'examen pròpies: l'examen dura el que es vigila.
+            durades_examen={},
+            durada_examen=1,
             graella=tuple(self.hores),
             mapa_dies={},
         )
@@ -118,7 +121,11 @@ def crea_motor(
         # El cost d'una sessió sola a una franja és el dels seus professors: si
         # la taula de professors no en diu cap, un de propi amb tots els punts
         comptats = professors.get(clau, {("cost", nom): punts} if punts else {})
-        return {"cost_total": punts, "costos_professors": dict(comptats)}
+        # Una franja de 10000 punts o més de la taula representa un professor
+        # amb horari estricte fora del seu horari: la franja queda fora (abans, el
+        # tall numèric de 10000, que ja no existeix).
+        estrictes = ["Prof estricte"] if punts >= 10000 else []
+        return {"cost_total": punts, "costos_professors": dict(comptats), "professors_estrictes_violats": estrictes}
 
     monkeypatch.setattr(bt, "cost_sessio", cost)
     if prohibides is not None:
@@ -159,7 +166,8 @@ def info(solucio, label):
 
 def test_preparacio_costos_i_franges_possibles(monkeypatch):
     """Una franja queda fora per restricció dura, per no tenir prou hores o
-    per costar 10000 o més; la resta es queda amb la suma dels costos."""
+    perquè deixa un professor amb horari estricte fora del seu horari (a la
+    taula, 10000); la resta es queda amb la suma dels costos."""
     gen = crea_motor(
         monkeypatch,
         [item("A"), item("B", "2-ESO")],
@@ -458,7 +466,7 @@ def test_cost_afegit_no_mateix_slot_parcial(monkeypatch):
 
 
 def test_cost_afegit_preferencia_mateix_slot(monkeypatch):
-    """«Mateix dia i hora»: al 100% tanca la franja; per sota, suma els punts
+    """«Mateixa data i hora»: al 100% tanca la franja; per sota, suma els punts
     del cost final (les companyes el mateix dia a una altra hora)."""
     vist = []
 

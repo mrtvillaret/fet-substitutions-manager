@@ -9,11 +9,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
-from planificador.compartit.constants import DEFAULT_PES_RESTRICCIO_DURA
 from planificador.compartit.normalitzacio import dia_nom_per_horari, normalitzar_dia, normalitzar_text
-from planificador.compartit.punts import IncidenciaCost, pes_restriccio_dura, punts_limit_professor, punts_percentatge
-from planificador.motor.compatibilitat import COST_MOSTRAT, Politiques, ambit_regla, forca_del_pin
-from planificador.motor.compatibilitat import Ambit as Ambit
+from planificador.compartit.punts import IncidenciaCost, punts_limit_professor, punts_percentatge
 from planificador.motor.immutables import congela, descongela
 
 
@@ -22,7 +19,6 @@ class Regla:
     clau: str
     noms: tuple[str, ...]
     pes: Any
-    ambit: Ambit
     origen: tuple[str | int, ...]
     valor: Any
     resolucio_exacta: tuple = field(default=(), kw_only=True)
@@ -69,7 +65,7 @@ def coincideix_normalitzat(nom: str, sessio: dict) -> bool:
     )
 
 
-def construeix_regles(originals: dict, examens=(), politiques: Politiques = COST_MOSTRAT) -> Regles:
+def construeix_regles(originals: dict, examens=()) -> Regles:
     """Conserva cada valor i la seva posició, inclosos noms sense correspondència.
 
     El pes cru es conserva: els percentatges de les regles i els costos dels
@@ -96,14 +92,10 @@ def construeix_regles(originals: dict, examens=(), politiques: Politiques = COST
                     if isinstance(conjunt, dict)
                     else (0 if seccio == "preferencies" else 100),
                 )
-                ambit = ambit_regla(clau, politiques)
-                if clau == "assignatures_dia_fix":
-                    ambit = Ambit.DATA if _RE_ISO_DATE.match(str(valor)) else Ambit.NOM_DIA
                 camps = dict(
                     clau=clau,
                     noms=tuple(noms),
                     pes=pes,
-                    ambit=ambit,
                     origen=(seccio, clau, posicio),
                     valor=congela(valor),
                     resolucio_exacta=tuple(
@@ -171,10 +163,8 @@ def es_item_compatible_amb_slot(item: dict, sessions_al_slot: list[dict], restri
         nivell_exist = s_exist.get("curs") if isinstance(s_exist, dict) else getattr(s_exist, "curs", None)
 
         if nivell_exist == nivell_it:
-            # Conflicte de nivell trobat!
-            # Excepció: si estan en una combinació permesa explícita
-            # Però com que hem agrupat primer a la base, aquí ja NO hauria d'haver-hi excepcions.
-            # Dos ítems diferents del mateix nivell SEMPRE xoquen.
+            # Dos ítems diferents del mateix nivell sempre xoquen (les
+            # agrupacions ja són un sol ítem).
             return False, f"Conflicte de nivell {nivell_it}: ja n'hi ha un altre al slot."
 
     # 3. Restricció no_mateix_slot (només si és obligatòria, >=100)
@@ -294,8 +284,19 @@ def percent_no_mateix_slot(restriccions: dict, nom_grup: str) -> int:
 
 
 def _dies_restringits(config_prof: dict) -> set[str]:
-    """Els dies del límit d'un professor, normalitzats («dilluns»)."""
+    """Els dies del límit d'un professor: noms de dia normalitzats («dilluns», tots els
+    dilluns) o dates ISO («2027-03-01», només aquella data)."""
     return {normalitzar_dia(d) for d in config_prof.get("dies_restringits", [])}
+
+
+def _entrada_del_limit(clau: str, dies: set[str]) -> str | None:
+    """L'entrada del límit (data o nom de dia) on cau `clau` (una data ISO o un nom de dia),
+    o None. Una data compta per a la seva data i per al nom del seu dia; un nom de dia (sense
+    dates) només per al nom."""
+    if clau in dies:
+        return clau
+    nom = dia_nom_per_horari(clau)
+    return nom if nom in dies else None
 
 
 def _es_del_limit(professor: str, config_prof: dict, sessio: dict) -> bool:
@@ -322,7 +323,7 @@ class RecompteLimitProfessor(NamedTuple):
 
     examens: int
     excedent: int
-    per_dia: dict[str, int]  # dia normalitzat → exàmens
+    per_dia: dict[str, int]  # entrada del límit (dia normalitzat o data) → exàmens
 
 
 def recompte_limit_professor(
@@ -354,18 +355,18 @@ def recompte_limit_professor(
 
     per_dia: dict[str, int] = {}
     for dia, sessions in (sessions_per_dia or {}).items():
-        dia_norm = dia_nom_per_horari(dia)
-        if dia_norm not in dies:
+        entrada = _entrada_del_limit(dia, dies)
+        if entrada is None:
             continue
         for sessio in sessions:
             if compta(sessio):
-                per_dia[dia_norm] = per_dia.get(dia_norm, 0) + 1
+                per_dia[entrada] = per_dia.get(entrada, 0) + 1
     examens = sum(per_dia.values()) + sum(1 for sessio in candidates if compta(sessio))
     return RecompteLimitProfessor(examens, max(0, examens - max_examens), per_dia)
 
 
 def _dia_restringit(dia: str, config_prof: dict) -> bool:
-    return dia_nom_per_horari(dia) in _dies_restringits(config_prof)
+    return _entrada_del_limit(dia, _dies_restringits(config_prof)) is not None
 
 
 def viola_limit_dies_professor_obligatori(
@@ -397,22 +398,32 @@ def viola_limit_dies_professor_obligatori(
     return False
 
 
+_RE_DATA = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")
+
+
+def _clau_data(dia: str) -> str:
+    """La data tal qual; sense dates (planificació per noms de dia), el nom del dia normalitzat."""
+    return dia if _RE_DATA.match(dia) else dia_nom_per_horari(dia)
+
+
 def viola_preferencia_dia_obligatoria(sessio: dict, dia: str, sessions_assignades: dict, restriccions: dict) -> bool:
     """
-    Si una preferència de dia té pes >= 100, es tracta com a restricció dura:
-      - mateix_dia: totes les assignatures del grup han d'anar al mateix dia
-      - dies_diferents: cap assignatura del grup pot compartir dia
+    Si una preferència de dia té pes >= 100, es tracta com a restricció dura,
+    sempre per DATA (`dia` i les claus de `sessions_assignades` són dates o, sense
+    dates, noms de dia):
+      - mateix_dia: totes les assignatures del grup han d'anar a la mateixa data
+      - dies_diferents: cap assignatura del grup pot compartir data
     """
     prefs = restriccions.get("preferencies", {})
-    dia_norm = normalitzar_dia(dia)
+    dia_norm = _clau_data(dia)
 
-    # Ajudant: trobar assignatures d'un grup ja col·locades i els seus dies (com a nom-dia)
+    # Ajudant: trobar assignatures d'un grup ja col·locades i les seves dates
     def _dies_assignats(assignatures: list[str]) -> set[str]:
         dies_set: set[str] = set()
         for d, lst in sessions_assignades.items():
             for s in lst:
                 if sessio_al_grup(s, assignatures):
-                    dies_set.add(dia_nom_per_horari(d))
+                    dies_set.add(_clau_data(d))
         return dies_set
 
     # Mateix dia (obligatori)
@@ -490,15 +501,10 @@ def violacio_no_mateix_dia(sessio: dict, sessions_dia: list[dict], restriccions:
     return 0, []
 
 
-def percentatge_no_mateix_dia(sessio: dict, sessions_dia: list[dict], restriccions: dict) -> int:
-    """Retorna el percentatge de la violació de no_mateix_dia (0 si no hi ha conflicte)."""
-    return violacio_no_mateix_dia(sessio, sessions_dia, restriccions)[0]
-
-
 def percentatge_preferencia_mateix_slot(
     sessio: dict, slot_key: str, ubicacions: list[tuple], restriccions: dict
 ) -> int:
-    """Percentatge de la preferència "Mateix dia i hora" que es violaria posant
+    """Percentatge de la preferència "Mateixa data i hora" que es violaria posant
     la sessió a slot_key perquè alguna companya ja està col·locada en un altre
     moment (0 si cap). ubicacions: [(sessió, slot_key)] de les ja col·locades.
     Les companyes poden ser d'altres nivells: per això no n'hi ha prou de mirar
@@ -538,11 +544,6 @@ def violacio_no_mateix_slot(sessio: dict, sessions_slot: list[dict], restriccion
     return 0, []
 
 
-def percentatge_no_mateix_slot(sessio: dict, sessions_slot: list[dict], restriccions: dict) -> int:
-    """Retorna el percentatge de la violació no_mateix_slot (0 si no hi ha conflicte)."""
-    return violacio_no_mateix_slot(sessio, sessions_slot, restriccions)[0]
-
-
 def percentatge_franja_prohibida(sessio: dict, dia: str, hora: str, restriccions: dict) -> int:
     """Retorna 100 si la sessió cau en un slot prohibit per assignatures_slot_prohibit."""
     prohibits = restriccions.get("restriccions_dures", {}).get("assignatures_slot_prohibit", [])
@@ -564,8 +565,8 @@ def percentatge_franja_prohibida(sessio: dict, dia: str, hora: str, restriccions
 
 def percent_examen_fixat(sessio: dict, dia: str, hora: str, restriccions: dict, data_iso: str = "") -> int:
     """Examen fixat (assignatures_dia_fix / assignatures_hora_fix) a una altra
-    franja: la força del pin (100 si no en té); 0 si la franja és la fixada o
-    l'examen no en té cap."""
+    franja: la força del pin (100 si no en té pes; amb pes 0 no té cap efecte);
+    0 si la franja és la fixada o l'examen no en té cap."""
     dures = restriccions.get("restriccions_dures", {})
     dies_fixos = {k: v for k, v in dures.get("assignatures_dia_fix", {}).items() if not k.startswith("_")}
     hores_fixes = {k: v for k, v in dures.get("assignatures_hora_fix", {}).items() if not k.startswith("_")}
@@ -577,11 +578,11 @@ def percent_examen_fixat(sessio: dict, dia: str, hora: str, restriccions: dict, 
         if _RE_ISO_DATE.match(str(dia_fix)):
             # Pin amb data ISO: comparar directament contra data_iso del slot
             if not data_iso or data_iso != dia_fix:
-                return forca_del_pin(percent)
+                return percent
         elif normalitzar_dia(dia_fix) != normalitzar_dia(dia):
-            return forca_del_pin(percent)
+            return percent
     if hora_fix and hora != hora_fix:
-        return forca_del_pin(percent)
+        return percent
     return 0
 
 
@@ -619,58 +620,6 @@ def percentatge_dia_hora_fix(
     """Les tres causes juntes (com al cost: `dia_hora_fix`): el percentatge de
     la primera que es dona (0 si cap)."""
     return causa_dia_hora_fix(sessio, dia, hora, restriccions, nivells_actius, data_iso)[1]
-
-
-def viola_combinacions_permeses(sessio: dict, sessions_slot: list[dict], restriccions: dict) -> bool:
-    """
-    Comprova si afegir aquesta sessió al slot viola les combinacions permeses.
-    Si hi ha >= 2 sessions del mateix nivell, han de ser subconjunt d'una combinació o grup 'mateix_slot'.
-    """
-    combinacions = restriccions.get("restriccions_dures", {}).get("combinacions_permeses", [])
-    if not combinacions:
-        return False
-
-    nivell_sessio = sessio.get("curs", "")
-    sessions_mateix_nivell = [s for s in sessions_slot if s.get("curs", "") == nivell_sessio]
-
-    if not sessions_mateix_nivell:
-        return False
-
-    def _nom_net(nom: str) -> str:
-        return nom.split(" (")[0].strip() if " (" in nom else nom.strip() if nom else ""
-
-    noms_slot = set()
-    for s in sessions_mateix_nivell:
-        noms_slot.add(_nom_net(s.get("nom_base") or s.get("nom", "")))
-    noms_slot.add(_nom_net(sessio.get("nom_base") or sessio.get("nom", "")))
-
-    if len(noms_slot) <= 1:
-        return False
-
-    # Comprovar combinacions
-    combinacions_norm = []
-    for comb in combinacions:
-        assignatures = comb.get("assignatures", []) if isinstance(comb, dict) else comb
-        comb_noms = set(_nom_net(c) for c in assignatures if c)
-        if comb_noms:
-            combinacions_norm.append(comb_noms)
-
-    # Comprovar agrupacions mateix_slot
-    grups_mateix_slot = restriccions.get("restriccions_dures", {}).get("mateix_slot", [])
-    for grup in grups_mateix_slot:
-        assignatures = grup.get("assignatures", []) if isinstance(grup, dict) else grup
-        noms_grup = set(_nom_net(g) for g in assignatures if g)
-        if noms_grup and noms_slot.issubset(noms_grup):
-            return False
-
-    if not combinacions_norm:
-        return False
-
-    for comb in combinacions_norm:
-        if noms_slot.issubset(comb):
-            return False
-
-    return True
 
 
 def es_slot_valid_per_nivell(nivell: str | None, dia: str, hora: str, restriccions: dict, data_iso: str = "") -> bool:
@@ -714,32 +663,6 @@ def viola_restriccio_dia_hora_fixos(
 # ==================================================================================================
 # PENALITZACIONS (Retornen Int)
 # ==================================================================================================
-
-
-def penalitzacio_conflicte_professor_nivell(sessio: dict, sessions_slot: list[dict], pes: int) -> int:
-    """Penalitza professors amb exàmens de nivells diferents al mateix slot."""
-    if not sessions_slot:
-        return 0
-    conflicte_profs = set()
-    nom_actual = sessio.get("nom", "")
-    curs_actual = sessio.get("curs", "")
-
-    professors_sessio = {e.get("titular") for e in sessio.get("examens", []) if e.get("titular")}
-
-    for prof in professors_sessio:
-        for s_info in sessions_slot:
-            altra = s_info.get("sessio") if isinstance(s_info, dict) and "sessio" in s_info else s_info
-            if not altra:
-                continue
-            if altra.get("nom") == nom_actual:
-                continue
-            if altra.get("curs") == curs_actual:
-                continue  # Mateix nivell no és conflicte aquí
-
-            if any(e.get("titular") == prof for e in altra.get("examens", [])):
-                conflicte_profs.add(prof)
-                break
-    return len(conflicte_profs) * pes
 
 
 def calcular_penalitzacio_professors_dies(sessio: dict, dia: str, sessions_assignades: dict, restriccions: dict) -> int:
@@ -827,13 +750,17 @@ def incidencies_limit_professors(sessions_per_dia: dict, restriccions: dict) -> 
         # Els dies, amb el nom tal com els ha escrit el centre
         dies = config_prof.get("dies_restringits", [])
         per_dia = [(d, recompte.per_dia.get(normalitzar_dia(d), 0)) for d in dies]
-        dies_txt = ", ".join(f"{d}({n})" for d, n in per_dia if n) or ", ".join(dies)
         incidencies.append(
             IncidenciaCost(
                 "limit_dies_professor",
                 punts_limit_professor(restriccions, pes, recompte.excedent),
                 professor=professor,
-                detall=f"{recompte.examens} exàmens en {dies_txt} (màx {_max}, pes {pes}%)",
+                dades=(
+                    ("count", recompte.examens),
+                    ("dies_limit", [{"dia": d, "n": n} for d, n in per_dia]),
+                    ("max", _max),
+                    ("pes", pes),
+                ),
             )
         )
     return incidencies
@@ -842,26 +769,3 @@ def incidencies_limit_professors(sessions_per_dia: dict, restriccions: dict) -> 
 def calcular_penalitzacio_total_professors(sessions_per_dia: dict, restriccions: dict) -> int:
     """Calcula penalització total per professors amb límits d'exàmens en dies específics."""
     return sum(inc.punts for inc in incidencies_limit_professors(sessions_per_dia, restriccions))
-
-
-def calcular_penalitzacio_assignatures_dies_exclosos(sessio: dict, dia: str, restriccions: dict) -> int:
-    """Penalitza si una assignatura està en un dia exclòs."""
-    restr_llista = restriccions.get("restriccions_dures", {}).get("assignatures_dies_exclosos", [])
-    if not restr_llista:
-        return 0
-
-    penalitzacio_total = 0
-    dia_norm = normalitzar_dia(dia)
-
-    base_cost = pes_restriccio_dura(restriccions)
-    for r in restr_llista:
-        if not isinstance(r, dict):
-            continue
-        assigs = r.get("assignatures", [])
-        dies = [normalitzar_dia(d) for d in r.get("dies", [])]
-        pes = r.get("pes", DEFAULT_PES_RESTRICCIO_DURA)
-
-        if sessio_al_grup(sessio, assigs) and dia_norm in dies:
-            penalitzacio_total += _punts_percentatge(base_cost, pes)
-
-    return penalitzacio_total

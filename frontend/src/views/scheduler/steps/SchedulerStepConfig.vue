@@ -17,7 +17,7 @@
       </div>
 
       <TabView v-if="nivellsActius?.length" class="nivell-alliberaments-tabs app-tabview">
-        <TabPanel v-for="nivell in nivellsActius" :key="nivell" :header="nivell">
+        <TabPanel v-for="nivell in nivellsOrdenats" :key="nivell" :header="nivell">
           <div class="nivell-config-layout">
             <div class="calendari-section">
               <h4>📅 {{ t('scheduler.steps.config.examDaysTitle') }}</h4>
@@ -82,6 +82,12 @@
                             :disabled="!isAlliberat(nivell, data, hora)"
                             :title="t('scheduler.steps.config.legend.start')"
                           />
+                          <span
+                            v-if="isIniciExamen(nivell, data, hora) && iniciNoHiCap(nivell, hora)"
+                            class="inici-no-hi-cap" role="img"
+                            :aria-label="t('scheduler.steps.config.startDoesNotFit', { hores: iniciNoHiCap(nivell, hora) })"
+                            :title="t('scheduler.steps.config.startDoesNotFit', { hores: iniciNoHiCap(nivell, hora) })"
+                          >⚠️</span>
                         </div>
                       </td>
                     </tr>
@@ -107,12 +113,14 @@
 
 <script setup>
 
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { comparaSegonsOrdre } from '../textUtils'
 import MultiSelect from 'primevue/multiselect'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import Calendar from 'primevue/calendar'
-defineProps({
+const props = defineProps({
   config: { type: Object, default: null },
   nivellsActius: { type: Array, default: () => [] },
   datesPerNivellModel: { type: Object, required: true },
@@ -124,10 +132,14 @@ defineProps({
   toggleAlliberat: { type: Function, required: true },
   isIniciExamen: { type: Function, required: true },
   toggleIniciExamen: { type: Function, required: true },
+  iniciNoHiCap: { type: Function, default: () => 0 },
   mostrarMenuColumna: { type: Function, required: true },
   mostrarMenuFila: { type: Function, required: true }
 })
 
 const emit = defineEmits(['update:nivellsActius'])
+// Les pestanyes, en l'ordre de la configuració. La selecció es desa tal com s'ha fet:
+// el motor construeix els exàmens en aquest ordre.
+const nivellsOrdenats = computed(() => [...(props.nivellsActius || [])].sort(comparaSegonsOrdre(props.config?.nivells)))
 const { t } = useI18n()
 </script>

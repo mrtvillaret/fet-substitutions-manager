@@ -150,6 +150,15 @@ INVENTARI = dict(
         # ------------------------------------------- configuració d'exàmens
         _r(CENTRE, ADMIN, "GET", "/api/config/nivells"),
         _r(CENTRE, ADMIN, "POST", "/api/config/nivells", json={"codi": "{M}-NIV"}, escriu="a"),
+        _r(
+            CENTRE,
+            ADMIN,
+            "PUT",
+            "/api/config/nivells/{codi}/ordre",
+            "/api/config/nivells/{M}-NIV/ordre",
+            json={"direccio": -1},
+            escriu="a",
+        ),
         _r(CENTRE, ADMIN, "GET", "/api/config/nivells/{codi}/assignacions", "/api/config/nivells/1-BAT/assignacions"),
         _r(CENTRE, ADMIN, "DELETE", "/api/config/nivells/{codi}", "/api/config/nivells/{M}-NIV", escriu="a"),
         _r(CENTRE, ADMIN, "GET", "/api/config/assignatures/{nivell}", "/api/config/assignatures/1-BAT"),

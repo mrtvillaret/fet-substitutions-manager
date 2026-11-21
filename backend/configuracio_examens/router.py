@@ -34,6 +34,7 @@ from configuracio_examens.schemas import (
     ImportacioRequest,
     ImportacioResponse,
     MissatgeResponse,
+    MouNivellRequest,
     NivellsResponse,
     NouGrupRequest,
     NouNivellRequest,
@@ -65,6 +66,13 @@ def add_nivell(nivell: NouNivellRequest, db: Session = Depends(get_db)):
     codi = nivell.codi
     services.afegeix_nivell(db, codi, nivell.nom)
     return {"success": True, "message": f"Nivell '{codi}' afegit"}
+
+
+@router.put("/nivells/{codi}/ordre", response_model=MissatgeResponse)
+def mou_nivell(codi: str, moviment: MouNivellRequest, db: Session = Depends(get_db)):
+    """Mou el nivell un lloc amunt o avall"""
+    services.mou_nivell(db, codi, moviment.direccio)
+    return {"success": True, "message": f"Nivell '{codi}' mogut"}
 
 
 @router.get("/nivells/{codi}/assignacions", response_model=AssignacionsQueHoFanServirResponse)

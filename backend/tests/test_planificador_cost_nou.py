@@ -1,11 +1,12 @@
 """Cost, textos, extres i errors del recàlcul amb dades inventades."""
 
-import re
 from copy import deepcopy
 from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
+from suport_incidencies import punts
 from suport_motor_nou import config_inventada as config_inventada
 from suport_motor_nou import problema_inventat
 from suport_motor_nou import xml_inventat as xml_inventat
@@ -14,8 +15,8 @@ from errors_domini import NoValid
 from horari.domain import Dia
 from planificador.compartit.franja import franja
 from planificador.motor import recalcul
-from planificador.motor.avaluador import causa_dura, cost, cost_sessio, supera_tall
-from planificador.motor.compatibilitat import BACKTRACKING, RECUIT
+from planificador.motor.avaluador import causa_dura, cost, cost_sessio
+from planificador.motor.compatibilitat import BACKTRACKING, GREEDY, RECUIT
 from planificador.motor.disponibilitat import Disponibilitat
 from planificador.motor.model import HorariEditable, congela
 from planificador.motor.regles import construeix_regles
@@ -163,32 +164,30 @@ def test_recalcul_desa_un_document_i_no_modifica_la_peticio(
     "error,tipus,text",
     [
         ("sense_dies", NoValid, "L'horari no conté dies"),
-        ("referencia_laxa", ValueError, "Invalid isoformat string: '2027-3-1'"),
-        ("titular_llista", TypeError, "unhashable type: 'list'"),
         ("metadades_nulles", AttributeError, "'NoneType' object has no attribute 'get'"),
     ],
 )
 def test_els_errors_del_recalcul_no_desen_cap_resultat(monkeypatch, config_inventada, xml_inventat, error, tipus, text):
     """L'error (tipus i text) és el que donava el recàlcul antic (fixat abans de
-    retirar-lo); cap error no desa res. Del text de Python només es mira la part
-    que no canvia entre versions."""
+    retirar-lo); cap error no desa res."""
     document = _horari()
     dades = {"horari": document}
     if error == "sense_dies":
         document["dies"] = []
-    elif error == "referencia_laxa":
-        dades["data_referencia"] = "2027-3-1"
-    elif error == "titular_llista":
-        document["dies"][0]["sessions"][0]["sessions_simultanees"][0]["examens"][0]["titular"] = ["Prof 01"]
     else:
         document["metadata"] = None
     desats = _prepara(monkeypatch, config_inventada, xml_inventat)
     payload = HorariRecalcularRequest.model_validate(dades)
     with pytest.raises(Exception) as captura:
         recalcul.recalcula(payload, "inventat", Dia.de_text(DATA, "inventat"))
-    assert type(captura.value) is tipus
-    assert text in str(captura.value)
+    assert (type(captura.value), str(captura.value)) == (tipus, text)
     assert desats == []
+
+
+def test_referencia_sense_zeros_es_normalitza_en_entrar():
+    """Abans `data_referencia` «2027-3-1» passava l'esquema i petava al recàlcul (500)."""
+    payload = HorariRecalcularRequest.model_validate({"horari": _horari(), "data_referencia": "2027-3-1"})
+    assert payload.data_referencia == "2027-03-01"
 
 
 def test_oracle_petit_cost_espera_pati_deduplicacio_i_registre(config_inventada, xml_inventat):
@@ -205,19 +204,20 @@ def test_oracle_petit_cost_espera_pati_deduplicacio_i_registre(config_inventada,
     assert resultat.total == 60.0
     assert resultat.recomptes["professors_abans"] == 2
     desat, resposta = finalitza_recalcul(editable, problema, resultat, disponible, lambda: [])
-    punts = sum(int(n) for linia in resposta["logs"] for n in re.findall(r"\(punt: (-?\d+)\)", linia))
-    assert punts == 60
+    assert punts(resposta["logs"]) == 60
     assert desat["metadata"]["cost_total"] == 60.0
     assert resposta["valid"] is False  # el conflicte de nivell no suma cost
     assert resposta["cost_desglossament"] == [{"concepte": "abans_jornada", "quantitat": 2, "pes": 30, "punts": 60}]
+    abans = {"professor": "Prof 01", "examens": [], "dia": "Dilluns", "data": DATA, "primera": "11:00"}
     assert resposta["slots"][0]["avisos"] == [
-        "⚠️ CONFLICTE: Múltiples exàmens del mateix nivell!",
-        "🕐 Prof 01 → arriba abans a 09:00 el Dilluns (primera hora: 11:00) (punt: 30)",
-        "🕐 Prof 01 → arriba abans a PATI el Dilluns (primera hora: 11:00) (punt: 30)",
+        {"codi": "inc_mateix_nivell", "params": {}},
+        {"codi": "inc_abans", "params": {**abans, "hora": "09:00"}, "punts": 30},
+        {"codi": "inc_abans", "params": {**abans, "hora": "PATI"}, "punts": 30},
     ]
 
 
-def test_regles_dures_i_tall_numeric_no_es_confonen():
+def test_l_horari_estricte_es_obligatori_a_tots_els_motors():
+    """Sense tall numèric; l'horari estricte és una regla obligatòria."""
     sessio = _sessio()
     franja_prova = franja(f"{DATA}_09:00")
     regles = construeix_regles(
@@ -227,7 +227,6 @@ def test_regles_dures_i_tall_numeric_no_es_confonen():
         }
     )
     assert causa_dura(sessio, franja_prova, regles, ["N1"]).clau == "examen_fixat"
-    assert not supera_tall(9999) and supera_tall(10000)
     regles = construeix_regles(
         {
             "restriccions_dures": {"professors_horari_estricte": ["Prof 01"]},
@@ -235,11 +234,10 @@ def test_regles_dures_i_tall_numeric_no_es_confonen():
         }
     )
     analisi = {"abans_jornada": [{"professor": "Prof 01"}]}
-    assert causa_dura(sessio, franja_prova, regles, ["N1"], analisi=analisi, politiques=BACKTRACKING) is None
-    assert (
-        causa_dura(sessio, franja_prova, regles, ["N1"], analisi=analisi, politiques=RECUIT).clau
-        == "professors_estrictes"
-    )
+    for politiques in (BACKTRACKING, GREEDY, RECUIT):
+        assert causa_dura(sessio, franja_prova, regles, ["N1"], analisi=analisi, politiques=politiques).clau == (
+            "professors_estrictes"
+        )
     assert cost_sessio(sessio, "Dilluns", "09:00", analisi, regles.a_diccionari())["cost_total"] == 5
 
 
@@ -267,3 +265,22 @@ def test_cost_de_consulta_conserva_document_i_identitats(config_inventada, xml_i
     sessions = document["dies"][0]["sessions"][0]["sessions_simultanees"]
     assert sessions[0] is sessions[1]
     assert sessions[0] is not sessions[2]
+
+
+@pytest.mark.parametrize("titular", [["Prof 01"], {"nom": "Prof 01"}, 7])
+def test_un_titular_que_no_es_text_no_passa_la_validacio(titular):
+    """El titular d'un examen és text o res; abans una llista passava i
+    petava al recàlcul (500)."""
+    document = _horari()
+    document["dies"][0]["sessions"][0]["sessions_simultanees"][0]["examens"][0]["titular"] = titular
+    with pytest.raises(ValidationError):
+        HorariRecalcularRequest.model_validate({"horari": document})
+
+
+def test_el_titular_arriba_net():
+    document = _horari()
+    examen = document["dies"][0]["sessions"][0]["sessions_simultanees"][0]["examens"][0]
+    examen["titular"] = "  Prof 01 "
+    model = HorariRecalcularRequest.model_validate({"horari": document})
+    dumped = model.horari.model_dump(exclude_unset=True)
+    assert dumped["dies"][0]["sessions"][0]["sessions_simultanees"][0]["examens"][0]["titular"] == "Prof 01"

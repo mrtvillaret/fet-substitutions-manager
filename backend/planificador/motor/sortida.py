@@ -6,9 +6,16 @@ from planificador.compartit.missatges import missatge
 from planificador.compartit.normalitzacio import normalitzar_dia
 from planificador.motor.avaluador import Cost
 from planificador.motor.disponibilitat import Disponibilitat, analitza_motor
-from planificador.motor.durades import examen_recalcul, hores_ocupades, vigilancia
+from planificador.motor.durades import examen_del_problema, hores_ocupades, vigilancia
 from planificador.motor.model import HorariEditable, Problema, descongela
-from planificador.motor.registre import IncidenciesFranja, ValidadorHorari, excessos_limit_dies, incidencies
+from planificador.motor.registre import (
+    FORMAT_INCIDENCIES,
+    IncidenciesFranja,
+    ValidadorHorari,
+    excessos_limit_dies,
+    incidencia,
+    incidencies,
+)
 from textos import normalitzar_hora
 
 
@@ -24,6 +31,27 @@ def conflicte_de_nivell(sessions: list) -> bool:
     return len(nivells) != len(set(nivells))
 
 
+def encavalcaments_del_dia(dia: dict, problema: Problema) -> dict[str, list[str]]:
+    """Per a cada hora d'inici, els exàmens d'una altra franja del mateix dia i
+    nivell amb què s'encavalca (comparteixen alguna hora d'examen). A mà es pot
+    fer; l'editor ho marca com a conflicte de nivell."""
+    graella = list(problema.graella)
+    ocupacions = []  # (hora d'inici, ítem, nivell, nom, hores)
+    for franja in dia.get("sessions", []):
+        hora = normalitzar_hora(franja.get("hora", ""))
+        for sessio in franja.get("sessions_simultanees", []):
+            item = sessio.get("item_id") or sessio.get("id") or f"{sessio.get('nom')}_{sessio.get('curs')}"
+            hores = set(hores_ocupades(hora, graella, examen_del_problema(sessio.get("nom"), problema)))
+            ocupacions.append((franja.get("hora", ""), item, sessio.get("curs", ""), sessio.get("nom", ""), hores))
+    resultat: dict[str, list[str]] = {}
+    for i, (hora_a, item_a, curs_a, nom_a, hores_a) in enumerate(ocupacions):
+        for hora_b, item_b, curs_b, nom_b, hores_b in ocupacions[i + 1 :]:
+            if hora_a != hora_b and curs_a and curs_a == curs_b and item_a != item_b and hores_a & hores_b:
+                resultat.setdefault(hora_a, []).append(nom_b)
+                resultat.setdefault(hora_b, []).append(nom_a)
+    return resultat
+
+
 def franges_editor(horari: HorariEditable, problema: Problema, disponible: Disponibilitat) -> tuple[list, bool]:
     """Anàlisi de les dues finestres, avisos per ocurrència i validesa de nivell."""
     restriccions = problema.regles.a_diccionari()
@@ -35,11 +63,13 @@ def franges_editor(horari: HorariEditable, problema: Problema, disponible: Dispo
         dia_nom = dia.get("dia", "")
         dates = mapa.get(normalitzar_dia(dia_nom))
         data_iso = dia.get("data") or (dates[0] if isinstance(dates, list) else dates)
+        encavalcades = encavalcaments_del_dia(dia, problema)
         for franja in dia.get("sessions", []):
             hora = franja.get("hora", "")
             hora_normalitzada = normalitzar_hora(hora)
             sessions = franja.get("sessions_simultanees", [])
-            conflicte = conflicte_de_nivell(sessions)
+            amb = encavalcades.get(hora, [])
+            conflicte = conflicte_de_nivell(sessions) or bool(amb)
             conflicte_global = conflicte_global or conflicte
             incidencies_franja = IncidenciesFranja()
             avisos_per_item = {}
@@ -47,18 +77,16 @@ def franges_editor(horari: HorariEditable, problema: Problema, disponible: Dispo
                 altres = [s for i, s in enumerate(sessions) if i != index]
                 nom = sessio.get("nom")
                 durada_vigilancia = vigilancia(nom, problema.durades_vigilancia, problema.durada_titular)
-                durada_examen = examen_recalcul(
-                    nom, problema.durades_examen, problema.durades_vigilancia, problema.durada_titular
-                )
+                durada_examen = examen_del_problema(nom, problema)
                 hores_vigilancia = hores_ocupades(hora_normalitzada, graella, durada_vigilancia)
                 hores_examen = hores_ocupades(hora_normalitzada, graella, durada_examen)
                 analisi = disponible.analitza(
                     sessio, dia_nom, hora_normalitzada, data_iso, hores_examen, hores_vigilancia, altres
                 )
                 sessio["analisi"] = analisi
-                incidencies_sessio = list(incidencies(analisi, hora, dia_nom, restriccions))
-                for incidencia in incidencies_sessio:
-                    incidencies_franja.afegeix(*incidencia)
+                incidencies_sessio = list(incidencies(analisi, hora, dia_nom, restriccions, data_iso))
+                for dades_incidencia in incidencies_sessio:
+                    incidencies_franja.afegeix(*dades_incidencia)
                 if incidencies_sessio:
                     avisos = [avis for _, _, _, avis, _ in incidencies_sessio]
                     for clau in (sessio.get("_uid"), sessio.get("item_id")):
@@ -66,8 +94,10 @@ def franges_editor(horari: HorariEditable, problema: Problema, disponible: Dispo
                             # L'última sessió amb incidències sobreescriu la clau d'ítem.
                             avisos_per_item[clau] = avisos
             avisos = incidencies_franja.avisos
-            if conflicte:
-                avisos.insert(0, "⚠️ CONFLICTE: Múltiples exàmens del mateix nivell!")
+            if amb:
+                avisos.insert(0, incidencia("inc_encavalca", noms=list(dict.fromkeys(amb))))
+            if conflicte_de_nivell(sessions):
+                avisos.insert(0, incidencia("inc_mateix_nivell"))
             resultat.append(
                 {
                     "slot_key": f"{data_iso or dia_nom}_{hora}",
@@ -106,6 +136,7 @@ def finalitza_recalcul(
             "cost_total": info["cost_total"],
             "cost_desglossament": info["cost_desglossament"],
             "logs": logs,
+            "format_incidencies": FORMAT_INCIDENCIES,
             **stats,
         },
     )

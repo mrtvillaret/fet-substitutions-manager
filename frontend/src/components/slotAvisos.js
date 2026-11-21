@@ -1,28 +1,29 @@
-// Avisos d'un ítem de l'horari editable que surten dels logs globals de l'horari.
+// Avisos d'un ítem de l'horari editable que surten dels logs globals de l'horari (les
+// incidències són dades {codi, params, punts}). Només els globals: enllaços, exàmens de
+// nivells diferents alhora i el límit per professor; la resta ja són a l'ítem (item_avisos).
+import { esEnllac, esIncidencia } from '../views/scheduler/incidencies.js'
 
-// Text sense accents i en minúscules
-export const normalizeText = (t) => (typeof t === 'string' ? t : '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+const GLOBALS = new Set(['inc_nivells_diferents', 'inc_limit_dies_professor'])
+const NOMS_DIES = ['Diumenge', 'Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte']
 
-// L'hora d'un log (patró «a les HH:MM»)
-export const extractHour = (text) => {
-  const m = (typeof text === 'string' ? text : '').match(/a(?: les)? (\d{1,2}:\d{2})/)
-  return m ? m[1] : null
-}
+// «09:00» i «9:00» són la mateixa hora
+const hora = (h) => String(h || '').replace(/^0(\d:)/, '$1')
 
-// Les línies de text dels logs que parlen d'algun dels professors a aquell dia
-// i hora i són avisos globals (enllaç, avisos, límit de dies). Els avisos de la
-// configuració arriben com a dades ({codi, params}), no com a text: no són de
-// cap casella i es deixen fora.
-export function avisosDelsLogs(logs, professors, dia, hora) {
-  const profsNorm = professors.map(normalizeText)
-  const diaNorm = normalizeText(dia)
-  return (logs || []).filter(log => {
-    if (typeof log !== 'string') return false
-    const logNorm = normalizeText(log)
-    const logHour = extractHour(log)
-    if (!profsNorm.some(prof => logNorm.includes(prof))) return false
-    if (!logNorm.includes(diaNorm)) return false
-    if (logHour && logHour !== hora) return false
-    return logNorm.includes('enllac') || logNorm.includes('avis') || logNorm.includes('limit dies')
+// El nom del dia d'una clau de casella (una data ISO o ja un nom de dia)
+const nomDelDia = (clau) => (/^\d{4}-\d{2}-\d{2}$/.test(clau) ? NOMS_DIES[new Date(`${clau}T12:00:00`).getDay()] : clau)
+
+const delDia = (p, clau) => (p.data ? p.data === clau : p.dia === clau || p.dia === nomDelDia(clau))
+
+export function avisosDelsLogs(logs, professors, clauDia, horaCasella) {
+  const profs = new Set(professors)
+  return (logs || []).filter((m) => {
+    if (!esIncidencia(m) || !(esEnllac(m) || GLOBALS.has(m.codi))) return false
+    const p = m.params || {}
+    if (!profs.has(p.professor)) return false
+    if (m.codi === 'inc_limit_dies_professor') {
+      // Als dies restringits del límit (dates o noms de dia)
+      return (p.dies_limit || []).some((d) => d.dia === clauDia || d.dia === nomDelDia(clauDia))
+    }
+    return delDia(p, clauDia) && hora(p.hora) === hora(horaCasella)
   })
 }
