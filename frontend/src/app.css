@@ -104,6 +104,16 @@ body {
   overflow: hidden;
 }
 
+/* Diàlegs més compactes que el tema (1.5rem): capçalera i contingut alineats a 1.25rem
+   pels costats. Els diàlegs amb marges propis (Substitucions, Configuració...) els conserven. */
+.p-dialog .p-dialog-header {
+  padding: 1rem 1.25rem;
+}
+
+.p-dialog .p-dialog-content {
+  padding: 0 1.25rem 1.25rem;
+}
+
 .p-dialog.dialog-stable-height .p-dialog-content {
   flex: 1 1 auto;
   min-height: 0;

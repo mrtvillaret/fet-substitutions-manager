@@ -274,6 +274,8 @@ watch(() => props.mostrarDialogGestio, (val) => {
   background: #ffffff;
   color: #374151;
   flex-shrink: 0;
+  /* Al mòbil, a pantalla sencera, 1rem (a l'escriptori, a baix de tot) */
+  padding: 1rem;
 }
 
 /* Títol — rèplica de p-dialog-title */
@@ -741,5 +743,16 @@ watch(() => props.mostrarDialogGestio, (val) => {
 .bs-rang-resum {
   font-size: 0.8rem; color: var(--primary-color);
   font-weight: 600; text-align: center;
+}
+
+/* Escriptori, com els altres diàlegs (app.css): capçalera 1rem 1.25rem i contingut alineat
+   amb el títol. Al final: ha de passar per davant de les regles generals de dalt. */
+@media (min-width: 720px) {
+  .bs-header {
+    padding: 1rem 1.25rem;
+  }
+  .bs-content {
+    padding: 0 1.25rem 1.25rem;
+  }
 }
 </style>
