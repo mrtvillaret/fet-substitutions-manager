@@ -15,6 +15,7 @@ from schema_migrations.schema import (
     BASE_REVISION,
     CANONICAL_REVISION,
     CURRENT_REVISION,
+    LEGACY_TABLES,
     create_base,
     current_signature,
     schema_signature,
@@ -56,11 +57,10 @@ def test_la_0004_conserva_les_files_i_les_deixa_valides_des_de_sempre(tmp_path):
     assert main(["--aplica", "--data", str(path), "--backup-dir", str(copies)]) == 0
     assert preserved_rows(next(copies.glob("*.db"))) == abans
     despres = preserved_rows(path)
-    # La resta de taules, idèntiques; no_substituir, les mateixes files i
-    # valors amb les dues dates noves nul·les.
-    assert {k: v for k, v in despres.items() if k != "no_substituir"} == {
-        k: v for k, v in abans.items() if k != "no_substituir"
-    }
+    # La resta de taules, idèntiques (llevat de les LEGACY, que esborra la
+    # 0005); no_substituir, les mateixes files i valors amb les dues dates
+    # noves nul·les.
+    assert _sense_no_substituir(despres) == _sense_no_substituir(abans)
     with sqlite3.connect(path) as connection:
         assert connection.execute(
             "SELECT rowid, id, assignatura, created_at, updated_at, vigent_des_de, vigent_fins_a "
@@ -93,7 +93,7 @@ def test_despres_de_la_0004_una_activitat_pot_tenir_diversos_periodes(tmp_path):
 
 
 def _sense_no_substituir(files):
-    return {k: v for k, v in files.items() if k != "no_substituir"}
+    return {k: v for k, v in files.items() if k not in ("no_substituir", *LEGACY_TABLES)}
 
 
 def test_la_0004_amb_la_taula_buida(tmp_path):

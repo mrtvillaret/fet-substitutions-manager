@@ -7,10 +7,10 @@
         <div class="day-stats">
           <Badge :value="substitucionsFiltrades.length" severity="info" class="day-badge" />
           <span class="day-stat-label">{{ $t('substitutions.stats.substitutionsLabel') }}</span>
-          <a class="day-stat-link" @click="anarAVigilancies">
+          <button type="button" class="day-stat-link" @click="anarAVigilancies">
             <Badge :value="vigilanciesCount" severity="success" class="day-badge" />
             <span class="day-stat-label">{{ $t('substitutions.stats.vigilanciesLabel') }}</span>
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -439,6 +439,11 @@ onMounted(async () => {
   cursor: pointer;
   color: inherit;
   text-decoration: none;
+  /* Un botó amb l'aspecte de l'enllaç d'abans */
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
 }
 
 .day-stat-link:hover {
@@ -535,89 +540,12 @@ onMounted(async () => {
   font-size: 0.925rem;
 }
 
-
-/* Formulari Nova Substitució */
-.nova-substitucio-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  padding: 1rem 0;
-}
-
 :deep(.substitucions-view .p-dialog-content) {
   padding: 1rem 1.25rem;
 }
 
 :deep(.substitucions-view .p-dialog-footer) {
   padding: 0.75rem 1.25rem 1rem;
-}
-
-.nova-substitucio-form .field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.nova-substitucio-form .field label {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 0.95rem;
-}
-
-.nova-substitucio-form .field-hint {
-  color: #6c757d;
-  font-size: 0.85rem;
-  font-style: italic;
-  margin-top: 0.25rem;
-}
-
-.nova-substitucio-form .field-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.nova-substitucio-form .field-checkbox label {
-  font-weight: 500;
-  color: #495057;
-  margin-bottom: 0;
-  cursor: pointer;
-}
-
-.nova-substitucio-form :deep(.p-dropdown),
-.nova-substitucio-form :deep(.p-multiselect),
-.nova-substitucio-form :deep(.p-inputtext) {
-  width: 100%;
-}
-
-.nova-substitucio-form .field-hours :deep(.p-multiselect.hours-select) {
-  width: min(360px, 100%);
-}
-
-.nova-substitucio-form :deep(.p-multiselect .p-multiselect-label) {
-  padding: 0.65rem 0.75rem;
-}
-
-/* Professors amb absències al dropdown */
-.professor-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.professor-option.amb-absencies {
-  background-color: #fff3cd;
-  border-left: 3px solid #ff9800;
-  padding-left: 0.5rem;
-  margin-left: -0.5rem;
-}
-
-.absencies-badge {
-  font-size: 0.85rem;
-  color: #856404;
-  font-weight: 600;
-  margin-left: 0.5rem;
 }
 
 @media (max-width: 768px) {

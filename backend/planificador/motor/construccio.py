@@ -68,7 +68,7 @@ def franges(dies, dates, hores) -> tuple:
     return tuple(franja(f"{prefix}_{hora}") for prefix in (dates or dies) for hora in hores)
 
 
-def _examen(dades, cfg, politiques) -> Examen:
+def _examen(dades, cfg) -> Examen:
     nom = dades.get("nom")
     return Examen(
         id=dades.get("id"),
@@ -127,7 +127,6 @@ def construeix_problema(
                             "examens": assignacions,
                         },
                         cfg,
-                        politiques,
                     )
                 )
     procedencia = [DataAmbOrigen.de_text(d, "dates_resoltes") for d in dates]
@@ -151,7 +150,9 @@ def construeix_problema(
         dies=tuple(dies),
         dates=tuple(procedencia),
         mapa_dies=congela(dia_a_data_iso),
-        regles=construeix_regles(restriccions, examens),
+        regles=construeix_regles(
+            restriccions,
+        ),
         alliberaments=congela(cfg.alliberaments),
         durades_vigilancia=congela(cfg.durades_per_sessio),
         durades_examen=congela(cfg.durades_examen_per_sessio),
@@ -190,9 +191,7 @@ def particio_antiga(examens: tuple[Examen, ...], regles: Regles) -> tuple[Item, 
 
 def particio_nova(examens: tuple[Examen, ...], regles: Regles, nivells) -> tuple[Item, ...]:
     sessions_per_nivell = {n: [e.a_diccionari() for e in examens if e.curs == n] for n in nivells}
-    return _items_tipats(
-        _particio_nova(sessions_per_nivell, nivells, regles.a_diccionari(), _agrupacions(regles)), examens
-    )
+    return _items_tipats(_particio_nova(sessions_per_nivell, nivells, _agrupacions(regles)), examens)
 
 
 def particio(problema: Problema, politiques: Politiques) -> tuple[Item, ...]:
@@ -293,7 +292,7 @@ def _assigna_id(item: dict) -> None:
         s["item_label"] = item.get("nom") or item_id
 
 
-def _particio_nova(sessions_per_nivell, nivells_actius, restriccions, grups_amb_noms) -> list[dict]:
+def _particio_nova(sessions_per_nivell, nivells_actius, grups_amb_noms) -> list[dict]:
     """Garanteix que cada nivell té els seus exàmens agrupats en 'paquets' únics (sense fusionar forçat)."""
     tots_els_items = []
 

@@ -1,4 +1,6 @@
 <template>
+  <!-- Delegació: un clic a la capçalera d'un panell prem el seu botó de plegar, que ja és un botó accessible -->
+  <!-- eslint-disable-next-line vuejs-accessibility/click-events-have-key-events, vuejs-accessibility/no-static-element-interactions -->
   <div class="tab-content" @click="handlePanelHeaderClick">
     <p class="info-text" style="margin-bottom: 1rem;">
       <i class="pi pi-info-circle"></i>
@@ -119,7 +121,7 @@
                   icon="pi pi-trash"
                   class="p-button-rounded p-button-text p-button-danger p-button-sm"
                   @click="eliminarAssignaturaCategoria(assignatura, idx)"
-                  v-tooltip.top="$t('config.priorities.deleteSubject')"
+                  v-tooltip.top="$t('config.priorities.deleteSubject')" :aria-label="$t('config.priorities.deleteSubject')"
                 />
               </div>
               <small v-if="assignatura.toLowerCase() === 'alliberat'" class="field-hint">
@@ -175,7 +177,7 @@
           <template #default>
             {{ item || $t('common.empty') }}
             <small v-if="fiNoSubstituir[item]" class="no-subst-data">{{ $t('config.priorities.noSubstUntil', { data: fiNoSubstituir[item] }) }}</small>
-            <i class="pi pi-times" style="margin-left: 0.5rem; cursor: pointer;" @click="eliminarNoSubstituir(item)"></i>
+            <Button icon="pi pi-times" text rounded class="boto-icona" :aria-label="$t('config.priorities.deleteSubject')" @click="eliminarNoSubstituir(item)" />
           </template>
         </Tag>
         <!-- Les que comencen més endavant: encara no valen avui -->
@@ -187,7 +189,7 @@
           <template #default>
             {{ entrada.assignatura || $t('common.empty') }}
             <small class="no-subst-data">{{ $t('config.priorities.noSubstFrom', { data: dataAmbAny(entrada.vigent_des_de) }) }}</small>
-            <i class="pi pi-times" style="margin-left: 0.5rem; cursor: pointer;" @click="eliminarNoSubstituir(entrada.assignatura, entrada.vigent_des_de)"></i>
+            <Button icon="pi pi-times" text rounded class="boto-icona" :aria-label="$t('config.priorities.deleteSubject')" @click="eliminarNoSubstituir(entrada.assignatura, entrada.vigent_des_de)" />
           </template>
         </Tag>
       </div>

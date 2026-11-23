@@ -30,15 +30,13 @@ def _crides_sense_data():
                 nom = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
                 if nom in AMB_DATA_PER_NOM and not any(k.arg == "data_iso" for k in node.keywords):
                     yield f"{fitxer.relative_to(BACKEND)}:{node.lineno}  {ast.unparse(node)}"
-                elif nom == "get_xml_path_for_date" and len(node.args) + len(node.keywords) < 2:
-                    yield f"{fitxer.relative_to(BACKEND)}:{node.lineno}  {ast.unparse(node)}"
 
 
 def test_cap_crida_a_l_horari_sense_data():
     assert list(_crides_sense_data()) == []
 
 
-PORTES_A_L_HORARI = {"get_horari", "get_gestors", "get_xml_path_for_date", "get_vigilancia_core", "get_horari_fn"}
+PORTES_A_L_HORARI = {"get_horari", "get_gestors", "get_vigilancia_core", "get_horari_fn"}
 
 
 def test_les_rutes_arriben_a_l_horari_nomes_a_traves_de_dia():

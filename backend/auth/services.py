@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 from auth.domain import Rol, UsuariActual
 from auth.repositories import UserRepository
 from auth.security import hash_fictici, hash_password, verify_password
+from config import settings
 from config.auth import get_config_auth
-from config.settings import config
 from configuracio.repositories import ConfiguracioRepository
 from database import get_engine_for_institucio, inicia_escriptura
 from errors_domini import NoPermes, NoTrobat, NoValid
@@ -56,7 +56,7 @@ def autentica(db: Session, username: str, contrasenya: str) -> User | None:
         return None
     # D'un centre desactivat no hi entra ningú (els usuaris continuen actius:
     # en reactivar-lo, tot torna a ser com abans). El superadmin sí, com sempre.
-    if user.role != Rol.SUPER_ADMIN and not config.is_institucio_activa(user.institucio):
+    if user.role != Rol.SUPER_ADMIN and not settings.is_institucio_activa(user.institucio):
         return None
     return user
 
@@ -112,9 +112,9 @@ def tanca_altres_sessions(db: Session, current_user: UsuariActual) -> User:
 
 def comprova_institucio_accessible(institucio: str) -> None:
     """El superadmin pot treballar amb qualsevol institució activa."""
-    if institucio not in config.get_institucions_disponibles(include_inactive=True):
+    if institucio not in settings.get_institucions_disponibles(include_inactive=True):
         raise NoValid("Institució inexistent", codi="institucio_inexistent")
-    if not config.is_institucio_activa(institucio):
+    if not settings.is_institucio_activa(institucio):
         raise NoPermes("Institució inactiva", codi="institucio_inactiva")
 
 
@@ -145,7 +145,9 @@ def crea_usuaris_inicials(db: Session) -> None:
 
 def _avisa_usuaris_sense_centre(db: Session) -> None:
     # Només nombres: el registre no ha de tenir noms d'usuaris ni de centres
-    sense_centre = [u for u in UserRepository.list_all(db) if u.active and not config.institucio_existeix(u.institucio)]
+    sense_centre = [
+        u for u in UserRepository.list_all(db) if u.active and not settings.institucio_existeix(u.institucio)
+    ]
     if sense_centre:
         log.warning(
             "Usuaris actius de centres que no existeixen: %d usuaris, %d centres",
@@ -172,7 +174,7 @@ def _crea_usuaris_d_instal_lacio_nova(db: Session) -> None:
     inicials += [u for u in get_config_auth().default_users if u["password"]]
     for usuari in inicials:
         # El centre, també: cap centre no es crea sol en la primera petició
-        if not config.institucio_existeix(usuari["institucio"]):
+        if not settings.institucio_existeix(usuari["institucio"]):
             get_engine_for_institucio(usuari["institucio"])  # crea la carpeta i el gestor.db
         UserRepository.create(
             db=db,

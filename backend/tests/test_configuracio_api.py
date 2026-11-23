@@ -7,7 +7,6 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
 
-from config.settings import config
 from configuracio import router as configuracio
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session
@@ -25,41 +24,29 @@ def _limiter_net():
     yield
 
 
-@pytest.fixture
-def config_global(tmp_path, monkeypatch):
-    """La configuració global, en un fitxer temporal: desar-la no toca el
-    config.json del codi, i en acabar torna a ser la d'abans."""
-    monkeypatch.setattr(config, "global_config_file", tmp_path / "config.json")
-    monkeypatch.setattr(config, "global_data", dict(config.global_data))
-    return config
-
-
 def _client(centre, rol="admin"):
     nom = f"{rol}_{unic()}"
     crea_usuari(nom, centre, rol)
     return entra(client_per(APP), nom)
 
 
-def test_desar_la_configuracio_no_canvia_el_centre_per_defecte(config_global):
+def test_desar_la_configuracio_amb_el_camp_institucio_nomes_canvia_l_idioma():
     # La pantalla envia sempre el camp institucio (el centre de qui desa): el
     # superadmin que desava des d'un altre centre canviava el per defecte del servidor
     centre = nova_institucio()
-    per_defecte = config_global.global_data.get("institucio")
 
     resposta = _client(centre, "super_admin").put(URL, json={"institucio": centre, "idioma": "es"})
 
     assert resposta.status_code == 200, resposta.text
     assert resposta.json()["changed"] == ["Idioma → es"]
-    assert config_global.global_data.get("institucio") == per_defecte
-    assert not config_global.global_config_file.exists()
 
 
-def test_desar_la_configuracio_no_escriu_a_la_bd_del_centre_per_defecte(config_global):
+def test_desar_la_configuracio_no_escriu_a_la_bd_del_centre_per_defecte(monkeypatch):
     # Abans, en desar l'idioma, les dates o l'últim professor, es tornava a llegir
     # la configuració del centre per defecte del servidor i s'hi escrivien les
     # claus que hi faltaven
     centre, per_defecte = nova_institucio(), nova_institucio()
-    config_global.global_data["institucio"] = per_defecte
+    monkeypatch.setenv("APP_INSTITUCIO", per_defecte)
     with get_data_db_session(per_defecte) as db:
         abans = ConfiguracioRepository.get_all_as_dict(db)
 

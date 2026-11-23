@@ -47,12 +47,6 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
       })
       if (id !== versioDia || data !== dataISO.value) return []
       disponiblesPerHora.value[cacheKey] = disponibles
-
-      // També guardar a la cache general per hora (sense tipus) per compatibilitat
-      if (!disponiblesPerHora.value[horaNorm]) {
-        disponiblesPerHora.value[horaNorm] = disponibles
-      }
-
       return disponibles
     } catch (err) {
       if (id !== versioDia || data !== dataISO.value) return []
@@ -119,10 +113,7 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     if (!actual()) return
     const novaCache = substitueix ? {} : { ...disponiblesPerHora.value }
     for (const [key, value] of Object.entries(results)) {
-      const disponibles = Array.isArray(value) ? value : []
-      novaCache[key] = disponibles
-      const horaKey = key.includes('|') ? key.split('|')[0] : key
-      if (!novaCache[horaKey]) novaCache[horaKey] = disponibles
+      novaCache[key] = Array.isArray(value) ? value : []
     }
     alhora?.()
     disponiblesPerHora.value = novaCache
@@ -151,7 +142,8 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     const horaNorm = String(hora || '').trim()
     const cacheKey = getDisponiblesCacheKey(horaNorm, tipus, grups, aula, vigilanciaId)
 
-    // Buscar primer amb la clau específica (amb titular), sinó la genèrica
+    // Primer la clau de la fila (amb titulars); si no hi és, la genèrica de l'hora,
+    // que només s'omple amb la consulta genèrica (mai amb les dades d'una fila)
     const disponibles = disponiblesPerHora.value[cacheKey] || disponiblesPerHora.value[horaNorm] || SENSE_DISPONIBLES
     const desades = opcionsOrdenades.get(disponibles)
     if (desades && desades.idioma === locale.value) return desades.opcions

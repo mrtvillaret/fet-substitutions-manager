@@ -12,7 +12,7 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
 from suport_rellotge import ARA
 
-from auth.security import decode_access_token
+from auth.security import ALGORISME, decode_access_token
 from config.auth import get_config_auth
 from rate_limit import limiter
 from usuaris.router import router as usuaris_router
@@ -44,7 +44,7 @@ def _amb_testimoni(client, emes, inici, caduca):
     p.update({"iat": int(emes.timestamp()), "ini": inici.timestamp(), "exp": int(caduca.timestamp())})
     client.cookies.set(
         get_config_auth().cookie_name,
-        jwt.encode(p, get_config_auth().secret_key, algorithm=get_config_auth().algorithm),
+        jwt.encode(p, get_config_auth().secret_key, algorithm=ALGORISME),
         domain="testserver.local",
     )
     return client

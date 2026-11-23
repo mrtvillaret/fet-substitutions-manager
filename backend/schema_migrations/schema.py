@@ -10,8 +10,12 @@ from sqlalchemy import create_engine, inspect
 BASE_REVISION = "0001_base"
 CLEAN_REVISION = "0002_neteja_historiques"
 CANONICAL_REVISION = "0003_esquema_canonic"
-# La 0004 només canvia no_substituir (vigència per dates); és la revisió vigent.
-CURRENT_REVISION = "0004_vigencia_no_substituir"
+# La 0004 només canvia no_substituir (vigència per dates).
+VIGENCIA_REVISION = "0004_vigencia_no_substituir"
+# La 0005 treu les taules LEGACY; és la revisió vigent.
+CURRENT_REVISION = "0005_fora_taules_legacy"
+# Taules que cap codi no llegeix des que es van passar a exam_restriccions.
+LEGACY_TABLES = ("exam_preferencies", "exam_pesos_optimitzacio")
 SCHEMA_OBJECTS = ("objects",)
 RETIRED_TABLES = frozenset({"users", "configuracio_assignatures", "exam_schedules"})
 SCHEMA_ERROR = (
@@ -71,13 +75,7 @@ def schema_signature(connection):
 
 @lru_cache(maxsize=2)
 def base_signature(kind):
-    engine = create_engine("sqlite://")
-    try:
-        with engine.begin() as connection:
-            create_base(connection, kind)
-            return schema_signature(connection)
-    finally:
-        engine.dispose()
+    return _signature_of(base_statements(kind))
 
 
 def vigencia_statements(kind):
@@ -85,31 +83,52 @@ def vigencia_statements(kind):
     return json.loads(Path(__file__).with_name("vigencia_schema.json").read_text()).get(kind, [])
 
 
-def current_statements(kind):
-    """L’esquema vigent: la base (0001–0003) amb no_substituir de la 0004."""
-    replaced = vigencia_statements(kind)
-    if not replaced:
-        return base_statements(kind)
-    tables = {s.split()[2] for s in replaced if s.startswith("CREATE TABLE ")}
-    kept = [
+def _sense_taules(statements, tables):
+    """Les sentències que no creen cap d’aquestes taules ni cap índex seu."""
+    return [
         s
-        for s in base_statements(kind)
+        for s in statements
         if not (s.startswith("CREATE TABLE ") and s.split()[2] in tables)
         and not (s.startswith(("CREATE INDEX ", "CREATE UNIQUE INDEX ")) and s.split(" ON ", 1)[1].split()[0] in tables)
     ]
-    return kept + replaced
 
 
-@lru_cache(maxsize=2)
-def current_signature(kind):
+def vigencia_schema_statements(kind):
+    """L’esquema de la 0004: la base (0001–0003) amb no_substituir refeta."""
+    replaced = vigencia_statements(kind)
+    tables = {s.split()[2] for s in replaced if s.startswith("CREATE TABLE ")}
+    return _sense_taules(base_statements(kind), tables) + replaced
+
+
+def current_statements(kind):
+    """L’esquema vigent: el de la 0004 sense les taules LEGACY (0005)."""
+    return _sense_taules(vigencia_schema_statements(kind), LEGACY_TABLES)
+
+
+def _signature_of(statements):
     engine = create_engine("sqlite://")
     try:
         with engine.begin() as connection:
-            for statement in current_statements(kind):
+            for statement in statements:
                 connection.exec_driver_sql(statement)
             return schema_signature(connection)
     finally:
         engine.dispose()
+
+
+@lru_cache(maxsize=2)
+def vigencia_signature(kind):
+    return _signature_of(vigencia_schema_statements(kind))
+
+
+@lru_cache(maxsize=2)
+def current_signature(kind):
+    return _signature_of(current_statements(kind))
+
+
+def validate_vigencia(connection, kind):
+    if schema_signature(connection) != vigencia_signature(kind):
+        raise RuntimeError(SCHEMA_ERROR)
 
 
 def validate_current(connection, kind):

@@ -101,7 +101,7 @@
               <label >{{ t('scheduler.steps.results.advancedParamsToggle') }}</label>
             </div>
             <div class="motor-actions">
-              <Button :label="t('scheduler.steps.results.actions.generateSchedule')" icon="pi pi-bolt" class="p-button-lg motor-generate-button" :loading="generating" @click="emit('generar')" />
+              <Button :label="t('scheduler.steps.results.actions.generateSchedule')" icon="pi pi-bolt" class="p-button-lg motor-generate-button" :loading="generating" :disabled="!configReady" @click="emit('generar')" />
               <small class="motor-run-help">{{ t('scheduler.steps.results.runHelp') }}</small>
             </div>
             <div v-if="pinnedNoms?.size > 0" class="pin-toolbar">
@@ -279,6 +279,8 @@ import CostDesglossament from '../../../components/CostDesglossament.vue'
 
 const props = defineProps({
   generating: { type: Boolean, default: false },
+  // Sense la configuració carregada no es pot generar (desaria la de la pantalla)
+  configReady: { type: Boolean, default: false },
   result: { type: Object, default: null },
   modeEdicio: { type: Boolean, default: false },
   mostrarParametresAvancats: { type: Boolean, default: false },

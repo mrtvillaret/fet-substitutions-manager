@@ -2,6 +2,7 @@
 //   npm run lint
 import js from '@eslint/js'
 import pluginVue from 'eslint-plugin-vue'
+import pluginA11y from 'eslint-plugin-vuejs-accessibility'
 import globals from 'globals'
 import errorUnic from './eslint-rules/errors-unics.js'
 
@@ -28,6 +29,18 @@ export default [
       // `_nom`: paràmetre que es rep però no es fa servir; i el patró
       // `({ a, b, ...rest }) => rest` per treure camps d'un objecte.
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
+    },
+  },
+  {
+    // Accessibilitat dels elements HTML: un clic també amb el teclat, i cap
+    // element no interactiu (<i>, <span>, <div>) amb @click. Els <Button> de
+    // PrimeVue no els veu: els vigila tests/botonsAccessibles.test.js.
+    files: ['src/**/*.vue'],
+    plugins: { 'vuejs-accessibility': pluginA11y },
+    rules: {
+      'vuejs-accessibility/click-events-have-key-events': 'error',
+      'vuejs-accessibility/no-static-element-interactions': 'error',
+      'vuejs-accessibility/interactive-supports-focus': 'error',
     },
   },
   {

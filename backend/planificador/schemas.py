@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from noms import NomNet
-from parametres import DataISO
+from parametres import MAX_DATES, DataISO
 from planificador.compartit.constants import SEGONS_MAXIMS_LIMIT, SEGONS_MAXIMS_PER_DEFECTE
 
 # ---------------------------------------------------------------- peticions
@@ -24,10 +24,9 @@ class SchedulerGenerateRequest(BaseModel):
 
     data_inici: DataISO
     data_final: DataISO | None = None
-    selected_dates: list[DataISO] | None = None
-    dies_utilitzar: list[str] | None = None
+    selected_dates: list[DataISO] | None = Field(default=None, max_length=MAX_DATES)
+    dies_utilitzar: list[str] | None = Field(default=None, max_length=MAX_DATES)
     nivells_actius: list[str] | None = None
-    max_dies: int = Field(default=5, gt=0)
     motor: Literal["v3", "v2", "v2-backtrack"] = "v3"  # els de planificador.motor.cataleg.MOTORS
     estrategia: str = "ponderada"
     # Sostre = el màxim de la pantalla; a més, el motor s'atura al temps màxim (segons_maxims)
@@ -60,8 +59,7 @@ class MarquesHora(BaseModel):
 class AlliberamentsNivell(BaseModel):
     """Les hores sense classe d'un nivell marcades al calendari."""
 
-    durada: int | None = Field(default=None, gt=0)
-    dates: list[DataISO] = []
+    dates: list[DataISO] = Field(default=[], max_length=MAX_DATES)
     config: dict[DataISO, dict[str, MarquesHora]] = {}  # data → hora → marques
 
 
@@ -101,7 +99,7 @@ class SchedulerPinRequest(BaseModel):
 
 
 class SchedulerDatesRequest(BaseModel):
-    selected_dates: list[DataISO]
+    selected_dates: list[DataISO] = Field(max_length=MAX_DATES)
 
 
 class CostosProfessorsRequest(BaseModel):
@@ -219,8 +217,6 @@ class Restriccions(BaseModel):
     restriccions_dures: RestriccionsDures = Field(default_factory=RestriccionsDures)
     preferencies: Preferencies = Preferencies()
     pesos_optimitzacio: dict[str, int] = {}
-    costos_professors: CostosProfessorsRequest | None = None
-    pesos_percentatge: dict[str, int] = {}
 
 
 class SchedulerRestriccionsRequest(BaseModel):
@@ -281,7 +277,7 @@ class SchedulerPublicarRequest(BaseModel):
 class HorariRecalcularRequest(BaseModel):
     horari: HorariPlanificat  # Estructura completa de l'horari
     data_referencia: DataISO | None = None  # Data per carregar l'XML d'horaris
-    selected_dates: list[DataISO] | None = None
+    selected_dates: list[DataISO] | None = Field(default=None, max_length=MAX_DATES)
     # Fals: només previsualitza (l'editor, a cada moviment); l'horari es desa en aplicar
     desa: bool = True
 

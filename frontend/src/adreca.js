@@ -4,8 +4,8 @@
 // l'adreça i què hi pot obrir cada rol. Un valor desconegut és el de per defecte.
 import { dataIso } from './dates.js'
 
-export const PANTALLES = ['substitucions', 'grups', 'vigilancies', 'scheduler']
-export const PANTALLA_PER_DEFECTE = 'substitucions'
+const PANTALLES = ['substitucions', 'grups', 'vigilancies', 'scheduler']
+const PANTALLA_PER_DEFECTE = 'substitucions'
 export const DIALEGS = ['configuracio', 'configuracio-examens', 'estadistiques', 'perfil', 'ajuda', 'menu']
 
 // AAAA-MM-DD d'una data que existeix (no 2026-02-30); si no, null

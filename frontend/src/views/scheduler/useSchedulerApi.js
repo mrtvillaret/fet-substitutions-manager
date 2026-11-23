@@ -71,6 +71,7 @@ export const useSchedulerApi = ({
   result,
   config,
   configReady,
+  carregaFallida,
   motorsMetadata,
   genConfig,
   genConfigHoresArray,
@@ -104,13 +105,15 @@ export const useSchedulerApi = ({
 }) => {
   // Professors, grups i hores de l'horari del planificador: el vigent a la
   // primera data planificada (sense dates, avui)
-  const carregarDadesHorari = async (dataReferencia) => {
+  // `vigent`: si en arribar les respostes ja s'han triat unes altres dates, no s'apliquen
+  const carregarDadesHorari = async (dataReferencia, vigent = () => true) => {
     const params = { params: { data: dataReferencia } }
     const [pr, gr, hr] = await Promise.all([
       apiHorari.professors(params),
       apiHorari.detectaGrups(params),
       apiHorari.hores(params),
     ])
+    if (!vigent()) return
     llistaProfessors.value = pr.professors || []
     llistaGrups.value = (gr.grups_raw || []).map((g) => ({ nom: g, codi: g }))
     llistaHoresDisponibles.value = [...new Set(hr?.hores || [])]
@@ -129,6 +132,7 @@ export const useSchedulerApi = ({
 
   const carregarDades = async () => {
     loading.value = true
+    carregaFallida.value = false
     try {
       const { data: horari } = await apiPlanificador.horari()
       horariPlanificacio.value = horari
@@ -180,6 +184,9 @@ export const useSchedulerApi = ({
 
       configReady.value = true
     } catch (errorCapturat) {
+      // Sense la configuració sencera, desar escriuria la de la pantalla (buida o a mitges)
+      configReady.value = false
+      carregaFallida.value = true
       avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error') }))
     } finally {
       loading.value = false
@@ -189,7 +196,11 @@ export const useSchedulerApi = ({
   const onNivellsChange = async () => {
     sincronitzarDatesGlobals()
     await carregarSessions()
-    await desarMotorConfig()
+    try {
+      await desarMotorConfig()
+    } catch (errorCapturat) {
+      avisaError(errorCapturat, () => toast.add({ severity: 'error', summary: t('common.error') }))
+    }
   }
 
   const recalcularCostVisualitzacio = async ({ desa = true } = {}) => {
@@ -229,7 +240,8 @@ export const useSchedulerApi = ({
     generating.value = true
     result.value = null
     try {
-      await desarTotAlBackend({ silent: true })
+      // Si el desament falla ja s'ha avisat; no es genera amb les restriccions antigues
+      if (!(await desarTotAlBackend({ silent: true }))) return
       const dSorted = [...selectedDates.value].sort((a, b) => a - b)
       const payload = {
         data_inici: formatLocalDate(dSorted[0]),

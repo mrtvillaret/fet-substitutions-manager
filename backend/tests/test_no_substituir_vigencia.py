@@ -64,9 +64,9 @@ def _visibles(client, data):
 
 
 def _cobertura(client):
-    resp = client.get("/api/estadistiques/resum", params=INTERVAL)
+    resp = client.get("/api/estadistiques/batch", params=INTERVAL)
     assert resp.status_code == 200, resp.text
-    return resp.json()["cobertura"]
+    return resp.json()["resum"]["cobertura"]
 
 
 def _afegeix(client, assignatura, data=None):

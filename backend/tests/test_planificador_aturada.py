@@ -8,8 +8,8 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import xml_inventat as xml_inventat
 from suport_planificador import DATES, DIES, centre_amb_examens, configura
 from test_planificador_limits import client  # noqa: F401
 
@@ -88,9 +88,9 @@ class MotorAmbCostZero:
             random.Random(1),
         )
         if resultat.assignacio is None:
-            meta = horari_backtracking(
-                resultat, self.problema, BACKTRACKING, None, segons, parametres.get("max_nodes", 100000)
-            )["metadata"]
+            meta = horari_backtracking(resultat, self.problema, None, segons, parametres.get("max_nodes", 100000))[
+                "metadata"
+            ]
         else:
             meta = {"cost_total": resultat.cost}
             if resultat.motiu_aturada:
@@ -169,9 +169,9 @@ def _amb_llavors(motor, monkeypatch, nodes_de_cada_llavor, llavors):
     fetes = []
     cerca_d_una_llavor = motor.motor._cerca_amb_llavor
 
-    def amb_el_seu_limit(llavor, dies, _max_nodes, *resta):
+    def amb_el_seu_limit(llavor, _max_nodes, *resta):
         fetes.append(llavor)
-        return cerca_d_una_llavor(llavor, dies, nodes_de_cada_llavor[len(fetes) - 1], *resta)
+        return cerca_d_una_llavor(llavor, nodes_de_cada_llavor[len(fetes) - 1], *resta)
 
     monkeypatch.setattr(motor.motor, "_cerca_amb_llavor", amb_el_seu_limit)
     resultat, meta = motor.genera(seeds_count=llavors)
@@ -216,7 +216,7 @@ def test_si_totes_les_llavors_es_tallen_l_horari_ho_diu(backtrack, monkeypatch):
 
 # Els cinc tests del bucle d'intents del greedy (termini, almenys un intent,
 # sense cap intent complet, temps triat, dins del termini) són els casos de
-# `test_planificador_greedy_nou.py::test_limits_millor_i_ultim_intent_sense_temps_real`.
+# `test_planificador_greedy.py::test_limits_millor_i_ultim_intent_sense_temps_real`.
 
 
 # --------------------------------------------- límit d'intents a l'API
@@ -287,7 +287,7 @@ def test_la_peticio_passa_el_temps_maxim_al_motor(monkeypatch, motor):
 
 
 def _diagnostic_amb(monkeypatch, config_inventada, xml_inventat, estructural, pendents):
-    from test_planificador_greedy_nou import problema_de
+    from test_planificador_greedy import problema_de
 
     diagnostic = Diagnostic(problema_de(config_inventada, xml_inventat), GREEDY)
     monkeypatch.setattr(diagnostic, "incompatibilitats", lambda _: [estructural])
@@ -333,7 +333,7 @@ def test_per_l_api_el_limit_de_nodes_es_diu_al_resultat_i_al_diagnostic():
     assert all(m.get("params", {}).get("causa") != "conflicte_restriccions" for m in meta["incompatibilitats"])
 
 
-# ------------------------------------------------------------ recuit (v3)
+# ------------------------------------------------------------ el recuit, v3
 
 
 def test_el_recuit_aturat_pel_temps_ho_diu_i_es_queda_la_millor_solucio(monkeypatch):

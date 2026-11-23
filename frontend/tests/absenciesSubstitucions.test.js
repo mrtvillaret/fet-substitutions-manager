@@ -2,13 +2,12 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ref, computed, watch, nextTick } from 'vue'
 import { dataIso } from '../src/dates.js'
-import { carregaBloc } from './support/carregaBlocSubstitucions.js'
-const noms = ['mostrarDialogGestio','closeBtnRef','dropdownProfValue','gestioAbsencies','horesAmbClasse','horesAlCentre','horesCarregades','modeRang','dataFinalRang','professorsAmbInfo','absenciesDelDia','absenciesDelDiaAgrupades','datesDelRang','seleccionarProfessorDropdown','obrirDialogNou','editarAbsenciesProfessor','tancarDialogGestio','seleccionarProfessor','toggleHoraAbsencia','toggleHoraServei','totesTrnadesAbsencia','totesTrnadesServei','toggleTotesAbsencia','toggleTotesServei','afegirAbsenciaImmediata','confirmarEliminarAbsenciesProf']
+import { carregaBlocVista } from './support/carregaBlocVista.js'
 function prepara() {
   const peticions = [], avisos = [], confirmacions = [], cos = { style: {} }
   const dependents = { dataISO: ref('2026-04-24'), professors: ref(['Prof 1', 'Prof 2']), absenciesCobertes: ref([{ professor:'Prof 3', data_final:'2026-04-30' }]), totesAbsencies: ref([{ professor_absent:'Prof 1', hora:'08:00', tipus_absencia:'ABSENCIA', updated_at:'ara' }, { professor_absent:'Prof 1', hora:'09:00', tipus_absencia:'ENCADENADA' }]), horesDisponibles: ref(['08:00','09:00','10:00']), loading: ref(false), toast: {add: m => avisos.push(m)}, t: x => x, confirmaEsborrar: c => confirmacions.push(c), obrirDialogConflicte: c => confirmacions.push(c), carregarSubstitucions: async () => peticions.push(['recarrega']), carregarTotesAbsencies: async () => {} }
   const deps = { ...dependents, dependents, ref, computed, watch, nextTick, onBeforeUnmount: () => {}, dataIso, avisaSubstitutsTrets: () => {}, document: {body: cos}, apiSubstitucions: { horesProfessor: async (...a) => {peticions.push(['hores',...a]); return {hores_amb_classe:['08:00'],hores_al_centre:['08:00','09:00']}}, desaAbsencies: async (...a) => {peticions.push(['desa',...a]); return {}} } }
-  const bloc = carregaBloc('useAbsenciesSubstitucions', [['const mostrarDialogGestio = ref(false)', 'const mostrarDialogConflicte'], ['const professorsAmbInfo = computed', '// Mètodes'], ['const obrirDialogNou =', '// Les opcions del substitut'], ['// Quan les dades canvien', '// Lifecycle']], noms, deps)
+  const bloc = carregaBlocVista('useAbsenciesSubstitucions', deps)
   return {...bloc, peticions, avisos, confirmacions, cos, dependents}
 }
 test('absències: professor cobert al final i encadenades fora dels recomptes reals', () => {

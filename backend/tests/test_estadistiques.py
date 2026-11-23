@@ -66,6 +66,12 @@ def _get(client, ruta, **params):
     return resposta.json()
 
 
+def _lot(client, part, **params):
+    """Una part del lot (/batch), com la llegeix la pantalla: resum,
+    professors, temporal, classes, taula o hores."""
+    return _get(client, "batch", **params)[part]
+
+
 def test_un_professor_alliberat_no_compta_encara_que_la_fila_no_tingui_grup(centre, client):
     # La regla única de qui té classe (sense_classe), com als informes: abans,
     # a les files sense grup (una guàrdia de pati) no es mirava
@@ -76,9 +82,9 @@ def test_un_professor_alliberat_no_compta_encara_que_la_fila_no_tingui_grup(cent
         alliberats=[("PATI", "professor:Prof 9")],
     )
 
-    assert [p["professor"] for p in _get(client, "professors")["professors_absents"]] == ["Prof 8"]
+    assert [p["professor"] for p in _lot(client, "professors")["professors_absents"]] == ["Prof 8"]
     # La substitució feta sí que compta: si té substitut, algú hi ha anat
-    taula = {p["professor"]: p for p in _get(client, "taula")["professors"]}
+    taula = {p["professor"]: p for p in _lot(client, "taula")["professors"]}
     assert (taula["Prof 5"]["total_absencies"], taula["Prof 5"]["substitucions_fetes"]) == (0, 1)
     assert "Prof 9" not in taula
 
@@ -93,12 +99,12 @@ def test_les_absencies_compten_el_que_es_veu_a_la_pantalla_substitucions(centre,
         ("09:00", "Prof 1", "", "", "", "ABSENCIA"),
         ("10:00", "Prof 1", "Català", "1-ESO-A", "Prof 5", "ABSENCIA"),
     )
-    assert _get(client, "resum")["cobertura"]["a_cobrir"] == 2
+    assert _lot(client, "resum")["cobertura"]["a_cobrir"] == 2
 
     with get_data_db_session(centre) as db:
         db.add(NoSubstituir(assignatura=""))
         db.commit()
-    assert _get(client, "resum")["cobertura"]["a_cobrir"] == 1
+    assert _lot(client, "resum")["cobertura"]["a_cobrir"] == 1
 
 
 def test_classes_no_compta_les_activitats_de_no_substituir(centre, client):
@@ -108,7 +114,7 @@ def test_classes_no_compta_les_activitats_de_no_substituir(centre, client):
         ("09:00", "Prof 1", "Català", "1-ESO-A", "Prof 5", "ABSENCIA"),
     )
 
-    (classe,) = _get(client, "classes")["classes"]
+    (classe,) = _lot(client, "classes")["classes"]
     assert classe["grup"] == "1-ESO-A"
     assert classe["professor_top"] == "Prof 1 (1)"
     detall = _get(client, "classes/detall", grups=["1-ESO-A"])
@@ -153,7 +159,7 @@ def test_la_cobertura_nomes_compta_les_absencies_i_els_serveis(centre, client):
     # FUNCIONAMENT.md, apartat 6: cap altre tipus hi compta, ni a dalt ni a baix
     _afegeix(centre, *TOTS_ELS_TIPUS)
 
-    resum = _get(client, "resum")
+    resum = _lot(client, "resum")
     assert resum["cobertura"] == {
         "absencies": 1,
         "serveis": 1,
@@ -164,12 +170,12 @@ def test_la_cobertura_nomes_compta_les_absencies_i_els_serveis(centre, client):
     }
     assert resum["activitat"]["dies_amb_absencies"] == 1
 
-    temporal = _get(client, "temporal")
+    temporal = _lot(client, "temporal")
     assert temporal["dies"][0] == {"dia": "Dilluns", "a_cobrir": 2, "cobertes": 1, "vigilancies": 0}
     assert [(h["hora"], h["a_cobrir"], h["cobertes"]) for h in temporal["hores"]] == [("08:00", 1, 1), ("09:00", 1, 0)]
     assert temporal["totals"] == {"a_cobrir": 2, "cobertes": 1, "vigilancies": 0}
 
-    assert _get(client, "classes")["classes"] == [
+    assert _lot(client, "classes")["classes"] == [
         {
             "grup": "1-ESO-A",
             "a_cobrir": 2,
@@ -187,12 +193,12 @@ def test_les_absencies_per_professor_nomes_compten_absencies_i_serveis(centre, c
     # La vigilància d'un vigilant absent no és una absència més
     _afegeix(centre, *TOTS_ELS_TIPUS)
 
-    assert _get(client, "professors")["professors_absents"] == [
+    assert _lot(client, "professors")["professors_absents"] == [
         {"professor": "Prof 1", "absencies": 1, "serveis": 0, "total": 1},
         {"professor": "Prof 2", "absencies": 0, "serveis": 1, "total": 1},
     ]
     absents = {
-        p["professor"]: p["total_absencies"] for p in _get(client, "taula")["professors"] if p["total_absencies"]
+        p["professor"]: p["total_absencies"] for p in _lot(client, "taula")["professors"] if p["total_absencies"]
     }
     assert absents == {"Prof 1": 1, "Prof 2": 1}
     assert _get(client, "professor/Prof 3")["absencies"] == []
@@ -202,7 +208,7 @@ def test_les_substitucions_fetes_compten_totes_les_files_amb_substitut(centre, c
     # La feina de cada professor, de qualsevol tipus de fila (FUNCIONAMENT.md, 6)
     _afegeix(centre, *TOTS_ELS_TIPUS)
 
-    top = {p["professor"]: p["total"] for p in _get(client, "professors")["top_substituts"]}
+    top = {p["professor"]: p["total"] for p in _lot(client, "professors")["top_substituts"]}
     assert top == {"Prof 5": 1, "Prof 6": 1, "Prof 7": 1, "Prof 8": 1}
     assert len(_get(client, "professor/Prof 8")["substitucions"]) == 1
 
@@ -212,7 +218,7 @@ def test_la_taula_per_professor_dona_el_balanc_i_el_pati_compta_com_qualsevol_ho
     # categoria de pati: una hora de pati compta com qualsevol altra.
     _afegeix(centre, *TOTS_ELS_TIPUS, ("PATI", "Prof 9", "VP", "", "Prof 5", "ABSENCIA"))
 
-    files = _get(client, "taula")["professors"]
+    files = _lot(client, "taula")["professors"]
     assert files[0] == {
         "professor": "Prof 5",
         "absencies": 0,
@@ -285,7 +291,7 @@ def test_les_vigilancies_es_compten_per_resultat(centre, client):
             )
         db.commit()
 
-    resum = _get(client, "resum")
+    resum = _lot(client, "resum")
     assert resum["vigilancies"] == {
         "total": 5,
         "vigilant": 1,
@@ -295,8 +301,8 @@ def test_les_vigilancies_es_compten_per_resultat(centre, client):
         "percentatge": 40.0,
     }
     assert resum["activitat"]["dies_amb_vigilancies"] == 1
-    assert "top_vigilants" not in _get(client, "professors")
-    files = {f["professor"]: f for f in _get(client, "taula")["professors"]}
+    assert "top_vigilants" not in _lot(client, "professors")
+    files = {f["professor"]: f for f in _lot(client, "taula")["professors"]}
     assert files["Prof 20"]["vigilancies_fetes"] == 1
     # Qui cobreix la fila de vigilant absent ho té a les substitucions fetes
     assert (files["Prof 42"]["substitucions_fetes"], files["Prof 42"]["vigilancies_fetes"]) == (1, 0)
@@ -311,10 +317,10 @@ def test_les_hores_de_temporals_van_en_l_ordre_de_l_horari_i_els_empats_per_nom(
         ("8:00", "Prof 3", "Física", "1-ESO-B", "Prof 2", "ABSENCIA"),
     )
 
-    assert [h["hora"] for h in _get(client, "temporal")["hores"]] == ["08:00", "PATI", "11:30"]
-    absents = [p["professor"] for p in _get(client, "professors")["professors_absents"]]
+    assert [h["hora"] for h in _lot(client, "temporal")["hores"]] == ["08:00", "PATI", "11:30"]
+    absents = [p["professor"] for p in _lot(client, "professors")["professors_absents"]]
     assert absents == ["Prof 1", "Prof 2", "Prof 3"]
-    assert [p["professor"] for p in _get(client, "professors")["top_substituts"]] == ["Prof 2", "Prof 9", "Prof 10"]
+    assert [p["professor"] for p in _lot(client, "professors")["top_substituts"]] == ["Prof 2", "Prof 9", "Prof 10"]
 
 
 def test_el_filtre_per_hores_refa_tots_els_recomptes(centre, client):
@@ -343,25 +349,25 @@ def test_el_filtre_per_hores_refa_tots_els_recomptes(centre, client):
         db.commit()
 
     pati = {"hores": ["PATI"]}
-    resum = _get(client, "resum", **pati)
+    resum = _lot(client, "resum", **pati)
     assert (resum["cobertura"]["a_cobrir"], resum["cobertura"]["cobertes"]) == (2, 1)
     assert resum["vigilancies"]["total"] == 1
-    assert [p["professor"] for p in _get(client, "professors", **pati)["professors_absents"]] == ["Prof 2", "Prof 3"]
-    assert [h["hora"] for h in _get(client, "temporal", **pati)["hores"]] == ["PATI"]
-    assert {f["professor"] for f in _get(client, "taula", **pati)["professors"]} == {
+    assert [p["professor"] for p in _lot(client, "professors", **pati)["professors_absents"]] == ["Prof 2", "Prof 3"]
+    assert [h["hora"] for h in _lot(client, "temporal", **pati)["hores"]] == ["PATI"]
+    assert {f["professor"] for f in _lot(client, "taula", **pati)["professors"]} == {
         "Prof 2",
         "Prof 3",
         "Prof 6",
         "Prof 9",
     }
     assert _get(client, "professor/Prof 1", **pati)["absencies"] == []
-    assert _get(client, "classes", **pati)["classes"] == []
+    assert _lot(client, "classes", **pati)["classes"] == []
 
     # Totes menys el PATI, amb el format d'axios (hores[]) i l'hora sense zero
-    resum = _get(client, "resum", **{"hores[]": ["8:00", "11:30"]})
+    resum = _lot(client, "resum", **{"hores[]": ["8:00", "11:30"]})
     assert (resum["cobertura"]["a_cobrir"], resum["vigilancies"]["total"]) == (2, 1)
     # Sense filtre, totes
-    assert _get(client, "resum")["cobertura"]["a_cobrir"] == 4
+    assert _lot(client, "resum")["cobertura"]["a_cobrir"] == 4
 
 
 def test_les_franges_del_filtre_son_les_de_les_versions_de_l_horari_de_l_interval(centre, client):
@@ -384,7 +390,7 @@ def test_les_franges_del_filtre_son_les_de_les_versions_de_l_horari_de_l_interva
         db.commit()
 
     def hores(inici, final):
-        return _get(client, "hores", data_inici=inici, data_final=final)["hores"]
+        return _lot(client, "hores", data_inici=inici, data_final=final)
 
     abans = hores("2026-03-01", "2026-03-15")
     assert "PATI" in abans and "ESBARJO" not in abans
@@ -394,9 +400,9 @@ def test_les_franges_del_filtre_son_les_de_les_versions_de_l_horari_de_l_interva
 
 
 @pytest.mark.parametrize("hores", [None, ["08:00"], ["10:00"], ["PATI"], ["08:00", "10:00"]])
-def test_batch_identic_a_les_rutes_i_a_la_llista_pdf(centre, client, hores, monkeypatch):
+def test_el_lot_llegeix_la_visibilitat_un_sol_cop_i_dona_la_llista_del_pdf(centre, client, hores, monkeypatch):
     from grups.lectures import AlliberatsDelDia
-    from pdf.services import professors_amb_activitat
+    from recomptes.services import dades_professors
 
     _afegeix(
         centre,
@@ -413,10 +419,8 @@ def test_batch_identic_a_les_rutes_i_a_la_llista_pdf(centre, client, hores, monk
         )
         db.commit()
     params = {"hores": hores} if hores else {}
-    esperat = {ruta: _get(client, ruta, **params) for ruta in ["resum", "professors", "temporal", "classes", "taula"]}
-    horari = _get(client, "hores")["hores"]
     with get_data_db_session(centre) as db:
-        llista = professors_amb_activitat(db, **INTERVAL, hores=hores)
+        llista = [p["nom"] for p in dades_professors(db, **INTERVAL, hores=hores)]
     original = AlliberatsDelDia.get_entre_dates
     crides = []
 
@@ -426,8 +430,6 @@ def test_batch_identic_a_les_rutes_i_a_la_llista_pdf(centre, client, hores, monk
 
     monkeypatch.setattr(AlliberatsDelDia, "get_entre_dates", compta)
     lot = _get(client, "batch", **params)
-    assert {k: lot[k] for k in esperat} == esperat
-    assert lot["hores"] == horari
     assert set(lot["hores_triades"]) == set(hores or [])
     assert lot["professors_informe"] == llista
     assert len(crides) == 1  # visibilitat resolta un sol cop per lot
@@ -436,8 +438,8 @@ def test_batch_identic_a_les_rutes_i_a_la_llista_pdf(centre, client, hores, monk
 def test_batch_retira_hores_inexistents_com_la_pantalla(client):
     lot = _get(client, "batch", hores=["08:00", "inexistent"])
     assert lot["hores_triades"] == ["08:00"]
-    assert lot["resum"] == _get(client, "resum", hores=["08:00"])
-    assert _get(client, "batch", hores=["inexistent"])["resum"] == _get(client, "resum")
+    assert lot["resum"] == _lot(client, "resum", hores=["08:00"])
+    assert _get(client, "batch", hores=["inexistent"])["resum"] == _lot(client, "resum")
 
 
 @pytest.mark.parametrize(

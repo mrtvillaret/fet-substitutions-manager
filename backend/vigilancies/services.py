@@ -37,8 +37,6 @@ from vigilancies.domain import nivell_obligatori
 from vigilancies.files import FilaVigilancia
 from vigilancies.repositories import VigilanciaRepository
 
-PLACEHOLDER_VIGILANT = "-- selecciona vigilant --"
-
 
 class ConflicteVigilancia(Conflicte):
     """Algú ha modificat la vigilància des que es va llegir: porta la versió
@@ -56,7 +54,7 @@ def vigilants_per_hora(vigilancies_dict: dict[str, list[FilaVigilancia]]) -> dic
         for vig in vigilancies_list:
             hora = (vig.hora or "").strip()
             vigilant = (vig.vigilant or "").strip()
-            if hora and vigilant and vigilant != PLACEHOLDER_VIGILANT:
+            if hora and vigilant:
                 resultat[hora].add(vigilant)
     return resultat
 
@@ -76,7 +74,8 @@ def _payload(vig) -> dict:
 
 
 def _sense_placeholder(vigilant):
-    """El text del desplegable («-- ... --») no és un vigilant: es desa buit."""
+    """El text del desplegable antic («-- ... --») no és un vigilant: es desa
+    buit. Només a l'entrada; a la BD no n'hi ha cap (migració 0005)."""
     return vigilant if vigilant and not vigilant.startswith("--") else ""
 
 
@@ -517,10 +516,7 @@ def crea(db: Session, data: str, vigilancia) -> dict:
     refresca_cobertures(data, vigilancia.hora, db)
     db.commit()
 
-    # ID real de la BD, el mateix que retorna el llistat. L'antic ID compost
-    # "hora|nivell|posició" deixava de ser vàlid si s'afegia o s'esborrava
-    # una altra vigilància de la mateixa hora (i, amb vigilants buits,
-    # podia apuntar a una altra vigilància des del principi).
+    # ID de la BD, el mateix que retorna el llistat
     return _payload(nova_vig)
 
 
@@ -551,7 +547,7 @@ def _comprova_versio(vig_abans, updated_at, falta: str) -> None:
         raise ConflicteVigilancia(_payload(vig_abans))
 
 
-def edita(db: Session, data: str, vig_id: str, edicio) -> str | None:
+def edita(db: Session, data: str, vig_id: int, edicio) -> str | None:
     """Canvia els camps que porta `edicio` i retorna el nou updated_at. Sense
     `force`, l'updated_at ha de ser el que es va llegir."""
     updates = {}
@@ -582,7 +578,7 @@ def edita(db: Session, data: str, vig_id: str, edicio) -> str | None:
     if vig_updated is None and not edicio.force:
         anterior = _payload(vig_abans)
         db.rollback()
-        actual = VigilanciaRepository.get_by_id(db, data, str(anterior["id"]))
+        actual = VigilanciaRepository.get_by_id(db, data, anterior["id"])
         raise ConflicteVigilancia(_payload(actual) if actual else anterior)
 
     if not vig_updated:
@@ -600,7 +596,7 @@ def edita(db: Session, data: str, vig_id: str, edicio) -> str | None:
     return vig_updated.updated_at.isoformat() if vig_updated.updated_at else None
 
 
-def esborra(db: Session, data: str, vig_id: str, updated_at: str = None, force: bool = False) -> None:
+def esborra(db: Session, data: str, vig_id: int, updated_at: str = None, force: bool = False) -> None:
     vig_abans = VigilanciaRepository.get_by_id(db, data, vig_id)
 
     if not force:
@@ -610,7 +606,7 @@ def esborra(db: Session, data: str, vig_id: str, updated_at: str = None, force: 
         if not force:
             anterior = _payload(vig_abans)
             db.rollback()
-            actual = VigilanciaRepository.get_by_id(db, data, str(anterior["id"]))
+            actual = VigilanciaRepository.get_by_id(db, data, anterior["id"])
             raise ConflicteVigilancia(_payload(actual) if actual else anterior)
         raise NoTrobat("Vigilància no trobada", codi="vigilancia_no_trobada")
 
@@ -684,11 +680,11 @@ def calcula_assignacio(db: Session, dia: Dia, data: str, amb_guardia: bool, rng=
                         "motiu": motiu,
                     }
                 )
-        ocupats = {(v.vigilant or "").strip() for v in files_hora if _sense_placeholder((v.vigilant or "").strip())}
-        lliures = [v for v in files_hora if not _sense_placeholder((v.vigilant or "").strip())]
+        ocupats = {(v.vigilant or "").strip() for v in files_hora if (v.vigilant or "").strip()}
+        lliures = [v for v in files_hora if not (v.vigilant or "").strip()]
         if not lliures:
             continue
-        grups_hora = core.grups_sense_classe.get(hora, []) if isinstance(core.grups_sense_classe, dict) else []
+        grups_hora = core.grups_sense_classe.get(hora, [])
 
         candidats, sense_activitat = [], set()
         for professor in sorted(horari.professors):
@@ -760,7 +756,7 @@ def _desa(db: Session, data: str, posar: dict) -> None:
 
 
 def _pendents(db: Session, data: str) -> int:
-    return sum(1 for v in llista(db, data) if not _sense_placeholder((v.vigilant or "").strip()))
+    return sum(1 for v in llista(db, data) if not (v.vigilant or "").strip())
 
 
 def assigna_titulars(db: Session, dia: Dia, data: str, rng=None) -> dict:

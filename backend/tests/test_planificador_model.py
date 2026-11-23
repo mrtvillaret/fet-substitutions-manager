@@ -5,9 +5,9 @@ from copy import deepcopy
 from dataclasses import FrozenInstanceError
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import problema_inventat
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import problema_inventat
+from suport_motor import xml_inventat as xml_inventat
 
 from planificador.motor import compatibilitat as p
 from planificador.motor.construccio import (
@@ -48,7 +48,7 @@ def test_problema_es_una_instantania_profunda(config_inventada, xml_inventat):
     assert len(problema.franges) == 2
 
 
-def test_editable_conserva_ocurrencies_extres_i_absencies():
+def test_editable_conserva_les_sessions_repetides_extres_i_absencies():
     sessio = {"nom": "A", "curs": "N1", "examens": [], "extra": {"null": None}}
     original = {
         "dies": [
@@ -58,15 +58,14 @@ def test_editable_conserva_ocurrencies_extres_i_absencies():
     }
     editable = HorariEditable(original)
     assert editable.a_diccionari() == original
-    assert editable.ocurrencies[0].sessio is not editable.ocurrencies[1].sessio
-    assert [o.posicio for o in editable.ocurrencies] == [(0, 0, 0), (0, 0, 1)]
-    assert "id" not in editable.ocurrencies[0].sessio
-    editable.ocurrencies[0].sessio["analisi"] = {}
+    sessions = editable.document["dies"][0]["sessions"][0]["sessions_simultanees"]
+    assert len(sessions) == 2 and sessions[0] is not sessions[1]
+    assert "id" not in sessions[0]
+    sessions[0]["analisi"] = {}
     assert "analisi" not in original["dies"][0]["sessions"][0]["sessions_simultanees"][0]
     # Ni els identificadors públics iguals ni el contingut igual dedupliquen el límit.
-    for o in editable.ocurrencies:
-        o.sessio.update(nom_base="A", id="repetit", item_id="repetit", examens=[{"titular": "Prof 01"}])
-    sessions = [o.sessio for o in editable.ocurrencies]
+    for sessio in sessions:
+        sessio.update(nom_base="A", id="repetit", item_id="repetit", examens=[{"titular": "Prof 01"}])
     limit = {"assignatures": ["A"], "dies_restringits": ["Dilluns"], "max_examens": 1}
     assert recompte_limit_professor("Prof 01", limit, {"Dilluns": sessions}, sessions).excedent == 1
 
@@ -256,15 +255,6 @@ def test_particio_antiga_separa_nivells_amb_noms_base_iguals(config_inventada, x
     assert len(items) == 2
     assert [item.id for item in items] == ["comu", "comu"]  # el recuit els trepitjarà: es conserva
     assert items[0].examens[0].dades["item_id"] != items[1].examens[0].dades["item_id"]
-
-
-def test_resolucio_no_esborra_la_diferencia_entre_comparadors(config_inventada, xml_inventat):
-    config_inventada.restriccions = {"restriccions_dures": {"mateix_slot": [{"assignatures": [" a ", "absent"]}]}}
-    problema = problema_inventat(config_inventada, xml_inventat)
-    regla = problema.regles.agrupacions[0]
-    assert regla.resolucio_exacta == ((" a ", ()), ("absent", ()))
-    assert regla.resolucio_normalitzada == ((" a ", ("A_N1",)), ("absent", ()))
-    assert regla.valor["assignatures"] == (" a ", "absent")
 
 
 def test_guardia_no_permet_dependencia_web_dins_una_peca_neutra():

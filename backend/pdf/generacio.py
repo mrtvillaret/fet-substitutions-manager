@@ -2,10 +2,10 @@
 interval) i les validacions d'abans de generar-los, sense HTTP.
 
 Cada funció de generació escriu el PDF en un directori temporal nou (per
-petició: el PDF no es desa al servidor) i retorna un PdfGenerat."""
+petició: el PDF no es desa al servidor) i retorna un PdfGenerat; si falla
+abans d'acabar, el directori s'esborra (pdf.domain.directori_temporal)."""
 
 import logging
-import tempfile
 from dataclasses import asdict, replace
 from datetime import datetime, timedelta
 
@@ -16,7 +16,15 @@ from grups.disponibilitat import sense_classe
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import translate
-from pdf.domain import FormatPdfNoValid, IntervalNoValid, MidaPdfNoValida, OpcionsPdf, PdfGenerat, SenseVigilancies
+from pdf.domain import (
+    FormatPdfNoValid,
+    IntervalNoValid,
+    MidaPdfNoValida,
+    OpcionsPdf,
+    PdfGenerat,
+    SenseVigilancies,
+    directori_temporal,
+)
 from pdf.engine import PDFCompletExporter
 from pdf.files import SubstitucioPdf, VigilanciaPdf
 from pdf.validacions import valida_dia
@@ -73,12 +81,11 @@ def validacions(db: Session, data: str, institucio: str, dia_peticio: Dia) -> di
 # ===== Peces comunes =====
 
 
-def _exportador(hores: list, opcions: OpcionsPdf, institucio: str) -> PDFCompletExporter:
-    """L'exportador, amb el seu directori temporal, i les opcions comunes:
+def _exportador(hores: list, opcions: OpcionsPdf, institucio: str, directori) -> PDFCompletExporter:
+    """L'exportador, que escriu a `directori`, i les opcions comunes:
     columnes de comentaris i d'hores, compressió, format (taula del dia o una
     secció per hora) i mida de la lletra. Sense mida: ×1,2 per hores (la
-    lletra d'abans d'aquest format) i ×1 per a la taula del dia. Les opcions
-    es validen abans de crear el directori, perquè un 400 no en deixi cap."""
+    lletra d'abans d'aquest format) i ×1 per a la taula del dia."""
     if opcions.format not in ("hores", "dia"):
         raise FormatPdfNoValid("Format de PDF desconegut", codi="format_pdf")
     mida_lletra = opcions.mida_lletra
@@ -86,7 +93,7 @@ def _exportador(hores: list, opcions: OpcionsPdf, institucio: str) -> PDFComplet
         mida_lletra = 1.0 if opcions.format == "dia" else 1.2
     if mida_lletra not in MIDES_LLETRA:
         raise MidaPdfNoValida("Mida de lletra desconeguda", codi="mida_lletra")
-    exporter = PDFCompletExporter(hores=hores, export_dir=tempfile.mkdtemp(), institucio=institucio)
+    exporter = PDFCompletExporter(hores=hores, export_dir=directori, institucio=institucio)
     exporter.show_comments_column = opcions.mostra_comentaris
     exporter.show_hours_column = opcions.mostra_hores
     if opcions.compressio:
@@ -224,34 +231,35 @@ def genera_pdf_complet(
         # El mateix ordre que la llista de substitucions de la pantalla
         substitucions_data = SubstitucioRepository.ordena(substitucions_data, horari_mgr.hores, ordre=ordre)
 
-    exporter = _exportador(horari_mgr.hores, opcions, institucio)
-    exporter.espai_a_ma = files_en_blanc and amb_substitucions
-    if exporter.espai_a_ma or exporter.format_dia:
-        exporter.hores_amb_classe = hores_amb_possible_substitucio(
-            horari_mgr, horari_mgr.get_dia_name(date_obj.weekday()), NoSubstituirRepository.vigents_a(db, data)
+    with directori_temporal() as directori:
+        exporter = _exportador(horari_mgr.hores, opcions, institucio, directori)
+        exporter.espai_a_ma = files_en_blanc and amb_substitucions
+        if exporter.espai_a_ma or exporter.format_dia:
+            exporter.hores_amb_classe = hores_amb_possible_substitucio(
+                horari_mgr, horari_mgr.get_dia_name(date_obj.weekday()), NoSubstituirRepository.vigents_a(db, data)
+            )
+
+        validacio = validacions(db, data, institucio, dia)
+        conflictes = []
+        if mostra_conflictes:
+            # L'avís del límit d'encadenades és de gestió: pantalla i revisió prèvia.
+            # No afegeix contingut a la taula impresa ni als seus avisos.
+            avisos_gestio = set(validacio["avisos_encadenades"]) | {
+                p["missatge"] for p in validacio["problemes_vigilancies"] if p["gravetat"] == "informacio"
+            }
+            conflictes = (validacio.get("conflicts") or []) + [
+                avis for avis in (validacio.get("warnings") or []) if avis not in avisos_gestio
+            ]
+
+        nom = exporter.exportar(
+            substitucions=substitucions_data,
+            vigilancies=vigilancies_list,
+            data_text=data_text,
+            data_iso=data,
+            tipus_pdf=tipus_pdf,
+            conflictes=conflictes,
         )
-
-    validacio = validacions(db, data, institucio, dia)
-    conflictes = []
-    if mostra_conflictes:
-        # L'avís del límit d'encadenades és de gestió: pantalla i revisió prèvia.
-        # No afegeix contingut a la taula impresa ni als seus avisos.
-        avisos_gestio = set(validacio["avisos_encadenades"]) | {
-            p["missatge"] for p in validacio["problemes_vigilancies"] if p["gravetat"] == "informacio"
-        }
-        conflictes = (validacio.get("conflicts") or []) + [
-            avis for avis in (validacio.get("warnings") or []) if avis not in avisos_gestio
-        ]
-
-    nom = exporter.exportar(
-        substitucions=substitucions_data,
-        vigilancies=vigilancies_list,
-        data_text=data_text,
-        data_iso=data,
-        tipus_pdf=tipus_pdf,
-        conflictes=conflictes,
-    )
-    return PdfGenerat(exporter.export_dir, nom)
+        return PdfGenerat(exporter.export_dir, nom)
 
 
 # ===== PDF de vigilàncies d'un dia =====
@@ -277,21 +285,22 @@ def genera_pdf_vigilancies(
     vigilancies_list = vigilancies_dels_nivells(per_nivell, _nivells(nivells), inclou_sense_nivell=inclou_sense_nivell)
 
     horari_mgr = dia.horari
-    exporter = _exportador(horari_mgr.hores, opcions, dia.institucio)
-    subs_pdf = _substitucions_de_vigilancia(db, data) if amb_substitucions else []
-    nom = exporter.exportar(
-        substitucions=subs_pdf,
-        vigilancies=vigilancies_list,
-        data_text=data_text,
-        data_iso=data,
-        tipus_pdf="vigilancies",
-        conflictes=[
-            p["missatge"]
-            for p in selecciona_problemes(analitza_vigilancies(DiaEscolar(db, dia)), vigilancies_list)
-            if p["gravetat"] != "informacio"
-        ],
-    )
-    return PdfGenerat(exporter.export_dir, nom)
+    with directori_temporal() as directori:
+        exporter = _exportador(horari_mgr.hores, opcions, dia.institucio, directori)
+        subs_pdf = _substitucions_de_vigilancia(db, data) if amb_substitucions else []
+        nom = exporter.exportar(
+            substitucions=subs_pdf,
+            vigilancies=vigilancies_list,
+            data_text=data_text,
+            data_iso=data,
+            tipus_pdf="vigilancies",
+            conflictes=[
+                p["missatge"]
+                for p in selecciona_problemes(analitza_vigilancies(DiaEscolar(db, dia)), vigilancies_list)
+                if p["gravetat"] != "informacio"
+            ],
+        )
+        return PdfGenerat(exporter.export_dir, nom)
 
 
 # ===== PDF de vigilàncies d'un interval =====
@@ -403,18 +412,19 @@ def genera_pdf_interval(
     if not vigilancies:
         raise SenseVigilancies("No hi ha vigilàncies a l'interval seleccionat", codi="sense_vigilancies_interval")
 
-    exporter = _exportador(horari_mgr.hores, opcions, institucio)
-    exporter.hores_per_data = {data: horari.hores for data, horari in horaris_per_data.items()}
-    exporter.dia_per_pagina = dia_per_pagina
-    nom = exporter.exportar(
-        substitucions=substitucions,
-        vigilancies=vigilancies,
-        data_text=titol_de_l_interval(data_inici, data_final, nivells_list),
-        data_iso=data_inici,
-        tipus_pdf="vigilancies_interval",
-        conflictes=_avisos_interval(db, institucio, dates, vigilancies),
-    )
-    return PdfGenerat(exporter.export_dir, nom)
+    with directori_temporal() as directori:
+        exporter = _exportador(horari_mgr.hores, opcions, institucio, directori)
+        exporter.hores_per_data = {data: horari.hores for data, horari in horaris_per_data.items()}
+        exporter.dia_per_pagina = dia_per_pagina
+        nom = exporter.exportar(
+            substitucions=substitucions,
+            vigilancies=vigilancies,
+            data_text=titol_de_l_interval(data_inici, data_final, nivells_list),
+            data_iso=data_inici,
+            tipus_pdf="vigilancies_interval",
+            conflictes=_avisos_interval(db, institucio, dates, vigilancies),
+        )
+        return PdfGenerat(exporter.export_dir, nom)
 
 
 def _avisos_interval(db, institucio, dates, vigilancies):

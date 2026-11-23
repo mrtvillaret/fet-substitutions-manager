@@ -21,9 +21,9 @@ from suport_rellotge import ARA
 import auth.services as serveis_auth
 from auth.dependencies import require_admin, require_super_admin, require_user
 from auth.repositories import UserRepository
-from auth.security import create_access_token, decode_access_token, hash_password, verify_password
+from auth.security import ALGORISME, create_access_token, decode_access_token, hash_password, verify_password
+from config import settings
 from config.auth import get_config_auth
-from config.settings import config
 from database import AuthSessionLocal
 from rate_limit import limiter
 from usuaris.router import router as usuaris_router
@@ -103,7 +103,7 @@ def _entra(client, escenari, qui):
 
 
 def _posa_token(client, payload, clau=get_config_auth().secret_key):
-    client.cookies.set(get_config_auth().cookie_name, jwt.encode(payload, clau, algorithm=get_config_auth().algorithm))
+    client.cookies.set(get_config_auth().cookie_name, jwt.encode(payload, clau, algorithm=ALGORISME))
 
 
 # ---------------------------------------------------------------- contrasenyes
@@ -253,9 +253,10 @@ def test_cada_401_diu_el_text_i_el_codi_i_sense_capcaleres_d_autenticacio(client
     )
     client.cookies.set(get_config_auth().cookie_name, "no-es-un-token")
     respostes["Token invàlid", "token_invalid"] = client.get("/prova/user")
-    _posa_token(client, {"sub": escenari["noms"]["user_a"], "exp": ARA - timedelta(minutes=1)})
+    sessio = {"uid": escenari["ids"]["user_a"], "sv": 0, "ini": ARA.timestamp()}
+    _posa_token(client, {"sub": escenari["noms"]["user_a"], **sessio, "exp": ARA - timedelta(minutes=1)})
     respostes["Sessió caducada", "sessio_caducada"] = client.get("/prova/user")
-    _posa_token(client, {"sub": "no_existeix", "uid": -1, "exp": ARA + timedelta(minutes=5)})
+    _posa_token(client, {"sub": "no_existeix", **sessio, "uid": -1, "exp": ARA + timedelta(minutes=5)})
     respostes["Usuari inactiu o inexistent", "usuari_inactiu"] = client.get("/prova/user")
     for (detail, codi), resp in respostes.items():
         assert (resp.status_code, resp.json()) == (401, {"detail": detail, "codi": codi, "params": {}})
@@ -306,11 +307,11 @@ def test_token_sense_caducitat_dona_401(client, escenari):
     assert resp.json() == {"detail": "Token invàlid", "codi": "token_invalid", "params": {}}
 
 
-@pytest.mark.parametrize("camp", ["exp", "sub"])
-def test_decode_exigeix_caducitat_i_usuari(camp):
-    payload = {"sub": "algu", "exp": ARA + timedelta(minutes=5)}
+@pytest.mark.parametrize("camp", ["exp", "sub", "uid", "sv", "ini"])
+def test_decode_exigeix_els_camps_de_la_sessio(camp):
+    payload = {"sub": "algu", "uid": 1, "sv": 0, "ini": ARA.timestamp(), "exp": ARA + timedelta(minutes=5)}
     del payload[camp]
-    token = jwt.encode(payload, get_config_auth().secret_key, algorithm=get_config_auth().algorithm)
+    token = jwt.encode(payload, get_config_auth().secret_key, algorithm=ALGORISME)
     with pytest.raises(jwt.MissingRequiredClaimError):
         decode_access_token(token)
 
@@ -331,6 +332,9 @@ def test_el_rol_surt_de_la_bd_i_no_del_token(client, escenari):
         create_access_token(
             {
                 "sub": escenari["noms"]["user_a"],
+                "uid": escenari["ids"]["user_a"],
+                "sv": 0,
+                "ini": ARA.timestamp(),
                 "institucio": escenari["a"],
                 "role": "super_admin",
             }
@@ -390,11 +394,11 @@ def test_un_admin_que_es_reanomena_conserva_la_sessio(client, escenari):
 
 def test_institucio_inactiva_bloqueja_els_seus_usuaris(client, escenari):
     _entra(client, escenari, "user_a")
-    config.set_institucio_activa(escenari["a"], False)
+    settings.set_institucio_activa(escenari["a"], False)
     try:
         assert client.get("/prova/user").status_code == 403
     finally:
-        config.set_institucio_activa(escenari["a"], True)
+        settings.set_institucio_activa(escenari["a"], True)
     assert client.get("/prova/user").status_code == 200
 
 
@@ -739,10 +743,10 @@ def test_el_superadmin_conserva_la_institucio_activa_en_tancar_les_altres_sessio
     assert client.get("/prova/user").json()["institucio"] == escenari["b"]
 
 
-def test_els_testimonis_d_abans_d_aquest_canvi_continuen_valent(client, escenari):
-    # Testimoni sense "sv" (emès abans que existís la versió de sessió):
-    # val mentre l'usuari no hagi tancat cap sessió, així que desplegar el
-    # canvi no fa sortir ningú.
+def test_un_testimoni_sense_uid_ni_sv_ja_no_val(client, escenari):
+    # Els d'abans es buscaven pel nom: si l'usuari es reanomenava, la sessió
+    # passava a qui prengués el nom. Ja no en queda cap de vàlid (duren com a
+    # molt SESSIO_MAXIMA_HORES).
     client.cookies.set(
         get_config_auth().cookie_name,
         create_access_token(
@@ -753,7 +757,8 @@ def test_els_testimonis_d_abans_d_aquest_canvi_continuen_valent(client, escenari
             }
         ),
     )
-    assert client.get("/prova/user").status_code == 200
+    resp = client.get("/prova/user")
+    assert (resp.status_code, resp.json()["codi"]) == (401, "token_invalid")
 
 
 def test_una_auth_db_antiga_rep_la_columna_nova_sense_perdre_usuaris(tmp_path):

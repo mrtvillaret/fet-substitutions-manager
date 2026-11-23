@@ -3,7 +3,7 @@
     <div class="card">
       <h3>📅 {{ t('scheduler.steps.config.title') }}</h3>
 
-      <div class="field">
+      <div>
         <label for="nivells-select">{{ t('scheduler.steps.config.levelsLabel') }}</label>
         <MultiSelect :aria-label="t('scheduler.steps.config.levelsLabel')"
           inputId="nivells-select"

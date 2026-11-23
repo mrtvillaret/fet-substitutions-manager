@@ -51,11 +51,6 @@ class PlanificadorAPurgar(BaseModel):
     ultim_horari: UltimHorari | None
 
 
-class PdfAPurgar(BaseModel):
-    fitxer: str
-    data: str
-
-
 class VersioXmlAPurgar(BaseModel):
     id: int
     path: str
@@ -72,8 +67,6 @@ class AnalisiPurgaResponse(BaseModel):
     total_bd: int
     baixes: list[AbsenciaCobertaAPurgar]
     planificador: PlanificadorAPurgar
-    pdfs_a_esborrar: list[PdfAPurgar]
-    pdfs_revisio_manual: list[str]
     xml_versions: list[VersioXmlAPurgar]
 
 
@@ -93,8 +86,6 @@ class PurgaResponse(BaseModel):
     planificador: PlanificadorPurgat
     bd: FilesBd
     total_bd: int
-    pdfs_esborrats: list[str]
-    pdfs_revisio_manual: list[str]
     xml_esborrats: list[VersioXmlEsborrada]
     xml_bloquejats: list[VersioXmlAPurgar]
     errors: list[str]

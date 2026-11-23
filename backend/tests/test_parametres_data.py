@@ -68,7 +68,7 @@ def client():
         "/api/vigilancies/20-04-2026",
         "/api/vigilancies/2026-02-31",
         "/api/substitucions/2026-13-01",
-        "/api/estadistiques/resum?data_inici=ahir",
+        "/api/estadistiques/batch?data_inici=ahir",
         "/api/pdf/vigilancies/interval?data_inici=2026-04-20&data_final=dema",
     ],
 )
@@ -80,12 +80,8 @@ def test_una_data_mal_escrita_o_impossible_dona_400(client, url):
 @pytest.mark.parametrize(
     "ruta, params",
     [
-        ("/api/estadistiques/resum", {}),
-        ("/api/estadistiques/professors", {}),
-        ("/api/estadistiques/temporal", {}),
-        ("/api/estadistiques/classes", {}),
+        ("/api/estadistiques/batch", {}),
         ("/api/estadistiques/classes/detall", {"grups": "1-ESO-A"}),
-        ("/api/estadistiques/taula", {}),
         ("/api/estadistiques/professor/Prof 1", {}),
         ("/api/estadistiques/franges", {"dia": "Dilluns", "hora": "08:00"}),
     ],

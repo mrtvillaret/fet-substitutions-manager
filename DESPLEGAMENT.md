@@ -10,7 +10,7 @@ registres.
 
 - `0001_base` congela l’esquema canònic inicial per a auth i dades.
   Les BD noves creen aquesta base i arriben a la darrera revisió
-  (`0004_vigencia_no_substituir`). Cap revisió no importa els models vius.
+  (`0005_fora_taules_legacy`). Cap revisió no importa els models vius.
 - `--comprova` valida en només lectura, abans de qualsevol còpia o escriptura,
   **tota** la llista. Una forma històrica coneguda només s’accepta com a punt
   de partida d’una actualització explícita. Una BD `vigent` ha de coincidir
@@ -60,6 +60,11 @@ registres.
   per rowid sense canviar cap valor, i les dates queden nul·les (les entrades
   existents valen des de sempre: cap xifra no canvia). Si la taula ja té la forma
   nova, no fa res. Les taules d’auth no canvien; només se n’avança la revisió.
+- `0005_fora_taules_legacy` esborra `exam_preferencies` i
+  `exam_pesos_optimitzacio` (cap codi no les llegia) i deixa buits els vigilants
+  que comencen per «--» i els substituts «---» o «PENDENT» (textos de la
+  pantalla antiga). Només parteix de l’esquema exacte de la 0004; si ja té la
+  forma nova, no fa res. A auth, com la 0004, només n’avança la revisió.
 - Les BD existents **sense versió, a 0001, a 0002 o a 0003** necessiten l’script
   explícit amb backend i reset aturats abans d’arrencar. La transacció és
   per BD, no per tota la llista: si falla després d’haver migrat alguna BD,
@@ -67,10 +72,11 @@ registres.
 - `--comprova` no crea fitxers inexistents. `--aplica` exigeix `--backup-dir`.
   La sortida i els noms de les còpies només identifiquen les BD per número i
   tipus. Repetir l’aplicació sobre BD vigents no toca ni un byte ni fa més còpies.
-- Configuració mutable: `APP_CONFIG_PATH`, o per defecte `DATA_DIR/config.json`.
-  Si encara no existeix, es llegeix `backend/config/config.json` com a transició;
-  els desats sempre van al camí nou. `APP_INSTITUCIO` conserva la precedència.
-  Els recursos estàtics versionats com `config/pdf.json` són de només lectura.
+- Configuració: la de cada centre (també l’idioma) és a la seva BD; el centre
+  per defecte del servidor, a `APP_INSTITUCIO`. Els `config.json` d’abans
+  (`DATA_DIR/config.json` i `backend/config/config.json`) ja no es llegeixen i
+  es poden esborrar. Els recursos estàtics versionats com `config/pdf.json`
+  són de només lectura.
 - El backend s’executa com `10001:10001`. El codi continua sent propietat de
   root i de només lectura per a l’aplicació; només els volums de dades i la
   carpeta de còpies que s’hi munti necessiten escriptura.
@@ -117,8 +123,8 @@ comparteixen auth.db. Si la comparteixen, indicar-la només una vegada.
    `sudo systemctl stop NOM.timer NOM.service`; si és cron, desactivar només la
    línia del reset i guardar abans una còpia privada del crontab. Esperar que no
    quedi cap reset en curs. Anotar com reactivar exactament el mecanisme trobat.
-3. Recuperar abans de reconstruir la imatge la configuració antiga de cada
-   contenidor que en tingui (no n’imprimeix el contingut):
+3. Registrar l’estat d’abans i fer la còpia completa (no n’imprimeix el
+   contingut):
 
 ```bash
 umask 077
@@ -130,12 +136,6 @@ test -s "$BACKUP_DIR/imatge-prod.txt"
 test -s "$BACKUP_DIR/imatge-demo.txt"
 docker image tag "$(cat "$BACKUP_DIR/imatge-prod.txt")" "gestor-backend-prod-rollback:$RUN_ID"
 docker image tag "$(cat "$BACKUP_DIR/imatge-demo.txt")" "gestor-backend-demo-rollback:$RUN_ID"
-if docker compose -p "$PROD_PROJECT" -f "$PROD_COMPOSE" exec -T "$PROD_SERVICE" test -f /app/config/config.json; then
-  docker compose -p "$PROD_PROJECT" -f "$PROD_COMPOSE" cp "$PROD_SERVICE":/app/config/config.json "$BACKUP_DIR/config-prod.json"
-fi
-if docker compose -p "$DEMO_PROJECT" -f "$DEMO_COMPOSE" exec -T "$DEMO_SERVICE" test -f /app/config/config.json; then
-  docker compose -p "$DEMO_PROJECT" -f "$DEMO_COMPOSE" cp "$DEMO_SERVICE":/app/config/config.json "$BACKUP_DIR/config-demo.json"
-fi
 docker compose -p "$PROD_PROJECT" -f "$PROD_COMPOSE" stop "$PROD_SERVICE"
 docker compose -p "$DEMO_PROJECT" -f "$DEMO_COMPOSE" stop "$DEMO_SERVICE"
 sudo tar --acls --xattrs --numeric-owner -C "$APP_ROOT" --exclude='./logs' --exclude='*.log' \
@@ -169,13 +169,6 @@ Actualitzeu el codi (`git fetch`, reviseu els canvis i `git pull`). Després, am
 els backends encara aturats:
 
 ```bash
-# Instal·lar les còpies antigues només si no hi ha ja configuració al volum.
-if [ -f "$BACKUP_DIR/config-prod.json" ] && [ ! -e "$PROD_DATA/config.json" ]; then
-  sudo install -m 600 -o 10001 -g 10001 "$BACKUP_DIR/config-prod.json" "$PROD_DATA/config.json"
-fi
-if [ -f "$BACKUP_DIR/config-demo.json" ] && [ ! -e "$DEMO_DATA/config.json" ]; then
-  sudo install -m 600 -o 10001 -g 10001 "$BACKUP_DIR/config-demo.json" "$DEMO_DATA/config.json"
-fi
 # Els directoris, no només els .db, necessiten escriptura per a WAL i journals.
 sudo chown -R 10001:10001 "$PROD_DATA" "$DEMO_DATA"
 sudo chmod -R u+rwX "$PROD_DATA" "$DEMO_DATA"
@@ -186,7 +179,7 @@ docker compose -p "$DEMO_PROJECT" -f "$DEMO_COMPOSE" build "$DEMO_SERVICE"
 ```
 
 No fer `chmod 777` ni `chown` de la carpeta de codi. Si hi ha volums o fitxers
-externs, incloent-hi un APP_CONFIG_PATH explícit, donar els mateixos permisos a
+externs, donar els mateixos permisos a
 les seves carpetes de dades. Ajustar la tasca de reset perquè les còpies que
 creï també siguin de `10001:10001`, llegibles i escrivibles per aquest usuari.
 Si el reset usa `cp -a`, la propietat de la instantània anterior ho garanteix;
@@ -244,9 +237,9 @@ script no carrega `.env` ni busca centres pel seu compte. A la tercera ordre,
 totes les BD han de dir `vigent`; repetir `--aplica` no ha de fer cap canvi ni
 crear més còpies. Qualsevol error ha de donar sortida diferent de zero.
 
-## Aplicar la 0004 en una instal·lació que ja era a la 0003
+## Aplicar una revisió nova (0004, 0005…) en una instal·lació ja migrada
 
-Quan el desplegament porta la 0004 i les BD ja eren `vigent` a la 0003, el
+Quan el desplegament porta una revisió nova i les BD ja eren `vigent` a l’anterior, el
 backend nou **no arrenca** fins que s’han migrat («Migracions pendents»). Seguir
 els mateixos passos d’aquesta guia, en aquest ordre:
 
@@ -259,19 +252,53 @@ els mateixos passos d’aquesta guia, en aquest ordre:
    centres, `data-demo/demo/gestor.db` i la instantània
    `demo_reset/demo/gestor.db`, que el reinici nocturn copia sense reiniciar el
    backend: si no es migra, l’endemà la demo no arrencaria. Incloure-hi també
-   **les dues `auth.db`** (la principal i la de la demo): la 0004 no hi canvia
+   **les dues `auth.db`** (la principal i la de la demo): la 0004 i la 0005 no hi canvien
    cap taula, però n'avança la revisió, i sense migrar-les el backend tampoc no
    arrenca. La primera comprovació ha de dir `pendent` per a totes; la darrera,
    `vigent` per a totes.
-5. Arrencar i comprovar (apartat següent). A Prioritats, «No substituir» ha de
-   mostrar les mateixes activitats que abans, sense cap data al costat.
+5. Arrencar i comprovar (apartat següent). Amb la 0004, a Prioritats, «No
+   substituir» ha de mostrar les mateixes activitats que abans, sense cap data
+   al costat. Amb la 0005, el planificador ha de mostrar les mateixes
+   restriccions i pesos que abans.
 6. **Abans de reactivar el reset nocturn**, fer un reinici manual de la demo (o
    el `--comprova` d’una còpia temporal de la instantània, com diu «Arrencar i
    comprovar») i comprovar que arrenca: el reset copia la instantània sencera i,
    si no s’hagués migrat, la demo no cauria ara sinó l’endemà a les 4:00.
 
+### La 0005 (taules LEGACY i textos antics), pas a pas
+
+Amb els escriptors aturats (pas 1) i la còpia feta (pas 2), sobre **la mateixa
+llista de BD** del pas 4 (totes les `gestor.db`, la de la demo, la instantània
+`demo_reset/demo/gestor.db` i les dues `auth.db`):
+
+1. **Recompte** en només lectura de cada `gestor.db` (només números), per saber
+   què canviarà: els vigilants que comencen per «--»
+   (`SELECT count(*) FROM vigilancies WHERE vigilant LIKE '--%'`), els substituts
+   «---» o «PENDENT» (`SELECT count(*) FROM substitucions WHERE substitut IN
+   ('---', 'PENDENT')`) i les files de `exam_preferencies` i
+   `exam_pesos_optimitzacio`.
+2. **`--comprova` abans**: ha de dir `pendent` per a totes.
+3. **`--aplica --backup-dir`**.
+4. **`--comprova` final**: ha de dir `vigent` per a **totes** les BD. El 200 de
+   `/api/health` no n'hi ha prou: no obre cap BD; a l'arrencada només s'obren
+   l'`auth.db` i el centre per defecte, i un centre que quedés a la 0004 no
+   fallaria fins a la seva primera petició.
+
 Desfer: com a «Desfer el desplegament», restaurant les còpies de `--backup-dir`
-(la 0004 no té downgrade).
+(cap revisió no té downgrade).
+
+## Carpetes `exports/` antigues dels centres (un sol cop)
+
+Els PDF ja no es desen al servidor: es generen en un directori temporal i
+s'esborren en enviar-los. La purga de dades ja no busca PDF a la carpeta
+`exports/` de cada centre (ni la crea). Si en una instal·lació hi queden PDF
+d'abans, la purga ja no els esborraria: cal fer-ho a mà un cop.
+
+1. Comptar-los en només lectura, sense noms de fitxer ni de centre:
+   `find <DATA_DIR> <DATA_DIR de la demo> -path '*/exports/*' -type f | wc -l`.
+2. Si n'hi ha, fer-ne còpia amb la de l'aplicació (pas 2 del desplegament) i
+   esborrar les carpetes: `find <DATA_DIR> <DATA_DIR de la demo> -maxdepth 2
+   -type d -name exports -exec rm -r {} +`.
 
 ## Arrencar i comprovar
 
@@ -298,7 +325,7 @@ validació. Conserveu la còpia completa fins que hàgiu validat l'actualitzaci�
    separada abans i decidir com conservar-la: restaurar perd els
    canvis posteriors a la còpia.
 2. Mostrar abans el llistat de fitxers que se sobreescriuran o retiraran. Inclou
-   els `config.json` nous i qualsevol `.db-wal`/`.db-shm` creat després de la
+   qualsevol `.db-wal`/`.db-shm` creat després de la
    còpia. No restaurar un .db sobre un WAL d’una altra versió.
 3. Apartar la instal·lació fallida en una carpeta privada i restaurar l’arxiu
    complet a APP_ROOT, amb el mateix propietari/permisos que tenia abans. Amb

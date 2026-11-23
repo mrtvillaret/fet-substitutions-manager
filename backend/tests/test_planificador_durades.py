@@ -3,9 +3,9 @@ començar a una hora si hi cap sencer abans que s'acabi la jornada."""
 
 from dataclasses import replace
 
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import problema_inventat
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import problema_inventat
+from suport_motor import xml_inventat as xml_inventat
 
 from planificador.motor.compatibilitat import BACKTRACKING, GREEDY, RECUIT
 from planificador.motor.construccio import particio

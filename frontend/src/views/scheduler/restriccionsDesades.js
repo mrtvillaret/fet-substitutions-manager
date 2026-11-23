@@ -4,8 +4,7 @@
 const CLAUS_FIXES = ['assignatures_dia_fix', 'assignatures_hora_fix']
 
 export function ambElQueNoConeix(carregades, noves) {
-  // Els costos dels professors la pantalla els desa a part (amb els valors nous)
-  const { costos_professors: _costos, ...abans } = carregades || {}
+  const abans = carregades || {}
   const duresAbans = abans.restriccions_dures || {}
   const dures = { ...duresAbans, ...noves.restriccions_dures }
   for (const clau of CLAUS_FIXES) {

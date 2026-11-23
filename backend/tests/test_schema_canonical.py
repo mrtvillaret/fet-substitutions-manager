@@ -16,6 +16,7 @@ from schema_migrations.schema import (
     BASE_REVISION,
     CANONICAL_REVISION,
     CLEAN_REVISION,
+    LEGACY_TABLES,
     base_signature,
     create_base,
     current_signature,
@@ -76,8 +77,10 @@ def test_matching_tables_are_never_rebuilt(tmp_path, kind):
         run([(kind, path)], apply=True, backup_dir=tmp_path / "copies")
     finally:
         event.remove(Engine, "before_cursor_execute", record)
-    # La 0004 només refà no_substituir (tests a test_migracio_0004.py).
-    altres = [s for s in statements if "NO_SUBSTITUIR" not in s]
+    # La 0004 només refà no_substituir i la 0005 esborra les taules LEGACY
+    # (tests a test_migracio_0004.py i test_migracio_0005.py).
+    propies = ("NO_SUBSTITUIR", *(t.upper() for t in LEGACY_TABLES))
+    altres = [s for s in statements if not any(t in s for t in propies)]
     assert not any(s.startswith(("DROP TABLE", "ALTER TABLE", "INSERT INTO _MIGRA3")) for s in altres)
     assert_preserved(before, preserved_rows(path))
     engine.dispose()

@@ -1,5 +1,9 @@
 """Tipus i errors propis del domini dels PDF."""
 
+import shutil
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -8,7 +12,6 @@ from errors_domini import NoTrobat, NoValid
 from recomptes.domain import IntervalNoValid  # noqa: F401  (també és dels PDF)
 
 FormatPdf = Literal["hores", "dia"]
-MidesLletra = Literal[1.0, 1.2, 1.35]
 
 
 @dataclass(frozen=True)
@@ -18,6 +21,23 @@ class OpcionsPdf:
     compressio: bool = False
     mostra_comentaris: bool = True
     mostra_hores: bool = False
+
+
+@contextmanager
+def directori_temporal() -> Iterator[Path]:
+    """Un directori nou per generar-hi un PDF (no es desa al servidor). Si la
+    generació falla, s'esborra aquí mateix; si no, qui envia el PDF l'esborra
+    un cop enviat (esborra_directori)."""
+    directori = Path(tempfile.mkdtemp(prefix="gestor-pdf-"))
+    try:
+        yield directori
+    except BaseException:
+        esborra_directori(directori)
+        raise
+
+
+def esborra_directori(directori) -> None:
+    shutil.rmtree(directori, ignore_errors=True)
 
 
 @dataclass(frozen=True)

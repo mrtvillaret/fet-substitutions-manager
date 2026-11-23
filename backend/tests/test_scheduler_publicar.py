@@ -147,7 +147,7 @@ def _assigna_vigilant(client, grups, vigilant, comentaris=""):
 def _alliberaments(centre, nivell, hores, seleccionats=None):
     """Hores en què el nivell queda sense classe el dia de l'examen; els
     nivells seleccionats al planificador (per defecte, aquest)."""
-    config = {nivell: {"durada": 1, "dates": [DATA], "config": {DATA: {h: {"a": True, "i": True} for h in hores}}}}
+    config = {nivell: {"dates": [DATA], "config": {DATA: {h: {"a": True, "i": True} for h in hores}}}}
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(config), tipus="json")
         ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(seleccionats or [nivell]), tipus="json")
@@ -404,7 +404,7 @@ def test_una_absencia_coberta_desada_despres_de_publicar_treu_les_vigilancies_fu
     absència coberta, se li treu la vigilància (d'avui endavant)."""
     avui = AVUI
     futur = (avui + timedelta(days=7 - avui.weekday())).isoformat()  # dilluns vinent
-    config = {"1-BAT": {"durada": 1, "dates": [futur], "config": {futur: {"10:00": {"a": True, "i": True}}}}}
+    config = {"1-BAT": {"dates": [futur], "config": {futur: {"10:00": {"a": True, "i": True}}}}}
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(config), tipus="json")
         ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(["1-BAT"]), tipus="json")
@@ -539,10 +539,7 @@ def test_s_alliberen_les_hores_marcades_encara_que_no_hi_hagi_examen_a_aquella_h
 
 
 def test_s_allibera_un_nivell_seleccionat_amb_marques_encara_que_no_tingui_examen_aquell_dia(client, centre):
-    config = {
-        niv: {"durada": 1, "dates": [DATA], "config": {DATA: {"10:00": {"a": True, "i": True}}}}
-        for niv in ("1-BAT", "2-BAT")
-    }
+    config = {niv: {"dates": [DATA], "config": {DATA: {"10:00": {"a": True, "i": True}}}} for niv in ("1-BAT", "2-BAT")}
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(config), tipus="json")
         ConfiguracioRepository.set(db, SCHEDULER_NIVELLS_KEY, json.dumps(["1-BAT", "2-BAT"]), tipus="json")

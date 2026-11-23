@@ -50,7 +50,6 @@ def test_amb_horari_estricte_el_dia_lliure_queda_bloquejat():
         SESSIO,
         ubicacio,
         None,
-        ["1-ESO"],
         analisi=_analisi("Dimarts", True),
         politiques=DIAGNOSTIC,
         restriccions=restriccions,

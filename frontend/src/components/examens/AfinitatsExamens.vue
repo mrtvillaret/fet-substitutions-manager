@@ -51,7 +51,7 @@
                     icon="pi pi-trash"
                     class="p-button-rounded p-button-text p-button-danger p-button-sm"
                     @click="eliminarFilaAfinitat(index)"
-                    v-tooltip.top="$t('common.delete')"
+                    v-tooltip.top="$t('common.delete')" :aria-label="$t('common.delete')"
                   />
                 </template>
               </Column>

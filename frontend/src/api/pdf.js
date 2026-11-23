@@ -5,10 +5,6 @@ export const descarregaAmb = (client, url, ...args) =>
   client.get(url, ...args)
 export const descarrega = (url, ...args) => descarregaAmb(clientApi, url, ...args)
 
-export const professorsInformeAmb = (client, ...args) =>
-  client.get('/api/informes/professors-llista', ...args)
-export const professorsInforme = (...args) => professorsInformeAmb(clientApi, ...args)
-
 export const creaDisponiblesTotsDiesAmb = (client, ...args) =>
   client.post('/api/pdf/disponibles-tots-dies', ...args)
 export const creaDisponiblesTotsDies = (...args) => creaDisponiblesTotsDiesAmb(clientApi, ...args)

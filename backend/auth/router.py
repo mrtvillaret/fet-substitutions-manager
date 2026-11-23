@@ -61,7 +61,7 @@ def get_profile(current_user: UsuariActual = Depends(require_user), data_db: Ses
 @router.put(f"{PERFIL}/password", tags=ETIQUETA_PERFIL, response_model=SuccessResponse)
 @limiter.limit("5/minute")  # comprova la contrasenya actual: com el login
 def update_password(
-    request: Request,
+    request: Request,  # noqa: ARG001 (el fa servir @limiter.limit)
     payload: CanviContrasenyaRequest,
     response: Response,
     current_user: UsuariActual = Depends(require_user),

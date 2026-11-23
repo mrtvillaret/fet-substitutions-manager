@@ -172,9 +172,7 @@ class Recuit:
                     ):
                         passes = False
                         break
-                    if viola_restriccio_dia_hora_fixos(
-                        s_dict, s.dia, s.hora, restriccions, self.problema.nivells, s.data_iso or ""
-                    ):
+                    if viola_restriccio_dia_hora_fixos(s_dict, s.dia, s.hora, restriccions, s.data_iso or ""):
                         passes = False
                         break
                 if passes:

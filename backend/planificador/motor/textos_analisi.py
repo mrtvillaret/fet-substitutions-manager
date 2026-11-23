@@ -32,7 +32,7 @@ class TextosAnalisi:
         self.nivells_dels_grups = problema.nivells_dels_grups()
         self.disponibilitat = Disponibilitat(problema)
 
-    def get_durada_examen_per_sessio_key(self, nom, nivell):
+    def get_durada_examen_per_sessio_key(self, nom):
         return examen_del_problema(nom, self.problema)
 
     def _get_hores_ocupades(self, hora):
@@ -124,7 +124,7 @@ class TextosAnalisi:
             "professors_estrictes_violats": resultat_cost.get("professors_estrictes_violats", []),
         }
 
-    def _slot_bloquejat(self, dia: str, hora: str, sessions=None) -> bool:
+    def _slot_bloquejat(self, hora: str, sessions=None) -> bool:
         """True si a `hora` no hi cap sencer algun examen de `sessions` (la
         durada de cada examen); sense sessions, la vigilància general."""
         if sessions:
@@ -159,7 +159,7 @@ class TextosAnalisi:
                     _d = self.dia_a_data_iso.get(normalitzar_dia(dia))
                     _data_iso_calc = _d[0] if isinstance(_d, list) else _d
                 for hora in self.hores_examen:
-                    if self._slot_bloquejat(dia_horari, hora, item.get("sessions", [])):
+                    if self._slot_bloquejat(hora, item.get("sessions", [])):
                         continue
                     # Respectar franges vàlids per nivell (alliberaments per dia/hora)
                     if any(
@@ -187,7 +187,12 @@ class TextosAnalisi:
                     hores_slot = self._get_hores_ocupades(hora)
                     # Un examen que dura més que la durada general s'analitza sencer
                     durada_item = max(
-                        (self.get_durada_examen_per_sessio_key(s.get("nom"), curs) for s in item.get("sessions", [])),
+                        (
+                            self.get_durada_examen_per_sessio_key(
+                                s.get("nom"),
+                            )
+                            for s in item.get("sessions", [])
+                        ),
                         default=0,
                     )
                     if durada_item > len(hores_slot) and hora in self.totes_hores:
@@ -391,9 +396,8 @@ class TextosAnalisi:
             )
             files = []
             for dia in dies_utilitzar:
-                dia_horari_inf = dia_nom_per_horari(dia)
                 for hora in self.hores_examen:
-                    if self._slot_bloquejat(dia_horari_inf, hora):
+                    if self._slot_bloquejat(hora):
                         continue
                     info_cost = info["slots"].get(f"{dia}_{hora}")
                     if not info_cost:
@@ -430,7 +434,7 @@ class TextosAnalisi:
             dia_horari_prof = dia_nom_per_horari(dia)
             hores = []
             for hora in self.hores_examen:
-                if self._slot_bloquejat(dia_horari_prof, hora):
+                if self._slot_bloquejat(hora):
                     continue
                 for hora_real in self._get_hores_ocupades(hora):
                     disponibles = []

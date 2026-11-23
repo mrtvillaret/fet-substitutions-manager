@@ -11,10 +11,7 @@ function prepara() {
   ] }] }
   const props = { horariInicial, dataReferencia: '2026-04-20', selectedDates: ['2026-04-20'], pinnedNoms: new Set() }
   const dependents = { props, emit: (...args) => esdeveniments.push(args), t: x => x, toast: { add: x => avisos.push(x) } }
-  const p = carregaBlocVista('components/HorariEditable.vue', 'useHorariEditable', [['// slotKey', 'const props ='], ['const horariLocal =', '</script>']], [
-    'horariLocal', 'horariOriginal', 'costTotal', 'isValid', 'carregant', 'haCanvis', 'getItemsSlot', 'getCostSlot', 'onItemsChanged', 'itemsAparcats', 'grupsAparcats',
-    'recalcularCost', 'aplicarCanvis', 'desferCanvis', 'toggleFixarItem', 'fixarTot', 'desfixarTot', 'onMoveGrup', 'parseSlotKey'
-  ], {
+  const p = carregaBlocVista('useHorariEditable', {
     ...dependents, dependents, ref, computed, watch() {}, onMounted: x => muntatges.push(x), debounce: x => x,
     localizeBackendDayName: x => x,
     apiPlanificador: {

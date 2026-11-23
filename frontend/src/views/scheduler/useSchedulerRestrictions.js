@@ -19,8 +19,8 @@ export const useSchedulerRestrictions = ({
   pesos,
   restriccionsCarregades,
   savingRestr,
+  configReady,
   flushPendingConfigSave,
-  desarDates,
   serialitzarSlotsValidsPerNivell,
   buildId,
   extreuNivell,
@@ -338,12 +338,20 @@ export const useSchedulerRestrictions = ({
     }
   }
 
+  // Torna true si tot s'ha desat; si no, avisa i torna false (generar no ha
+  // de continuar amb les restriccions antigues de la BD)
   const desarTotAlBackend = async (opts = {}) => {
     const { silent = false } = opts
+    // Sense la configuració carregada, la pantalla no té les restriccions ni
+    // els costos desats: desar-los els esborraria. Tampoc es genera.
+    if (!configReady.value) {
+      toast.add({ severity: 'error', summary: t('scheduler.view.loadFailed'), life: 5000 })
+      return false
+    }
     savingRestr.value = true
     try {
+      // Configuració i dates (una sola vegada)
       await flushPendingConfigSave()
-      await desarDates()
       const dures = {
         no_mateix_dia: [],
         no_mateix_slot: {},
@@ -423,9 +431,11 @@ export const useSchedulerRestrictions = ({
       restriccionsCarregades.value = restriccions
       await apiPlanificador.desaCostosProfessors(costosProfessors.value)
       if (!silent) toast.add({ severity: 'success', summary: t('common.saved') })
+      return true
     } catch (error) {
       const detall = error.response?.status === 400 ? detallDError(error) : null
       avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: typeof detall === 'string' ? detall : undefined }))
+      return false
     } finally {
       savingRestr.value = false
     }

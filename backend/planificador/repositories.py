@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from configuracio.repositories import ConfiguracioRepository
 from models import ExamCostProfessor, ExamRestriccio
+from textos import nom_net
 
 # Claus de la configuració del planificador (taula configuracio)
 SCHEDULER_DATES_KEY = "scheduler_selected_dates"
@@ -82,13 +83,23 @@ class CostProfessorRepository:
     els globals (professor buit) i els individuals."""
 
     @staticmethod
-    def get_all(db: Session) -> list:
-        return db.query(ExamCostProfessor).all()
+    def costos(db: Session) -> dict:
+        """Els desats: {"globals": {"substitucio": 80, ...}, "individuals":
+        {"Prof A": {"substitucio": 100}}}."""
+        costos = {"globals": {}, "individuals": {}}
+        for cp in db.query(ExamCostProfessor).all():
+            if cp.professor is None:
+                costos["globals"][cp.tipus] = cp.pes
+            else:
+                costos["individuals"].setdefault(cp.professor, {})[cp.tipus] = cp.pes
+        return costos
 
     @staticmethod
-    def esborra_tots(db: Session) -> None:
+    def substitueix(db: Session, costos: dict) -> None:
+        """Substitueix tots els costos pels de `costos` (sense commit)."""
         db.query(ExamCostProfessor).delete()
-
-    @staticmethod
-    def afegeix(db: Session, professor, tipus: str, pes: int) -> None:
-        db.add(ExamCostProfessor(professor=professor, tipus=tipus, pes=pes))
+        for tipus, pes in costos.get("globals", {}).items():
+            db.add(ExamCostProfessor(professor=None, tipus=tipus, pes=int(pes)))
+        for professor, per_tipus in costos.get("individuals", {}).items():
+            for tipus, pes in per_tipus.items():
+                db.add(ExamCostProfessor(professor=nom_net(professor), tipus=tipus, pes=int(pes)))

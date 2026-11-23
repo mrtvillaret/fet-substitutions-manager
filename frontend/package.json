@@ -6,17 +6,16 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint .",
+    "lint": "eslint . && knip --no-progress",
     "test": "node --test 'tests/*.test.js'",
     "e2e": "playwright test --config e2e/playwright.config.js",
     "e2e:build": "E2E_SERVIDOR=build playwright test --config e2e/playwright.config.js"
   },
   "dependencies": {
     "axios": "^1.18.1",
-    "lodash-es": "^4.17.23",
     "primeicons": "^6.0.1",
     "primevue": "^3.48.1",
-    "vue": "^3.4.15",
+    "vue": "3.5.44",
     "vue-i18n": "^11.2.8",
     "vuedraggable": "^4.1.0"
   },
@@ -24,9 +23,13 @@
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.65.0",
     "@vitejs/plugin-vue": "^5.0.3",
+    "@vue/compiler-dom": "3.5.44",
+    "@vue/compiler-sfc": "3.5.44",
     "eslint": "9.39.5",
     "eslint-plugin-vue": "10.11.1",
+    "eslint-plugin-vuejs-accessibility": "2.6.3",
     "globals": "17.13.0",
+    "knip": "6.44.2",
     "vite": "^6.0.0"
   }
 }

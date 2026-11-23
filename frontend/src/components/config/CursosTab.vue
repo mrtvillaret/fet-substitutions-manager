@@ -35,13 +35,13 @@
           <Button
             icon="pi pi-pencil"
             class="p-button-text p-button-sm"
-            v-tooltip.top="$t('common.edit')"
+            v-tooltip.top="$t('common.edit')" :aria-label="$t('common.edit')"
             @click="obrirEditarCurs(data)"
           />
           <Button
             icon="pi pi-trash"
             class="p-button-text p-button-sm p-button-danger"
-            v-tooltip.top="$t('common.delete')"
+            v-tooltip.top="$t('common.delete')" :aria-label="$t('common.delete')"
             @click="eliminarCurs(data)"
           />
         </template>

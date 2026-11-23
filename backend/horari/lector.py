@@ -7,16 +7,10 @@ import xml.etree.ElementTree as ET
 
 from database import get_data_db_session
 from grups.repositories import AbreviaturaGrupRepository, GrupsAmagatsRepository
+from i18n_setup import translate as _
 from textos import nom_net
 
 log = logging.getLogger(__name__)
-
-try:
-    from i18n_setup import translate as _
-except ImportError:
-
-    def _(text):
-        return text
 
 
 class GestorHorariWeb:
@@ -374,19 +368,3 @@ class GestorHorariWeb:
                     if assignatura:  # Només assignatures reals (no buides)
                         assignatures.add(assignatura)
         return assignatures
-
-    def get_all_rooms(self):
-        """
-        Retorna totes les aules úniques del XML
-
-        Returns:
-            Set[str]: Conjunt d'aules úniques trobades a l'horari
-        """
-        aules = set()
-        for dia_hores in self.horari.values():
-            for hora_profs in dia_hores.values():
-                for dades in hora_profs.values():
-                    aula = dades.get("aula", "")
-                    if aula and aula.strip():  # Només aules no buides
-                        aules.add(aula.strip())
-        return aules

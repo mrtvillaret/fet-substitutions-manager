@@ -10,11 +10,25 @@ import ast
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[1]
-PERMESES = set()
+FORA = {"tests", "__pycache__"}
+
+
+def _crea_router(arbre) -> bool:
+    return any(
+        isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "APIRouter" for n in ast.walk(arbre)
+    )
 
 
 def _fitxers():
-    return sorted([*(BACKEND / "routes").glob("*.py"), *BACKEND.glob("*/router.py")])
+    """Els fitxers amb rutes: tots els que creen un APIRouter (router.py i, p.
+    ex., pdf/informes.py), com el guardià de capes."""
+    return {
+        f: arbre
+        for f in sorted(BACKEND.rglob("*.py"))
+        if not FORA & set(parts := f.relative_to(BACKEND).parts)
+        and not parts[0].startswith("venv")
+        and _crea_router(arbre := ast.parse(f.read_text(encoding="utf-8")))
+    }
 
 
 def _rutes(arbre) -> set:
@@ -30,8 +44,8 @@ def _rutes(arbre) -> set:
 
 
 def test_cap_funcio_de_ruta_no_es_crida_directament():
-    arbres = {f: ast.parse(f.read_text(encoding="utf-8")) for f in _fitxers()}
-    rutes = set().union(*(_rutes(a) for a in arbres.values())) - PERMESES
+    arbres = _fitxers()
+    rutes = set().union(*(_rutes(a) for a in arbres.values()))
     crides = []
     for fitxer, arbre in arbres.items():
         for node in ast.walk(arbre):
@@ -42,3 +56,9 @@ def test_cap_funcio_de_ruta_no_es_crida_directament():
                 if nom in rutes:
                     crides.append(f"{fitxer.relative_to(BACKEND)}:{node.lineno}  {nom}()")
     assert crides == []
+
+
+def test_el_guardia_troba_tots_els_fitxers_de_rutes():
+    fitxers = {str(f.relative_to(BACKEND)) for f in _fitxers()}
+    assert {"pdf/router.py", "pdf/informes.py", "vigilancies/router.py"} <= fitxers
+    assert not any(f.startswith("routes/") for f in fitxers)

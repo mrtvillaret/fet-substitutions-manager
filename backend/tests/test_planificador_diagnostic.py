@@ -7,9 +7,9 @@ Calendari: dilluns i dimarts, a les 09:00 i a les 11:30 (4 hores).
 from types import SimpleNamespace
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import xml_inventat as xml_inventat
-from test_planificador_greedy_nou import problema_de
+from suport_motor import config_inventada as config_inventada
+from suport_motor import xml_inventat as xml_inventat
+from test_planificador_greedy import problema_de
 
 from planificador.compartit.missatges import missatge
 from planificador.motor.compatibilitat import GREEDY

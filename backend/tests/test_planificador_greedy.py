@@ -6,8 +6,8 @@ from copy import deepcopy
 from dataclasses import replace
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import xml_inventat as xml_inventat
 
 from planificador.motor.compatibilitat import GREEDY
 from planificador.motor.construccio import construeix_problema

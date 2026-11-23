@@ -5,15 +5,9 @@ Gestió de professors alliberats millorada amb estadístiques
 import logging
 
 from config import constants
+from i18n_setup import translate as _
 
 log = logging.getLogger(__name__)
-
-try:
-    from i18n_setup import translate as _
-except ImportError:
-
-    def _(text):
-        return text
 
 
 # Professors alliberats: un professor que es queda sense alumnes encara que el

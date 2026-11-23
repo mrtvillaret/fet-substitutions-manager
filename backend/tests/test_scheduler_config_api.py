@@ -17,6 +17,7 @@ from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session
 from horari.context import invalidar_horari
 from planificador.config import carrega_config
+from planificador.motor.durades import vigilancia
 from rate_limit import limiter
 
 
@@ -78,7 +79,9 @@ def test_un_grup_sense_durada_d_examen_fa_servir_la_del_grup(centre, client, dur
         del grup["durada_examen"]
     configura(client, durada_titular=1, durada_examen=4, durades_grups=[grup])
     cfg = carrega_config(centre[0])
-    assert (cfg.durada_titular_de("Anglès (1-BAT)"), cfg.durada_examen_de("Anglès (1-BAT)")) == (3, 3)
+    # La vigilància, amb la regla única del motor (motor/durades.py)
+    vigila = vigilancia("Anglès (1-BAT)", cfg.durades_per_sessio, cfg.durada_titular)
+    assert (vigila, cfg.durada_examen_de("Anglès (1-BAT)")) == (3, 3)
     assert cfg.durada_examen_de("Altra (1-BAT)") == 4
 
 

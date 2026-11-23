@@ -5,7 +5,9 @@
        capçalera «Professor absent»), i cada encadenada sota la substitució
        que la provoca. Sense paginació. -->
   <div class="taula-substitucions taula-dades" :class="{ 'taula-substitucions--carregant': carregant }" :aria-busy="carregant">
-    <!-- Un sol gestor per a tota la taula: el toc d'una fila (pantalles tàctils) -->
+    <!-- Un sol gestor per a tota la taula: el toc d'una fila (pantalles tàctils);
+         els camps i botons de cada fila ja són controls amb teclat -->
+    <!-- eslint-disable-next-line vuejs-accessibility/click-events-have-key-events, vuejs-accessibility/no-static-element-interactions -->
     <table @click="tocaTaula">
       <colgroup>
         <col class="col-hora" />

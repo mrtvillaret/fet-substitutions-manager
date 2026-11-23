@@ -12,8 +12,8 @@ import i18n_setup
 from auth import security
 from auth.domain import Rol, UsuariActual
 from auth.repositories import UserRepository
+from config import settings
 from config.context import fixa_institucio_peticio
-from config.settings import config
 from configuracio.repositories import ConfiguracioRepository
 from database import get_auth_db, get_data_db_session
 from errors_domini import NoAutenticat
@@ -31,7 +31,7 @@ def _prepara_institucio(institucio: str) -> str:
     Retorna l'idioma, que fixa get_current_user: s'executa en un fil i una
     ContextVar fixada aquí no arribaria a la ruta."""
 
-    idioma = config.global_data.get("idioma", "ca")
+    idioma = i18n_setup.IDIOMA_PER_DEFECTE
     try:
         with get_data_db_session(institucio, lectura=True) as db:
             idioma = ConfiguracioRepository.get(db, "idioma") or idioma
@@ -70,16 +70,13 @@ def _valida_usuari(request: Request, db: Session, amb_centre: bool = True) -> Us
         raise NoAutenticat("Token invàlid", codi="token_invalid") from exc
 
     # Per l'id: si l'usuari s'esborra o es reanomena i un altre pren el seu nom,
-    # la sessió no passa al nou. Els testimonis d'abans, sense "uid" (duren com
-    # a molt SESSIO_MAXIMA_HORES), encara es busquen pel nom.
-    uid = payload.get("uid")
-    user = UserRepository.get_by_id(db, uid) if uid is not None else UserRepository.get_by_username(db, username)
+    # la sessió no passa al nou
+    user = UserRepository.get_by_id(db, payload["uid"])
     if not user or not user.active:
         raise NoAutenticat("Usuari inactiu o inexistent", codi="usuari_inactiu")
 
-    # Testimoni d'abans d'un canvi de contrasenya o d'un "tancar les altres
-    # sessions". Els testimonis antics sense "sv" valen com a versió 0.
-    if payload.get("sv", 0) != (user.versio_sessio or 0):
+    # Testimoni d'abans d'un canvi de contrasenya o d'un "tancar les altres sessions"
+    if payload["sv"] != (user.versio_sessio or 0):
         raise NoAutenticat("Sessió tancada", codi="sessio_tancada")
 
     if user.role == Rol.SUPER_ADMIN:
@@ -94,11 +91,11 @@ def _valida_usuari(request: Request, db: Session, amb_centre: bool = True) -> Us
 
     if amb_centre:
         # Esborrat des del servidor amb la sessió oberta: abans, 500 a tot
-        if not config.institucio_existeix(institucio_activa):
+        if not settings.institucio_existeix(institucio_activa):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=CENTRE_INEXISTENT)
         # Com a l'entrada (auth.services.autentica): el superadmin hi treballa
         # encara que el centre estigui desactivat, i el pot tornar a activar
-        if user.role != Rol.SUPER_ADMIN and not config.is_institucio_activa(institucio_activa):
+        if user.role != Rol.SUPER_ADMIN and not settings.is_institucio_activa(institucio_activa):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Institució inactiva")
 
     return UsuariActual(

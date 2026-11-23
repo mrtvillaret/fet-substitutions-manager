@@ -8,7 +8,7 @@ export const getExamsUnics = (examens) => {
   })
 }
 
-export const normalizeText = (value) => (value || '')
+const normalizeText = (value) => (value || '')
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
   .replace(/[_-]+/g, ' ')

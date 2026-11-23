@@ -10,7 +10,6 @@ class ConfigAuth:
     environment: str
     is_development: bool
     secret_key: str = field(repr=False)
-    algorithm: str
     sessio_inactivitat_minuts: int
     sessio_maxima_hores: int
     sessio_renovacio_minuts: int
@@ -71,7 +70,6 @@ def carrega_config_auth(env: Mapping[str, str]) -> ConfigAuth:
         )
     _comprova_valor_de_mostra("SECRET_KEY", secret_key)
 
-    algorithm = env.get("JWT_ALGORITHM", "HS256")
     # Sessions: caduquen al cap de SESSIO_INACTIVITAT_MINUTS sense cap petició; mentre
     # s'hi treballa es renoven (com a molt cada SESSIO_RENOVACIO_MINUTS), fins a un
     # màxim de SESSIO_MAXIMA_HORES des de l'entrada.
@@ -92,7 +90,7 @@ def carrega_config_auth(env: Mapping[str, str]) -> ConfigAuth:
     #     mateixes credencials;
     #   - una adreça https d'un altre (sub)domini: el frontend hi porta l'usuari,
     #     amb el nom ja escrit, però no hi envia la contrasenya.
-    #   LOGIN_DELEGACIO_USUARIS=user_demo,admin_demo
+    #   p. ex. `LOGIN_DELEGACIO_USUARIS=user_demo,admin_demo`
     #   LOGIN_DELEGACIO_URL=/demo/   o bé   https://demo.exemple.cat/
     login_delegacio_usuaris = frozenset(
         u.strip() for u in env.get("LOGIN_DELEGACIO_USUARIS", "").split(",") if u.strip()
@@ -147,14 +145,13 @@ def carrega_config_auth(env: Mapping[str, str]) -> ConfigAuth:
     # Usuaris que només el superadmin pot modificar: ni ells mateixos (contrasenya,
     # tancar les altres sessions) ni cap admin (editar, desactivar). Per a una demo
     # pública, on la contrasenya és coneguda i qualsevol visitant hi pot entrar.
-    #   USUARIS_PROTEGITS=user_demo,admin_demo
+    #   p. ex. `USUARIS_PROTEGITS=user_demo,admin_demo`
     usuaris_protegits = frozenset(u.strip() for u in env.get("USUARIS_PROTEGITS", "").split(",") if u.strip())
 
     return ConfigAuth(
         environment=environment,
         is_development=is_development,
         secret_key=secret_key,
-        algorithm=algorithm,
         sessio_inactivitat_minuts=sessio_inactivitat_minuts,
         sessio_maxima_hores=sessio_maxima_hores,
         sessio_renovacio_minuts=sessio_renovacio_minuts,

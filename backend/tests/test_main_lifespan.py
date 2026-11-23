@@ -16,7 +16,6 @@ def _executa(tmp_path, codi, **entorn):
         PYTHONDONTWRITEBYTECODE="1",
         DATA_DIR=str(tmp_path),
         AUTH_DB_PATH=str(tmp_path / "auth.db"),
-        APP_CONFIG_PATH=str(tmp_path / "config.json"),
         APP_INSTITUCIO="centre_temporal",
         ADMIN_USERNAME="admin_inicial",
         ADMIN_PASSWORD="contrasenya-del-test-lifespan",

@@ -11,7 +11,7 @@ from suport_noms import unic
 from auth.dependencies import require_admin
 from auth.repositories import UserRepository
 from centres import router as centres
-from config.settings import config
+from config import settings
 from database import DATA_BASE_DIR, AuthSessionLocal
 from rate_limit import limiter
 
@@ -54,7 +54,7 @@ def test_esborrar_la_institucio_suau_la_desactiva_sense_tocar_els_usuaris(escena
     centre, noms, client = escenari
     resp = client.request("DELETE", f"/api/settings/institucions/{centre}", json={"mode": "soft", "confirm": centre})
     assert resp.status_code == 200
-    assert not config.is_institucio_activa(centre)
+    assert not settings.is_institucio_activa(centre)
     assert (_usuari(noms["admin"]), _usuari(noms["user"]), _usuari(noms["super"])) == (True, True, True)
 
 
@@ -68,5 +68,5 @@ def test_l_esborrat_definitiu_no_es_fa_des_de_la_web(escenari):
     assert resp.status_code == 400
     assert resp.json()["detail"] == "L'esborrat definitiu d'un centre es fa des del servidor"
     assert (DATA_BASE_DIR / centre / "gestor.db").is_file()
-    assert config.is_institucio_activa(centre)
+    assert settings.is_institucio_activa(centre)
     assert (_usuari(noms["admin"]), _usuari(noms["user"]), _usuari(noms["super"])) == (True, True, True)

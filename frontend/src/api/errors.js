@@ -20,7 +20,7 @@ const cosDError = async (error) => {
 let traductor = null
 export const registraTraductorErrors = (i18n) => { traductor = i18n }
 
-export const textDelCos = (cos) => {
+const textDelCos = (cos) => {
   const detail = cos?.detail
   const clau = typeof cos?.codi === 'string' && cos.codi ? `errors.${cos.codi}` : null
   return typeof detail === 'string' && clau && traductor?.te(clau)

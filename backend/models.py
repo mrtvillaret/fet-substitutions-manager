@@ -459,35 +459,6 @@ class ExamRestriccio(Base):
     )
 
 
-class ExamPreferencia(Base):
-    """LEGACY: Migrat a ExamRestriccio (tipus='mateix_dia'/'dies_diferents'). Mantingut per compatibilitat amb BDs existents."""
-
-    __tablename__ = "exam_preferencies"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    tipus = Column(String, nullable=False)
-    assignatures = Column(Text, nullable=False)
-    pes = Column(Integer, default=1)
-    activa = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=ara_utc)
-    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
-
-    __table_args__ = (Index("idx_exam_preferencia_tipus", "tipus"),)
-
-
-class ExamPesOptimitzacio(Base):
-    """LEGACY: Migrat a ExamRestriccio (tipus='pes_optimitzacio'). Mantingut per compatibilitat amb BDs existents."""
-
-    __tablename__ = "exam_pesos_optimitzacio"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    clau = Column(String, unique=True, nullable=False)
-    valor = Column(Integer, nullable=False)
-    descripcio = Column(Text)
-    updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
-    created_at = Column(DateTime, default=ara_utc)
-
-
 class ExamCostProfessor(Base):
     """
     Costos de professors per l'optimització d'horaris d'exàmens.

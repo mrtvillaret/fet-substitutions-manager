@@ -1,7 +1,7 @@
 import { avisaError, detallDError } from '../errorsApi.js'
 import { ref, computed, watch, onMounted } from 'vue'
 import * as apiPlanificador from '../api/planificador'
-import { debounce } from 'lodash-es'
+import { debounce } from '../debounce.js'
 import { localizeBackendDayName } from '../views/scheduler/textUtils'
 
 export function useHorariEditable(dependents) {

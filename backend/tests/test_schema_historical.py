@@ -13,6 +13,7 @@ from schema_migrations.schema import (
     BASE_REVISION,
     CLEAN_REVISION,
     CURRENT_REVISION,
+    LEGACY_TABLES,
     create_base,
     current_signature,
     schema_signature,
@@ -163,9 +164,12 @@ def test_0002_leaves_matching_schema_and_rows_unchanged(tmp_path, kind, stamped)
             connection.exec_driver_sql("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY)")
             connection.exec_driver_sql("INSERT INTO alembic_version VALUES (?)", (BASE_REVISION,))
 
-    # La 0004 només refà no_substituir (tests a test_migracio_0004.py).
+    # La 0004 només refà no_substituir i la 0005 esborra les taules LEGACY
+    # (tests a test_migracio_0004.py i test_migracio_0005.py).
+    propies = ("alembic_version", "no_substituir", *LEGACY_TABLES)
+
     def sense_versio(path):
-        return tuple(line for line in dump(path) if "alembic_version" not in line and "no_substituir" not in line)
+        return tuple(line for line in dump(path) if not any(t in line for t in propies))
 
     before = sense_versio(path)
     assert main(["--aplica", f"--{kind}", str(path), "--backup-dir", str(tmp_path / "copies")]) == 0

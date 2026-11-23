@@ -1,1 +1,0 @@
-"""Mòduls d'exportació"""

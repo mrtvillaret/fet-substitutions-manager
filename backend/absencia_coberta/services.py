@@ -97,7 +97,7 @@ def aplica_absencia_coberta(
         for vigs in VigilanciaRepository.get_by_date(db, d).values():
             for vig in vigs:
                 if (vig.vigilant or "").strip() == professor:
-                    VigilanciaRepository.update_by_id(db, d, str(vig.id), {"vigilant": ""})
+                    VigilanciaRepository.update_by_id(db, d, vig.id, {"vigilant": ""})
                     hores_vigilancia.add(vig.hora)
                     canvis["vigilancies_buidades"].append({"data": d, "hora": vig.hora, "tipus": vig.tipus})
         for hora in sorted(hores_vigilancia):

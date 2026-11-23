@@ -3,24 +3,20 @@ Peticions simultànies d'usuaris de dues institucions al mateix backend: cap
 resposta pot contenir dades de l'altra institució.
 
 Abans, la institució de la petició es desava en una variable global
-(config.global_data) i les prioritats es reescrivien globalment a cada
+(la configuració global) i les prioritats es reescrivien globalment a cada
 petició: amb només dues peticions alhora, prop de la meitat de les respostes
 eren de l'altra institució. Aquí es fa amb un servidor uvicorn de veritat
 (fils i bucle d'esdeveniments reals), no amb el client de test.
 """
 
-import http.client
 import json
-import socket
-import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-import uvicorn
 from fastapi import APIRouter, Depends
 from suport_api import CONTRASENYA, XML_EXEMPLE, crea_app, crea_usuari, nova_institucio
 from suport_noms import unic
+from suport_servidor import peticio, servidor_uvicorn
 
 import i18n_setup
 import rellotge
@@ -46,25 +42,7 @@ def no_substituir(_usuari=Depends(get_current_user)):
 
 @_textos.get("/api/prova/textos")
 def textos(_usuari=Depends(get_current_user)):
-    return {"dia": i18n_setup.translate("Dilluns"), "idioma": i18n_setup.CURRENT_LANGUAGE, "traduccio": _("Professor")}
-
-
-def _port_lliure():
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-def _peticio(port, metode, ruta, cos=None, galeta=None):
-    connexio = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
-    capcaleres = {"Content-Type": "application/json"}
-    if galeta:
-        capcaleres["Cookie"] = galeta
-    connexio.request(metode, ruta, body=json.dumps(cos) if cos else None, headers=capcaleres)
-    resposta = connexio.getresponse()
-    dades, set_cookie = resposta.read(), resposta.getheader("set-cookie")
-    connexio.close()
-    return resposta.status, dades, set_cookie
+    return {"dia": i18n_setup.translate("Dilluns"), "idioma": i18n_setup.idioma_actual(), "traduccio": _("Professor")}
 
 
 @pytest.fixture(scope="module")
@@ -83,25 +61,15 @@ def servidor():
             ConfiguracioRepository.set(db, "idioma", idioma)
             db.commit()
 
-    port = _port_lliure()
-    srv = uvicorn.Server(
-        uvicorn.Config(crea_app(vigilancies_router, _textos), host="127.0.0.1", port=port, log_level="error")
-    )
-    fil = threading.Thread(target=srv.run, daemon=True)
-    fil.start()
-    while not srv.started:
-        time.sleep(0.05)
-
-    galetes = {}
-    for inst in (a, b):
-        nom = f"admin_{unic()}"
-        crea_usuari(nom, inst, "admin")
-        estat, _, galeta = _peticio(port, "POST", "/api/login", {"username": nom, "password": CONTRASENYA})
-        assert estat == 200
-        galetes[inst] = galeta.split(";")[0]
-    yield port, a, b, galetes
-    srv.should_exit = True
-    fil.join(timeout=10)
+    with servidor_uvicorn(crea_app(vigilancies_router, _textos)) as port:
+        galetes = {}
+        for inst in (a, b):
+            nom = f"admin_{unic()}"
+            crea_usuari(nom, inst, "admin")
+            estat, _, galeta = peticio(port, "POST", "/api/login", {"username": nom, "password": CONTRASENYA})
+            assert estat == 200
+            galetes[inst] = galeta.split(";")[0]
+        yield port, a, b, galetes
 
 
 def _en_paral·lel(funcio, feines):
@@ -113,7 +81,7 @@ def test_l_horari_no_es_barreja_entre_institucions(servidor):
     port, a, b, galetes = servidor
 
     def una(inst):
-        estat, cos, _ = _peticio(port, "GET", "/api/vigilancies/config", galeta=galetes[inst])
+        estat, cos, _ = peticio(port, "GET", "/api/vigilancies/config", galeta=galetes[inst])
         assert estat == 200
         professors = json.loads(cos)["professors"]
         esperat, altre = ("Prof", "Docent") if inst == a else ("Docent", "Prof")
@@ -129,7 +97,7 @@ def test_les_prioritats_no_es_barregen_entre_institucions(servidor):
     port, a, b, galetes = servidor
 
     def una(inst):
-        estat, cos, _ = _peticio(port, "GET", "/api/prova/no-substituir", galeta=galetes[inst])
+        estat, cos, _ = peticio(port, "GET", "/api/prova/no-substituir", galeta=galetes[inst])
         assert estat == 200
         dades = json.loads(cos)
         esperat = ["Reunió A"] if inst == a else ["Reunió B"]
@@ -149,7 +117,7 @@ def test_l_idioma_no_es_barreja_entre_institucions(servidor):
     }
 
     def una(inst):
-        estat, cos, _ = _peticio(port, "GET", "/api/prova/textos", galeta=galetes[inst])
+        estat, cos, _ = peticio(port, "GET", "/api/prova/textos", galeta=galetes[inst])
         assert estat == 200
         dades = json.loads(cos)
         assert dades == esperat[inst], {"rebut": dades, "esperat": esperat[inst]}

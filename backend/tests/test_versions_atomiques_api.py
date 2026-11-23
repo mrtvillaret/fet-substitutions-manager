@@ -59,7 +59,7 @@ def _canvi_abans_del_begin(centre, tipus, fila_id):
             if tipus == "substitucions":
                 SubstitucioRepository.update(altra, int(fila_id), canvis)
             else:
-                VigilanciaRepository.update_by_id(altra, DATA, fila_id, canvis)
+                VigilanciaRepository.update_by_id(altra, DATA, int(fila_id), canvis)
             altra.commit()
 
     event.listen(engine, "before_cursor_execute", intercalada)
@@ -115,7 +115,7 @@ def test_esborrar_vigilancia_no_perd_una_edicio_simultania(context, force):
         resp = client.delete(f"/api/vigilancies/{DATA}/{fila_id}", params={"updated_at": versio, "force": force})
     assert resp.status_code == (200 if force else 409), resp.text
     with get_data_db_session(centre) as db:
-        actual = VigilanciaRepository.get_by_id(db, DATA, fila_id)
+        actual = VigilanciaRepository.get_by_id(db, DATA, int(fila_id))
         assert (actual is None) == force
         if actual:
             assert actual.comentaris == "primera escriptura"

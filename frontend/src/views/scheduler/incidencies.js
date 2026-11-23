@@ -33,7 +33,7 @@ export const esZonaExamen = (m) => m?.codi === 'inc_zona_examen'
 export const esCritica = (m) => ['substitutions', 'conflicts'].includes(grupIncidencia(m))
 
 // «Dilluns 20/04», amb el nom del dia traduït
-export const etiquetaDia = ({ dia, data }, t) => {
+const etiquetaDia = ({ dia, data }, t) => {
   const nom = localizeBackendDayName(dia || '', t)
   return data && data.length >= 10 ? `${nom} ${data.slice(8, 10)}/${data.slice(5, 7)}`.trim() : nom
 }
@@ -55,7 +55,7 @@ const examens = (llistaExamens) => (llistaExamens || [])
 const dataCurta = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d || '') ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : d)
 
 // Els paràmetres preparats per a la plantilla de l'idioma
-export const parametresIncidencia = (m, t) => {
+const parametresIncidencia = (m, t) => {
   const p = { ...(m?.params || {}) }
   const out = { ...p }
   if ('dia' in p || 'data' in p) out.dia = etiquetaDia(p, t)

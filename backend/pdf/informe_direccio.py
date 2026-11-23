@@ -3,7 +3,6 @@ Generador d'informe de direcció en PDF
 Informe complet d'absències, substitucions i vigilàncies
 """
 
-import html
 from datetime import datetime
 from pathlib import Path
 
@@ -27,6 +26,7 @@ import rellotge
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
 from pdf.dies import dies_capcalera
+from pdf.text import _text
 
 # Paleta de colors moderna
 C_NAVY = colors.HexColor("#1e3a5f")
@@ -41,16 +41,9 @@ C_GREY_TXT = colors.HexColor("#7f8c8d")
 C_WHITE = colors.white
 C_BLACK = colors.HexColor("#2c3e50")
 
-PAGE_W, PAGE_H = A4
+PAGE_W = A4[0]
 MARGIN = 1.5 * cm
 CONTENT_W = PAGE_W - 2 * MARGIN
-
-
-def _text(valor) -> str:
-    """Text de les dades apte per a un Paragraph: ReportLab hi interpreta
-    etiquetes (<b>, <font>, <img src=...>), i un "<" escrit per un usuari
-    trencava l'informe o li feia llegir fitxers del servidor."""
-    return html.escape(str(valor or ""), quote=False)
 
 
 def _s(name, **kwargs):
@@ -251,7 +244,7 @@ def _kpi_cards(stats: dict) -> list:
     return [t, Spacer(1, 0.5 * cm)]
 
 
-def _section_title(text: str, color=C_NAVY) -> list:
+def _section_title(text: str) -> list:
     return [
         HRFlowable(width=CONTENT_W, thickness=0.5, color=C_GREY_MID, spaceAfter=4),
         Paragraph(text, STYLES["section"]),
@@ -301,43 +294,6 @@ def _taula_evolucio_mensual(per_mes: list) -> list:
     elems.append(t)
     elems.append(Spacer(1, 0.4 * cm))
     return elems
-
-
-def _mini_bar(value: int, max_val: int, width: float, color) -> Table:
-    """Barra de progrés horitzontal inline"""
-    if max_val == 0:
-        fill_w = 0
-    else:
-        fill_w = max(width * value / max_val, 0.01 * cm if value > 0 else 0)
-    empty_w = max(width - fill_w, 0)
-    data = [[""]]
-    bar = Table(data, colWidths=[fill_w], rowHeights=[0.35 * cm])
-    bar.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, -1), color),
-                ("TOPPADDING", (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ]
-        )
-    )
-    if empty_w > 0:
-        outer = Table([[bar, ""]], colWidths=[fill_w, empty_w], rowHeights=[0.35 * cm])
-        outer.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#e8ecf0")),
-                    ("TOPPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ]
-            )
-        )
-        return outer
-    return bar
 
 
 def _text_color_for_bg(bg: colors.Color) -> colors.Color:

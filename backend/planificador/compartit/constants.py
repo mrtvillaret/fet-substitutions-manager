@@ -76,31 +76,3 @@ ETIQUETES_CAUSES: dict[str, str] = {
     "franja_prohibida": "Franja prohibida",
     "nivell_sense_inici": "Hora sense inici d'examen per al nivell",
 }
-
-# Estructura de restriccions per defecte
-DEFAULT_RESTRICCIONS = {
-    "restriccions_dures": {
-        "mateix_slot": [],
-        "no_mateix_slot": {},
-        "no_mateix_dia": [],
-        "assignatures_dia_fix": {},
-        "assignatures_hora_fix": {},
-    },
-    "preferencies": {
-        "dies_diferents": [],
-        "mateix_dia": [],
-    },
-    "costos_professors": {
-        "globals": {
-            "substitucio": DEFAULT_COST_PROFESSORS["substitucio"],
-            "abans_jornada": DEFAULT_COST_PROFESSORS["abans_jornada"],
-            "despres_jornada": DEFAULT_COST_PROFESSORS["despres_jornada"],
-            "no_treballa_dia": DEFAULT_COST_PROFESSORS["no_treballa_dia"],
-        },
-        "individuals": {},
-    },
-    "pesos_optimitzacio": {
-        "restriccio_dura": DEFAULT_PES_RESTRICCIO_DURA,
-        "restriccio_dura_violada": DEFAULT_PES_RESTRICCIO_VIOLADA,
-    },
-}

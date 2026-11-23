@@ -1,5 +1,5 @@
 """
-Les rutes de fitxers (XML de l'horari, PDF exportats) són sempre dins la
+Les rutes de fitxers (XML de l'horari) són sempre dins la
 carpeta del centre. Abans un admin podia escriure des de la configuració la
 ruta d'un altre centre i llegir-ne l'horari o llistar-ne i esborrar-ne PDF.
 """
@@ -13,9 +13,8 @@ from configuracio.repositories import ConfiguracioRepository
 from database import (
     get_data_db_session,
     get_data_dir_for_institucio,
-    get_export_dir_for_institucio,
 )
-from horari.context import avui, get_xml_path_for_date
+from horari.domain import Dia
 from rate_limit import limiter
 
 APP = crea_app(configuracio.router)
@@ -56,17 +55,17 @@ def test_un_xml_desat_fora_de_la_carpeta_del_centre_no_es_llegeix():
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "xml_horari_path", str(get_data_dir_for_institucio(altre) / "teachers.xml"))
         db.commit()
-    assert get_xml_path_for_date(centre, avui()) is None
+    assert Dia.avui(centre).xml_path is None
 
 
 def test_un_xml_dins_la_carpeta_es_llegeix_igual_amb_ruta_absoluta_o_relativa():
     centre = nova_institucio(amb_xml=True)
     esperat = str(get_data_dir_for_institucio(centre).resolve() / "teachers.xml")
-    assert get_xml_path_for_date(centre, avui()) == esperat
+    assert Dia.avui(centre).xml_path == esperat
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "xml_horari_path", esperat)
         db.commit()
-    assert get_xml_path_for_date(centre, avui()) == esperat
+    assert Dia.avui(centre).xml_path == esperat
 
 
 def test_un_xml_amb_punts_que_surt_de_la_carpeta_no_es_llegeix():
@@ -74,15 +73,7 @@ def test_un_xml_amb_punts_que_surt_de_la_carpeta_no_es_llegeix():
     with get_data_db_session(centre) as db:
         ConfiguracioRepository.set(db, "xml_horari_path", f"../{altre}/teachers.xml")
         db.commit()
-    assert get_xml_path_for_date(centre, avui()) is None
-
-
-def test_els_pdf_exportats_son_sempre_a_la_carpeta_del_centre():
-    centre, altre = nova_institucio(), nova_institucio()
-    with get_data_db_session(centre) as db:
-        ConfiguracioRepository.set(db, "export_dir", str(get_data_dir_for_institucio(altre)))
-        db.commit()
-    assert get_export_dir_for_institucio(centre) == get_data_dir_for_institucio(centre) / "exports"
+    assert Dia.avui(centre).xml_path is None
 
 
 @pytest.mark.parametrize("nom", [".", "..", "...", ".amagat", "a..b", "-x", "_x", "a/b", "A", ""])

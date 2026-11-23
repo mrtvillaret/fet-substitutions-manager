@@ -129,7 +129,7 @@ def test_recarrega_categoria_sense_assignatures_dona_llista_buida_en_ordre(db_se
 
 
 # ===================================================================
-# CRUD: no-substituir
+# Crear, llegir i esborrar a «No substituir»
 # ===================================================================
 
 

@@ -25,8 +25,10 @@ def test_defaults_i_presets_de_la_pantalla_es_desen_i_es_rellegeixen(client, pre
     assert lectura.status_code == 200
     for camp, valor in config.items():
         assert lectura.json()[camp] == valor
-    restriccions = {"pesos_optimitzacio": PESOS_PANTALLA, "costos_professors": {"globals": COSTOS_PANTALLA}}
+    restriccions = {"pesos_optimitzacio": PESOS_PANTALLA}
     resposta = client.put("/api/scheduler/restriccions", json={"restriccions": restriccions})
+    assert resposta.status_code == 200, resposta.text
+    resposta = client.put("/api/scheduler/costos-professors", json={"globals": COSTOS_PANTALLA})
     assert resposta.status_code == 200, resposta.text
     lectura = client.get("/api/scheduler/restriccions")
     assert lectura.status_code == 200
@@ -36,9 +38,7 @@ def test_defaults_i_presets_de_la_pantalla_es_desen_i_es_rellegeixen(client, pre
     assert costos.json()["costos_professors"]["globals"] == COSTOS_PANTALLA
     # Els paràmetres del motor no tenen endpoint de persistència: s'envien
     # a generar després del desat comú. El motor està substituït al fixture.
-    resposta = client.post(
-        "/api/scheduler/generate", json={"data_inici": "2026-04-20", "motor": preset, "max_dies": 5, **params}
-    )
+    resposta = client.post("/api/scheduler/generate", json={"data_inici": "2026-04-20", "motor": preset, **params})
     assert resposta.status_code == 200, resposta.text
 
 
@@ -58,7 +58,6 @@ def test_pesos_anteriors_sense_restriccions_noves(client, pes):
     cos = {
         "pesos_optimitzacio": {"lliure": pes},
         "preferencies": {"mateix_dia": [{"assignatures": ["Prova"], "pes": pes}]},
-        "pesos_percentatge": {"substitucio": pes},
     }
     resposta = client.put("/api/scheduler/restriccions", json={"restriccions": cos})
     assert resposta.status_code == 200, resposta.text
@@ -90,3 +89,15 @@ def test_pesos_anteriors_sense_restriccions_noves(client, pes):
 def test_modes_anteriors_finits_i_amb_significat_son_acceptats(client, params):
     resposta = client.post("/api/scheduler/generate", json={"data_inici": "2026-04-20", **params})
     assert resposta.status_code == 200, resposta.text
+
+
+def test_els_costos_nomes_es_desen_per_la_seva_ruta(client):
+    # Un sol camí: les restriccions ni porten els costos ni els desen
+    costos = {"globals": {"substitucio": 70}, "individuals": {"Prof 1": {"abans_jornada": 5}}}
+    assert client.put("/api/scheduler/costos-professors", json=costos).status_code == 200
+    llegides = client.get("/api/scheduler/restriccions").json()["restriccions"]
+    assert "costos_professors" not in llegides
+    llegides["costos_professors"] = {"globals": {"substitucio": 1}}
+    assert client.put("/api/scheduler/restriccions", json={"restriccions": llegides}).status_code == 200
+    desats = client.get("/api/scheduler/costos-professors").json()["costos_professors"]
+    assert (desats["globals"]["substitucio"], desats["individuals"]) == (70, costos["individuals"])

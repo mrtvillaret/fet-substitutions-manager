@@ -4,18 +4,13 @@ Els escenaris (inventats), l'enumeració exhaustiva i els ajudants de la cerca
 són a `test_backtrack_cost_final.py`.
 """
 
-import json
-import os
 import random
-import subprocess
-import sys
 from dataclasses import replace
-from pathlib import Path
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import problema_inventat
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import problema_inventat
+from suport_motor import xml_inventat as xml_inventat
 from test_backtrack_cost_final import (
     cerca_nou,
     escenari_a_l_atzar,
@@ -161,30 +156,6 @@ def horari_amb_empats(llavor, barreja):
         bt.particio, bt.Disponibilitat = original_particio, original_disponibilitat
 
 
-@pytest.mark.parametrize("barreja", [0, 5])
-def test_determinisme_entre_hashseeds_i_diversitat_de_llavors(barreja):
-    arrel = Path(__file__).resolve().parents[1]
-    codi = (
-        "import json, sys\n"
-        f"sys.path.insert(0, {str(arrel / 'tests')!r})\n"
-        "from test_planificador_backtracking_nou import horari_amb_empats\n"
-        f"print(json.dumps(horari_amb_empats(7, {barreja})))"
-    )
-    sortides = []
-    for hashseed in (0, 1, 2):
-        resultat = subprocess.run(
-            [sys.executable, "-c", codi],
-            cwd=arrel,
-            capture_output=True,
-            text=True,
-            check=True,
-            env=dict(os.environ, PYTHONHASHSEED=str(hashseed)),
-        )
-        sortides.append(resultat.stdout)
-    assert sortides[0] == sortides[1] == sortides[2]
-    assert len({json.dumps(horari_amb_empats(llavor, barreja)) for llavor in range(1, 6)}) > 1
-
-
 @pytest.mark.parametrize(
     "prefix,esperat", [("2026-04-20", None), ("2026-4-20", "examen_fixat"), ("Dilluns", "examen_fixat")]
 )
@@ -196,5 +167,5 @@ def test_comprovador_dur_conserva_el_filtre_iso(config_inventada, xml_inventat, 
     problema = replace(problema, regles=regles)
     sessio = problema.examens[0].a_diccionari()
     ubicacio = franja(f"{prefix}_09:00")
-    nova = bt._Dures(problema, BACKTRACKING).comprova(sessio, ubicacio.dia, ubicacio.hora, prefix, [], [], {})
+    nova = bt._Dures(problema, BACKTRACKING).comprova(sessio, ubicacio.hora, prefix, [], {})
     assert (nova.clau if nova else None) == esperat

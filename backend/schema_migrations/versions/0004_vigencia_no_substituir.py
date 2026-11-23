@@ -13,10 +13,10 @@ en crear una BD nova). Idempotent: si la taula ja té la forma nova, no fa res.
 from alembic import context, op
 
 from schema_migrations.schema import (
-    current_signature,
     schema_signature,
     validate_base,
-    validate_current,
+    validate_vigencia,
+    vigencia_signature,
     vigencia_statements,
 )
 
@@ -33,7 +33,7 @@ _COLUMNES_ANTIGUES = ("id", "assignatura", "created_at", "updated_at")
 def upgrade():
     connection = op.get_bind()
     kind = context.config.attributes["kind"]
-    if schema_signature(connection) == current_signature(kind):
+    if schema_signature(connection) == vigencia_signature(kind):
         return
     # Només des de l’esquema canònic exacte de la 0003.
     validate_base(connection, kind, historical=False)
@@ -49,7 +49,7 @@ def upgrade():
     op.drop_table(_TEMPORAL)
     for statement in indexes:
         connection.exec_driver_sql(statement)
-    validate_current(connection, kind)
+    validate_vigencia(connection, kind)
 
 
 def downgrade():

@@ -10,7 +10,7 @@ test('les opcions de dues files idÃ¨ntiques es guarden separades i exclouen nomÃ
    consultes.push(...queries)
    return Object.fromEntries(queries.map(q=>[q.tipus?`${q.hora}|${q.tipus}|${q.grups}|${q.aula}${q.vigilancia_id?'|fila:'+q.vigilancia_id:''}`:q.hora,[{value:'Prof 21',label:q.vigilancia_id==='1'?'Prof 21':'Prof 21 [JA ASSIGNAT]',ja_assignat:q.vigilancia_id!=='1',ordre_tipus:2}]]))
  }}
- const p=carregaBlocVista('','useDisponiblesVigilancies',[],[],{dependents,ref,watch,apiVigilancies})
+ const p=carregaBlocVista('useDisponiblesVigilancies', {dependents,ref,watch,apiVigilancies})
  const files=['1','2'].map(id=>({id,hora:'10:00',tipus:'Prova',grups:'G1',aula:'A1'}))
  await p.carregarDisponiblesPerLlista(files)
  assert.deepEqual(consultes.filter(q=>q.tipus).map(q=>q.vigilancia_id),['1','2'])

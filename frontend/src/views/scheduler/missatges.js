@@ -34,7 +34,7 @@ export function tradueixMissatge(missatge, t) {
 // Es reconeixen pel codi: el text no sempre diu «avís» en cada idioma.
 const CODIS_AVIS_CONFIGURACIO = new Set(['grup_sense_nivell', 'nivell_sense_hores_alliberades', 'nivell_alliberaments_sense_hores'])
 
-export const esAvisDeConfiguracio = (missatge) => CODIS_AVIS_CONFIGURACIO.has(missatge?.codi)
+const esAvisDeConfiguracio = (missatge) => CODIS_AVIS_CONFIGURACIO.has(missatge?.codi)
 
 export function avisosDeConfiguracio(logs, t) {
   return (logs || []).filter(esAvisDeConfiguracio).map((m) => tradueixMissatge(m, t).trim())

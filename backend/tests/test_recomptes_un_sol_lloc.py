@@ -88,11 +88,15 @@ def test_la_web_i_els_informes_donen_el_mateix(hores):
     filtre = {"hores": hores} if hores else {}
 
     def web(ruta, **params):
+        """Com la pantalla: el resum, els professors, la taula, el temporal i
+        les classes, del lot (/batch); el detall d'un professor, a part."""
+        part = ruta if ruta in ("resum", "professors", "taula", "temporal", "classes") else None
         resposta = client.get(
-            f"/api/estadistiques/{ruta}", params={"data_inici": INICI, "data_final": FINAL, **filtre, **params}
+            f"/api/estadistiques/{'batch' if part else ruta}",
+            params={"data_inici": INICI, "data_final": FINAL, **filtre, **params},
         )
         assert resposta.status_code == 200, resposta.text
-        return resposta.json()
+        return resposta.json()[part] if part else resposta.json()
 
     triades = frozenset(hores) if hores else None
     with get_data_db_session(centre) as db:
@@ -168,7 +172,7 @@ def test_el_desplegable_de_substituts_compta_les_substitucions_fetes_com_estadis
         db.add(GrupAlliberat(data=date(2026, 3, 11), hora="09:00", grups="professor:Prof 10"))
         db.commit()
 
-    taula = client.get("/api/estadistiques/taula", params={"data_inici": INICI, "data_final": FINAL}).json()
+    taula = client.get("/api/estadistiques/batch", params={"data_inici": INICI, "data_final": FINAL}).json()["taula"]
     fetes = {f["professor"]: f["substitucions_fetes"] for f in taula["professors"]}
     desplegable = {}
     for hora in ("08:00", "10:00"):

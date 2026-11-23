@@ -48,8 +48,8 @@
         <Column style="width: 120px">
           <template #body="s">
             <div >
-              <Button icon="pi pi-pencil" text severity="secondary" size="small" @click="obrirDialogAgrupacio(s.data)" />
-              <Button icon="pi pi-trash" text severity="danger" size="small" @click="eliminarAgrupacio(s.data.id)" />
+              <Button icon="pi pi-pencil" :aria-label="t('common.edit')" text severity="secondary" size="small" @click="obrirDialogAgrupacio(s.data)" />
+              <Button icon="pi pi-trash" :aria-label="t('common.delete')" text severity="danger" size="small" @click="eliminarAgrupacio(s.data.id)" />
             </div>
           </template>
         </Column>

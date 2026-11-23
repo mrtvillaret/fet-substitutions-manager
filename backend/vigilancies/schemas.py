@@ -3,7 +3,7 @@
 from dataclasses import asdict
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from noms import NomNet
 from vigilancies.files import FilaVigilancia
@@ -45,8 +45,12 @@ class ConsultaDisponibles(BaseModel):
     aula: NomNet | None = None
 
 
+# Una consulta per fila de la taula del dia i una per hora: amb molt de marge
+MAX_CONSULTES_DISPONIBLES = 500
+
+
 class DisponiblesEnBlocRequest(BaseModel):
-    queries: list[ConsultaDisponibles]
+    queries: list[ConsultaDisponibles] = Field(max_length=MAX_CONSULTES_DISPONIBLES)
 
 
 class TitularHoraLliure(BaseModel):

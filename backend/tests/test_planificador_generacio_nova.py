@@ -6,8 +6,8 @@ from copy import deepcopy
 from types import SimpleNamespace
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import xml_inventat as xml_inventat
 
 from planificador import generacio_nova as nou
 from planificador.compartit.dates import construir_mapa_dia_data_iso
@@ -148,7 +148,7 @@ def test_el_recuit_prepara_el_context_nou_sense_delegar(monkeypatch, motor):
 
 
 def test_precheck_del_recuit_conserva_la_particio_nova_de_la_base(config_inventada, xml_inventat):
-    from test_planificador_recuit_nou import problema_de  # noqa: PLC0415
+    from test_planificador_recuit import problema_de  # noqa: PLC0415
 
     from planificador.motor.compatibilitat import RECUIT  # noqa: PLC0415
     from planificador.motor.construccio import particio  # noqa: PLC0415
@@ -166,5 +166,5 @@ def test_precheck_del_recuit_conserva_la_particio_nova_de_la_base(config_inventa
     }
     problema = problema_de(config_inventada, xml_inventat)
     assert [e.nom_base for e in particio(problema, RECUIT)[0].examens] == ["A", "B"]
-    items = Diagnostic(problema, RECUIT).preparar_particio_nivells(6)
+    items = Diagnostic(problema, RECUIT).preparar_particio_nivells()
     assert [s["nom_base"] for s in items[0]["sessions"]] == ["B", "C"]

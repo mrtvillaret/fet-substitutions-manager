@@ -79,10 +79,3 @@ def translate(text: str) -> str:
 
 # Import explícit: la funció tria l'idioma de la petició.
 _ = translate
-
-
-def __getattr__(nom):
-    # Compatibilitat: i18n_setup.CURRENT_LANGUAGE és l'idioma de la petició.
-    if nom == "CURRENT_LANGUAGE":
-        return idioma_actual()
-    raise AttributeError(nom)

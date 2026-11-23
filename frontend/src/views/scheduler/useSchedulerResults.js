@@ -57,15 +57,6 @@ export const useSchedulerResults = ({
 
   const incidenciesCount = computed(() => logsIncidencies.value.length)
 
-  const incidenciesStats = computed(() => {
-    const incidencies = (logsIncidencies.value || []).filter(esIncidencia)
-    return {
-      totalScore: incidencies.reduce((suma, m) => suma + (m.punts || 0), 0),
-      substitucions: incidencies.filter((m) => m.codi === 'inc_substitucio').length,
-      arribenAbans: incidencies.filter((m) => m.codi === 'inc_abans').length
-    }
-  })
-
   const bestIntent = computed(() => {
     const intents = intentsLog.value || []
     const valid = intents.filter((intent) => intent.valid_full)
@@ -75,7 +66,7 @@ export const useSchedulerResults = ({
 
   const horesExamenConfig = computed(() => llistaHoresDisponibles.value.length ? llistaHoresDisponibles.value : ['09:00', '11:30'])
 
-  const getDuradaSessio = (nomSessio, _nivell) =>
+  const getDuradaSessio = (nomSessio) =>
     horesExamen({
       nom: nomSessio,
       grups: duradesGrups?.value,
@@ -83,13 +74,10 @@ export const useSchedulerResults = ({
       generalTitular: config.value?.durada_titular,
     })
 
-  // Mantenim per compatibilitat (usada externament si cal)
-  const getDuradaPerNivell = (nivell) => getDuradaSessio(null, nivell)
-
-  const getHoresOcupades = (horaInici, nivell, nomSessio) => {
+  const getHoresOcupades = (horaInici, nomSessio) => {
     const hores = llistaHoresDisponibles.value || []
     const idx = hores.indexOf(horaInici)
-    const durada = getDuradaSessio(nomSessio, nivell)
+    const durada = getDuradaSessio(nomSessio)
     if (idx === -1) return [horaInici]
     return hores.slice(idx, Math.min(idx + durada, hores.length))
   }
@@ -100,8 +88,7 @@ export const useSchedulerResults = ({
     const vistos = new Set()
     dia.sessions.forEach((slot) => {
       slot.sessions_simultanees.forEach((sessio) => {
-        const nivell = sessio?.curs || sessio?.nivell
-        const hores = getHoresOcupades(slot.hora, nivell, sessio?.nom)
+        const hores = getHoresOcupades(slot.hora, sessio?.nom)
         if (!hores.includes(hora)) return
         const key = `${sessio.nom}|${sessio.curs || ''}`
         if (vistos.has(key)) return
@@ -213,11 +200,8 @@ export const useSchedulerResults = ({
     logsEnllacos,
     logsIncidencies,
     incidenciesCount,
-    incidenciesStats,
     bestIntent,
     horesExamenConfig,
-    getDuradaPerNivell,
-    getHoresOcupades,
     getSlotPerHora,
     horarisPerSetmana,
     getSessionsPerNivell,

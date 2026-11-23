@@ -49,18 +49,6 @@ def iso_a_dia_nom(data_iso: str) -> str:
         return data_iso
 
 
-def format_dia_label(dia: str) -> str:
-    """Formata dia per display: nom de dia o 'Dilluns (12/01)' si ISO."""
-
-    if _re.match(r"^\d{4}-\d{2}-\d{2}$", dia):
-        try:
-            dt = _dt.strptime(dia, "%Y-%m-%d")
-            return f"{_DIES_CAT[dt.weekday()]} ({dt.strftime('%d/%m')})"
-        except (ValueError, IndexError):
-            return dia
-    return dia
-
-
 def dia_nom_per_horari(dia: str) -> str:
     """Retorna nom de dia per lookup en horaris (converteix ISO si cal)."""
 

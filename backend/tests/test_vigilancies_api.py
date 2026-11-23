@@ -232,11 +232,12 @@ def test_l_id_retornat_identifica_la_nova_encara_que_n_hi_hagi_d_altres_a_la_mat
     assert comentaris == {"2-BAT-A": "", "2-BAT-B": "és la nova"}
 
 
-def test_l_id_compost_antic_es_continua_acceptant(client):
+def test_l_id_compost_antic_ja_no_s_accepta(client):
+    # «hora|nivell|posició» podia apuntar a una altra fila: només l'id de la BD
     _crea(client, "Prof 21")
-    resp = client.put(f"{URL}/10:00|2-BAT|0", json={"comentaris": "amb id compost", "force": True})
-    assert resp.status_code == 200
-    assert _vigilancies(client)[0]["comentaris"] == "amb id compost"
+    assert client.put(f"{URL}/10:00|2-BAT|0", json={"comentaris": "amb id compost", "force": True}).status_code == 422
+    assert client.delete(f"{URL}/10:00|2-BAT|0", params={"force": True}).status_code == 422
+    assert _vigilancies(client)[0]["comentaris"] == ""
 
 
 def test_actualitzar_demana_updated_at_i_detecta_conflictes(client):

@@ -1,10 +1,8 @@
 <template>
   <div class="scheduler-view">
-    <Toast />
-
     <header class="view-header">
       <div class="header-left">
-        <Button id="btn-home" icon="pi pi-home" class="p-button-rounded p-button-text p-button-lg" @click="tornarGestor" />
+        <Button id="btn-home" icon="pi pi-home" :aria-label="t('app.tabs.substitucions')" class="p-button-rounded p-button-text p-button-lg" @click="tornarGestor" />
         <div>
           <h1>🚀 {{ t('scheduler.view.title') }}</h1>
         </div>
@@ -19,6 +17,11 @@
     <div ref="stepperContainerRef" class="stepper-container content-card">
       <Steps :model="passos" :activeStep="pasActiu" @update:activeStep="pasActiu = $event" :readonly="false" />
     </div>
+
+    <Message v-if="carregaFallida" severity="error" :closable="false" class="carrega-fallida">
+      {{ t('scheduler.view.loadFailed') }}
+      <Button :label="t('scheduler.view.actions.reload')" icon="pi pi-refresh" size="small" outlined :loading="loading" @click="carrega" />
+    </Message>
 
     <div class="step-content" v-if="config">
       <!-- Dates d'un curs anterior -->
@@ -169,6 +172,7 @@
         :pinned-noms="pinnedNoms"
         :on-pin-changed="onPinChanged"
         :on-clear-pins="clearAllPins"
+        :config-ready="configReady"
         @generar="generarHorari"
         @update:modeEdicio="modeEdicio = $event"
         @update:mostrarParametresAvancats="mostrarParametresAvancats = $event"
@@ -248,7 +252,7 @@
     <footer class="footer-nav">
       <Button :label="t('scheduler.view.actions.previous')" icon="pi pi-chevron-left" text @click="pasAnterior" :disabled="pasActiu === 0 || loading" />
       <div class="spacer"></div>
-      <Button id="btn-save" :label="t('scheduler.view.actions.saveChanges')" icon="pi pi-save" outlined :loading="savingRestr" @click="desarTotAlBackend" />
+      <Button id="btn-save" :label="t('scheduler.view.actions.saveChanges')" icon="pi pi-save" outlined :loading="savingRestr" :disabled="!configReady" @click="desarTotAlBackend" />
       <Button :label="t('scheduler.view.actions.next')" icon="pi pi-chevron-right" iconPos="right" @click="pasSeguent" :disabled="pasActiu === 4 || loading" />
     </footer>
   </div>
@@ -266,7 +270,6 @@ import { useI18n } from 'vue-i18n'
 
 import Steps from 'primevue/steps'
 import Button from 'primevue/button'
-import Toast from 'primevue/toast'
 import Menu from 'primevue/menu'
 import Message from 'primevue/message'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -426,7 +429,6 @@ const motors = computed(() => motorsMetadata.value.map((m) => ({ label: localize
 const genConfig = ref({
   motor: 'v3',
   nivells_actius: [],
-  max_dies: 5,
 })
 
 const currentMotorMeta = computed(() => motorsMetadata.value.find(m => m.id === genConfig.value.motor))
@@ -468,6 +470,8 @@ watch(duradaExamen, (val, prev) => {
 
 const mostrarParametresAvancats = ref(false)
 const configReady = ref(false)
+// La càrrega inicial ha fallat: no es pot desar ni generar fins que es torni a carregar
+const carregaFallida = ref(false)
 let configSaveTimer = null
 let configSaveIdleId = null
 const pesos = ref({
@@ -591,34 +595,43 @@ const recuperarUltimResultat = async () => {
   }
 }
 
+// La càrrega de la pantalla (també «Torna a carregar» si ha fallat)
+const carrega = () => carregarDades().then(recuperarUltimResultat)
+
 // Dates d'un curs anterior: la configuració d'exàmens és la del curs actual
 // (el backend tampoc deixa publicar-hi)
 const cursAnterior = ref(null)
 // Quin horari (XML) fa servir el planificador: el de la primera data planificada
 const horariPlanificacio = ref(null)
 let temporitzadorCurs = null
+// Respostes fora d'ordre: només s'aplica la de les últimes dates triades
+let versioDates = 0
 watch(selectedDates, (dates) => {
   clearTimeout(temporitzadorCurs)
   temporitzadorCurs = setTimeout(async () => {
+    const versio = ++versioDates
+    const vigent = () => versio === versioDates
     const llista = (dates || []).map(formatLocalDate)
     try {
       const anterior = horariPlanificacio.value?.data_referencia
       const { data: horari } = await apiPlanificador.horari({ params: { dates: llista.join(',') || undefined } })
+      if (!vigent()) return
       horariPlanificacio.value = horari
       // Amb un altre horari, els professors, grups i hores són uns altres
-      if (anterior && horari.data_referencia !== anterior) await carregarDadesHorari(horari.data_referencia)
+      if (anterior && horari.data_referencia !== anterior) await carregarDadesHorari(horari.data_referencia, vigent)
     } catch {
       // Sense aquesta informació no es mostra l'avís; la resta funciona igual
     }
+    if (!vigent()) return
     if (!llista.length) {
       cursAnterior.value = null
       return
     }
     try {
       const { data } = await apiPlanificador.cursDates({ params: { dates: llista.join(',') } })
-      cursAnterior.value = data.curs_anterior
+      if (vigent()) cursAnterior.value = data.curs_anterior
     } catch {
-      cursAnterior.value = null
+      if (vigent()) cursAnterior.value = null
     }
   }, 300)
 }, { deep: true })
@@ -882,10 +895,14 @@ const eliminarDuradaGrup = (id) => {
   scheduleConfigSave()
 }
 
-const desarMotorConfig = async (opts = {}) => {
-  if (!config.value) return
+// Un sol flux de desament de la configuració i les dates: l'automàtic i
+// l'explícit van a la mateixa cua, perquè un desament antic no arribi
+// després d'un de nou. Si falla, l'error es propaga a qui l'ha demanat.
+let cuaDesamentConfig = Promise.resolve()
+const desarMotorConfig = (opts = {}) => {
+  if (!config.value) return Promise.resolve()
   const { silent = false } = opts || {}
-  try {
+  const desa = async () => {
     sincronitzarDatesGlobals()
     // Desar hores tal qual (format XML) + hores per nivell + alliberaments + durades per grups
     await apiPlanificador.desaConfiguracio({
@@ -899,7 +916,10 @@ const desarMotorConfig = async (opts = {}) => {
     if (!silent) {
       toast.add({ severity: 'success', summary: t('scheduler.view.messages.configSaved') })
     }
-  } catch (e) { console.error(e) }
+  }
+  const desament = cuaDesamentConfig.then(desa, desa)
+  cuaDesamentConfig = desament.catch(() => {})
+  return desament
 }
 
 function scheduleConfigSave() {
@@ -913,7 +933,8 @@ function scheduleConfigSave() {
     configSaveTimer = null
     const runSave = () => {
       configSaveIdleId = null
-      desarMotorConfig({ silent: true })
+      // El desament automàtic no molesta amb avisos; l'explícit sí que avisa
+      desarMotorConfig({ silent: true }).catch((e) => console.error(e))
     }
     if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
       configSaveIdleId = window.requestIdleCallback(runSave, { timeout: 800 })
@@ -937,12 +958,8 @@ const flushPendingConfigSave = async () => {
 }
 
 const desarDates = async () => {
-  try {
-    const dates = selectedDates.value.map(formatLocalDate)
-    await apiPlanificador.desaDates({ selected_dates: dates })
-  } catch (e) {
-    console.error(e)
-  }
+  const dates = selectedDates.value.map(formatLocalDate)
+  await apiPlanificador.desaDates({ selected_dates: dates })
 }
 
 // Ref indirecta per desarTotAlBackend (es resol després de useSchedulerRestrictions)
@@ -965,6 +982,7 @@ const {
   result,
   config,
   configReady,
+  carregaFallida,
   motorsMetadata,
   genConfig,
   genConfigHoresArray,
@@ -1056,8 +1074,8 @@ const {
   pesos,
   restriccionsCarregades,
   savingRestr,
+  configReady,
   flushPendingConfigSave,
-  desarDates,
   serialitzarSlotsValidsPerNivell,
   buildId,
   extreuNivell: _extreuNivell,
@@ -1201,7 +1219,7 @@ useDialegsInterns({
 })
 
 onMounted(() => {
-  carregarDades().then(recuperarUltimResultat)
+  carrega()
   carregarAssignaturesInexistents()
   nextTick(() => requestAnimationFrame(() => centerActiveStep('auto')))
   window.addEventListener('resize', onStepperResize)

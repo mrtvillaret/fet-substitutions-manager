@@ -511,6 +511,22 @@ input.p-inputtext.p-inputtext-sm {
     font-size: 0.9rem;
 }
 
+/* Un botó petit dins d'una etiqueta, una fitxa o una fila (abans, una icona
+   clicable): de la mida del text del voltant, però amb el focus i el teclat
+   d'un botó. Una sola classe per a tots. */
+.p-button.boto-icona {
+  width: auto;
+  height: auto;
+  padding: 0.125rem 0.25rem;
+  margin-inline-start: 0.25rem;
+  font-size: inherit;
+  line-height: 1;
+  color: inherit;
+}
+.p-button-link.boto-icona {
+  text-decoration: underline;
+}
+
 .p-datatable {
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   border-radius: 8px;

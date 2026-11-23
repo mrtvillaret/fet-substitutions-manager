@@ -81,16 +81,6 @@ class Problema:
         return NivellsDelsGrups.de_config(descongela(self.taules_grups))
 
 
-@dataclass(frozen=True, slots=True)
-class Ocurrencia:
-    """Posició pròpia; ni id, ni item_id, ni la igualtat del contingut la fusionen."""
-
-    posicio: tuple[int, int, int]
-    sessio: dict
-    dia: dict
-    franja: dict
-
-
 class HorariEditable:
     """Còpia editable del document, sense convertir-lo en una assignació d'ítems.
 
@@ -100,12 +90,6 @@ class HorariEditable:
 
     def __init__(self, document: dict):
         self.document = deepcopy(document)
-        self.ocurrencies = tuple(
-            Ocurrencia((i, j, k), sessio, dia, franja)
-            for i, dia in enumerate(self.document.get("dies", []))
-            for j, franja in enumerate(dia.get("sessions", []))
-            for k, sessio in enumerate(franja.get("sessions_simultanees", []))
-        )
 
     def a_diccionari(self) -> dict:
         return deepcopy(self.document)

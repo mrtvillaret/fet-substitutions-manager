@@ -59,8 +59,6 @@ REDUCCIO_COMPRESSIO = 0.85
 
 def _valors_substitucio(sub: FilaSubstitucio) -> dict:
     substitut = sub.substitut or ""
-    if substitut in ("---", "PENDENT"):  # els pendents no s'hi escriuen
-        substitut = ""
     grup = sub.grup or ""
     aula = sub.aula or ""
     return {
@@ -80,8 +78,6 @@ def curs_vigilancia(vig: FilaVigilancia) -> str:
 
 def _valors_vigilancia(vig: FilaVigilancia) -> dict:
     vigilant = vig.vigilant or ""
-    if vigilant.startswith("-- selecciona"):  # el text del desplegable no és un vigilant
-        vigilant = ""
     return {
         "hora": vig.hora or "",
         "qui": curs_vigilancia(vig),
@@ -132,13 +128,7 @@ class EstilsPdf:
         self.comprimit = bool(getattr(exp, "_auto_compression_active", False))
         f = self.mida * (REDUCCIO_COMPRESSIO if self.comprimit else 1)
         self.f = f
-        particio = dict(
-            hyphenationLang=exp.hyphen_language_code if exp.hyphen_lang else None,
-            embeddedHyphenation=1 if exp.hyphen_lang else 0,
-        )
-        base = dict(
-            parent=exp.styles["Normal"], fontSize=10 * f, leading=12 * f, alignment=1, fontName="Helvetica", **particio
-        )
+        base = dict(parent=exp.styles["Normal"], fontSize=10 * f, leading=12 * f, alignment=1, fontName="Helvetica")
         color = colors.HexColor
         self.cel = ParagraphStyle("Cel", **base)
         self.cel_vig = ParagraphStyle("CelVig", **{**base, "fontName": "Helvetica-Oblique"})

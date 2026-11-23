@@ -3,7 +3,7 @@ per data, encara que surti en exàmens que comencen en franges diferents."""
 
 from dataclasses import replace
 
-from suport_motor_nou import config_inventada as config_inventada
+from suport_motor import config_inventada as config_inventada
 
 from planificador.compartit.nivells import NivellsDelsGrups
 from planificador.motor.avaluador import cost

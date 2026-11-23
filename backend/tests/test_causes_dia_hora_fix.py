@@ -24,7 +24,7 @@ def _restriccions(**dures):
 
 def _check(dia, hora, prefix, **dures):
     ubicacio = Franja(f"{prefix}_{hora}", prefix, dia, prefix, hora)
-    violacio = causa_dura(SESSIO, ubicacio, None, ["1-BAT"], politiques=DIAGNOSTIC, restriccions=_restriccions(**dures))
+    violacio = causa_dura(SESSIO, ubicacio, None, politiques=DIAGNOSTIC, restriccions=_restriccions(**dures))
     return violacio.clau if violacio else None
 
 
@@ -72,27 +72,27 @@ def test_pin_no_obligatori_no_amaga_les_altres_causes():
     }
     r = _restriccions(**dures)
     # Dilluns 11:30: el nivell no hi té inici → dura, encara que hi hagi el pin tou
-    assert causa_dia_hora_fix(SESSIO, "Dilluns", "11:30", r, ["1-BAT"], "2026-04-20") == ("nivell_sense_inici", 100)
-    assert percent_dia_hora_fix_violation(SESSIO, "Dilluns", "11:30", r, ["1-BAT"]) == 100
+    assert causa_dia_hora_fix(SESSIO, "Dilluns", "11:30", r, "2026-04-20") == ("nivell_sense_inici", 100)
+    assert percent_dia_hora_fix_violation(SESSIO, "Dilluns", "11:30", r) == 100
     assert _check("Dilluns", "11:30", "2026-04-20", **dures) == "nivell_sense_inici"
     # Dilluns 9:00: hi ha inici i no és prohibida → només el pin tou (no bloqueja)
-    assert causa_dia_hora_fix(SESSIO, "Dilluns", "09:00", r, ["1-BAT"], "2026-04-20") == ("examen_fixat", 50)
+    assert causa_dia_hora_fix(SESSIO, "Dilluns", "09:00", r, "2026-04-20") == ("examen_fixat", 50)
     assert _check("Dilluns", "09:00", "2026-04-20", **dures) is None
     # Franja prohibida: també mana sobre el pin tou
     prohibida = [{"assignatures": ["Fil (1-BAT)"], "dia": "Dilluns", "hora": "09:00"}]
     dures_p = {**dures, "assignatures_slot_prohibit": prohibida}
-    assert causa_dia_hora_fix(SESSIO, "Dilluns", "09:00", _restriccions(**dures_p), ["1-BAT"], "2026-04-20") == (
+    assert causa_dia_hora_fix(SESSIO, "Dilluns", "09:00", _restriccions(**dures_p), "2026-04-20") == (
         "franja_prohibida",
         100,
     )
     # A la franja fixada, com sempre
-    assert causa_dia_hora_fix(SESSIO, "Dimarts", "09:00", r, ["1-BAT"], "2026-04-21") == (None, 0)
+    assert causa_dia_hora_fix(SESSIO, "Dimarts", "09:00", r, "2026-04-21") == (None, 0)
 
 
 def test_la_composicio_dona_el_percentatge_de_la_primera_causa():
     r = _restriccions(slots_valids_per_nivell=INICIS)
-    assert percent_dia_hora_fix_violation(SESSIO, "Dilluns", "11:30", r, ["1-BAT"], "2026-04-20") == 100
-    assert percent_dia_hora_fix_violation(SESSIO, "Dilluns", "09:00", r, ["1-BAT"], "2026-04-20") == 0
+    assert percent_dia_hora_fix_violation(SESSIO, "Dilluns", "11:30", r, "2026-04-20") == 100
+    assert percent_dia_hora_fix_violation(SESSIO, "Dilluns", "09:00", r, "2026-04-20") == 0
 
 
 def test_causa_principal_deixa_examen_fixat_per_a_l_ultim():

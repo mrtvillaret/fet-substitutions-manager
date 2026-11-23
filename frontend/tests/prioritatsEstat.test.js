@@ -17,13 +17,7 @@ function prepara(apiDiferent = () => ({})) {
     desaActivitatsAlliberables: async body => { peticions.push(['activitats', body]); return body },
     ...apiDiferent(peticions)
   }
-  const p = carregaBlocVista('components/config/PrioritatsTab.vue', 'usePrioritats', [['// Data en format ISO', '</script>']], [
-    'carregarPrioritats', 'ordreCategories', 'pesos', 'teCanvisPrioritats', 'categoriaSeleccionadaIndex', 'moureCategoriaAmunt', 'moureCategoriaAvall',
-    'afegirAssignaturaCategoria', 'assignaturesSeleccionades', 'desarAssignaturaCategoria', 'desarPrioitats', 'eliminarCategoria',
-    'noSubstituir', 'novesNoSubstituir', 'desarNoSubstituir', 'activitatsAlliberables', 'activitatsPerDefecte', 'desarActivitatsAlliberables', 'opcionsNoSubst',
-    'entradesNoSubstituir', 'dataCanvisNoSubst', 'dataCanvisNoSubstPassada', 'fiNoSubstituir', 'futuresNoSubstituir', 'eliminarNoSubstituir',
-    'obrirDialogNoSubstituir', 'mostrarDialogNoSubstituir'
-  ], {
+  const p = carregaBlocVista('usePrioritats', {
     ...dependents, dependents, ref, computed, watch() {}, onMounted() {}, apiPrioritats,
     dataTreball: ref(new Date('2026-04-20T12:00:00')), dataIso, dataAmbAny, detallDError: error => error?.response?.data?.detail, ambDataTreball: () => ({ params: { data: '2026-04-20' } }),
     detectaAssignatures: async () => ({ assignatures: ['Guàrdia'], te_buits: true }), novesAmbGrup: () => []

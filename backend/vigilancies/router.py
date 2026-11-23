@@ -64,7 +64,7 @@ def obtenir_config_vigilancies(db: Session = Depends(get_db), dia: Dia = Depends
 
 @router.get("/{data}/{hora}/disponibles", response_model=list[ProfessorDisponible])
 def obtenir_disponibles_vigilancia(
-    data: DataISO,
+    data: DataISO,  # noqa: ARG001 (valida la data del camí; el dia ve de dia_de_la_peticio)
     hora: str,
     tipus: str = None,
     grups: str = None,
@@ -82,7 +82,7 @@ def obtenir_disponibles_vigilancia(
 
 @router.get("/{data}/{hora}/professor", response_model=AjudaVigilantResponse)
 def obtenir_ajuda_vigilant(
-    data: DataISO,
+    data: DataISO,  # noqa: ARG001 (valida la data del camí; el dia ve de dia_de_la_peticio)
     hora: str,
     nom: NomNet,
     db: Session = Depends(get_db),
@@ -95,7 +95,7 @@ def obtenir_ajuda_vigilant(
 
 @router.post("/{data}/disponibles-batch", response_model=DisponiblesEnBlocResponse)
 def obtenir_disponibles_vigilancia_batch(
-    data: DataISO,
+    data: DataISO,  # noqa: ARG001 (valida la data del camí; el dia ve de dia_de_la_peticio)
     payload: DisponiblesEnBlocRequest,
     db: Session = Depends(get_db_lectura),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -111,7 +111,11 @@ def obtenir_vigilancies(data: DataISO, db: Session = Depends(get_db)):
 
 
 @router.get("/{data}/analisi", response_model=list[ProblemaVigilancia])
-def analitzar_vigilancies(data: DataISO, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
+def analitzar_vigilancies(
+    data: DataISO,  # noqa: ARG001 (valida la data del camí; el dia ve de dia_de_la_peticio)
+    db: Session = Depends(get_db),
+    dia: Dia = Depends(dia_de_la_peticio),
+):
     return services.analisi(db, dia)
 
 
@@ -141,8 +145,8 @@ def desar_ordre(data: DataISO, ordre: OrdreRequest, db: Session = Depends(get_db
 
 
 @router.put("/{data}/{vig_id}", response_model=VigilanciaEditadaResponse)
-def actualitzar_vigilancia(data: DataISO, vig_id: str, update: EdicioVigilanciaRequest, db: Session = Depends(get_db)):
-    """Actualitza una vigilància (id de la BD o, l'antic, «hora|nivell|posició»)."""
+def actualitzar_vigilancia(data: DataISO, vig_id: int, update: EdicioVigilanciaRequest, db: Session = Depends(get_db)):
+    """Actualitza una vigilància (per l'id de la BD)."""
     try:
         updated_at = services.edita(db, data, vig_id, update)
     except services.ConflicteVigilancia as exc:
@@ -152,9 +156,9 @@ def actualitzar_vigilancia(data: DataISO, vig_id: str, update: EdicioVigilanciaR
 
 @router.delete("/{data}/{vig_id}", response_model=MissatgeResponse)
 def eliminar_vigilancia(
-    data: DataISO, vig_id: str, updated_at: str = None, force: bool = False, db: Session = Depends(get_db)
+    data: DataISO, vig_id: int, updated_at: str = None, force: bool = False, db: Session = Depends(get_db)
 ):
-    """Elimina una vigilància (id de la BD o, l'antic, «hora|nivell|posició»)."""
+    """Elimina una vigilància (per l'id de la BD)."""
     try:
         services.esborra(db, data, vig_id, updated_at=updated_at, force=force)
     except services.ConflicteVigilancia as exc:

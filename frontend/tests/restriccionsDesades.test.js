@@ -11,8 +11,7 @@ const carregades = {
   },
   preferencies: { mateix_dia: [], altra: [{ assignatures: ['Z'] }] },
   pesos_optimitzacio: { restriccio_dura: 1000, pes_desconegut: 7 },
-  pesos_percentatge: { x: 1 },
-  costos_professors: { globals: { substitucio: 1 } }
+  clau_desconeguda: { x: 1 }
 }
 
 test('restriccions: en desar es conserva el que la pantalla no coneix', () => {
@@ -33,8 +32,7 @@ test('restriccions: en desar es conserva el que la pantalla no coneix', () => {
   assert.deepEqual(r.restriccions_dures.assignatures_hora_fix, { A: '09:00', _pes_A: 0 })
   assert.deepEqual(r.preferencies, { mateix_dia: [{ assignatures: ['A', 'B'], pes: 50 }], altra: [{ assignatures: ['Z'] }] })
   assert.deepEqual(r.pesos_optimitzacio, { restriccio_dura: 900, pes_desconegut: 7 })
-  assert.deepEqual(r.pesos_percentatge, { x: 1 })
-  assert.equal('costos_professors' in r, false)
+  assert.deepEqual(r.clau_desconeguda, { x: 1 })
 })
 
 test('restriccions: sense res carregat, es desa el que hi ha a la pantalla', () => {

@@ -9,8 +9,6 @@ Routes per generació i validació de PDFs:
 Només HTTP: els casos d'ús són a pdf/generacio.py i pdf/disponibles.py.
 """
 
-import shutil
-import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -24,7 +22,7 @@ from dependencies import dia_de_la_peticio, get_db, get_db_lectura
 from horari.domain import Dia
 from parametres import DataISO, data_iso
 from pdf import disponibles, generacio, services
-from pdf.domain import OpcionsPdf
+from pdf.domain import OpcionsPdf, directori_temporal, esborra_directori
 from pdf.schemas import (
     DesatResponse,
     PDFPreferencesRequest,
@@ -80,7 +78,7 @@ def _resposta_pdf(export_dir: Path, filename: str, pdf_filename: str) -> FileRes
         media_type="application/pdf",
         filename=pdf_filename,
         headers={"Content-Disposition": f"attachment; filename={pdf_filename}"},
-        background=BackgroundTask(shutil.rmtree, str(export_dir), True),
+        background=BackgroundTask(esborra_directori, export_dir),
     )
 
 
@@ -125,7 +123,7 @@ def generar_pdf_complet(
         ordre=ordre,
     )
     if not pdf.nom:
-        shutil.rmtree(pdf.directori, ignore_errors=True)
+        esborra_directori(pdf.directori)
         raise HTTPException(status_code=500, detail="Error intern en generar el PDF")
     return _resposta_pdf(pdf.directori, pdf.nom, f"complet_{data}_{_marca_de_temps()}.pdf")
 
@@ -179,7 +177,7 @@ def generar_pdf_interval(
         dia_per_pagina=dia_per_pagina,
     )
     if not pdf.nom:
-        shutil.rmtree(pdf.directori, ignore_errors=True)
+        esborra_directori(pdf.directori)
         return JSONResponse(
             status_code=500,
             content={"detail": "No s'ha generat el fitxer PDF de l'interval"},
@@ -219,7 +217,7 @@ def generar_pdf_vigilancies(
         amb_substitucions=include_substitucions,
     )
     if not pdf.nom:
-        shutil.rmtree(pdf.directori, ignore_errors=True)
+        esborra_directori(pdf.directori)
         raise HTTPException(status_code=500, detail="Error intern en generar el PDF")
     return _resposta_pdf(pdf.directori, pdf.nom, f"vigilancies_{data}_{_marca_de_temps()}.pdf")
 
@@ -237,17 +235,13 @@ def generar_pdf_disponibles_tots_dies(
     # Data d'inici: la proporcionada (la pantalla hi posa la del calendari) o avui
     primer_dia = data_iso(data_inici) if data_inici else rellotge.avui()
 
-    temp_dir = Path(tempfile.mkdtemp())
     pdf_filename = f"disponibles_tots_dies_{_marca_de_temps()}.pdf"
     try:
-        disponibles.genera_pdf_disponibles(db, current_user.institucio, primer_dia, str(temp_dir / pdf_filename))
+        with directori_temporal() as temp_dir:
+            disponibles.genera_pdf_disponibles(db, current_user.institucio, primer_dia, str(temp_dir / pdf_filename))
     except disponibles.DiaNoGenerat as error:
-        shutil.rmtree(temp_dir, ignore_errors=True)
         return JSONResponse(
             status_code=500,
             content={"detail": f"No s'ha pogut generar el PDF de disponibles per al dia {error.dia}"},
         )
-    except Exception:
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        raise
     return _resposta_pdf(temp_dir, pdf_filename, pdf_filename)

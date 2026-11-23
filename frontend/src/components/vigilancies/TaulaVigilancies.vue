@@ -3,7 +3,9 @@
        paginació ni ordenació per columnes: l'ordre el canvien «Ordena» i
        l'arrossegament (només dins del bloc de la mateixa hora). -->
   <div class="taula-vigilancies taula-dades" :class="{ 'taula-vigilancies--carregant': carregant }" :aria-busy="carregant">
-    <!-- Un sol gestor per a tota la taula: el toc d'una fila (pantalles tàctils) -->
+    <!-- Un sol gestor per a tota la taula: el toc d'una fila (pantalles tàctils);
+         els camps i botons de cada fila ja són controls amb teclat -->
+    <!-- eslint-disable-next-line vuejs-accessibility/click-events-have-key-events, vuejs-accessibility/no-static-element-interactions -->
     <table @click="tocaTaula">
       <colgroup>
         <col class="col-seleccio" />
@@ -40,6 +42,8 @@
           <th class="taula-accions"></th>
         </tr>
       </thead>
+      <!-- Destí d'arrossegar files entre hores (ratolí); l'ordre també es pot desar amb «Ordena» -->
+      <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
       <tbody
         v-for="bloc in blocs"
         :key="bloc.hora"

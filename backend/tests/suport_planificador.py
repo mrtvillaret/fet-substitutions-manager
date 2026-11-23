@@ -42,7 +42,6 @@ def alliberaments(dates=DATES, hores_inici=("09:00", "11:30"), nivells=("1-BAT",
     """Hores sense classe de cada nivell; les d'inici són on pot començar un examen."""
     return {
         nivell: {
-            "durada": 1,
             "dates": list(dates),
             "config": {d: {h: {"a": True, "i": True} for h in hores_inici} for d in dates},
         }

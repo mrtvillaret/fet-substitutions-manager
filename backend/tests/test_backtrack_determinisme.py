@@ -3,7 +3,9 @@ sigui `PYTHONHASHSEED`: els empats de cost es resolen a l'atzar amb el rng de
 la llavor, no per l'ordre d'un `set`.
 
 Cada execució es fa en un subprocés, perquè `PYTHONHASHSEED` només es pot
-triar en arrencar l'intèrpret. El motor és el real (el nou); només se'n
+triar en arrencar l'intèrpret. És l'única prova del determinisme entre
+processos (abans també n'hi havia una, amb els mateixos casos, a
+test_planificador_backtracking.py). El motor és el real (el nou); només se'n
 substitueixen la partició i l'anàlisi de cada franja (tot val 0: tot són empats)."""
 
 import json
@@ -20,7 +22,7 @@ DIES = ["Dilluns", "Dimarts", "Dimecres"]
 def horari_amb_empats(random_seed: int, shuffle_top_n: int = 0) -> list:
     """Quatre exàmens del mateix nivell, cost 0 a les 18 franges: retorna on
     ha anat cadascun ([(ítem, franja)], ordenat)."""
-    from test_planificador_backtracking_nou import horari_amb_empats as amb_motor_nou
+    from test_planificador_backtracking import horari_amb_empats as amb_motor_nou
 
     return [list(parella) for parella in amb_motor_nou(random_seed, shuffle_top_n)]
 

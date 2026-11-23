@@ -19,7 +19,6 @@ from dades import router as dades
 from database import (
     get_data_db_session,
     get_data_dir_for_institucio,
-    get_export_dir_for_institucio,
 )
 from horari import context
 from horari.context import get_horari
@@ -61,13 +60,6 @@ def _omple(centre):
             (carpeta / nom).write_text("<fet/>")
             db.add(XMLVersion(path=nom, data_inici=inici, data_fi=fi))
         db.commit()
-    exports = get_export_dir_for_institucio(centre)
-    for nom in (
-        "260315_substitucions_260315_101010.pdf",
-        "260402_vigilancies_260402_101010.pdf",
-        "informe_direccio.pdf",
-    ):
-        (exports / nom).write_bytes(b"%PDF-1.4")
 
 
 def _queda(centre):
@@ -109,8 +101,7 @@ def test_l_analisi_diu_que_s_esborraria_sense_esborrar_res(admin, centre):
     assert resp.status_code == 200, resp.text
     m = resp.json()
     assert m["bd"] == {"substitucions": 1, "vigilancies": 1, "grups_alliberats": 1, "baixes": 2}
-    assert [p["fitxer"] for p in m["pdfs_a_esborrar"]] == ["260315_substitucions_260315_101010.pdf"]
-    assert m["pdfs_revisio_manual"] == ["informe_direccio.pdf"]
+    assert not any(k.startswith("pdf") for k in m)  # els PDF no es desen enlloc
     assert {v["path"]: v["bloquejat"] for v in m["xml_versions"]} == {
         "dins.xml": False,
         "solapa.xml": True,
@@ -141,8 +132,7 @@ def test_esborra_el_de_dins_l_interval_i_res_mes(admin, centre):
     carpeta = get_data_dir_for_institucio(centre)
     assert not (carpeta / "dins.xml").exists()
     assert (carpeta / "solapa.xml").exists() and (carpeta / "activa.xml").exists()
-    pdfs = sorted(p.name for p in get_export_dir_for_institucio(centre).iterdir())
-    assert pdfs == ["260402_vigilancies_260402_101010.pdf", "informe_direccio.pdf"]
+    assert not (carpeta / "exports").exists()  # la purga ja no crea la carpeta antiga
 
 
 def test_no_toca_les_dades_d_un_altre_centre(admin):
@@ -150,7 +140,6 @@ def test_no_toca_les_dades_d_un_altre_centre(admin):
     _omple(altre)
     assert admin.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).status_code == 200
     assert _queda(altre) == INTACTE
-    assert len(list(get_export_dir_for_institucio(altre).iterdir())) == 3
 
 
 def test_un_fitxer_compartit_amb_una_versio_que_es_queda_no_s_esborra(admin, centre):
@@ -291,7 +280,6 @@ def test_si_falla_abans_del_commit_no_s_esborra_cap_fitxer(centre, monkeypatch):
     assert client.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).status_code == 500
     assert _queda(centre) == INTACTE
     assert (get_data_dir_for_institucio(centre) / "dins.xml").exists()
-    assert len(list(get_export_dir_for_institucio(centre).iterdir())) == 3
 
 
 def test_els_errors_no_porten_el_text_de_l_excepcio(admin, centre, monkeypatch, caplog):
@@ -301,7 +289,7 @@ def test_els_errors_no_porten_el_text_de_l_excepcio(admin, centre, monkeypatch, 
     def carpeta_que_falla(_institucio):
         raise OSError("/ruta/secreta/del/servidor")
 
-    monkeypatch.setattr(services, "get_export_dir_for_institucio", carpeta_que_falla)
+    monkeypatch.setattr(services, "get_data_dir_for_institucio", carpeta_que_falla)
 
     informe = admin.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).json()
 
@@ -319,7 +307,6 @@ def test_un_fitxer_que_no_es_pot_esborrar_no_diu_el_cami(admin, centre, monkeypa
 
     assert informe["errors"] == [
         "XML dins.xml: no s'ha pogut esborrar",
-        "PDF 260315_substitucions_260315_101010.pdf: no s'ha pogut esborrar",
     ]
     assert not any(str(get_data_dir_for_institucio(centre)) in e for e in informe["errors"])
     assert "Permission denied" in caplog.text

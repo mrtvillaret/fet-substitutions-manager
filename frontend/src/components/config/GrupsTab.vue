@@ -88,13 +88,13 @@
               icon="pi pi-pencil"
               @click="editarAbreviatura(abr)"
               class="p-button-rounded p-button-text p-button-sm"
-              v-tooltip.top="$t('common.edit')"
+              v-tooltip.top="$t('common.edit')" :aria-label="$t('common.edit')"
             />
             <Button
               icon="pi pi-trash"
               @click="eliminarAbreviatura(abr.id)"
               class="p-button-rounded p-button-text p-button-danger p-button-sm"
-              v-tooltip.top="$t('common.delete')"
+              v-tooltip.top="$t('common.delete')" :aria-label="$t('common.delete')"
             />
           </div>
         </div>
@@ -129,7 +129,7 @@
           />
           <small class="field-hint">
             {{ $t('config.groups.selectGroupsHint') }}
-            <a @click="detectarGrupsXML" style="cursor: pointer; text-decoration: underline;">{{ $t('config.groups.detectInline') }}</a>
+            <Button link class="boto-icona" :label="$t('config.groups.detectInline')" @click="detectarGrupsXML" />
           </small>
         </div>
 

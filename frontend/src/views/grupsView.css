@@ -368,25 +368,6 @@
   padding: 0.4rem 1rem;
 }
 
-.period-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin-bottom: 1rem;
-}
-
-.period-field > label {
-  font-weight: 600;
-  color: #374151;
-}
-
-.period-history {
-  margin: 0;
-  padding-left: 1.1rem;
-  font-size: 0.9rem;
-  color: #374151;
-}
-
 .teachers-panel {
   min-width: 220px;
 }

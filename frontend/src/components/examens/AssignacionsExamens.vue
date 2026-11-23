@@ -141,7 +141,7 @@
                     icon="pi pi-trash"
                     @click="eliminarAssignacio(slotProps.data.id)"
                     class="p-button-rounded p-button-text p-button-danger p-button-sm"
-                    v-tooltip.top="$t('common.delete')"
+                    v-tooltip.top="$t('common.delete')" :aria-label="$t('common.delete')"
                   />
                 </template>
               </Column>

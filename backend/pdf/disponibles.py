@@ -61,7 +61,7 @@ def nom_dia_xml(horari, data: date) -> str:
     raise ValueError(f"L'horari no conté el dia de la setmana de {data.isoformat()}")
 
 
-def dies_laborables(db: Session, institucio: str, primer_dia: date) -> list[date]:
+def dies_laborables(institucio: str, primer_dia: date) -> list[date]:
     """Tants dies laborables consecutius (des de `primer_dia`, sense caps de
     setmana) com dies té l'horari; si no se'n poden saber, 5."""
     try:
@@ -209,7 +209,7 @@ def genera_pdf_disponibles(db: Session, institucio: str, primer_dia: date, pdf_p
     """Escriu a `pdf_path` un full per a cada dia laborable des de
     `primer_dia`. Si falla un dia, DiaNoGenerat."""
     setup_translation(ConfiguracioRepository.get_all_as_dict(db).get("idioma", "ca"))
-    dies = dies_laborables(db, institucio, primer_dia)
+    dies = dies_laborables(institucio, primer_dia)
 
     doc = SimpleDocTemplate(
         pdf_path,
@@ -220,7 +220,7 @@ def genera_pdf_disponibles(db: Session, institucio: str, primer_dia: date, pdf_p
         bottomMargin=2 * cm,
     )
     estils = _Estils()
-    idioma = i18n_setup.CURRENT_LANGUAGE
+    idioma = i18n_setup.idioma_actual()
 
     story = []
     for idx, dia in enumerate(dies):

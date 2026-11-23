@@ -1,12 +1,10 @@
 """Contracte dels motors i pressupost amb rellotge injectable."""
 
 import time
-from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Literal, Protocol
+from typing import Literal
 
-from planificador.motor.compatibilitat import Politiques
-from planificador.motor.model import Assignacio, Item, Problema
+from planificador.motor.model import Assignacio, Item
 
 
 class TempsEsgotat(Exception):
@@ -51,11 +49,3 @@ class ResultatCerca:
     registre: list[str] = field(default_factory=list)
     cost: float | None = None
     items: tuple[Item, ...] = ()
-
-
-class Estrategia(Protocol):
-    id: str
-
-    def cerca(
-        self, problema: Problema, politiques: Politiques, cost_cerca, parametres: Mapping, pressupost: Pressupost, rng
-    ) -> ResultatCerca: ...

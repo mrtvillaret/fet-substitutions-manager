@@ -28,13 +28,13 @@
             <Button
               icon="pi pi-pencil"
               class="p-button-text p-button-sm"
-              v-tooltip.top="$t('common.edit')"
+              v-tooltip.top="$t('common.edit')" :aria-label="$t('common.edit')"
               @click="editarInstitucio(data)"
             />
             <Button
               :icon="data.active ? 'pi pi-ban' : 'pi pi-check-circle'"
               class="p-button-text p-button-sm"
-              v-tooltip.top="data.active ? $t('config.institutions.deactivate') : $t('config.institutions.activate')"
+              v-tooltip.top="data.active ? $t('config.institutions.deactivate') : $t('config.institutions.activate')" :aria-label="data.active ? $t('config.institutions.deactivate') : $t('config.institutions.activate')"
               @click="confirmarCanviEstatInstitucio(data)"
             />
           </div>
@@ -154,20 +154,15 @@ const confirmInstitucioTarget = ref(null)
 
 // L'esborrat definitiu d'un centre es fa des del servidor (backend/scripts/esborra_centre.py)
 const confirmInstitucioRequired = computed(() => confirmInstitucioTarget.value?.slug || '')
-const confirmInstitucioTitle = computed(() => {
-  if (confirmInstitucioAction.value === 'deactivate') return t('config.institutions.deactivateTitle')
-  if (confirmInstitucioAction.value === 'activate') return t('config.institutions.activateTitle')
-  return t('common.confirm')
-})
+// L'acció és 'activate' o 'deactivate' (buida només mentre el diàleg es tanca)
+const confirmInstitucioTitle = computed(() =>
+  t(confirmInstitucioAction.value === 'activate' ? 'config.institutions.activateTitle' : 'config.institutions.deactivateTitle'))
 const confirmInstitucioMessage = computed(() => {
   if (!confirmInstitucioTarget.value) return ''
   return t('config.institutions.deactivateMessage', { slug: confirmInstitucioTarget.value.slug, confirm: confirmInstitucioRequired.value })
 })
-const confirmInstitucioActionLabel = computed(() => {
-  if (confirmInstitucioAction.value === 'deactivate') return t('config.institutions.deactivate')
-  if (confirmInstitucioAction.value === 'activate') return t('config.institutions.activate')
-  return t('common.confirm')
-})
+const confirmInstitucioActionLabel = computed(() =>
+  t(confirmInstitucioAction.value === 'activate' ? 'config.institutions.activate' : 'config.institutions.deactivate'))
 
 const carregarInstitucions = async () => {
   const resp = await apiCentres.llista()

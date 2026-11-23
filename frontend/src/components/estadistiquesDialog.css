@@ -83,7 +83,6 @@
   padding: 0.5rem 0;
 }
 
-
 .stats-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -166,22 +165,6 @@
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 2px solid #e5e7eb;
-}
-
-.list-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: #f9fafb;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-  transition: all 0.2s;
-}
-
-.list-item:hover {
-  background: #f3f4f6;
-  transform: translateX(4px);
 }
 
 .rank {

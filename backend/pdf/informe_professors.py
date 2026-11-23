@@ -3,7 +3,6 @@ Generador d'informe per professor en PDF.
 Per a cada professor: grid horari amb absències i substitucions fetes.
 """
 
-import html
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +27,7 @@ import rellotge
 from i18n_setup import setup_translation
 from i18n_setup import translate as _
 from pdf.dies import dies_capcalera
+from pdf.text import _text
 from textos import normalitzar_hora as _normalitzar_hora
 
 C_NAVY = colors.HexColor("#1e3a5f")
@@ -42,18 +42,11 @@ C_GREY_TXT = colors.HexColor("#7f8c8d")
 C_WHITE = colors.white
 C_BLACK = colors.HexColor("#2c3e50")
 
-PAGE_W, PAGE_H = A4
+PAGE_W = A4[0]
 MARGIN = 1.5 * cm
 CONTENT_W = PAGE_W - 2 * MARGIN
 
 DIES_ORDRE = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
-
-
-def _text(valor) -> str:
-    """Text de les dades apte per a un Paragraph: ReportLab hi interpreta
-    etiquetes (<b>, <font>, <img src=...>), i un "<" escrit per un usuari
-    trencava l'informe o li feia llegir fitxers del servidor."""
-    return html.escape(str(valor or ""), quote=False)
 
 
 def _s(name, **kw):

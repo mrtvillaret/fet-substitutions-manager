@@ -17,13 +17,6 @@ from substitucions.repositories import SubstitucioRepository
 
 log = logging.getLogger(__name__)
 
-try:
-    from i18n_setup import translate as _
-except ImportError:
-
-    def _(text):
-        return text
-
 
 class VigilanciaCore:
     """Core business logic for vigilance management"""
@@ -34,7 +27,7 @@ class VigilanciaCore:
         self.absents_actuals = {}
         self.horari_gestor = None
         self.alliberats_gestor = None
-        self.grups_sense_classe = set()
+        self.grups_sense_classe = {}  # {hora: grups}
         self.dia_actual = ""
 
     def set_config(

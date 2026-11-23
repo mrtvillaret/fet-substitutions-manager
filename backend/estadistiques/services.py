@@ -90,15 +90,6 @@ def _reals(db: Session, data_inici: str, data_final: str, hores: Hores = None) -
     return substitucions_reals(db, data_inici, data_final, hores)
 
 
-def resum(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> dict:
-    return _resum(
-        data_inici,
-        data_final,
-        absencies_i_serveis(_reals(db, data_inici, data_final, hores)),
-        vigilancies_entre(db, data_inici, data_final, hores)[1],
-    )
-
-
 def _resum(data_inici: str, data_final: str, absencies: list[FilaSubstitucio], v: dict) -> dict:
     """La cobertura de les absències i els serveis (com la portada de
     l'informe de direcció) i les vigilàncies."""
@@ -129,15 +120,6 @@ def _resum(data_inici: str, data_final: str, absencies: list[FilaSubstitucio], v
     }
 
 
-def professors(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> dict:
-    return _professors(
-        data_inici,
-        data_final,
-        absencies_i_serveis(_reals(db, data_inici, data_final, hores)),
-        substitucions_fetes(db, data_inici, data_final, hores),
-    )
-
-
 def _professors(
     data_inici: str, data_final: str, absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio]
 ) -> dict:
@@ -152,16 +134,6 @@ def _professors(
         ],
         "top_substituts": [{"professor": p["nom"], "total": p["total"]} for p in professors_substitucions(fetes)[:10]],
     }
-
-
-def temporal(db: Session, institucio: str, data_inici: str, data_final: str, hores: Hores = None) -> dict:
-    return _temporal(
-        data_inici,
-        data_final,
-        absencies_i_serveis(_reals(db, data_inici, data_final, hores)),
-        vigilancies_entre(db, data_inici, data_final, hores)[0],
-        franges_de_l_horari(db, institucio, data_inici, data_final),
-    )
 
 
 def _temporal(
@@ -231,10 +203,6 @@ def _absencies_per_grup(
         for s in absencies_i_serveis(_reals(db, data_inici, data_final, hores))
         if grup_de(s) and (grups is None or grup_de(s) in grups)
     ]
-
-
-def classes(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> dict:
-    return _classes(data_inici, data_final, absencies_i_serveis(_reals(db, data_inici, data_final, hores)))
 
 
 def _classes(data_inici: str, data_final: str, absencies: list[FilaSubstitucio]) -> dict:
@@ -323,16 +291,6 @@ def classes_detall(db: Session, data_inici: str, data_final: str, grups: list[st
     }
 
 
-def taula_professors(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> dict:
-    return _taula_professors(
-        data_inici,
-        data_final,
-        absencies_i_serveis(_reals(db, data_inici, data_final, hores)),
-        substitucions_fetes(db, data_inici, data_final, hores),
-        vigilancies_entre(db, data_inici, data_final, hores)[1],
-    )
-
-
 def _taula_professors(
     data_inici: str, data_final: str, absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio], vigilancies: dict
 ) -> dict:
@@ -388,14 +346,6 @@ def detall_professor(db: Session, professor: str, data_inici: str, data_final: s
     }
 
 
-def hores_de_l_horari(db: Session, institucio: str, data_inici: str, data_final: str) -> dict:
-    """Les franges de l'horari a l'interval, per al filtre per hores."""
-    return {
-        "periode": {"data_inici": data_inici, "data_final": data_final},
-        "hores": franges_de_l_horari(db, institucio, data_inici, data_final),
-    }
-
-
 def franges(db: Session, dia: str, hora: str, data_inici: str, data_final: str, hores: Hores = None) -> dict:
     """Per a una hora d'un dia de la setmana: quantes substitucions fetes
     (substitucions_fetes) hi va haver alhora a cada data i qui les va fer."""
@@ -438,8 +388,8 @@ def franges(db: Session, dia: str, hora: str, data_inici: str, data_final: str, 
 
 
 def batch(db: Session, institucio: str, data_inici: str, data_final: str, hores: Hores = None) -> dict:
-    """Tots els recomptes de la pantalla amb un sol context de lectura.
-    Les rutes individuals conserven els mateixos càlculs i resultats."""
+    """Tots els recomptes de la pantalla (resum, professors, temporal,
+    classes, taula i les hores de l'horari) amb un sol context de lectura."""
     franges = franges_de_l_horari(db, institucio, data_inici, data_final)
     # La pantalla retirava del filtre les hores inexistents abans de comptar.
     hores = ([h for h in franges if h in hores] or None) if hores is not None else None

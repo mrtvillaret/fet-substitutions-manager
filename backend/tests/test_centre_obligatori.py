@@ -4,7 +4,6 @@ import pytest
 from suport_api import client_per, crea_app, nova_institucio
 
 from config import context
-from config.settings import config
 from errors_domini import NoValid
 from grups import abreviatures
 from grups.lectures import AlliberatsDelDia
@@ -16,11 +15,10 @@ DATA = "2026-04-20"
 TEXT = "Cal indicar el centre per accedir a l'horari"
 
 
-@pytest.mark.parametrize("fallback", ["config", "entorn", "exemple"])
+@pytest.mark.parametrize("fallback", ["entorn", "exemple"])
 @pytest.mark.parametrize("porta", ["centre", "dia", "xml", "horari", "gestors", "vigilancies", "abreviatures"])
 def test_peticio_sense_centre_no_fa_servir_cap_fallback(monkeypatch, fallback, porta):
     centre = nova_institucio(amb_xml=True)
-    monkeypatch.setitem(config.global_data, "institucio", centre if fallback == "config" else None)
     if fallback == "entorn":
         monkeypatch.setenv("APP_INSTITUCIO", centre)
     else:
@@ -36,7 +34,7 @@ def test_peticio_sense_centre_no_fa_servir_cap_fallback(monkeypatch, fallback, p
         if porta == "dia":
             return Dia.de_text(DATA).institucio
         if porta == "xml":
-            return horari.get_xml_path_for_date(None, DATA)
+            return Dia.de_text(DATA).xml_path
         if porta == "horari":
             return len(horari.get_horari(data_iso=DATA).professors)
         if porta == "gestors":
@@ -56,7 +54,6 @@ def test_peticio_sense_centre_no_fa_servir_cap_fallback(monkeypatch, fallback, p
 
 def test_script_sense_centre_tambe_ha_de_ser_explicit(monkeypatch):
     monkeypatch.setattr(context, "_institucio", context.ContextVar("script_sense_centre", default=None))
-    monkeypatch.setitem(config.global_data, "institucio", "exemple")
     monkeypatch.setenv("APP_INSTITUCIO", "exemple")
     with pytest.raises(NoValid) as error:
         Dia.de_text(DATA)

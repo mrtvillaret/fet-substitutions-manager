@@ -1,10 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ref, computed } from 'vue'
-import { carregaBloc } from './support/carregaBlocSubstitucions.js'
+import { carregaBlocVista } from './support/carregaBlocVista.js'
 import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../src/pdfOpcions.js'
 
-const noms = ['mostrarDialogPDF', 'mostrarDialogValidacions', 'generantPDF', 'reassignantProblematics', 'reassignChanges', 'validacions', 'warningsFiltrats', 'totalIssuesFiltrats', 'pdfConfig', 'mostrarDialegPDF', 'carregarPreferenciesPdf', 'generarPDFComplet', 'continuarPDF', 'cancelarPDF', 'reassignarProblematics']
 function prepara({ validacio = { conflicts: [], warnings: [], total: 0 }, changes = [] } = {}) {
   const peticions = [], avisos = [], links = []
   const apiPdf = {
@@ -15,7 +14,7 @@ function prepara({ validacio = { conflicts: [], warnings: [], total: 0 }, change
   }
   const dependents = { dataISO: ref('2026-04-20'), ordreFiles: ref('professor'), horesDisponibles: ref(['09:00','08:00']), collator: ref(new Intl.Collator('ca')), toast: { add: m => avisos.push(m) }, t: x => x, mostrarAvisos: x => avisos.push(x), carregarSubstitucions: async () => peticions.push(['recarrega']) }
   const dependencies = { ...dependents, dependents, ref, computed, aplicaPreferencies, midaPerDefecte, parametresComuns, apiPdf, jaAvisat: () => false, apiSubstitucions: { reassignaProblematiques: async (...args) => { peticions.push(['reassigna', ...args]); return { changes, cleared: changes.length } } }, URLSearchParams, Blob, window: { URL: { createObjectURL: () => 'blob:prova', revokeObjectURL: x => peticions.push(['revoca', x]) } }, document: { createElement: () => { const link = { click: () => links.push([link.href, link.download]) }; return link }, body: { appendChild() {}, removeChild() {} } } }
-  const bloc = carregaBloc('usePdfSubstitucions', [['// PDF export', '// Computed'], ['// PDF Functions', '// Watch per canvis de data']], noms, dependencies)
+  const bloc = carregaBlocVista('usePdfSubstitucions', dependencies)
   return { ...bloc, peticions, avisos, links }
 }
 test('PDF: preferències, filtratge dels avisos i retorn del diàleg de validació', async () => {

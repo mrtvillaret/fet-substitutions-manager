@@ -12,17 +12,11 @@ from dates import parse_date
 
 # Evitem imports estàtics per no quedar-nos amb valors stale
 from grups.disponibilitat import sense_classe
+from i18n_setup import translate as _
 from substitucions.encadenades import activitat_encadenada
 from substitucions.files import FilaSubstitucio, PropostaSubstitucio, clau_fila
 
 log = logging.getLogger(__name__)
-
-try:
-    from i18n_setup import translate as _
-except ImportError:
-
-    def _(text):
-        return text
 
 
 def prioritat_candidat(tipus_activitat: str) -> int:
@@ -197,7 +191,7 @@ class GestorSubstitucions:
         self,
         dia: str,
         absents: dict[str, list[str]],
-        grups_sense_classe: set[str] | dict[str, set[str]],
+        grups_sense_classe: dict[str, set[str]],
         professors_ocupats_examens: dict[str, list[str]] = None,
         substitucions_existents: dict[str, FilaSubstitucio] = None,
         absents_tipus: dict[str, str] = None,
@@ -208,7 +202,7 @@ class GestorSubstitucions:
         """Assigna substituts automàticament per hores
 
         Args:
-            grups_sense_classe: Set[str] (antic) o Dict[str, Set[str]] (nou) amb grups per hora
+            grups_sense_classe: els grups sense classe de cada hora ({hora: grups})
             omplir: si és False, només es conserven els substituts que ja hi havia i les
                 files noves queden pendents (es fa servir després d'un canvi del dia:
                 no s'assigna ningú sense que l'usuari ho demani)
@@ -232,15 +226,7 @@ class GestorSubstitucions:
         self.substitucions_existents = substitucions_existents or {}
         self.dia_actual = dia
 
-        # Normalitza grups_sense_classe a Dict[str, Set[str]]
-        if isinstance(grups_sense_classe, set):
-            # Format antic: aplica a totes les hores
-            hores = self.horari.hores if self.horari else []
-            logger.info(_("   📌 hores carregades de l'XML: {}").format(hores))
-            self.grups_sense_classe_dict = {hora: grups_sense_classe for hora in hores if hora != "Pati"}
-        else:
-            # Format nou: ja és un dict per hora
-            self.grups_sense_classe_dict = grups_sense_classe
+        self.grups_sense_classe_dict = grups_sense_classe
 
         # Inicialitza validador amb la info actual
         self.validator = CandidateValidator(professors_ocupats_examens, substitucions_existents, rng, quota)
@@ -468,7 +454,12 @@ class GestorSubstitucions:
         substitucions_ordenades = self._ordenar_per_conservacio(substitucions, hora)
 
         for sub in substitucions_ordenades:
-            if not self._aplica_assignacio(sub, hora, candidats_per_categoria, ocupats_hora, absents):
+            if not self._aplica_assignacio(
+                sub,
+                hora,
+                candidats_per_categoria,
+                ocupats_hora,
+            ):
                 continue
             # Afegeix disponibles per mostrar al desplegable
             sub.disponibles = candidats
@@ -490,7 +481,12 @@ class GestorSubstitucions:
 
         # Processa substitucions encadenades (només 1 nivell de profunditat)
         for sub_encadenada in substitucions_encadenades:
-            self._aplica_assignacio(sub_encadenada, hora, candidats_per_categoria, ocupats_hora, absents)
+            self._aplica_assignacio(
+                sub_encadenada,
+                hora,
+                candidats_per_categoria,
+                ocupats_hora,
+            )
             sub_encadenada.disponibles = candidats
 
         if substitucions_encadenades:
@@ -529,7 +525,6 @@ class GestorSubstitucions:
         hora: str,
         candidats_per_categoria: dict[int, list],
         ocupats_hora: set[str],
-        absents: dict[str, list[str]],
     ) -> bool:
         """Aplica assignació conservadora per una substitució individual"""
         professor_absent = sub.professor_absent
@@ -548,7 +543,6 @@ class GestorSubstitucions:
             sub.tipus_substitut = sub_anterior.tipus_substitut if substitut_actual else ""
             sub.comentaris = sub_anterior.comentaris
             # Respecta el tipus de la proposta nova (absència, servei, vigilància).
-            sub.conservat = True
             if substitut_actual:
                 ocupats_hora.add(substitut_actual)
             return True

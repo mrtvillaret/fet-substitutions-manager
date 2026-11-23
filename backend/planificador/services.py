@@ -35,7 +35,6 @@ from planificador.repositories import (
     RestriccioRepository,
     llegeix_json,
 )
-from textos import nom_net
 
 # ---------------------------------------------------------------- motors
 
@@ -171,29 +170,16 @@ def fixa_examens(db: Session, pins: list, unpins: list) -> None:
 
 
 def costos(db: Session) -> dict:
-    """Els costos de fer venir o substituir els professors: {"globals":
-    {"substitucio": 80, ...}, "individuals": {"Prof A": {"substitucio": 100}}}.
-    Els globals que no s'han desat, amb el valor per defecte."""
-    costos = {"globals": {}, "individuals": {}}
-    for cp in CostProfessorRepository.get_all(db):
-        if cp.professor is None:
-            costos["globals"][cp.tipus] = cp.pes
-        else:
-            costos["individuals"].setdefault(cp.professor, {})[cp.tipus] = cp.pes
-    for tipus, default_pes in DEFAULT_COST_PROFESSORS.items():
-        if tipus not in costos["globals"]:
-            costos["globals"][tipus] = default_pes
-    return costos
+    """Els costos de fer venir o substituir els professors (globals i
+    individuals). Els globals que no s'han desat, amb el valor per defecte
+    (el mateix que fa servir el motor quan no n'hi ha)."""
+    desats = CostProfessorRepository.costos(db)
+    return {**desats, "globals": {**DEFAULT_COST_PROFESSORS, **desats["globals"]}}
 
 
 def desa_costos(db: Session, payload: dict) -> None:
     """Substitueix tots els costos pels de `payload` (globals i individuals)."""
-    CostProfessorRepository.esborra_tots(db)
-    for tipus, pes in payload.get("globals", {}).items():
-        CostProfessorRepository.afegeix(db, None, tipus, int(pes))
-    for professor, tipus_dict in payload.get("individuals", {}).items():
-        for tipus, pes in tipus_dict.items():
-            CostProfessorRepository.afegeix(db, nom_net(professor), tipus, int(pes))
+    CostProfessorRepository.substitueix(db, payload)
     db.commit()
 
 

@@ -226,7 +226,7 @@ class DiagnosticIncompatibilitats:
                 sessio if isinstance(sessio, dict) else s_dict, dia_nom, hora, prefix if _es_data_iso(prefix) else None
             )
         ubicacio = Franja(f"{prefix}_{hora}", prefix, dia_nom, prefix if _es_data_iso(prefix) else None, hora)
-        return causa_dura(s_dict, ubicacio, self.regles, self.nivells_actius, analisi=analisi, politiques=DIAGNOSTIC)
+        return causa_dura(s_dict, ubicacio, self.regles, analisi=analisi, politiques=DIAGNOSTIC)
 
     def _slots_viables(self, item: dict) -> set[str]:
         """Les hores (prefix_hora) on l'ítem es pot col·locar sense context
@@ -658,7 +658,7 @@ class Diagnostic:
         }
         self.disponibilitat = Disponibilitat(problema)
 
-    def preparar_particio_nivells(self, slots_disponibles):
+    def preparar_particio_nivells(self):
         # El precheck i el diagnòstic del motor antic sempre criden la partició
         # nova de la base, també quan després genera el recuit.
         return [
@@ -709,7 +709,7 @@ class Diagnostic:
         dies = construir_dies_efectius(pla.dies, pla.dia_a_data_iso)
         if not dies:
             return []
-        items = self.preparar_particio_nivells(max(1, len(dies) * max(1, len(self.hores_examen))))
+        items = self.preparar_particio_nivells()
         return DiagnosticIncompatibilitats(
             self.problema.regles.a_diccionari(),
             dies,
@@ -774,8 +774,7 @@ class Diagnostic:
         else:
             dies_efectius = [(d, d) for d in dies_utilitzar]
 
-        slots_disponibles = len(dies_efectius) * len(hores_examen)
-        items = self.preparar_particio_nivells(slots_disponibles=max(1, slots_disponibles)) or []
+        items = self.preparar_particio_nivells() or []
 
         if not items:
             sessions_per_nivell = self.sessions_per_nivell
@@ -860,9 +859,7 @@ class Diagnostic:
                     slot_ok = True
                     for sessio in sessions:
                         s_dict = _sessio_a_diccionari(sessio)
-                        if viola_restriccio_dia_hora_fixos(
-                            s_dict, dia_nom, hora, restriccions, nivells_actius, sk_prefix
-                        ):
+                        if viola_restriccio_dia_hora_fixos(s_dict, dia_nom, hora, restriccions, sk_prefix):
                             slot_ok = False
                             break
                     if slot_ok:

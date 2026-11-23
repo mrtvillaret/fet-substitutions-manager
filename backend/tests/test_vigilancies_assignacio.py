@@ -31,7 +31,7 @@ from prioritats.services import carrega_prioritats
 from rate_limit import limiter
 from substitucions import router as substitucions
 from vigilancies import services
-from vigilancies.assignacio import assignacio_optima, grups_de, save_vigilancies_afinitats, titular_de, titulars_de
+from vigilancies.assignacio import assignacio_optima, grups_de, save_vigilancies_afinitats, titulars_de
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(vigilancies_router, substitucions.router)
@@ -200,6 +200,13 @@ def _per_grup(client):
     return {g: v for (g, _), v in _vigilants(client).items()}
 
 
+def _neteja(client):
+    """«Neteja»: fora tots els vigilants del dia, per tornar a assignar al
+    mateix centre amb una altra llavor (dona el mateix que un centre nou)."""
+    resp = client.post(f"{URL}/clear")
+    assert resp.status_code == 200, resp.text
+
+
 def test_2a_el_titular_de_diversos_grups_va_al_grup_on_tenia_classe(llavor):
     _, client = _centre(config=_mates("Prof 38"))  # Prof 38 tenia classe amb 2-ESO-B
     _crea_mates(client)
@@ -223,10 +230,11 @@ def test_2b_si_no_tenia_classe_va_al_grup_que_quedaria_sense_vigilant(llavor):
 def test_2b_si_en_quedarien_diversos_sense_vigilant_un_d_ells_a_l_atzar(llavor):
     grups = ("2-ESO-A", "2-ESO-B", "2-ESO-C")
     destins = set()
+    _, client = _centre(config=_mates("Prof 41", grups), alliberats=["3-ESO-B"], absents=["Prof 38", "Prof 45"])
+    _crea_mates(client, grups)
     for n in range(12):
         llavor(n)
-        _, client = _centre(config=_mates("Prof 41", grups), alliberats=["3-ESO-B"], absents=["Prof 38", "Prof 45"])
-        _crea_mates(client, grups)
+        _neteja(client)
         _titulars(client)
         vigilants = _per_grup(client)
         assert vigilants["2-ESO-A"] == ""  # 2-ESO-A té el seu professor: no hi va
@@ -236,10 +244,11 @@ def test_2b_si_en_quedarien_diversos_sense_vigilant_un_d_ells_a_l_atzar(llavor):
 
 def test_2c_si_tots_els_grups_tenen_el_seu_professor_un_a_l_atzar(llavor):
     destins = set()
+    _, client = _centre(config=_mates("Prof 41"), alliberats=["3-ESO-B"])
+    _crea_mates(client)
     for n in range(12):
         llavor(n)
-        _, client = _centre(config=_mates("Prof 41"), alliberats=["3-ESO-B"])
-        _crea_mates(client)
+        _neteja(client)
         _titulars(client)
         _pendents(client)
         vigilants = _per_grup(client)
@@ -461,25 +470,25 @@ FILES_CASTELLA = [
 
 
 @pytest.mark.parametrize(
-    "tipus, grups, aula, esperat",
+    "tipus, grups, aula, titulars, motiu",
     [
-        ("Castellà", "1-ESO", "ENLLAÇ", "Prof 1"),  # l'ENLLAÇ, per grup (i aula)
-        ("Castellà", "1-ESO-A", "una altra", "Prof 2"),  # una sola fila: l'aula no cal
-        ("Anglès", "1-ESO-B", "A2", "Prof 4"),  # desdoblament: l'aula desfà
-        ("Anglès", "1-ESO-B", "A9", None),  # desdoblament sense l'aula: cap
-        ("Anglès", "1-ESO-C", "A1", None),  # dues files iguals: no es pot decidir
-        ("Castellà", "1-ESO-B", "1-ESO-A", None),  # mateixa aula, un altre grup: no
-        ("Castellà", "1-ESO-B", "", None),  # cap fila del grup: no hi ha «el primer»
-        ("Castellà", "1-ESO-B", "ENLLAÇ", None),  # l'ENLLAÇ de «1-ESO» no casa amb 1-ESO-B per tros de nom
-        ("Química", "1-ESO-A", "", None),  # assignatura sense configuració
+        ("Castellà", "1-ESO", "ENLLAÇ", {"Prof 1"}, None),  # l'ENLLAÇ, per grup (i aula)
+        ("Castellà", "1-ESO-A", "una altra", {"Prof 2"}, None),  # una sola fila: l'aula no cal
+        ("Anglès", "1-ESO-B", "A2", {"Prof 4"}, None),  # desdoblament: l'aula desfà
+        ("Anglès", "1-ESO-B", "A9", {"Prof 3", "Prof 4"}, "diversos_titulars"),  # sense l'aula: tots dos
+        ("Anglès", "1-ESO-C", "A1", {"Prof 5", "Prof 6"}, "diversos_titulars"),  # dues files iguals
+        ("Castellà", "1-ESO-B", "1-ESO-A", set(), "cap_fila_grup"),  # mateixa aula, un altre grup: no
+        ("Castellà", "1-ESO-B", "", set(), "cap_fila_grup"),  # cap fila del grup: no hi ha «el primer»
+        ("Castellà", "1-ESO-B", "ENLLAÇ", set(), "cap_fila_grup"),  # «1-ESO» no casa amb 1-ESO-B per tros
+        ("Química", "1-ESO-A", "", set(), None),  # assignatura sense configuració
     ],
 )
-def test_titular_de(tipus, grups, aula, esperat):
-    assert titular_de(FILES_CASTELLA, tipus, grups, aula) == esperat
+def test_titulars_de_peces(tipus, grups, aula, titulars, motiu):
+    assert titulars_de(FILES_CASTELLA, tipus, grups, aula) == (frozenset(titulars), motiu)
 
 
-def test_titular_de_sense_configuracio():
-    assert titular_de([], "Castellà", "1-ESO-A", "1-ESO-A") is None
+def test_titulars_de_sense_configuracio():
+    assert titulars_de([], "Castellà", "1-ESO-A", "1-ESO-A") == (frozenset(), None)
 
 
 def test_grups_de_desfa_comes_i_abreviatures_sense_trossos_de_text():

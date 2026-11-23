@@ -4,9 +4,9 @@ import random
 from copy import deepcopy
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import xml_inventat as xml_inventat
-from test_planificador_greedy_nou import Rellotge
+from suport_motor import config_inventada as config_inventada
+from suport_motor import xml_inventat as xml_inventat
+from test_planificador_greedy import Rellotge
 
 from planificador.motor.compatibilitat import RECUIT
 from planificador.motor.construccio import construeix_problema, particio

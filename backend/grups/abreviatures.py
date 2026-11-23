@@ -156,23 +156,6 @@ def aplicar_abreviatura(grups_string: str) -> str:
     return obtenir_abreviatura(grups_string)
 
 
-def aplicar_abreviatures_a_llista(llista_grups: list) -> list:
-    """
-    Aplica abreviatures a una llista de strings de grups.
-
-    Args:
-        llista_grups: Llista de strings amb grups (poden tenir comes)
-
-    Returns:
-        Llista amb abreviatures aplicades
-
-    Examples:
-        >>> aplicar_abreviatures_a_llista(["ESO1A,ESO1B", "ESO2A"])
-        ["ESO1AB", "ESO2A"]
-    """
-    return [aplicar_abreviatura(grups) for grups in llista_grups]
-
-
 def aplicar_abreviatura_grup(grup: str) -> str:
     """
     Aplica abreviatures també a un grup individual.

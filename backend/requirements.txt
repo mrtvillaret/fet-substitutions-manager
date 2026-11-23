@@ -14,7 +14,7 @@ alembic==1.20.1
 # PyJWT en lloc de python-jose: és el que recomana la documentació de FastAPI
 # des que python-jose va quedar sense manteniment. A més, python-jose
 # arrossegava ecdsa, rsa i pyasn1.
-PyJWT[crypto]==2.15.1
+PyJWT==2.15.1
 
 argon2-cffi==25.1.0
 slowapi==0.1.10

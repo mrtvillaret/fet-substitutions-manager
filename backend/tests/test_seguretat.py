@@ -51,8 +51,8 @@ from suport_noms import unic
 from suport_planificador import alliberaments
 
 from auth import security
+from config import settings
 from config.auth import get_config_auth
-from config.settings import config
 from configuracio.repositories import ConfiguracioRepository
 from database import DATA_BASE_DIR, AuthSessionLocal, get_data_db_session
 from dependencies import get_db, get_db_lectura
@@ -586,15 +586,9 @@ INVENTARI = dict(
         _r(CENTRE, USER, "GET", "/api/horari/assignatures/detectar"),
         # ------------------------------------------------------ estadístiques
         _r(CENTRE, ADMIN, "GET", "/api/estadistiques/batch"),
-        _r(CENTRE, ADMIN, "GET", "/api/estadistiques/resum"),
-        _r(CENTRE, ADMIN, "GET", "/api/estadistiques/professors"),
-        _r(CENTRE, ADMIN, "GET", "/api/estadistiques/temporal"),
-        _r(CENTRE, ADMIN, "GET", "/api/estadistiques/classes"),
         _r(CENTRE, ADMIN, "GET", "/api/estadistiques/classes/detall", params={"grups": "1-BAT-A"}),
-        _r(CENTRE, ADMIN, "GET", "/api/estadistiques/taula"),
         _r(CENTRE, ADMIN, "GET", "/api/estadistiques/professor/{professor}", "/api/estadistiques/professor/{M} 1"),
         _r(CENTRE, ADMIN, "GET", "/api/estadistiques/franges", params={"dia": "Dilluns", "hora": "09:00"}),
-        _r(CENTRE, ADMIN, "GET", "/api/estadistiques/hores"),
         _r(
             CENTRE,
             ADMIN,
@@ -608,13 +602,6 @@ INVENTARI = dict(
             "GET",
             "/api/informes/professor",
             params={"data_inici": "2026-09-01", "data_final": "2026-10-31", "professor": "{M} 1"},
-        ),
-        _r(
-            CENTRE,
-            ADMIN,
-            "GET",
-            "/api/informes/professors-llista",
-            params={"data_inici": "2026-09-01", "data_final": "2026-10-31"},
         ),
         # ---------------------------------------------------------- prioritats
         _r(CENTRE, ADMIN, "GET", "/api/prioritats/categories"),
@@ -933,7 +920,6 @@ def entorn():
     a, b, inactiu = _centre("MARCAA"), _centre("MARCAB"), _centre("MARCAC")
     # El centre per defecte del servidor és el B (ja mentre es preparen els centres)
     mp = pytest.MonkeyPatch()
-    mp.setitem(config.global_data, "institucio", b)
     mp.setenv("APP_INSTITUCIO", b)
     try:
         ctx = {"A": a, "B": b, "M": "MARCAA", "nou": f"seg_nou_{unic()}"}
@@ -966,7 +952,7 @@ def entorn():
         with con:
             con.execute("INSERT INTO professors (nom, actiu) VALUES ('MARCAA 99', 0)")
         con.close()
-        config.set_institucio_activa(inactiu, False)
+        settings.set_institucio_activa(inactiu, False)
         limiter.reset()
         yield {"ctx": ctx, "clients": clients, "centres": (a, b)}
     finally:

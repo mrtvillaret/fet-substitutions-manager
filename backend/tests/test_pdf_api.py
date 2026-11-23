@@ -10,6 +10,7 @@ import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
 
+from pdf import domain as pdf_domain
 from pdf import generacio, informes, services, taula
 from pdf import router as pdf
 from rate_limit import limiter
@@ -341,11 +342,41 @@ def test_un_format_o_una_mida_desconeguts_no_deixen_directoris_temporals(
     client, centre, monkeypatch, tmp_path, ruta, params, opcio
 ):
     _prepara(client, "Física", centre)
-    monkeypatch.setattr(generacio.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(pdf_domain.tempfile, "gettempdir", lambda: str(tmp_path))
 
     resposta = client.get(ruta, params={**params, **opcio})
 
     assert resposta.status_code == 400
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "ruta, params",
+    [
+        (f"/api/pdf/complete/{DATA}", {}),
+        (f"/api/pdf/vigilancies/{DATA}", {}),
+        ("/api/pdf/vigilancies/interval", {"data_inici": DATA, "data_final": DATA}),
+        ("/api/informes/direccio", {"data_inici": DATA, "data_final": DATA}),
+        ("/api/informes/professor", {"data_inici": DATA, "data_final": DATA}),
+    ],
+)
+def test_una_fallada_en_dibuixar_el_pdf_no_deixa_directoris_temporals(
+    client, centre, monkeypatch, tmp_path, ruta, params
+):
+    _prepara(client, "Física", centre)
+    monkeypatch.setattr(pdf_domain.tempfile, "gettempdir", lambda: str(tmp_path))
+
+    def falla(*args, **kwargs):
+        raise RuntimeError("fallada simulada")
+
+    monkeypatch.setattr(generacio.PDFCompletExporter, "exportar", falla)
+    monkeypatch.setattr(informes, "generar_informe_pdf", falla)
+    monkeypatch.setattr(informes, "generar_informe_professors_pdf", falla)
+
+    # El client de proves torna a llançar l'excepció (al servidor és un 500)
+    with pytest.raises(RuntimeError, match="fallada simulada"):
+        client.get(ruta, params=params)
+
     assert list(tmp_path.iterdir()) == []
 
 
@@ -378,7 +409,7 @@ def test_disponibles_informa_del_dia_que_falla_i_esborra_el_temporal(client, mon
         raise RuntimeError("fallada simulada")
 
     monkeypatch.setattr(pdf.Dia, "de_text", falla_dia)
-    monkeypatch.setattr(pdf.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(pdf_domain.tempfile, "gettempdir", lambda: str(tmp_path))
 
     resposta = client.post("/api/pdf/disponibles-tots-dies", json={"data_inici": DATA})
 
@@ -464,7 +495,7 @@ def test_interval_informa_si_l_exportador_no_genera_fitxer(client, monkeypatch, 
     assert resposta.status_code == 200, resposta.text
     export_dir = tmp_path / "export"
     export_dir.mkdir()
-    monkeypatch.setattr(generacio.tempfile, "mkdtemp", lambda: str(export_dir))
+    monkeypatch.setattr(pdf_domain.tempfile, "mkdtemp", lambda **_: str(export_dir))
     monkeypatch.setattr(generacio.PDFCompletExporter, "exportar", lambda *args, **kwargs: "")
 
     resposta = client.get(
@@ -477,7 +508,7 @@ def test_interval_informa_si_l_exportador_no_genera_fitxer(client, monkeypatch, 
     assert not export_dir.exists()
 
 
-@pytest.mark.parametrize("informe", ["direccio", "professor", "professors-llista"])
+@pytest.mark.parametrize("informe", ["direccio", "professor"])
 def test_informes_rebutgen_un_interval_invertit(client, informe):
     resposta = client.get(
         f"/api/informes/{informe}",
@@ -709,10 +740,6 @@ def _absencies_a_les_08_i_a_les_10(centre):
 def test_els_informes_apliquen_el_filtre_per_hores_i_la_capcalera_el_diu(client, centre):
     _absencies_a_les_08_i_a_les_10(centre)
     interval = {"data_inici": DATA, "data_final": DATA}
-
-    # Com les envia la pantalla (axios): hores[]=...
-    llista = client.get("/api/informes/professors-llista", params={**interval, "hores[]": ["08:00"]})
-    assert llista.json()["professors"] == ["Prof 1", "Prof 3"]
 
     direccio = client.get("/api/informes/direccio", params={**interval, "hores": ["8:00"]})
     assert direccio.status_code == 200, direccio.text

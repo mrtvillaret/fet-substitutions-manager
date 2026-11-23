@@ -22,7 +22,6 @@ from planificador.compartit.missatges import missatge
 from planificador.compartit.nivells import NivellsDelsGrups
 from planificador.examens import nivells_dels_grups, nivells_master
 from planificador.motor.durades import examen as hores_examen
-from planificador.motor.durades import vigilancia
 from planificador.repositories import (
     SCHEDULER_ALLIBERAMENTS_KEY,
     SCHEDULER_DATES_KEY,
@@ -30,6 +29,7 @@ from planificador.repositories import (
     SCHEDULER_DURADA_KEY,
     SCHEDULER_DURADES_GRUPS_KEY,
     SCHEDULER_NIVELLS_KEY,
+    CostProfessorRepository,
     llegeix_json,
 )
 from prioritats.repositories import NoSubstituirRepository
@@ -51,10 +51,6 @@ class ConfigPlanificador:
     ultim_professor: str
     # El nivell de cada grup: les taules de la configuració d'exàmens (també dins de `config`)
     nivells_dels_grups: NivellsDelsGrups = field(default_factory=NivellsDelsGrups)
-
-    def durada_titular_de(self, examen: str) -> int:
-        """Hores que el titular vigila un examen (la regla única de `motor/durades.py`)."""
-        return vigilancia(examen, self.durades_per_sessio, self.durada_titular)
 
     def durada_examen_de(self, examen: str) -> int:
         """Hores que dura un examen per a l'alumnat (la regla única de `motor/durades.py`)."""
@@ -181,7 +177,8 @@ def carrega_config(institucio: str) -> ConfigPlanificador:
         taules = nivells_dels_grups(db)
         return ConfigPlanificador(
             config=_config_dels_motors(ConfiguracioExamenRepository.get_all(db), taules),
-            restriccions=restriccions.llegeix(db),
+            # El motor rep els costos dels professors amb les restriccions
+            restriccions={**restriccions.llegeix(db), "costos_professors": CostProfessorRepository.costos(db)},
             durada_titular=durada_titular,
             durada_examen=durada_examen,
             nivells_configurats=nivells_configurats,

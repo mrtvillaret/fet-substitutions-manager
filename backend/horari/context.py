@@ -97,11 +97,6 @@ def _resolve_xml_path(institucio: str, data_iso: str, *, versio=_SENSE_VALOR, db
     return xml_path
 
 
-def get_xml_path_for_date(institucio: str | None, data_iso: str) -> str | None:
-    instit = institucio or _get_institucio_actual()
-    return _resolve_xml_path(instit, data_iso)
-
-
 def get_horari(institucio: str = None, *, data_iso: str, xml_path=_SENSE_VALOR) -> GestorHorariWeb:
     """L'horari vigent a `data_iso` (de memòria cau). Sense institució, la de
     la petició en curs."""

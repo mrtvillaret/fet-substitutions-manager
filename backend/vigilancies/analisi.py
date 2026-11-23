@@ -36,8 +36,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
             absents[clau[0]].add(clau[1])
 
     def nom(valor):
-        valor = (valor or "").strip()
-        return "" if valor in ("---", "PENDENT") or valor.startswith("-- selecciona") else valor
+        return (valor or "").strip()
 
     def afegeix(tipus, gravetat, vigs, missatge, professor="", grup=None, efectiva=None):
         v = vigs[0] if vigs else FilaVigilancia()

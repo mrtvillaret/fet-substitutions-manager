@@ -14,10 +14,12 @@ from schema_migrations.schema import (
     CANONICAL_REVISION,
     CLEAN_REVISION,
     CURRENT_REVISION,
+    VIGENCIA_REVISION,
     create_base,
     validate_base,
     validate_current,
     validate_historical,
+    validate_vigencia,
 )
 
 _migration_lock = RLock()  # Alembic també usa proxies globals dins del procés.
@@ -58,6 +60,8 @@ def database_state(connection, kind):
         validate_historical(connection, kind, cleaned=True)
     elif heads == (CANONICAL_REVISION,):
         validate_base(connection, kind, historical=False)
+    elif heads == (VIGENCIA_REVISION,):
+        validate_vigencia(connection, kind)
     elif heads == (CURRENT_REVISION,):
         validate_current(connection, kind)
     return "pendent"

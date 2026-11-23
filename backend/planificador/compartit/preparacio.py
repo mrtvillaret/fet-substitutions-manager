@@ -26,12 +26,6 @@ class Preparacio:
     hores_examen: list
     hores_per_nivell: dict
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        pass
-
 
 def _dies_entre_dates(data_inici: str, data_final: str) -> list[str]:
     """Els dies feiners entre les dues dates (AAAA-MM-DD), sense repetir: el cap

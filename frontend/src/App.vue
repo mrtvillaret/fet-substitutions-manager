@@ -63,7 +63,7 @@
             <Button
               icon="pi pi-chevron-left"
               class="p-button-rounded p-button-text p-button-plain nav-date-btn"
-              v-tooltip.bottom="$t('app.nav.prevDay')"
+              v-tooltip.bottom="$t('app.nav.prevDay')" :aria-label="$t('app.nav.prevDay')"
               @click="diaAnterior"
             />
             <Calendar :aria-label="$t('app.nav.selectDate')"
@@ -77,7 +77,7 @@
             <Button
               icon="pi pi-chevron-right"
               class="p-button-rounded p-button-text p-button-plain nav-date-btn"
-              v-tooltip.bottom="$t('app.nav.nextDay')"
+              v-tooltip.bottom="$t('app.nav.nextDay')" :aria-label="$t('app.nav.nextDay')"
               @click="diaSeguent"
             />
           </div>
@@ -104,46 +104,46 @@
             v-if="isAdmin"
             icon="pi pi-cog"
             class="p-button-rounded p-button-text p-button-plain"
-            v-tooltip.bottom="$t('app.nav.settings')"
+            v-tooltip.bottom="$t('app.nav.settings')" :aria-label="$t('app.nav.settings')"
             @click="obrirConfiguracio"
           />
           <Button
             v-if="isAdmin"
             icon="pi pi-bolt"
             class="p-button-rounded p-button-text p-button-plain"
-            v-tooltip.bottom="$t('app.nav.examSettings')"
+            v-tooltip.bottom="$t('app.nav.examSettings')" :aria-label="$t('app.nav.examSettings')"
             @click="obrirConfiguracioExamens"
           />
           <Button
             v-if="isAdmin"
             icon="pi pi-calendar"
             class="p-button-rounded p-button-text p-button-plain"
-            v-tooltip.bottom="$t('app.nav.scheduler')"
+            v-tooltip.bottom="$t('app.nav.scheduler')" :aria-label="$t('app.nav.scheduler')"
             @click="anarScheduler"
           />
           <Button
             v-if="isAdmin"
             icon="pi pi-chart-bar"
             class="p-button-rounded p-button-text p-button-plain"
-            v-tooltip.bottom="$t('app.nav.stats')"
+            v-tooltip.bottom="$t('app.nav.stats')" :aria-label="$t('app.nav.stats')"
             @click="obrirEstadistiques"
           />
           <Button
             icon="pi pi-user"
             class="p-button-rounded p-button-text p-button-plain"
-            v-tooltip.bottom="$t('app.nav.profile')"
+            v-tooltip.bottom="$t('app.nav.profile')" :aria-label="$t('app.nav.profile')"
             @click="obrirPerfil"
           />
           <Button
             icon="pi pi-question-circle"
             class="p-button-rounded p-button-text p-button-plain"
-            v-tooltip.bottom="$t('app.nav.help')"
+            v-tooltip.bottom="$t('app.nav.help')" :aria-label="$t('app.nav.help')"
             @click="obrirAjuda"
           />
           <Button
             icon="pi pi-sign-out"
             class="p-button-rounded p-button-text p-button-plain"
-            v-tooltip.bottom="$t('app.nav.logout')"
+            v-tooltip.bottom="$t('app.nav.logout')" :aria-label="$t('app.nav.logout')"
             @click="ferLogout"
           />
         </div>
@@ -155,7 +155,7 @@
           <Button
             icon="pi pi-bars"
             class="p-button-rounded p-button-text p-button-plain"
-            v-tooltip.bottom="$t('app.nav.menu')"
+            v-tooltip.bottom="$t('app.nav.menu')" :aria-label="$t('app.nav.menu')"
             @click="mostrarMenuMobil = true"
           />
         </div>
@@ -163,7 +163,7 @@
           <Button
             icon="pi pi-chevron-left"
             class="p-button-rounded p-button-text p-button-plain nav-date-btn"
-            v-tooltip.bottom="$t('app.nav.prevDay')"
+            v-tooltip.bottom="$t('app.nav.prevDay')" :aria-label="$t('app.nav.prevDay')"
             @click="diaAnterior"
           />
           <Calendar :aria-label="$t('app.nav.selectDate')"
@@ -177,7 +177,7 @@
           <Button
             icon="pi pi-chevron-right"
             class="p-button-rounded p-button-text p-button-plain nav-date-btn"
-            v-tooltip.bottom="$t('app.nav.nextDay')"
+            v-tooltip.bottom="$t('app.nav.nextDay')" :aria-label="$t('app.nav.nextDay')"
             @click="diaSeguent"
           />
         </div>

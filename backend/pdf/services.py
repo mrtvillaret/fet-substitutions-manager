@@ -15,7 +15,7 @@ from horari.domain import Dia
 from pdf.repositories import InformesRepository, PreferenciesPdfRepository
 from recomptes.services import (
     absencies_i_serveis,
-    dades_professors,
+    dades_professors,  # noqa: F401 (el servei de l'informe per professor)
     en_ordre_de_franges,
     franges_de_l_horari,
     impacte_per_grup,
@@ -132,15 +132,6 @@ def dades_direccio(
         "hores_ordre": hores_xml,
         "grups_data": impacte_per_grup(subs_reals, mesos_ordenats, mesos_nom),
     }
-
-
-# ===== Informe per professor =====
-
-
-def professors_amb_activitat(
-    db: Session, data_inici: str, data_final: str, hores: Collection[str] | None = None
-) -> list[str]:
-    return [p["nom"] for p in dades_professors(db, data_inici, data_final, hores=hores)]
 
 
 # ===== Dades comunes dels dos informes =====

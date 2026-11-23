@@ -333,7 +333,6 @@ const anarAVigilancies = () => {
 .flex { display: flex; }
 .flex-column { flex-direction: column; }
 .align-items-center { align-items: center; }
-.justify-content-center { justify-content: center; }
 .justify-content-between { justify-content: space-between; }
 .gap-1 { gap: 0.25rem; }
 .gap-2 { gap: 0.5rem; }

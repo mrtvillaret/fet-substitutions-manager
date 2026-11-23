@@ -9,8 +9,8 @@ from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import i18n_setup
 from auth.domain import Rol, UsuariActual
-from config.settings import config
 from configuracio.repositories import ConfiguracioRepository
 from configuracio.schemas import SettingsUpdate
 from database import get_data_db_session, get_data_dir_for_institucio
@@ -33,7 +33,7 @@ IDIOMES = [
 
 
 def _idioma(config_db: dict) -> str:
-    return config_db.get("idioma") or config.global_data.get("idioma", "ca")
+    return config_db.get("idioma") or i18n_setup.IDIOMA_PER_DEFECTE
 
 
 def configuracio_del_centre(db: Session, institucio: str) -> dict:

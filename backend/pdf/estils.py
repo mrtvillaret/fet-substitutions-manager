@@ -1,6 +1,6 @@
 """
-Factory d'estils PDF consolidats per eliminar duplicació
-Centralitza configuració d'estils ReportLab usats en tots els exportadors PDF
+Estils comuns dels PDF (ReportLab), a partir de config/pdf.json
+(estils de paràgraf i colors del perfil actiu).
 """
 
 import json
@@ -10,18 +10,8 @@ from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import TableStyle
 
 log = logging.getLogger(__name__)
-
-# Try to import hyphenation support
-try:
-    import pyphen
-
-    HYPHEN_AVAILABLE = True
-except ImportError:
-    HYPHEN_AVAILABLE = False
-    pyphen = None
 
 
 class PDFStyleFactory:
@@ -35,20 +25,9 @@ class PDFStyleFactory:
         """Carrega configuració PDF completa des del pdf.json amb cache intelligent"""
 
         try:
-            # Try multiple possible paths
-            possible_paths = [
-                Path("config/pdf.json"),
-                Path("../config/pdf.json"),
-                Path(__file__).parent.parent / "config/pdf.json",
-            ]
-
-            config_path = None
-            for path in possible_paths:
-                if path.exists():
-                    config_path = path
-                    break
-
-            if config_path:
+            # Al costat del codi, no segons la carpeta des d'on s'arrenca
+            config_path = Path(__file__).parent.parent / "config/pdf.json"
+            if config_path.exists():
                 # Check if file has been modified
                 current_mtime = os.path.getmtime(config_path)
 
@@ -69,7 +48,6 @@ class PDFStyleFactory:
         # Fallback per defecte
         return {
             "font_sizes": {"title": 18, "hora": 12, "conflicte": 10, "table_header": 11, "table_body": 12},
-            "hyphenation": {"enabled": False, "language": "ca"},
             "print_profile": "screen",
             "print_profiles": {
                 "screen": {
@@ -116,21 +94,9 @@ class PDFStyleFactory:
         base_styles = getSampleStyleSheet()
         pdf_config = PDFStyleFactory._load_pdf_config()
         fonts = pdf_config.get("font_sizes", {})
-        config = pdf_config
 
         # Get colors from current profile
         profile_colors = PDFStyleFactory.get_current_profile_colors()
-
-        # Setup hyphenation if available and enabled
-        hyphen_lang = None
-        hyphenation_config = config.get("hyphenation", {})
-        if HYPHEN_AVAILABLE and hyphenation_config.get("enabled", False) and pyphen:
-            try:
-                # Use pyphen - much simpler and works with Catalan
-                hyphen_lang = pyphen.Pyphen(lang=hyphenation_config.get("language", "ca"))
-            except Exception as e:
-                log.warning(f"Warning: Could not load hyphenation for {hyphenation_config.get('language', 'ca')}: {e}")
-                hyphen_lang = None
 
         # Estils personalitzats comuns
         custom_styles = {
@@ -142,8 +108,6 @@ class PDFStyleFactory:
                 alignment=1,
                 textColor=colors.HexColor("#2c3e50"),  # Blau fosc professional
                 fontName="Helvetica-Bold",
-                hyphenationLang=hyphenation_config.get("language", "ca") if hyphen_lang else None,
-                embeddedHyphenation=1 if hyphen_lang else 0,
             ),
             "hora": ParagraphStyle(
                 "HoraTitle",
@@ -153,8 +117,6 @@ class PDFStyleFactory:
                 spaceBefore=15,
                 textColor=colors.HexColor(profile_colors.get("hour_color", "#c0392b")),
                 fontName="Helvetica-Bold",
-                hyphenationLang=hyphenation_config.get("language", "ca") if hyphen_lang else None,
-                embeddedHyphenation=1 if hyphen_lang else 0,
             ),
             "conflicte": ParagraphStyle(
                 "Conflicte",
@@ -163,8 +125,6 @@ class PDFStyleFactory:
                 textColor=colors.HexColor(profile_colors.get("conflict_color", "#e74c3c")),
                 leftIndent=30,
                 fontName="Helvetica",
-                hyphenationLang=hyphenation_config.get("language", "ca") if hyphen_lang else None,
-                embeddedHyphenation=1 if hyphen_lang else 0,
             ),
             "normal": base_styles["Normal"],
             "heading1": base_styles["Heading1"],
@@ -172,27 +132,3 @@ class PDFStyleFactory:
         }
 
         return custom_styles
-
-    @staticmethod
-    def get_table_styles():
-        """Retorna estils estandarditzats per taules"""
-
-        pdf_config = PDFStyleFactory._load_pdf_config()
-        fonts = pdf_config.get("font_sizes", {})
-
-        # Estil estàndard per taules
-        standard_table_style = TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#34495e")),  # Header fosc
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, 0), fonts.get("table_header", 11)),
-                ("FONTSIZE", (0, 1), (-1, -1), fonts.get("table_body", 9)),
-                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#ecf0f1")),  # Files clares
-                ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#bdc3c7")),
-            ]
-        )
-
-        return {"standard": standard_table_style}

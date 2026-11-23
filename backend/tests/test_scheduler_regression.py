@@ -100,12 +100,6 @@ def _restriccions():
         },
         "preferencies": {"mateix_dia": [], "dies_diferents": []},
         "pesos_optimitzacio": {},
-        "pesos_percentatge": {
-            "substitucio": 80,
-            "professor_abans": 30,
-            "professor_despres": 30,
-            "professor_no_treballa": 60,
-        },
         "costos_professors": {
             "globals": {
                 "substitucio": 80,
@@ -230,7 +224,7 @@ class _MotorsExemple(unittest.TestCase):
         resultat = Backtracking().cerca(
             problema, politiques, CostCercaBacktracking(problema), parametres, Pressupost(segons), random.Random(12345)
         )
-        return horari_backtracking(resultat, problema, politiques, Disponibilitat(problema), segons, 100000)
+        return horari_backtracking(resultat, problema, Disponibilitat(problema), segons, 100000)
 
 
 class SchedulerRegressioExempleTest(_MotorsExemple):

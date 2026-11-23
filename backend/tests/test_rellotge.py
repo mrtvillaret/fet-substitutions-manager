@@ -6,16 +6,18 @@ import jwt
 import pytest
 
 import rellotge
-from auth.security import create_access_token, decode_access_token
+from auth.security import ALGORISME, create_access_token, decode_access_token
 from config.auth import get_config_auth
 from horari.domain import Dia
+
+SESSIO = {"uid": 1, "sv": 0, "ini": 0}  # els camps obligatoris de la sessió
 
 
 def test_canviar_el_dia_i_l_hora_arriba_al_domini_i_al_testimoni(rellotge_fix):
     rellotge_fix.moment = datetime(2032, 2, 29, 18, tzinfo=UTC)
     assert rellotge.avui() == date(2032, 2, 29)
     assert Dia.avui("centre_de_prova").data == date(2032, 2, 29)
-    token = create_access_token({"sub": "usuari_de_prova"})
+    token = create_access_token({"sub": "usuari_de_prova", **SESSIO})
     assert decode_access_token(token)["iat"] == int(rellotge_fix.moment.timestamp())
 
 
@@ -33,9 +35,9 @@ def test_canviar_el_dia_i_l_hora_arriba_al_domini_i_al_testimoni(rellotge_fix):
 )
 def test_es_mantenen_les_validacions_temporals_de_pyjwt(rellotge_fix, camp, desplacament, error):
     ara = int(rellotge_fix.moment.timestamp())
-    payload = {"sub": "usuari_de_prova", "exp": ara + 60}
+    payload = {"sub": "usuari_de_prova", "exp": ara + 60, **SESSIO}
     payload[camp] = ara + desplacament if isinstance(desplacament, int) else desplacament
-    token = jwt.encode(payload, get_config_auth().secret_key, algorithm=get_config_auth().algorithm)
+    token = jwt.encode(payload, get_config_auth().secret_key, algorithm=ALGORISME)
     with pytest.raises(error):
         decode_access_token(token)
 
@@ -43,9 +45,9 @@ def test_es_mantenen_les_validacions_temporals_de_pyjwt(rellotge_fix, camp, desp
 def test_els_limits_nbf_i_exp_inclouen_el_segon_correcte(rellotge_fix):
     ara = int(rellotge_fix.moment.timestamp())
     token = jwt.encode(
-        {"sub": "prova", "iat": ara, "nbf": ara, "exp": ara + 1},
+        {"sub": "prova", "iat": ara, "nbf": ara, "exp": ara + 1, **SESSIO},
         get_config_auth().secret_key,
-        algorithm=get_config_auth().algorithm,
+        algorithm=ALGORISME,
     )
     assert decode_access_token(token)["sub"] == "prova"
     rellotge_fix.avanca(seconds=1)
@@ -54,9 +56,7 @@ def test_els_limits_nbf_i_exp_inclouen_el_segon_correcte(rellotge_fix):
 
 
 def test_el_rellotge_no_evita_la_comprovacio_de_signatura(rellotge_fix):
-    token = jwt.encode(
-        {"sub": "prova"}, "una-altra-clau-de-prova-amb-mida-suficient", algorithm=get_config_auth().algorithm
-    )
+    token = jwt.encode({"sub": "prova"}, "una-altra-clau-de-prova-amb-mida-suficient", algorithm=ALGORISME)
     with pytest.raises(jwt.InvalidSignatureError):
         decode_access_token(token)
 

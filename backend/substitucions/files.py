@@ -51,4 +51,3 @@ class PropostaSubstitucio:
     professor: str = ""
     separador: bool = False
     disponibles: list[tuple[str, str, str]] = field(default_factory=list)
-    conservat: bool = False

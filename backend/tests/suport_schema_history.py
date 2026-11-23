@@ -4,6 +4,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+from schema_migrations.schema import LEGACY_TABLES
+
 HISTORY = json.loads(Path(__file__).with_name("schema_history.json").read_text())
 
 
@@ -62,6 +64,9 @@ def assert_preserved(before, after):
     for name, (columns, rows) in before.items():
         if name in {"configuracio_assignatures", "exam_schedules"}:
             continue  # Neteja de la 0002, conservada íntegra a la còpia.
+        if name in LEGACY_TABLES:
+            assert name not in after, name  # Les esborra la 0005 (test_migracio_0005.py).
+            continue
         new_columns, new_rows = after[name]
         aliases = (
             {"grups_origen": "grups_originals", "grup_abreviat": "abreviatura"} if name == "abreviatures_grups" else {}

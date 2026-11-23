@@ -14,7 +14,9 @@ from horari.repositories import ProfessorRepository
 
 _ultim_dia = {}
 _ultim_error = {}
-_lock = Lock()
+# Un bloqueig per centre: la sincronització d'un centre no fa esperar els altres
+_locks: dict[str, Lock] = {}
+_locks_lock = Lock()
 # Després d'un error, segons fins al reintent: no es rellegeix un XML il·legible
 # a cada petició ni s'omple el registre d'avisos.
 REINTENT_DESPRES_D_ERROR = 300
@@ -37,20 +39,33 @@ def sincronitza_professors(db, institucio: str) -> None:
     ProfessorRepository.sync_from_xml(db, horari.professors, data_sync=data)
 
 
+def _lock_de(institucio: str) -> Lock:
+    with _locks_lock:
+        return _locks.setdefault(institucio, Lock())
+
+
+def _cal_sincronitzar(institucio: str, data) -> bool:
+    if _ultim_dia.get(institucio) == data:
+        return False
+    error = _ultim_error.get(institucio)
+    return error is None or time.monotonic() - error >= REINTENT_DESPRES_D_ERROR
+
+
 def sincronitza_un_cop_al_dia(institucio: str) -> None:
     """La primera petició de cada dia, també amb la memòria cau calenta.
 
     La marca només avança després del commit. Un error (p. ex. un XML vigent
     il·legible) no fa fallar la petició: queda al registre i es reintenta al cap
     de REINTENT_DESPRES_D_ERROR segons. Així el centre no queda bloquejat i es
-    pot pujar un XML nou per arreglar-ho. El bloqueig evita duplicar la feina.
+    pot pujar un XML nou per arreglar-ho. El bloqueig (un per centre) evita
+    duplicar la feina; la resta de peticions del dia no l'agafen.
     """
-    with _lock:
+    if not _cal_sincronitzar(institucio, rellotge.avui()):
+        return
+    with _lock_de(institucio):
+        # Un altre fil pot haver-ho fet mentre s'esperava el bloqueig
         data = rellotge.avui()
-        if _ultim_dia.get(institucio) == data:
-            return
-        error = _ultim_error.get(institucio)
-        if error is not None and time.monotonic() - error < REINTENT_DESPRES_D_ERROR:
+        if not _cal_sincronitzar(institucio, data):
             return
         try:
             with get_data_db_session(institucio) as db:

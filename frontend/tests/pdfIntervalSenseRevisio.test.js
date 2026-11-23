@@ -18,7 +18,7 @@ test('l’interval descarrega directament i deixa els problemes a dins del PDF',
     window: { URL: { createObjectURL: () => 'blob:interval', revokeObjectURL() {} } },
     document: { createElement: () => ({ click() {} }), body: { appendChild() {}, removeChild() {} } },
   }
-  const p = carregaBlocVista('', 'usePdfVigilancies', [], [], deps)
+  const p = carregaBlocVista('usePdfVigilancies', deps)
   p.intervalConfig.value.dataInici = new Date(2026, 3, 20)
   p.intervalConfig.value.dataFinal = new Date(2026, 3, 21)
   await p.generarPDFInterval()

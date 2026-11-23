@@ -2,6 +2,8 @@
     <!-- Bottom Sheet per gestionar absències -->
     <Teleport to="body">
       <Transition name="bs-overlay">
+        <!-- El fons tanca amb el ratolí o el dit; amb el teclat, el botó «Tanca» del full -->
+        <!-- eslint-disable-next-line vuejs-accessibility/click-events-have-key-events, vuejs-accessibility/no-static-element-interactions -->
         <div v-if="mostrarDialogGestio" class="bs-overlay" @click="emit('tancarDialogGestio', $event)"></div>
       </Transition>
       <div class="bs-sheet" :class="{ 'bs-sheet--visible': mostrarDialogGestio }" role="dialog" aria-modal="true">
@@ -117,10 +119,11 @@
               v-for="grup in absenciesDelDiaAgrupades"
               :key="grup.professor"
               class="bs-card bs-card--clickable"
-              @click="emit('editarAbsenciesProfessor', { professor_absent: grup.professor })"
             >
-              <span class="bs-card-prof">{{ grup.professor }}</span>
-              <button class="bs-card-del" @click.stop="emit('confirmarEliminarAbsenciesProf', grup.professor)"
+              <!-- El nom és el botó i cobreix tota la fitxa (::after): s'hi pot tocar
+                   a qualsevol lloc, com abans, i també s'hi arriba amb el teclat -->
+              <button type="button" class="bs-card-prof" @click="emit('editarAbsenciesProfessor', { professor_absent: grup.professor })">{{ grup.professor }}</button>
+              <button type="button" class="bs-card-del" @click="emit('confirmarEliminarAbsenciesProf', grup.professor)"
                 :disabled="loading" :aria-label="$t('common.delete')"><i class="pi pi-trash" aria-hidden="true"></i></button>
             </div>
           </div>
@@ -191,7 +194,6 @@ watch(() => props.mostrarDialogGestio, (val) => {
   padding: 0.65rem 1rem;
   font-size: 0.925rem;
 }
-
 
 /* ================================================================
    BOTTOM SHEET — Gestionar absències
@@ -409,7 +411,6 @@ watch(() => props.mostrarDialogGestio, (val) => {
   flex-shrink: 0;
 }
 
-
 /* Badges de tipus al label */
 .bs-type-badge {
   display: inline-block;
@@ -515,34 +516,6 @@ watch(() => props.mostrarDialogGestio, (val) => {
   border-color: #6d28d9;
 }
 
-/* Segmented toggle */
-.bs-toggle-segment {
-  display: inline-flex;
-  background: #f3f4f6;
-  border-radius: 10px;
-  padding: 3px;
-  gap: 3px;
-}
-.bs-toggle-opt {
-  min-height: 40px;
-  padding: 0 1.5rem;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #6b7280;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.bs-toggle-opt--active {
-  background: white;
-  color: #1f2937;
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-}
-
 /* Absències del dia */
 .bs-absencies-section {
   display: flex;
@@ -566,44 +539,31 @@ watch(() => props.mostrarDialogGestio, (val) => {
   gap: 0.75rem;
 }
 .bs-card--clickable {
+  position: relative;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 .bs-card--clickable:hover { background: #f0f9ff; border-color: #bae6fd; }
-.bs-card-info {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-  flex: 1;
-  min-width: 0;
-}
 .bs-card-prof {
   font-weight: 600;
   font-size: 0.875rem;
   color: #1f2937;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: start;
+  cursor: pointer;
 }
-.bs-card-hora {
-  font-size: 0.8rem;
-  color: #6b7280;
-  background: #e5e7eb;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-  white-space: nowrap;
+.bs-card-prof::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
 }
-.bs-card-tipus {
-  font-size: 0.78rem;
-  font-weight: 500;
-  background: #e0f2fe;
-  color: #0369a1;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-}
-.bs-card-tipus--servei {
-  background: #f3e8ff;
-  color: #7c3aed;
-}
+.bs-card--clickable:focus-within { border-color: #60a5fa; }
 .bs-card-del {
+  position: relative;
+  z-index: 1;
   width: 34px;
   height: 34px;
   border: 1px solid #fee2e2;
@@ -620,49 +580,6 @@ watch(() => props.mostrarDialogGestio, (val) => {
 }
 .bs-card-del:hover { background: #fee2e2; border-color: #fca5a5; }
 .bs-card-del:disabled { opacity: 0.45; cursor: not-allowed; }
-.bs-card-hores-detall {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin-top: 0.1rem;
-}
-.bs-card-hores-normal {
-  font-size: 0.8rem;
-  color: #0369a1;
-  background: #e0f2fe;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-.bs-card-hores-servei {
-  font-size: 0.8rem;
-  color: #7c3aed;
-  background: #f3e8ff;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-.bs-card-actions {
-  display: flex;
-  gap: 0.35rem;
-  flex-shrink: 0;
-}
-.bs-card-edit {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #e0f2fe;
-  background: #f0f9ff;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  transition: all 0.12s;
-  flex-shrink: 0;
-}
-.bs-card-edit:hover { background: #bae6fd; border-color: #7dd3fc; }
-.bs-card-edit:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* Footer sticky */
 .bs-footer {

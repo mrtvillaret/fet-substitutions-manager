@@ -1,6 +1,6 @@
 import { expect, request } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import { administrador, backendURL, contrasenya, escenaris } from './entorn.js'
+import { administrador, administradorCarrega, backendURL, contrasenya, escenaris } from './entorn.js'
 
 export default async function prepara() {
   const api = await request.newContext({ baseURL: backendURL })
@@ -11,6 +11,7 @@ export default async function prepara() {
       return resposta.json()
     }
     await desa('post', '/api/login', { data: { username: administrador, password: contrasenya } })
+    await desa('post', '/api/users', { data: { username: administradorCarrega, password: contrasenya, institucio: 'centre_e2e', role: 'admin' } })
     await desa('post', '/api/files/upload-xml', { multipart: {
       data_inici: '2020-01-01',
       file: { name: 'teachers.xml', mimeType: 'application/xml', buffer: await readFile(new URL('../../data/exemple/teachers.xml', import.meta.url)) }
@@ -53,7 +54,7 @@ async function preparaPlanificador(desa) {
   const config = Object.fromEntries(DATES_PLANIFICADOR.map((d) => [d, { '09:00': { a: true, i: true }, '11:30': { a: true, i: true } }]))
   await desa('put', '/api/scheduler/config', { data: {
     nivells_actius: nivells, durada_titular: 1, durada_examen: 1,
-    alliberaments_per_nivell: Object.fromEntries(nivells.map((n) => [n, { durada: 1, dates: DATES_PLANIFICADOR, config }]))
+    alliberaments_per_nivell: Object.fromEntries(nivells.map((n) => [n, { dates: DATES_PLANIFICADOR, config }]))
   } })
   const peticio = { data_inici: DATES_PLANIFICADOR[0], data_final: DATES_PLANIFICADOR[1], selected_dates: DATES_PLANIFICADOR, dies_utilitzar: ['Dilluns', 'Dimarts'] }
   const { horari } = await desa('post', '/api/scheduler/generate', { data: { ...peticio, motor: 'v2-backtrack', random_seed: 1 } })

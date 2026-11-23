@@ -8,8 +8,12 @@ line-length = 120
 extend-exclude = ["venv*", "data*", "exports"]
 
 [tool.ruff.lint]
-# Errors, imports, bugbear, tipus moderns i imports interiors controlats pel guardià de capes.
-select = ["E4", "E7", "E9", "F", "I", "B", "UP", "PLC0415"]
+# Errors, imports, bugbear, tipus moderns i imports interiors controlats pel guardià de capes;
+# codi comentat (ERA001) i arguments sense ús (ARG).
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "PLC0415", "ERA001", "ARG"]
+# `current_user` de les rutes: el Depends ja fa la feina (exigeix la sessió o el rol)
+# encara que la funció no el llegeixi. Com els noms que comencen per _.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?)|current_user)$"
 ignore = [
     # FastAPI declara les dependències com a valor per defecte: Depends(...).
     "B008",
@@ -22,7 +26,8 @@ quote-style = "double"
 # Els fixtures de pytest s'importen i es reben com a paràmetre amb el mateix nom.
 # Els imports locals dels tests poden anar després de fixtures, monkeypatch
 # o recàrregues amb entorn aïllat; la llista estricta és la de producció.
-"tests/**" = ["F811", "PLC0415"]
+# ARG: els fixtures es demanen pel seu efecte (crear el centre, l'usuari...).
+"tests/**" = ["F811", "PLC0415", "ARG"]
 # Imports que han d'anar després d'alguna cosa:
 # main.py, després de load_dotenv() (config.auth llegeix l'entorn en importar-se);
 "main.py" = ["E402"]

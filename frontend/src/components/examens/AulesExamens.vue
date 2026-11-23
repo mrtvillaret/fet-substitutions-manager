@@ -26,13 +26,13 @@
                     icon="pi pi-pencil"
                     @click="prepararRenomAula(aula)"
                     class="p-button-rounded p-button-text p-button-warning p-button-sm"
-                    v-tooltip.top="$t('common.edit')"
+                    v-tooltip.top="$t('common.edit')" :aria-label="$t('common.edit')"
                   />
                   <Button
                     icon="pi pi-trash"
                     @click="eliminarAula(aula)"
                     class="p-button-rounded p-button-text p-button-danger p-button-sm"
-                    v-tooltip.top="$t('common.delete')"
+                    v-tooltip.top="$t('common.delete')" :aria-label="$t('common.delete')"
                   />
                 </div>
               </div>

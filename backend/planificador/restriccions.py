@@ -8,8 +8,7 @@ import re
 
 from sqlalchemy.orm import Session
 
-from planificador.compartit.constants import DEFAULT_COST_PROFESSORS
-from planificador.repositories import CostProfessorRepository, RestriccioRepository, carrega_json
+from planificador.repositories import RestriccioRepository, carrega_json
 from planificador.schemas import Restriccions
 
 
@@ -30,7 +29,6 @@ def llegeix(db: Session) -> dict:
         },
         "preferencies": {"mateix_dia": [], "dies_diferents": [], "mateix_slot": []},
         "pesos_optimitzacio": {},
-        "pesos_percentatge": {},  # Nova estructura per motor v3
     }
 
     # Llegir restriccions amb pes individual
@@ -69,31 +67,6 @@ def llegeix(db: Session) -> dict:
         # Pesos d'optimització (migrats de ExamPesOptimitzacio)
         elif t == "pes_optimitzacio" and r.clau:
             data["pesos_optimitzacio"][r.clau] = pes
-
-    # Costos de professors (exam_costos_professors)
-    costos_professors = {"globals": {}, "individuals": {}}
-    for cp in CostProfessorRepository.get_all(db):
-        if cp.professor is None:
-            # Cost global
-            costos_professors["globals"][cp.tipus] = cp.pes
-        else:
-            # Cost individual
-            if cp.professor not in costos_professors["individuals"]:
-                costos_professors["individuals"][cp.professor] = {}
-            costos_professors["individuals"][cp.professor][cp.tipus] = cp.pes
-
-    # Mapejar a pesos_percentatge pel motor v3
-    data["pesos_percentatge"] = {
-        "substitucio": costos_professors["globals"].get("substitucio", DEFAULT_COST_PROFESSORS["substitucio"]),
-        "professor_abans": costos_professors["globals"].get("abans_jornada", DEFAULT_COST_PROFESSORS["abans_jornada"]),
-        "professor_despres": costos_professors["globals"].get(
-            "despres_jornada", DEFAULT_COST_PROFESSORS["despres_jornada"]
-        ),
-        "professor_no_treballa": costos_professors["globals"].get(
-            "no_treballa_dia", DEFAULT_COST_PROFESSORS["no_treballa_dia"]
-        ),
-    }
-    data["costos_professors"] = costos_professors
 
     return data
 
@@ -192,34 +165,6 @@ def desa(db: Session, payload: dict) -> None:
             )
         except (ValueError, TypeError):
             continue
-
-    # Guardar costos de professors
-    costos = payload.get("costos_professors", {})
-    if costos:
-        CostProfessorRepository.esborra_tots(db)  # Esborrar anteriors
-
-        # Costos globals
-        for tipus, pes in costos.get("globals", {}).items():
-            CostProfessorRepository.afegeix(db, None, tipus, int(pes))
-
-        # Costos individuals
-        for professor, tipus_dict in costos.get("individuals", {}).items():
-            for tipus, pes in tipus_dict.items():
-                CostProfessorRepository.afegeix(db, professor, tipus, int(pes))
-
-    # També acceptar pesos_percentatge directament (compatibilitat amb motor v3)
-    pesos_pct = payload.get("pesos_percentatge", {})
-    if pesos_pct and not costos:
-        CostProfessorRepository.esborra_tots(db)
-        mapping = {
-            "substitucio": "substitucio",
-            "professor_abans": "abans_jornada",
-            "professor_despres": "despres_jornada",
-            "professor_no_treballa": "no_treballa_dia",
-        }
-        for clau, pes in pesos_pct.items():
-            tipus = mapping.get(clau, clau)
-            CostProfessorRepository.afegeix(db, None, tipus, int(pes))
 
 
 def assignatures_de(restr: dict) -> set[str]:

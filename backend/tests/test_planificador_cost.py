@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 from suport_incidencies import punts
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import problema_inventat
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import problema_inventat
+from suport_motor import xml_inventat as xml_inventat
 
 from errors_domini import NoValid
 from horari.domain import Dia
@@ -226,7 +226,14 @@ def test_l_horari_estricte_es_obligatori_a_tots_els_motors():
             "pesos_optimitzacio": {"restriccio_dura_violada": 5},
         }
     )
-    assert causa_dura(sessio, franja_prova, regles, ["N1"]).clau == "examen_fixat"
+    assert (
+        causa_dura(
+            sessio,
+            franja_prova,
+            regles,
+        ).clau
+        == "examen_fixat"
+    )
     regles = construeix_regles(
         {
             "restriccions_dures": {"professors_horari_estricte": ["Prof 01"]},
@@ -235,7 +242,7 @@ def test_l_horari_estricte_es_obligatori_a_tots_els_motors():
     )
     analisi = {"abans_jornada": [{"professor": "Prof 01"}]}
     for politiques in (BACKTRACKING, GREEDY, RECUIT):
-        assert causa_dura(sessio, franja_prova, regles, ["N1"], analisi=analisi, politiques=politiques).clau == (
+        assert causa_dura(sessio, franja_prova, regles, analisi=analisi, politiques=politiques).clau == (
             "professors_estrictes"
         )
     assert cost_sessio(sessio, "Dilluns", "09:00", analisi, regles.a_diccionari())["cost_total"] == 5

@@ -5,6 +5,15 @@ import sqlite3
 import pytest
 from suport_schema_history import HISTORY, assert_preserved, create_snapshot, preserved_rows, table_rows
 
+from schema_migrations.schema import LEGACY_TABLES
+
+
+def _taula_de(statement):
+    """La taula d'un CREATE TABLE o CREATE INDEX ... ON."""
+    if statement.startswith("CREATE TABLE "):
+        return statement.split()[2]
+    return statement.split(" ON ", 1)[1].split()[0]
+
 
 @pytest.mark.parametrize("snapshot", HISTORY["snapshots"], ids=lambda s: s["id"])
 def test_frozen_historical_ddl_with_synthetic_rows(tmp_path, snapshot):
@@ -32,15 +41,17 @@ def test_every_historical_snapshot_reaches_canonical_with_same_values(tmp_path, 
     create_snapshot(path, data_snapshot)
     if completed != "original":
         engine = create_engine(f"sqlite:///{path}")
-        # Els models d'abans de la 0004: no_substituir, amb la forma congelada de la base.
+        # Els models d'abans de la 0004: no_substituir i les taules LEGACY (que
+        # els models ja no tenen), amb la forma congelada de la base.
+        congelades = {"no_substituir", *LEGACY_TABLES}
         Base.metadata.create_all(
-            engine, tables=[t for t in Base.metadata.sorted_tables if t.name not in {"users", "no_substituir"}]
+            engine, tables=[t for t in Base.metadata.sorted_tables if t.name not in {"users", *congelades}]
         )
         with engine.begin() as connection:
-            if "no_substituir" not in schema_signature(connection):
-                for statement in base_statements("data"):
-                    if statement.startswith("CREATE TABLE no_substituir "):
-                        connection.exec_driver_sql(statement)
+            existents = set(schema_signature(connection))
+            for statement in base_statements("data"):
+                if statement.startswith("CREATE ") and _taula_de(statement) in congelades - existents:
+                    connection.exec_driver_sql(statement)
         engine.dispose()
     if completed == "ensure":
         with sqlite3.connect(path) as connection:
@@ -103,7 +114,7 @@ def test_each_exact_table_shape_and_rows_after_0003(tmp_path, variant):
     assert_preserved(before, after)
     # Totes les files i valors, també NULL/0/1, quan no s’afegeixen columnes.
     for table in before:
-        if before[table][0] == after[table][0]:
+        if table not in LEGACY_TABLES and before[table][0] == after[table][0]:
             assert before[table] == after[table]
     with engine.connect() as connection:
         assert schema_signature(connection) == current_signature(kind)

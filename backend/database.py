@@ -91,15 +91,6 @@ def get_data_dir_for_institucio(institucio: str) -> Path:
     return DATA_BASE_DIR / institucio
 
 
-def get_export_dir_for_institucio(institucio: str) -> Path:
-    """Carpeta dels PDF exportats d'abans (ara els PDF ja no es desen). Sempre
-    dins la carpeta del centre: abans es podia triar des de la configuració, i
-    un admin hi podia posar la d'un altre centre."""
-    export_path = get_data_dir_for_institucio(institucio) / "exports"
-    export_path.mkdir(parents=True, exist_ok=True)
-    return export_path
-
-
 def create_data_tables(engine):
     """Inicialitza o comprova la versió de les dades d’un centre."""
     initialize_database(engine, "data")

@@ -8,7 +8,13 @@ import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import Request, Response
-from jwt import PyJWTError
+from jwt import (
+    DecodeError,
+    ExpiredSignatureError,
+    ImmatureSignatureError,
+    InvalidIssuedAtError,
+    PyJWTError,
+)
 
 import rellotge
 from config.auth import get_config_auth
@@ -19,6 +25,10 @@ from config.auth import get_config_auth
 # mateixos que aplicava passlib (m=65536, t=3, p=4), i el format del hash és
 # l'estàndard PHC, de manera que les contrasenyes ja desades continuen valent.
 _hasher = PasswordHasher()
+
+# La clau és HMAC (SECRET_KEY): cap altre algorisme no hi té sentit, i fixar-lo
+# evita que un testimoni triï el seu
+ALGORISME = "HS256"
 
 
 def get_auth_token(request: Request) -> str | None:
@@ -75,7 +85,7 @@ def create_access_token(data: dict[str, Any], expira: datetime = None) -> str:
     to_encode = data.copy()
     to_encode["iat"] = ara
     to_encode["exp"] = expira or ara + timedelta(minutes=get_config_auth().sessio_inactivitat_minuts)
-    return jwt.encode(to_encode, get_config_auth().secret_key, algorithm=get_config_auth().algorithm)
+    return jwt.encode(to_encode, get_config_auth().secret_key, algorithm=ALGORISME)
 
 
 def _caducitat(inici: float, ara: datetime) -> datetime:
@@ -136,7 +146,7 @@ def renova_testimoni(token: str):
     emes = payload.get("iat")
     if emes and ara.timestamp() - emes < get_config_auth().sessio_renovacio_minuts * 60:
         return None
-    inici = payload.get("ini") or ara.timestamp()  # testimonis d'abans d'aquest canvi
+    inici = payload["ini"]
     caduca = _caducitat(inici, ara)
     if caduca <= ara:
         return None
@@ -146,36 +156,39 @@ def renova_testimoni(token: str):
 
 
 # Els camps que el codi dona per segurs: sense caducitat el testimoni valdria
-# per sempre, i sense usuari no identifica ningú. Tots dos els posa sempre
-# create_access_token / testimoni_de_sessio; la resta tenen valor per defecte
-# per als testimonis d'abans (uid, sv, ini).
-CAMPS_OBLIGATORIS = ["exp", "sub"]
+# per sempre, sense usuari no identifica ningú, i uid/sv/ini són els que fixen
+# l'usuari, la versió de sessió i el màxim des de l'entrada. Tots els posa
+# testimoni_de_sessio.
+CAMPS_OBLIGATORIS = ["exp", "sub", "uid", "sv", "ini"]
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
-    return _JWT(rellotge.ara(UTC).timestamp()).decode(
+    """Valida signatura i camps amb PyJWT, i els temps amb el nostre rellotge
+    (PyJWT faria servir l'hora de la màquina): les mateixes comprovacions que
+    les seves, amb el mateix tipus d'excepció."""
+    payload = jwt.decode(
         token,
         get_config_auth().secret_key,
-        algorithms=[get_config_auth().algorithm],
-        options={"require": CAMPS_OBLIGATORIS},
+        algorithms=[ALGORISME],
+        options={
+            "require": CAMPS_OBLIGATORIS,
+            "verify_exp": False,
+            "verify_iat": False,
+            "verify_nbf": False,
+        },
     )
+    ara = rellotge.ara(UTC).timestamp()
+    if _segons(payload, "exp", DecodeError) <= ara:
+        raise ExpiredSignatureError("Signature has expired")
+    if "iat" in payload and _segons(payload, "iat", InvalidIssuedAtError) > ara:
+        raise ImmatureSignatureError("The token is not yet valid (iat)")
+    if "nbf" in payload and _segons(payload, "nbf", DecodeError) > ara:
+        raise ImmatureSignatureError("The token is not yet valid (nbf)")
+    return payload
 
 
-class _JWT(jwt.PyJWT):
-    """Manté totes les validacions de PyJWT amb l'hora del nostre rellotge.
-
-    Una instància per lectura: cap estat temporal compartit entre peticions.
-    """
-
-    def __init__(self, ara: float):
-        super().__init__()
-        self._ara = ara
-
-    def _validate_iat(self, payload, now, leeway):
-        return super()._validate_iat(payload, self._ara, leeway)
-
-    def _validate_nbf(self, payload, now, leeway):
-        return super()._validate_nbf(payload, self._ara, leeway)
-
-    def _validate_exp(self, payload, now, leeway):
-        return super()._validate_exp(payload, self._ara, leeway)
+def _segons(payload: dict, camp: str, error: type[PyJWTError]) -> int:
+    try:
+        return int(payload[camp])
+    except (ValueError, TypeError, OverflowError):
+        raise error(f"{camp} must be an integer.") from None

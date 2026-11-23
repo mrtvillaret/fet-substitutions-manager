@@ -23,7 +23,7 @@ from rate_limit import limiter
 APP = crea_app(scheduler.router)
 URL = "/api/scheduler/config"
 
-ALLIBERAMENT = {"durada": 1, "dates": ["2026-06-01"], "config": {"2026-06-01": {"09:00": {"a": True, "i": True}}}}
+ALLIBERAMENT = {"dates": ["2026-06-01"], "config": {"2026-06-01": {"09:00": {"a": True, "i": True}}}}
 
 
 @pytest.fixture(autouse=True)

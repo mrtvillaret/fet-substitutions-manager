@@ -5,19 +5,12 @@ Constants globals del sistema
 import logging
 from collections.abc import Mapping as _Mapping
 from collections.abc import Sequence as _Sequence
-from collections.abc import Set as _Set
 from pathlib import Path
 
 from config.context import institucio_peticio
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
-try:
-    from i18n_setup import translate as _
-except ImportError:
-
-    def _(text):
-        return text
 
 # ── Prioritats i activitats que no se substitueixen, per institució ──
 #
@@ -73,17 +66,6 @@ class _Vista:
 class _VistaDict(_Vista, _Mapping):
     def __getitem__(self, clau):
         return self._valor()[clau]
-
-    def __iter__(self):
-        return iter(self._valor())
-
-    def __len__(self):
-        return len(self._valor())
-
-
-class _VistaSet(_Vista, _Set):
-    def __contains__(self, element):
-        return element in self._valor()
 
     def __iter__(self):
         return iter(self._valor())

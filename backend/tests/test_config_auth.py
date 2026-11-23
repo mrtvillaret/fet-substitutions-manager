@@ -18,7 +18,6 @@ def test_config_auth_te_defaults_i_no_modifica_l_entorn():
     assert env == ENV
     assert config.environment == "production"
     assert config.is_development is False
-    assert config.algorithm == "HS256"
     assert config.cookie_name == "gestor_token"
     assert config.cookie_secure is True
     assert config.sessio_inactivitat_minuts == 60

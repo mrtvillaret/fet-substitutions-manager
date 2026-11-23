@@ -153,9 +153,7 @@ def finalitza_recalcul(
     return horari_desat, resposta
 
 
-def horari_backtracking(
-    resultat, problema: Problema, politiques, disponible: Disponibilitat, segons, max_nodes
-) -> dict:
+def horari_backtracking(resultat, problema: Problema, disponible: Disponibilitat, segons, max_nodes) -> dict:
     """Assignació d'ítems → ocurrències i resposta del motor backtracking.
 
     L'ordre d'assignació conserva el recorregut de la millor llavor. Els dies

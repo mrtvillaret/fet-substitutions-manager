@@ -47,9 +47,6 @@
 .stepper-container .p-steps .p-steps-item.p-highlight ~ .p-steps-item:before { border-top-color: #e2e8f0; }
 .card { background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid #e2e8f0; }
 .result-overview { display: grid; grid-template-columns: minmax(320px, 380px) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
-.scheduler-stats { display: flex; flex-direction: column; gap: 0.75rem; }
-.scheduler-stat { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9; }
-.info-box { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 1rem; color: #0369a1; font-size: 0.9rem; }
 .pesos-grid { display: grid; gap: 1rem; }
 .peso-item { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid #f1f5f9; }
 .peso-item:last-child { border-bottom: none; }
@@ -111,9 +108,6 @@
 
 /* Cards per nivell */
 .nivell-card { background: #f0f9ff; border-radius: 6px; padding: 0.4rem; margin-bottom: 0.4rem; border-left: 3px solid #667eea; }
-.nivell-card.nivell-with-warnings { background: #fffbeb; border-left-color: #f59e0b; }
-.nivell-card.nivell-with-subs { background: #fef2f2; border-left-color: #ef4444; }
-.nivell-card.nivell-with-zona-examen { background: #dbeafe; border-left-color: #3b82f6; }
 .nivell-header { font-weight: 700; font-size: 0.7rem; color: #475569; margin-bottom: 0.25rem; text-transform: uppercase; }
 .nivell-examens { display: flex; flex-direction: column; gap: 0.2rem; }
 .examen-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; padding: 0.15rem 0; border-bottom: 1px solid #e2e8f0; }
@@ -123,13 +117,9 @@
 .ex-icons { display: inline-flex; gap: 4px; margin-left: 4px; cursor: help; }
 .ex-pin { font-size: 0.7rem; flex-shrink: 0; }
 
-.restriccio-detall { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .incident-empty { margin-top: 0.5rem; color: #94a3b8; font-size: 0.85rem; }
 .footer-nav { margin-top: 2rem; padding: 1rem; background: white; border-radius: 12px; display: flex; align-items: center; gap: 0.75rem; box-shadow: 0 -4px 12px rgba(0,0,0,0.05); }
 .spacer { flex: 1; }
-.text-warn { color: #f59e0b; }
-.text-success { color: #10b981; }
-.text-danger { color: #ef4444; }
 .animate-fade-in { animation: fadeIn 0.4s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 1200px) {
@@ -174,35 +164,6 @@
 .restriccions-section-card { border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
 .restriccions-section-card-muted { background: #f8fafc; }
 
-/* Graella Slots Disponibles */
-.slots-grid { border-collapse: collapse; margin-top: 0.5rem; }
-.slots-grid th, .slots-grid td { padding: 0.4rem 0.6rem; text-align: center; border: 1px solid #e2e8f0; }
-.slots-grid th { background: #f8fafc; font-weight: 600; font-size: 0.8rem; color: #475569; }
-.slots-grid .hora-label { background: #f8fafc; font-weight: 600; font-size: 0.75rem; color: #475569; text-align: right; padding-right: 0.75rem; min-width: 58px; }
-.slot-toggle { cursor: pointer; font-size: 1rem; transition: all 0.15s ease; user-select: none; min-width: 42px; }
-.slot-toggle:hover { transform: scale(1.1); }
-.slot-enabled { background: #ecfdf5; }
-.slot-enabled:hover { background: #d1fae5; }
-.slot-disabled { background: #fef2f2; }
-.slot-disabled:hover { background: #fee2e2; }
-.slot-locked { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
-.slot-locked:hover { transform: none; background: #f1f5f9; }
-.slots-section-level { margin-top: 1.25rem; border-top: 1px dashed #e2e8f0; padding-top: 1rem; }
-.slots-level-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem; }
-.slots-level-actions { display: flex; align-items: center; gap: 0.5rem; }
-
-/* Tabs de configuració per nivell */
-.nivell-config-tabs { margin-top: 0.75rem; }
-.nivell-config-tabs .p-tabview-panels { padding: 1rem 0.5rem; }
-.nivell-config-tabs .p-tabview-nav { border-bottom: 1px solid #e2e8f0; }
-.nivell-config-tabs .p-tabview-nav-link { padding: 0.6rem 1rem; font-size: 0.85rem; }
-.nivell-config-content { display: flex; flex-direction: column; gap: 0.75rem; }
-.nivell-config-content .field { margin-bottom: 0; }
-.nivell-config-content .p-multiselect { max-width: 100%; }
-.slots-grid-compact { font-size: 0.85rem; }
-.slots-grid-compact th, .slots-grid-compact td { padding: 0.3rem 0.5rem; }
-.slots-grid-compact .hora-label { min-width: 50px; font-size: 0.7rem; }
-
 /* Nova UI: Alliberaments per nivell */
 .nivell-alliberaments-tabs { margin-top: 1rem; }
 .nivell-alliberaments-tabs .p-tabview-panels { padding: 1rem; min-width: 0; overflow: hidden; }
@@ -214,14 +175,6 @@
 
 .calendari-section h4, .alliberaments-section h4 { margin: 0 0 0.75rem 0; font-size: 1rem; color: #334155; }
 .calendari-section .p-calendar { font-size: 0.9rem; }
-.durada-row { margin-top: 0.85rem; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.9rem; }
-.durada-label { white-space: nowrap; }
-.durada-control { margin-left: auto; display: inline-flex; align-items: center; gap: 0.55rem; }
-.durada-input { width: 132px; }
-.durada-input .p-inputnumber { display: inline-flex; align-items: stretch; }
-.durada-input .p-inputnumber-button { width: 2.2rem; min-width: 2.2rem; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
-.durada-input .p-inputnumber-button .p-button-icon { line-height: 1; }
-.durada-input .p-inputnumber-input { width: 3.1rem; text-align: center; }
 .alliberaments-section { padding-top: 0.35rem; min-width: 0; overflow: hidden; }
 
 .alliberaments-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
@@ -264,18 +217,6 @@
 .p-multiselect .p-multiselect-label { padding: 0.65rem 0.75rem; font-weight: 500; display: flex; align-items: center; min-height: 2.5rem; }
 .p-multiselect-token { padding: 0.2rem 0.45rem; min-height: 1.6rem; border-radius: 6px; margin-right: 0.3rem; }
 .scheduler-dropdown-sm { width: 14rem; }
-.motor-params { max-width: 520px; }
-.motor-params .p-fluid { display: flex; flex-direction: column; gap: 0.75rem; }
-.motor-params .grid { row-gap: 1.1rem; align-items: end; }
-.motor-params .grid .field { margin-bottom: 0.4rem; }
-.motor-params .p-dropdown,
-.motor-params .p-multiselect { max-width: 24rem; }
-.motor-params .p-multiselect { height: 2.5rem; }
-.motor-params .p-multiselect .p-multiselect-label { justify-content: center; }
-.motor-params .p-multiselect-label-container { display: flex; align-items: center; }
-.motor-params .field.col-4 { max-width: 24rem; }
-.motor-params .field.col-4 .scheduler-inputnumber { max-width: 24rem; }
-.motor-params .field.col-4 .p-inputnumber-input { text-align: center; }
 .scheduler-setup { display: flex; flex-direction: column; gap: 0.85rem; }
 .motor-toolbar { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; }
 .motor-main-field { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
@@ -309,8 +250,6 @@
 
   .calendari-section { overflow-x: auto; }
   .calendari-section .p-calendar { font-size: 0.82rem; max-width: 100%; }
-  .durada-row { justify-content: flex-start; gap: 0.5rem; }
-  .durada-control { margin-left: 0; }
 }
 
 .analysis-header { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
@@ -324,7 +263,6 @@
 .analysis-tabs { background: white; border-radius: 12px; border: 1px solid #e2e8f0; }
 .analysis-tabs .p-tabview-panels { padding: 0.5rem 1rem 1rem; }
 .analysis-panel { display: block; }
-.analysis-text { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.8rem; line-height: 1.35; color: #1f2937; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem; min-height: 260px; }
 
 .analysis-modern { display: flex; flex-direction: column; gap: 1.25rem; }
 .analysis-day { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; }
@@ -336,7 +274,6 @@
 .analysis-level:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
 .analysis-level-title { font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.02em; }
 .analysis-items { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.analysis-chip { background: #e2e8f0; color: #1e293b; font-size: 0.75rem; border-radius: 999px; padding: 0.2rem 0.6rem; }
 .analysis-pill { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: 700; }
 .analysis-pill.ok { background: #dcfce7; color: #15803d; }
 .analysis-pill.warn { background: #ffedd5; color: #c2410c; }
@@ -367,8 +304,6 @@
 .analysis-item-label { font-weight: 600; }
 .analysis-item-details { font-size: 0.72rem; color: #475569; margin-top: 0.2rem; display: grid; gap: 0.15rem; }
 .analysis-item-detail { line-height: 1.2; }
-.analysis-substitucions { margin: 0.5rem 0 0.75rem; padding: 0.5rem 0.75rem; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; }
-.analysis-substitucions-title { font-size: 0.78rem; font-weight: 700; color: #9a3412; margin-bottom: 0.35rem; }
 .analysis-row-even { background: #f8fafc; }
 .analysis-row-odd { background: #ffffff; }
 .analysis-table tbody tr.analysis-row-even td,
@@ -380,7 +315,6 @@
 .analysis-row-block-start td { border-top: 2px solid #cbd5f5; }
 .analysis-hour { border-top: 1px dashed #e2e8f0; padding-top: 0.6rem; margin-top: 0.6rem; }
 .analysis-hour:first-child { border-top: none; padding-top: 0; margin-top: 0; }
-.analysis-hour-title { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.4rem; color: #475569; }
 .analysis-list { margin: 0; padding-left: 1.1rem; font-size: 0.78rem; color: #334155; }
 .analysis-muted { font-size: 0.78rem; color: #94a3b8; margin-top: 0.4rem; }
 .print-only { display: none; }
@@ -395,7 +329,6 @@
   .analysis-panel.active { display: block; }
   .analysis-actions { display: none; }
   .analysis-tabs .p-tabview-nav { display: none; }
-  .analysis-text { border: none; padding: 0; background: transparent; font-size: 0.75rem; }
   .analysis-day, .analysis-session, .analysis-slot { border-color: #cbd5f5; }
   .horari-print-area .result-overview { display: none; }
   .horari-print-area .print-week { break-after: page; page-break-after: always; }
@@ -410,11 +343,9 @@
   .screen-only { display: none; }
   .print-only { display: block; }
   .footer-nav { display: none; }
-  .steps-compact { display: none; }
   .stepper-container { display: none; }
 }
 .peso-control .p-inputnumber-input { text-align: center; }
-.slots-section { margin-top: 1.5rem; }
 .scheduler-inputnumber { width: 100%; }
 .scheduler-inputnumber .p-inputnumber-input { width: 100%; height: 2.5rem; }
 .scheduler-inputnumber .p-inputnumber { display: flex; align-items: stretch; gap: 0.25rem; }
@@ -443,4 +374,9 @@
 @media (max-width: 600px) {
   .restriccions-header { flex-wrap: wrap; }
   .restriccions-header > .p-button { flex-shrink: 0; }
+}
+
+/* «Torna a carregar» dins de l'avís de càrrega fallida */
+.carrega-fallida .p-button {
+  margin-left: 0.5rem;
 }

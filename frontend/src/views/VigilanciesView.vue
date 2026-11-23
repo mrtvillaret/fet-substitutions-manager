@@ -7,10 +7,10 @@
         <div class="day-stats">
           <Badge :value="vigilanciesFiltrades.length" severity="success" class="day-badge" />
           <span class="day-stat-label">{{ $t('substitutions.stats.vigilanciesLabel') }}</span>
-          <a class="day-stat-link" @click="anarASubstitucions">
+          <button type="button" class="day-stat-link" @click="anarASubstitucions">
             <Badge :value="substitucionsCount" severity="info" class="day-badge" />
             <span class="day-stat-label">{{ $t('substitutions.stats.substitutionsLabel') }}</span>
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -474,6 +474,11 @@ onMounted(async () => {
   cursor: pointer;
   color: #4b5563;
   text-decoration: none;
+  /* Un botó amb l'aspecte de l'enllaç d'abans */
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
 }
 
 .day-stat-link:hover {

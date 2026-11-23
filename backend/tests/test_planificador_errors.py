@@ -71,9 +71,9 @@ def _publica(client, auto_assign=False):
     )
 
 
-@pytest.mark.parametrize("ruta", ["/api/scheduler/costos-professors", "/api/scheduler/restriccions"])
+@pytest.mark.parametrize("ruta", ["/api/scheduler/costos-professors"])
 def test_si_no_es_poden_llegir_els_costos_es_un_error_intern(client, monkeypatch, caplog, ruta):
-    monkeypatch.setattr(CostProfessorRepository, "get_all", _falla)
+    monkeypatch.setattr(CostProfessorRepository, "costos", _falla)
     resp = client.get(ruta)
     assert resp.status_code == 500
     assert set(resp.json()) == {"error_ref"}

@@ -4,6 +4,7 @@
        desplegable (l'estat i què fa a aquella hora) i, a sota, quantes
        vigilàncies porta aquell dia. A les pantalles tàctils, no: tocar el nom
        obre el desplegable, que ja ho mostra. -->
+  <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
   <div
     ref="objectiu"
     class="ajuda-vigilant"

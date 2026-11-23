@@ -5,9 +5,9 @@ from copy import deepcopy
 from dataclasses import replace
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import xml_inventat as xml_inventat
-from test_planificador_greedy_nou import problema_de
+from suport_motor import config_inventada as config_inventada
+from suport_motor import xml_inventat as xml_inventat
+from test_planificador_greedy import problema_de
 
 from planificador.motor.model import congela
 from planificador.motor.textos_analisi import TextosAnalisi
@@ -36,8 +36,8 @@ def _contextos(cfg, xml, variant):
         cfg.durades_examen_per_sessio = {"A (N1)": 1}
     elif variant == "vigilancia":
         cfg.durades_per_sessio = {"A (N1)": 3}
-    elif variant == "nivell_dos":
-        cfg.alliberaments = {"N1": {"durada": 2}}
+    elif variant == "nivell_sense_dates":
+        cfg.alliberaments = {"N1": {}}
     elif variant == "limit":
         cfg.restriccions = {
             "restriccions_dures": {
@@ -86,7 +86,7 @@ def _contextos(cfg, xml, variant):
         "durada",
         "vigilancia",
         "examen_mes_curt",
-        "nivell_dos",
+        "nivell_sense_dates",
         "limit",
         "estricte",
         "pin_zero",

@@ -12,7 +12,7 @@ import i18n_setup
 
 def data_completa(data: date | datetime) -> str:
     """Data amb el dia de la setmana, en l'idioma actiu i amb majúscula inicial."""
-    text = format_date(data, format="full", locale=i18n_setup.CURRENT_LANGUAGE)
+    text = format_date(data, format="full", locale=i18n_setup.idioma_actual())
     return text[:1].upper() + text[1:] if text else text
 
 

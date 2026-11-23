@@ -52,6 +52,6 @@ def neteja_noms(dades: dict, *claus: str) -> dict:
 
 # Tipus per als camps i paràmetres de l'API que porten un nom de professor,
 # assignatura o aula: arriben sempre nets.
-#   class Peticio(BaseModel): professor: NomNet
-#   def ruta(assignatura: NomNet)
+#   p. ex. un camp `professor: NomNet` d'un BaseModel,
+#   o un paràmetre de ruta `assignatura: NomNet`
 NomNet = Annotated[str, AfterValidator(_nom_net_validador)]

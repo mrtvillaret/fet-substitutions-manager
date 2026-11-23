@@ -80,11 +80,6 @@ EXCEPCIONS = {
     ): "Pillow només es carrega quan l’informe té logo.",
     (
         "pdf/engine.py",
-        "PDFCompletExporter.__init__",
-        "import pyphen",
-    ): "Dependència opcional: ImportError conserva el PDF sense partició.",
-    (
-        "pdf/engine.py",
         "PDFCompletExporter._add_logo_to_page",
         "from PIL import Image",
     ): "El try del logo conserva la resta del PDF si falla la importació.",

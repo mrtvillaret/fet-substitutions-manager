@@ -134,7 +134,7 @@ def crea_motor(
             def __init__(self, *_):
                 pass
 
-            def comprova(self, s, dia, hora, prefix, *_):
+            def comprova(self, s, hora, prefix, *_):
                 causa = prohibides.get((s["nom"], prefix, hora))
                 return SimpleNamespace(clau=causa) if causa else None
 
@@ -146,7 +146,7 @@ def resol(gen, llavor=1, dies=("Dilluns",), max_nodes=100000, shuffle_top_n=0):
     """(solucions, línies del registre) d'una sola llavor."""
     gen.prepara(dies)
     abans = len(gen.registre)
-    solucions = gen._cerca_amb_llavor(llavor, list(dies), max_nodes, shuffle_top_n)
+    solucions = gen._cerca_amb_llavor(llavor, max_nodes, shuffle_top_n)
     return solucions, gen.registre[abans:]
 
 
@@ -564,7 +564,7 @@ def _escenari_llavors(monkeypatch, random_seed, seeds_count, shuffle_top_n, max_
         gen.problema, BACKTRACKING, gen.cost_cerca, parametres, Pressupost(20, lambda: 0), random.Random(random_seed)
     )
     if cerca.assignacio is None:
-        horari = horari_backtracking(cerca, gen.problema, BACKTRACKING, None, 20, max_nodes)
+        horari = horari_backtracking(cerca, gen.problema, None, 20, max_nodes)
     else:
         etiquetes = {it.id: it.nom for it in cerca.items}
         per_franja = {}

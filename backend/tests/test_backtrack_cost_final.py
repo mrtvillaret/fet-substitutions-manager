@@ -16,7 +16,7 @@ el cost de l'horari complet on acaba.
 El motor és el real (`planificador/motor/estrategies/backtracking.py`); se'n
 substitueixen l'anàlisi i el cost dels professors de cada franja (taules fixes).
 Escenaris a l'atzar amb llavor fixa. La força bruta, les fites, la poda i la
-baixada del cost dels 24 escenaris són a `test_planificador_backtracking_nou.py`,
+baixada del cost dels 24 escenaris són a `test_planificador_backtracking.py`,
 que fa servir aquests mateixos escenaris i ajudants.
 """
 
@@ -26,9 +26,9 @@ from copy import deepcopy
 from dataclasses import replace
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import problema_inventat
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import problema_inventat
+from suport_motor import xml_inventat as xml_inventat
 
 from planificador.compartit.franja import franja
 from planificador.motor.avaluador import incidencies_restriccions

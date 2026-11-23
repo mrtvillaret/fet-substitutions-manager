@@ -6,53 +6,34 @@ naturalesa (esborrat i anonimització), s'agrupen aquí per facilitar-ne
 l'auditoria en un únic lloc.
 
 Purga per interval de dates: "purgar" vol dir eliminar TOT rastre de dades
-d'un interval — registres de BD, PDF exportats, versions d'XML, baixes i el
+d'un interval — registres de BD, versions d'XML, baixes i el
 que en recorda el planificador d'exàmens (dates triades i últim horari).
 Per seguretat es fa en dos passos:
 
 1. analitzar_purga()  → només lectura: retorna un MANIFEST de tot el que
    s'esborraria, marcant el que és delicat (XML actiu, XML que s'estén fora de
-   l'interval, PDF que no es poden datar pel nom).
+   l'interval).
+
+Els PDF no es desen enlloc (es generen en un directori temporal i s'esborren
+en enviar-los): no n'hi ha cap per purgar.
 2. executar_purga()   → esborra segons el manifest, que es recalcula al servidor.
 """
 
 import json
 import logging
-import os
-import re
-from datetime import date, datetime
-from pathlib import Path
+from datetime import date
 
 from sqlalchemy.orm import Session
 
 from configuracio.repositories import ConfiguracioRepository
 from dades.repositories import ProfessorsRepository, PurgaRepository
-from database import get_data_dir_for_institucio, get_export_dir_for_institucio
+from database import get_data_dir_for_institucio
 from errors_domini import NoValid
 from horari.context import invalidar_horari
 from horari.repositories import XMLVersionRepository
 from horari.services import encadena_i_sincronitza
 
 log = logging.getLogger(__name__)
-
-# Nom persistit dels PDF operatius: {YYMMDD}_{tipus}_{YYMMDD}_{HHMMSS}.pdf
-# La primera data és la del CONTINGUT (el dia al qual es refereix el document).
-_PDF_DATAT_RE = re.compile(
-    r"^(\d{6})_(substitucions_vigilancies|substitucions|vigilancies|document_buit)"
-    r"_\d{6}_\d{6}\.pdf$"
-)
-
-
-def _pdf_content_date(filename: str) -> date | None:
-    """Retorna la data de contingut d'un PDF operatiu a partir del nom, o None
-    si el nom no segueix el patró datat (p. ex. informes sense data al nom)."""
-    m = _PDF_DATAT_RE.match(filename)
-    if not m:
-        return None
-    try:
-        return datetime.strptime(m.group(1), "%y%m%d").date()
-    except ValueError:
-        return None
 
 
 def llista_professors_db(db: Session) -> list[dict]:
@@ -151,7 +132,7 @@ def _planificador(db: Session, data_inici: date, data_final: date) -> dict:
     }
 
 
-def analitzar_purga(db: Session, institucio: str | None, data_inici: date, data_final: date) -> dict:
+def analitzar_purga(db: Session, data_inici: date, data_final: date) -> dict:
     """
     MANIFEST (només lectura) de tot el que eliminaria una purga de l'interval
     [data_inici, data_final] (inclòs). No esborra res.
@@ -161,26 +142,6 @@ def analitzar_purga(db: Session, institucio: str | None, data_inici: date, data_
 
     # --- Registres de BD (per columna 'data'; absències cobertes que se solapen) ---
     bd = PurgaRepository.compta(db, data_inici, data_final)
-
-    # --- PDF exportats ---
-    pdfs_a_esborrar: list[dict] = []
-    pdfs_revisio_manual: list[str] = []
-    export_dir = None
-    try:
-        export_dir = get_export_dir_for_institucio(institucio) if institucio else None
-    except Exception:
-        export_dir = None
-
-    if export_dir and Path(export_dir).is_dir():
-        for f in sorted(os.listdir(export_dir)):
-            if not f.lower().endswith(".pdf"):
-                continue
-            d = _pdf_content_date(f)
-            if d is None:
-                # informes i altres PDF sense data de contingut al nom
-                pdfs_revisio_manual.append(f)
-            elif data_inici <= d <= data_final:
-                pdfs_a_esborrar.append({"fitxer": f, "data": d.isoformat()})
 
     # --- Versions d'XML que se solapen amb l'interval ---
     # Es retornen dades estructurades (flags); la presentació dels avisos la fa
@@ -227,8 +188,6 @@ def analitzar_purga(db: Session, institucio: str | None, data_inici: date, data_
         "total_bd": total_bd,
         "baixes": baixes,
         "planificador": _planificador(db, data_inici, data_final),
-        "pdfs_a_esborrar": pdfs_a_esborrar,
-        "pdfs_revisio_manual": pdfs_revisio_manual,
         "xml_versions": xml_versions,
     }
 
@@ -243,13 +202,12 @@ def executar_purga(
     Esborra:
     - Registres de BD: substitucions, vigilàncies i grups alliberats amb data
       dins l'interval, i baixes que hi solapin.
-    - PDF datats amb contingut dins l'interval.
     - Versions d'XML 100% contingudes dins l'interval (fila + fitxer al disc).
     - Planificador: les dates triades de dins l'interval i l'últim horari desat
       si en toca alguna (sencer).
 
-    NO toca: PDF sense data al nom (revisió manual) ni versions d'XML bloquejades
-    (l'activa o les que s'estenen fora de l'interval).
+    NO toca les versions d'XML bloquejades (l'activa o les que s'estenen fora
+    de l'interval).
 
     Retorna un informe del que s'ha esborrat realment.
     """
@@ -257,8 +215,8 @@ def executar_purga(
         raise NoValid("Cal confirmar l'operació (confirmar=true). És irreversible.", codi="purga_sense_confirmar")
 
     # El manifest és la font de veritat: es recalcula al servidor, no es fia del
-    # client, i determina quins PDF i quines versions d'XML es toquen.
-    manifest = analitzar_purga(db, institucio, data_inici, data_final)
+    # client, i determina quines versions d'XML es toquen.
+    manifest = analitzar_purga(db, data_inici, data_final)
 
     # --- Registres de BD ---
     bd_esborrat = PurgaRepository.esborra(db, data_inici, data_final)
@@ -267,11 +225,9 @@ def executar_purga(
 
     # --- Versions d'XML no bloquejades: fila + fitxer al disc ---
     data_dir = None
-    export_dir = None
     try:
         if institucio:
             data_dir = get_data_dir_for_institucio(institucio)
-            export_dir = get_export_dir_for_institucio(institucio)
     except Exception:
         # A la resposta, només el missatge; el detall (pot portar camins del servidor), al registre
         log.warning("Purga: no s'han pogut resoldre les carpetes del centre", exc_info=True)
@@ -333,19 +289,6 @@ def executar_purga(
             log.warning("Purga: no s'ha pogut esborrar un XML", exc_info=True)
             errors.append(f"XML {path}: no s'ha pogut esborrar")
 
-    # --- PDF datats dins l'interval ---
-    pdfs_esborrats: list[str] = []
-    if export_dir:
-        for item in manifest["pdfs_a_esborrar"]:
-            fpath = Path(export_dir) / item["fitxer"]
-            try:
-                if fpath.exists():
-                    fpath.unlink()
-                pdfs_esborrats.append(item["fitxer"])
-            except OSError:
-                log.warning("Purga: no s'ha pogut esborrar un PDF", exc_info=True)
-                errors.append(f"PDF {item['fitxer']}: no s'ha pogut esborrar")
-
     return {
         "interval": manifest["interval"],
         "planificador": {
@@ -354,8 +297,6 @@ def executar_purga(
         },
         "bd": bd_esborrat,
         "total_bd": sum(bd_esborrat.values()),
-        "pdfs_esborrats": pdfs_esborrats,
-        "pdfs_revisio_manual": manifest["pdfs_revisio_manual"],
         "xml_esborrats": xml_esborrats,
         "xml_bloquejats": [v for v in manifest["xml_versions"] if v["bloquejat"]],
         "errors": errors,

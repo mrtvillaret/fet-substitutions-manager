@@ -21,7 +21,7 @@ def _nucli(**overrides):
         absents_actuals={},
         horari_gestor=None,
         alliberats_gestor=None,
-        grups_sense_classe=set(),
+        grups_sense_classe={},
         dia_actual="Dilluns",
     )
     cfg.update(overrides)

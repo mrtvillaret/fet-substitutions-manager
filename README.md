@@ -65,28 +65,25 @@ data/
   ├── auth.db          # Usuaris globals
   └── {institucio}/
       ├── gestor.db    # Dades del centre
-      ├── *.xml        # Horari FET del centre
-      └── exports/     # PDFs generats
+      └── *.xml        # Horari FET del centre (els PDF no es desen: es generen i s'envien)
 ```
 
 ### Backend (FastAPI)
 
-- `main.py` — punt d'entrada, registra 18 routers a `/api/*`
-- `routes/` — endpoints per àrea funcional (substitucions, vigilàncies,
-  scheduler, informes, PDFs, auth, files, settings...)
-- `core/` — lògica de negoci: motor d'assignació automàtica de substituts i
-  vigilàncies, alliberats (`sense_classe`: qui no té classe a una hora) i
-  absències
-- `serveis/` — la lògica que criden les rutes: l'estat d'un dia
-  (`DiaEscolar`) i la regla de quan un substitut ja no pot ser-ho, generar
-  les substitucions d'un dia, marcar absències, cobertures dels vigilants,
-  i validar abans del PDF. Cap servei no depèn de `routes/`
+- `main.py` — punt d'entrada, registra els routers de cada mòdul a `/api/*`
+- Un paquet per mòdul (`substitucions/`, `vigilancies/`, `grups/`, `horari/`,
+  `pdf/`, `planificador/`, `auth/`, `usuaris/`...), cadascun amb `router.py`
+  (només HTTP), `schemas.py`, `services.py` (regles, sense HTTP) i
+  `repositories.py` (consultes); el detall i les regles entre capes, a
+  `ARQUITECTURA.md`
+- `substitucions/domain.py` — `DiaEscolar`: l'estat d'un dia llegit un sol cop i
+  la regla de quan un substitut ja no pot ser-ho
 - `planificador/motor/` — motor de planificació d'exàmens amb 3 estratègies
   (greedy v2, backtracking v2-backtrack, recuit simulat v3) i model de
   restriccions configurable
-- `export/` — exportadors PDF (substitucions, vigilàncies, intervals,
+- `pdf/` — PDF (substitucions, vigilàncies, intervals, disponibles i
   informes de direcció i professorat)
-- `repositories.py` + `models.py` — accés a dades SQLAlchemy
+- `models.py` — models SQLAlchemy; `schema_migrations/` — migracions (Alembic)
 - `auth/` — autenticació JWT amb cookie httpOnly; la sessió caduca després
   d'1 h sense activitat (es renova mentre s'hi treballa) i com a màxim 24 h
   després d'entrar
@@ -100,13 +97,15 @@ data/
 
 ### Frontend (Vue 3)
 
-- Sense Vue Router: navegació per pestanyes amb PrimeVue TabView
+- Sense Vue Router: la pantalla, la data de treball i el diàleg obert van a
+  l'adreça (`src/adreca.js`), i «Enrere» i els enllaços directes funcionen
 - 4 vistes principals: `SubstitucionsView`, `VigilanciesView`, `GrupsView`,
   `SchedulerView` (planificador d'exàmens)
 - Composables a `views/scheduler/use*.js` per a la lògica de cada subàrea
   del planificador (API, resultats, restriccions, slots, incidències)
 - i18n amb `vue-i18n`: traduccions a `locales/{ca,es,en,it}.json`
-- Pinia per a estat compartit (preparada però amb poc ús actual)
+- Estat global (usuari, centre, data de treball) a `src/composables/`; crides
+  HTTP només a `src/api/`
 
 ### Regles de funcionament
 
@@ -289,12 +288,11 @@ docker compose up --build -d
 fet-substitutions-manager/
 ├── backend/
 │   ├── main.py                # FastAPI app + startup
-│   ├── routes/                # Endpoints: substitucions, vigilancies, scheduler...
-│   ├── core/                  # Lògica de negoci (motor, alliberats, absències)
-│   ├── serveis/               # Lògica que criden les rutes (DiaEscolar, generació, PDF...)
+│   ├── substitucions/, vigilancies/, grups/, horari/, pdf/...
+│   │                          # Un paquet per mòdul: router, schemas, services, repositories
 │   ├── planificador/          # Planificador d'exàmens (motor/: el motor)
 │   ├── config/                # Configuració, constants, settings
-│   ├── repositories.py        # Accés a dades (SQLAlchemy)
+│   ├── schema_migrations/     # Migracions de l'esquema (Alembic)
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env.example

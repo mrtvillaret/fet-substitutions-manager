@@ -15,19 +15,6 @@ test('descarrega: URL, mètode, arguments, resposta i errors intactes', async ()
   await assert.rejects(api.descarregaAmb(client, ...args, ...argumentsHttp), e => e === error)
 })
 
-test('professorsInforme: URL, mètode, arguments, resposta i errors intactes', async () => {
-  const resposta = { data: { resultat: true }, headers: { 'content-disposition': 'filename="prova.pdf"' } }
-  const argumentsHttp = [{"params":{"hores":["08:00","09:00"]},"responseType":"blob","_silent":true,"signal":null}]
-  const peticions = []
-  const client = { get: async (...args) => { peticions.push(args); return resposta } }
-  const args = []
-  assert.equal(await api.professorsInformeAmb(client, ...args, ...argumentsHttp), resposta)
-  assert.deepEqual(peticions, [["/api/informes/professors-llista", ...argumentsHttp]])
-  const error = new Error('error original')
-  client.get = async () => { throw error }
-  await assert.rejects(api.professorsInformeAmb(client, ...args, ...argumentsHttp), e => e === error)
-})
-
 test('creaDisponiblesTotsDies: URL, mètode, arguments, resposta i errors intactes', async () => {
   const resposta = { data: { resultat: true }, headers: { 'content-disposition': 'filename="prova.pdf"' } }
   const argumentsHttp = [{"valor":7},{"headers":{"Content-Type":"multipart/form-data"},"timeout":300000,"baseURL":""}]

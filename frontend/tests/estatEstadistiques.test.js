@@ -18,9 +18,7 @@ function prepara(batch = null) {
     } }
   })
   const apiPdf = { professorsInforme: async () => ({ data: { professors: ['Prof 2', 'Prof 1'] } }), descarrega: async (...args) => { descarregues.push(args); return { data: 'PDF' } } }
-  const p = carregaBlocVista('components/EstadistiquesDialog.vue', 'useEstadistiques', [['const loading =', '</script>']], [
-    'dataInici', 'dataFinal', 'cursTriatId', 'inicialitzarDates', 'carregarEstadistiques', 'loading', 'resum', 'horesTriades', 'carregarFrangesHorari', 'paramsDelFiltre', 'onProfessorRowClick', 'professorDetail', 'professorDetailVisible', 'classesSeleccionades', 'carregarDetallClasses', 'classesDetailData', 'formatPercent', 'formatBarWidth', 'carregarInformeProfessors', 'informeProfessorsOpcions', 'informeProfessorSeleccionat', 'generarInformeProfessor', 'tancar'
-  ], { ...dependents, dependents, ref, computed, watch: (...args) => watchers.push(args), apiConfiguracio, apiEstadistiques, apiPdf, dataTreball: ref(new Date('2026-04-20')), dataIso: d => d?.toLocaleDateString('sv-SE'), ordenaAlfabeticament: xs => [...xs].sort(), localizeBackendDayName: x => x,
+  const p = carregaBlocVista('useEstadistiques', { ...dependents, dependents, ref, computed, watch: (...args) => watchers.push(args), apiConfiguracio, apiEstadistiques, apiPdf, dataTreball: ref(new Date('2026-04-20')), dataIso: d => d?.toLocaleDateString('sv-SE'), ordenaAlfabeticament: xs => [...xs].sort(), localizeBackendDayName: x => x,
     document: { createElement: () => ({ click() {} }) }, URL: { createObjectURL: () => 'blob:prova', revokeObjectURL() {} }, Blob })
   return { ...p, peticions, avisos, descarregues, watchers, props }
 }

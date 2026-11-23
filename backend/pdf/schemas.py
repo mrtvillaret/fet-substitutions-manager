@@ -23,10 +23,6 @@ class DesatResponse(BaseModel):
     success: bool
 
 
-class ProfessorsLlistaResponse(BaseModel):
-    professors: list[str]
-
-
 class ValidacionsPdfResponse(BaseModel):
     avisos_encadenades: list[str]
     problemes_vigilancies: list[ProblemaVigilancia]
@@ -38,7 +34,3 @@ class ValidacionsPdfResponse(BaseModel):
 
 class VigilanciesSenseNivellResponse(BaseModel):
     sense_nivell: int
-
-
-class DisponiblesTotsDiesRequest(BaseModel):
-    data_inici: str | None = None

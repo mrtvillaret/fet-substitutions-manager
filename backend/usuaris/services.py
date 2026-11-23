@@ -7,7 +7,7 @@ from auth.domain import Rol, UsuariActual
 from auth.repositories import UserRepository
 from auth.security import hash_password
 from auth.services import comprova_no_protegit, valida_contrasenya
-from config.settings import config
+from config import settings
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, inicia_escriptura
 from errors_domini import Conflicte, NoPermes, NoTrobat, NoValid
@@ -52,7 +52,7 @@ def _comprova_rol(role: str) -> None:
 
 
 def _comprova_institucio_existeix(institucio: str) -> None:
-    if institucio not in config.get_institucions_disponibles():
+    if institucio not in settings.get_institucions_disponibles():
         raise NoValid("Institució inexistent", codi="institucio_inexistent")
 
 

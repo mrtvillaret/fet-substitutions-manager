@@ -8,7 +8,7 @@ import { dataIso } from './dates'
 export const dataTreball = ref(new Date())
 
 // AAAA-MM-DD, per a les crides a l'API
-export const dataTreballIso = computed(() => dataIso(dataTreball.value))
+const dataTreballIso = computed(() => dataIso(dataTreball.value))
 
 // Opcions HTTP amb ?data= de la data de treball (i altres paràmetres)
 export const ambDataTreball = (params = {}) => ({ params: { ...params, data: dataTreballIso.value } })

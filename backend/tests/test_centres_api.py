@@ -13,7 +13,7 @@ from suport_noms import unic
 from auth.dependencies import require_admin
 from auth.repositories import UserRepository
 from centres import router as centres
-from config.settings import config
+from config import settings
 from configuracio.repositories import ConfiguracioRepository
 from database import DATA_BASE_DIR, AuthSessionLocal, get_data_db_session
 from rate_limit import limiter
@@ -83,7 +83,7 @@ def test_es_pot_canviar_el_nom_visible_d_un_centre_desactivat():
     # Abans donava 404: només el buscava entre els actius
     superadmin = _superadmin()
     centre = nova_institucio()
-    config.set_institucio_activa(centre, False)
+    settings.set_institucio_activa(centre, False)
 
     resposta = superadmin.put(f"{URL}/{centre}", json={"display_name": "Nom nou"})
 
@@ -142,8 +142,8 @@ def test_el_superadmin_continua_treballant_en_un_centre_desactivat():
     assert superadmin.get(URL).json()["actual"] == centre
     assert entra(client_per(APP), nom).get(URL).status_code == 200  # també en tornar a entrar
     assert superadmin.put(f"{URL}/{centre}/status", json={"active": True}).status_code == 200
-    assert config.is_institucio_activa(centre)
-    config.set_institucio_activa(centre, False)
+    assert settings.is_institucio_activa(centre)
+    settings.set_institucio_activa(centre, False)
     assert superadmin.post("/api/users/profile/institucio", json={"institucio": altre}).status_code == 200
 
 

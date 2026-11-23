@@ -10,8 +10,8 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from suport_motor_nou import config_inventada as config_inventada
-from suport_motor_nou import xml_inventat as xml_inventat
+from suport_motor import config_inventada as config_inventada
+from suport_motor import xml_inventat as xml_inventat
 from suport_planificador import DATES, DIES, alliberaments, centre_amb_examens, configura
 
 from planificador.compartit.missatges import missatge

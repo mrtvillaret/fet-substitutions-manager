@@ -26,7 +26,6 @@ def client(monkeypatch):
 @pytest.mark.parametrize(
     "camps",
     [
-        {"max_dies": 0},
         {"max_intents_validacio": 0},
         {"iteracions_per_temperatura": 0, "factor_refredament": 1},
         {"iteracions_per_temperatura": -1},
@@ -65,7 +64,7 @@ def test_valors_per_defecte_actuals_valids():
 
 
 # El termini que atura un reinici en curs del recuit (amb la solució inicial
-# dins o fora del temps): test_planificador_recuit_nou.py::
+# dins o fora del temps): test_planificador_recuit.py::
 # test_solucio_inicial_dins_del_temps_sense_interrupcio.
 
 
@@ -131,7 +130,6 @@ def test_el_contracte_de_la_pantalla_conserva_identificadors_i_analisi():
     [
         ("config", {"durada_titular": 0}),
         ("config", {"durada_examen": -1}),
-        ("config", {"alliberaments_per_nivell": {"1-BAT": {"durada": 0}}}),
         ("config", {"durades_grups": [{"durada": 0}]}),
         ("config", {"durades_grups": [{"durada_examen": -1}]}),
     ],

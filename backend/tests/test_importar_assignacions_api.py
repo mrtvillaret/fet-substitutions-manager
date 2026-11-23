@@ -163,7 +163,7 @@ def test_dry_run_diu_el_mateix_que_despres_fa_la_importacio(client, centre):
     assert [a.split(",")[0] for a in resum["avisos"]] == [a.split(",")[0] for a in resultat["avisos"]]
 
 
-# -------------------------------------------------------------- importar
+# ---------------------------------------------------------- importar les assignacions
 
 
 def test_importar_crea_la_configuracio_mestra_i_les_assignacions(client, centre):

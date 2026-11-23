@@ -59,9 +59,8 @@ Peces compartides, cadascuna en un únic lloc:
 | Neteja de substituts invàlids | `substitucions/reconciliacio.py` | Serveis d’absències i alliberaments |
 | Noms i hores normalitzats | `textos.py` | Lectors XML, API i motor |
 
-Hi ha vuit imports interiors de producció: tres al PDF (partició
-opcional amb `pyphen` i Pillow quan hi ha logo, al PDF combinat i
-a l’informe de direcció) i cinc al CLI
+Hi ha set imports interiors de producció: dos al PDF (Pillow quan hi
+ha logo, al PDF combinat i a l’informe de direcció) i cinc al CLI
 d’esborrat (després de validar arguments). Cada línia porta `noqa: PLC0415`
 amb el motiu, que el guardià exigeix exactament. Als tests es permeten imports
 locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
@@ -220,9 +219,11 @@ locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
 │  └── schemas.py           ← models Pydantic (request/response)   │
 │                                                                  │
 │  EXPORTACIÓ PDF                                                  │
-│  ├── export/pdf_styles.py         ← estils comuns                │
-│  ├── export/pdf_images.py         ← imatges embegudes            │
 │  └── pdf/ (mòdul)                 ← rutes, casos d'ús, dibuix    │
+│        ├── estils.py              ← estils comuns (config/pdf.json)│
+│        ├── icones.py, icones/     ← emojis dels avisos → PNG     │
+│        ├── text.py                ← escapat únic per a ReportLab │
+│        ├── domain.py              ← directori temporal únic      │
 │        ├── router.py              ← rutes /api/pdf/*             │
 │        ├── informes.py            ← rutes /api/informes/*        │
 │        ├── generacio.py           ← dia, vigilàncies, interval   │
@@ -270,7 +271,6 @@ locals per fixtures, monkeypatch i recàrregues amb entorn aïllat.
                          │
                     ./data/
                     ├── auth.db
-                    ├── config.json (o APP_CONFIG_PATH)
                     └── {institucio}/
                         ├── gestor.db
                         ├── *.xml  (horari FET)
@@ -337,14 +337,21 @@ una carpeta de còpies per aplicar; cada BD es migra en una transacció SQLite
 explícita. Les inicialitzacions concurrents se serialitzen dins del procés i
 amb el bloqueig de SQLite entre processos.
 
-L’esquema vigent és el de la `0004_vigencia_no_substituir`: la base congelada
+L’esquema vigent és el de la `0005_fora_taules_legacy`: la base congelada
 (`base_schema.json`, que no es toca) amb `no_substituir` substituïda pel DDL de
-`vigencia_schema.json` (`schema.current_statements` i `current_signature`;
-`validate_current` per a una BD vigent). La 0004 només parteix del canònic exacte
+`vigencia_schema.json` (l’esquema de la 0004: `vigencia_schema_statements`,
+`validate_vigencia`) i sense les taules `LEGACY_TABLES` (`schema.current_statements`
+i `current_signature`; `validate_current` per a una BD vigent). La 0004 només parteix del canònic exacte
 de la 0003: canvia el nom de la taula antiga (cap FK hi apunta), crea la nova amb
 el DDL congelat, hi copia les files per rowid amb les dates nul·les (vàlides des
 de sempre), esborra l’antiga i crea `idx_no_substituir_assignatura`. Si la taula
 ja té la forma nova, no fa res. Tests: `tests/test_migracio_0004.py`.
+La 0005 només parteix de l’esquema exacte de la 0004: esborra `exam_preferencies`
+i `exam_pesos_optimitzacio` (cap codi no les llegia; les preferències i els pesos
+són a `exam_restriccions`) i deixa buits els textos del desplegable antic desats
+com a dades (vigilant «--…», substitut «---»/«PENDENT»). Des de llavors cap
+lectura no els reconeix; només l’entrada de Vigilàncies desa buit un «--…».
+Tests: `tests/test_migracio_0005.py`.
 
 ### «No substituir» per data: una sola porta
 
@@ -370,10 +377,8 @@ porta sempre amb data.
 | Recomptes, Estadístiques i informes (`recomptes/services.py`) | la de cada fila |
 | Planificador (`planificador/config.py`) | la de l’horari del planificador: primera data planificada o avui |
 
-La configuració global mutable va a `APP_CONFIG_PATH` o, per defecte,
-`DATA_DIR/config.json`. El fitxer antic `backend/config/config.json` només
-es llegeix si encara falta el nou; qualsevol desat va al camí nou. Les
-configuracions de cada centre continuen a la seva BD i el perfil PDF
+No hi ha configuració global en fitxer: la de cada centre (també l’idioma) és
+a la seva BD, el centre per defecte del servidor és `APP_INSTITUCIO` i el perfil PDF
 versionat és un recurs estàtic de només lectura. El contenidor executa el
 backend amb UID/GID `10001:10001`; els volums de dades han de tenir permisos
 per a aquest usuari. Procediment, demo, còpies i reversió: [DESPLEGAMENT.md](DESPLEGAMENT.md).

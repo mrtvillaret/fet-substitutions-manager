@@ -15,7 +15,7 @@
         <Button
           :icon="userSortAsc ? 'pi pi-sort-alpha-down' : 'pi pi-sort-alpha-up'"
           class="p-button-sm p-button-text"
-          v-tooltip.top="$t('config.users.sort')"
+          v-tooltip.top="$t('config.users.sort')" :aria-label="$t('config.users.sort')"
           @click="toggleUserSort"
         />
         <Button
@@ -55,14 +55,14 @@
               icon="pi pi-pencil"
               class="p-button-text p-button-sm"
               :disabled="data.role === 'super_admin'"
-              v-tooltip.top="data.role === 'super_admin' ? $t('config.users.superAdminLocked') : $t('common.edit')"
+              v-tooltip.top="data.role === 'super_admin' ? $t('config.users.superAdminLocked') : $t('common.edit')" :aria-label="$t('common.edit')"
               @click="editarUsuari(data)"
             />
             <Button
               icon="pi pi-ban"
               class="p-button-text p-button-sm p-button-danger"
               :disabled="data.role === 'super_admin'"
-              v-tooltip.top="data.role === 'super_admin' ? $t('config.users.superAdminLocked') : $t('config.users.deactivateTitle')"
+              v-tooltip.top="data.role === 'super_admin' ? $t('config.users.superAdminLocked') : $t('config.users.deactivateTitle')" :aria-label="$t('config.users.deactivateTitle')"
               @click="desactivarUsuari(data)"
             />
             <Button
@@ -70,7 +70,7 @@
               icon="pi pi-trash"
               class="p-button-text p-button-sm p-button-danger"
               :disabled="data.role === 'super_admin'"
-              v-tooltip.top="data.role === 'super_admin' ? $t('config.users.superAdminLocked') : $t('config.users.deleteTitle')"
+              v-tooltip.top="data.role === 'super_admin' ? $t('config.users.superAdminLocked') : $t('config.users.deleteTitle')" :aria-label="$t('config.users.deleteTitle')"
               @click="eliminarUsuari(data)"
             />
           </div>

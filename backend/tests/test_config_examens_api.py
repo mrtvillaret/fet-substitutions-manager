@@ -289,7 +289,7 @@ def test_una_abreviatura_dels_mateixos_grups_que_una_altra_dona_409(admin, centr
 
 @pytest.mark.parametrize("ruta", ["importar-assignacions-csv", "importar-assignacions-csv/dry-run"])
 def test_un_csv_que_no_es_utf8_dona_400(admin, centre, ruta):
-    # Abans: 500 (UnicodeDecodeError)
+    # Abans donava un error 500 (UnicodeDecodeError)
     contingut = "nivell,assignatura,grup\n1-ESO,Física i Química,1-ESO-A\n".encode("latin-1")
     abans = _estat_config(centre)
     resposta = admin.post(f"{C}/{ruta}", files={"file": ("a.csv", contingut, "text/csv")})

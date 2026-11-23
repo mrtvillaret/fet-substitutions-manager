@@ -6,7 +6,7 @@ text normalitzat, però puntuar i comprovar restriccions usa text exacte.
 
 import re
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, NamedTuple
 
 from planificador.compartit.normalitzacio import dia_nom_per_horari, normalitzar_dia, normalitzar_text
@@ -21,8 +21,6 @@ class Regla:
     pes: Any
     origen: tuple[str | int, ...]
     valor: Any
-    resolucio_exacta: tuple = field(default=(), kw_only=True)
-    resolucio_normalitzada: tuple = field(default=(), kw_only=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,13 +63,12 @@ def coincideix_normalitzat(nom: str, sessio: dict) -> bool:
     )
 
 
-def construeix_regles(originals: dict, examens=()) -> Regles:
+def construeix_regles(originals: dict) -> Regles:
     """Conserva cada valor i la seva posició, inclosos noms sense correspondència.
 
     El pes cru es conserva: els percentatges de les regles i els costos dels
     professors tenen dominis diferents. La projecció no normalitza res.
     """
-    sessions_resolucio = tuple((e.id, e.a_diccionari()) for e in examens)
     regles_en_ordre = []
     for seccio in ("restriccions_dures", "preferencies"):
         for clau, conjunt in (originals.get(seccio) or {}).items():
@@ -98,26 +95,6 @@ def construeix_regles(originals: dict, examens=()) -> Regles:
                     pes=pes,
                     origen=(seccio, clau, posicio),
                     valor=congela(valor),
-                    resolucio_exacta=tuple(
-                        (
-                            nom,
-                            tuple(
-                                identificador for identificador, s in sessions_resolucio if coincideix_exacte(nom, s)
-                            ),
-                        )
-                        for nom in noms
-                    ),
-                    resolucio_normalitzada=tuple(
-                        (
-                            nom,
-                            tuple(
-                                identificador
-                                for identificador, s in sessions_resolucio
-                                if coincideix_normalitzat(nom, s)
-                            ),
-                        )
-                        for nom in noms
-                    ),
                 )
                 if seccio == "preferencies":
                     regla = Preferencia(**camps)
@@ -586,16 +563,14 @@ def percent_examen_fixat(sessio: dict, dia: str, hora: str, restriccions: dict, 
     return 0
 
 
-def nivell_sense_inici(
-    sessio: dict, dia: str, hora: str, restriccions: dict, nivells_actius: list[str], data_iso: str = ""
-) -> bool:
+def nivell_sense_inici(sessio: dict, dia: str, hora: str, restriccions: dict, data_iso: str = "") -> bool:
     """El nivell de l'examen no té l'hora marcada com a inici d'examen
     (slots_valids_per_nivell, del calendari)."""
     return not es_slot_valid_per_nivell(sessio.get("curs", ""), dia, hora, restriccions, data_iso=data_iso)
 
 
 def causa_dia_hora_fix(
-    sessio: dict, dia: str, hora: str, restriccions: dict, nivells_actius: list[str], data_iso: str = ""
+    sessio: dict, dia: str, hora: str, restriccions: dict, data_iso: str = ""
 ) -> tuple[str | None, int]:
     """(causa, percentatge) de la franja per a la sessió, en aquest ordre:
     «examen_fixat» (el pin obligatori), «franja_prohibida», «nivell_sense_inici»
@@ -607,19 +582,17 @@ def causa_dia_hora_fix(
     percent = percentatge_franja_prohibida(sessio, dia, hora, restriccions)
     if percent:
         return "franja_prohibida", percent
-    if nivell_sense_inici(sessio, dia, hora, restriccions, nivells_actius, data_iso):
+    if nivell_sense_inici(sessio, dia, hora, restriccions, data_iso):
         return "nivell_sense_inici", 100
     if pin:
         return "examen_fixat", pin
     return None, 0
 
 
-def percentatge_dia_hora_fix(
-    sessio: dict, dia: str, hora: str, restriccions: dict, nivells_actius: list[str], data_iso: str = ""
-) -> int:
+def percentatge_dia_hora_fix(sessio: dict, dia: str, hora: str, restriccions: dict, data_iso: str = "") -> int:
     """Les tres causes juntes (com al cost: `dia_hora_fix`): el percentatge de
     la primera que es dona (0 si cap)."""
-    return causa_dia_hora_fix(sessio, dia, hora, restriccions, nivells_actius, data_iso)[1]
+    return causa_dia_hora_fix(sessio, dia, hora, restriccions, data_iso)[1]
 
 
 def es_slot_valid_per_nivell(nivell: str | None, dia: str, hora: str, restriccions: dict, data_iso: str = "") -> bool:
@@ -652,11 +625,9 @@ def es_slot_valid_per_nivell(nivell: str | None, dia: str, hora: str, restriccio
     return False
 
 
-def viola_restriccio_dia_hora_fixos(
-    sessio: dict, dia: str, hora: str, restriccions: dict, nivells_actius: list[str], data_iso: str = ""
-) -> bool:
+def viola_restriccio_dia_hora_fixos(sessio: dict, dia: str, hora: str, restriccions: dict, data_iso: str = "") -> bool:
     """Comprova dia/hora fix, bloquejos i validesa per nivell (només si pes >= 100)."""
-    percent = percentatge_dia_hora_fix(sessio, dia, hora, restriccions, nivells_actius, data_iso)
+    percent = percentatge_dia_hora_fix(sessio, dia, hora, restriccions, data_iso)
     return percent >= 100
 
 

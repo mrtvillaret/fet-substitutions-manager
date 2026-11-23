@@ -19,12 +19,10 @@ import rellotge
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from dates import data_compacta, parse_date
-from export.pdf_images import pdf_images
-from export.pdf_styles import PDFStyleFactory
-
-# import emoji
 from i18n_setup import translate as _
+from pdf.estils import PDFStyleFactory
 from pdf.files import SubstitucioPdf, VigilanciaPdf
+from pdf.icones import amb_icones
 from pdf.text import _text
 from substitucions.files import FilaSubstitucio
 from vigilancies.files import FilaVigilancia
@@ -61,31 +59,9 @@ class PDFCompletExporter:
         self.export_dir.mkdir(parents=True, exist_ok=True)
         self.styles = getSampleStyleSheet()
         self.custom_styles = PDFStyleFactory.get_standard_styles()
-        self.table_styles = PDFStyleFactory.get_table_styles()
 
-        # Load hyphenation configuration - profile colors loaded dynamically
-        try:
-            self.pdf_config = PDFStyleFactory._load_pdf_config()
-            self.fonts = self.pdf_config.get("font_sizes", {})
-            self.hyphenation_config = self.pdf_config.get("hyphenation", {})
-        except Exception:
-            self.fonts = {}
-            self.hyphenation_config = {"enabled": False}
-
-        # Setup hyphenation if available
-        self.hyphen_lang = None
-        self.hyphen_language_code = None
-        try:
-            import pyphen  # noqa: PLC0415 — Dependència opcional: ImportError conserva el PDF sense partició.
-
-            if self.hyphenation_config.get("enabled", False):
-                self.hyphen_language_code = self.hyphenation_config.get("language", "ca")
-                self.hyphen_lang = pyphen.Pyphen(lang=self.hyphen_language_code)
-        except ImportError:
-            pass
-        except Exception as e:
-            log.warning(_("Avís: No s'ha pogut carregar la partició de paraules: {error}").format(error=e))
-            pass
+        # Els colors del perfil es llegeixen a cada PDF (_get_profile_colors)
+        self.pdf_config = PDFStyleFactory._load_pdf_config()
 
         # Carregar preferències de columnes opcionals
         self.show_comments_column = self.pdf_config.get("show_comments_column", True)
@@ -303,12 +279,7 @@ class PDFCompletExporter:
                     resum = _("RESUM: {num} substitucions").format(num=len(subs_reals))
                 elif tipus_pdf == "vigilancies":
                     resum = _("RESUM: {num} vigilàncies").format(num=len(vigilancies_reals))
-                elif tipus_pdf == "complet":
-                    resum = _("RESUM: {subs} substitucions, {vig} vigilàncies").format(
-                        subs=len(subs_reals), vig=len(vigilancies_reals)
-                    )
-                else:
-                    # Fallback: comportament antic
+                else:  # complet
                     resum = _("RESUM: {subs} substitucions, {vig} vigilàncies").format(
                         subs=len(subs_reals), vig=len(vigilancies_reals)
                     )
@@ -344,7 +315,7 @@ class PDFCompletExporter:
             traceback.print_exc()
             return ""
 
-    def _add_logo_to_page(self, canvas, doc):
+    def _add_logo_to_page(self, canvas, doc):  # noqa: ARG002 (ReportLab crida onPage amb el document)
         """Afegeix logo al marge superior esquerre de cada pàgina si existeix"""
         try:
             from PIL import Image  # noqa: PLC0415 — El try del logo conserva la resta del PDF si falla la importació.
@@ -407,8 +378,6 @@ class PDFCompletExporter:
             fontName="Helvetica",
             textColor=colors.HexColor(profile_colors.get("conflict_color", "#c0392b")),
             leftIndent=20,
-            hyphenationLang=self.hyphen_language_code if self.hyphen_lang else None,
-            embeddedHyphenation=1 if self.hyphen_lang else 0,
         )
 
         hour_style = ParagraphStyle(
@@ -418,8 +387,6 @@ class PDFCompletExporter:
             alignment=0,
             fontName="Helvetica-Bold",
             textColor=colors.HexColor(profile_colors.get("hour_color", "#2c3e50")),
-            hyphenationLang=self.hyphen_language_code if self.hyphen_lang else None,
-            embeddedHyphenation=1 if self.hyphen_lang else 0,
         )
 
         # Per intervals, mantenir estructura original (ja agrupada per dies)
@@ -477,7 +444,7 @@ class PDFCompletExporter:
                 if hora != "9999":
                     hora_formatejada = labels_per_hora.get(hora, f"{hora[:2]}:{hora[2:]}")
                     # Afegeix fila d'hora amb gestió d'imatges millorada
-                    hora_text = pdf_images.format_conflict_text(_("🕐 HORA {hora}:").format(hora=hora_formatejada))
+                    hora_text = amb_icones(_("🕐 HORA {hora}:").format(hora=hora_formatejada))
                     dades.append([Paragraph(hora_text, hour_style)])
 
                 # Afegeix conflictes d'aquesta hora (sense tornar a escriure l'hora,
@@ -486,7 +453,7 @@ class PDFCompletExporter:
                     if hora != "9999":
                         c = re.sub(rf"^(\W*?)\s*{re.escape(hora_formatejada)}:\s*", r"\1", c, count=1)
                     # Usa la nova gestió d'imatges per als conflictes
-                    conflicte_net = pdf_images.format_conflict_text(_text(c))
+                    conflicte_net = amb_icones(_text(c))
                     dades.append([Paragraph(conflicte_net, conflict_style)])
 
         # Crea taula amb millor amplada

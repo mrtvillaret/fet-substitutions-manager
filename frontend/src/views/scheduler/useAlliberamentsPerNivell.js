@@ -67,7 +67,6 @@ export const useAlliberamentsPerNivell = ({
     for (const [nivell, data] of Object.entries(obj || {})) {
       result[nivell] = {
         dates: [...(data.dates || [])],
-        durada: data.durada || 1,
         config: JSON.parse(JSON.stringify(data.config || {}))
       }
     }
@@ -76,7 +75,7 @@ export const useAlliberamentsPerNivell = ({
 
   const aplicarCanvisDates = (nivell, newDates, esborrarConfigEliminades) => {
     const updated = cloneAlliberaments(alliberamentsPerNivell.value)
-    if (!updated[nivell]) updated[nivell] = { dates: [], durada: 1, config: {} }
+    if (!updated[nivell]) updated[nivell] = { dates: [], config: {} }
 
     const oldDates = updated[nivell].dates || []
     if (esborrarConfigEliminades) {
@@ -149,7 +148,7 @@ export const useAlliberamentsPerNivell = ({
 
   const toggleAlliberat = (nivell, data, hora) => {
     const updated = cloneAlliberaments(alliberamentsPerNivell.value)
-    if (!updated[nivell]) updated[nivell] = { dates: [], durada: 1, config: {} }
+    if (!updated[nivell]) updated[nivell] = { dates: [], config: {} }
     if (!updated[nivell].config[data]) updated[nivell].config[data] = {}
     if (!updated[nivell].config[data][hora]) updated[nivell].config[data][hora] = { a: false, i: false }
 

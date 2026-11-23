@@ -28,6 +28,10 @@ def _comprova_data_iso(valor):
 #   def ruta(data: DataISO) / def ruta(data_inici: Optional[DataISO] = None)
 DataISO = Annotated[str, AfterValidator(_comprova_data_iso)]
 
+# Sostre de les llistes de dates d'una petició: un any sencer. Cap pantalla
+# n'envia tantes; sense sostre, una llista enorme ocuparia el servidor.
+MAX_DATES = 366
+
 
 def hores_triades(
     hores: list[str] | None = Query(None),

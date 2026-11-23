@@ -11,13 +11,6 @@ Extret del GUI per separació de responsabilitats.
 
 from config.constants import ORDRE_PRIORITATS
 
-try:
-    from i18n_setup import translate as _
-except ImportError:
-
-    def _(text):
-        return text
-
 
 def get_categoria_prioritat(tipus_activitat: str) -> int:
     """Retorna l'índex de categoria segons ORDRE_PRIORITATS

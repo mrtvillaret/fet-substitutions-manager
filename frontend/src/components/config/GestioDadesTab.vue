@@ -86,11 +86,6 @@
         </li>
       </ul>
 
-      <p>
-        {{ $t('config.dataManagement.pdfsToDelete') }}: <strong>{{ manifest.pdfs_a_esborrar.length }}</strong>
-        · {{ $t('config.dataManagement.pdfsManual') }}: <strong>{{ manifest.pdfs_revisio_manual.length }}</strong>
-      </p>
-
       <div v-if="manifest.xml_versions.length" class="xml-list">
         <p>{{ $t('config.dataManagement.xmlAffected') }}</p>
         <ul>
@@ -129,7 +124,6 @@
           start: resultat.interval.inici,
           end: resultat.interval.final,
           bd: resultat.total_bd,
-          pdf: resultat.pdfs_esborrats.length,
           xml: resultat.xml_esborrats.length,
         }) }}
       </Message>
@@ -270,7 +264,6 @@ const hiHaResPerEsborrar = computed(() => {
   const m = manifest.value
   if (!m) return false
   return m.total_bd > 0
-    || m.pdfs_a_esborrar.length > 0
     || m.xml_versions.some(v => !v.bloquejat)
     || m.planificador.dates_seleccionades > 0
     || m.planificador.ultim_horari !== null
@@ -296,9 +289,6 @@ const avisos = computed(() => {
   const ultim = m.planificador.ultim_horari
   if (ultim?.s_esten_fora) {
     out.push(t('config.dataManagement.warnPlannerExtends', { start: ultim.dates[0], end: ultim.dates[ultim.dates.length - 1] }))
-  }
-  if (m.pdfs_revisio_manual.length) {
-    out.push(t('config.dataManagement.warnPdfsManual', { n: m.pdfs_revisio_manual.length }, m.pdfs_revisio_manual.length))
   }
   return out
 })
@@ -326,7 +316,7 @@ function confirmarPurga() {
   confirmaEsborrar({
     header: t('config.dataManagement.confirmHeader'),
     message: t('config.dataManagement.confirmMessage', {
-      bd: m.total_bd, pdf: m.pdfs_a_esborrar.length, xml: nXml,
+      bd: m.total_bd, xml: nXml,
       start: m.interval.inici, end: m.interval.final,
     }),
     icon: 'pi pi-exclamation-triangle',

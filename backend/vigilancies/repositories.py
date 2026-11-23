@@ -80,47 +80,10 @@ class VigilanciaRepository:
 
     @staticmethod
     def update_by_id(
-        db: Session, data: str, vig_id: str, updates: dict, *, updated_at_esperat: str = None
+        db: Session, data: str, vig_id: int, updates: dict, *, updated_at_esperat: str = None
     ) -> Vigilancia | None:
-        """
-        Actualitza una vigilància pel seu ID (pot ser integer o compost)
-
-        Args:
-            vig_id: Pot ser:
-                - Integer (ID real de la BD): "123"
-                - Compost (legacy): "08:00|1-BATX|0"
-        """
-        vig = None
-
-        # Intentar parsejar com a integer primer (ID real de la BD)
-        try:
-            db_id = int(vig_id)
-            vig = db.query(Vigilancia).filter(and_(Vigilancia.id == db_id, Vigilancia.data == parse_date(data))).first()
-        except ValueError:
-            # No és un integer, provar amb format compost
-            parts = vig_id.split("|")
-            if len(parts) != 3:
-                return None
-
-            hora, nivell, index_str = parts
-            try:
-                index = int(index_str)
-            except ValueError:
-                return None
-
-            # Buscar vigilància amb index
-            vigilancies = (
-                db.query(Vigilancia)
-                .filter(and_(Vigilancia.data == parse_date(data), Vigilancia.hora == hora, Vigilancia.nivell == nivell))
-                .order_by(Vigilancia.id)
-                .all()
-            )
-
-            if index >= len(vigilancies):
-                return None
-
-            vig = vigilancies[index]
-
+        """Actualitza la vigilància `vig_id` del dia `data`."""
+        vig = VigilanciaRepository.get_by_id(db, data, vig_id)
         if not vig:
             return None
 
@@ -173,79 +136,14 @@ class VigilanciaRepository:
         return vig
 
     @staticmethod
-    def get_by_id(db: Session, data: str, vig_id: str) -> Vigilancia | None:
-        """Retorna una vigilància pel seu ID (integer o compost)."""
-        vig = None
-
-        try:
-            db_id = int(vig_id)
-            vig = db.query(Vigilancia).filter(and_(Vigilancia.id == db_id, Vigilancia.data == parse_date(data))).first()
-        except ValueError:
-            parts = vig_id.split("|")
-            if len(parts) != 3:
-                return None
-
-            hora, nivell, index_str = parts
-            try:
-                index = int(index_str)
-            except ValueError:
-                return None
-
-            vigilancies = (
-                db.query(Vigilancia)
-                .filter(and_(Vigilancia.data == parse_date(data), Vigilancia.hora == hora, Vigilancia.nivell == nivell))
-                .order_by(Vigilancia.id)
-                .all()
-            )
-
-            if index >= len(vigilancies):
-                return None
-
-            vig = vigilancies[index]
-
-        return vig
+    def get_by_id(db: Session, data: str, vig_id: int) -> Vigilancia | None:
+        """La vigilància `vig_id`, si és del dia `data`."""
+        return db.query(Vigilancia).filter(and_(Vigilancia.id == vig_id, Vigilancia.data == parse_date(data))).first()
 
     @staticmethod
-    def delete_by_id(db: Session, data: str, vig_id: str, *, updated_at_esperat: str = None) -> bool:
-        """
-        Elimina una vigilància pel seu ID (pot ser integer o compost)
-
-        Args:
-            vig_id: Pot ser:
-                - Integer (ID real de la BD): "123"
-                - Compost (legacy): "08:00|1-BATX|0"
-        """
-        vig = None
-
-        # Intentar parsejar com a integer primer (ID real de la BD)
-        try:
-            db_id = int(vig_id)
-            vig = db.query(Vigilancia).filter(and_(Vigilancia.id == db_id, Vigilancia.data == parse_date(data))).first()
-        except ValueError:
-            # No és un integer, provar amb format compost
-            parts = vig_id.split("|")
-            if len(parts) != 3:
-                return False
-
-            hora, nivell, index_str = parts
-            try:
-                index = int(index_str)
-            except ValueError:
-                return False
-
-            # Buscar vigilància amb index
-            vigilancies = (
-                db.query(Vigilancia)
-                .filter(and_(Vigilancia.data == parse_date(data), Vigilancia.hora == hora, Vigilancia.nivell == nivell))
-                .order_by(Vigilancia.id)
-                .all()
-            )
-
-            if index >= len(vigilancies):
-                return False
-
-            vig = vigilancies[index]
-
+    def delete_by_id(db: Session, data: str, vig_id: int, *, updated_at_esperat: str = None) -> bool:
+        """Esborra la vigilància `vig_id` del dia `data`."""
+        vig = VigilanciaRepository.get_by_id(db, data, vig_id)
         if not vig:
             return False
 
@@ -306,7 +204,7 @@ class VigilanciaRepository:
 
     @staticmethod
     def amb_vigilant(db: Session, data: str) -> list[Vigilancia]:
-        """Les vigilàncies del dia que tenen vigilant (ni buit ni el text del desplegable)."""
+        """Les vigilàncies del dia que tenen vigilant."""
         return (
             db.query(Vigilancia)
             .filter(
@@ -314,7 +212,6 @@ class VigilanciaRepository:
                     Vigilancia.data == parse_date(data),
                     Vigilancia.vigilant.isnot(None),
                     Vigilancia.vigilant != "",
-                    Vigilancia.vigilant != "-- selecciona vigilant --",
                 )
             )
             .all()

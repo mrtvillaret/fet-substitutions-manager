@@ -8,7 +8,7 @@ from suport_xml import amb_horari_futur, amb_versions, dia, professor_que_plega
 
 import rellotge
 from database import get_data_db_session
-from horari.context import avui, get_xml_path_for_date
+from horari.domain import Dia
 from horari.repositories import XMLVersionRepository
 from horari.sincronitzacio import sincronitza_un_cop_al_dia
 from models import Professor
@@ -20,12 +20,12 @@ def amb_futur():
 
 
 def test_sense_data_es_fa_servir_l_horari_vigent_avui(amb_futur):
-    assert get_xml_path_for_date(amb_futur, avui()).endswith("actual.xml")
+    assert Dia.avui(amb_futur).xml_path.endswith("actual.xml")
 
 
 def test_amb_data_es_fa_servir_el_d_aquella_data(amb_futur):
-    assert get_xml_path_for_date(amb_futur, dia(10).isoformat()).endswith("futur.xml")
-    assert get_xml_path_for_date(amb_futur, dia(1).isoformat()).endswith("actual.xml")
+    assert Dia.de_text(dia(10).isoformat(), amb_futur).xml_path.endswith("futur.xml")
+    assert Dia.de_text(dia(1).isoformat(), amb_futur).xml_path.endswith("actual.xml")
 
 
 def test_un_professor_que_plega_amb_l_horari_futur_continua_actiu_fins_aleshores(amb_futur):
@@ -37,7 +37,7 @@ def test_un_professor_que_plega_amb_l_horari_futur_continua_actiu_fins_aleshores
 
 def test_si_nomes_hi_ha_un_horari_futur_es_fa_servir_aquest():
     centre = amb_versions(("futur.xml", dia(5), None))
-    assert get_xml_path_for_date(centre, avui()).endswith("futur.xml")
+    assert Dia.avui(centre).xml_path.endswith("futur.xml")
 
 
 def test_entre_dos_horaris_es_fa_servir_el_seguent():

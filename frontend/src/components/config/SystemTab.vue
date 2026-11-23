@@ -41,7 +41,7 @@
           readonly
           class="w-full logo-field"
         />
-        <Button icon="pi pi-upload" @click="$refs.logoInput.click()" v-tooltip.top="$t('common.upload')" class="logo-upload-btn" />
+        <Button icon="pi pi-upload" @click="$refs.logoInput.click()" v-tooltip.top="$t('common.upload')" :aria-label="$t('common.upload')" class="logo-upload-btn" />
       </div>
       <input
         :aria-label="$t('config.system.logoLabel')" ref="logoInput"
@@ -82,7 +82,7 @@
           readonly
           class="w-full"
         />
-        <Button icon="pi pi-upload" @click="$refs.fileInput.click()" v-tooltip.top="$t('config.system.xmlUpload')" />
+        <Button icon="pi pi-upload" @click="$refs.fileInput.click()" v-tooltip.top="$t('config.system.xmlUpload')" :aria-label="$t('config.system.xmlUpload')" />
       </div>
       <input
         :aria-label="$t('config.system.xmlLabel')" ref="fileInput"
@@ -172,7 +172,7 @@
           @click="carregarXmlVersions"
           size="small"
           class="p-button-secondary"
-          v-tooltip.top="$t('common.reload')"
+          v-tooltip.top="$t('common.reload')" :aria-label="$t('common.reload')"
         />
       </div>
 

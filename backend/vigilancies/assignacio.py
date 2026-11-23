@@ -143,12 +143,6 @@ def titulars_de(files_config: list, tipus: str, grups: str, aula: str, abreviatu
     return frozenset(de_laula or titulars), "diversos_titulars"
 
 
-def titular_de(files_config: list, tipus: str, grups: str, aula: str, abreviatures=None, nivells=None) -> str | None:
-    """El titular, si n'hi ha un de sol (veure titulars_de)."""
-    titulars, _ = titulars_de(files_config, tipus, grups, aula, abreviatures, nivells)
-    return next(iter(titulars)) if len(titulars) == 1 else None
-
-
 def es_enllac(aula: str) -> bool:
     return (aula or "").strip().upper() == AULA_ENLLAC
 

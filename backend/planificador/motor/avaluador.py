@@ -247,10 +247,7 @@ def cost_sessio(
             _apunta("no_mateix_slot", pen, amb_no_slot)
 
     # Dia/Hora fixos
-    # Els nivells són les claus del dict analisi que comencen per 'classe_'
-    nivells = [k.replace("classe_", "") for k in analisi.keys() if k.startswith("classe_")]
-
-    pct_fix = percentatge_dia_hora_fix(sessio, dia, hora, restriccions, nivells, data_iso)
+    pct_fix = percentatge_dia_hora_fix(sessio, dia, hora, restriccions, data_iso)
     if pct_fix:
         pen = punts_restriccio(restriccions, pct_fix)
         cost_restriccions += pen
@@ -497,9 +494,7 @@ def causa_dura(
     sessio: dict,
     franja,
     regles,
-    nivells,
     sessions_dia=(),
-    sessions_franja=(),
     sessions_per_dia=None,
     analisi=None,
     politiques: Politiques = BACKTRACKING,
@@ -521,7 +516,7 @@ def causa_dura(
     def resultat(clau, detall):
         return CausaDura(clau, ETIQUETES_CAUSES[clau], detall)
 
-    causa, percent = causa_dia_hora_fix(sessio, dia, hora, restriccions, list(nivells), franja.data_iso or "")
+    causa, percent = causa_dia_hora_fix(sessio, dia, hora, restriccions, franja.data_iso or "")
     if percent >= 100:
         return resultat(causa, f"{nom} — slot {dia} {hora} no permès")
     if viola_restriccio_dura(sessio, list(sessions_dia), restriccions):

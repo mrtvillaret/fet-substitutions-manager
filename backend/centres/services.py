@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from auth.domain import Rol, UsuariActual
 from auth.repositories import UserRepository
-from config.settings import config
+from config import settings
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from errors_domini import Conflicte, NoTrobat, NoValid
@@ -30,18 +30,18 @@ def _desa_nom_visible(slug: str, nom_visible: str) -> None:
 
 
 def _comprova_existeix(slug: str, include_inactive: bool) -> None:
-    if slug not in config.get_institucions_disponibles(include_inactive=include_inactive):
+    if slug not in settings.get_institucions_disponibles(include_inactive=include_inactive):
         raise NoTrobat("Institució no trobada", codi="institucio_no_trobada")
 
 
 def llista(current_user: UsuariActual) -> dict:
     """El superadmin els veu tots, també els inactius; l'admin, només el seu."""
-    institucions = config.get_institucions_disponibles(include_inactive=current_user.es_super_admin)
+    institucions = settings.get_institucions_disponibles(include_inactive=current_user.es_super_admin)
     if current_user.role != Rol.SUPER_ADMIN:
         institucions = [inst for inst in institucions if inst == current_user.institucio]
     return {
         "institucions": [
-            {"slug": inst, "display_name": _nom_visible(inst), "active": config.is_institucio_activa(inst)}
+            {"slug": inst, "display_name": _nom_visible(inst), "active": settings.is_institucio_activa(inst)}
             for inst in institucions
         ],
         "actual": current_user.institucio,
@@ -81,7 +81,7 @@ def canvia_estat(slug: str, actiu: bool) -> None:
     desactivat no hi pot entrar ningú (autentica) ni fer cap petició
     (get_current_user), i en reactivar-lo tot torna a ser com abans."""
     _comprova_existeix(slug, include_inactive=True)
-    config.set_institucio_activa(slug, actiu)
+    settings.set_institucio_activa(slug, actiu)
 
 
 def esborra(slug: str, mode: str, confirmacio: str) -> str:

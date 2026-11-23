@@ -34,6 +34,8 @@ jobs:
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: ruff check .
       - run: ruff format --check .
+      # Codi mort: vulture amb les excepcions del framework (scripts/codi_mort.py)
+      - run: python -m scripts.codi_mort
       # Els tests creen centres temporals amb l'horari de data/exemple/
       - run: python -m pytest -q -n auto --dist loadscope -p no:cacheprovider
 

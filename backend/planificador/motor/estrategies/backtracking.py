@@ -30,9 +30,7 @@ class _Dures:
         self.restriccions = problema.regles.a_diccionari()
         self._franges = {}
 
-    def comprova(
-        self, sessio, dia, hora, prefix, sessions_dia, sessions_slot, sessions_per_dia, sessions_per_data=None
-    ):
+    def comprova(self, sessio, hora, prefix, sessions_dia, sessions_per_dia, sessions_per_data=None):
         clau = f"{prefix}_{hora}"
         if clau not in self._franges:
             ubicacio = de_clau(clau)
@@ -45,9 +43,7 @@ class _Dures:
             sessio,
             ubicacio,
             self.problema.regles,
-            self.problema.nivells,
             sessions_dia,
-            sessions_slot,
             sessions_per_dia,
             politiques=self.politiques,
             restriccions=self.restriccions,
@@ -114,13 +110,6 @@ class EstatCerca:
         if self.mascara_nivells[clau] & self._items[idx]["mascara_nivell"]:
             return False  # Conflicte de nivell (O(1))
         return all(self._compat[idx][existent] for existent in self.items_franja[clau])
-
-    def sessions_a(self, clau: str) -> list[dict]:
-        """Sessions ja col·locades a la franja."""
-        sessions = []
-        for existent in self.items_franja[clau]:
-            sessions.extend(self._items[existent]["item"]["sessions"])
-        return sessions
 
     def ubicacions(self) -> list[tuple[dict, str]]:
         """On són les sessions ja col·locades (per a «Mateixa data i hora» entre nivells)."""
@@ -280,13 +269,13 @@ class Backtracking:
         millor_cost = float("inf")
         millors_solucions = []
         acabada = False
-        preparacio = _PreparacioCompartida(lambda: self._prepara_cerca(problema.dies))
+        preparacio = _PreparacioCompartida(self._prepara_cerca)
         for _ in range(nombre_llavors):
             if self._temps_esgotat():
                 self._marca_aturada("temps")
                 break
             llavor = rng.randrange(0, 1_000_000_000)
-            solucions = self._cerca_amb_llavor(llavor, problema.dies, max_nodes, barreja_millors, preparacio)
+            solucions = self._cerca_amb_llavor(llavor, max_nodes, barreja_millors, preparacio)
             if self._temps_esgotat():
                 self._marca_aturada("temps")
             if solucions and solucions[0][0] < millor_cost:
@@ -340,7 +329,7 @@ class Backtracking:
         # altre bloc de la mateixa franja els fa deixar la mateixa classe)
         claus = {}
         for s in item["sessions"]:
-            if dures.comprova(s, franja.dia, franja.hora, franja.prefix, [], [], {}):
+            if dures.comprova(s, franja.hora, franja.prefix, [], {}):
                 return None
             nom_s = s.get("nom")
             if not examen_hi_cap(nom_s, franja.hora, self.problema):  # l'examen hi ha de cabre sencer
@@ -415,7 +404,7 @@ class Backtracking:
             if amb_termini:
                 self._comprova_termini()
             for s in sessions:
-                violacio = dures.comprova(s, franja.dia, franja.hora, franja.prefix, [], [], {})
+                violacio = dures.comprova(s, franja.hora, franja.prefix, [], {})
                 if violacio:
                     raons[violacio.clau] += 1
                     break
@@ -537,15 +526,12 @@ class Backtracking:
         les incidències del dia i del límit per professor (i el canvi de la
         seva fita). None si alguna restricció obligatòria no ho deixa fer."""
         clau = franja.clau
-        sessions_slot_ara = estat.sessions_a(clau)
         for s in it_info["item"]["sessions"]:
             if cerca.dures.comprova(
                 s,
-                franja.dia,
                 franja.hora,
                 franja.prefix,
                 estat.sessions_data.get(franja.prefix, []),
-                sessions_slot_ara,
                 estat.sessions_dia,
                 estat.sessions_data,
             ):
@@ -670,7 +656,7 @@ class Backtracking:
         msg = missatge("examen_sense_hora_causa", nom=etiqueta, causa=motiu or "conflicte_restriccions")
         self.causes.append(msg)
 
-    def _prepara_cerca(self, dies_utilitzar) -> _Preparacio | None:
+    def _prepara_cerca(self) -> _Preparacio | None:
         """Fases 1 i 2, iguals per a totes les llavors: franges, ítems amb el
         cost de cada franja i compatibilitat entre ítems. None si s'acaba el
         temps a mitges."""
@@ -695,14 +681,14 @@ class Backtracking:
             return None
         return _Preparacio(franges, dures, items_info, matriu_compat, cost)
 
-    def _cerca_amb_llavor(self, llavor, dies_utilitzar, max_nodes=100000, barreja_millors=0, compartida=None):
+    def _cerca_amb_llavor(self, llavor, max_nodes=100000, barreja_millors=0, compartida=None):
         """La cerca d'una llavor: [(cost, {franja: [ítems]})] amb la millor
         solució, o [] si no n'ha trobat cap. `compartida` és la preparació de totes les llavors de la
         petició; sense, es prepara aquí."""
         rng = random.Random(llavor)
         # La cerca d'aquesta llavor ha acabat sense tall (ni temps ni nodes)
         self.cerca_acabada = False
-        compartida = compartida or _PreparacioCompartida(lambda: self._prepara_cerca(dies_utilitzar))
+        compartida = compartida or _PreparacioCompartida(self._prepara_cerca)
         preparacio = compartida.obte()
         if preparacio is None:
             return []

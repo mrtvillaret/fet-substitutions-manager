@@ -78,7 +78,7 @@ def test_assignacio_basica_amb_candidat_disponible(monkeypatch):
     )
 
     gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
-    resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe=set())
+    resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe={})
 
     assert len(resultat) == 1
     assert resultat[0].substitut == "Prof_B"
@@ -92,7 +92,7 @@ def test_sense_candidats_disponibles_queda_pendent():
     )
 
     gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=frozenset())
-    resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe=set())
+    resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe={})
 
     assert len(resultat) == 1
     assert resultat[0].substitut == ""
@@ -118,7 +118,7 @@ def test_no_assigna_el_mateix_substitut_dues_vegades_a_la_mateixa_hora(monkeypat
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"], "Prof_X": ["09:00"]},
-        grups_sense_classe=set(),
+        grups_sense_classe={},
     )
 
     substituts = [sub.substitut for sub in resultat]
@@ -235,7 +235,7 @@ def test_substitucio_encadenada_cobreix_el_professor_substitut(monkeypatch):
     )
 
     gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
-    resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe=set())
+    resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe={})
 
     # L'absència original de Prof_A la cobreix Prof_B (tenia Guàrdia, categoria
     # que genera encadenada); com que Prof_B ara fa una substitució, cal
@@ -264,7 +264,7 @@ def test_no_genera_encadenada_si_lassignatura_esta_a_no_subst(monkeypatch):
     )
 
     gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
-    resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe=set())
+    resultat = gestor.assignar_substitucions(dia="Dilluns", absents={"Prof_A": ["09:00"]}, grups_sense_classe={})
 
     # "Guàrdia" és a «No substituir»: no s'ha de generar cap substitució encadenada.
     assert len(resultat) == 1
@@ -300,7 +300,7 @@ def test_absents_tipus_es_reenvia_al_gestor_dabsencies(monkeypatch):
     gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
-        grups_sense_classe=set(),
+        grups_sense_classe={},
         absents_tipus=absents_tipus,
     )
 
@@ -341,12 +341,11 @@ def test_conserva_el_substitut_anterior_si_encara_esta_disponible(monkeypatch):
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
-        grups_sense_classe=set(),
+        grups_sense_classe={},
         substitucions_existents=substitucions_existents,
     )
 
     assert resultat[0].substitut == "Prof_Antic"
-    assert resultat[0].conservat is True
 
 
 def test_conserva_el_substitut_desat_encara_que_ja_no_surti_disponible(monkeypatch):
@@ -383,13 +382,12 @@ def test_conserva_el_substitut_desat_encara_que_ja_no_surti_disponible(monkeypat
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"], "Prof_B": ["09:00"]},
-        grups_sense_classe=set(),
+        grups_sense_classe={},
         substitucions_existents=substitucions_existents,
     )
 
     per_absent = {s.professor_absent: s for s in resultat if not s.separador}
     assert per_absent["Prof_A"].substitut == "Prof_Antic"
-    assert per_absent["Prof_A"].conservat is True
     assert per_absent["Prof_B"].substitut == "Prof_Nou"
 
 
@@ -419,7 +417,7 @@ def test_conserva_seleccio_buida_anterior_encara_que_hi_hagi_candidat(monkeypatc
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
-        grups_sense_classe=set(),
+        grups_sense_classe={},
         substitucions_existents=substitucions_existents,
     )
 
@@ -462,7 +460,7 @@ def test_preserva_encadenada_del_json_quan_el_pare_torna_a_tenir_el_mateix_subst
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
-        grups_sense_classe=set(),
+        grups_sense_classe={},
         substitucions_existents=substitucions_existents,
     )
 
@@ -504,7 +502,7 @@ def test_encadenada_del_json_es_descarta_si_el_pare_ja_no_es_actiu(monkeypatch):
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"]},
-        grups_sense_classe=set(),
+        grups_sense_classe={},
         substitucions_existents=substitucions_existents,
     )
 
@@ -512,7 +510,7 @@ def test_encadenada_del_json_es_descarta_si_el_pare_ja_no_es_actiu(monkeypatch):
     assert all(sub.tipus_absencia != "ENCADENADA" for sub in resultat)
 
 
-# ----- grups_sense_classe: Dict[str, Set[str]] (nou) vs Set[str] (antic) -----
+# ----- grups_sense_classe: {hora: grups} -----
 
 
 def test_grups_sense_classe_com_a_dict_filtra_nomes_lhora_indicada(monkeypatch):
@@ -535,36 +533,6 @@ def test_grups_sense_classe_com_a_dict_filtra_nomes_lhora_indicada(monkeypatch):
     )
 
     # El grup 1-ESO-A ja no té classe a les 09:00: no cal cap substitut.
-    assert resultat == []
-
-
-def test_grups_sense_classe_com_a_set_antic_saplica_a_totes_les_hores(monkeypatch):
-    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
-    monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
-    no_substituir = frozenset()
-    monkeypatch.setattr(constants, "PRIORITATS", {})
-
-    horari = FakeHorari(hores=["09:00", "10:00"])
-    alliberats = FakeAlliberats(
-        {
-            "09:00": [("Prof_B", "alliberat", "alliberat")],
-            "10:00": [("Prof_B", "alliberat", "alliberat")],
-        }
-    )
-    absencies = FakeAbsencies(
-        [
-            {"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"},
-            {"professor_absent": "Prof_A", "hora": "10:00", "assignatura": "Física", "grup": "1-ESO-A"},
-        ]
-    )
-
-    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
-    resultat = gestor.assignar_substitucions(
-        dia="Dilluns",
-        absents={"Prof_A": ["09:00", "10:00"]},
-        grups_sense_classe={"1-ESO-A"},  # format antic: Set[str], s'aplica a totes les hores
-    )
-
     assert resultat == []
 
 
@@ -592,7 +560,7 @@ def test_mes_absents_que_candidats_alguns_queden_pendents(monkeypatch):
     resultat = gestor.assignar_substitucions(
         dia="Dilluns",
         absents={"Prof_A": ["09:00"], "Prof_X": ["09:00"], "Prof_Y": ["09:00"]},
-        grups_sense_classe=set(),
+        grups_sense_classe={},
     )
 
     assignats = [sub for sub in resultat if sub.substitut]
@@ -625,7 +593,7 @@ def test_mateix_professor_absent_a_diverses_hores_es_resol_independentment(monke
 
     gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=no_substituir)
     resultat = gestor.assignar_substitucions(
-        dia="Dilluns", absents={"Prof_A": ["09:00", "10:00"]}, grups_sense_classe=set()
+        dia="Dilluns", absents={"Prof_A": ["09:00", "10:00"]}, grups_sense_classe={}
     )
 
     per_hora = {sub.hora: sub for sub in resultat}

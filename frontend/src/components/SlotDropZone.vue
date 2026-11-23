@@ -1,4 +1,6 @@
 <template>
+  <!-- Zona on es deixen exàmens arrossegats (només ratolí, a propòsit: el pla descarta «Mou a…» amb el teclat) -->
+  <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
   <div
     class="slot-dropzone"
     :class="{
@@ -68,12 +70,16 @@
                   >
                     <span v-for="(icon, idx) in getItemWarningIcons(element)" :key="idx">{{ icon }}</span>
                   </span>
-                  <span
-                    class="item-pin-icon"
+                  <Button
+                    text
+                    class="boto-icona item-pin-icon"
                     :class="{ 'pinned': isItemFixat(element) }"
+                    :label="isItemFixat(element) ? '📌' : '📍'"
                     :title="isItemFixat(element) ? t('scheduler.editable.unpin') : t('scheduler.editable.pin')"
+                    :aria-label="isItemFixat(element) ? t('scheduler.editable.unpin') : t('scheduler.editable.pin')"
+                    :aria-pressed="isItemFixat(element)"
                     @click.stop="emit('toggle-pin', { item: element, slotKey: props.slotKey })"
-                  >{{ isItemFixat(element) ? '📌' : '📍' }}</span>
+                  />
                 </div>
               </div>
             </template>
@@ -110,12 +116,16 @@
             >
               <span v-for="(icon, idx) in getItemWarningIcons(element)" :key="idx">{{ icon }}</span>
             </span>
-            <span
-              class="item-pin-icon"
+            <Button
+              text
+              class="boto-icona item-pin-icon"
               :class="{ 'pinned': isItemFixat(element) }"
+              :label="isItemFixat(element) ? '📌' : '📍'"
               :title="isItemFixat(element) ? t('scheduler.editable.unpin') : t('scheduler.editable.pin')"
+              :aria-label="isItemFixat(element) ? t('scheduler.editable.unpin') : t('scheduler.editable.pin')"
+              :aria-pressed="isItemFixat(element)"
               @click.stop="emit('toggle-pin', { item: element, slotKey: props.slotKey })"
-            >{{ isItemFixat(element) ? '📌' : '📍' }}</span>
+            />
           </div>
         </div>
       </template>
@@ -133,6 +143,7 @@
 import { computed, inject, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import draggable from 'vuedraggable'
+import Button from 'primevue/button'
 import { comparaSegonsOrdre } from '../views/scheduler/textUtils'
 import { grupIncidencia, iconaIncidencia, textIncidencia } from '../views/scheduler/incidencies.js'
 import { avisosDelsLogs } from './slotAvisos'

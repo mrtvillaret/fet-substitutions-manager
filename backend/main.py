@@ -29,7 +29,6 @@ from auth.services import crea_usuaris_inicials
 from centres.router import router as centres_router
 from config.access_log import configure_access_logger, request_route
 from config.auth import get_config_auth
-from config.settings import config
 from configuracio.router import router as configuracio_router
 from configuracio_examens.router import router as config_examens_router
 from cursos.router import router as cursos_router
@@ -58,13 +57,13 @@ access_logger = logging.getLogger("uvicorn.error")
 
 def _prepara_centre_per_defecte():
     """La carpeta i el gestor.db del centre per defecte del servidor
-    (APP_INSTITUCIO o el de config.json), si encara no hi són (README).
+    (APP_INSTITUCIO, o «exemple»), si encara no hi són (README).
 
     Les prioritats no es carreguen aquí: cada petició les carrega per al seu
     centre (auth.dependencies). Abans es carregaven en arrencar, però sense
     cap petició en curs quedaven desades sota el centre None i no les llegia
     ningú."""
-    institucio = os.getenv("APP_INSTITUCIO") or config.global_data.get("institucio") or "exemple"
+    institucio = os.getenv("APP_INSTITUCIO") or "exemple"
     try:
         get_engine_for_institucio(institucio)
     except Exception:
@@ -72,11 +71,10 @@ def _prepara_centre_per_defecte():
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa: ARG001 (la signatura que demana FastAPI)
     """Inicialitza els recursos persistents només quan arrenca el servidor."""
 
     global access_logger
-    config.inicialitza_fitxer()
     access_logger = configure_access_logger()
     create_auth_tables()
     with get_auth_db_session() as db:
@@ -103,7 +101,7 @@ registra_gestors_errors(app)
 
 
 @app.exception_handler(MissingXmlError)
-async def missing_xml_exception_handler(request: Request, exc: MissingXmlError):
+async def missing_xml_exception_handler(request: Request, exc: MissingXmlError):  # noqa: ARG001 (signatura de FastAPI)
     return JSONResponse(
         status_code=400,
         content={

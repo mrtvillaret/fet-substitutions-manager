@@ -494,7 +494,7 @@ export function usePrioritats(dependents) {
 
       toast.add({
         severity: 'success',
-        summary: t('common.success'),
+        summary: t('common.generated'),
         detail: t('config.priorities.pdfGenerated'),
         life: 3000
       })

@@ -23,7 +23,6 @@ RUTES_PESADES = [
     (pdf, "generar_pdf_disponibles_tots_dies"),
     (informes, "informe_direccio"),
     (informes, "informe_professor"),
-    (informes, "llista_professors"),
     (scheduler, "scheduler_generate"),
     (scheduler, "scheduler_analisi"),
     (scheduler, "recalcular_cost"),

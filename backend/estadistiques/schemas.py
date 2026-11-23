@@ -195,11 +195,6 @@ class FrangesResponse(BaseModel):
     franges: list[FrangesPerNombre]
 
 
-class HoresResponse(BaseModel):
-    periode: Periode
-    hores: list[str]
-
-
 class BatchResponse(BaseModel):
     resum: ResumResponse
     professors: ProfessorsResponse

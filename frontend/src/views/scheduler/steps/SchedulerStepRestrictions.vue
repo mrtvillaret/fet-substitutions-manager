@@ -80,8 +80,8 @@
             <Column style="width: 100px">
               <template #body="s">
                 <div >
-                  <Button icon="pi pi-pencil" text severity="secondary" size="small" @click="obrirEditarDuradaGrup(s.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" size="small" @click="eliminarDuradaGrup(s.data.id)" />
+                  <Button icon="pi pi-pencil" :aria-label="t('common.edit')" text severity="secondary" size="small" @click="obrirEditarDuradaGrup(s.data)" />
+                  <Button icon="pi pi-trash" :aria-label="t('common.delete')" text severity="danger" size="small" @click="eliminarDuradaGrup(s.data.id)" />
                 </div>
               </template>
             </Column>
@@ -116,8 +116,8 @@
             <Column style="width: 120px">
               <template #body="s">
                 <div >
-                  <Button icon="pi pi-pencil" text severity="secondary" size="small" @click="obrirDialogProfessor(s.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" size="small" @click="eliminarRestriccio('professors', s.data.id)" />
+                  <Button icon="pi pi-pencil" :aria-label="t('common.edit')" text severity="secondary" size="small" @click="obrirDialogProfessor(s.data)" />
+                  <Button icon="pi pi-trash" :aria-label="t('common.delete')" text severity="danger" size="small" @click="eliminarRestriccio('professors', s.data.id)" />
                 </div>
               </template>
             </Column>
@@ -160,8 +160,8 @@
             <Column style="width: 120px">
               <template #body="s">
                 <div >
-                  <Button icon="pi pi-pencil" text severity="secondary" size="small" @click="obrirDialogDiaHora(s.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" size="small" @click="eliminarRestriccio('diesHores', s.data.id)" />
+                  <Button icon="pi pi-pencil" :aria-label="t('common.edit')" text severity="secondary" size="small" @click="obrirDialogDiaHora(s.data)" />
+                  <Button icon="pi pi-trash" :aria-label="t('common.delete')" text severity="danger" size="small" @click="eliminarRestriccio('diesHores', s.data.id)" />
                 </div>
               </template>
             </Column>
@@ -217,8 +217,8 @@
             <Column style="width: 120px">
               <template #body="s">
                 <div >
-                  <Button icon="pi pi-pencil" text severity="secondary" size="small" @click="obrirDialogPreferenciaDia(s.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" size="small" @click="eliminarPreferencia(s.data.id)" />
+                  <Button icon="pi pi-pencil" :aria-label="t('common.edit')" text severity="secondary" size="small" @click="obrirDialogPreferenciaDia(s.data)" />
+                  <Button icon="pi pi-trash" :aria-label="t('common.delete')" text severity="danger" size="small" @click="eliminarPreferencia(s.data.id)" />
                 </div>
               </template>
             </Column>
@@ -247,8 +247,8 @@
             <Column style="width: 120px">
               <template #body="s">
                 <div >
-                  <Button icon="pi pi-pencil" text severity="secondary" size="small" @click="obrirDialogIncompatibilitat(s.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" size="small" @click="eliminarRestriccio('incompatibilitats', s.data.id)" />
+                  <Button icon="pi pi-pencil" :aria-label="t('common.edit')" text severity="secondary" size="small" @click="obrirDialogIncompatibilitat(s.data)" />
+                  <Button icon="pi pi-trash" :aria-label="t('common.delete')" text severity="danger" size="small" @click="eliminarRestriccio('incompatibilitats', s.data.id)" />
                 </div>
               </template>
             </Column>
@@ -331,8 +331,8 @@
               <Column style="width: 120px">
                 <template #body="s">
                   <div >
-                    <Button icon="pi pi-pencil" text severity="secondary" size="small" @click="obrirDialogCostProfessor(s.data)" />
-                    <Button icon="pi pi-trash" text severity="danger" size="small" @click="eliminarCostProfessor(s.data.professor)" />
+                    <Button icon="pi pi-pencil" :aria-label="t('common.edit')" text severity="secondary" size="small" @click="obrirDialogCostProfessor(s.data)" />
+                    <Button icon="pi pi-trash" :aria-label="t('common.delete')" text severity="danger" size="small" @click="eliminarCostProfessor(s.data.professor)" />
                   </div>
                 </template>
               </Column>

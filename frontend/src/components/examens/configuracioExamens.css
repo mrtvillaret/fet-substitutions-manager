@@ -144,21 +144,6 @@
   gap: 0.5rem;
 }
 
-.accions-buttons {
-  display: flex;
-  gap: 0.25rem;
-  justify-content: center;
-}
-
-/* Estils per tab de Nivells */
-.item-card-readonly {
-  cursor: default;
-}
-
-.item-card-readonly:hover {
-  transform: none;
-}
-
 .import-section {
   margin-top: 1.5rem;
   padding: 1.25rem;
