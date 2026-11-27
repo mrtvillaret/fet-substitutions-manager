@@ -1,57 +1,12 @@
 <template>
-    <!-- Diàleg validacions PDF -->
-    <Dialog
+    <RevisioPdfDialog
       v-model:visible="mostrarDialogValidacionsVig"
-      :header="validacionsVig.has_critical ? $t('substitutions.dialogs.pdfValidation.criticalTitle') : $t('substitutions.dialogs.pdfValidation.warningTitle')"
-      :modal="true"
-      :style="{ width: '600px', maxWidth: 'calc(100vw - 2rem)', maxHeight: '80vh' }"
-    >
-      <div class="validacions-content">
-        <p style="font-weight: 600; margin-bottom: 1rem;">{{ $t('substitutions.dialogs.pdfValidation.detectedIssues') }}</p>
-
-        <div v-if="conflictesVigFiltrats.length > 0" style="margin-bottom: 1.5rem;">
-          <p style="font-weight: 600; color: #d32f2f; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.critical') }}</p>
-          <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(conflict, idx) in conflictesVigFiltrats" :key="idx" style="margin-bottom: 0.25rem;">{{ conflict }}</li>
-          </ul>
-        </div>
-
-        <div v-if="warningsVigFiltrats.length > 0" style="margin-bottom: 1.5rem;">
-          <p style="font-weight: 600; color: #f57c00; margin-bottom: 0.5rem;">{{ $t('substitutions.dialogs.pdfValidation.warnings') }}</p>
-          <ul style="margin: 0; padding-left: 1.5rem;">
-            <li v-for="(warning, idx) in warningsVigFiltrats" :key="idx" style="margin-bottom: 0.25rem;">{{ warning }}</li>
-          </ul>
-        </div>
-
-        <InformatiusPdf :missatges="informatiusVigFiltrats" />
-
-        <div v-if="conflictesVigFiltrats.length > 0" class="confirmacio-importants">
-          <Checkbox v-model="confirmacioImportants" :binary="true" :inputId="prefixEtiquetes + '-confirma-importants'" />
-          <label :for="prefixEtiquetes + '-confirma-importants'">{{ $t('substitutions.dialogs.pdfValidation.confirmImportant') }}</label>
-        </div>
-
-        <Message severity="warn" style="margin-top: 1rem;">
-          {{ $t('substitutions.dialogs.pdfValidation.continueQuestion') }}
-        </Message>
-      </div>
-
-      <template #footer>
-        <Button
-          :label="$t('common.cancel')"
-          icon="pi pi-times"
-          @click="cancelarPDFVig"
-          class="p-button-text"
-        />
-        <Button
-          :label="$t('common.continue')"
-          :disabled="(conflictesVigFiltrats.length > 0) && !confirmacioImportants"
-          icon="pi pi-check"
-          @click="continuarPDFVig"
-          :loading="generantPDF"
-          :class="validacionsVig.has_critical ? 'p-button-danger' : 'p-button-warning'"
-        />
-      </template>
-    </Dialog>
+      v-model:confirmacioImportants="confirmacioImportants"
+      :validacions="validacionsVig"
+      :generant="generantPDF"
+      @cancela="emit('cancelarPDFVig')"
+      @continua="emit('continuarPDFVig')"
+    />
 
     <!-- Diàleg Exportar PDF -->
     <Dialog
@@ -89,7 +44,7 @@
         <Button
           :label="$t('vigilancies.dialogs.generatePdf')"
           icon="pi pi-file-pdf"
-          @click="generarPDF"
+          @click="emit('generarPDF')"
           class="p-button-success"
           :disabled="opcionsNivellsPdfDia.length > 0 && !pdfConfig.nivells?.length"
           :loading="generantPDF"
@@ -157,7 +112,7 @@
         <Button
           :label="$t('vigilancies.dialogs.generatePdf')"
           icon="pi pi-file-pdf"
-          @click="generarPDFInterval"
+          @click="emit('generarPDFInterval')"
           class="p-button-success"
           :disabled="!intervalConfig.dataInici || !intervalConfig.dataFinal || (opcionsNivellsPdfInterval.length > 0 && !intervalConfig.nivells?.length)"
           :loading="generantPDFInterval"
@@ -168,15 +123,13 @@
 </template>
 
 <script setup>
-import InformatiusPdf from '../InformatiusPdf.vue'
 import { useId } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
 import MultiSelect from 'primevue/multiselect'
 import Calendar from 'primevue/calendar'
-import Message from 'primevue/message'
 import PdfOpcionsComunes from '../PdfOpcionsComunes.vue'
+import RevisioPdfDialog from '../RevisioPdfDialog.vue'
 
 const prefixEtiquetes = useId()
 
@@ -187,24 +140,16 @@ const confirmacioImportants = defineModel('confirmacioImportants', { required: t
 const pdfConfig = defineModel('pdfConfig', { required: true })
 const intervalConfig = defineModel('intervalConfig', { required: true })
 defineProps({
-  validacionsVig: Object,
-  conflictesVigFiltrats: Array,
-  warningsVigFiltrats: Array,
-  informatiusVigFiltrats: { type: Array, required: true },
-  generantPDF: Boolean,
-  opcionsNivellsPdfDia: Array,
-  opcionsNivellsPdfInterval: Array,
-  generantPDFInterval: Boolean,
-  cancelarPDFVig: Function,
-  continuarPDFVig: Function,
-  generarPDF: Function,
-  generarPDFInterval: Function,
+  validacionsVig: { type: Object, required: true },
+  generantPDF: { type: Boolean, required: true },
+  opcionsNivellsPdfDia: { type: Array, required: true },
+  opcionsNivellsPdfInterval: { type: Array, required: true },
+  generantPDFInterval: { type: Boolean, required: true }
 })
+const emit = defineEmits(['cancelarPDFVig', 'continuarPDFVig', 'generarPDF', 'generarPDFInterval'])
 </script>
 
 <style scoped>
-.confirmacio-importants { display: flex; align-items: center; gap: 0.75rem; }
-.confirmacio-importants label { margin: 0; }
 /* Mida fixa per tots els dropdowns i inputs */
 :deep(.p-inputtext-sm),
 :deep(.p-dropdown),
@@ -232,16 +177,6 @@ defineProps({
   width: 1.5rem !important;
   min-width: 1.5rem !important;
 }
-.main-actions :deep(.p-button) {
-    flex: 1 1 160px;
-    justify-content: center;
-  }
-.main-actions :deep(.p-button) {
-    flex: 1 1 100%;
-  }
-.filters :deep(.p-dropdown) {
-    width: 100% !important;
-  }
 /* Botó clear (X) més petit i compacte - ocult per defecte, visible en hover */
 :deep(.p-dropdown .p-dropdown-clear-icon) {
   width: 0.9rem !important;

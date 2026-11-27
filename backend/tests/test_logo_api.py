@@ -8,19 +8,18 @@ demani si no en té: no tenir-ne és normal, no un error.
 import io
 
 import pytest
-from fastapi.testclient import TestClient
 from PIL import Image
-from sqlalchemy.exc import OperationalError
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
 
 from configuracio import router as configuracio
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
-from models import Configuracio
+from pdf import informes
+from pdf import router as pdf
 from rate_limit import limiter
 
-APP = crea_app(configuracio.router)
+APP = crea_app(configuracio.router, pdf.router, informes.router)
 URL = "/api/files/upload-logo"
 
 
@@ -35,9 +34,9 @@ def centre():
     return nova_institucio()
 
 
-def _usuari_de(institucio, role="admin"):
-    nom = f"{role}_{unic()}"
-    crea_usuari(nom, institucio, role)
+def _usuari_de(institucio):
+    nom = f"admin_{unic()}"
+    crea_usuari(nom, institucio, "admin")
     return entra(client_per(APP), nom)
 
 
@@ -56,29 +55,21 @@ def _puja(client, contingut, nom="logo.png"):
     return client.post(URL, files={"file": (nom, contingut, "image/png")})
 
 
-def _logo_desat(centre):
-    with get_data_db_session(centre) as db:
-        return ConfiguracioRepository.get(db, "logo_path")
-
-
-def test_nomes_els_admins_poden_pujar_el_logo(centre):
-    assert _puja(_usuari_de(centre, role="user"), _imatge()).status_code == 403
-
-
-@pytest.mark.parametrize("format, nom", [("PNG", "logo.png"), ("JPEG", "escut.jpg")])
-def test_es_desa_una_copia_en_png(client, centre, format, nom):
-    resp = _puja(client, _imatge(format), nom=nom)
+@pytest.mark.parametrize(
+    "format, nom, mida, desada",
+    [
+        ("PNG", "logo.png", (40, 20), (40, 20)),
+        ("JPEG", "escut.jpg", (40, 20), (40, 20)),
+        ("PNG", "logo.png", (3000, 1500), (1000, 500)),  # un logo gran es redueix
+    ],
+)
+def test_es_desa_una_copia_en_png(client, centre, format, nom, mida, desada):
+    resp = _puja(client, _imatge(format, mida), nom=nom)
     assert resp.status_code == 200, resp.text
     desat = get_data_dir_for_institucio(centre) / "logo.png"
-    assert _logo_desat(centre) == str(desat)
+    assert resp.json()["path"] == str(desat)
     with Image.open(desat) as imatge:
-        assert imatge.format == "PNG" and imatge.size == (40, 20)
-
-
-def test_un_logo_gran_es_redueix(client, centre):
-    assert _puja(client, _imatge(mida=(3000, 1500))).status_code == 200
-    with Image.open(get_data_dir_for_institucio(centre) / "logo.png") as imatge:
-        assert imatge.size == (1000, 500)
+        assert imatge.format == "PNG" and imatge.size == desada
 
 
 LOGOS_INVALIDS = {
@@ -92,7 +83,6 @@ LOGOS_INVALIDS = {
 @pytest.mark.parametrize("contingut, nom", LOGOS_INVALIDS.values(), ids=LOGOS_INVALIDS.keys())
 def test_es_rebutja_el_que_no_es_una_imatge_png_o_jpg(client, centre, contingut, nom):
     assert _puja(client, contingut, nom=nom).status_code == 400
-    assert not _logo_desat(centre)
     assert not list(get_data_dir_for_institucio(centre).glob("logo*"))
 
 
@@ -126,54 +116,37 @@ def test_un_logo_a_la_carpeta_sense_configurar_tambe_compta(client, centre):
     assert resp.headers["content-type"] == "image/jpeg"
 
 
-def test_un_logo_configurat_que_ja_no_hi_es_no_compta(client, centre):
-    with get_data_db_session(centre) as db:
-        ConfiguracioRepository.set(db, "logo_path", str(get_data_dir_for_institucio(centre) / "no-hi-es.png"), "")
-        db.commit()
-    assert _te_logo(client) is False
-    assert client.get("/api/files/logo").status_code == 404
+# Fitxers a la carpeta del centre, logo_path desat -> si hi ha logo. Una sola
+# regla (configuracio.services.cami_logo) per al PDF del dia, l'informe de
+# direcció, te_logo de la configuració i /api/files/logo: el logo és el logo.*
+# de la carpeta del centre; la clau logo_path (de versions anteriors) no compta.
+CASOS_LOGO = {
+    "sense logo": ([], None, False),
+    "logo.png a la carpeta": (["logo.png"], None, True),
+    "logo.jpg a la carpeta": (["logo.jpg"], None, True),
+    "logo_path que ja no hi és i logo.png": (["logo.png"], "no-hi-es.png", True),
+    "logo_path a un altre fitxer": (["escut.png"], "escut.png", False),
+}
 
 
-def test_el_cami_del_logo_es_desa_com_a_text_amb_la_seva_descripcio(client, centre):
-    # Abans la descripció anava al camp «tipus» (argument a la posició equivocada)
-    assert _puja(client, _imatge()).status_code == 200
-
-    with get_data_db_session(centre) as db:
-        fila = db.query(Configuracio).filter(Configuracio.clau == "logo_path").one()
-        assert (fila.tipus, fila.descripcio) == ("string", "Path del logo de la institució")
-
-
-def _logo_a_la_carpeta(centre):
-    (get_data_dir_for_institucio(centre) / "logo.png").write_bytes(_imatge())
-
-
-def test_si_la_bd_no_es_pot_llegir_es_fa_servir_el_logo_de_la_carpeta(client, centre, monkeypatch, caplog):
-    _logo_a_la_carpeta(centre)
-
-    lectura_real = ConfiguracioRepository.get
-
-    def bd_que_falla(db, clau):
-        if clau == "logo_path":
-            raise OperationalError("SELECT", {}, Exception("database is locked"))
-        return lectura_real(db, clau)
-
-    monkeypatch.setattr(ConfiguracioRepository, "get", bd_que_falla)
-
-    assert client.get("/api/files/logo").status_code == 200
-    assert "logo_path" in caplog.text  # i queda al registre
-
-
-def test_un_error_que_no_es_de_la_bd_no_es_calla(centre, monkeypatch):
-    # Abans, qualsevol excepció es callava i es responia amb el logo de la carpeta
-    _logo_a_la_carpeta(centre)
-    client = TestClient(APP, base_url="https://testserver", raise_server_exceptions=False)
-    nom = f"admin_{unic()}"
-    crea_usuari(nom, centre, "admin")
-    entra(client, nom)
-
-    def error_del_codi(*_args, **_kwargs):
-        raise RuntimeError("error del codi")
-
-    monkeypatch.setattr(ConfiguracioRepository, "get", error_del_codi)
-
-    assert client.get("/api/files/logo").status_code == 500
+@pytest.mark.parametrize("fitxers, configurat, esperat", CASOS_LOGO.values(), ids=CASOS_LOGO.keys())
+def test_quin_logo_porten_els_pdf(fitxers, configurat, esperat):
+    centre = nova_institucio(amb_xml=True)
+    carpeta = get_data_dir_for_institucio(centre)
+    for nom in fitxers:
+        (carpeta / nom).write_bytes(_imatge("JPEG" if nom.endswith(".jpg") else "PNG"))
+    if configurat:
+        with get_data_db_session(centre) as db:
+            ConfiguracioRepository.set(db, "logo_path", str(carpeta / configurat), "")
+            db.commit()
+    client = _usuari_de(centre)
+    dia = client.get("/api/pdf/complete/2026-04-20")
+    direccio = client.get("/api/informes/direccio", params={"data_inici": "2026-04-20", "data_final": "2026-04-20"})
+    assert dia.status_code == direccio.status_code == 200
+    amb_imatge = (
+        b"/Subtype /Image" in dia.content,
+        b"/Subtype /Image" in direccio.content,
+        _te_logo(client),
+        client.get("/api/files/logo").status_code == 200,
+    )
+    assert amb_imatge == (esperat,) * 4

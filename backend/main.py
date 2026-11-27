@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from jwt import PyJWTError
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -142,7 +143,7 @@ def _log_request(request: Request, duration_ms: int, status_code: int) -> None:
             username = payload.get("sub") or "-"
             role = payload.get("role") or "-"
             instit = payload.get("institucio") or "-"
-        except Exception:
+        except PyJWTError:
             pass
 
     path = request_route(request)

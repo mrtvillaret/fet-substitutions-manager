@@ -9,14 +9,15 @@ Dos modes:
   pendents es tornen a fer.
 """
 
+import dataclasses
 import logging
 from datetime import date
 
 from horari.domain import Dia
 from prioritats.repositories import NoSubstituirRepository
 from substitucions.assignacio import QuotaFranja
-from substitucions.domain import DiaEscolar
-from substitucions.files import PropostaSubstitucio, clau_fila
+from substitucions.domain import TIPUS_COBERTURA_VIGILANCIA, DiaEscolar
+from substitucions.files import PropostaSubstitucio, clau_fila, fila_de_proposta, fila_sense_substitut
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import (
     assignar_substituts_pendents as assignar_vigilancies_absents_pendents,
@@ -27,32 +28,15 @@ from substitucions.vigilancia_absent import (
 
 log = logging.getLogger(__name__)
 
-TIPUS_COBERTURA_VIGILANCIA = ("VIGILANCIA", "VIGILANCIA_ABSENT")
-
 
 def _ocupats(estat: DiaEscolar) -> dict:
     """Qui no pot substituir per hora: els vigilants i els substituts de les
     files de vigilant absent (perquè el motor no els torni a fer servir)."""
-    ocupats = {hora: set(vigilants) for hora, vigilants in estat.vigilants.items()}
+    ocupats = {hora: set(vigilants) for hora, vigilants in estat.vigilants_per_hora.items()}
     for sub in estat.files:
         if es_vigilancia_absent(sub) and sub.substitut.strip():
             ocupats.setdefault(sub.hora, set()).add(sub.substitut)
     return ocupats
-
-
-def _fila_nova(data: date, sub: PropostaSubstitucio, substitut: str, tipus_substitut: str) -> dict:
-    return {
-        "data": data,
-        "hora": sub.hora,
-        "professor_absent": sub.professor_absent,
-        "assignatura": sub.assignatura,
-        "grup": sub.grup,
-        "aula": sub.aula,
-        "substitut": substitut,
-        "tipus_substitut": tipus_substitut,
-        "tipus_absencia": sub.tipus_absencia,
-        "comentaris": sub.comentaris,
-    }
 
 
 def _esborra(db, data: date, regenerar_tot: bool) -> None:
@@ -84,7 +68,6 @@ def _desa_files_motor(db, data: date, files_motor: list[PropostaSubstitucio], de
     for sub in files_motor:
         clau = clau_fila(sub.professor_absent, sub.hora, sub.assignatura, sub.grup)
         substitut = sub.substitut
-        tipus_substitut = sub.tipus_substitut
 
         if sub.tipus_absencia == "VIGILANCIA":
             if clau in cobertes:
@@ -96,7 +79,7 @@ def _desa_files_motor(db, data: date, files_motor: list[PropostaSubstitucio], de
                         cobertures_pendents[clau],
                         {
                             "substitut": substitut,
-                            "tipus_substitut": tipus_substitut,
+                            "tipus_substitut": sub.tipus_substitut,
                         },
                     )
                 continue
@@ -111,9 +94,9 @@ def _desa_files_motor(db, data: date, files_motor: list[PropostaSubstitucio], de
                 f"⚠️ IGNORANT substitució de '{sub.assignatura}' (està a no_substituir): "
                 f"{sub.professor_absent} a les {sub.hora} → {substitut}"
             )
-            substitut, tipus_substitut = "", ""
+            sub = dataclasses.replace(sub, substitut="", tipus_substitut="")
 
-        SubstitucioRepository.create(db, _fila_nova(data, sub, substitut, tipus_substitut))
+        SubstitucioRepository.create(db, fila_de_proposta(data, sub))
 
 
 def _desa_hores_sense_substitucio(
@@ -134,22 +117,9 @@ def _desa_hores_sense_substitucio(
         for hora in hores:
             if hora in hores_desades.get(professor, set()):
                 continue
-            activitat = horari.get_activitat(estat.nom_del_dia, hora, professor) or {}
-            SubstitucioRepository.create(
-                db,
-                {
-                    "data": estat.data,
-                    "hora": hora,
-                    "professor_absent": professor,
-                    "assignatura": activitat.get("assignatura", ""),
-                    "grup": activitat.get("grup", ""),
-                    "aula": activitat.get("aula", ""),
-                    "substitut": "",
-                    "tipus_substitut": "",
-                    "tipus_absencia": estat.absents_tipus.get(professor, "ABSENCIA"),
-                    "comentaris": "",
-                },
-            )
+            activitat = horari.get_activitat(estat.nom_del_dia, hora, professor)
+            tipus = estat.absents_tipus.get((professor, hora), "ABSENCIA")
+            SubstitucioRepository.create(db, fila_sense_substitut(estat.data, hora, professor, activitat, tipus))
 
 
 def _resum(
@@ -244,7 +214,7 @@ def genera_substitucions_dia(
             estat.nom_del_dia,
             alliberats,
             estat.absents,
-            estat.vigilants,
+            estat.vigilants_per_hora,
             grups_sense_classe=estat.grups,
             rng=rng,
             quota=quota,

@@ -1,18 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import * as api from '../src/api/configuracioExamens.js'
-
-const clientFals = (resposta = {}) => {
-  const peticions = []
-  const client = {}
-  for (const metode of ['get', 'post', 'put', 'delete']) {
-    client[metode] = async (...args) => {
-      peticions.push([metode, ...args])
-      return { data: resposta }
-    }
-  }
-  return { client, peticions }
-}
+import { clientFals } from './support/crides.js'
 
 const comprova = async (funcio, args, resposta, peticio) => {
   const fals = clientFals(resposta)

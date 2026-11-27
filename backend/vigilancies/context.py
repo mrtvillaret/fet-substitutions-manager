@@ -1,61 +1,25 @@
-"""
-Core business logic for vigilance management.
-Contains all non-UI logic for exam vigilance assignment.
-"""
+"""Absències, alliberaments i categories per assignar vigilants."""
 
-import logging
 from datetime import date
 
 from sqlalchemy.orm import Session
 
 from config import constants
-from configuracio_examens.repositories import ConfiguracioExamenRepository
 from grups.lectures import AlliberatsDelDia
 from horari.context import _get_institucio_actual
-from substitucions.context import get_gestors
+from prioritats.memoria import categoria_de_prioritat
 from substitucions.repositories import SubstitucioRepository
-
-log = logging.getLogger(__name__)
 
 
 class VigilanciaCore:
-    """Core business logic for vigilance management"""
-
-    def __init__(self):
-        self.assignatures_config = None
-        self.professors = []
-        self.absents_actuals = {}
-        self.horari_gestor = None
-        self.alliberats_gestor = None
-        self.grups_sense_classe = {}  # {hora: grups}
-        self.dia_actual = ""
-
-    def set_config(
+    def __init__(
         self,
-        assignatures_config,
-        professors,
-        absents_actuals,
-        horari_gestor,
-        alliberats_gestor,
-        grups_sense_classe,
-        dia_actual,
+        *,
+        absents_actuals: dict[str, list[str]] | None = None,
+        grups_sense_classe: dict[str, list[str]] | None = None,
     ):
-        """Set configuration data"""
-        self.assignatures_config = assignatures_config
-        self.professors = professors
-        self.absents_actuals = absents_actuals
-        self.horari_gestor = horari_gestor
-        self.alliberats_gestor = alliberats_gestor
-        self.grups_sense_classe = grups_sense_classe
-        self.dia_actual = dia_actual
-
-    def get_categoria_prioritat(self, tipus_activitat: str) -> int:
-        """Retorna l'índex de categoria segons ORDRE_PRIORITATS."""
-
-        for i, categoria in enumerate(constants.ORDRE_PRIORITATS):
-            if tipus_activitat in categoria:
-                return i
-        return len(constants.ORDRE_PRIORITATS)
+        self.absents_actuals = absents_actuals or {}
+        self.grups_sense_classe = grups_sense_classe or {}
 
     def is_activitat_auto_assignable(self, tipus_activitat: str) -> bool:
         """
@@ -69,7 +33,7 @@ class VigilanciaCore:
         if not constants.ORDRE_PRIORITATS:
             return tipus_activitat == "alliberat" or tipus_activitat in constants.PRIORITATS
 
-        categoria = self.get_categoria_prioritat(tipus_activitat)
+        categoria = categoria_de_prioritat(tipus_activitat)
         if categoria >= len(constants.ORDRE_PRIORITATS):
             return False
 
@@ -79,59 +43,20 @@ class VigilanciaCore:
         return True
 
 
-def get_vigilancia_core(
-    data: date, db: Session | None = None, institucio: str | None = None, *, horari=None
-) -> VigilanciaCore:
-    """Crea i configura VigilanciaCore per una data específica"""
-    instit = institucio or _get_institucio_actual()
+def get_vigilancia_core(data: date, db: Session, institucio: str | None = None) -> VigilanciaCore:
+    """Carrega les absències i els alliberaments del dia."""
+    if not institucio:
+        _get_institucio_actual()
 
-    core = VigilanciaCore()
-
-    # Obtenir gestors
-    _, horari, alliberats, _ = get_gestors(instit, data_iso=data, horari=horari)
-
-    # Validar que tenim sessió de base de dades (obligatori)
-    if not db:
-        raise ValueError("get_vigilancia_core() requereix sessió de base de dades (db)")
-
-    # Carregar configuració d'exàmens des de SQLite
-    assignatures_config = ConfiguracioExamenRepository.get_all_as_dict(db)
-
-    substitucions_data = SubstitucioRepository.get_by_date(db, data)
     absents: dict[str, list[str]] = {}
-    absents_tipus = {}
-
-    for sub in substitucions_data:
-        professor = sub.professor_absent
-        hora = sub.hora
-        tipus_abs = sub.tipus_absencia or "ABSENCIA"
-
-        if tipus_abs in ["VIGILANCIA", "ENCADENADA"]:
+    for sub in SubstitucioRepository.get_by_date(db, data):
+        if not (sub.professor_absent and sub.hora) or sub.tipus_absencia in ("VIGILANCIA", "ENCADENADA"):
             continue
+        hores = absents.setdefault(sub.professor_absent, [])
+        if sub.hora not in hores:
+            hores.append(sub.hora)
 
-        if professor and hora:
-            if professor not in absents:
-                absents[professor] = []
-                absents_tipus[professor] = tipus_abs
-            if hora not in absents[professor]:
-                absents[professor].append(hora)
-
-    # Grups sense classe (Des de SQLite)
-    grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
-
-    # Dia de la setmana
-    weekday_idx = data.weekday()
-    dia_name = horari.get_dia_name(weekday_idx)
-
-    # Configurar core
-    core.set_config(
-        assignatures_config=assignatures_config,
-        professors=sorted(horari.professors),
+    return VigilanciaCore(
         absents_actuals=absents,
-        horari_gestor=horari,
-        alliberats_gestor=alliberats,
-        grups_sense_classe=grups_sense_classe,
-        dia_actual=dia_name,
+        grups_sense_classe=AlliberatsDelDia.get_by_date(db, data),
     )
-
-    return core

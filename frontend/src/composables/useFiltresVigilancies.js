@@ -1,7 +1,8 @@
 import { ref, computed, watch } from 'vue'
+import { ordenaAlfabeticament } from '../ordreAlfabetic.js'
 
-// Extret de la vista: es preserven estat, efectes i ordre de les operacions.
-export function useFiltresVigilancies({ vigilancies, aules, collator, t }) {
+// Els filtres de la taula de Vigilàncies (nivell, hora, estat i aula) i els recomptes.
+export function useFiltresVigilancies({ vigilancies, aules, t }) {
   const allLabel = computed(() => t('common.all'))
 
   const statusAssignedLabel = computed(() => t('vigilancies.stats.assigned'))
@@ -14,7 +15,7 @@ export function useFiltresVigilancies({ vigilancies, aules, collator, t }) {
     statusPendingLabel.value
   ])
 
-  const filtreLevell = ref(allLabel.value)
+  const filtreNivell = ref(allLabel.value)
 
   const filtreHora = ref(allLabel.value)
 
@@ -28,12 +29,12 @@ export function useFiltresVigilancies({ vigilancies, aules, collator, t }) {
       : t(`vigilancies.filters.${clau}Value`, { valor })
 
   const filtresActius = computed(() =>
-    [filtreLevell.value, filtreHora.value, filtreEstat.value, filtreAula.value].some(f => f && f !== allLabel.value)
+    [filtreNivell.value, filtreHora.value, filtreEstat.value, filtreAula.value].some(f => f && f !== allLabel.value)
   )
 
   watch(allLabel, (newVal, oldVal) => {
-    if (filtreLevell.value === oldVal) {
-      filtreLevell.value = newVal
+    if (filtreNivell.value === oldVal) {
+      filtreNivell.value = newVal
     }
     if (filtreHora.value === oldVal) {
       filtreHora.value = newVal
@@ -57,8 +58,8 @@ export function useFiltresVigilancies({ vigilancies, aules, collator, t }) {
   const vigilanciesFiltrades = computed(() => {
     let result = vigilancies.value
 
-    if (filtreLevell.value && filtreLevell.value !== allLabel.value) {
-      result = result.filter(v => v.nivell === filtreLevell.value)
+    if (filtreNivell.value && filtreNivell.value !== allLabel.value) {
+      result = result.filter(v => v.nivell === filtreNivell.value)
     }
     if (filtreHora.value && filtreHora.value !== allLabel.value) {
       result = result.filter(v => v.hora === filtreHora.value)
@@ -75,9 +76,8 @@ export function useFiltresVigilancies({ vigilancies, aules, collator, t }) {
   })
 
   const aulesDelFiltre = computed(() =>
-    [...new Set([...aules.value, ...vigilancies.value.map(v => v.aula)].filter(Boolean))]
-      .sort((a, b) => collator.value.compare(a, b))
+    ordenaAlfabeticament(new Set([...aules.value, ...vigilancies.value.map(v => v.aula)].filter(Boolean)))
   )
 
-  return { allLabel, statusOptions, filtreLevell, filtreHora, filtreEstat, filtreAula, etiquetaFiltre, filtresActius, vigilanciesAssignades, vigilanciesPendents, vigilanciesFiltrades, aulesDelFiltre }
+  return { allLabel, statusOptions, filtreNivell, filtreHora, filtreEstat, filtreAula, etiquetaFiltre, filtresActius, vigilanciesAssignades, vigilanciesPendents, vigilanciesFiltrades, aulesDelFiltre }
 }

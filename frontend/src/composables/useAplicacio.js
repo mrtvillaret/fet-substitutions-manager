@@ -1,7 +1,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
 import { ambDataTreball, dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
-import { missatgeDError, avisaError, marcaAvisat, esErrorSilencios } from '../errorsApi'
+import { missatgeDError, avisaError, marcaAvisat, esErrorSilencios, esDetallDePantalla } from '../api/errors.js'
 import clientHttp from '../api/client'
 import * as apiUsuaris from '../api/usuaris'
 import { configuracio as configuracioHorari } from '../api/horari'
@@ -249,7 +249,7 @@ export function useAplicacio(dependents) {
   onMounted(async () => {
     deixaDeVigilarVersio = vigilaVersio(() => { versioNova.value = true })
     clientHttp.defaults.withCredentials = true
-    // Les crides '/api/...' van a la instal·lació on s'ha obert la pàgina ('' o '/demo')
+    // Les crides a l'API van a la instal·lació on s'ha obert la pàgina ('' o '/demo')
     clientHttp.defaults.baseURL = BASE.replace(/\/$/, '')
     mediaQuery = window.matchMedia('(max-width: 720px)')
     actualitzarModeMobil()
@@ -270,12 +270,11 @@ export function useAplicacio(dependents) {
             const tancada = dades?.codi ? dades.codi === 'sessio_tancada' : dades?.detail === 'Sessió tancada'
             loginError.value = tancada ? t('app.login.sessionClosed') : t('app.login.sessionExpired')
           }
-          const esEntrada = String(error.config?.url || '').split('?')[0].endsWith('/api/login')
-          if (autenticat.value || !esEntrada) marcaAvisat(error)
+          if (autenticat.value || !apiUsuaris.esEntrada(error.config?.url)) marcaAvisat(error)
           netejarToken()
           return Promise.reject(error)
         }
-        if (!esErrorSilencios(error)) {
+        if (!esErrorSilencios(error) && !esDetallDePantalla(error)) {
           const msg = await missatgeDError(error, t)
           avisaError(error, () => toast.add({ severity: 'error', summary: t('app.errors.title'), detail: msg, life: 5000 }))
         }
@@ -440,38 +439,25 @@ export function useAplicacio(dependents) {
     loginError,
     loginLoading,
     loginRetrySeconds,
-    loginRetryTimer,
     isMobile,
-    mediaQuery,
     userProfile,
     institucioKey,
     isAdmin,
     esDemo,
     isSchedulerRoute,
-    actualitzarModeMobil,
     estatAdreca,
-    sincronitzaAdreca,
-    aplicaAdreca,
-    enNavegar,
-    aplicarToken,
-    netejarToken,
-    carregarEstatHorari,
-    carregarConfig,
     cursos,
     cursDeLaData,
     carregarCursos,
-    carregarPerfil,
     handleInstitucioCanviada,
     tornarAlGestor,
     anarScheduler,
     versioNova,
     recarregaPagina,
-    deixaDeVigilarVersio,
     ferLogin,
     ferLogout,
     obrirConfiguracio,
     obrirConfiguracioExamens,
-    obreConfiguracioExamensDesDeVista,
     obrirEstadistiques,
     obrirPerfil,
     obrirAjuda,

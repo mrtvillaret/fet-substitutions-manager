@@ -5,7 +5,6 @@ VERSIÓ OPTIMITZADA I AMB FORMAT DE CONFLICTES MILLORAT
 
 import logging
 import re
-import traceback
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import date
@@ -19,18 +18,18 @@ from reportlab.lib.units import cm
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 import rellotge
-from configuracio.repositories import ConfiguracioRepository
-from database import get_data_db_session, get_data_dir_for_institucio
+from configuracio.services import cami_logo
 from dates import data_compacta
 from i18n_setup import translate as _
 from pdf.estils import PDFStyleFactory
 from pdf.files import SubstitucioPdf, VigilanciaPdf
 from pdf.icones import amb_icones
 from pdf.text import _text
+from pdf.validacions import hora_de_l_avis, ordre_de_l_horari
 from substitucions.files import FilaSubstitucio
 from vigilancies.files import FilaVigilancia
 
-from .taula import SUBSTITUCIONS, VIGILANCIES, contingut_del_dia
+from .taula import PER_DEFECTE, SUBSTITUCIONS, VIGILANCIES, contingut_del_dia
 
 
 # PDF Constants
@@ -68,9 +67,11 @@ class PDFCompletExporter:
         # Els colors del perfil es llegeixen a cada PDF (_get_profile_colors)
         self.pdf_config = PDFStyleFactory._load_pdf_config()
 
-        # Carregar preferències de columnes opcionals
-        self.show_comments_column = self.pdf_config.get("show_comments_column", True)
-        self.show_hours_column = self.pdf_config.get("show_hours_column", False)
+        # Columnes opcionals i compressió: les tria qui crida (generacio._exportador)
+        self.show_comments_column = False
+        self.show_hours_column = False
+        self._auto_compression_active = False
+        self._pdf_type = ""
 
         # Espai per escriure a mà substitucions d'última hora: totes les hores
         # surten, amb files en blanc a la taula de substitucions.
@@ -107,11 +108,6 @@ class PDFCompletExporter:
         self._pdf_type = tipus_pdf
         self.pdf_config = PDFStyleFactory._load_pdf_config()
 
-        # Manual compression only - automatic logic removed
-        # Compression is now controlled manually via the PDF dialog checkbox
-        if not hasattr(self, "_auto_compression_active"):
-            self._auto_compression_active = False
-
     def _generate_filename(
         self, data: date | None, subs_reals: Sequence[FilaSubstitucio], vigilancies_reals: Sequence[FilaVigilancia]
     ) -> str:
@@ -141,17 +137,11 @@ class PDFCompletExporter:
             rightMargin=right_margin,
         ), output_path
 
-    def _generate_titles(
-        self,
-        tipus_pdf: str,
-        data_text: str,
-        subs_reals: Sequence[FilaSubstitucio],
-        vigilancies_reals: Sequence[FilaVigilancia],
-    ):
+    def _generate_titles(self, tipus_pdf: str, data_text: str):
         """Generate PDF titles"""
 
         # Títol principal
-        titol_principal = self.PDFTypeResolver.get_title(tipus_pdf, subs_reals, vigilancies_reals)
+        titol_principal = self.PDFTypeResolver.get_title(tipus_pdf)
 
         # Estil per al títol principal (12pt) - RESTAURAT ORIGINAL
         title_main_style = ParagraphStyle(
@@ -169,7 +159,7 @@ class PDFCompletExporter:
             alignment=1,  # Centrat
             spaceBefore=-10,  # Espai negatiu ajustat abans
             spaceAfter=max(6, int(self.custom_styles["title"].spaceAfter * 0.6))
-            if hasattr(self, "_auto_compression_active") and self._auto_compression_active
+            if self._auto_compression_active
             else self.custom_styles["title"].spaceAfter,
         )
 
@@ -199,36 +189,22 @@ class PDFCompletExporter:
                 return f"{data_curta}_document_buit_{timestamp}.pdf"
 
         @staticmethod
-        def get_title(
-            tipus_pdf: str, subs_reals: Sequence[FilaSubstitucio], vigilancies_reals: Sequence[FilaVigilancia]
-        ) -> str:
+        def get_title(tipus_pdf: str) -> str:
             if tipus_pdf == "substitucions":
                 return _("SUBSTITUCIONS")
-            elif tipus_pdf == "vigilancies":
-                return _("VIGILÀNCIES")
-            elif tipus_pdf == "vigilancies_interval":
-                return _("VIGILÀNCIES")
-            elif tipus_pdf == "complet":
+            if tipus_pdf == "complet":
                 return _("SUBSTITUCIONS I VIGILÀNCIES")
-            else:
-                # Auto-detect
-                if subs_reals and vigilancies_reals:
-                    return _("SUBSTITUCIONS I VIGILÀNCIES")
-                elif subs_reals:
-                    return _("SUBSTITUCIONS")
-                elif vigilancies_reals:
-                    return _("VIGILÀNCIES")
-                else:
-                    return _("DOCUMENT BUIT")
+            return _("VIGILÀNCIES")  # vigilancies i vigilancies_interval
 
     def exportar(
         self,
         substitucions: Sequence[FilaSubstitucio],
         vigilancies: Sequence[FilaVigilancia],
         data_text: str,
+        *,
+        tipus_pdf: str,
         conflictes: list[str] | None = None,
         data: date | None = None,
-        tipus_pdf: str = "auto",
     ) -> str:
         """Genera PDF combinat organitzat per hores"""
         try:
@@ -238,14 +214,7 @@ class PDFCompletExporter:
 
             self._setup_document_config(tipus_pdf)
 
-            # Process data
-            subs_reals = [s for s in substitucions if not getattr(s, "separador", False)] if substitucions else []
-
-            # Filtra encadenades si és PDF només de vigilàncies
-            if tipus_pdf in ["vigilancies", "vigilancies_interval"]:
-                # Elimina substitucions encadenades (grup buit + assignatura amb valor)
-                subs_reals = [s for s in subs_reals if not (s.grup == "" and s.assignatura != "")]
-
+            subs_reals = list(substitucions)
             vigilancies_reals = vigilancies
 
             # Create document
@@ -254,7 +223,7 @@ class PDFCompletExporter:
 
             # Generate content
             story = []
-            titles = self._generate_titles(tipus_pdf, data_text, subs_reals, vigilancies_reals)
+            titles = self._generate_titles(tipus_pdf, data_text)
             story.extend(titles)
 
             # Les dades ja s'han filtrat abans
@@ -282,7 +251,7 @@ class PDFCompletExporter:
                 )
 
             # Resum simple amb compressió
-            if hasattr(self, "_auto_compression_active") and self._auto_compression_active:
+            if self._auto_compression_active:
                 story.append(Spacer(1, PDFConstants.SPACER_COMPACT))  # Espai reduït
             else:
                 story.append(Spacer(1, PDFConstants.SPACER_NORMAL))
@@ -307,7 +276,7 @@ class PDFCompletExporter:
                 story.append(self._crear_taula_conflictes(conflictes))
 
             # Peu de pàgina amb compressió
-            if hasattr(self, "_auto_compression_active") and self._auto_compression_active:
+            if self._auto_compression_active:
                 story.append(Spacer(1, PDFConstants.SPACER_COMPACT))  # Espai reduït abans del peu
             else:
                 story.append(Spacer(1, PDFConstants.SPACER_NORMAL))
@@ -324,8 +293,7 @@ class PDFCompletExporter:
             return filename
 
         except Exception as e:
-            log.warning(_("❌ Error en generar PDF: {error}").format(error=e))
-            traceback.print_exc()
+            log.warning(_("❌ Error en generar PDF: {error}").format(error=e), exc_info=True)
             return ""
 
     def _add_logo_to_page(self, canvas, doc):  # noqa: ARG002 (ReportLab crida onPage amb el document)
@@ -334,26 +302,8 @@ class PDFCompletExporter:
             from PIL import Image  # noqa: PLC0415 — El try del logo conserva la resta del PDF si falla la importació.
 
             # El generador indica explícitament de quin centre és el PDF.
-            institucio = self.institucio
-            with get_data_db_session(institucio, lectura=True) as db:
-                configured_logo = ConfiguracioRepository.get(db, "logo_path")
-            logo_path = None
-            if configured_logo:
-                candidate = Path(configured_logo)
-                if candidate.exists():
-                    logo_path = candidate
-
-            if logo_path is None:
-                data_dir = get_data_dir_for_institucio(institucio)
-                for name in ("logo.png", "logo.jpg", "logo.jpeg"):
-                    candidate = data_dir / name
-                    if candidate.exists():
-                        logo_path = candidate
-                        break
-
-            if logo_path and logo_path.exists():
-                if logo_path.suffix.lower() == ".svg":
-                    return
+            logo_path = cami_logo(self.institucio)
+            if logo_path:
                 # Carrega la imatge per obtenir les dimensions reals
                 img = Image.open(logo_path)
                 img_width_px, img_height_px = img.size
@@ -372,13 +322,10 @@ class PDFCompletExporter:
                 )
         except Exception as e:
             # Si hi ha error, simplement no mostra el logo
-            log.warning(f"⚠️ No s'ha pogut carregar el logo: {e}")
+            log.warning(f"⚠️ No s'ha pogut carregar el logo: {e}", exc_info=True)
 
     def _crear_taula_conflictes(self, conflictes: list[str]) -> Table:
         """Crea taula de conflictes amb millor format i text wrapping"""
-        avisos_header = _("⚠️ AVÍS: Hi ha professors de major prioritat disponibles:")
-        conflictes = [c for c in conflictes if c.strip() != avisos_header]
-
         # Get current colors dynamically
         profile_colors = self._get_profile_colors()
 
@@ -389,7 +336,7 @@ class PDFCompletExporter:
             fontSize=9,
             alignment=0,  # Left alignment
             fontName="Helvetica",
-            textColor=colors.HexColor(profile_colors.get("conflict_color", "#c0392b")),
+            textColor=colors.HexColor(profile_colors.get("conflict_color", PER_DEFECTE["conflict_color"])),
             leftIndent=20,
         )
 
@@ -399,11 +346,11 @@ class PDFCompletExporter:
             fontSize=10,
             alignment=0,
             fontName="Helvetica-Bold",
-            textColor=colors.HexColor(profile_colors.get("hour_color", "#2c3e50")),
+            textColor=colors.HexColor(profile_colors.get("hour_color", PER_DEFECTE["hour_color"])),
         )
 
         # Per intervals, mantenir estructura original (ja agrupada per dies)
-        if hasattr(self, "_pdf_type") and self._pdf_type == "vigilancies_interval":
+        if self._pdf_type == "vigilancies_interval":
             # Mantenir estructura original: no reagrupar per hora
             dades = []
             for conflicte in conflictes:
@@ -420,54 +367,21 @@ class PDFCompletExporter:
                 else:  # Conflicte individual
                     dades.append([Paragraph(_text(conflicte), conflict_style)])
         else:
-            # Reagrupar per hora (comportament original)
-            conflictes_per_hora = defaultdict(list)
-            labels_per_hora = {}
-            for conflicte in conflictes:
-                # Extreure hora del conflicte amb regex per més robustesa
+            # Per hores, en l'ordre de l'horari del dia (el mateix que la revisió):
+            # cada hora amb el seu títol, i les línies sense repetir-la.
+            per_hora: dict[str | None, list[str]] = {}
+            for conflicte in sorted(conflictes, key=ordre_de_l_horari(self.hores)):
+                per_hora.setdefault(hora_de_l_avis(conflicte, self.hores), []).append(conflicte)
 
-                hora_match = re.search(r"(\d{1,2}:\d{2}):", conflicte)
-                if hora_match:
-                    hora_text = hora_match.group(1)
-                    hora = hora_text.replace(":", "").zfill(4)
-                    labels_per_hora[hora] = hora_text
-                    conflictes_per_hora[hora].append(conflicte)
-                else:
-                    # Fallback: try to find any time pattern
-                    hora_match = re.search(r"\b(\d{1,2}:\d{2})\b", conflicte)
-                    if hora_match:
-                        hora_text = hora_match.group(1)
-                        hora = hora_text.replace(":", "").zfill(4)
-                        labels_per_hora[hora] = hora_text
-                        conflictes_per_hora[hora].append(conflicte)
-                    else:
-                        # If no time found, group under "unknown"
-                        conflictes_per_hora["9999"].append(conflicte)
-
-            # Ordena hores cronològicament
-            hores_ordenades = sorted(
-                conflictes_per_hora.keys(), key=lambda h: (h == "9999", int(h[:2]) if h.isdigit() else 0)
-            )
-
-            # Prepara dades per a la taula amb Paragraph objects
             dades = []
-
-            for hora in hores_ordenades:
-                # Formata hora correctament (ex: "0800" -> "08:00")
-                if hora != "9999":
-                    hora_formatejada = labels_per_hora.get(hora, f"{hora[:2]}:{hora[2:]}")
-                    # Afegeix fila d'hora amb gestió d'imatges millorada
-                    hora_text = amb_icones(_("🕐 HORA {hora}:").format(hora=hora_formatejada))
+            for hora, del_grup in per_hora.items():
+                if hora is not None:
+                    hora_text = amb_icones(_("🕐 HORA {hora}:").format(hora=hora))
                     dades.append([Paragraph(hora_text, hour_style)])
-
-                # Afegeix conflictes d'aquesta hora (sense tornar a escriure l'hora,
-                # que ja hi és al títol)
-                for c in conflictes_per_hora[hora]:
-                    if hora != "9999":
-                        c = re.sub(rf"^(\W*?)\s*{re.escape(hora_formatejada)}:\s*", r"\1", c, count=1)
-                    # Usa la nova gestió d'imatges per als conflictes
-                    conflicte_net = amb_icones(_text(c))
-                    dades.append([Paragraph(conflicte_net, conflict_style)])
+                for c in del_grup:
+                    if hora is not None:
+                        c = re.sub(rf"^(\W*?\s*){re.escape(hora)}:\s*", r"\1", c, count=1)
+                    dades.append([Paragraph(amb_icones(_text(c)), conflict_style)])
 
         # Crea taula amb millor amplada
         taula = Table(dades, colWidths=[PDFConstants.TABLE_WIDTH])
@@ -552,7 +466,7 @@ class PDFCompletExporter:
         if data is not None and data in self.hores_per_data:
             self.hores = self.hores_per_data[data]
 
-        comprimit = bool(getattr(self, "_auto_compression_active", False))
+        comprimit = self._auto_compression_active
         dia_style = ParagraphStyle(
             "DiaInterval",
             parent=self.custom_styles["hora"],
@@ -600,7 +514,7 @@ class PDFCompletExporter:
             story.extend(self._generate_day_section(dia, vigilancies_per_dia[dia], subs_dia))
 
             # Espai entre dies - aplicar compressió només si està activada
-            if hasattr(self, "_auto_compression_active") and self._auto_compression_active:
+            if self._auto_compression_active:
                 story.append(Spacer(1, 0.2 * cm))  # Reduït de 0.6 a 0.2
             else:
                 story.append(Spacer(1, 0.6 * cm))  # Espai normal

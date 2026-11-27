@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 from models import Vigilancia
 from vigilancies.files import FilaVigilancia
 
+# Els camps que es poden editar d'una vigilància
+CAMPS_EDITABLES = ("hora", "tipus", "grups", "aula", "vigilant", "comentaris", "nivell")
+
 
 class VigilanciaRepository:
     """Operacions CRUD per vigilàncies"""
@@ -82,23 +85,27 @@ class VigilanciaRepository:
     def update_by_id(
         db: Session, data: date, vig_id: int | str, updates: dict, *, updated_at_esperat: str = None
     ) -> Vigilancia | None:
-        """Actualitza la vigilància `vig_id` del dia `data`."""
+        """Actualitza la vigilància `vig_id` del dia `data` amb els camps
+        editables d'`updates` que canvien (vigilant buit: sense vigilant; una
+        hora nova porta la fila al final del bloc de l'hora nova). Amb
+        `updated_at_esperat`, només si la fila encara té aquesta versió (si no,
+        None); sense canvis, la versió no es mou."""
         vig = VigilanciaRepository.get_by_id(db, data, vig_id)
         if not vig:
             return None
 
-        if updated_at_esperat is not None:
-            valors = {
-                k: v
-                for k, v in updates.items()
-                if k in {"hora", "tipus", "grups", "aula", "vigilant", "comentaris", "nivell"}
-            }
-            if "vigilant" in valors:
-                valors["vigilant"] = valors["vigilant"] or None
-            if "hora" in valors and valors["hora"] != vig.hora:
-                valors["ordre"] = VigilanciaRepository.seguent_ordre(db, data, valors["hora"])
-            valors = {k: v for k, v in valors.items() if getattr(vig, k) != v}
-            valors = valors or {"updated_at": vig.updated_at}
+        valors = {k: v for k, v in updates.items() if k in CAMPS_EDITABLES}
+        if "vigilant" in valors:
+            valors["vigilant"] = valors["vigilant"] or None
+        if "hora" in valors and valors["hora"] != vig.hora:
+            valors["ordre"] = VigilanciaRepository.seguent_ordre(db, data, valors["hora"])
+        valors = {k: v for k, v in valors.items() if getattr(vig, k) != v}
+
+        if updated_at_esperat is None:
+            for camp, valor in valors.items():
+                setattr(vig, camp, valor)
+            db.flush()
+        else:
             afectades = (
                 db.query(Vigilancia)
                 .filter(
@@ -106,32 +113,10 @@ class VigilanciaRepository:
                     Vigilancia.data == data,
                     Vigilancia.updated_at == datetime.fromisoformat(updated_at_esperat),
                 )
-                .update(valors, synchronize_session=False)
+                .update(valors or {"updated_at": vig.updated_at}, synchronize_session=False)
             )
             if afectades != 1:
                 return None
-            db.refresh(vig)
-            return vig
-
-        # Actualitzar camps
-        if "hora" in updates and updates["hora"] != vig.hora:
-            # Canviar d'hora és canviar la dada: la fila va al final del bloc de l'hora nova
-            vig.ordre = VigilanciaRepository.seguent_ordre(db, data, updates["hora"])
-            vig.hora = updates["hora"]
-        if "tipus" in updates:
-            vig.tipus = updates["tipus"]
-        if "grups" in updates:
-            vig.grups = updates["grups"]
-        if "aula" in updates:
-            vig.aula = updates["aula"]
-        if "vigilant" in updates:
-            vig.vigilant = updates["vigilant"] or None
-        if "comentaris" in updates:
-            vig.comentaris = updates["comentaris"]
-        if "nivell" in updates:
-            vig.nivell = updates["nivell"]
-
-        db.flush()
         db.refresh(vig)
         return vig
 

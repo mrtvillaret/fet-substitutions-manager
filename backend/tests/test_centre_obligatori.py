@@ -46,7 +46,7 @@ def test_peticio_sense_centre_no_fa_servir_cap_fallback(monkeypatch, fallback, p
             from vigilancies.context import get_vigilancia_core
 
             with get_data_db_session(centre, lectura=True) as db:
-                return len(get_vigilancia_core(date.fromisoformat(DATA), db).professors)
+                return len(get_vigilancia_core(date.fromisoformat(DATA), db).absents_actuals)
         return abreviatures.get_abreviatures_cached()
 
     resposta = client_per(app).get("/prova")

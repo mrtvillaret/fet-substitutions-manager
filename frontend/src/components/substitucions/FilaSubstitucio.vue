@@ -5,7 +5,7 @@
   <tr
     class="fila-substitucio taula-fila"
     :class="{ 'taula-fila--activa': activa }"
-    :data-fila-id="clau"
+    :data-fila-id="fila.id"
   >
     <td class="fila-substitucio__hora">{{ fila.hora }}</td>
     <td class="fila-substitucio__absent">{{ fila.professor_absent }}</td>
@@ -76,7 +76,6 @@ import SelectorVigilant from '../vigilancies/SelectorVigilant.vue'
 
 const props = defineProps({
   fila: { type: Object, required: true },
-  clau: { type: String, required: true }, // identifica la fila (la substitució no té id)
   data: { type: String, required: true }, // el dia (ISO)
   disponibles: { type: Array, default: () => [] }, // opcions del substitut
   activa: { type: Boolean, default: false } // pantalles tàctils: la fila tocada, amb les accions a sota

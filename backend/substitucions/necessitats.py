@@ -19,14 +19,14 @@ class GestorAbsencies:
         self,
         dia: str,
         absents: dict[str, list[str]],
-        absents_tipus: dict[str, str] | None = None,
+        absents_tipus: dict[tuple[str, str], str] | None = None,
     ) -> list[PropostaSubstitucio]:
         """
         Calcula quines substitucions calen segons les absències
         Args:
             dia: Dia de la setmana (nom de l'XML)
             absents: {professor: [hores]}
-            absents_tipus: {professor: tipus_absencia} - 'SERVEI' o 'ABSENCIA'
+            absents_tipus: {(professor, hora): tipus_absencia} - 'SERVEI' o 'ABSENCIA'
         Returns: [{professor, hora, assignatura, grup, tipus_absencia}, ...]
         """
 
@@ -37,8 +37,6 @@ class GestorAbsencies:
         absents_tipus = absents_tipus or {}
 
         for professor, hores in absents.items():
-            # Obté el tipus d'absència per aquest professor
-            tipus_professor = absents_tipus.get(professor, "ABSENCIA")
             logger.debug(f"      Professor '{professor}' absent a {len(hores)} hores: {hores}")
 
             for hora in hores:
@@ -54,9 +52,6 @@ class GestorAbsencies:
                     grup = activitat.get("grup", "")
                     aula = activitat.get("aula", "")
 
-                    # Determina tipus_absencia: el tipus del professor té prioritat absoluta
-                    tipus_absencia = tipus_professor  # 'SERVEI' o 'ABSENCIA' segons el checkbox
-
                     sub = PropostaSubstitucio(
                         professor=professor,
                         professor_absent=professor,
@@ -66,7 +61,7 @@ class GestorAbsencies:
                         aula=aula,
                         substitut="",
                         tipus_substitut="",
-                        tipus_absencia=tipus_absencia,
+                        tipus_absencia=absents_tipus.get((professor, hora), "ABSENCIA"),
                     )
                     substitucions.append(sub)
 

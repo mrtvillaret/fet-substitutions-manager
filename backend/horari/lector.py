@@ -54,13 +54,9 @@ class GestorHorariWeb:
         if not self.institucio:
             self._grups_amagats = set()
             return self._grups_amagats
-        try:
-            with get_data_db_session(self.institucio, lectura=True) as db:
-                self._grups_amagats = set(GrupsAmagatsRepository.get_all(db))
-                return self._grups_amagats
-        except Exception as e:
-            log.exception(f"⚠️  Error carregant grups amagats de BD: {e}")
-            raise
+        with get_data_db_session(self.institucio, lectura=True) as db:
+            self._grups_amagats = set(GrupsAmagatsRepository.get_all(db))
+            return self._grups_amagats
 
     def _carregar_abreviatures_bd(self) -> dict[str, str]:
         """Carrega abreviatures des de la base de dades SQLite"""
@@ -70,16 +66,12 @@ class GestorHorariWeb:
         if not self.institucio:
             self._abreviatures_cache = {}
             return self._abreviatures_cache
-        try:
-            with get_data_db_session(self.institucio, lectura=True) as db:
-                abreviatures_list = AbreviaturaGrupRepository.get_all(db)
-                # Convertir a diccionari {grups_originals: abreviatura}
-                self._abreviatures_cache = {item["grups_originals"]: item["abreviatura"] for item in abreviatures_list}
-                log.debug(f"✅ Carregades {len(self._abreviatures_cache)} abreviatures de grups des de BD")
-                return self._abreviatures_cache
-        except Exception as e:
-            log.exception(f"⚠️  Error carregant abreviatures de BD: {e}")
-            raise
+        with get_data_db_session(self.institucio, lectura=True) as db:
+            abreviatures_list = AbreviaturaGrupRepository.get_all(db)
+            # Convertir a diccionari {grups_originals: abreviatura}
+            self._abreviatures_cache = {item["grups_originals"]: item["abreviatura"] for item in abreviatures_list}
+            log.debug(f"✅ Carregades {len(self._abreviatures_cache)} abreviatures de grups des de BD")
+            return self._abreviatures_cache
 
     def _normalitzar_llista_grups(self, grups_string: str) -> str:
         """Normalitza una llista de grups separats per comes ordenant-los alfabèticament"""
@@ -105,130 +97,123 @@ class GestorHorariWeb:
 
     def carregar(self):
         """Carrega l'horari des del XML amb consolidació de grups"""
-        try:
-            # Reinicialitza els atributs abans de carregar
-            self.horari = {}
-            self.professors = []
-            self.tots_professors = []
-            self.grups = set()
-            self.tots_grups = set()
-            self.tots_grups_raw = set()
-            self.hores = []
-            self.dies = []
+        # Reinicialitza els atributs abans de carregar
+        self.horari = {}
+        self.professors = []
+        self.tots_professors = []
+        self.grups = set()
+        self.tots_grups = set()
+        self.tots_grups_raw = set()
+        self.hores = []
+        self.dies = []
 
-            # Grups amagats (llista d'exclusió; buit = no s'amaga cap)
-            grups_amagats = self._carregar_grups_amagats_bd()
+        # Grups amagats (llista d'exclusió; buit = no s'amaga cap)
+        grups_amagats = self._carregar_grups_amagats_bd()
 
-            tree = ET.parse(self.xml_path)
-            root = tree.getroot()
+        tree = ET.parse(self.xml_path)
+        root = tree.getroot()
 
-            # Primera passada: recull tots els professors
-            tots_professors = []
-            for teacher in root.findall("Teacher"):
-                nom = nom_net(teacher.get("name", ""))
-                if not nom:
-                    continue
-                tots_professors.append(nom)
-            self.tots_professors = tots_professors
+        # Primera passada: recull tots els professors
+        tots_professors = []
+        for teacher in root.findall("Teacher"):
+            nom = nom_net(teacher.get("name", ""))
+            if not nom:
+                continue
+            tots_professors.append(nom)
+        self.tots_professors = tots_professors
 
-            # Aplica límit de professor
-            # Mateix nom net que els professors: el límit talla pel mateix lloc
-            # tant si el valor desat té espais com si no (l'ordre és el de l'XML)
-            ultim_prof = nom_net(self.ultim_professor_subs)
-            if ultim_prof and ultim_prof in tots_professors:
-                # Troba l'índex del professor límit
-                try:
-                    index_limit = tots_professors.index(ultim_prof) + 1
-                    self.professors = tots_professors[:index_limit]
-                    log.debug(
-                        _("Aplicat límit de professor: fins '{professor}' ({count} professors)").format(
-                            professor=ultim_prof, count=index_limit
-                        )
+        # Aplica límit de professor
+        # Mateix nom net que els professors: el límit talla pel mateix lloc
+        # tant si el valor desat té espais com si no (l'ordre és el de l'XML)
+        ultim_prof = nom_net(self.ultim_professor_subs)
+        if ultim_prof and ultim_prof in tots_professors:
+            # Troba l'índex del professor límit
+            try:
+                index_limit = tots_professors.index(ultim_prof) + 1
+                self.professors = tots_professors[:index_limit]
+                log.debug(
+                    _("Aplicat límit de professor: fins '{professor}' ({count} professors)").format(
+                        professor=ultim_prof, count=index_limit
                     )
-                except ValueError:
-                    log.debug(
-                        _("Professor límit '{professor}' no trobat, en carregar tots").format(professor=ultim_prof)
-                    )
-                    self.professors = tots_professors
-            else:
-                log.debug(_("Sense límit de professor o '{professor}' no trobat").format(professor=ultim_prof))
-                self.professors = tots_professors
-
-            # Segona passada: processa dades només dels professors seleccionats
-            professors_set = set(self.professors)
-
-            for teacher in root.findall("Teacher"):
-                nom = nom_net(teacher.get("name", ""))
-                if not nom or nom not in professors_set:
-                    continue
-
-                for day in teacher.findall("Day"):
-                    dia = day.get("name", "").strip()
-                    if dia not in self.horari:
-                        self.horari[dia] = {}
-
-                    for hour in day.findall("Hour"):
-                        hora = hour.get("name", "").strip()
-                        if hora not in self.horari[dia]:
-                            self.horari[dia][hora] = {}
-
-                        # Processa activitat
-                        # Si no hi ha Subject, cadena buida (professor no al centre o hora lliure)
-                        subject_elem = hour.find("Subject")
-                        subject = nom_net(subject_elem.get("name", "")) if subject_elem is not None else ""
-
-                        # Consolida múltiples Students d'una mateixa hora.
-                        # `tots_grups` recull tot el que apareix a l'XML (per al
-                        # selector de configuració). `grups` són els VISIBLES: tots
-                        # menys els amagats. Cap filtre per nom (res d'ESO/BATX
-                        # hardcodejat); l'amagat es fa sobre la versió RAW (estable
-                        # davant canvis d'abreviatures).
-                        students_consolidat = self._consolidar_students(hour)
-                        if students_consolidat:
-                            students_raw = self._consolidar_students_raw(hour)
-                            if students_raw:
-                                self.tots_grups_raw.add(students_raw)
-                            self.tots_grups.add(students_consolidat)
-
-                            clau = students_raw or students_consolidat
-                            if clau not in grups_amagats:
-                                self.grups.add(students_consolidat)
-
-                        # Carrega l'aula (Room)
-                        room_elem = hour.find("Room")
-                        room = nom_net(room_elem.get("name", "")) if room_elem is not None else ""
-
-                        tags = [nom_net(tag.get("name", "")) for tag in hour.findall("Activity_Tag")]
-
-                        self.horari[dia][hora][nom] = {
-                            "assignatura": subject,
-                            "grup": students_consolidat,
-                            "aula": room,
-                            "tags": tags,
-                        }
-
-            # Extreure dies i hores del horari processat (mantenint ordre del XML)
-            self.dies = list(self.horari.keys())
-
-            # Extreure hores úniques mantenint l'ordre del XML
-            # Com que els dicts mantenen ordre d'inserció (Python 3.7+),
-            # les hores ja estan en l'ordre correcte del XML
-            hores_ordenades = []
-            for dia_hores in self.horari.values():
-                for hora in dia_hores.keys():
-                    if hora not in hores_ordenades:
-                        hores_ordenades.append(hora)
-            self.hores = hores_ordenades
-
-            log.debug(
-                _("Horari carregat: {prof_count} professors, {grup_count} grups").format(
-                    prof_count=len(self.professors), grup_count=len(self.grups)
                 )
-            )
+            except ValueError:
+                log.debug(_("Professor límit '{professor}' no trobat, en carregar tots").format(professor=ultim_prof))
+                self.professors = tots_professors
+        else:
+            log.debug(_("Sense límit de professor o '{professor}' no trobat").format(professor=ultim_prof))
+            self.professors = tots_professors
 
-        except Exception as e:
-            log.warning(_("Error en carregar horari: {error}").format(error=e))
-            raise
+        # Segona passada: processa dades només dels professors seleccionats
+        professors_set = set(self.professors)
+
+        for teacher in root.findall("Teacher"):
+            nom = nom_net(teacher.get("name", ""))
+            if not nom or nom not in professors_set:
+                continue
+
+            for day in teacher.findall("Day"):
+                dia = day.get("name", "").strip()
+                if dia not in self.horari:
+                    self.horari[dia] = {}
+
+                for hour in day.findall("Hour"):
+                    hora = hour.get("name", "").strip()
+                    if hora not in self.horari[dia]:
+                        self.horari[dia][hora] = {}
+
+                    # Processa activitat
+                    # Si no hi ha Subject, cadena buida (professor no al centre o hora lliure)
+                    subject_elem = hour.find("Subject")
+                    subject = nom_net(subject_elem.get("name", "")) if subject_elem is not None else ""
+
+                    # Consolida múltiples Students d'una mateixa hora.
+                    # `tots_grups` recull tot el que apareix a l'XML (per al
+                    # selector de configuració). `grups` són els VISIBLES: tots
+                    # menys els amagats. Cap filtre per nom (res d'ESO/BATX
+                    # hardcodejat); l'amagat es fa sobre la versió RAW (estable
+                    # davant canvis d'abreviatures).
+                    students_consolidat = self._consolidar_students(hour)
+                    if students_consolidat:
+                        students_raw = self._consolidar_students_raw(hour)
+                        if students_raw:
+                            self.tots_grups_raw.add(students_raw)
+                        self.tots_grups.add(students_consolidat)
+
+                        clau = students_raw or students_consolidat
+                        if clau not in grups_amagats:
+                            self.grups.add(students_consolidat)
+
+                    # Carrega l'aula (Room)
+                    room_elem = hour.find("Room")
+                    room = nom_net(room_elem.get("name", "")) if room_elem is not None else ""
+
+                    tags = [nom_net(tag.get("name", "")) for tag in hour.findall("Activity_Tag")]
+
+                    self.horari[dia][hora][nom] = {
+                        "assignatura": subject,
+                        "grup": students_consolidat,
+                        "aula": room,
+                        "tags": tags,
+                    }
+
+        # Extreure dies i hores del horari processat (mantenint ordre del XML)
+        self.dies = list(self.horari.keys())
+
+        # Extreure hores úniques mantenint l'ordre del XML
+        # Com que els dicts mantenen ordre d'inserció (Python 3.7+),
+        # les hores ja estan en l'ordre correcte del XML
+        hores_ordenades = []
+        for dia_hores in self.horari.values():
+            for hora in dia_hores.keys():
+                if hora not in hores_ordenades:
+                    hores_ordenades.append(hora)
+        self.hores = hores_ordenades
+
+        log.debug(
+            _("Horari carregat: {prof_count} professors, {grup_count} grups").format(
+                prof_count=len(self.professors), grup_count=len(self.grups)
+            )
+        )
 
     def _consolidar_students_raw(self, hour_elem) -> str:
         """

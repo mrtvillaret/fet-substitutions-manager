@@ -91,7 +91,7 @@
         <!-- Filtres -->
         <div class="filters">
           <Dropdown
-            v-model="filtreLevell"
+            v-model="filtreNivell"
             :options="[allLabel, ...nivells]"
             :placeholder="$t('vigilancies.filters.level')"
             :aria-label="$t('vigilancies.filters.level')"
@@ -170,7 +170,7 @@
     </div>
 
     <div v-else-if="error" class="error-message">
-      <AvisErrorCarrega :missatge="error" @reintenta="carregarVigilancies" />
+      <AvisErrorCarrega :missatge="error" @reintenta="carregarVigilancies()" />
     </div>
 
     <!-- Taula de vigilàncies: agrupada per hores, en l'ordre desat -->
@@ -189,7 +189,6 @@
       <TaulaVigilancies
         v-model:seleccionades="seleccionades"
         :files="vigilanciesFiltrades"
-        :hores="hores"
         :data="dataISO"
         :opcions="opcionsFiles"
         :disponibles-de="disponiblesDe"
@@ -223,17 +222,14 @@
       v-model:pdfConfig="pdfConfig"
       v-model:intervalConfig="intervalConfig"
       :validacions-vig="validacionsVig"
-      :conflictes-vig-filtrats="conflictesVigFiltrats"
-      :warnings-vig-filtrats="warningsVigFiltrats"
-      :informatius-vig-filtrats="informatiusVigFiltrats"
       :generant-p-d-f="generantPDF"
       :opcions-nivells-pdf-dia="opcionsNivellsPdfDia"
       :opcions-nivells-pdf-interval="opcionsNivellsPdfInterval"
       :generant-p-d-f-interval="generantPDFInterval"
-      :cancelar-p-d-f-vig="cancelarPDFVig"
-      :continuar-p-d-f-vig="continuarPDFVig"
-      :generar-p-d-f="generarPDF"
-      :generar-p-d-f-interval="generarPDFInterval"
+      @cancelar-p-d-f-vig="cancelarPDFVig"
+      @continuar-p-d-f-vig="continuarPDFVig"
+      @generar-p-d-f="generarPDF"
+      @generar-p-d-f-interval="generarPDFInterval"
     />
 
     <!-- Diàleg de confirmació -->
@@ -254,6 +250,7 @@
 import AvisosTitularsVigilancies from '../components/vigilancies/AvisosTitularsVigilancies.vue'
 import AvisErrorCarrega from '../components/AvisErrorCarrega.vue'
 import { useCarregaVigilancies } from '../composables/useCarregaVigilancies'
+import { useRecarregaEnTornar } from '../composables/useRecarregaEnTornar.js'
 import { useAssignacioVigilancies } from '../composables/useAssignacioVigilancies.js'
 import { useEdicioVigilancies } from '../composables/useEdicioVigilancies.js'
 import { useFiltresVigilancies } from '../composables/useFiltresVigilancies.js'
@@ -279,6 +276,7 @@ import TaulaVigilancies from '../components/vigilancies/TaulaVigilancies.vue'
 import { useAjudaVigilant } from '../composables/useAjudaVigilant'
 import { useOrdreFiles } from '../composables/useOrdreFiles'
 import { useDialegsInterns } from '../dialegsInterns'
+import { ordenaAlfabeticament } from '../ordreAlfabetic'
 
 const emit = defineEmits(['anar-substitucions'])
 const toast = useToast()
@@ -317,18 +315,17 @@ const dataFormatada = computed(() => {
   })
 })
 
-const { informatiusVigFiltrats, confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval } = usePdfVigilancies({
-  dataISO, dataTreball, nivells, vigilancies, toast, t
+const { confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval } = usePdfVigilancies({
+  dataISO, dataTreball, nivells, toast, t
 })
 
-const collator = computed(() => new Intl.Collator(locale.value || 'ca', { sensitivity: 'base' }))
 
 const { carregarDisponibles, carregarDisponiblesPerLlista, refrescarDisponiblesHora, getDisponiblesPerHora, getVigilantLabel } = useDisponiblesVigilancies({
-  dataISO, professors, vigilancies, locale, collator, t
+  dataISO, vigilancies, locale, t
 })
 
-const { allLabel, statusOptions, filtreLevell, filtreHora, filtreEstat, filtreAula, etiquetaFiltre, filtresActius, vigilanciesAssignades, vigilanciesPendents, vigilanciesFiltrades, aulesDelFiltre } = useFiltresVigilancies({
-  vigilancies, aules, collator, t
+const { allLabel, statusOptions, filtreNivell, filtreHora, filtreEstat, filtreAula, etiquetaFiltre, filtresActius, vigilanciesAssignades, vigilanciesPendents, vigilanciesFiltrades, aulesDelFiltre } = useFiltresVigilancies({
+  vigilancies, aules, t
 })
 
 const problemesVisibles = computed(() => {
@@ -343,7 +340,7 @@ const opcionsFiles = computed(() => ({
   hores: hores.value,
   nivells: nivells.value,
   aules: aules.value,
-  tipusDe: (nivell) => getTipusOptions(nivell, true),
+  tipusDe: getTipusOptions,
   grupsDe: (nivell) => getGrupsPerNivell(nivell)
 }))
 const disponiblesDe = (fila) => getDisponiblesPerHora(fila.hora, fila.tipus, fila.grups, fila.aula, fila.id)
@@ -357,21 +354,17 @@ const getGrupsPerNivell = (nivell) => {
   return grupsPerNivell.value[nivell]
 }
 
-const getTipusOptions = (nivell, includePlaceholder) => {
+// Les opcions del tipus, amb l'indicació al davant
+const getTipusOptions = (nivell) => {
   if (!nivell || nivell.startsWith('--') || nivell === t('vigilancies.placeholders.level')) {
-    return includePlaceholder ? [t('vigilancies.placeholders.type')] : []
+    return [t('vigilancies.placeholders.type')]
   }
-  const base = tipusPerNivell.value[nivell]
-  const tipusBase = base && base.length > 0 ? base : tipusExamens.value
-  const tipusAmbVigilancia = tipusBase.includes('VIGILÀNCIA')
-    ? tipusBase
-    : ['VIGILÀNCIA', ...tipusBase]
-  const normalitzats = tipusAmbVigilancia.filter(Boolean)
-  return includePlaceholder ? [t('vigilancies.placeholders.type'), ...normalitzats] : normalitzats
+  // Ja amb VIGILÀNCIA primer (vigilancies/services.py: config); un nivell que ja no és a la configuració, els ja usats
+  return [t('vigilancies.placeholders.type'), ...(tipusPerNivell.value[nivell] ?? tipusExamens.value)]
 }
 
 const publicaConfig = (config) => {
-  professors.value = [...(config.professors || [])].sort((a, b) => collator.value.compare(a, b))
+  professors.value = ordenaAlfabeticament(config.professors || [])
   hores.value = config.hores
   nivells.value = config.nivells
   aules.value = config.aules
@@ -385,16 +378,23 @@ const { carregarVigilancies, carregarSubstitucionsCount } = useCarregaVigilancie
   carregarDisponiblesPerLlista, publicaConfig, oblidaAjudes, t
 })
 
+// En tornar a la pestanya després d'una estona, les dades del dia, en silenci
+// (no amb files seleccionades: és un canvi a mig fer)
+useRecarregaEnTornar({
+  recarrega: () => carregarVigilancies({ silenci: true }),
+  ocupada: () => loading.value || seleccionades.value.length > 0
+})
+
 const anarASubstitucions = () => {
   emit('anar-substitucions')
 }
 
-const { mostrarDialogConflicte, gestionarConflicte, executarOverwrite, canviaCamp, confirmarEliminar, confirmarEliminarSeleccionades, mostrarFormulariNova, creantVigilancia, propostaNova, afegirNovaVigilancia, disponiblesDelFormulari, creaVigilancia, afegirVigilanciaDesprés, mouFiles } = useEdicioVigilancies({
+const { mostrarDialogConflicte, gestionarConflicte, executarOverwrite, canviaCamp, confirmarEliminar, confirmarEliminarSeleccionades, mostrarFormulariNova, creantVigilancia, propostaNova, afegirNovaVigilancia, disponiblesDelFormulari, creaVigilancia, afegirVigilanciaDesprés, mouFiles, recarregaLlistat, siJaNoExisteix } = useEdicioVigilancies({
   dataISO, vigilancies, seleccionades, vigilanciesFiltrades, hores, opcionsFiles, toast, t, confirmaEsborrar, oblidaAjudes, ressalta, carregarVigilancies, carregarSubstitucionsCount, refrescarDisponiblesHora, carregarDisponibles, getDisponiblesPerHora
 })
 
 const { titularsHoraLliure, vigilanciesSenseTitular, posantTitular, assignantTitulars, assignantPendents, ordenant, posaTitularHoraLliure, assignarTitulars, assignarPendents, confirmarNetejar, ordenarPerHora, idsTitularsHoraLliure } = useAssignacioVigilancies({
-  dataISO, vigilancies, toast, t, confirm, confirmaEsborrar, carregarVigilancies
+  dataISO, vigilancies, toast, t, confirm, confirmaEsborrar, carregarVigilancies, recarregaLlistat, siJaNoExisteix
 })
 
 // «Enrere» tanca aquests diàlegs com la creu (dialegsInterns.js)
@@ -701,27 +701,9 @@ onMounted(async () => {
   padding: 0.4rem 0.6rem !important;
 }
 
-/* Titulars amb l'hora lliure: l'avís i les seves files, fins que es decideix */
-.titulars-hora-lliure ul {
-  margin: 0.25rem 0 0;
-  padding-left: 1.25rem;
-}
-
 /* Amb un filtre posat no es pot canviar l'ordre de les files */
 .avis-ordre-filtres {
   margin: 0 0 0.75rem;
-}
-
-/* Diàleg */
-.field {
-  margin-bottom: 1rem;
-}
-
-.field label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #374151;
 }
 
 /* Responsive */

@@ -50,6 +50,8 @@ def test_traduccions_reintenten_despres_d_error(monkeypatch):
 
 
 def test_dia_tolerant_reintenta_despres_d_error(db_session):
+    """L'error es recorda només dins del DiaEscolar (una petició): el següent
+    torna a llegir l'horari."""
     from types import SimpleNamespace
 
     from substitucions.domain import DiaEscolar
@@ -67,6 +69,9 @@ def test_dia_tolerant_reintenta_despres_d_error(db_session):
                 raise OSError("lectura de prova")
             return SimpleNamespace(get_dia_name=lambda _: "Dilluns")
 
-    dia = DiaEscolar(db_session, DiaIntermitent())
-    assert dia.nom_del_dia == ""
-    assert dia.nom_del_dia == "Dilluns"
+    dia = DiaIntermitent()
+    peticio = DiaEscolar(db_session, dia)
+    assert peticio.nom_del_dia == ""
+    assert peticio.nom_del_dia == ""
+    assert dia.lectures == 1
+    assert DiaEscolar(db_session, dia).nom_del_dia == "Dilluns"

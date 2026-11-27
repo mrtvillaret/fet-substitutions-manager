@@ -50,10 +50,15 @@ def test_la_configuracio_no_deixa_canviar_les_rutes():
     assert _config(centre, "export_dir") is None
 
 
-def test_un_xml_desat_fora_de_la_carpeta_del_centre_no_es_llegeix():
+@pytest.mark.parametrize(
+    "cami",
+    [lambda altre: str(get_data_dir_for_institucio(altre) / "teachers.xml"), lambda altre: f"../{altre}/teachers.xml"],
+    ids=["absolut", "amb punts"],
+)
+def test_un_xml_desat_fora_de_la_carpeta_del_centre_no_es_llegeix(cami):
     centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
     with get_data_db_session(centre) as db:
-        ConfiguracioRepository.set(db, "xml_horari_path", str(get_data_dir_for_institucio(altre) / "teachers.xml"))
+        ConfiguracioRepository.set(db, "xml_horari_path", cami(altre))
         db.commit()
     assert Dia.avui(centre).xml_path is None
 
@@ -66,14 +71,6 @@ def test_un_xml_dins_la_carpeta_es_llegeix_igual_amb_ruta_absoluta_o_relativa():
         ConfiguracioRepository.set(db, "xml_horari_path", esperat)
         db.commit()
     assert Dia.avui(centre).xml_path == esperat
-
-
-def test_un_xml_amb_punts_que_surt_de_la_carpeta_no_es_llegeix():
-    centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
-    with get_data_db_session(centre) as db:
-        ConfiguracioRepository.set(db, "xml_horari_path", f"../{altre}/teachers.xml")
-        db.commit()
-    assert Dia.avui(centre).xml_path is None
 
 
 @pytest.mark.parametrize("nom", [".", "..", "...", ".amagat", "a..b", "-x", "_x", "a/b", "A", ""])

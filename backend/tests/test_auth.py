@@ -102,8 +102,12 @@ def _entra(client, escenari, qui):
     return entra(client, escenari["noms"][qui])
 
 
-def _posa_token(client, payload, clau=get_config_auth().secret_key):
-    client.cookies.set(get_config_auth().cookie_name, jwt.encode(payload, clau, algorithm=ALGORISME))
+def _signat(payload):
+    return jwt.encode(payload, get_config_auth().secret_key, algorithm=ALGORISME)
+
+
+def _posa_token(client, payload):
+    client.cookies.set(get_config_auth().cookie_name, _signat(payload))
 
 
 # ---------------------------------------------------------------- contrasenyes
@@ -263,57 +267,44 @@ def test_cada_401_diu_el_text_i_el_codi_i_sense_capcaleres_d_autenticacio(client
         assert "www-authenticate" not in resp.headers
 
 
-def test_token_que_no_es_un_jwt_dona_401(client, escenari):
-    client.cookies.set(get_config_auth().cookie_name, "no-es-un-token")
-    assert client.get("/prova/user").status_code == 401
+def _sense_uid(escenari, centre):
+    # Els d'abans es buscaven pel nom: si l'usuari es reanomenava, la sessió
+    # passava a qui prengués el nom. Ja no en queda cap de vàlid (duren com a
+    # molt SESSIO_MAXIMA_HORES).
+    return create_access_token({"sub": escenari["noms"]["user_a"], "institucio": escenari[centre], "role": "user"})
 
 
-def test_token_signat_amb_una_altra_clau_dona_401(client, escenari):
-    _posa_token(
-        client,
-        {"sub": escenari["noms"]["super"], "institucio": escenari["a"], "role": "super_admin"},
-        clau="una-clau-que-no-es-la-del-servidor",
-    )
-    assert client.get("/prova/user").status_code == 401
-
-
-def test_token_caducat_dona_401(client, escenari):
-    _posa_token(
-        client,
-        {
-            "sub": escenari["noms"]["user_a"],
-            "institucio": escenari["a"],
-            "role": "user",
-            "exp": ARA - timedelta(minutes=1),
-        },
-    )
-    assert client.get("/prova/user").status_code == 401
-
-
-def test_token_sense_usuari_dona_401(client, escenari):
-    _posa_token(client, {"institucio": escenari["a"], "role": "admin", "exp": ARA + timedelta(minutes=5)})
-    resp = client.get("/prova/user")
-    assert resp.status_code == 401
-    assert resp.json() == {"detail": "Token invàlid", "codi": "token_invalid", "params": {}}
-
-
-def test_token_sense_caducitat_dona_401(client, escenari):
+TESTIMONIS_QUE_NO_VALEN = {
+    "no és un JWT": lambda e: "no-es-un-token",
+    "signat amb una altra clau": lambda e: jwt.encode(
+        {"sub": e["noms"]["super"], "institucio": e["a"], "role": "super_admin"},
+        "una-clau-que-no-es-la-del-servidor",
+        algorithm=ALGORISME,
+    ),
+    "caducat": lambda e: _signat(
+        {"sub": e["noms"]["user_a"], "institucio": e["a"], "role": "user", "exp": ARA - timedelta(minutes=1)}
+    ),
+    "sense usuari": lambda e: _signat({"institucio": e["a"], "role": "admin", "exp": ARA + timedelta(minutes=5)}),
     # Signat amb la clau bona i d'un usuari actiu: sense "exp" valdria per sempre
-    _posa_token(
-        client, {"sub": escenari["noms"]["user_a"], "uid": escenari["ids"]["user_a"], "institucio": escenari["a"]}
-    )
+    "sense caducitat": lambda e: _signat({"sub": e["noms"]["user_a"], "uid": e["ids"]["user_a"], "institucio": e["a"]}),
+    "sense uid ni sv": lambda e: _sense_uid(e, "a"),
+    "sense uid ni sv, d'un altre centre": lambda e: _sense_uid(e, "b"),
+}
+
+
+@pytest.mark.parametrize("testimoni", TESTIMONIS_QUE_NO_VALEN.values(), ids=TESTIMONIS_QUE_NO_VALEN)
+def test_un_testimoni_que_no_val_dona_401(client, escenari, testimoni):
+    client.cookies.set(get_config_auth().cookie_name, testimoni(escenari))
     resp = client.get("/prova/user")
-    assert resp.status_code == 401
-    assert resp.json() == {"detail": "Token invàlid", "codi": "token_invalid", "params": {}}
+    assert (resp.status_code, resp.json()) == (401, {"detail": "Token invàlid", "codi": "token_invalid", "params": {}})
 
 
 @pytest.mark.parametrize("camp", ["exp", "sub", "uid", "sv", "ini"])
 def test_decode_exigeix_els_camps_de_la_sessio(camp):
     payload = {"sub": "algu", "uid": 1, "sv": 0, "ini": ARA.timestamp(), "exp": ARA + timedelta(minutes=5)}
     del payload[camp]
-    token = jwt.encode(payload, get_config_auth().secret_key, algorithm=ALGORISME)
     with pytest.raises(jwt.MissingRequiredClaimError):
-        decode_access_token(token)
+        decode_access_token(_signat(payload))
 
 
 def test_usuari_desactivat_despres_del_login_perd_l_acces(client, escenari):
@@ -343,20 +334,6 @@ def test_el_rol_surt_de_la_bd_i_no_del_token(client, escenari):
     assert client.get("/prova/user").status_code == 200
     assert client.get("/prova/admin").status_code == 403
     assert client.get("/prova/super").status_code == 403
-
-
-def test_usuari_normal_no_pot_canviar_d_institucio_amb_el_token(client, escenari):
-    client.cookies.set(
-        get_config_auth().cookie_name,
-        create_access_token(
-            {
-                "sub": escenari["noms"]["user_a"],
-                "institucio": escenari["b"],
-                "role": "user",
-            }
-        ),
-    )
-    assert client.get("/prova/user").status_code == 401
 
 
 # ------------------------------------------- la sessió identifica l'usuari per l'id
@@ -421,11 +398,6 @@ def test_permisos_per_rol(client, escenari, qui, user, admin, super_):
 
 
 # ------------------------------------------------------------ gestió d'usuaris
-
-
-def test_usuari_normal_no_pot_llistar_usuaris(client, escenari):
-    _entra(client, escenari, "user_a")
-    assert client.get("/api/users").status_code == 403
 
 
 def test_admin_nomes_veu_usuaris_de_la_seva_institucio_i_no_el_superadmin(client, escenari):
@@ -562,10 +534,13 @@ def delegacio(config_auth_de_prova):
     config_auth_de_prova(LOGIN_DELEGACIO_USUARIS="user_demo,admin_demo", LOGIN_DELEGACIO_URL="/demo/")
 
 
-def test_login_d_un_usuari_delegat_indica_on_ha_d_anar_sense_obrir_sessio(client, escenari, delegacio):
+# Una demo en un subdomini: el frontend hi porta l'usuari sense enviar-hi la contrasenya
+@pytest.mark.parametrize("url", ["/demo/", "https://demo.gestor.exemple/"])
+def test_login_d_un_usuari_delegat_indica_on_ha_d_anar_sense_obrir_sessio(client, escenari, config_auth_de_prova, url):
+    config_auth_de_prova(LOGIN_DELEGACIO_USUARIS="user_demo", LOGIN_DELEGACIO_URL=url)
     resp = client.post("/api/login", json={"username": "user_demo", "password": "qualsevol"})
     assert resp.status_code == 200
-    assert resp.json() == {"ok": False, "redirect": "/demo/"}
+    assert resp.json() == {"ok": False, "redirect": url}
     assert get_config_auth().cookie_name not in client.cookies
 
 
@@ -624,14 +599,6 @@ def test_la_url_de_delegacio_ha_de_ser_una_ruta_o_una_adreca_https(url):
 @pytest.mark.parametrize("url", ["/demo/", "https://demo.gestor.exemple/"])
 def test_la_delegacio_pot_ser_al_mateix_domini_o_a_un_subdomini(url):
     assert _importa_config_amb_delegacio(url).returncode == 0
-
-
-def test_la_delegacio_a_una_altra_adreca_indica_l_adreca(client, escenari, config_auth_de_prova):
-    # Una demo en un subdomini: el frontend hi porta l'usuari sense enviar-hi la contrasenya
-    config_auth_de_prova(LOGIN_DELEGACIO_USUARIS="user_demo", LOGIN_DELEGACIO_URL="https://demo.gestor.exemple/")
-    resp = client.post("/api/login", json={"username": "user_demo", "password": "qualsevol"})
-    assert resp.json() == {"ok": False, "redirect": "https://demo.gestor.exemple/"}
-    assert get_config_auth().cookie_name not in client.cookies
 
 
 # ------------------------------------------------------ nom de la galeta
@@ -741,24 +708,6 @@ def test_el_superadmin_conserva_la_institucio_activa_en_tancar_les_altres_sessio
     client.post("/api/users/profile/institucio", json={"institucio": escenari["b"]})
     assert client.post("/api/users/profile/tancar-altres-sessions").status_code == 200
     assert client.get("/prova/user").json()["institucio"] == escenari["b"]
-
-
-def test_un_testimoni_sense_uid_ni_sv_ja_no_val(client, escenari):
-    # Els d'abans es buscaven pel nom: si l'usuari es reanomenava, la sessió
-    # passava a qui prengués el nom. Ja no en queda cap de vàlid (duren com a
-    # molt SESSIO_MAXIMA_HORES).
-    client.cookies.set(
-        get_config_auth().cookie_name,
-        create_access_token(
-            {
-                "sub": escenari["noms"]["user_a"],
-                "institucio": escenari["a"],
-                "role": "user",
-            }
-        ),
-    )
-    resp = client.get("/prova/user")
-    assert (resp.status_code, resp.json()["codi"]) == (401, "token_invalid")
 
 
 def test_una_auth_db_antiga_rep_la_columna_nova_sense_perdre_usuaris(tmp_path):

@@ -68,11 +68,11 @@ def get_substitucions(
         data: Format ISO (YYYY-MM-DD), ex: 2025-12-23
         include_all: Si True, retorna TOTES les absències (amb i sense grup, alliberat o no)
         ordre: dins de cada hora, per «curs» (per defecte) o per «professor» absent
-               (SubstitucioRepository.ORDRES)
+               (substitucions.files.ORDRES)
                      Útil per editar absències i veure totes les hores marcades
     """
     try:
-        return services.llista_substitucions(db, dia, dia.data, include_all=include_all, ordre=ordre)
+        return services.llista_substitucions(db, dia, include_all=include_all, ordre=ordre)
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
@@ -101,7 +101,7 @@ def generar_substitucions(
 
 
 @router.put(
-    "/{data}/absencies/{professor}",
+    "/{data}/absencies/{professor:path}",
     response_model=ActualitzacioAbsenciesResponse,
     response_model_exclude_unset=True,
 )
@@ -118,14 +118,14 @@ def actualitzar_absencies_professor(
     - Actualitza el tipus d'absència per totes les hores
     """
     try:
-        return services.actualitza_absencies(db, dia, dia.data, professor, update)
+        return services.actualitza_absencies(db, dia, professor, update)
     except services.ConflicteSubstitucions as exc:
         raise _conflicte(exc) from None
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
 
-@router.put("/{data}/{hora}/{professor}", response_model=ActualitzacioSubstitutResponse)
+@router.put("/{data}/{hora}/{professor:path}", response_model=ActualitzacioSubstitutResponse)
 def update_substitucio(
     hora: str,
     professor: NomNet,
@@ -138,7 +138,7 @@ def update_substitucio(
     Valida que el substitut NO estigui ocupat, absent o amb classe
     """
     try:
-        return services.actualitza_substitut(db, dia, dia.data, hora, professor, update)
+        return services.actualitza_substitut(db, dia, hora, professor, update)
     except services.ConflicteSubstitucions as exc:
         raise _conflicte(exc) from None
 
@@ -152,12 +152,12 @@ def reassignar_problematics(
     Reassigna substitucions problemàtiques (vigilant, absent, de baixa o amb classe).
     """
     try:
-        return services.reassigna_problematiques(db, dia, dia.data)
+        return services.reassigna_problematiques(db, dia)
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
 
-@router.get("/{data}/hores-professor/{professor}", response_model=HoresProfessorResponse)
+@router.get("/{data}/hores-professor/{professor:path}", response_model=HoresProfessorResponse)
 def get_hores_professor(
     professor: NomNet,
     db: Session = Depends(get_db),
@@ -165,7 +165,7 @@ def get_hores_professor(
 ):
     """Retorna les hores on el professor té classe, i les hores que és al centre sense classe."""
     try:
-        return services.hores_professor(db, dia, dia.data, professor)
+        return services.hores_professor(db, dia, professor)
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
@@ -181,7 +181,7 @@ def get_disponibles(
     ordenats per prioritat amb informació del que estan fent.
     """
     try:
-        return services.disponibles(db, dia, dia.data, hora)
+        return services.disponibles(db, dia, hora)
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
@@ -194,6 +194,6 @@ def get_disponibles_batch(
 ):
     """Retorna els disponibles de totes les hores en una sola operació."""
     try:
-        return {"results": services.disponibles_en_bloc(db, dia, dia.data, payload.hores)}
+        return {"results": services.disponibles_en_bloc(db, dia, payload.hores)}
     except MissingXmlError as exc:
         _raise_missing_xml(exc)

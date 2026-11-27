@@ -5,7 +5,7 @@ import { test, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { missatgeDError, detallDError, registraTraductorErrors } from '../src/errorsApi.js'
+import { missatgeDError, detallDError, registraTraductorErrors } from '../src/api/errors.js'
 
 const require = createRequire(import.meta.url)
 const { createI18n } = require('vue-i18n')
@@ -42,6 +42,8 @@ test('sense traductor registrat, el detail; un detail que no és text no es toca
   const llista = [{ loc: ['body'], msg: 'x' }]
   assert.equal(detallDError(error(422, { detail: llista, codi: 'contrasenya_curta' })), llista)
   assert.equal(detallDError({}), undefined)
+  // Un detall objecte és per a la pantalla: cap text (la pantalla hi posa el seu)
+  assert.equal(detallDError(error(409, { detail: { error: 'conflict', message: 'x', current_data: {} } })), undefined)
 })
 
 test('en català, cada errors.<codi> es mostra tal com el text del servidor', () => {

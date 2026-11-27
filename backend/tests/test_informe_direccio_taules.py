@@ -3,9 +3,14 @@ Les taules de l'informe de direcció (pdf/informe_direccio.py), sense generar
 el PDF: el text de cada cel·la.
 """
 
+from datetime import date
+
 from reportlab.platypus import Table
 
 from pdf.informe_direccio import _taula_impacte_per_grup, _taula_matriu_grups_mesos, _taula_matriu_professors_mesos
+from pdf.services import MESOS
+from recomptes.services import impacte_per_grup, resum
+from substitucions.files import FilaSubstitucio
 
 
 def _text_de_les_celles(elems):
@@ -46,5 +51,20 @@ def test_impacte_i_evolucio_per_grup_no_mostren_ni_agrupen_per_nivell():
     evolucio = _text_de_les_celles(_taula_matriu_grups_mesos(dades))
 
     assert impacte[0] == ["Grup", "Absències", "Amb substitut", "Pendents", "Cobertura"]
-    assert [fila[0] for fila in impacte[1:]] == ["1-BAT-A", "2-ESO-A", "TOTAL"]
+    assert [fila[0] for fila in impacte[1:]] == ["1-BAT-A", "2-ESO-A", "Total amb grup"]
     assert evolucio[0] == ["Grup", "Mar", "Tot."]
+
+
+def test_el_total_de_l_impacte_per_grup_i_la_cobertura():
+    files = [
+        FilaSubstitucio(data=date(2026, 3, 2), grup="1-ESO-A", substitut="Prof 5", tipus_absencia="ABSENCIA"),
+        FilaSubstitucio(data=date(2026, 3, 2), grup="", substitut="", tipus_absencia="ABSENCIA"),
+    ]
+    mesos = ["Març 2026"]
+
+    impacte = _text_de_les_celles(_taula_impacte_per_grup(impacte_per_grup(files, mesos, MESOS["ca"])))
+
+    # La fila del total només suma les files amb grup (100%), i ho diu, perquè
+    # la cobertura de l'informe les compta totes (50%).
+    assert impacte[-1] == ["Total amb grup", "1", "1", "0", "100%"]
+    assert resum(files, 0)["cobertura_pct"] == 50

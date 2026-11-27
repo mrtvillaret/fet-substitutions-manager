@@ -11,6 +11,8 @@ export const perfil = (...args) => perfilAmb(clientApi, ...args)
 
 export const entraAmb = (client, ...args) =>
   client.post('/api/login', ...args)
+// Si una petició és la d'entrar (la d'aquesta instal·lació o d'una altra)
+export const esEntrada = (url) => String(url || '').split('?')[0].endsWith('/api/login')
 export const entra = (...args) => entraAmb(clientApi, ...args)
 
 export const entraDelegacioAmb = (client, delegacio, ...args) =>

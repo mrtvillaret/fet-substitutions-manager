@@ -31,6 +31,7 @@ from models import AbreviaturaGrup, CategoriaPrioritat, ConfiguracioExamen, Grup
 from prioritats.services import carrega_prioritats
 from rate_limit import limiter
 from substitucions import router as substitucions
+from substitucions.repositories import SubstitucioRepository
 from vigilancies import services
 from vigilancies.assignacio import assignacio_optima, grups_de, save_vigilancies_afinitats, titulars_de
 from vigilancies.router import router as vigilancies_router
@@ -96,9 +97,9 @@ def _centre(config=(), alliberats=(), absents=(), abreviatures=(), afinitats=())
     return centre, client
 
 
-def _crea(client, grups, tipus="Castellà", aula="A1", nivell=None):
+def _crea(client, grups, tipus="Castellà", aula="A1", nivell=None, *, hora="10:00", vigilant=""):
     nivell = nivell or next(n for n, gs in NIVELLS.items() if grups in gs or grups.startswith(n))
-    body = {"hora": "10:00", "tipus": tipus, "grups": grups, "aula": aula, "vigilant": "", "nivell": nivell}
+    body = {"hora": hora, "tipus": tipus, "grups": grups, "aula": aula, "vigilant": vigilant, "nivell": nivell}
     resp = client.post(URL, json=body)
     assert resp.status_code == 200, resp.text
     from auth.repositories import UserRepository
@@ -110,9 +111,10 @@ def _crea(client, grups, tipus="Castellà", aula="A1", nivell=None):
         centre = UserRepository.get_by_username(auth, nom).institucio
     with get_data_db_session(centre) as db:
         marques = AlliberatsDelDia.get_by_date(db, date.fromisoformat(DATA))
-        marques.setdefault("10:00", []).append(grups)
+        marques.setdefault(hora, []).append(grups)
         GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), marques)
         db.commit()
+    return resp.json()["vigilancia"]["id"]
 
 
 def _vigilants(client):
@@ -325,15 +327,30 @@ def test_4_la_guardia_nomes_si_es_demanen_disponibles_i_al_final(llavor):
 # ------------------------------------------------------------ titulars: hora lliure i categories
 
 
-def test_el_titular_amb_l_hora_lliure_no_s_assigna_i_es_retorna(llavor):
-    _, client = _centre(config=[("Socials", "2-ESO-C", "A1", "Prof 2")])
+@pytest.mark.parametrize("ocupat", [False, True], ids=["sense_assignacio_previa", "amb_assignacio_previa"])
+def test_titular_amb_hora_lliure_i_assignacio_independent_per_hora(llavor, ocupat):
+    centre, client = _centre(
+        config=[
+            ("Socials", "2-ESO-C", "A1", "Prof 2"),
+            ("Castellà", "2-ESO-B", "A1", "Prof 3"),
+            ("Castellà", "1-ESO-C", "A1", "Prof 3"),
+        ],
+    )
     _crea(client, "2-ESO-C", tipus="Socials")
+    _crea(client, "2-ESO-B")
+    _crea(client, "1-ESO-C", hora="11:30")
+    if ocupat:
+        _crea(client, "2-ESO-A", tipus="Química", vigilant="Prof 3")
     resposta = _titulars(client)
-    assert resposta["assigned_count"] == 0
+    assert (resposta["assigned_count"], resposta["remaining_count"]) == ((1, 2) if ocupat else (2, 1))
     assert [(t["hora"], t["grups"], t["tipus"], t["titular"]) for t in resposta["titulars_hora_lliure"]] == [
         ("10:00", "2-ESO-C", "Socials", "Prof 2")
     ]
-    assert _per_grup(client) == {"2-ESO-C": ""}
+    esperats = {"2-ESO-C": "", "2-ESO-B": "" if ocupat else "Prof 3", "1-ESO-C": "Prof 3"}
+    if ocupat:
+        esperats["2-ESO-A"] = "Prof 3"
+    with get_data_db_session(centre, lectura=True) as db:
+        assert {v.grups: v.vigilant for v in services.llista(db, date.fromisoformat(DATA))} == esperats
 
 
 def test_la_categoria_no_compta_per_al_titular_pero_si_per_als_pendents(llavor):
@@ -425,12 +442,32 @@ def test_diversos_titulars_per_a_una_fila_primer_qui_tenia_classe_amb_un_dels_gr
     assert _per_grup(client) == {"3-ESO": "Prof 41"}
 
 
-def test_cap_fila_per_al_grup_s_avisa(llavor):
-    _, client = _centre(config=ANGLES_3ESO)
-    _crea(client, "2-ESO-C", tipus="Anglès")
+@pytest.mark.parametrize("vigilant", ["", "Prof 30"], ids=["pendent", "assignada"])
+def test_cap_fila_per_al_grup_s_avisa_tambe_si_ja_esta_assignada(llavor, vigilant):
+    centre, client = _centre(config=[*ANGLES_3ESO, ("VIGILÀNCIA", "3-ESO-A", "", "Prof 3")])
+    id = _crea(client, "2-ESO-C", tipus="Anglès", vigilant=vigilant)
     _crea(client, "2-ESO-B", tipus="Química")  # sense cap fila de l'assignatura: no s'avisa
+    _crea(client, "3-ESO-A", tipus="VIGILÀNCIA")  # tot i tenir una entrada coincident, se salta
+    _crea(client, "3-ESO-B", tipus="VIGILÀNCIA")  # tampoc no s'avisa si no coincideix el grup
     resposta = _titulars(client)
-    assert [(a["grups"], a["motiu"]) for a in resposta["vigilancies_sense_titular"]] == [("2-ESO-C", "cap_fila_grup")]
+    assert resposta["assigned_count"] == 0
+    assert [(a["vigilancia_id"], a["grups"], a["motiu"]) for a in resposta["vigilancies_sense_titular"]] == [
+        (id, "2-ESO-C", "cap_fila_grup")
+    ]
+    dia = date.fromisoformat(DATA)
+    with get_data_db_session(centre, lectura=True) as db:
+        assert {v.grups: v.vigilant for v in services.llista(db, dia)} == {
+            "2-ESO-C": vigilant,
+            "2-ESO-B": "",
+            "3-ESO-A": "",
+            "3-ESO-B": "",
+        }
+        cobertures = [
+            (s.professor_absent, s.grup, s.substitut or "")
+            for s in SubstitucioRepository.get_by_date(db, dia)
+            if s.tipus_absencia == "VIGILANCIA"
+        ]
+        assert cobertures == ([("Prof 30", "1-ESO-A", "")] if vigilant else [])
 
 
 @pytest.mark.parametrize(

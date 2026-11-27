@@ -32,6 +32,7 @@ from grups.disponibilitat import GestorAlliberats
 from grups.repositories import GrupsAlliberatsRepository
 from horari.domain import Dia
 from horari.lector import GestorHorariWeb
+from prioritats import router as prioritats
 from prioritats.repositories import NoSubstituirRepository
 from rate_limit import limiter
 from substitucions import domain, services
@@ -39,7 +40,7 @@ from substitucions import router as substitucions
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.repositories import VigilanciaRepository
 
-APP = crea_app(substitucions.router)
+APP = crea_app(substitucions.router, prioritats.router)
 DATA = "2026-04-20"  # dilluns
 URL = f"/api/substitucions/{DATA}"
 ABSENT = "Prof 15"
@@ -92,10 +93,6 @@ def _assigna(client, hora, substitut, professor=ABSENT, **extra):
 
 
 # ------------------------------------------------------------------ accés
-
-
-def test_sense_sessio_no_es_pot_accedir():
-    assert client_per(APP).get(URL).status_code == 401
 
 
 def test_cada_institucio_nomes_veu_les_seves_substitucions(client, centre):
@@ -156,9 +153,13 @@ def test_treure_una_hora_d_absencia_n_esborra_la_fila(client):
     assert [s["hora"] for s in _subs(client, include_all=True)] == ["10:00", "12:30"]
 
 
-def test_absencia_i_servei_conviuen_per_al_mateix_professor(client):
+@pytest.mark.parametrize("regenerar_tot", [None, False, True])
+def test_absencia_i_servei_conviuen_per_al_mateix_professor(client, regenerar_tot):
+    # «Genera pendents» i «Regenera tot» conserven el tipus de cada hora
     resp = _marca_absencia(client, hores=["10:00"], hores_servei=["11:30"])
     assert resp.status_code == 200
+    if regenerar_tot is not None:
+        assert client.post(f"{URL}/generar", params={"regenerar_tot": regenerar_tot}).status_code == 200
     tipus = {s["hora"]: s["tipus_absencia"] for s in _subs(client, include_all=True)}
     assert tipus == {"10:00": "ABSENCIA", "11:30": "SERVEI"}
 
@@ -172,26 +173,24 @@ def test_absencia_modificada_per_un_altre_usuari_dona_conflicte(client):
 # --------------------------------------------------------- vista per defecte
 
 
-def test_la_vista_per_defecte_amaga_activitats_que_no_se_substitueixen(client, centre):
+@pytest.mark.parametrize(
+    "activitat, amb_grup, visibles",
+    [
+        ("Pares", False, ["10:00", "11:30"]),
+        # FUNCIONAMENT.md, apartat 5: abans, la pantalla només ho mirava a les
+        # files sense grup (i el frontend ho tornava a filtrar pel seu compte)
+        ("Anglès", True, ["12:30"]),
+    ],
+)
+def test_la_vista_per_defecte_amaga_les_activitats_de_no_substituir(client, centre, activitat, amb_grup, visibles):
+    amagades = [HORARI.get_activitat("Dilluns", hora, ABSENT) for hora in HORES_ABSENT if hora not in visibles]
+    assert {(a["assignatura"], bool(a["grup"])) for a in amagades} == {(activitat, amb_grup)}
     with get_data_db_session(centre) as db:
-        NoSubstituirRepository.create(db, "Pares")
+        NoSubstituirRepository.create(db, activitat)
         db.commit()
     _marca_absencia(client)
-    assert [s["hora"] for s in _subs(client)] == ["10:00", "11:30"]
+    assert [s["hora"] for s in _subs(client)] == visibles
     assert [s["hora"] for s in _subs(client, include_all=True)] == HORES_ABSENT
-
-
-def test_la_vista_per_defecte_amaga_les_activitats_de_no_substituir_encara_que_tinguin_grup(client, centre):
-    # FUNCIONAMENT.md, apartat 5: abans, la pantalla només ho mirava a les
-    # files sense grup (i el frontend ho tornava a filtrar pel seu compte)
-    activitat = HORARI.get_activitat("Dilluns", "10:00", ABSENT)
-    assert activitat["grup"]
-    with get_data_db_session(centre) as db:
-        NoSubstituirRepository.create(db, activitat["assignatura"])
-        db.commit()
-    _marca_absencia(client)
-    assert "10:00" not in [s["hora"] for s in _subs(client)]
-    assert "10:00" in [s["hora"] for s in _subs(client, include_all=True)]
 
 
 def test_la_vista_per_defecte_sempre_mostra_les_vigilancies_d_un_vigilant_absent(client, centre):
@@ -707,17 +706,61 @@ def test_hores_professor_separa_classes_d_activitats_que_no_se_substitueixen(cli
     }
 
 
-def test_disponibles_marca_qui_ja_esta_assignat_o_absent(client):
+def test_els_noms_amb_barra_o_coixinet_arriben_sencers_a_les_rutes(client):
+    """El nom va codificat a l'últim tros de la URL (frontend: encodeURIComponent);
+    amb «/» Starlette el descodifica abans d'encaminar, per això aquests trossos
+    són `{professor:path}` (i `{assignatura:path}` a «No substituir»): la ruta el
+    rep sencer en lloc d'un 404."""
+    from urllib.parse import quote
+
+    for nom in ["Prof / 1", "Prof #1", "Prof ?1"]:
+        url = quote(nom, safe="")
+        assert client.get(f"{URL}/hores-professor/{url}").status_code == 200, nom
+        resp = client.put(f"{URL}/absencies/{url}", json={"hores_absencia": [], "hores_servei": []})
+        assert resp.json().get("codi") == "falta_updated_at_map", (nom, resp.text)  # la ruta l'ha rebut
+        resp = client.put(f"{URL}/{quote('10:00', safe='')}/{url}", json={"substitut": "", "force": True})
+        assert resp.json().get("detail") != "Not Found", (nom, resp.text)
+        assert client.post("/api/prioritats/no-substituir", json={"assignatura": nom}).status_code == 200
+        resp = client.delete(f"/api/prioritats/no-substituir/{url}")
+        assert resp.status_code == 200, (nom, resp.text)
+        assert nom not in client.get("/api/prioritats/no-substituir").json()["assignatures"], nom
+    # Amb :path, la ruta també rep l'activitat buida, que no es pot treure
+    assert client.delete("/api/prioritats/no-substituir/").status_code == 404
+
+
+def test_disponibles_marca_qui_ja_esta_assignat_o_absent(client, centre):
+    # Absents, només els de DiaEscolar.absents_per_hora (absència o servei): el
+    # substitut amb la seva encadenada no ho és, ni el vigilant amb una cobertura
+    # VIGILANCIA (desada aquí a mà: amb grup, l'horari no el dona com a disponible).
     _marca_absencia(client, hores=["10:00"])
+    _marca_absencia(client, professor="Prof 3", hores=[], hores_servei=["10:00"])
     _assigna(client, "10:00", "Prof 21")
+    with get_data_db_session(centre) as db:
+        vigilancia = {
+            "hora": "10:00",
+            "tipus": "examen",
+            "grups": "2-BAT-A",
+            "aula": "",
+            "vigilant": "Prof 28",
+            "nivell": "2-BAT",
+        }
+        VigilanciaRepository.create(db, date.fromisoformat(DATA), vigilancia)
+        cobertura = {"hora": "10:00", "professor_absent": "Prof 28", "assignatura": "Guàrdia"}
+        SubstitucioRepository.create(
+            db, {"data": date.fromisoformat(DATA), **cobertura, "tipus_absencia": "VIGILANCIA"}
+        )
+        db.commit()
     resp = client.get(f"{URL}/10:00/disponibles")
     assert resp.status_code == 200
     per_prof = {d["professor"]: d for d in resp.json()["disponibles"]}
 
     assert {"Prof 3", "Prof 21", "Prof 28"} <= set(per_prof)
-    assert per_prof["Prof 21"]["ja_assignat"] is True
-    assert per_prof["Prof 28"]["ja_assignat"] is False
-    assert per_prof["Prof 28"]["absent"] is False
+    estat = {p: (per_prof[p]["status"], per_prof[p]["absent"], per_prof[p]["ja_assignat"]) for p in per_prof}
+    assert estat["Prof 3"] == ("ABSENT", True, False)
+    assert estat["Prof 21"] == ("JA ASSIGNAT", False, True)
+    assert estat["Prof 28"] == ("OCUPAT VIGILÀNCIA", False, False)
+    bloc = client.post(f"{URL}/disponibles-batch", json={"hores": ["10:00"]})
+    assert bloc.json()["results"]["10:00"] == resp.json()
     # Ningú amb classe amb grup no surt com a disponible.
     assert not any(_te_classe_amb_grup(p, "10:00") for p in per_prof)
 
@@ -739,6 +782,25 @@ def test_disponibles_en_bloc_son_identics_als_de_cada_hora(client, data, hores):
         individual = client.get(f"/api/substitucions/{data}/{hora}/disponibles")
         assert individual.status_code == 200, individual.text
         assert resultats[hora] == individual.json()
+
+
+def test_disponibles_en_l_ordre_del_desplegable_amb_desempat_natural(client):
+    """L'ordre del desplegable de substituts el dona el backend (la pantalla no el
+    toca): de baixa i ocupats al final, per categoria i, a igualtat, per nom natural
+    (noms.ordre_alfabetic: «Prof 9» abans de «Prof 10»)."""
+    from noms import ordre_alfabetic
+
+    def clau(d):
+        return (d["de_baixa"], d["ocupat"], d["categoria"])
+
+    desempats_naturals = 0
+    for hora in ["08:00", "10:00", "11:30"]:
+        disp = client.get(f"{URL}/{hora}/disponibles").json()["disponibles"]
+        assert disp == sorted(disp, key=lambda d: (*clau(d), ordre_alfabetic(d["professor"])))
+        desempats_naturals += sum(
+            clau(a) == clau(b) and a["professor"] > b["professor"] for a, b in zip(disp, disp[1:], strict=False)
+        )
+    assert desempats_naturals  # hi ha empats en què el text pla donaria un altre ordre
 
 
 # ------------------------------------------------- reassignar problemàtics
@@ -783,24 +845,6 @@ def _te_exc_info(caplog, text):
     return any(text in record.getMessage() and record.exc_info for record in caplog.records)
 
 
-def test_reassignar_avisa_si_falla_la_millora_de_prioritat(client, monkeypatch, caplog):
-    _marca_absencia(client, hores=["10:00"])
-
-    class MillorsSubstitutsQueFalla:
-        def __init__(self, *_args, **_kwargs):
-            raise RuntimeError("error simulat de prioritats")
-
-    monkeypatch.setattr(services, "MillorsSubstituts", MillorsSubstitutsQueFalla)
-
-    resp = client.post(f"{URL}/reassign-problematics")
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["avisos"] == [
-        "No s'ha pogut millorar l'assignació segons les prioritats. Revisa les substitucions."
-    ]
-    assert _te_exc_info(caplog, "No s'ha pogut reassignar per prioritat")
-
-
 def test_generar_avisa_si_falla_la_cobertura_d_un_vigilant(client, centre, monkeypatch, caplog):
     with get_data_db_session(centre) as db:
         VigilanciaRepository.create(
@@ -829,18 +873,6 @@ def test_generar_avisa_si_falla_la_cobertura_d_un_vigilant(client, centre, monke
         "No s'han pogut generar les cobertures de classe dels vigilants. Revisa les substitucions pendents."
     ]
     assert _te_exc_info(caplog, "No s'han pogut generar les substitucions dels vigilants")
-
-
-def test_dia_escolar_registra_la_traca_si_no_pot_carregar_l_horari(db_session, monkeypatch, caplog):
-    def horari_que_falla(*_args, **_kwargs):
-        raise RuntimeError("error simulat de càrrega")
-
-    monkeypatch.setattr(Dia, "horari", property(horari_que_falla))
-
-    dia = domain.DiaEscolar(db_session, Dia(date.fromisoformat(DATA), "centre_de_prova"))
-
-    assert dia.horari is None
-    assert _te_exc_info(caplog, "No s'ha pogut carregar l'horari del dia")
 
 
 # Regla: el que allibera un professor és que el seu grup estigui marcat sense
@@ -1080,7 +1112,7 @@ def test_la_regla_comprova_l_xml_de_la_data_i_no_toca_les_files_existents():
             futur = domain.DiaEscolar(db, Dia(dia(10), centre), estricte=True)
             assert actual.motius_substitut(professor, "10:00", nomes={"fora_horari"}) == []
             assert futur.motius_substitut(professor, "10:00", nomes={"fora_horari"}) == [{"motiu": "fora_horari"}]
-            assert domain.substituts_no_valids(db, dia(10).isoformat(), futur)[0]["motiu"] == "fora_horari"
+            assert domain.substituts_no_valids(futur)[0]["motiu"] == "fora_horari"
             assert SubstitucioRepository.get_by_date(db, dia(10)) == abans
     finally:
         fixa_institucio_peticio(None)

@@ -64,13 +64,12 @@
           </td>
         </tr>
         <FilaSubstitucio
-          v-for="{ fila, clau } in bloc.files"
-          :key="clau"
+          v-for="fila in bloc.files"
+          :key="fila.id"
           :fila="fila"
-          :clau="clau"
           :data="data"
           :disponibles="disponiblesDe(fila)"
-          :activa="esActiva(clau)"
+          :activa="esActiva(fila.id)"
           @canvi="reenviaCanvi"
           @edita="reenviaEdita"
           @esborra="reenviaEsborra"
@@ -109,15 +108,12 @@ const emit = defineEmits(['canvi', 'edita', 'esborra', 'canvia-ordre'])
 const { t } = useI18n()
 
 
-// La substitució no té id: l'hora, el professor absent i la classe la identifiquen
-const clauDe = (fila) => [fila.hora, fila.professor_absent, fila.assignatura, fila.grup].join('|')
-
 // Blocs per hora, en l'ordre en què arriben (el de l'API)
 const blocs = computed(() => {
   const perHora = new Map()
   for (const fila of props.files) {
     if (!perHora.has(fila.hora)) perHora.set(fila.hora, [])
-    perHora.get(fila.hora).push({ fila, clau: clauDe(fila) })
+    perHora.get(fila.hora).push(fila)
   }
   return [...perHora.entries()].map(([hora, files]) => ({ hora, files }))
 })
@@ -141,7 +137,7 @@ const tocaTaula = (event) => {
 
 const accionsFilaActiva = computed(() => {
   const clau = activa.value?.clau
-  const fila = clau && props.files.find((f) => clauDe(f) === clau)
+  const fila = clau && props.files.find((f) => f.id === clau)
   if (!fila) return []
   return [
     { clau: 'edita', icona: 'pi-pencil', etiqueta: t('substitutions.actions.manageAbsences'), fer: () => reenviaEdita(fila) },

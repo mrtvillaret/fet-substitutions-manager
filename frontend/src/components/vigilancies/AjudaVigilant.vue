@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { avisaError } from '../../errorsApi.js'
+import { avisaError } from '../../api/errors.js'
 import { nextTick, onBeforeUnmount, ref } from 'vue'
 import OverlayPanel from 'primevue/overlaypanel'
 import { useAjudaVigilant } from '../../composables/useAjudaVigilant'

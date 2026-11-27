@@ -49,39 +49,38 @@ def _files(centre):
         con.close()
 
 
-def test_una_sessio_de_lectura_no_pot_escriure_per_l_orm(centre):
+def _una_fila():
+    return Substitucio(data=date(2026, 4, 20), hora="10:00", professor_absent="Prof 1")
+
+
+def _per_l_orm(db):
+    db.add(_una_fila())
+    db.flush()
+
+
+def _amb_sql(db):
+    db.execute(
+        text("INSERT INTO substitucions (data, hora, professor_absent) VALUES ('2026-04-20', '10:00', 'Prof 1')")
+    )
+
+
+@pytest.mark.parametrize("escriu", [_per_l_orm, _amb_sql])
+def test_una_sessio_de_lectura_no_pot_escriure_i_la_seguent_si(centre, escriu):
     with get_data_db_session(centre, nomes_lectura=True) as db:
         assert db.query(Substitucio).count() == 0  # llegir sí
-        db.add(Substitucio(data=date(2026, 4, 20), hora="10:00", professor_absent="Prof 1"))
         with pytest.raises(OperationalError, match="readonly"):
-            db.flush()
+            escriu(db)
     assert _files(centre) == 0
-
-
-def test_una_sessio_de_lectura_no_pot_escriure_amb_sql(centre):
-    with get_data_db_session(centre, nomes_lectura=True) as db:
-        with pytest.raises(OperationalError, match="readonly"):
-            db.execute(
-                text(
-                    "INSERT INTO substitucions (data, hora, professor_absent) VALUES ('2026-04-20', '10:00', 'Prof 1')"
-                )
-            )
-    assert _files(centre) == 0
+    with get_data_db_session(centre) as db:
+        db.add(_una_fila())
+        db.commit()
+    assert _files(centre) == 1
 
 
 def test_una_sessio_de_lectura_no_pot_passar_a_escriptura(centre):
     with get_data_db_session(centre, nomes_lectura=True) as db:
         with pytest.raises(RuntimeError, match="només lectura"):
             inicia_escriptura(db)
-
-
-def test_despres_d_una_sessio_de_lectura_es_torna_a_poder_escriure(centre):
-    with get_data_db_session(centre, nomes_lectura=True) as db:
-        db.query(Substitucio).count()
-    with get_data_db_session(centre) as db:
-        db.add(Substitucio(data=date(2026, 4, 20), hora="10:00", professor_absent="Prof 1"))
-        db.commit()
-    assert _files(centre) == 1
 
 
 def test_la_ruta_de_lectura_no_espera_qui_te_l_escriptura(centre):

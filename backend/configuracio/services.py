@@ -7,14 +7,13 @@ import os
 from datetime import date
 
 from PIL import Image, UnidentifiedImageError
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import i18n_setup
 from auth.domain import Rol, UsuariActual
 from configuracio.repositories import ConfiguracioRepository
 from configuracio.schemas import SettingsUpdate
-from database import get_data_db_session, get_data_dir_for_institucio
+from database import get_data_dir_for_institucio
 from errors_domini import NoPermes, NoTrobat, NoValid
 from horari.context import invalidar_horari
 from horari.domain import Dia
@@ -52,6 +51,7 @@ def _data_desada(valor: str | None) -> date | str | None:
 def configuracio_del_centre(db: Session, institucio: str) -> dict:
     """Tota la configuració del centre, tal com la mostra la pantalla."""
     config_db = ConfiguracioRepository.get_all_as_dict(db)
+    logo = cami_logo(institucio)
     xml_path = Dia.avui(institucio).xml_path  # la versió vigent avui
     return {
         # Institució de la petició (la de l'usuari)
@@ -61,8 +61,8 @@ def configuracio_del_centre(db: Session, institucio: str) -> dict:
         "xml_horari_path": config_db.get("xml_horari_path"),
         "data_inici_estadistiques": _data_desada(config_db.get("data_inici_estadistiques")),
         "data_final_estadistiques": _data_desada(config_db.get("data_final_estadistiques")),
-        "logo_path": config_db.get("logo_path"),
-        "te_logo": cami_logo(institucio, config_db.get("logo_path")) is not None,
+        "logo_path": logo,
+        "te_logo": logo is not None,
         "institucio_display_name": config_db.get("institucio_display_name") or institucio,
         # Buit ('') = sense límit ("Tots"). None (mai desat) → també buit.
         "ultim_professor_subs": config_db.get("ultim_professor_subs") or "",
@@ -156,42 +156,25 @@ def desa_logo(institucio: str, nom_fitxer: str, contingut: bytes) -> str:
     for antic in ("logo.jpg", "logo.jpeg"):
         if os.path.exists(os.path.join(data_dir, antic)):
             os.remove(os.path.join(data_dir, antic))
-
-    with get_data_db_session(institucio) as db:
-        ConfiguracioRepository.set(
-            db, "logo_path", file_path, tipus="string", descripcio="Path del logo de la institució"
-        )
-        db.commit()
     return file_path
 
 
-def cami_logo(institucio: str, logo_configurat: str | None) -> str | None:
-    """El fitxer del logo del centre, o None si no en té: el desat a la
-    configuració (logo_path) o, si no n'hi ha cap, un logo.png/.jpg de la
-    carpeta de dades."""
-    logo_path = logo_configurat
-    if not logo_path:
-        data_dir = get_data_dir_for_institucio(institucio)
-        for ext in (".png", ".jpg", ".jpeg"):
-            candidate = data_dir / f"logo{ext}"
-            if candidate.exists():
-                logo_path = str(candidate)
-                break
-    return logo_path if logo_path and os.path.exists(logo_path) else None
+def cami_logo(institucio: str) -> str | None:
+    """El fitxer del logo del centre, o None si no en té: sempre el
+    logo.png/.jpg/.jpeg de la carpeta de dades (desa_logo el desa com a
+    logo.png). La clau logo_path de la configuració ja no es fa servir: era una
+    ruta absoluta que es trencava en còpies i restauracions."""
+    data_dir = get_data_dir_for_institucio(institucio)
+    for ext in (".png", ".jpg", ".jpeg"):
+        candidate = data_dir / f"logo{ext}"
+        if candidate.exists():
+            return str(candidate)
+    return None
 
 
 def logo_del_centre(institucio: str) -> tuple[str, str]:
     """El fitxer del logo i el seu tipus (image/png o image/jpeg)."""
-    # Si la BD del centre no es pot llegir, es busca el logo a la carpeta
-    # (cami_logo); qualsevol altre error és del codi i no es calla
-    logo_configurat = None
-    try:
-        with get_data_db_session(institucio, lectura=True) as db:
-            logo_configurat = ConfiguracioRepository.get(db, "logo_path")
-    except SQLAlchemyError:
-        log.warning("No s'ha pogut llegir logo_path del centre; es busca el logo a la carpeta", exc_info=True)
-
-    logo_path = cami_logo(institucio, logo_configurat)
+    logo_path = cami_logo(institucio)
     if not logo_path:
         raise NoTrobat("Logo no trobat", codi="logo_no_trobat")
 

@@ -1,12 +1,13 @@
-import { avisaError, detallDError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../api/errors.js'
 import { ref, computed, watch } from 'vue'
 import * as apiPdf from '../api/pdf.js'
 import { dataIso } from '../dates.js'
 import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions.js'
+import { desaPdf } from '../desaPdf.js'
 import { SENSE_NIVELL, opcionsNivellsPdf, parametresNivellsPdf, seleccioInicialNivellsPdf } from '../vigilanciesPdf.js'
 
-// Extret de la vista: es preserven estat, efectes i ordre de les operacions.
-export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, toast, t }) {
+// Els PDF de Vigilàncies: el del dia (amb la revisió dels nivells triats) i el d'un interval.
+export function usePdfVigilancies({ dataISO, dataTreball, nivells, toast, t }) {
   const mostrarDialogPDF = ref(false)
 
   const mostrarDialogInterval = ref(false)
@@ -19,35 +20,9 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
 
   const mostrarDialogValidacionsVig = ref(false)
 
-  const validacionsVig = ref({ conflicts: [], warnings: [], total: 0, has_critical: false })
-
-  const problemesVigFiltrats = computed(() => {
-    const seleccio = parametresNivellsPdf(pdfConfig.value.nivells)
-    const nivellsTriats = new Set(pdfConfig.value.nivells.filter(n => n !== SENSE_NIVELL))
-    const ids = new Set(vigilancies.value.filter(v => v.nivell
-      ? (!nivellsTriats.size || nivellsTriats.has(v.nivell))
-      : seleccio.inclou_sense_nivell).map(v => String(v.id)))
-    // L'API separa els problemes tipats de vigilàncies; mai no mirem el text traduït.
-    return (validacionsVig.value.problemes_vigilancies || []).filter(p =>
-      p.tipus && (!p.files.length || p.files.some(id => ids.has(String(id))))
-    )
-  })
-
-  const conflictesVigFiltrats = computed(() =>
-    problemesVigFiltrats.value.filter(p => p.gravetat === 'important').map(p => p.missatge)
-  )
-
-  const warningsVigFiltrats = computed(() =>
-    problemesVigFiltrats.value.filter(p => p.gravetat === 'avis').map(p => p.missatge)
-  )
-
-  const informatiusVigFiltrats = computed(() =>
-    problemesVigFiltrats.value.filter(p => p.gravetat === 'informacio').map(p => p.missatge)
-  )
-
-  const totalVigFiltrats = computed(() =>
-    conflictesVigFiltrats.value.length + warningsVigFiltrats.value.length + informatiusVigFiltrats.value.length
-  )
+  // La revisió del PDF dels nivells triats: el backend hi posa els problemes de les
+  // vigilàncies que imprimirà (com el PDF), separats per gravetat.
+  const validacionsVig = ref({ conflicts: [], warnings: [], informatius: [], total: 0, has_critical: false })
 
   const pdfConfig = ref({
     nivells: [],
@@ -188,12 +163,13 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
     confirmacioImportants.value = false
     generantPDF.value = true
     try {
-      const validacioResponse = await apiPdf.validacions(dataISO.value)
+      const validacioResponse = await apiPdf.validacions(dataISO.value, {
+        params: parametresNivellsPdf(pdfConfig.value.nivells)
+      })
       confirmacioImportants.value = false
       validacionsVig.value = validacioResponse.data
-      validacionsVig.value.has_critical = conflictesVigFiltrats.value.length > 0
 
-      if (totalVigFiltrats.value > 0) {
+      if (validacionsVig.value.total > 0) {
         mostrarDialogPDF.value = false
         mostrarDialogValidacionsVig.value = true
         generantPDF.value = false
@@ -215,7 +191,7 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
   }
 
   const continuarPDFVig = async () => {
-    if (conflictesVigFiltrats.value.length && !confirmacioImportants.value) return
+    if (validacionsVig.value.has_critical && !confirmacioImportants.value) return
     await _baixarPDFVigilancies()
     mostrarDialogValidacionsVig.value = false
   }
@@ -230,25 +206,12 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
   const _baixarPDFVigilancies = async () => {
     generantPDF.value = true
     try {
-      const seleccioNivells = parametresNivellsPdf(pdfConfig.value.nivells)
-      const params = new URLSearchParams({
+      const response = await apiPdf.vigilanciesDelDia(dataISO.value, {
         ...parametresComuns(pdfConfig.value),
-        ...seleccioNivells,
+        ...parametresNivellsPdf(pdfConfig.value.nivells),
         include_substitucions: pdfConfig.value.includeSubstitucions
       })
-
-      const url = `/api/pdf/vigilancies/${dataISO.value}?${params.toString()}`
-      const response = await apiPdf.descarrega(url, { responseType: 'blob' })
-
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = `vigilancies_${dataISO.value}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(downloadUrl)
+      desaPdf(response.data, `vigilancies_${dataISO.value}.pdf`)
 
       toast.add({
         severity: 'success',
@@ -298,11 +261,8 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
     generantPDFInterval.value = true
 
     try {
-      // Convertir dates a format YYYY-MM-DD
-          const formatDate = dataIso
-
-      const dataInici = formatDate(intervalConfig.value.dataInici)
-      const dataFinal = formatDate(intervalConfig.value.dataFinal)
+      const dataInici = dataIso(intervalConfig.value.dataInici)
+      const dataFinal = dataIso(intervalConfig.value.dataFinal)
 
       if (!dataInici || !dataFinal) {
         toast.add({
@@ -313,37 +273,17 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
         })
         return
       }
-      const seleccioNivells = parametresNivellsPdf(intervalConfig.value.nivells)
-
-      // Construir URL amb paràmetres
-      const params = new URLSearchParams({
+      const response = await apiPdf.vigilanciesInterval({
         data_inici: dataInici,
         data_final: dataFinal,
-        ...seleccioNivells,
+        ...parametresNivellsPdf(intervalConfig.value.nivells),
         ...parametresComuns(intervalConfig.value),
         include_weekends: intervalConfig.value.includeWeekends,
         include_empty_days: intervalConfig.value.includeEmptyDays,
         dia_per_pagina: intervalConfig.value.diaPerPagina,
         include_substitucions: intervalConfig.value.includeSubstitucions
       })
-
-      const url = `/api/pdf/vigilancies/interval?${params.toString()}`
-
-      // Descarregar PDF
-      const response = await apiPdf.descarrega(url, {
-        responseType: 'blob'
-      })
-
-      // Crear link temporal per descarregar
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = `vigilancies_interval_${dataInici}_a_${dataFinal}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(downloadUrl)
+      desaPdf(response.data, `vigilancies_interval_${dataInici}_a_${dataFinal}.pdf`)
 
       toast.add({
         severity: 'success',
@@ -369,5 +309,5 @@ export function usePdfVigilancies({ dataISO, dataTreball, nivells, vigilancies, 
     }
   }
 
-  return { informatiusVigFiltrats, confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, conflictesVigFiltrats, warningsVigFiltrats, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval }
+  return { confirmacioImportants, mostrarDialogPDF, mostrarDialogInterval, generantPDF, generantPDFInterval, mostrarDialogValidacionsVig, validacionsVig, pdfConfig, intervalConfig, opcionsNivellsPdfDia, opcionsNivellsPdfInterval, mostrarDialegPDF, mostrarDialegInterval, generarPDF, continuarPDFVig, cancelarPDFVig, generarPDFInterval }
 }

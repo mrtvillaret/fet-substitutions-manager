@@ -17,11 +17,10 @@ test('dades: la llista es publica tota alhora, quan arriben els disponibles',asy
   const carrega=p.carregarSubstitucions()
   await torn()
   assert.equal(p.loading.value,true)
-  assert.deepEqual(p.substitucionsFiltrades.value,[])
+  assert.deepEqual(p.substitucions.value,[])
   p.deferits[0]({'08:00':{disponibles:[{professor:'Prof 3'}]}})
   await carrega
-  assert.deepEqual(p.substitucionsFiltrades.value,[{id:1,hora:'08:00',disponibles:[{professor:'Prof 3'}]}])
-  assert.equal(p.substitucions.value,p.substitucionsFiltrades.value)
+  assert.deepEqual(p.substitucions.value,[{id:1,hora:'08:00',disponibles:[{professor:'Prof 3'}]}])
   assert.equal(p.vigilanciesCount.value,2)
   assert.equal(p.loading.value,false)
   assert.deepEqual(p.peticions,[['llista','2026-04-20','curs'],['totes','2026-04-20',{silent:true}],['disponibles','2026-04-20',['08:00']]])
@@ -54,4 +53,35 @@ test('dades: publica els avisos del backend i els retira en recarregar', async (
   assert.deepEqual(p.avisosEncadenades.value, ['Avís del backend'])
   await p.carregarSubstitucions()
   assert.deepEqual(p.avisosEncadenades.value, [])
+})
+test('dades: les hores i els professors d’un dia que ja no és a la pantalla no es publiquen',async()=>{
+  const pendents=[]
+  const espera=valor=>new Promise(resolve=>pendents.push(()=>resolve(valor)))
+  const p=prepara({})
+  const bloc=carregaBlocVista('useDadesSubstitucions', {...p.dependents,dependents:p.dependents,ref,computed,dataIso,ambDataTreball:()=>({params:{data:dataIso(p.dependents.dataTreball.value)}}),
+    apiHorari:{hores:()=>espera({hores:['08:00']}),professorsHorari:()=>espera({professors:['Prof 1'],absencies_cobertes:[]})}})
+  const hores=bloc.carregarHores(), professors=bloc.carregarProfessors()
+  p.dependents.dataTreball.value=new Date('2026-04-21T10:00:00')
+  pendents.forEach(f=>f()); await hores; await professors
+  assert.deepEqual(bloc.horesDisponibles.value,[])
+  assert.deepEqual(bloc.professors.value,[])
+})
+test('dades: la recàrrega en silenci no difumina la taula i, si falla, hi deixa les dades',async()=>{
+  const p=prepara()
+  const primera=p.carregarSubstitucions(); await torn()
+  p.deferits[0]({'08:00':{disponibles:[]}}); await primera
+  const abans=p.substitucions.value
+  const silenciosa=p.carregarSubstitucions({silenci:true}); await torn()
+  assert.equal(p.loading.value,false)
+  p.deferits[1]({'08:00':{disponibles:[{professor:'nou'}]}}); await silenciosa
+  assert.notEqual(p.substitucions.value,abans)
+  assert.equal(p.substitucions.value[0].disponibles[0].professor,'nou')
+  let falla=true
+  const q=prepara({llista:async()=>{if(falla)throw Error('xarxa');return [{id:1,hora:'08:00'}]}})
+  falla=false; const bona=q.carregarSubstitucions(); await torn(); q.deferits[0]({'08:00':{disponibles:[]}}); await bona
+  const ara=q.substitucions.value
+  falla=true; await q.carregarSubstitucions({silenci:true})
+  assert.equal(q.substitucions.value,ara)
+  assert.equal(q.errorCarregaSubstitucions.value,false)
+  assert.equal(q.loading.value,false)
 })

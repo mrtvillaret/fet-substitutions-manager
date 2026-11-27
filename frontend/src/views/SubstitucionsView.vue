@@ -5,7 +5,7 @@
       <div class="subtitle-row">
         <p class="subtitle">{{ dataFormatada }}</p>
         <div class="day-stats">
-          <Badge :value="substitucionsFiltrades.length" severity="info" class="day-badge" />
+          <Badge :value="substitucions.length" severity="info" class="day-badge" />
           <span class="day-stat-label">{{ $t('substitutions.stats.substitutionsLabel') }}</span>
           <button type="button" class="day-stat-link" @click="anarAVigilancies">
             <Badge :value="vigilanciesCount" severity="success" class="day-badge" />
@@ -49,9 +49,9 @@
         />
       </div>
 
-      <div class="stats" v-if="substitucionsFiltrades.length > 0">
+      <div class="stats" v-if="substitucions.length > 0">
         <div class="stat-card">
-          <span class="stat-value">{{ substitucionsFiltrades.length }}</span>
+          <span class="stat-value">{{ substitucions.length }}</span>
           <span class="stat-label">{{ $t('common.total') }}</span>
         </div>
         <div class="stat-card assignades">
@@ -66,10 +66,10 @@
     </div>
 
     <div class="content-card">
-      <AvisErrorCarrega v-if="errorCarregaSubstitucions" :missatge="$t('substitutions.errors.loadAvailable')" @reintenta="carregarSubstitucions" />
+      <AvisErrorCarrega v-if="errorCarregaSubstitucions" :missatge="$t('substitutions.errors.loadAvailable')" @reintenta="carregarSubstitucions()" />
       <Message v-for="avis in avisosEncadenades" :key="avis" severity="warn" :closable="false">{{ avis }}</Message>
       <TaulaSubstitucions
-        :files="substitucionsFiltrades"
+        :files="substitucions"
         :data="dataISO"
         :disponibles-de="disponiblesDe"
         :ordre="ordreFiles"
@@ -95,8 +95,8 @@
       :horesCarregades="horesCarregades"
       :horesAmbClasse="horesAmbClasse"
       :horesAlCentre="horesAlCentre"
-      :totesTrnadesAbsencia="totesTrnadesAbsencia"
-      :totesTrnadesServei="totesTrnadesServei"
+      :totesTriadesAbsencia="totesTriadesAbsencia"
+      :totesTriadesServei="totesTriadesServei"
       :absenciesDelDiaAgrupades="absenciesDelDiaAgrupades"
       :loading="loading"
       @tancarDialogGestio="tancarDialogGestio"
@@ -128,9 +128,6 @@
       v-model:mostrarDialogPDF="mostrarDialogPDF"
       v-model:pdfConfig="pdfConfig"
       :validacions="validacions"
-      :warningsFiltrats="warningsFiltrats"
-      :informatius-filtrats="informatiusFiltrats"
-      :totalIssuesFiltrats="totalIssuesFiltrats"
       :reassignChanges="reassignChanges"
       :reassignantProblematics="reassignantProblematics"
       :generantPDF="generantPDF"
@@ -143,9 +140,9 @@
 </template>
 
 <script setup>
-import { avisaError } from '../errorsApi.js'
+import { avisaError } from '../api/errors.js'
 import AvisErrorCarrega from '../components/AvisErrorCarrega.vue'
-import { ref, onMounted, watch } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEdicioSubstitucions } from '../composables/useEdicioSubstitucions.js'
 import { usePdfSubstitucions } from '../composables/usePdfSubstitucions.js'
@@ -165,6 +162,8 @@ import { useAbsenciesSubstitucions } from '../composables/useAbsenciesSubstituci
 import { useConfirm } from 'primevue/useconfirm'
 import { useConfirmaEsborrar } from '../composables/useConfirmaEsborrar'
 import ConflicteDialog from '../components/ConflicteDialog.vue'
+import { useConflicte } from '../composables/useConflicte.js'
+import { useRecarregaEnTornar } from '../composables/useRecarregaEnTornar.js'
 import TaulaSubstitucions from '../components/substitucions/TaulaSubstitucions.vue'
 import { useDialegsInterns } from '../dialegsInterns'
 
@@ -176,7 +175,7 @@ const emit = defineEmits(['anar-vigilancies'])
 
 const {
   avisosEncadenades,
-  substitucionsFiltrades,
+  substitucions,
   totesAbsencies,
   vigilanciesCount,
   professors,
@@ -187,7 +186,6 @@ const {
   dataISO,
   dataFormatada,
   dataISOCurta,
-  collator,
   substitucionsAssignades,
   substitucionsPendents,
   ordreFiles,
@@ -198,27 +196,13 @@ const {
   carregarHores
 } = useDadesSubstitucions({ dataTreball, locale, toast, t })
 
-const mostrarDialogConflicte = ref(false)
-const conflicteOverwrite = ref(null)
-
 const anarAVigilancies = () => {
   emit('anar-vigilancies')
 }
 
-const obrirDialogConflicte = (overwriteAction) => {
-  conflicteOverwrite.value = overwriteAction
-  mostrarDialogConflicte.value = true
-}
-
-const gestionarConflicte = async () => {
-  await carregarSubstitucions()
-}
-
-const executarOverwrite = async () => {
-  if (conflicteOverwrite.value) {
-    await conflicteOverwrite.value()
-  }
-}
+const { mostrarDialogConflicte, obreSiConflicte, gestionarConflicte, executarOverwrite } = useConflicte(carregarSubstitucions)
+// En tornar a la pestanya després d'una estona, les dades del dia, en silenci
+useRecarregaEnTornar({ recarrega: () => carregarSubstitucions({ silenci: true }), ocupada: () => loading.value })
 
 const mostrarAvisos = (avisos) => {
   if (!Array.isArray(avisos) || avisos.length === 0) return
@@ -302,8 +286,8 @@ const regenerarTot = async () => {
 }
 
 const { disponiblesDe, canviaCamp } = useEdicioSubstitucions({
-  dataISO, totesAbsencies, substitucionsFiltrades, collator, toast, t, confirm,
-  obrirDialogConflicte, carregarSubstitucions
+  dataISO, totesAbsencies, substitucions, toast, t, confirm,
+  obreSiConflicte, carregarSubstitucions
 })
 
 // Esborrar des de la fila: totes les absències d'aquell professor aquell dia
@@ -329,12 +313,12 @@ const {
   tancarDialogGestio,
   toggleHoraAbsencia,
   toggleHoraServei,
-  totesTrnadesAbsencia,
-  totesTrnadesServei,
+  totesTriadesAbsencia,
+  totesTriadesServei,
   toggleTotesAbsencia,
   toggleTotesServei,
   afegirAbsenciaImmediata
-} = useAbsenciesSubstitucions({ dataISO, professors, absenciesCobertes, totesAbsencies, horesDisponibles, loading, toast, t, confirmaEsborrar, obrirDialogConflicte, carregarSubstitucions, carregarTotesAbsencies })
+} = useAbsenciesSubstitucions({ dataISO, professors, absenciesCobertes, totesAbsencies, horesDisponibles, loading, toast, t, confirmaEsborrar, obreSiConflicte, carregarSubstitucions, carregarTotesAbsencies })
 
 const {
   confirmacioImportants,
@@ -344,16 +328,13 @@ const {
   reassignantProblematics,
   reassignChanges,
   validacions,
-  informatiusFiltrats,
-  warningsFiltrats,
-  totalIssuesFiltrats,
   pdfConfig,
   mostrarDialegPDF,
   generarPDFComplet,
   continuarPDF,
   cancelarPDF,
   reassignarProblematics
-} = usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, collator, toast, t, mostrarAvisos, carregarSubstitucions })
+} = usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, toast, t, mostrarAvisos, carregarSubstitucions })
 
 defineExpose({ mostrarDialegPDF })
 
@@ -466,17 +447,6 @@ onMounted(async () => {
 /* La taula fa de targeta ella mateixa (taules.css, .taula-dades), com a Vigilàncies */
 .content-card {
   margin-top: 0.5rem;
-}
-
-.date-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.date-selector label {
-  font-weight: 600;
-  color: #2c3e50;
 }
 
 .actions {

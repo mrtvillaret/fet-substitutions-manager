@@ -47,6 +47,7 @@
     "footerLliure": "free software"
   },
   "common": {
+    "rowGone": "This row no longer exists; the list has been reloaded",
     "roles": {
       "super_admin": "Global administrator",
       "admin": "Administrator",
@@ -520,7 +521,8 @@
       "onlyToday": "Today only",
       "until": "Until",
       "summary": "{count} school day | {count} school days",
-      "daysRegistered": "days registered for {teacher}"
+      "daysRegistered": "days registered for {teacher}",
+      "partial": "Saved: {desats}. Could not be saved: {fallats}"
     },
     "dialogs": {
       "absences": {

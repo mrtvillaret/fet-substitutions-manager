@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from dependencies import get_db
+from errors_domini import NoTrobat
 from noms import NomNet
 from parametres import Data
 from prioritats import services
@@ -60,9 +61,13 @@ def create_no_substituir(data: NoSubstituirRequest, db: Session = Depends(get_db
     return {"success": True, "id": no_subst_id, "message": f"Assignatura '{assignatura}' afegida a no substituir"}
 
 
-@router.delete("/no-substituir/{assignatura}", response_model=MissatgeResponse)
+@router.delete("/no-substituir/{assignatura:path}", response_model=MissatgeResponse)
 def delete_no_substituir(assignatura: NomNet, db: Session = Depends(get_db), data: Data | None = None):
-    """Treu una assignatura de no substituir a partir de `data` (per defecte avui)"""
+    """Treu una assignatura de no substituir a partir de `data` (per defecte avui).
+    L'activitat buida («») no es pot treure: és la que fa que les hores sense
+    assignatura no es cobreixin."""
+    if not assignatura:
+        raise NoTrobat("Cal indicar l'assignatura", codi="assignatura_buida")
     services.treu_no_substituir(db, assignatura, data)
     return {"success": True, "message": "Assignatura eliminada de no substituir"}
 

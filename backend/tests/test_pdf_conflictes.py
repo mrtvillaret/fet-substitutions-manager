@@ -4,6 +4,8 @@ Avisos de conflicte del PDF (pdf/engine.py): un substitut o vigilant que
 com a «absent (servei)». El tipus surt de les seves pròpies files de substitució.
 """
 
+import re
+
 import pytest
 from test_vigilancies_analisi import dia_fals
 
@@ -66,6 +68,58 @@ def test_a_la_llista_de_conflictes_l_hora_surt_un_sol_cop(tmp_path):
     assert any(t.startswith("Prof 3 és absent") for t in textos), textos
 
 
+DE_LES_8_I_MITJA = "• 08:30: Prof 1 té dues substitucions"
+DE_LES_8 = "❌ 08:00: Prof 4 sense substitut"
+DEL_PATI = "🔄 PATI: Prof 2 assignat 2 vegades com a substitut"
+DE_LES_11 = "• 11:30: Prof 5 té dues substitucions"
+SENSE_HORA = "Prof 3 sense hora"
+
+
+@pytest.mark.parametrize(
+    "hores, conflictes, files",
+    [
+        (
+            ["08:00", "08:30", "PATI", "11:30"],
+            [DE_LES_11, DE_LES_8_I_MITJA, DEL_PATI, SENSE_HORA, DE_LES_8],
+            [
+                "HORA 08:00:",
+                "Prof 4 sense substitut",
+                "HORA 08:30:",
+                "• Prof 1 té dues substitucions",
+                "HORA PATI:",
+                "🔄 Prof 2 assignat 2 vegades com a substitut",
+                "HORA 11:30:",
+                "• Prof 5 té dues substitucions",
+                SENSE_HORA,
+            ],
+        ),
+        # Un altre horari (p. ex. la jornada intensiva), un altre ordre: el de les seves hores
+        (
+            ["08:30", "08:00", "11:30", "PATI"],
+            [DE_LES_8, SENSE_HORA, DEL_PATI, DE_LES_8_I_MITJA, DE_LES_11],
+            [
+                "HORA 08:30:",
+                "• Prof 1 té dues substitucions",
+                "HORA 08:00:",
+                "Prof 4 sense substitut",
+                "HORA 11:30:",
+                "• Prof 5 té dues substitucions",
+                "HORA PATI:",
+                "🔄 Prof 2 assignat 2 vegades com a substitut",
+                SENSE_HORA,
+            ],
+        ),
+    ],
+)
+def test_ordre_de_la_llista_de_conflictes(tmp_path, hores, conflictes, files):
+    # L'ordre de les hores de l'horari (el PATI al seu lloc), cada una amb el seu
+    # títol; dins de cada hora, l'ordre d'entrada; els que no en tenen, al final.
+    exporter = PDFCompletExporter(hores=hores, export_dir=str(tmp_path), institucio="centre_de_prova")
+    taula = exporter._crear_taula_conflictes(conflictes)
+    textos = [re.sub(r"<img[^>]*/>\s*", "", str(fila[0].text)) for fila in taula._cellvalues]
+    assert textos == files
+
+
 # ------------------------------------------------ vigilàncies sense vigilant o sense aula
 
 
@@ -82,7 +136,12 @@ def test_el_nom_de_l_assignatura_no_es_tradueix_als_conflictes(tmp_path, castell
     # «Dilluns» té traducció al castellà («Lunes»), però aquí és el nom d'una
     # assignatura (una dada del centre): ha de sortir tal com és
     vigilancies = [FilaVigilancia(**{"hora": "10:00", "tipus": "Dilluns", "vigilant": "", "aula": ""})]
-    conflictes = [p["missatge"] for p in analitza_vigilancies(dia_fals(vigilancies))]
+    problemes = analitza_vigilancies(dia_fals(vigilancies))
+    assert {(p["tipus"], p["gravetat"]) for p in problemes} == {
+        ("sense_aula", "important"),
+        ("sense_vigilant", "important"),
+    }
+    conflictes = [p["missatge"] for p in problemes]
     assert any("Dilluns" in c and "vigilant" in c for c in conflictes), conflictes
     assert any("Dilluns" in c and "aula" in c for c in conflictes), conflictes
     assert not any("Lunes" in c for c in conflictes), conflictes

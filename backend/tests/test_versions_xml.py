@@ -56,19 +56,36 @@ def centre():
     return amb_versions(("actual.xml", dia(-30), dia(-10)), ("futur.xml", dia(3), None))
 
 
-def test_canviar_l_inici_d_una_versio_recalcula_la_fi_de_l_anterior(centre):
-    client = _client(centre)
-    assert client.put(f"{URL}/{_id(centre, 'futur.xml')}", json={"data_inici": dia(5).isoformat()}).status_code == 200
-    assert _cadena(centre) == [("actual.xml", dia(-30), dia(4)), ("futur.xml", dia(5), None)]
-
-
-def test_la_data_de_fi_no_es_pot_posar_a_ma(centre):
-    client = _client(centre)
-    resp = client.put(
-        f"{URL}/{_id(centre, 'actual.xml')}", json={"data_inici": dia(-30).isoformat(), "data_fi": dia(-20).isoformat()}
-    )
-    assert resp.status_code == 200
-    assert _cadena(centre)[0] == ("actual.xml", dia(-30), dia(2))  # la que toca, no la demanada
+@pytest.mark.parametrize(
+    "versio, cos, cadena, punter",
+    [
+        (
+            "futur.xml",
+            {"data_inici": dia(5)},
+            [("actual.xml", dia(-30), dia(4)), ("futur.xml", dia(5), None)],
+            "actual.xml",
+        ),
+        # El punter és la versió vigent avui
+        (
+            "futur.xml",
+            {"data_inici": dia(-1)},
+            [("actual.xml", dia(-30), dia(-2)), ("futur.xml", dia(-1), None)],
+            "futur.xml",
+        ),
+        # La data de fi no es pot posar a mà: queda la que toca, no la demanada
+        (
+            "actual.xml",
+            {"data_inici": dia(-30), "data_fi": dia(-20)},
+            [("actual.xml", dia(-30), dia(2)), ("futur.xml", dia(3), None)],
+            "actual.xml",
+        ),
+    ],
+)
+def test_canviar_l_inici_d_una_versio_recalcula_les_dates_de_fi_i_el_punter(centre, versio, cos, cadena, punter):
+    cos = {camp: data.isoformat() for camp, data in cos.items()}
+    assert _client(centre).put(f"{URL}/{_id(centre, versio)}", json=cos).status_code == 200
+    assert _cadena(centre) == cadena
+    assert _punter(centre) == punter
 
 
 def test_dues_versions_no_poden_comencar_el_mateix_dia(centre):
@@ -83,11 +100,14 @@ def test_una_data_mal_escrita_dona_400(centre):
     )
 
 
-def test_esborrar_la_darrera_reobre_l_anterior_i_mou_el_punter(centre):
-    client = _client(centre)
-    assert client.delete(f"{URL}/{_id(centre, 'futur.xml')}").status_code == 200
+def test_esborrar_la_darrera_reobre_l_anterior_mou_el_punter_i_n_esborra_el_fitxer(centre):
+    # Abans el fitxer es quedava a la carpeta (des de la web no es podia recuperar)
+    carpeta = get_data_dir_for_institucio(centre)
+    assert _client(centre).delete(f"{URL}/{_id(centre, 'futur.xml')}").status_code == 200
     assert _cadena(centre) == [("actual.xml", dia(-30), None)]
     assert _punter(centre) == "actual.xml"
+    assert not (carpeta / "futur.xml").exists()
+    assert (carpeta / "actual.xml").exists()
 
 
 def test_esborrar_una_versio_del_mig_no_deixa_cap_forat():
@@ -97,20 +117,6 @@ def test_esborrar_una_versio_del_mig_no_deixa_cap_forat():
     client = _client(centre)
     assert client.delete(f"{URL}/{_id(centre, 'futur.xml')}").status_code == 200
     assert _cadena(centre) == [("actual.xml", dia(-60), dia(2)), ("teachers.xml", dia(3), None)]
-
-
-def test_el_punter_es_la_versio_vigent_avui(centre):
-    client = _client(centre)
-    client.put(f"{URL}/{_id(centre, 'futur.xml')}", json={"data_inici": dia(-1).isoformat()})
-    assert _punter(centre) == "futur.xml"
-
-
-def test_esborrar_una_versio_n_esborra_el_fitxer(centre):
-    # Abans el fitxer es quedava a la carpeta (des de la web no es podia recuperar)
-    carpeta = get_data_dir_for_institucio(centre)
-    assert _client(centre).delete(f"{URL}/{_id(centre, 'futur.xml')}").status_code == 200
-    assert not (carpeta / "futur.xml").exists()
-    assert (carpeta / "actual.xml").exists()
 
 
 def test_no_esborra_un_fitxer_que_fa_servir_una_altra_versio():

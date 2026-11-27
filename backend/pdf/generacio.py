@@ -28,8 +28,8 @@ from pdf.engine import PDFCompletExporter
 from pdf.files import SubstitucioPdf, VigilanciaPdf
 from pdf.validacions import valida_dia
 from prioritats.repositories import NoSubstituirRepository
-from substitucions.domain import DiaEscolar
-from substitucions.files import FilaSubstitucio
+from substitucions.domain import TIPUS_COBERTURA_VIGILANCIA, DiaEscolar
+from substitucions.files import FilaSubstitucio, ordena_per_mostrar
 from substitucions.prioritat import MillorsSubstituts
 from substitucions.repositories import SubstitucioRepository
 from substitucions.visibilitat import es_visible_a_substitucions
@@ -41,17 +41,25 @@ from vigilancies.services import en_ordre
 log = logging.getLogger(__name__)
 
 MIDES_LLETRA = (1.0, 1.2, 1.35)
-# Les substitucions que acompanyen les vigilàncies als PDF de vigilàncies
-TIPUS_VIGILANCIA = {"VIGILANCIA", "VIGILANCIA_ABSENT"}
 
 
 # ===== Validacions =====
 
 
-def validacions(db: Session, dia_peticio: Dia) -> dict:
-    """Conflictes i avisos d'un dia (pdf/validacions.py), amb els substituts
-    de més prioritat que estan disponibles. La fan servir la ruta de
-    validacions i el PDF complet (abans de generar-lo)."""
+def validacions(
+    db: Session,
+    dia_peticio: Dia,
+    *,
+    amb_substitucions: bool,
+    amb_vigilancies: bool,
+    nivells: str | None = None,
+    inclou_sense_nivell: bool | None = None,
+) -> dict:
+    """Conflictes i avisos d'un dia per a les seccions triades (pdf/validacions.py),
+    amb els substituts de més prioritat que estan disponibles. La fan servir la
+    ruta de validacions (la revisió) i el PDF complet (abans de generar-lo).
+    Amb una tria de nivells (`nivells`, `inclou_sense_nivell`), la revisió del PDF
+    de vigilàncies d'aquells nivells: només els problemes de les seves files."""
 
     def avisos_prioritat(dia):
         try:
@@ -75,7 +83,35 @@ def validacions(db: Session, dia_peticio: Dia) -> dict:
             log.warning("No s'han pogut comprovar els substituts de més prioritat", exc_info=True)
             return []
 
-    return valida_dia(db, dia_peticio.data, dia_peticio.institucio, avisos_prioritat)
+    resultat = valida_dia(
+        db,
+        dia_peticio.data,
+        dia_peticio.institucio,
+        avisos_prioritat,
+        amb_substitucions=amb_substitucions,
+        amb_vigilancies=amb_vigilancies,
+    )
+    if nivells is None and inclou_sense_nivell is None:
+        return resultat
+    files = vigilancies_dels_nivells(
+        VigilanciaRepository.get_by_date(db, dia_peticio.data),
+        _nivells(nivells or ""),
+        inclou_sense_nivell=inclou_sense_nivell,
+    )
+    problemes = selecciona_problemes(resultat["problemes_vigilancies"], files)
+    missatges = {
+        gravetat: [p["missatge"] for p in problemes if p["gravetat"] == gravetat]
+        for gravetat in ("important", "avis", "informacio")
+    }
+    return {
+        "problemes_vigilancies": problemes,
+        "avisos_encadenades": [],
+        "conflicts": missatges["important"],
+        "warnings": missatges["avis"],
+        "informatius": missatges["informacio"],
+        "total": len(problemes),
+        "has_critical": bool(missatges["important"]),
+    }
 
 
 # ===== Peces comunes =====
@@ -109,7 +145,8 @@ def _nivells(nivells: str) -> list[str]:
 
 
 def _substitucions_de_vigilancia(db: Session, data: date) -> list[FilaSubstitucio]:
-    return [s for s in SubstitucioRepository.get_by_date(db, data) if s.tipus_absencia in TIPUS_VIGILANCIA]
+    """Les substitucions que acompanyen les vigilàncies als PDF de vigilàncies."""
+    return [s for s in SubstitucioRepository.get_by_date(db, data) if s.tipus_absencia in TIPUS_COBERTURA_VIGILANCIA]
 
 
 # ===== PDF complet del dia =====
@@ -209,7 +246,7 @@ def genera_pdf_complet(
     if amb_substitucions and substitucions_data:
         omple_aula_substitucions(substitucions_data, horari_mgr, data)
         # El mateix ordre que la llista de substitucions de la pantalla
-        substitucions_data = SubstitucioRepository.ordena(substitucions_data, horari_mgr.hores, ordre=ordre)
+        substitucions_data = ordena_per_mostrar(substitucions_data, horari_mgr.hores, ordre=ordre)
 
     with directori_temporal() as directori:
         exporter = _exportador(horari_mgr.hores, opcions, dia.institucio, directori)
@@ -219,17 +256,14 @@ def genera_pdf_complet(
                 horari_mgr, horari_mgr.get_dia_name(data.weekday()), NoSubstituirRepository.vigents_a(db, data)
             )
 
-        validacio = validacions(db, dia)
         conflictes: list[str] = []
         if mostra_conflictes:
+            validacio = validacions(db, dia, amb_substitucions=amb_substitucions, amb_vigilancies=amb_vigilancies)
             # L'avís del límit d'encadenades és de gestió: pantalla i revisió prèvia.
-            # No afegeix contingut a la taula impresa ni als seus avisos.
-            avisos_gestio = set(validacio["avisos_encadenades"]) | {
-                p["missatge"] for p in validacio["problemes_vigilancies"] if p["gravetat"] == "informacio"
-            }
-            conflictes = (validacio.get("conflicts") or []) + [
-                avis for avis in (validacio.get("warnings") or []) if avis not in avisos_gestio
-            ]
+            # No afegeix contingut a la taula impresa ni als seus avisos (els
+            # informatius tampoc: van a part a la validació).
+            avisos_gestio = set(validacio["avisos_encadenades"])
+            conflictes = [avis for avis in validacio["conflicts"] + validacio["warnings"] if avis not in avisos_gestio]
 
         nom = exporter.exportar(
             substitucions=substitucions_data,

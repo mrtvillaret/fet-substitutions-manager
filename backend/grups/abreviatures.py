@@ -60,15 +60,11 @@ def carregar_abreviatures_grups(institucio: str | None = None) -> dict[str, str]
     """
 
     instit = institucio or _get_institucio_actual()
-    try:
-        with get_data_db_session(instit, lectura=True) as db:
-            abreviatures_list = AbreviaturaGrupRepository.get_all(db)
-            abreviatures = {a["grups_originals"]: a["abreviatura"] for a in abreviatures_list}
-            log.debug(_("✅ Carregades {} abreviatures de grups des de BD").format(len(abreviatures)))
-            return abreviatures
-    except Exception as e:
-        log.exception(_("⚠️ Error en carregar abreviatures de BD: {}").format(e))
-        raise
+    with get_data_db_session(instit, lectura=True) as db:
+        abreviatures_list = AbreviaturaGrupRepository.get_all(db)
+        abreviatures = {a["grups_originals"]: a["abreviatura"] for a in abreviatures_list}
+        log.debug(_("✅ Carregades {} abreviatures de grups des de BD").format(len(abreviatures)))
+        return abreviatures
 
 
 def get_abreviatures_cached(institucio: str | None = None) -> dict[str, str]:

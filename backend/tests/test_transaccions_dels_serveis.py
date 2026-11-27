@@ -155,27 +155,6 @@ def test_operacio_correcta_te_un_sol_commit(entorn, repo, metode, verb, url, cos
         event.remove(Session, "after_commit", compta)
 
 
-def test_logo_no_desa_configuracio_si_falla_despres_del_repositori(entorn, monkeypatch):
-    import io
-
-    from PIL import Image
-
-    centre, client = entorn
-    abans = _bolcat(centre)
-    imatge = io.BytesIO()
-    Image.new("RGB", (2, 2)).save(imatge, format="PNG")
-    real = ConfiguracioRepository.set
-
-    def escriu_i_falla(*args, **kwargs):
-        real(*args, **kwargs)
-        raise RuntimeError("fallada posterior")
-
-    monkeypatch.setattr(ConfiguracioRepository, "set", escriu_i_falla)
-    resposta = client.post("/api/files/upload-logo", files={"file": ("logo.png", imatge.getvalue(), "image/png")})
-    assert resposta.status_code == 500
-    assert _bolcat(centre) == abans
-
-
 def test_ultim_resultat_no_es_desa_si_falla_despres_del_repositori(entorn, monkeypatch):
     from planificador.services import desa_ultim_resultat
 

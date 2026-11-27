@@ -52,6 +52,14 @@ def test_sense_ruta_registra_el_cami_sense_query(main, caplog):
     assert "secret" not in text and "?" not in text
 
 
+def test_testimoni_invalid_es_registra_sense_usuari(main, caplog, monkeypatch):
+    from auth.security import decode_access_token
+
+    monkeypatch.setattr(main, "decode_access_token", decode_access_token)
+    assert TestClient(main.app).get("/no-existeix").status_code == 404
+    assert "| - (-@-) | GET /no-existeix | 404 |" in _missatge(caplog)
+
+
 def test_error_500_tambe_registra_la_plantilla(main, caplog, monkeypatch):
     monkeypatch.setattr(main.app.router, "routes", list(main.app.router.routes))
 

@@ -30,7 +30,7 @@ export const esborra = async (data, id, opcions) => esborraAmb(clientApi, data, 
 // Disponibles d'una consulta ({tipus, grups, aula}); els paràmetres buits no
 // s'envien, igual que feia la vista quan construïa l'URL.
 export const disponiblesAmb = async (client, data, hora, { tipus, grups, aula, vigilancia_id } = {}) => {
-  let url = `${base(data)}/${hora}/disponibles`
+  let url = `${base(data)}/${encodeURIComponent(hora)}/disponibles`
   const params = new URLSearchParams()
   if (tipus) params.append('tipus', tipus)
   if (grups) params.append('grups', grups)
@@ -50,7 +50,7 @@ export const disponiblesEnBloc = async (data, queries, ...opcions) =>
 
 // Tot el que té un professor a una hora (l'ajuda del vigilant)
 export const ajudaVigilantAmb = async (client, data, hora, nom) =>
-  (await client.get(`${base(data)}/${hora}/professor`, { params: { nom }, _silent: true })).data
+  (await client.get(`${base(data)}/${encodeURIComponent(hora)}/professor`, { params: { nom }, _silent: true })).data
 export const ajudaVigilant = async (data, hora, nom) =>
   ajudaVigilantAmb(clientApi, data, hora, nom)
 

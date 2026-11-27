@@ -158,10 +158,6 @@ msgstr "INVIGILATIONS"
 msgid "SUBSTITUCIONS I VIGILÀNCIES"
 msgstr "SUBSTITUTIONS AND INVIGILATIONS"
 
-#: pdf/engine.py:255
-msgid "DOCUMENT BUIT"
-msgstr "EMPTY DOCUMENT"
-
 #: pdf/taula.py:363
 #, python-brace-format
 msgid "Hora {hora}"
@@ -194,14 +190,6 @@ msgstr "Observations"
 #: pdf/taula.py:128
 msgid "Curs"
 msgstr "Course"
-
-#: core/absencies.py:44 core/substitucions.py:99
-msgid "   🔄 Convertit dia ISO a nom XML: '{}'"
-msgstr "   🔄 Convertit dia ISO a nom XML: '{}'"
-
-#: core/substitucions.py:112
-msgid "   📌 hores carregades de l'XML: {}"
-msgstr "   📌 hores carregades de l'XML: {}"
 
 #: core/substitucions.py:124
 msgid "   📋 get_substitucions_necessaries retorna {} substitucions"
@@ -316,10 +304,6 @@ msgstr "Own absences"
 #: pdf/informe_direccio.py:509
 msgid "Absències reals"
 msgstr "Actual absences"
-
-#: pdf/engine.py:101
-msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
-msgstr "Warning: word hyphenation could not be loaded: {error}"
 
 #: pdf/informe_direccio.py:982
 msgid "Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) i <font color='#16a085'>▶ amb substitut (%)</font>"
@@ -489,6 +473,10 @@ msgstr "Substitutions done (lower triangle)"
 msgid "TOTAL"
 msgstr "TOTAL"
 
+#: pdf/informe_direccio.py
+msgid "Total amb grup"
+msgstr "Total with group"
+
 #: pdf/informe_direccio.py:763
 msgid "Tot."
 msgstr "Tot."
@@ -509,21 +497,17 @@ msgstr "Absent invig."
 msgid "ℹ️ {hora}: Vigilant {vigilant} absent (cobert per {substitut})"
 msgstr "ℹ️ {hora}: Invigilator {vigilant} absent (covered by {substitut})"
 
-#: pdf/engine.py:429
-msgid "⚠️ AVÍS: Hi ha professors de major prioritat disponibles:"
-msgstr "⚠️ WARNING: Higher-priority teachers are available:"
-
 #: pdf/validacions.py:110 pdf/validacions.py:132
 msgid "⚠️ {hora}: Vigilant {vigilant} absent sense cobertura"
 msgstr "⚠️ {hora}: Invigilator {vigilant} absent with no cover"
 
 #: pdf/engine.py:651
-msgid "🕐 {professor} → arriba abans a {hora} (primera hora: {primera})"
-msgstr "🕐 {professor} → arrives earlier at {hora} (first hour: {primera})"
+msgid "🕐 {hora}: {professor} arriba abans (primera hora: {primera})"
+msgstr "🕐 {hora}: {professor} arrives earlier (first hour: {primera})"
 
 #: pdf/engine.py:657
-msgid "🕐 {professor} → queda més estona a {hora} (última hora: {ultima})"
-msgstr "🕐 {professor} → stays longer until {hora} (last hour: {ultima})"
+msgid "🕐 {hora}: {professor} es queda més estona (última hora: {ultima})"
+msgstr "🕐 {hora}: {professor} stays longer (last hour: {ultima})"
 
 #: pdf/informe_direccio.py pdf/informe_professors.py
 msgid "Totes les hores amb substitut de la pantalla Substitucions, de qualsevol tipus. No és la cobertura de les absències."
@@ -575,3 +559,26 @@ msgstr "❌ {substitut} is not a teacher in that day's timetable"
 # Vigilant fora de l’XML vigent del dia.
 msgid "❌ {hora}: {vigilant} no és a l’horari d’aquell dia"
 msgstr "❌ {hora}: {vigilant} is not in that day's timetable"
+
+#: pdf/disponibles.py
+msgid "substitueix"
+msgstr "substituting"
+
+#: pdf/disponibles.py
+msgid "vigila"
+msgstr "invigilating"
+
+msgid "Dilluns"
+msgstr "Monday"
+
+msgid "Dimarts"
+msgstr "Tuesday"
+
+msgid "Dimecres"
+msgstr "Wednesday"
+
+msgid "Dijous"
+msgstr "Thursday"
+
+msgid "Divendres"
+msgstr "Friday"

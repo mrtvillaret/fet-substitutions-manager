@@ -69,8 +69,6 @@ def normalize_vigilancies_afinitats(rows: list[dict[str, Any]]) -> list[dict[str
 
         if base not in ordre:
             ordre.insert(0, base)
-        if not ordre:
-            ordre = [base]
 
         normalized.append({"base": base, "ordre": ordre})
         seen_bases.add(base)

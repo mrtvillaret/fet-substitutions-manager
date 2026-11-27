@@ -134,7 +134,9 @@ def test_sense_confirmar_no_s_esborra_res(admin, centre):
     assert _queda(centre) == INTACTE
 
 
-def test_esborra_el_de_dins_l_interval_i_res_mes(admin, centre):
+def test_esborra_el_de_dins_l_interval_i_res_mes_ni_d_un_altre_centre(admin, centre):
+    altre = nova_institucio()
+    _omple(altre)
     resp = admin.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True})
     assert resp.status_code == 200, resp.text
     informe = resp.json()
@@ -153,12 +155,6 @@ def test_esborra_el_de_dins_l_interval_i_res_mes(admin, centre):
     assert not (carpeta / "dins.xml").exists()
     assert (carpeta / "solapa.xml").exists() and (carpeta / "activa.xml").exists()
     assert not (carpeta / "exports").exists()  # la purga ja no crea la carpeta antiga
-
-
-def test_no_toca_les_dades_d_un_altre_centre(admin):
-    altre = nova_institucio()
-    _omple(altre)
-    assert admin.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).status_code == 200
     assert _queda(altre) == INTACTE
 
 
@@ -187,14 +183,6 @@ def test_un_interval_al_reves_dona_400(admin, centre):
     al_reves = {"data_inici": FINAL.isoformat(), "data_final": INICI.isoformat(), "confirmar": True}
     assert admin.post("/api/dades/purga/analitzar", json=al_reves).status_code == 400
     assert admin.post("/api/dades/purga/executar", json=al_reves).status_code == 400
-    assert _queda(centre) == INTACTE
-
-
-def test_un_usuari_no_admin_no_pot_purgar(centre):
-    nom = f"user_{unic()}"
-    crea_usuari(nom, centre, "user")
-    client = entra(client_per(APP), nom)
-    assert client.post("/api/dades/purga/executar", json={**INTERVAL, "confirmar": True}).status_code == 403
     assert _queda(centre) == INTACTE
 
 

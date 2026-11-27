@@ -144,7 +144,7 @@ def test_avisa_de_tots_els_motius_existents_i_nomes_problemes_importants(centre)
     }
     with get_data_db_session(centre) as db:
         dia = DiaEscolar(db, Dia(date.fromisoformat(dates[0]), centre), estricte=True)
-        assert sum(bool(a.get("motiu")) for a in cos["avisos"]) == len(substituts_no_valids(db, dates[0], dia))
+        assert sum(bool(a.get("motiu")) for a in cos["avisos"]) == len(substituts_no_valids(dia))
         assert [a["tipus"] for a in cos["avisos"] if a.get("tipus")] == [
             p["tipus"] for p in analitza_vigilancies(dia) if p["gravetat"] == "important"
         ]

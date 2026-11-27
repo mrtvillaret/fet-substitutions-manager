@@ -11,6 +11,8 @@ from pathlib import Path
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 
+from pdf.taula import PER_DEFECTE
+
 log = logging.getLogger(__name__)
 
 
@@ -42,26 +44,14 @@ class PDFStyleFactory:
                     return config
 
         except Exception as e:
-            log.warning(f"Error loading PDF config: {e}")
+            log.warning(f"Error loading PDF config: {e}", exc_info=True)
 
         log.warning("Using fallback PDF config")
         # Fallback per defecte
         return {
             "font_sizes": {"title": 18, "hora": 12, "conflicte": 10, "table_header": 11, "table_body": 12},
             "print_profile": "screen",
-            "print_profiles": {
-                "screen": {
-                    "name": "Pantalla/Digital",
-                    "substitutions_header_bg": "#2c3e50",
-                    "substitutions_header_text": "#ffffff",
-                    "content_bg": "#ffffff",
-                    "grid_color": "#808080",
-                    "grid_width": 0.6,
-                    "use_header_line": False,
-                    "conflict_color": "#c0392b",
-                    "hour_color": "#c0392b",
-                }
-            },
+            "print_profiles": {"screen": {"name": "Pantalla/Digital", **PER_DEFECTE}},
         }
 
     @staticmethod
@@ -73,20 +63,7 @@ class PDFStyleFactory:
 
         if current_profile in profiles:
             return profiles[current_profile]
-
-        # Fallback hardcoded si no hi ha cap perfil
-        fallback_profile = {
-            "substitutions_header_bg": "#2c3e50",
-            "substitutions_header_text": "#ffffff",
-            "content_bg": "#ffffff",
-            "grid_color": "#808080",
-            "grid_width": 0.6,
-            "use_header_line": False,
-            "conflict_color": "#c0392b",
-            "hour_color": "#c0392b",
-        }
-
-        return profiles.get("screen", fallback_profile)
+        return profiles.get("screen", dict(PER_DEFECTE))
 
     @staticmethod
     def get_standard_styles():
@@ -115,20 +92,9 @@ class PDFStyleFactory:
                 fontSize=fonts.get("hora", 12),
                 spaceAfter=5,
                 spaceBefore=15,
-                textColor=colors.HexColor(profile_colors.get("hour_color", "#c0392b")),
+                textColor=colors.HexColor(profile_colors.get("hour_color", PER_DEFECTE["hour_color"])),
                 fontName="Helvetica-Bold",
             ),
-            "conflicte": ParagraphStyle(
-                "Conflicte",
-                parent=base_styles["Normal"],
-                fontSize=fonts.get("conflicte", 10),
-                textColor=colors.HexColor(profile_colors.get("conflict_color", "#e74c3c")),
-                leftIndent=30,
-                fontName="Helvetica",
-            ),
-            "normal": base_styles["Normal"],
-            "heading1": base_styles["Heading1"],
-            "heading2": base_styles["Heading2"],
         }
 
         return custom_styles

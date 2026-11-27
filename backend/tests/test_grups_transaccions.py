@@ -276,3 +276,48 @@ def test_alliberar_la_classe_d_un_vigilant_treu_la_cobertura_i_l_encadenada(clie
 
     [fila] = client.get(f"/api/substitucions/{DATA}").json()
     assert (fila["tipus_absencia"], fila["substitut"]) == ("VIGILANCIA", "")
+
+
+def test_desar_els_grups_conserva_les_cobertures_que_continuen(client, centre):
+    """Les cobertures de vigilància es refan per diferències: les que continuen
+    conserven id, versió, substitut i comentaris; només desapareixen les que sobren."""
+    with get_data_db_session(centre) as db:
+        for vigilant, grups in (("Prof 15", "1-BAT-A"), ("Prof 1", "1-BAT-B")):
+            VigilanciaRepository.create(
+                db,
+                date.fromisoformat(DATA),
+                {
+                    "hora": "10:00",
+                    "tipus": "Examen",
+                    "grups": grups,
+                    "aula": "A01",
+                    "vigilant": vigilant,
+                    "nivell": "1-BAT",
+                },
+            )
+        db.commit()
+    _desa_grups(client)
+    with get_data_db_session(centre) as db:
+        files = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
+        cobertures = {f.professor_absent: f for f in files if f.tipus_absencia == "VIGILANCIA"}
+        assert set(cobertures) == {"Prof 15", "Prof 1"}
+        SubstitucioRepository.update(db, int(cobertures["Prof 15"].id), {"comentaris": "sense substitut"})
+        SubstitucioRepository.update(
+            db,
+            int(cobertures["Prof 1"].id),
+            {"substitut": "Prof 21", "tipus_substitut": "disponible (Guàrdia)", "comentaris": "amb substitut"},
+        )
+        db.commit()
+
+    def cobertures_desades():
+        return {f.professor_absent: f for f in _bolcat(centre)["substitucions"] if f.tipus_absencia == "VIGILANCIA"}
+
+    abans = cobertures_desades()
+
+    _desa_grups(client)
+
+    assert cobertures_desades() == abans
+
+    _desa_grups(client, grups={"10:00": ["3-ESO-A"]})
+
+    assert cobertures_desades() == {"Prof 1": abans["Prof 1"]}

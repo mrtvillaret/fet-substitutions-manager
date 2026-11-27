@@ -1,11 +1,11 @@
-import { avisaError, detallDError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../api/errors.js'
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import * as apiSubstitucions from '../api/substitucions.js'
 import { dataIso } from '../dates.js'
 import { avisaSubstitutsTrets } from '../substitutsTrets.js'
 
 // Estat i operacions d'absències; els canvis del dia es recarreguen a la vista.
-export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobertes, totesAbsencies, horesDisponibles, loading, toast, t, confirmaEsborrar, obrirDialogConflicte, carregarSubstitucions, carregarTotesAbsencies }) {
+export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobertes, totesAbsencies, horesDisponibles, loading, toast, t, confirmaEsborrar, obreSiConflicte, carregarSubstitucions, carregarTotesAbsencies }) {
   const mostrarDialogGestio = ref(false)
   const dropdownProfValue = ref(null)
   const gestioAbsencies = ref({
@@ -20,18 +20,12 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
   const modeRang = ref(false)
   const dataFinalRang = ref('')
 
+  const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+
   const professorsAmbInfo = computed(() => {
-    // Detectar quins professors tenen absències REALS (excloent vigilàncies tècniques i forats)
-    const absenciesReals = totesAbsencies.value.filter(sub => {
-      const tipus = (sub.tipus_absencia || "").toUpperCase();
-      return !["VIGILANCIA", "VIGILÀNCIA", "ENCADENADA"].includes(tipus);
-    });
+    const absenciesReals = absenciesDelDia.value
+    const professorsAmbAbsencies = new Set(absenciesReals.map(sub => sub.professor_absent))
 
-    const professorsAmbAbsencies = new Set(
-      absenciesReals.map(sub => sub.professor_absent)
-    );
-
-    const finsA = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : null)  // dd/mm
     return [
       ...professors.value.map(prof => ({
         nom: prof,
@@ -44,22 +38,30 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
         teAbsencies: false,
         numHores: 0,
         coberta: true,
-        finsA: finsA(a.data_final)
+        finsA: a.data_final ? ddmm(a.data_final) : null
       }))
     ]
   })
 
-  // Detecta si una sub és Tipus A VIGILANCIA_ABSENT (vigilant absent → slot descobert)
+  // La fila del vigilant absent (la seva vigilància queda sense vigilant)
   const esVigilanciaAbsent = (sub) => (sub.tipus_absencia || '').toUpperCase() === 'VIGILANCIA_ABSENT'
+
+  // Les absències del professor (absència, servei o vigilant absent): ni la classe
+  // que deixa un vigilant (VIGILANCIA) ni les encadenades
+  const esAbsencia = (sub) => !['VIGILANCIA', 'VIGILÀNCIA', 'ENCADENADA'].includes((sub.tipus_absencia || '').toUpperCase())
+
+  // Les hores d'absència (també les de vigilant absent) i de servei d'un professor
+  const horesDe = (professor) => {
+    const absProf = absenciesDelDia.value.filter(a => a.professor_absent === professor)
+    return {
+      horesAbsencia: absProf.filter(a => a.tipus_absencia === 'ABSENCIA' || esVigilanciaAbsent(a)).map(a => a.hora),
+      horesServei: absProf.filter(a => a.tipus_absencia === 'SERVEI').map(a => a.hora)
+    }
+  }
 
   const absenciesDelDia = computed(() => {
     return totesAbsencies.value
-      .filter(a => {
-        const tipus = (a.tipus_absencia || '').toUpperCase()
-        if (tipus === 'ENCADENADA') return false
-        if (tipus === 'VIGILANCIA') return esVigilanciaAbsent(a) // Inclou Tipus A, exclou Tipus B
-        return true
-      })
+      .filter(esAbsencia)
       .sort((a, b) => {
         const ia = horesDisponibles.value.indexOf(a.hora)
         const ib = horesDisponibles.value.indexOf(b.hora)
@@ -88,13 +90,12 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
 
   const datesDelRang = computed(() => {
     if (!modeRang.value || !dataFinalRang.value) return [dataISO.value]
-      const isoLocal = dataIso
     const dates = []
     const fi = new Date(dataFinalRang.value + 'T00:00:00')
     let actual = new Date(dataISO.value + 'T00:00:00')
     while (actual <= fi) {
       const dow = actual.getDay()
-      if (dow !== 0 && dow !== 6) dates.push(isoLocal(actual))
+      if (dow !== 0 && dow !== 6) dates.push(dataIso(actual))
       actual.setDate(actual.getDate() + 1)
     }
     return dates.length > 0 ? dates : [dataISO.value]
@@ -148,17 +149,9 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
       await carregarSubstitucions()
     } catch (error) {
       console.error('Error eliminant absències:', error)
-      if (error.response?.status === 409) {
-        obrirDialogConflicte(async () => {
-          await apiSubstitucions.desaAbsencies(dataISO.value, professorNom, {
-            hores_absencia: [],
-            hores_servei: [],
-            force: true
-          })
-          await carregarSubstitucions()
-        })
-        return
-      }
+      if (obreSiConflicte(error, () => apiSubstitucions.desaAbsencies(dataISO.value, professorNom, {
+        hores_absencia: [], hores_servei: [], force: true
+      }))) return
       avisaError(error, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
@@ -174,23 +167,7 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
     const professorNom = substitucio.professor_absent
     await carregarTotesAbsencies()
 
-    const absProf = totesAbsencies.value.filter(a => {
-      const tipus = (a.tipus_absencia || '').toUpperCase()
-      if (a.professor_absent !== professorNom) return false
-      if (tipus === 'ENCADENADA') return false
-      if (tipus === 'VIGILANCIA') return esVigilanciaAbsent(a) // Inclou Tipus A, exclou Tipus B
-      return true
-    })
-    // Hores ABSENCIA + hores on el vigilant és absent (Tipus A VIGILANCIA)
-    const horesAbsencia = absProf
-      .filter(a => a.tipus_absencia === 'ABSENCIA' || esVigilanciaAbsent(a))
-      .map(a => a.hora)
-    gestioAbsencies.value = {
-      professor: professorNom,
-      professorSearch: '',
-      horesAbsencia,
-      horesServei: absProf.filter(a => a.tipus_absencia === 'SERVEI').map(a => a.hora)
-    }
+    gestioAbsencies.value = { professor: professorNom, professorSearch: '', ...horesDe(professorNom) }
     dropdownProfValue.value = professorsAmbInfo.value.find(p => p.nom === professorNom) || null
 
     carregarHoresAmbClasse(professorNom)
@@ -231,11 +208,7 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
   }
 
   const seleccionarProfessor = (prof) => {
-    const absProf = absenciesDelDia.value.filter(a => a.professor_absent === prof.nom)
-    gestioAbsencies.value.professor = prof.nom
-    gestioAbsencies.value.professorSearch = ''
-    gestioAbsencies.value.horesAbsencia = absProf.filter(a => a.tipus_absencia === 'ABSENCIA' || esVigilanciaAbsent(a)).map(a => a.hora)
-    gestioAbsencies.value.horesServei = absProf.filter(a => a.tipus_absencia === 'SERVEI').map(a => a.hora)
+    Object.assign(gestioAbsencies.value, { professor: prof.nom, professorSearch: '', ...horesDe(prof.nom) })
     carregarHoresAmbClasse(prof.nom)
   }
 
@@ -258,24 +231,24 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
   const disponiblesPerServei = computed(() =>
     horesDisponibles.value.filter(h => !gestioAbsencies.value.horesAbsencia.includes(h))
   )
-  const totesTrnadesAbsencia = computed(() =>
+  const totesTriadesAbsencia = computed(() =>
     disponiblesPerAbsencia.value.length > 0 &&
     disponiblesPerAbsencia.value.every(h => gestioAbsencies.value.horesAbsencia.includes(h))
   )
-  const totesTrnadesServei = computed(() =>
+  const totesTriadesServei = computed(() =>
     disponiblesPerServei.value.length > 0 &&
     disponiblesPerServei.value.every(h => gestioAbsencies.value.horesServei.includes(h))
   )
 
   const toggleTotesAbsencia = () => {
-    if (totesTrnadesAbsencia.value) {
+    if (totesTriadesAbsencia.value) {
       gestioAbsencies.value.horesAbsencia = []
     } else {
       gestioAbsencies.value.horesAbsencia = [...disponiblesPerAbsencia.value]
     }
   }
   const toggleTotesServei = () => {
-    if (totesTrnadesServei.value) {
+    if (totesTriadesServei.value) {
       gestioAbsencies.value.horesServei = []
     } else {
       gestioAbsencies.value.horesServei = [...disponiblesPerServei.value]
@@ -331,39 +304,45 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
         }
         await carregarSubstitucions()
       } else {
-        const respostes = await Promise.all(dates.map(d =>
+        // Cada dia es desa per separat: si un falla, els altres es queden desats
+        const resultats = await Promise.allSettled(dates.map(d =>
           apiSubstitucions.desaAbsencies(d, profNom, {
             hores_absencia: horesAbsencia,
             hores_servei: horesServei,
             updated_at_map: {}
-          })
+          }, { silent: true })
         ))
-        toast.add({
-          severity: 'success',
-          summary: t('common.saved'),
-          detail: `${dates.length} ${t('substitutions.range.daysRegistered', { teacher: profNom })}`,
-          life: 4000
-        })
-        avisaSubstitutsTrets(toast, t, respostes.flatMap(r => r?.substituts_trets || []))
-        modeRang.value = false
-        dataFinalRang.value = ''
+        const desats = dates.filter((_, i) => resultats[i].status === 'fulfilled')
+        const fallats = dates.flatMap((d, i) => resultats[i].status === 'rejected' ? [[d, resultats[i].reason]] : [])
+        if (fallats.length) {
+          toast.add({
+            severity: 'error',
+            summary: t('common.error'),
+            detail: t('substitutions.range.partial', {
+              desats: desats.map(ddmm).join(', ') || '—',
+              fallats: fallats.map(([d, error]) => `${ddmm(d)} (${detallDError(error) || t('substitutions.errors.saveAbsences')})`).join('; ')
+            }),
+            life: 10000
+          })
+        } else {
+          toast.add({
+            severity: 'success',
+            summary: t('common.saved'),
+            detail: `${dates.length} ${t('substitutions.range.daysRegistered', { teacher: profNom })}`,
+            life: 4000
+          })
+          modeRang.value = false
+          dataFinalRang.value = ''
+        }
+        avisaSubstitutsTrets(toast, t, resultats.flatMap(r => r.value?.substituts_trets || []))
         await carregarSubstitucions()
       }
     } catch (error) {
       console.error('Error afegint absència:', error)
-      if (error.response?.status === 409) {
-        obrirDialogConflicte(async () => {
-          const d = dataISO.value
-          await apiSubstitucions.desaAbsencies(d, profNom, {
-            hores_absencia: horesAbsencia,
-            hores_servei: horesServei,
-            force: true
-          })
-          await carregarSubstitucions()
-        })
-        return
-      }
-      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: (typeof detallDError(error) === 'string' && detallDError(error)) || t('substitutions.errors.saveAbsences'), life: 8000 }))
+      if (obreSiConflicte(error, () => apiSubstitucions.desaAbsencies(dataISO.value, profNom, {
+        hores_absencia: horesAbsencia, hores_servei: horesServei, force: true
+      }))) return
+      avisaError(error, () => toast.add({ severity: 'error', summary: t('common.error'), detail: detallDError(error) || t('substitutions.errors.saveAbsences'), life: 8000 }))
     } finally {
       loading.value = false
     }
@@ -373,10 +352,7 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
   // Quan les dades canvien (desa/elimina), sincronitzar els dos grids si hi ha professor seleccionat
   watch(absenciesDelDia, () => {
     if (!mostrarDialogGestio.value || !gestioAbsencies.value.professor) return
-    const prof = gestioAbsencies.value.professor
-    const absProf = absenciesDelDia.value.filter(a => a.professor_absent === prof)
-    gestioAbsencies.value.horesAbsencia = absProf.filter(a => a.tipus_absencia === 'ABSENCIA' || esVigilanciaAbsent(a)).map(a => a.hora)
-    gestioAbsencies.value.horesServei = absProf.filter(a => a.tipus_absencia === 'SERVEI').map(a => a.hora)
+    Object.assign(gestioAbsencies.value, horesDe(gestioAbsencies.value.professor))
   })
 
 
@@ -384,5 +360,5 @@ export function useAbsenciesSubstitucions({ dataISO, professors, absenciesCobert
     document.body.style.overflow = ''
   })
 
-  return { mostrarDialogGestio, dropdownProfValue, gestioAbsencies, horesAmbClasse, horesAlCentre, horesCarregades, modeRang, dataFinalRang, professorsAmbInfo, esVigilanciaAbsent, absenciesDelDia, absenciesDelDiaAgrupades, seleccionarProfessorDropdown, datesDelRang, obrirDialogNou, confirmarEliminarAbsenciesProf, eliminarTotesAbsenciesProf, editarAbsenciesProfessor, tancarDialogGestio, carregarHoresAmbClasse, seleccionarProfessor, toggleHoraAbsencia, toggleHoraServei, disponiblesPerAbsencia, disponiblesPerServei, totesTrnadesAbsencia, totesTrnadesServei, toggleTotesAbsencia, toggleTotesServei, afegirAbsenciaImmediata }
+  return { mostrarDialogGestio, dropdownProfValue, gestioAbsencies, horesAmbClasse, horesAlCentre, horesCarregades, modeRang, dataFinalRang, professorsAmbInfo, absenciesDelDiaAgrupades, seleccionarProfessorDropdown, datesDelRang, obrirDialogNou, confirmarEliminarAbsenciesProf, editarAbsenciesProfessor, tancarDialogGestio, toggleHoraAbsencia, toggleHoraServei, totesTriadesAbsencia, totesTriadesServei, toggleTotesAbsencia, toggleTotesServei, afegirAbsenciaImmediata }
 }

@@ -27,7 +27,8 @@ class ValidacionsPdfResponse(BaseModel):
     avisos_encadenades: list[str]
     problemes_vigilancies: list[ProblemaVigilancia]
     conflicts: list[str]
-    warnings: list[str]
+    warnings: list[str]  # sense els informatius
+    informatius: list[str]  # gravetat «informacio»: només a la revisió, no s'imprimeixen
     total: int
     has_critical: bool
 

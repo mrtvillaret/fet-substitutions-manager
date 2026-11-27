@@ -47,6 +47,7 @@
     "footerLliure": "software libero"
   },
   "common": {
+    "rowGone": "Questa riga non esiste più; è stata ricaricata",
     "roles": {
       "super_admin": "Amministratore globale",
       "admin": "Amministratore",
@@ -520,7 +521,8 @@
       "onlyToday": "Solo oggi",
       "until": "Fino al",
       "summary": "{count} giorno scolastico | {count} giorni scolastici",
-      "daysRegistered": "giorni registrati per {teacher}"
+      "daysRegistered": "giorni registrati per {teacher}",
+      "partial": "Salvati: {desats}. Non è stato possibile salvare: {fallats}"
     },
     "dialogs": {
       "absences": {

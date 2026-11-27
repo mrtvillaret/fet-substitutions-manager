@@ -52,6 +52,11 @@ PER_DEFECTE = {
     "hour_line_width": 1.5,
     "person_color": "#2c3e50",
     "vigilances_row_bg": "#fcf3d4",
+    "conflict_color": "#c0392b",
+    # PDF de disponibles: els absents i els ocupats (substitueixen o vigilen)
+    "absent_color": "#d97706",
+    "busy_color": "#9ca3af",
+    "use_header_line": False,
 }
 # Amb compressió, la lletra i els espais es redueixen
 REDUCCIO_COMPRESSIO = 0.85
@@ -125,7 +130,7 @@ class EstilsPdf:
         perfil = {**PER_DEFECTE, **{k: v for k, v in exp._get_profile_colors().items() if v is not None}}
         self.perfil = perfil
         self.mida = exp.mida_lletra
-        self.comprimit = bool(getattr(exp, "_auto_compression_active", False))
+        self.comprimit = exp._auto_compression_active
         f = self.mida * (REDUCCIO_COMPRESSIO if self.comprimit else 1)
         self.f = f
         base = dict(parent=exp.styles["Normal"], fontSize=10 * f, leading=12 * f, alignment=1, fontName="Helvetica")

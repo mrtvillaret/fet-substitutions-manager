@@ -22,7 +22,7 @@ export const genera = async (data, regenerarTot) => generaAmb(clientApi, data, r
 
 export const actualitzaAmb = async (client, data, hora, professorAbsent, cos, { silent = false } = {}) => {
   const peticio = [
-    `${base(data)}/${hora}/${professorAbsent}`,
+    `${base(data)}/${encodeURIComponent(hora)}/${encodeURIComponent(professorAbsent)}`,
     cos
   ]
   if (silent) peticio.push({ _silent: true })

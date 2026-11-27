@@ -29,22 +29,18 @@ def desa_totes(db: Session, ordre_categories: list[list[str]], pesos: dict, cate
     llistes buides es salten. La categoria es diu com la seva assignatura o,
     si en té més, com les dues primeres; sense estat a `categories_actives`,
     és activa, i les assignatures d'una categoria activa s'assignen soles."""
-    try:
-        CategoriaPrioritatRepository.esborra_totes(db)
-        for cat_ordre, assignatures in enumerate(ordre_categories):
-            if not assignatures:
-                continue
-            nom = assignatures[0] if len(assignatures) == 1 else ", ".join(assignatures[:2])
-            activa = categories_actives[cat_ordre] if cat_ordre < len(categories_actives) else True
-            cat_id = CategoriaPrioritatRepository.create(db, nom, ordre=cat_ordre, activa=activa)
-            for assig_ordre, assignatura in enumerate(assignatures):
-                AssignaturaPrioritatRepository.create(
-                    db, assignatura, cat_id, pes=pesos.get(assignatura, 1), ordre=assig_ordre, auto_assignada=activa
-                )
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
+    CategoriaPrioritatRepository.esborra_totes(db)
+    for cat_ordre, assignatures in enumerate(ordre_categories):
+        if not assignatures:
+            continue
+        nom = assignatures[0] if len(assignatures) == 1 else ", ".join(assignatures[:2])
+        activa = categories_actives[cat_ordre] if cat_ordre < len(categories_actives) else True
+        cat_id = CategoriaPrioritatRepository.create(db, nom, ordre=cat_ordre, activa=activa)
+        for assig_ordre, assignatura in enumerate(assignatures):
+            AssignaturaPrioritatRepository.create(
+                db, assignatura, cat_id, pes=pesos.get(assignatura, 1), ordre=assig_ordre, auto_assignada=activa
+            )
+    db.commit()
     carrega_prioritats(db)
 
 

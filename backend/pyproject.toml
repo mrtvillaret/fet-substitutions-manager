@@ -79,7 +79,6 @@ files = [
     "vigilancies/context.py",
     "vigilancies/domain.py",
     "vigilancies/files.py",
-    "vigilancies/prioritats.py",
     "vigilancies/schemas.py",
     "recomptes",
     "estadistiques",

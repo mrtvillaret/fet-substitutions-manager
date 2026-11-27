@@ -20,8 +20,15 @@ const cosDError = async (error) => {
 let traductor = null
 export const registraTraductorErrors = (i18n) => { traductor = i18n }
 
+// Un detall estructurat (un objecte, no una llista: el 409 amb la versió actual,
+// l'XML que falta) és per a la pantalla, que en dona el missatge previst: ni
+// l'interceptor ni el text de l'error l'ensenyen.
+const esDetallEstructurat = detail => detail !== null && typeof detail === 'object' && !Array.isArray(detail)
+export const esDetallDePantalla = error => esDetallEstructurat(error?.response?.data?.detail)
+
 const textDelCos = (cos) => {
   const detail = cos?.detail
+  if (esDetallEstructurat(detail)) return undefined
   const clau = typeof cos?.codi === 'string' && cos.codi ? `errors.${cos.codi}` : null
   return typeof detail === 'string' && clau && traductor?.te(clau)
     ? traductor.t(clau, cos.params ?? {})
@@ -58,6 +65,12 @@ export const avisaError = (error, mostrar) => {
   marcaAvisat(error)
   return mostrar()
 }
+
+// Si l'error diu que la fila (substitució o vigilància) ja no existeix: l'ha
+// esborrada un altre dispositiu. La pantalla ho diu i torna a carregar la llista.
+const CODIS_FILA_ESBORRADA = ['substitucio_id_no_trobat', 'vigilancia_no_trobada']
+export const filaJaNoExisteix = error =>
+  error?.response?.status === 404 && CODIS_FILA_ESBORRADA.includes(error.response.data?.codi)
 
 // true: la pantalla gestiona l'error. Una llista: només els estats esperats
 // (p. ex. 404 d'un logo opcional); qualsevol altre error s'avisa globalment.

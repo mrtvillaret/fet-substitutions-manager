@@ -4,7 +4,7 @@ Tests per al mòdul prioritats (prioritats/):
 - carrega_prioritats: reconstrueix ORDRE_PRIORITATS/PRIORITATS/
   CATEGORIES_ACTIVES i la vigència de «No substituir» a config.constants
   llegint-les de la BD. Alimenta directament la lògica
-  d'assignació de substitucions/assignacio.py i core/vigilancia_core.py — és la
+  d'assignació de substitucions/assignacio.py i vigilancies/context.py — és la
   peça de més risc real d'aquest mòdul, perquè si trenca, l'assignació
   automàtica es trenca en silenci sense que cap altre test ho detecti.
 
@@ -19,7 +19,7 @@ import pytest
 
 import config.constants as constants
 from errors_domini import NoTrobat, NoValid
-from prioritats.memoria import no_substituir_a
+from prioritats.memoria import categoria_de_prioritat, no_substituir_a
 from prioritats.repositories import AssignaturaPrioritatRepository, CategoriaPrioritatRepository, NoSubstituirRepository
 from prioritats.router import (
     create_no_substituir,
@@ -45,11 +45,15 @@ def test_recarrega_bd_buida_dona_tot_buit(db_session):
     assert no_substituir_a(date(2026, 11, 4)) == frozenset()
 
 
-def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
-    # Aquests mòduls fan "from config.constants import ..." en carregar-se:
-    # la recàrrega ha d'omplir els mateixos objectes, no crear-ne de nous.
-    import pdf.disponibles
-    import vigilancies.prioritats
+def test_el_pdf_i_l_assignacio_de_vigilants_veuen_les_prioritats_recarregades(db_session):
+    from pdf.disponibles import linies_de_l_hora
+    from vigilancies.context import VigilanciaCore
+
+    guardies = [("Prof 1", "Guàrdia", "")]
+    nucli = VigilanciaCore()
+    carrega_prioritats(db_session)
+    assert "Cat.99:" in linies_de_l_hora(guardies, {})[0]
+    assert not nucli.is_activitat_auto_assignable("Guàrdia")
 
     cat = CategoriaPrioritatRepository.create(db_session, "Guàrdies", ordre=0, activa=True)
     AssignaturaPrioritatRepository.create(db_session, "Guàrdia", cat, pes=4)
@@ -58,8 +62,8 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     carrega_prioritats(db_session)
 
     assert dict(constants.PRIORITATS) == {"Guàrdia": 4}  # ja cap mòdul no la importa en carregar-se
-    for modul in (vigilancies.prioritats, pdf.disponibles):
-        assert modul.ORDRE_PRIORITATS == [["Guàrdia"]], modul.__name__
+    assert "Cat.0:" in linies_de_l_hora(guardies, {})[0]
+    assert nucli.is_activitat_auto_assignable("Guàrdia")
     assert no_substituir_a(date(2026, 11, 4)) == {"Reunió"}
 
 
@@ -76,16 +80,26 @@ def test_recarrega_construeix_ordre_i_pesos(db_session):
     assert constants.PRIORITATS == {"Reforç-A": 1, "Guàrdia": 6, "Guàrdia-R": 3}
 
 
-def test_recarrega_respecta_ordre_de_categoria_no_ordre_de_creacio(db_session):
-    # Creades en ordre invers respecte al camp `ordre`.
-    cat_b = CategoriaPrioritatRepository.create(db_session, "Segona", ordre=1, activa=True)
-    cat_a = CategoriaPrioritatRepository.create(db_session, "Primera", ordre=0, activa=True)
-    AssignaturaPrioritatRepository.create(db_session, "AssigB", cat_b, pes=1)
-    AssignaturaPrioritatRepository.create(db_session, "AssigA", cat_a, pes=1)
+@pytest.mark.parametrize(
+    "categories, ordre",
+    [
+        # Creades en ordre invers respecte al camp `ordre`
+        ([("Segona", 1, ["AssigB"]), ("Primera", 0, ["AssigA"])], [["AssigA"], ["AssigB"]]),
+        # Una categoria buida hi és com a llista buida (no s'ha de saltar), perquè
+        # l'índex de categoria és significatiu per a CATEGORIES_ACTIVES
+        ([("Buida", 0, []), ("Amb assignatures", 1, ["X"])], [[], ["X"]]),
+    ],
+)
+def test_recarrega_segueix_l_ordre_de_les_categories_amb_les_buides(db_session, categories, ordre):
+    for nom, posicio, assignatures in categories:
+        cat = CategoriaPrioritatRepository.create(db_session, nom, ordre=posicio, activa=True)
+        for assignatura in assignatures:
+            AssignaturaPrioritatRepository.create(db_session, assignatura, cat, pes=1)
 
     carrega_prioritats(db_session)
 
-    assert constants.ORDRE_PRIORITATS == [["AssigA"], ["AssigB"]]
+    assert constants.ORDRE_PRIORITATS == ordre
+    assert constants.CATEGORIES_ACTIVES == [True, True]
 
 
 def test_recarrega_categories_actives_en_el_mateix_ordre_que_ordre_prioritats(db_session):
@@ -114,18 +128,68 @@ def test_recarrega_no_subst_i_genera_encadenades(db_session):
         assert {a for a in ("Normal", "Guàrdia-P") if activitat_encadenada(f"disponible ({a})", llista)} == esperat
 
 
-def test_recarrega_categoria_sense_assignatures_dona_llista_buida_en_ordre(db_session):
-    """Una categoria buida ha d'aparèixer com a llista buida a
-    ORDRE_PRIORITATS (no s'ha de saltar), perquè l'índex de categoria és
-    significatiu per a CATEGORIES_ACTIVES."""
-    CategoriaPrioritatRepository.create(db_session, "Buida", ordre=0, activa=True)
-    cat2 = CategoriaPrioritatRepository.create(db_session, "Amb assignatures", ordre=1, activa=True)
-    AssignaturaPrioritatRepository.create(db_session, "X", cat2, pes=1)
+def test_si_no_es_poden_carregar_les_prioritats_la_peticio_no_continua(monkeypatch):
+    """Sense prioritats el motor no troba candidats: l'error arriba (500) en
+    lloc de continuar, i la petició següent les torna a llegir."""
+    from suport_api import nova_institucio
 
-    carrega_prioritats(db_session)
+    from auth import dependencies
 
-    assert constants.ORDRE_PRIORITATS == [[], ["X"]]
-    assert constants.CATEGORIES_ACTIVES == [True, True]
+    centre = nova_institucio()
+    error = RuntimeError("error de prova")
+
+    def falla(_db):
+        raise error
+
+    monkeypatch.setattr(dependencies, "carrega_prioritats", falla)
+    with pytest.raises(RuntimeError) as capturada:
+        dependencies._prepara_institucio(centre)
+    assert capturada.value is error
+    assert not constants.te_prioritats(centre)
+
+
+# ===================================================================
+# categoria_de_prioritat: la cerca única de categoria
+# ===================================================================
+
+
+@pytest.mark.parametrize(
+    "ordre,activitat,esperat",
+    [
+        ([{"Guàrdia"}, {"CD", ""}], "Guàrdia", 0),
+        ([{"Guàrdia"}, {"CD", ""}], "CD", 1),
+        ([{"Guàrdia"}, {"CD", ""}], "", 1),  # la cadena buida també es cerca
+        ([{"Guàrdia"}, {"CD", ""}], "Desconeguda", 2),
+        ([set(), {"X"}], "X", 1),  # una categoria buida compta per a l'índex
+        ([], "Guàrdia", 0),
+    ],
+)
+def test_categoria_de_prioritat(monkeypatch, ordre, activitat, esperat):
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", ordre)
+    assert categoria_de_prioritat(activitat) == esperat
+
+
+def test_el_selector_de_vigilants_no_busca_categoria_sense_activitat(monkeypatch):
+    from vigilancies.services import _disponibles_de
+
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{""}, {"Guàrdia"}])
+    context = {
+        "prioritats": {"Guàrdia"},
+        "vigilancies": [],
+        "absents_per_professor": {},
+        "absents_tipus": {},
+        "substituts_ocupats_per_hora": {},
+        "grups_sense_classe_per_hora": {},
+        "absents_coberts": set(),
+        "professors_ordenats": ["Prof 1", "Prof 2"],
+        "activitats_per_hora": {"10:00": {"Prof 1": ("", ""), "Prof 2": ("Guàrdia", "")}},
+        "config_examens": None,
+    }
+
+    categories = {p["value"]: p["categoria"] for p in _disponibles_de(context, "10:00", None, None, None)}
+
+    assert categoria_de_prioritat("") == 0
+    assert categories == {"Prof 1": 2, "Prof 2": 1}
 
 
 # ===================================================================
@@ -166,22 +230,30 @@ def test_crud_no_substituir_delete_inexistent_dona_404(db_session):
 # ===================================================================
 
 
-def test_desar_tot_reemplaca_categories_existents(db_session):
+@pytest.mark.parametrize(
+    "ordre_categories, noms",
+    [
+        ([["Reforç-A"], ["Guàrdia", "Guàrdia-R"]], ["Reforç-A", "Guàrdia, Guàrdia-R"]),
+        ([["Sol"]], ["Sol"]),
+        # Caracteritza el comportament real de generació del nom (no necessàriament
+        # l'ideal): `", ".join(assignatures_list[:2])`, només les DUES primeres
+        ([["Un", "Dos", "Tres"]], ["Un, Dos"]),
+        # Una llista d'assignatures buida no crea cap categoria (`if not assignatures_list: continue`)
+        ([[], ["Real"]], ["Real"]),
+    ],
+)
+def test_desar_tot_reemplaca_les_categories_i_les_anomena_per_les_assignatures(db_session, ordre_categories, noms):
     # Estat inicial: una categoria que hauria de desaparèixer.
     CategoriaPrioritatRepository.create(db_session, "Vella", ordre=0)
 
     payload = PrioritatsRequest(
-        ordre_categories=[["Reforç-A"], ["Guàrdia", "Guàrdia-R"]],
-        pesos={"Reforç-A": 1, "Guàrdia": 6, "Guàrdia-R": 3},
-        categories_actives=[True, False],
+        ordre_categories=ordre_categories,
+        pesos=dict.fromkeys(sum(ordre_categories, []), 1),
+        categories_actives=[True] * len(ordre_categories),
     )
-    resultat = desar_totes_prioritats(payload, db_session)
-    assert resultat["success"] is True
+    assert desar_totes_prioritats(payload, db_session)["success"] is True
 
-    categories = get_categories(db_session)["categories"]
-    noms = [c["nom"] for c in categories]
-    assert "Vella" not in noms
-    assert len(categories) == 2
+    assert [c["nom"] for c in get_categories(db_session)["categories"]] == noms
 
 
 def test_desar_tot_recarrega_les_constants_globals(db_session):
@@ -196,48 +268,6 @@ def test_desar_tot_recarrega_les_constants_globals(db_session):
     # constants globals han de reflectir el que s'acaba de desar.
     assert constants.ORDRE_PRIORITATS == [["Reforç-A"]]
     assert constants.PRIORITATS == {"Reforç-A": 1}
-
-
-def test_desar_tot_categoria_amb_una_sola_assignatura_pren_el_seu_nom(db_session):
-    payload = PrioritatsRequest(
-        ordre_categories=[["Sol"]],
-        pesos={"Sol": 1},
-        categories_actives=[True],
-    )
-    desar_totes_prioritats(payload, db_session)
-
-    categories = get_categories(db_session)["categories"]
-    assert categories[0]["nom"] == "Sol"
-
-
-def test_desar_tot_categoria_amb_diverses_assignatures_concatena_les_dues_primeres(db_session):
-    """Caracteritza el comportament real de generació del nom (no
-    necessàriament l'ideal): `", ".join(assignatures_list[:2])` — només
-    les DUES primeres, encara que la categoria en tingui més."""
-    payload = PrioritatsRequest(
-        ordre_categories=[["Un", "Dos", "Tres"]],
-        pesos={"Un": 1, "Dos": 1, "Tres": 1},
-        categories_actives=[True],
-    )
-    desar_totes_prioritats(payload, db_session)
-
-    categories = get_categories(db_session)["categories"]
-    assert categories[0]["nom"] == "Un, Dos"
-
-
-def test_desar_tot_categoria_buida_a_ordre_categories_es_salta(db_session):
-    """Una llista d'assignatures buida dins ordre_categories no crea cap
-    categoria (`if not assignatures_list: continue`)."""
-    payload = PrioritatsRequest(
-        ordre_categories=[[], ["Real"]],
-        pesos={"Real": 1},
-        categories_actives=[True, True],
-    )
-    desar_totes_prioritats(payload, db_session)
-
-    categories = get_categories(db_session)["categories"]
-    assert len(categories) == 1
-    assert categories[0]["nom"] == "Real"
 
 
 def test_els_repositoris_de_prioritats_no_fan_commit(db_session):

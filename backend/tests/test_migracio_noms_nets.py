@@ -76,40 +76,34 @@ def _estat(nom):
         }
 
 
-def test_el_recompte_no_canvia_res_i_compta_les_fusions(centre):
+def test_el_recompte_obre_la_bd_en_nomes_lectura_no_canvia_res_i_compta_les_fusions(centre, monkeypatch):
+    import sqlite3
+
+    import migracions.noms_nets as m
+
     cami, nom = centre
     abans = _estat(nom)
+    obertes = []
+    original = sqlite3.connect
+    monkeypatch.setattr(m.sqlite3, "connect", lambda *a, **k: obertes.append((a, k)) or original(*a, **k))
     resum = migra(cami, aplica=False)
+    assert obertes and all("mode=ro" in a[0] and k.get("uri") for a, k in obertes)
     assert _estat(nom) == abans
     assert resum["no_substituir: fusions"] == 2  # « Guàrdia» i «   »
     assert resum["assignatures_prioritat: fusions"] == 1  # només dins de la mateixa categoria
     assert resum["configuracio[activitats_alliberables]: fusions"] == 1
 
 
-def test_aplica_fusiona_dins_de_cada_llista_i_conserva_la_mes_recent(centre):
+def test_aplica_fusiona_dins_de_cada_llista_i_neteja_tambe_els_camps_que_no_son_clau(centre):
     cami, nom = centre
     migra(cami, aplica=True)
     estat = _estat(nom)
     # «No substituir»: una Guàrdia (la més recent) i un sol buit
     assert estat["no_substituir"] == [("", DESPRES), ("Guàrdia", DESPRES), ("Pares", ABANS)]
-    # Prioritats: dins la categoria 1 es queda la més recent (pes 6); la de la categoria 2 no es toca
+    # Prioritats: dins la categoria 1 es queda la més recent (pes 6); la de la categoria 2 no es toca.
+    # Mai es fusionen entrades de taules diferents: la Guàrdia queda a «No substituir» i a les
+    # prioritats (el professor pot anar a substituir, però si se'n va, se l'ha de substituir a ell)
     assert [p[1:] for p in estat["prioritats"]] == [("Guàrdia", 6), ("Guàrdia", 1)]
-
-
-def test_una_activitat_a_no_substituir_i_a_les_prioritats_es_queda_a_totes_dues(centre):
-    """Una Guàrdia: el professor pot anar a substituir, però si se'n va, se
-    l'ha de substituir a ell. Mai es fusionen entrades de taules diferents."""
-    cami, nom = centre
-    migra(cami, aplica=True)
-    estat = _estat(nom)
-    assert "Guàrdia" in {a for a, _ in estat["no_substituir"]}
-    assert "Guàrdia" in {p[1] for p in estat["prioritats"]}
-
-
-def test_aplica_neteja_tambe_els_camps_que_no_son_clau_i_els_registres(centre):
-    cami, nom = centre
-    migra(cami, aplica=True)
-    estat = _estat(nom)
     assert estat["professors"] == ["Prof 3"]
     assert estat["examens"] == [("Anglès", "Prof 3", "A1")]  # titular i aula també
     assert estat["substitucions"] == [("Anglès", "Prof 21")]
@@ -133,18 +127,6 @@ def test_la_linia_d_ordres_fa_copia_abans_d_aplicar_i_no_escriu_noms(centre, cap
     assert "bd 1" in sortida and "Guàrdia" not in sortida and "Prof" not in sortida
     copies = list(get_data_dir_for_institucio(centre[1]).glob("gestor.db.abans-noms-nets-*"))
     assert len(copies) == 1
-
-
-def test_el_recompte_obre_la_bd_en_nomes_lectura(centre, monkeypatch):
-    import sqlite3
-
-    import migracions.noms_nets as m
-
-    obertes = []
-    original = sqlite3.connect
-    monkeypatch.setattr(m.sqlite3, "connect", lambda *a, **k: obertes.append((a, k)) or original(*a, **k))
-    migra(centre[0], aplica=False)
-    assert obertes and all("mode=ro" in a[0] and k.get("uri") for a, k in obertes)
 
 
 def test_els_periodes_d_una_activitat_a_no_substituir_no_es_fusionen():

@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError } from '../api/errors.js'
 import { watch } from 'vue'
 import * as apiVigilancies from '../api/vigilancies.js'
 import { llistaSimple as llistaSubstitucions } from '../api/substitucions.js'
@@ -23,12 +23,16 @@ export function useCarregaVigilancies({ dataISO, loading, error, vigilancies, se
     }
   }
 
-  const carregarVigilancies = async () => {
+  // `silenci`: la recàrrega en tornar a la pestanya, sense pantalla de càrrega
+  // i, si falla, deixant-hi les dades que hi havia
+  const carregarVigilancies = async ({ silenci = false } = {}) => {
     const id = ++versio, data = dataISO.value
     const vigent = () => id === versio && data === dataISO.value
-    loading.value = true
-    error.value = null
-    seleccionades.value = []
+    if (!silenci) {
+      loading.value = true
+      error.value = null
+      seleccionades.value = []
+    }
     oblidaAjudes()
     try {
       const [config, files, substitucions, analisi] = await Promise.all([
@@ -47,6 +51,7 @@ export function useCarregaVigilancies({ dataISO, loading, error, vigilancies, se
     } catch (err) {
       if (!vigent()) return
       console.error('Error carregant vigilàncies:', err)
+      if (silenci) return
       avisaError(err, () => { error.value = t('vigilancies.errors.load') })
       problemes.value = []
       vigilancies.value = []

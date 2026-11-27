@@ -1,4 +1,4 @@
-import { avisaError, detallDError } from '../../errorsApi.js'
+import { avisaError, detallDError } from '../../api/errors.js'
 import { computed, ref } from 'vue'
 import * as apiPlanificador from '../../api/planificador'
 import { ambElQueNoConeix } from './restriccionsDesades.js'

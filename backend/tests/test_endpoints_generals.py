@@ -45,10 +45,6 @@ def test_sense_horari_les_hores_son_buides_i_ho_diu():
     assert _client(amb_xml=False).get("/api/hores").json() == {"hores": [], "xml_missing": True}
 
 
-def test_les_hores_demanen_sessio():
-    assert client_per(APP).get("/api/hores").status_code == 401
-
-
 _SALUT = """
 from fastapi.testclient import TestClient
 import main

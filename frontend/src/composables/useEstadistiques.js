@@ -1,8 +1,9 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError } from '../api/errors.js'
 import { ref, watch, computed } from 'vue'
 import * as apiConfiguracio from '../api/configuracio'
 import * as apiEstadistiques from '../api/estadistiques'
 import * as apiPdf from '../api/pdf'
+import { desaPdf } from '../desaPdf.js'
 import { dataTreball } from '../dataTreball'
 import { dataIso } from '../dates'
 import { ordenaAlfabeticament } from '../ordreAlfabetic'
@@ -121,12 +122,11 @@ export function useEstadistiques(dependents) {
     dataInici.value = fa30Dies
   }
 
-  const formatDate = dataIso
 
   // El període i el filtre per hores de tots els recomptes (sense hores triades, totes)
   const paramsDelFiltre = () => ({
-    data_inici: formatDate(dataInici.value),
-    data_final: formatDate(dataFinal.value),
+    data_inici: dataIso(dataInici.value),
+    data_final: dataIso(dataFinal.value),
     ...(horesTriades.value.length ? { hores: horesTriades.value } : {})
   })
 
@@ -340,16 +340,10 @@ export function useEstadistiques(dependents) {
     emit('update:visible', false)
   }
 
-  const _descarregarPdf = async (url, params, nomFitxer, refLoading) => {
+  const _descarregarPdf = async (informe, params, nomFitxer, refLoading) => {
     refLoading.value = true
     try {
-      const resp = await apiPdf.descarrega(url, { params, responseType: 'blob' })
-      const blob = new Blob([resp.data], { type: 'application/pdf' })
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = nomFitxer
-      link.click()
-      URL.revokeObjectURL(link.href)
+      desaPdf((await informe(params)).data, nomFitxer)
     } catch (error) {
       // L'avís amb el missatge del backend (detail) el mostra l'interceptor
       // d'App.vue, que també el llegeix del blob
@@ -362,7 +356,7 @@ export function useEstadistiques(dependents) {
   const generarInformeDireccio = async () => {
     const params = paramsDelFiltre()
     const nom = `informe_direccio_${params.data_inici}_${params.data_final}.pdf`
-    await _descarregarPdf('/api/informes/direccio', params, nom, generantDireccio)
+    await _descarregarPdf(apiPdf.informeDireccio, params, nom, generantDireccio)
   }
 
   const generarInformeProfessor = async () => {
@@ -376,7 +370,7 @@ export function useEstadistiques(dependents) {
     const nom = informeProfessorSeleccionat.value
       ? `informe_${informeProfessorSeleccionat.value}_${params.data_inici}_${params.data_final}.pdf`
       : `informe_professors_${params.data_inici}_${params.data_final}.pdf`
-    await _descarregarPdf('/api/informes/professor', params, nom, generantProfessor)
+    await _descarregarPdf(apiPdf.informeProfessor, params, nom, generantProfessor)
   }
 
   // Canviar les dates actualitza les hores i la llista PDF, com abans.
@@ -391,8 +385,6 @@ export function useEstadistiques(dependents) {
       console.error('Error carregant les dades auxiliars:', error)
     }
   }
-  const carregarInformeProfessors = () => carregarAuxiliars()
-  const carregarFrangesHorari = () => carregarAuxiliars()
 
   let inicialitzant = false
   watch(() => props.visible, (newVal) => {
@@ -406,7 +398,7 @@ export function useEstadistiques(dependents) {
   })
 
   watch([dataInici, dataFinal], ([inici, final]) => {
-    if (props.visible && inici && final && !inicialitzant) carregarAuxiliars()
+    if (props.visible && inici && final && !inicialitzant) return carregarAuxiliars()
   })
 
   // Si canvia la data de treball (i per tant el seu curs) amb el diàleg obert,
@@ -422,7 +414,6 @@ export function useEstadistiques(dependents) {
     dataInici,
     dataFinal,
     resum,
-    professorsStats,
     temporalStats,
     classesStats,
     professorsResum,
@@ -445,7 +436,6 @@ export function useEstadistiques(dependents) {
     informeProfessorsOpcions,
     frangesHorari,
     horesTriades,
-    diesDisponibles,
     diesOpcions,
     horesDisponibles,
     topAbsents,
@@ -454,12 +444,8 @@ export function useEstadistiques(dependents) {
     topSubstitutsMax,
     classesDisponibles,
     cursTriatId,
-    aplicarRangCurs,
     onCursTriat,
     inicialitzarDates,
-    formatDate,
-    paramsDelFiltre,
-    horesCarregades,
     recarregaSiCanviaElFiltre,
     carregarEstadistiques,
     nomTipusFila,
@@ -473,10 +459,7 @@ export function useEstadistiques(dependents) {
     onClasseRowClick,
     carregarDetallClasses,
     tancar,
-    _descarregarPdf,
     generarInformeDireccio,
     generarInformeProfessor,
-    carregarInformeProfessors,
-    carregarFrangesHorari,
   }
 }

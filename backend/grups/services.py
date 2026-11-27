@@ -155,9 +155,49 @@ def franges_reforc(db: Session, horari, activitat: str, data: date) -> dict:
 # ===== La taula d'un dia =====
 
 
-def dades_del_dia(db: Session, dia_peticio: Dia, data: date) -> dict:
-    """El que s'ha marcat `data`, el que ve d'alliberaments per període i el
+def _classes_del_dia(horari, dia: str) -> dict[str, list[tuple[str, dict]]]:
+    """Una sola lectura de l'horari del dia: per a cada hora, (professor,
+    activitat) de tots els professors per ordre alfabètic (buida si no en té)."""
+    professors = sorted(horari.professors)
+    return {hora: [(p, horari.get_activitat(dia, hora, p) or {}) for p in professors] for hora in horari.hores}
+
+
+def _te_files(classes: list[tuple[str, dict]], grups_de_la_taula: set, activitats_de_la_taula: set) -> bool:
+    """Si a l'hora algun grup visible té classe o algú fa una activitat
+    alliberable (la taula només en té files)."""
+    for _, act in classes:
+        grup = act.get("grup") or ""
+        if grup in grups_de_la_taula if grup else (act.get("assignatura") or "") in activitats_de_la_taula:
+            return True
+    return False
+
+
+def _grups_compartits(classes: list[tuple[str, dict]], grups_visibles: set) -> dict[str, list[str]]:
+    """Grups que a l'hora tenen classe amb més d'un professor (p.ex. una
+    optativa): només en aquests té sentit alliberar un professor sol. Si
+    n'hi ha un de sol, alliberar-lo és deixar el grup sense classe."""
+    per_grup: dict[str, list[str]] = {}
+    for professor, activitat in classes:
+        grup = activitat.get("grup", "")
+        if grup in grups_visibles and activitat.get("assignatura"):
+            per_grup.setdefault(grup, []).append(professor)
+    return {grup: profs for grup, profs in per_grup.items() if len(profs) > 1}
+
+
+def _activitats_sense_grup(classes: list[tuple[str, dict]], activitats) -> dict[str, list[str]]:
+    """Qui fa a l'hora alguna de les `activitats` sense grup: {activitat: [professors]}."""
+    per_activitat: dict[str, list[str]] = {}
+    for professor, activitat in classes:
+        nom = activitat.get("assignatura") or ""
+        if nom in activitats and not activitat.get("grup"):
+            per_activitat.setdefault(nom, []).append(professor)
+    return per_activitat
+
+
+def dades_del_dia(db: Session, dia_peticio: Dia) -> dict:
+    """El que s'ha marcat el dia, el que ve d'alliberaments per període i el
     que cal per mostrar la taula (GrupsView.vue)."""
+    data = dia_peticio.data
     _, horari, _, _ = dia_peticio.gestors()
 
     # horari.grups ja és el conjunt de grups de treball (selecció manual;
@@ -167,37 +207,18 @@ def dades_del_dia(db: Session, dia_peticio: Dia, data: date) -> dict:
     # El que s'ha marcat aquell dia (els períodes es retornen a part)
     alliberats_per_hora = GrupsAlliberatsRepository.get_dia_by_date(db, data)
 
-    # Hores del dia: les que algun grup visible té classe o algú fa una
-    # activitat alliberable (la taula només en té files), i les que ja
-    # tenen alguna cosa marcada aquell dia (perquè es pugui desmarcar)
     dia = horari.get_dia_name(data.weekday())
-    grups_de_la_taula = set(horari.grups)
-    activitats_de_la_taula = set(activitats_alliberables(db))
+    classes = _classes_del_dia(horari, dia)
+    alliberables = set(activitats_alliberables(db))
 
-    def te_files(hora):
-        for professor in horari.professors:
-            act = horari.get_activitat(dia, hora, professor) or {}
-            grup = act.get("grup") or ""
-            if grup in grups_de_la_taula if grup else (act.get("assignatura") or "") in activitats_de_la_taula:
-                return True
-        return False
+    # Hores del dia: les que tenen files a la taula i les que ja tenen alguna
+    # cosa marcada aquell dia (perquè es pugui desmarcar)
+    grups = set(tots_grups)
+    hores = [h for h in horari.hores if alliberats_per_hora.get(h) or _te_files(classes[h], grups, alliberables)]
 
-    hores = [h for h in horari.hores if alliberats_per_hora.get(h) or te_files(h)]
-
-    # Grups que a una hora tenen classe amb més d'un professor (p.ex. una
-    # optativa): només en aquests té sentit alliberar un professor sol. Si
-    # n'hi ha un de sol, alliberar-lo és deixar el grup sense classe.
     professors_per_grup_hora = {}
-    grups_visibles = set(tots_grups)
     for hora in hores:
-        per_grup: dict[str, list[str]] = {}
-        for professor in sorted(horari.professors):
-            activitat = horari.get_activitat(dia, hora, professor) or {}
-            grup = activitat.get("grup", "")
-            if grup in grups_visibles and activitat.get("assignatura"):
-                per_grup.setdefault(grup, []).append(professor)
-        compartits = {grup: profs for grup, profs in per_grup.items() if len(profs) > 1}
-        if compartits:
+        if compartits := _grups_compartits(classes[hora], grups):
             professors_per_grup_hora[hora] = compartits
 
     # Reforços (alliberats fins que tenen alumnes) d'aquell dia, amb l'estat de
@@ -205,33 +226,20 @@ def dades_del_dia(db: Session, dia_peticio: Dia, data: date) -> dict:
     # tenen alumnes es poden alliberar només aquell dia (👤).
     per_defecte = GrupsAlliberatsRepository.activitats_per_defecte(db)
     reforcs_del_dia: dict[str, dict[str, list[dict[str, str | bool]]]] = {}
-    if per_defecte:
-        darrers = AlliberamentsPeriodeRepository.darrers(db, data, dia)
-        for hora in hores:
-            for professor in sorted(horari.professors):
-                activitat = horari.get_activitat(dia, hora, professor) or {}
-                nom = activitat.get("assignatura") or ""
-                if nom not in per_defecte or activitat.get("grup"):
-                    continue
-                canvi = darrers.get(("professor", professor, dia, hora))
-                reforcs_del_dia.setdefault(nom, {}).setdefault(hora, []).append(
-                    {
-                        "professor": professor,
-                        "amb_alumnes": canvi is not None and not canvi.alliberat,
-                    }
-                )
-
+    darrers = AlliberamentsPeriodeRepository.darrers(db, data, dia) if per_defecte else {}
     # Activitats alliberables (Prioritats) que algú fa aquell dia: {activitat: {hora: [professors]}}
     # Les «alliberades fins que tenen alumnes» no hi surten: es gestionen a part
-    configurades = set(activitats_alliberables(db)) - set(per_defecte)
+    configurades = alliberables - set(per_defecte)
     activitats_per_hora: dict[str, dict[str, list[str]]] = {}
-    if configurades:
-        for hora in hores:
-            for professor in sorted(horari.professors):
-                activitat = horari.get_activitat(dia, hora, professor) or {}
-                nom = activitat.get("assignatura") or ""
-                if nom in configurades and not activitat.get("grup"):
-                    activitats_per_hora.setdefault(nom, {}).setdefault(hora, []).append(professor)
+    for hora in hores:
+        for nom, professors in _activitats_sense_grup(classes[hora], per_defecte).items():
+            for professor in professors:
+                canvi = darrers.get(("professor", professor, dia, hora))
+                reforcs_del_dia.setdefault(nom, {}).setdefault(hora, []).append(
+                    {"professor": professor, "amb_alumnes": canvi is not None and not canvi.alliberat}
+                )
+        for nom, professors in _activitats_sense_grup(classes[hora], configurades).items():
+            activitats_per_hora.setdefault(nom, {})[hora] = professors
 
     return {
         "hores": hores,

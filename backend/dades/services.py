@@ -260,7 +260,7 @@ def executar_purga(db: Session, institucio: str, data_inici: date, data_final: d
                     "data_fi": v.data_fi,
                 }
             )
-            db.delete(v)
+            XMLVersionRepository.delete(db, v)
         # Les que queden s'encadenen de nou (sense forats on hi havia les
         # esborrades) i els professors actius tornen a ser els de l'XML d'avui
         encadena_i_sincronitza(db, institucio)

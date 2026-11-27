@@ -1,4 +1,4 @@
-import { avisaError, detallDError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../api/errors.js'
 import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from 'vue'
 import * as apiGrups from '../api/grups'
 import { dataTreball } from '../dataTreball'

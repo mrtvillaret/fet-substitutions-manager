@@ -4,14 +4,17 @@ from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import object_session
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
 
 from database import get_data_db_session
+from models import Vigilancia
+from substitucions import assignacio
 from substitucions import router as substitucions_router
 from substitucions.repositories import SubstitucioRepository
 from vigilancies import services
-from vigilancies.repositories import VigilanciaRepository
+from vigilancies.repositories import CAMPS_EDITABLES, VigilanciaRepository
 from vigilancies.router import router as vigilancies_router
 
 DATA = "2026-04-20"
@@ -116,3 +119,61 @@ def test_buidar_desfa_tots_els_vigilants_si_falla_una_de_les_hores(client, centr
 
     assert client.post(f"{URL}/clear").status_code == 500
     assert _bolcat(centre) == abans
+
+
+@pytest.mark.parametrize("force", [False, True])
+def test_editar_sense_cap_canvi_conserva_la_versio(client, centre, force):
+    vigilancia = _crea(client)
+    abans = _bolcat(centre)
+    camps = {k: vigilancia[k] for k in CAMPS_EDITABLES}
+
+    resposta = client.put(
+        f"{URL}/{vigilancia['id']}", json={**camps, "updated_at": vigilancia["updated_at"], "force": force}
+    )
+
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["updated_at"] == vigilancia["updated_at"]
+    # Ni la vigilància ni la cobertura de la classe del vigilant canvien de versió.
+    assert [f.tipus_absencia for f in abans["substitucions"]] == ["VIGILANCIA"]
+    assert _bolcat(centre) == abans
+
+
+def test_un_error_calculant_les_cobertures_no_esborra_les_que_hi_ha(client, centre, monkeypatch):
+    vigilancia = _crea(client)
+    abans = _bolcat(centre)
+    assert [f.tipus_absencia for f in abans["substitucions"]] == ["VIGILANCIA"]
+
+    def falla(*_args):
+        raise RuntimeError("error simulat calculant les cobertures")
+
+    monkeypatch.setattr(assignacio, "sense_classe", falla)
+
+    resposta = client.put(
+        f"{URL}/{vigilancia['id']}", json={"comentaris": "canvi", "updated_at": vigilancia["updated_at"]}
+    )
+
+    assert resposta.status_code == 500
+    assert _bolcat(centre) == abans
+
+
+def test_si_la_versio_canvia_entre_la_lectura_i_l_escriptura_hi_ha_conflicte(client, centre, monkeypatch):
+    # Un altre desa la fila just després que l'edició n'hagi comprovat la versió.
+    vigilancia = _crea(client)
+    comprova_real = services._comprova_versio
+
+    def comprova_i_un_altre_desa(vig_abans, *args):
+        comprova_real(vig_abans, *args)
+        db = object_session(vig_abans)
+        db.query(Vigilancia).filter(Vigilancia.id == vig_abans.id).update({"comentaris": "d'un altre"})
+        db.commit()
+
+    monkeypatch.setattr(services, "_comprova_versio", comprova_i_un_altre_desa)
+
+    resposta = client.put(f"{URL}/{vigilancia['id']}", json={"vigilant": "", "updated_at": vigilancia["updated_at"]})
+
+    assert resposta.status_code == 409, resposta.text
+    actual = resposta.json()["detail"]["current_data"]
+    assert (actual["vigilant"], actual["comentaris"]) == ("Prof 15", "d'un altre")
+    assert actual["updated_at"] != vigilancia["updated_at"]
+    [desada] = _bolcat(centre)["vigilancies"]
+    assert (desada.vigilant, desada.comentaris, desada.updated_at) == ("Prof 15", "d'un altre", actual["updated_at"])

@@ -7,148 +7,119 @@ les vigilàncies, les absències o els alliberats.
 from datetime import date
 
 from grups.lectures import AlliberatsDelDia
+from horari.domain import Dia
 from substitucions.context import get_gestors
-from substitucions.files import FilaSubstitucio, clau_fila
+from substitucions.domain import DiaEscolar
+from substitucions.encadenades import reconcilia_encadenades
+from substitucions.files import clau_fila, fila_de_proposta
 from substitucions.repositories import SubstitucioRepository
 from substitucions.vigilancia_absent import crear_vigilancia_absent
 from vigilancies.repositories import VigilanciaRepository
 
 
-def allibera_substitucions_en_conflicte(data: date, db, hores: set | None = None) -> int:
-    """
-    Política A: vigilàncies tenen prioritat sobre substitucions.
-    Si un professor està assignat com a vigilant a una hora, no pot quedar de substitut a la mateixa hora.
-    """
-    vigilants_per_hora = {}
-    for vigs in VigilanciaRepository.get_by_date(db, data).values():
-        for vig in vigs:
-            hora, vigilant = (vig.hora or "").strip(), (vig.vigilant or "").strip()
-            if hora and vigilant:
-                vigilants_per_hora.setdefault(hora, set()).add(vigilant)
-    if not vigilants_per_hora:
-        return 0
-
-    cleared = 0
-    for sub in SubstitucioRepository.get_by_date(db, data):
-        sub_id = sub.id
-        hora = (sub.hora or "").strip()
-        substitut = (sub.substitut or "").strip()
-        if not sub_id or not hora or not substitut:
-            continue
-        if hores is not None and hora not in hores:
-            continue
-        if substitut in vigilants_per_hora.get(hora, set()):
-            SubstitucioRepository.update(db, int(sub_id), {"substitut": "", "tipus_substitut": ""})
-            cleared += 1
-    return cleared
+def _treu_vigilants_substituts(data: date, hora: str, db) -> None:
+    """Un vigilant no substitueix a la mateixa hora (DiaEscolar.motius_substitut):
+    se li treu la substitució i les encadenades es tornen a reconciliar."""
+    dia = DiaEscolar(db, Dia.del_centre(data, db.info.get("institucio")))
+    for fila in dia.files:
+        substitut = fila.substitut
+        if (
+            (fila.hora or "").strip() == hora
+            and substitut
+            and dia.motius_substitut(substitut, hora, nomes={"vigilancia"})
+        ):
+            SubstitucioRepository.update(db, int(fila.id), {"substitut": "", "tipus_substitut": ""})
+    reconcilia_encadenades(db, data)
 
 
 def refresca_cobertures(data: date, hora: str, db, gestors=None) -> None:
-    """Refresca substitucions derivades de vigilàncies per una hora concreta."""
+    """Refresca substitucions derivades de vigilàncies per una hora concreta.
+
+    Les cobertures de classe (VIGILANCIA) es refan per diferències amb la clau
+    de fila: les que continuen conserven id, versió, substitut i comentaris (si
+    l'aula de l'horari ha canviat, només s'hi actualitza l'aula); les que sobren
+    s'esborren i les que falten es creen. Si el càlcul falla, l'error arriba a
+    qui ha cridat abans d'haver tocat cap fila."""
     hora = (hora or "").strip()
     if not hora:
         return
 
-    # Carregar ÚNICAMENT Tipus B (VIGILANCIA): la cobertura de classe
-    # Els Tipus A (VIGILANCIA_ABSENT: vigilant absent) es preserven sempre
-    existing_subs = SubstitucioRepository.get_by_date_hour_and_type(db, data, hora, "VIGILANCIA")
-
-    # Restaurar substituts ja assignats als Tipus B
-    existing_map = {}
-    for sub in existing_subs:
-        key = clau_fila(sub.professor_absent, sub.hora, sub.assignatura or "", sub.grup or "")
-        existing_map[key] = FilaSubstitucio(
-            substitut=sub.substitut or "",
-            tipus_substitut=sub.tipus_substitut or "",
-            comentaris=sub.comentaris or "",
-        )
-
-    if existing_subs:
-        ids_cobertura = [s.id for s in existing_subs]
-        # Sincronitza la sessió: sense això els objectes esborrats hi quedaven
-        # i SQLite reaprofitava els seus IDs per a les substitucions noves.
-        SubstitucioRepository.delete_by_ids(db, ids_cobertura)
-        db.flush()
+    existents, repetides = {}, []
+    for sub in SubstitucioRepository.get_by_date_hour_and_type(db, data, hora, "VIGILANCIA"):
+        clau = clau_fila(sub.professor_absent, sub.hora, sub.assignatura or "", sub.grup or "")
+        if existents.setdefault(clau, sub) is not sub:
+            repetides.append(sub.id)
 
     # Professors absents a aquesta hora (ABSENCIA o SERVEI). La classe d'un
     # vigilant absent la cobreix la seva ABSENCIA, no una VIGILANCIA.
     absents_hora = {
-        (s.professor_absent or "").strip()
+        s.professor_absent
         for s in SubstitucioRepository.get_absences_by_date_and_hour(db, data, hora)
-        if (s.professor_absent or "").strip()
+        if s.professor_absent
     }
 
     vigilants = VigilanciaRepository.get_vigilants_per_hora(db, data, hora)
+    noves = _cobertures_noves(data, hora, db, gestors, vigilants, absents_hora) if vigilants else {}
+
+    sobrants = repetides + [sub.id for clau, sub in existents.items() if clau not in noves]
+    if sobrants:
+        SubstitucioRepository.delete_by_ids(db, sobrants)
+        db.flush()
+    for clau, sub in noves.items():
+        existent = existents.get(clau)
+        if existent is None:
+            SubstitucioRepository.create(db, fila_de_proposta(data, sub))
+        elif (existent.aula or "") != (sub.aula or ""):
+            SubstitucioRepository.update(db, existent.id, {"aula": sub.aula})
 
     # Eliminar Tipus A (VIGILANCIA_ABSENT) per professors que ja no son vigilants
     tipus_a_hora = SubstitucioRepository.get_by_date_hour_and_type(db, data, hora, "VIGILANCIA_ABSENT")
-    for sub_a in tipus_a_hora:
-        if (sub_a.professor_absent or "").strip() not in vigilants:
-            db.delete(sub_a)
+    sense_vigilancia = [s.id for s in tipus_a_hora if s.professor_absent not in vigilants]
+    if sense_vigilancia:
+        SubstitucioRepository.delete_by_ids(db, sense_vigilancia)
     if tipus_a_hora:
         db.flush()
 
     if not vigilants:
         return
 
+    # Tipus A (VIGILANCIA_ABSENT) d'un vigilant absent a aquesta hora: es crea
+    # amb la seva primera vigilància de l'hora i, si ja no coincideix amb cap
+    # de les seves vigilàncies (s'ha canviat l'aula o el grup), en pren el grup
+    # i l'aula. El substitut es conserva.
+    tipus_a_existents = {}
+    for s in SubstitucioRepository.get_by_date_hour_and_type(db, data, hora, "VIGILANCIA_ABSENT"):
+        tipus_a_existents.setdefault(s.professor_absent, s)
+    vigilancies_absents: dict[str, list] = {}
+    for nivell_vigs in VigilanciaRepository.get_by_date(db, data).values():
+        for vig in nivell_vigs:
+            vigilant = vig.vigilant
+            if vig.hora == hora and vigilant in vigilants and vigilant in absents_hora:
+                vigilancies_absents.setdefault(vigilant, []).append(vig)
+    for vigilant, vigs in vigilancies_absents.items():
+        primera = vigs[0]
+        existent = tipus_a_existents.get(vigilant)
+        if existent is None:
+            crear_vigilancia_absent(db, data, vigilant, hora, primera.grups, primera.aula)
+        elif (existent.grup, existent.aula) not in {(v.grups, v.aula) for v in vigs}:
+            SubstitucioRepository.update(db, existent.id, {"grup": primera.grups, "aula": primera.aula})
+
+    # Política A: les vigilàncies tenen prioritat sobre les substitucions.
+    _treu_vigilants_substituts(data, hora, db)
+
+
+def _cobertures_noves(data: date, hora: str, db, gestors, vigilants: list, absents_hora: set) -> dict:
+    """Les cobertures de classe que demana l'horari a l'hora, per clau de fila."""
     substitucions_mgr, horari, _, _ = gestors or get_gestors(db.info.get("institucio"), data_iso=data)
-    dia_name = horari.get_dia_name(data.weekday())
-
-    grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
-    grups_hora = grups_sense_classe.get(hora, [])
-    grups_hora = set(grups_hora) if isinstance(grups_hora, list) else set(grups_hora or [])
-
+    grups_hora = AlliberatsDelDia.get_by_date(db, data).get(hora, [])
     substitucions_mgr.professors_ocupats_examens = {hora: set(vigilants)}
-    substitucions_mgr.grups_sense_classe_dict = {hora: grups_hora}
-
-    noves = substitucions_mgr._generar_substitucions_vigilants(
-        dia_name,
+    substitucions_mgr.grups_sense_classe_dict = {hora: set(grups_hora or [])}
+    noves = substitucions_mgr.cobertures_de_vigilants(
+        horari.get_dia_name(data.weekday()),
         absents={professor: [hora] for professor in absents_hora},
     )
-
-    for sub in noves:
-        if (sub.hora or "").strip() != hora:
-            continue
-        key = clau_fila(sub.professor_absent, sub.hora, sub.assignatura, sub.grup)
-        existent = existing_map.get(key)
-        if existent and existent.substitut:
-            sub.substitut = existent.substitut
-            sub.tipus_substitut = existent.tipus_substitut
-            sub.comentaris = existent.comentaris
-
-        SubstitucioRepository.create(
-            db,
-            {
-                "data": data,
-                "hora": sub.hora,
-                "professor_absent": sub.professor_absent,
-                "assignatura": sub.assignatura,
-                "grup": sub.grup,
-                "aula": sub.aula,
-                "substitut": sub.substitut,
-                "tipus_substitut": sub.tipus_substitut,
-                "tipus_absencia": sub.tipus_absencia,
-                "comentaris": sub.comentaris,
-            },
-        )
-
-    # Crear Tipus A (VIGILANCIA_ABSENT) si un vigilant ja és absent a aquesta hora
-    tipus_a_existents = {
-        (s.professor_absent or "").strip()
-        for s in SubstitucioRepository.get_by_date_hour_and_type(db, data, hora, "VIGILANCIA_ABSENT")
+    return {
+        clau_fila(sub.professor_absent, sub.hora, sub.assignatura, sub.grup): sub
+        for sub in noves
+        if (sub.hora or "").strip() == hora
     }
-    vigilancies_dia = VigilanciaRepository.get_by_date(db, data)
-    for nivell_vigs in vigilancies_dia.values():
-        for vig in nivell_vigs:
-            vigilant = (vig.vigilant or "").strip()
-            if (
-                vig.hora == hora
-                and vigilant in vigilants
-                and vigilant in absents_hora
-                and vigilant not in tipus_a_existents
-            ):
-                crear_vigilancia_absent(db, data, vigilant, hora, vig.grups, vig.aula)
-                tipus_a_existents.add(vigilant)
-
-    # Política A: allibera substitucions en conflicte a aquesta mateixa hora.
-    allibera_substitucions_en_conflicte(data, db, {hora})

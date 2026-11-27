@@ -33,6 +33,17 @@ def carrega_prioritats(db: Session) -> None:
     )
 
 
+def categoria_de_prioritat(activitat: str) -> int:
+    """Índex de la categoria de Prioritats de la institució de la petició on
+    és `activitat` (0 = la primera); si no és a cap, len(ORDRE_PRIORITATS).
+    Regla única: la fan servir el motor de substitucions, els disponibles, els
+    vigilants i el PDF de disponibles."""
+    for index, categoria in enumerate(constants.ORDRE_PRIORITATS):
+        if activitat in categoria:
+            return index
+    return len(constants.ORDRE_PRIORITATS)
+
+
 def no_substituir_a(data: date) -> frozenset[str]:
     """«No substituir» de la institució de la petició a `data` (de memòria,
     per al motor, que no té sessió de BD). La regla és la de

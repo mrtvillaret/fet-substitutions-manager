@@ -1,4 +1,4 @@
-import { avisaError } from '../../errorsApi.js'
+import { avisaError } from '../../api/errors.js'
 import { avisDeCercaTallada, tradueixMissatge } from './missatges.js'
 import * as apiPlanificador from '../../api/planificador'
 import { costosDesats } from './costos'

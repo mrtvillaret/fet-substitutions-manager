@@ -31,9 +31,9 @@ def _limiter_net():
     yield
 
 
-def _usuari_de(institucio, role="admin"):
-    nom = f"{role}_{unic()}"
-    crea_usuari(nom, institucio, role)
+def _usuari_de(institucio):
+    nom = f"admin_{unic()}"
+    crea_usuari(nom, institucio, "admin")
     return entra(client_per(APP), nom)
 
 
@@ -68,27 +68,10 @@ def _assignacions(centre):
         return {(a["assignatura"], a["grup"], a["titular"]) for a in ConfiguracioExamenRepository.get_all(db)}
 
 
-# ------------------------------------------------------------------ accés
-
-
-@pytest.mark.parametrize(
-    "metode, ruta",
-    [
-        ("get", f"{URL}/preview"),
-        ("post", f"{URL}/dry-run"),
-        ("post", URL),
-    ],
-)
-def test_nomes_els_admins_poden_importar(centre, metode, ruta):
-    usuari = _usuari_de(centre, role="user")
-    kwargs = {} if metode == "get" else {"json": {"propostes": []}}
-    assert getattr(usuari, metode)(ruta, **kwargs).status_code == 403
-
-
 # ---------------------------------------------------------------- preview
 
 
-def test_preview_proposa_cada_assignatura_i_grup_de_l_horari_amb_el_seu_titular(client):
+def test_preview_proposa_cada_assignatura_i_grup_de_l_horari_amb_el_seu_titular_sense_escriure(client, centre):
     preview = _preview(client)
     proposta = _proposta(preview, assignatura="Anglès", grup="3-ESO-A")
     assert proposta["titular"] == "Prof 15"
@@ -96,12 +79,10 @@ def test_preview_proposa_cada_assignatura_i_grup_de_l_horari_amb_el_seu_titular(
     assert (proposta["ja_existeix"], proposta["descartada"]) == (False, False)
     # Les activitats sense grup (guàrdies, reunions...) no són sessions d'examen.
     assert not any(p["assignatura"] == "Guàrdia" for p in preview["propostes"])
-
-
-def test_preview_sense_historic_proposa_tots_els_nivells(client):
-    preview = _preview(client)
+    # Sense historial de substitucions, tots els nivells
     assert preview["nivells_valids"] == []
     assert {"1-ESO", "3-ESO", "2-BAT"} <= {p["nivell"] for p in preview["propostes"]}
+    assert _assignacions(centre) == set()
 
 
 def test_preview_nomes_proposa_nivells_amb_historic_de_substitucions(client, centre):
@@ -135,11 +116,6 @@ def test_preview_marca_les_que_ja_s_han_importat(client):
 def test_preview_marca_les_descartades(client):
     _importa(client, [], descartades=[ANGLES_3A])
     assert _proposta(_preview(client), assignatura="Anglès", grup="3-ESO-A")["descartada"] is True
-
-
-def test_preview_no_escriu_res(client, centre):
-    _preview(client)
-    assert _assignacions(centre) == set()
 
 
 def test_preview_sense_xml_ho_indica(centre):

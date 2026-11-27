@@ -1,11 +1,13 @@
-import { avisaError, detallDError } from '../errorsApi.js'
-import { ref, computed } from 'vue'
+import { avisaError, detallDError } from '../api/errors.js'
+import { ref } from 'vue'
 import * as apiPdf from '../api/pdf.js'
 import * as apiSubstitucions from '../api/substitucions.js'
 import { aplicaPreferencies, midaPerDefecte, parametresComuns } from '../pdfOpcions.js'
+import { desaPdf } from '../desaPdf.js'
+import { comparaAlfabeticament } from '../ordreAlfabetic.js'
 
 // Flux del PDF de substitucions; la data i l'ordre continuen sent els de la vista.
-export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, collator, toast, t, mostrarAvisos, carregarSubstitucions }) {
+export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, toast, t, mostrarAvisos, carregarSubstitucions }) {
   // PDF export
   const mostrarDialogPDF = ref(false)
   const mostrarDialogValidacions = ref(false)
@@ -14,31 +16,9 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
   const generantPDF = ref(false)
   const reassignantProblematics = ref(false)
   const reassignChanges = ref([])
-  const validacions = ref({
-    conflicts: [],
-    warnings: [],
-    total: 0,
-    has_critical: false
-  })
+  // Els avisos de la revisió, ja separats pel backend (els informatius, a part)
+  const validacions = ref({ conflicts: [], warnings: [], informatius: [], total: 0, has_critical: false })
 
-  const informatiusFiltrats = computed(() =>
-    (validacions.value.problemes_vigilancies || []).filter(p => p.gravetat === 'informacio').map(p => p.missatge)
-  )
-
-  const warningsFiltrats = computed(() => {
-    const warnings = validacions.value.warnings || []
-    return warnings.filter((warning) => {
-      if (informatiusFiltrats.value.includes(warning)) return false
-      const text = (warning || '').trim().toLowerCase()
-      if (!text.startsWith('⚠️')) return true
-      return !(text.includes('prioritat') || text.includes('prioridad') || text.includes('priority'))
-    })
-  })
-
-  const totalIssuesFiltrats = computed(() => {
-    const conflicts = validacions.value.conflicts || []
-    return conflicts.length + warningsFiltrats.value.length + informatiusFiltrats.value.length
-  })
   // Mida de la lletra de la taula del dia (routes/pdf.py, MIDES_LLETRA)
   const pdfConfig = ref({
     includeSubstitutions: true,
@@ -50,6 +30,15 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
     blankRows: false,
     format: 'hores',
     midaLletra: midaPerDefecte('hores')
+  })
+
+  // La revisió porta els avisos que imprimirà el PDF amb les seccions triades,
+  // ja en l'ordre de l'horari (el backend els tria i els ordena).
+  const validaSeccions = () => apiPdf.validacions(dataISO.value, {
+    params: {
+      include_substitutions: pdfConfig.value.includeSubstitutions,
+      include_vigilancies: pdfConfig.value.includeVigilancies
+    }
   })
 
   // PDF Functions
@@ -110,7 +99,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
     try {
       reassignChanges.value = []
       // 1. Primer validar abans de generar PDF
-      const validacioResponse = await apiPdf.validacions(dataISO.value)
+      const validacioResponse = await validaSeccions()
       confirmacioImportants.value = false
       validacions.value = validacioResponse.data
 
@@ -142,8 +131,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
   const generarPDFAmbOpcions = async () => {
     generantPDF.value = true
     try {
-      // Generar PDF
-      const params = new URLSearchParams({
+      const response = await apiPdf.complet(dataISO.value, {
         ...parametresComuns(pdfConfig.value),
         include_substitutions: pdfConfig.value.includeSubstitutions,
         include_vigilancies: pdfConfig.value.includeVigilancies,
@@ -151,24 +139,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
         blank_rows: pdfConfig.value.blankRows,
         ordre: ordreFiles.value // el mateix ordre que la pantalla
       })
-
-      const url = `/api/pdf/complete/${dataISO.value}?${params.toString()}`
-
-      // Download PDF
-      const response = await apiPdf.descarrega(url, {
-        responseType: 'blob'
-      })
-
-      // Create download link
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = `complet_${dataISO.value}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(downloadUrl)
+      desaPdf(response.data, `complet_${dataISO.value}.pdf`)
 
       toast.add({
         severity: 'success',
@@ -239,7 +210,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
       }
 
       if (canvis.length > 0) {
-        const validacioResponse = await apiPdf.validacions(dataISO.value)
+        const validacioResponse = await validaSeccions()
         confirmacioImportants.value = false
         validacions.value = validacioResponse.data
         reassignChanges.value = ordenarCanvisPerHora(canvis).map((item) => item.label)
@@ -248,7 +219,7 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
         return
       }
 
-      const validacioResponse = await apiPdf.validacions(dataISO.value)
+      const validacioResponse = await validaSeccions()
       confirmacioImportants.value = false
       validacions.value = validacioResponse.data
 
@@ -286,10 +257,10 @@ export function usePdfSubstitucions({ dataISO, ordreFiles, horesDisponibles, col
     return [...canvis].sort((a, b) => {
       const diff = horaIndex(a.hora) - horaIndex(b.hora)
       if (diff !== 0) return diff
-      return collator.value.compare(a.label || '', b.label || '')
+      return comparaAlfabeticament(a.label || '', b.label || '')
     })
   }
 
 
-  return { informatiusFiltrats, confirmacioImportants, mostrarDialogPDF, mostrarDialogValidacions, generantPDF, reassignantProblematics, reassignChanges, validacions, warningsFiltrats, totalIssuesFiltrats, pdfConfig, mostrarDialegPDF, carregarPreferenciesPdf, generarPDFComplet, continuarPDF, cancelarPDF, reassignarProblematics }
+  return { confirmacioImportants, mostrarDialogPDF, mostrarDialogValidacions, generantPDF, reassignantProblematics, reassignChanges, validacions, pdfConfig, mostrarDialegPDF, generarPDFComplet, continuarPDF, cancelarPDF, reassignarProblematics }
 }

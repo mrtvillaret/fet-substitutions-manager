@@ -99,11 +99,6 @@ msgstr "🏫 {hora}: {tipus} sin aula assignada"
 msgid "🏫 {hora}: Aula {aula} duplicada"
 msgstr "🏫 {hora}: Aula {aula} duplicada"
 
-#: pdf/engine.py:101
-#, python-brace-format
-msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
-msgstr "Aviso: no se ha podido cargar la división de palabras: {error}"
-
 #: pdf/engine.py:239 pdf/engine.py:251
 msgid "SUBSTITUCIONS"
 msgstr "SUSTITUCIONES"
@@ -115,10 +110,6 @@ msgstr "VIGILANCIAS"
 #: pdf/engine.py:245 pdf/engine.py:249
 msgid "SUBSTITUCIONS I VIGILÀNCIES"
 msgstr "SUSTITUCIONES Y VIGILANCIAS"
-
-#: pdf/engine.py:255
-msgid "DOCUMENT BUIT"
-msgstr "DOCUMENTO VACÍO"
 
 #: pdf/taula.py:363
 #, python-brace-format
@@ -164,10 +155,6 @@ msgstr "Observaciones"
 msgid "Curs"
 msgstr "Curso"
 
-#: core/absencies.py:44 core/substitucions.py:99
-msgid "   🔄 Convertit dia ISO a nom XML: '{}'"
-msgstr "   🔄 Convertit dia ISO a nom XML: '{}'"
-
 #. Marca com a ocupat amb vigilància
 #: core/alliberats.py:111 core/alliberats.py:126
 #, python-brace-format
@@ -201,10 +188,6 @@ msgstr "Sin límite de profesor o '{professor}' no encontrado"
 #, python-brace-format
 msgid "Horari carregat: {prof_count} professors, {grup_count} grups"
 msgstr "Horario cargado:  profesores {prof_count} {grup_count}"
-
-#: horari_web.py:227
-msgid "Error en carregar horari: {error}"
-msgstr "Error cargando horario: {error}"
 
 #: horari_web.py:298
 msgid "Dissabte"
@@ -242,10 +225,6 @@ msgstr "Dimanche"
 #, python-brace-format
 msgid "Índex de dia invàlid: {index} (rang vàlid: 0-6)"
 msgstr "Índice de día inválido: {index} (rango válido: 0-6)"
-
-#: core/substitucions.py:112
-msgid "   📌 hores carregades de l'XML: {}"
-msgstr "   📌 hores carregades de l'XML: {}"
 
 #: core/substitucions.py:124
 msgid "   📋 get_substitucions_necessaries retorna {} substitucions"
@@ -519,6 +498,10 @@ msgstr "Sustituciones hechas (triángulo inf.)"
 msgid "TOTAL"
 msgstr "TOTAL"
 
+#: pdf/informe_direccio.py
+msgid "Total amb grup"
+msgstr "Total con grupo"
+
 #: pdf/informe_direccio.py:763
 msgid "Tot."
 msgstr "Tot."
@@ -539,10 +522,6 @@ msgstr "Vig. ausente"
 msgid "ℹ️ {hora}: Vigilant {vigilant} absent (cobert per {substitut})"
 msgstr "ℹ️ {hora}: Vigilante {vigilant} ausente (cubierto por {substitut})"
 
-#: pdf/engine.py:429
-msgid "⚠️ AVÍS: Hi ha professors de major prioritat disponibles:"
-msgstr "⚠️ AVISO: Hay profesores de mayor prioridad disponibles:"
-
 #: pdf/validacions.py:110 pdf/validacions.py:132
 msgid "⚠️ {hora}: Vigilant {vigilant} absent sense cobertura"
 msgstr "⚠️ {hora}: Vigilante {vigilant} ausente sin cobertura"
@@ -552,12 +531,12 @@ msgid "🕐 HORA {hora}:"
 msgstr "🕐 HORA {hora}:"
 
 #: pdf/engine.py:651
-msgid "🕐 {professor} → arriba abans a {hora} (primera hora: {primera})"
-msgstr "🕐 {professor} → llega antes a las {hora} (primera hora: {primera})"
+msgid "🕐 {hora}: {professor} arriba abans (primera hora: {primera})"
+msgstr "🕐 {hora}: {professor} llega antes (primera hora: {primera})"
 
 #: pdf/engine.py:657
-msgid "🕐 {professor} → queda més estona a {hora} (última hora: {ultima})"
-msgstr "🕐 {professor} → se queda más rato a las {hora} (última hora: {ultima})"
+msgid "🕐 {hora}: {professor} es queda més estona (última hora: {ultima})"
+msgstr "🕐 {hora}: {professor} se queda más rato (última hora: {ultima})"
 
 #: pdf/informe_direccio.py pdf/informe_professors.py
 msgid "Totes les hores amb substitut de la pantalla Substitucions, de qualsevol tipus. No és la cobertura de les absències."
@@ -609,3 +588,95 @@ msgstr "❌ {substitut} no es un profesor del horario de ese día"
 # Vigilant fora de l’XML vigent del dia.
 msgid "❌ {hora}: {vigilant} no és a l’horari d’aquell dia"
 msgstr "❌ {hora}: {vigilant} no está en el horario de ese día"
+
+#: pdf/disponibles.py
+msgid "substitueix"
+msgstr "sustituye"
+
+#: pdf/disponibles.py
+msgid "vigila"
+msgstr "vigila"
+
+#: gui/configuracio_dialog.py:541 gui/estadistiques_dialog.py:163
+#: gui/estadistiques_dialog.py:378 gui/widgets.py:92 gui/widgets.py:108
+msgid "Professor"
+msgstr "Profesor"
+
+#: gui/configuracio_dialog.py:797
+msgid "pes"
+msgstr "peso"
+
+#: gui/configuracio_dialog.py:1111 gui/configuracio_dialog.py:1162
+#: gui/vigilancia/combo_manager.py:143 gui/vigilancia/combo_manager.py:146
+msgid "alliberat"
+msgstr "liberado"
+
+#: gui/configuracio_dialog.py:1819
+msgid "desactivat"
+msgstr "desactivado"
+
+#: gui/dialogs.py:94 gui/grups_widget.py:97 gui/widgets.py:65
+msgid "Cap"
+msgstr "Ninguno"
+
+#: gui/dialogs.py:99 gui/grups_widget.py:102
+msgid "ESO"
+msgstr "ESO"
+
+#: gui/estadistiques_dialog.py:253 gui/estadistiques_dialog.py:324
+msgid " "
+msgstr " "
+
+#: gui/estadistiques_dialog.py:330
+msgid "Classe"
+msgstr "Clase"
+
+#: gui/estadistiques_dialog.py:989
+msgid "Dilluns"
+msgstr "Lunes"
+
+#: gui/estadistiques_dialog.py:989
+msgid "Dimarts"
+msgstr "Martes"
+
+#: gui/estadistiques_dialog.py:989
+msgid "Dimecres"
+msgstr "Miércoles"
+
+#: gui/estadistiques_dialog.py:989
+msgid "Dijous"
+msgstr "Jueves"
+
+#: gui/estadistiques_dialog.py:989
+msgid "Divendres"
+msgstr "Viernes"
+
+#: gui/ui_helpers.py:47 gui/vigilancia_unificada.py:416
+#: gui/vigilancia_unificada.py:699 gui/vigilancia/combo_manager.py:41
+#: gui/vigilancia/combo_manager.py:367 gui/vigilancia/combo_manager.py:548
+msgid "-- selecciona vigilant --"
+msgstr "-- seleccionar vigilante --"
+
+#: gui/vigilancia/assignment_engine.py:141
+msgid "titulars"
+msgstr "titulares"
+
+#: gui/vigilancia/assignment_engine.py:662
+msgid "assignacions"
+msgstr "asignaciones"
+
+#: gui/vigilancia/combo_manager.py:98
+msgid " [VIGILÀNCIA]"
+msgstr " [VIGILANCIA]"
+
+#: gui/vigilancia/combo_manager.py:159
+msgid "disponible"
+msgstr "disponible"
+
+#: gui/vigilancia/combo_manager.py:175 gui/vigilancia/combo_manager.py:183
+msgid "lliure"
+msgstr "libre"
+
+#: gui/vigilancia/combo_manager.py:264
+msgid " [JA ASSIGNAT]"
+msgstr " [YA ASIGNADO]"

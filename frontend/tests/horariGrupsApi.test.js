@@ -17,18 +17,7 @@ import {
   llistaAmb,
   reforcAmb
 } from '../src/api/grups.js'
-
-const clientFals = (resposta = {}) => {
-  const peticions = []
-  const client = {}
-  for (const metode of ['get', 'post', 'put']) {
-    client[metode] = async (...args) => {
-      peticions.push([metode, ...args])
-      return { data: resposta }
-    }
-  }
-  return { client, peticions }
-}
+import { clientFals } from './support/crides.js'
 
 test('les lectures de l’horari conserven URL, paràmetres i retorn', async () => {
   const opcions = { params: { data: '2026-04-20' } }

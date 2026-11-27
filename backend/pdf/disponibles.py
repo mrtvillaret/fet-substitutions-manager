@@ -1,6 +1,6 @@
 """PDF de professors disponibles: un full per dia laborable, amb els
 professors que podrien fer una substitució a cada hora (per categoria i
-tipus) i, ratllats, els que són absents o ja estan ocupats."""
+tipus) i, ratllats i amb el motiu, els que són absents o ja estan ocupats."""
 
 import logging
 import unicodedata
@@ -17,14 +17,15 @@ from reportlab.platypus import KeepTogether, PageBreak, Paragraph, SimpleDocTemp
 from sqlalchemy.orm import Session
 
 import i18n_setup
-from config.constants import ORDRE_PRIORITATS
+from config import constants
 from configuracio.repositories import ConfiguracioRepository
-from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import setup_translation, translate
+from pdf.estils import PDFStyleFactory
+from pdf.taula import PER_DEFECTE
+from prioritats.memoria import categoria_de_prioritat
 from substitucions.assignacio import pes_de
-from substitucions.repositories import SubstitucioRepository
-from vigilancies.repositories import VigilanciaRepository
+from substitucions.domain import DiaEscolar
 
 log = logging.getLogger(__name__)
 
@@ -81,62 +82,55 @@ def dies_laborables(institucio: str, primer_dia: date) -> list[date]:
     return dies
 
 
-def ocupacio_del_dia(db: Session, dia: date) -> tuple[dict, dict]:
-    """Per hora: els professors absents i els ocupats (fan una substitució o
-    una vigilància)."""
-    absents = defaultdict(set)
-    ocupats = defaultdict(set)
-    for sub in SubstitucioRepository.get_by_date(db, dia):
-        h = sub.hora
-        substitut = sub.substitut
-        absent = sub.professor_absent
-        if h and substitut:
-            ocupats[h].add(substitut)
-        if h and absent:
-            absents[h].add(absent)
-    try:
-        for nivell_vigs in VigilanciaRepository.get_by_date(db, dia).values():
-            for vig in nivell_vigs:
-                h = vig.hora
-                vigilant = vig.vigilant
-                if h and vigilant:
-                    ocupats[h].add(vigilant)
-    except Exception:
-        log.warning("No s'han pogut llegir les vigilàncies del dia", exc_info=True)
-    return absents, ocupats
+def motius_del_dia(dia: DiaEscolar) -> dict[str, dict[str, list[str]]]:
+    """Per hora, per què cada professor no està disponible, en aquest ordre:
+    «absent» (DiaEscolar.absents_per_hora), «substitueix» i «vigila»."""
+    motius: dict[str, dict[str, list[str]]] = defaultdict(dict)
+
+    def afegeix(hora: str, professor: str, motiu: str) -> None:
+        del_professor = motius[hora].setdefault(professor, [])
+        if motiu not in del_professor:
+            del_professor.append(motiu)
+
+    for hora, absents in dia.absents_per_hora.items():
+        for professor in absents:
+            afegeix(hora, professor, "absent")
+    for sub in dia.files:
+        hora, substitut = (sub.hora or "").strip(), (sub.substitut or "").strip()
+        if hora and substitut:
+            afegeix(hora, substitut, "substitueix")
+    for hora, vigilants in dia.vigilants_per_hora.items():
+        for professor in vigilants:
+            afegeix(hora, professor, "vigila")
+    return dict(motius)
 
 
-def linies_de_l_hora(disponibles: list, absents: set, ocupats: set) -> list[str]:
+def linies_de_l_hora(disponibles: list, motius: dict[str, list[str]]) -> list[str]:
     """Una línia per categoria i tipus (per ordre), amb els professors per
-    ordre alfabètic: els absents ratllats en taronja i els ocupats en gris."""
+    ordre alfabètic: els que no estan disponibles, ratllats i amb el motiu
+    (els absents en taronja; els que substitueixen o vigilen, en gris)."""
+    perfil = {**PER_DEFECTE, **PDFStyleFactory.get_current_profile_colors()}
+    textos = {"absent": translate("absent"), "substitueix": translate("substitueix"), "vigila": translate("vigila")}
     per_categoria_tipus = defaultdict(lambda: defaultdict(list))
     for prof, tipus, _detall in disponibles:
-        categoria_idx = len(ORDRE_PRIORITATS)
-        for i, categoria in enumerate(ORDRE_PRIORITATS):
-            if tipus in categoria:
-                categoria_idx = i
-                break
-        if prof in absents:
-            estat = "absent"
-        elif prof in ocupats:
-            estat = "ocupat"
-        else:
-            estat = "disponible"
-        per_categoria_tipus[categoria_idx][tipus].append((prof, estat))
+        per_categoria_tipus[categoria_de_prioritat(tipus)][tipus].append(prof)
 
     linies = []
     for categoria_idx in sorted(per_categoria_tipus.keys()):
-        cat_label = f"Cat.{categoria_idx}" if categoria_idx < len(ORDRE_PRIORITATS) else "Cat.99"
+        cat_label = f"Cat.{categoria_idx}" if categoria_idx < len(constants.ORDRE_PRIORITATS) else "Cat.99"
         for tipus in sorted(per_categoria_tipus[categoria_idx].keys()):
             pes = pes_de(tipus)
             parts = []
-            for prof, estat in sorted(per_categoria_tipus[categoria_idx][tipus], key=lambda x: x[0]):
-                if estat == "absent":
-                    parts.append(f'<strike><font color="#d97706">{prof}</font></strike>')
-                elif estat == "ocupat":
-                    parts.append(f'<strike><font color="#9ca3af">{prof}</font></strike>')
-                else:
+            for prof in sorted(per_categoria_tipus[categoria_idx][tipus]):
+                del_professor = motius.get(prof)
+                if not del_professor:
                     parts.append(prof)
+                    continue
+                color = perfil["absent_color"] if "absent" in del_professor else perfil["busy_color"]
+                motiu = ", ".join(textos[m] for m in del_professor)
+                parts.append(
+                    f'<strike><font color="{color}">{prof}</font></strike> <font color="{color}">({motiu})</font>'
+                )
             meta = f'<font color="#94a3b8">  - {cat_label}:</font>'
             suffix = f'<font color="#94a3b8"> ({tipus} [{pes}])</font>'
             linies.append(f"{meta} {', '.join(parts)}{suffix}")
@@ -186,18 +180,19 @@ class _Estils:
 
 def _full_del_dia(db: Session, institucio: str, dia: date, estils: _Estils) -> list:
     """Els blocs de cada hora del dia (cada un, sencer a la mateixa pàgina)."""
-    _, horari_mgr, alliberats_mgr, _ = Dia.del_centre(dia, institucio).gestors()
+    dia_del_centre = Dia.del_centre(dia, institucio)
+    _, horari_mgr, alliberats_mgr, _ = dia_del_centre.gestors()
     dia_name_xml = nom_dia_xml(horari_mgr, dia)
-    absents, ocupats = ocupacio_del_dia(db, dia)
-    grups_alliberats = AlliberatsDelDia.get_by_date(db, dia)
+    dia_escolar = DiaEscolar(db, dia_del_centre)
+    motius = motius_del_dia(dia_escolar)
 
     blocs = []
     for hora in horari_mgr.hores:
         # Llista completa (sense filtrar) per mostrar tots amb estat
-        disponibles = alliberats_mgr.get_tots_disponibles(dia_name_xml, hora, grups_alliberats.get(hora, []))
+        disponibles = alliberats_mgr.get_tots_disponibles(dia_name_xml, hora, dia_escolar.alliberats.get(hora, []))
         if not disponibles:
             continue
-        linies = linies_de_l_hora(disponibles, absents.get(hora, set()), ocupats.get(hora, set()))
+        linies = linies_de_l_hora(disponibles, motius.get(hora, {}))
         blocs.append(KeepTogether([Paragraph(hora, estils.hora), Paragraph("<br/>".join(linies), estils.contingut)]))
     if not blocs:
         blocs.append(Paragraph("<i>No hi ha professors disponibles</i>", estils.normal))

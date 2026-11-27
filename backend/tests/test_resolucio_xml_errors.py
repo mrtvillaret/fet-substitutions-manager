@@ -41,13 +41,11 @@ def test_sense_versions_es_conserva_el_cami_de_configuracio(monkeypatch):
     assert Path(Dia(date.fromisoformat(DATA), centre).xml_path) == get_data_dir_for_institucio(centre) / "teachers.xml"
 
 
-def test_sense_versions_ni_configuracio_es_conserva_l_alternativa_d_entorn(monkeypatch):
+@pytest.mark.parametrize("entorn", [str(XML_EXEMPLE), None], ids=["amb alternativa d'entorn", "sense cap xml"])
+def test_sense_versions_ni_configuracio_es_conserva_l_alternativa_d_entorn(monkeypatch, entorn):
     centre = nova_institucio()
-    monkeypatch.setenv("APP_XML_PATH", str(XML_EXEMPLE))
-    assert Dia(date.fromisoformat(DATA), centre).xml_path == str(XML_EXEMPLE)
-
-
-def test_sense_cap_xml_retorna_none(monkeypatch):
-    centre = nova_institucio()
-    monkeypatch.delenv("APP_XML_PATH", raising=False)
-    assert Dia(date.fromisoformat(DATA), centre).xml_path is None
+    if entorn:
+        monkeypatch.setenv("APP_XML_PATH", entorn)
+    else:
+        monkeypatch.delenv("APP_XML_PATH", raising=False)
+    assert Dia(date.fromisoformat(DATA), centre).xml_path == entorn

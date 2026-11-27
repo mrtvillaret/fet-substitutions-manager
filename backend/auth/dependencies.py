@@ -39,11 +39,9 @@ def _prepara_institucio(institucio: str) -> str:
     except Exception:
         log.warning("No s'ha pogut carregar l'idioma del centre", exc_info=True)
     if not constants.te_prioritats(institucio):
-        try:
-            with get_data_db_session(institucio, lectura=True) as db:
-                carrega_prioritats(db)
-        except Exception:
-            log.warning("No s'han pogut carregar les prioritats de %s", institucio, exc_info=True)
+        # Sense prioritats el motor no troba candidats: si falla, que arribi
+        with get_data_db_session(institucio, lectura=True) as db:
+            carrega_prioritats(db)
     # Abans que la ruta obri la seva sessió de dades; una lectura d'horari
     # no ha d'obrir una sessió paral·lela que escrigui al mateix centre.
 

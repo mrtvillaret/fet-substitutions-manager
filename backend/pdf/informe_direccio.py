@@ -313,6 +313,20 @@ def _heatmap_color_blue(value: int, max_val: int) -> colors.Color:
     return colors.Color(r, g, b)
 
 
+def _cella_del_mes(a: int, s: int) -> Paragraph:
+    """Absències/serveis d'un professor en un mes («—» si no en té cap)."""
+    if a == 0 and s == 0:
+        return Paragraph(
+            "—",
+            _s("pz", fontName="Helvetica", fontSize=7, textColor=C_GREY_MID, alignment=TA_CENTER, leading=9),
+        )
+    a_str = f'<font color="#c0392b"><b>{a}</b></font>' if a > 0 else '<font color="#c0392b">0</font>'
+    s_str = f'<font color="#7c3aed">{s}</font>' if s > 0 else '<font color="#7c3aed">0</font>'
+    return Paragraph(
+        f"{a_str}/{s_str}", _s("pcell", fontName="Helvetica", fontSize=7.5, alignment=TA_CENTER, leading=10)
+    )
+
+
 def _taula_matriu_professors_mesos(
     per_professor_mes_abs: dict, per_professor_mes_serv: dict, mesos: list, professors: list
 ) -> list:
@@ -358,22 +372,6 @@ def _taula_matriu_professors_mesos(
         ]
     )
 
-    # Pre-calcular backgrounds per determinar color text
-    bg_matrix = {}
-    for p in professors[: len(per_professor_mes_abs)]:
-        nom = p["nom"]
-        abs_data = per_professor_mes_abs.get(nom, {})
-        serv_data = per_professor_mes_serv.get(nom, {})
-        for mes in mesos:
-            a = abs_data.get(mes, 0)
-            s = serv_data.get(mes, 0)
-            if a > 0 and a >= s:
-                bg_matrix[(nom, mes)] = _heatmap_color(a, max_abs)
-            elif s > 0:
-                bg_matrix[(nom, mes)] = _heatmap_color_blue(s, max_serv)
-            else:
-                bg_matrix[(nom, mes)] = C_WHITE
-
     rows = [header]
     for p in professors[: len(per_professor_mes_abs)]:
         nom = p["nom"]
@@ -388,21 +386,7 @@ def _taula_matriu_professors_mesos(
                 _s("pn", fontName="Helvetica", fontSize=7.5, textColor=C_BLACK, alignment=TA_LEFT, leading=10),
             )
         ]
-        for mes in mesos:
-            a = abs_data.get(mes, 0)
-            s = serv_data.get(mes, 0)
-            if a == 0 and s == 0:
-                cell = Paragraph(
-                    "—",
-                    _s("pz", fontName="Helvetica", fontSize=7, textColor=C_GREY_MID, alignment=TA_CENTER, leading=9),
-                )
-            else:
-                a_str = f'<font color="#c0392b"><b>{a}</b></font>' if a > 0 else '<font color="#c0392b">0</font>'
-                s_str = f'<font color="#7c3aed">{s}</font>' if s > 0 else '<font color="#7c3aed">0</font>'
-                cell = Paragraph(
-                    f"{a_str}/{s_str}", _s("pcell", fontName="Helvetica", fontSize=7.5, alignment=TA_CENTER, leading=10)
-                )
-            row.append(cell)
+        row.extend(_cella_del_mes(abs_data.get(mes, 0), serv_data.get(mes, 0)) for mes in mesos)
 
         row.append(
             Paragraph(
@@ -661,7 +645,7 @@ def _taula_impacte_per_grup(grups_data: dict) -> list:
     tot_cob = sum(grup["cobertes"] for grup in grups)
     tot_pen = tot_abs - tot_cob
     tot_pct = round(tot_cob / tot_abs * 100) if tot_abs else 0
-    rows.append([_("TOTAL"), str(tot_abs), str(tot_cob), str(tot_pen), f"{tot_pct}%"])
+    rows.append([_("Total amb grup"), str(tot_abs), str(tot_cob), str(tot_pen), f"{tot_pct}%"])
 
     taula = Table(rows, colWidths=[4 * cm, 3 * cm, 3.2 * cm, 2.5 * cm, 3 * cm], hAlign="LEFT")
     estil = _table_style_base(C_NAVY)

@@ -8,8 +8,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from noms import NomNet
 from parametres import DataResposta
-from substitucions.files import FilaSubstitucio
-from substitucions.repositories import SubstitucioRepository
+from substitucions.files import ORDRES, FilaSubstitucio
 
 
 class SubstitucioResponse(BaseModel):
@@ -45,7 +44,7 @@ class ActualitzarAbsenciesRequest(BaseModel):
 
 
 def _comprova_ordre(valor):
-    if valor not in SubstitucioRepository.ORDRES:
+    if valor not in ORDRES:
         raise HTTPException(status_code=400, detail="Ordre de les substitucions desconegut")
     return valor
 

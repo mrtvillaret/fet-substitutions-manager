@@ -5,7 +5,7 @@ import {carregaBlocVista} from './support/carregaBlocVista.js'
 
 test('les opcions de dues files idèntiques es guarden separades i exclouen només la pròpia',async()=>{
  const consultes=[]
- const dependents={dataISO:ref('2026-04-20'),professors:ref(['Prof 21']),vigilancies:ref([]),locale:ref('ca'),collator:ref(new Intl.Collator('ca')),t:x=>x}
+ const dependents={dataISO:ref('2026-04-20'),vigilancies:ref([]),locale:ref('ca'),t:x=>x}
  const apiVigilancies={disponiblesEnBloc:async(data,queries)=>{
    consultes.push(...queries)
    return Object.fromEntries(queries.map(q=>[q.tipus?`${q.hora}|${q.tipus}|${q.grups}|${q.aula}${q.vigilancia_id?'|fila:'+q.vigilancia_id:''}`:q.hora,[{value:'Prof 21',label:q.vigilancia_id==='1'?'Prof 21':'Prof 21 [JA ASSIGNAT]',ja_assignat:q.vigilancia_id!=='1',ordre_tipus:2}]]))

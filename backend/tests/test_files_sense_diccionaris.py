@@ -51,7 +51,6 @@ SUBSTITUCIONS = {
 
 VIGILANCIES = {
     "substitucions/domain.py": {"*": {"vig"}},
-    "substitucions/_consultes.py": {"*": {"vigilancia"}},
     "substitucions/cobertures.py": {"*": {"vig"}},
     "substitucions/vigilancia_absent.py": {"*": {"vig"}},
     "vigilancies/analisi.py": {"*": {"v", "f"}},
@@ -60,7 +59,6 @@ VIGILANCIES = {
     "recomptes/services.py": {"vigilancies_per_resultat": {"v"}, "vigilancies_entre": {"v"}},
     "estadistiques/services.py": {"*": {"vig"}},
     "pdf/generacio.py": {"*": {"vig", "v"}, "_marca_dia": {"fila"}},
-    "pdf/disponibles.py": {"*": {"vig"}},
     "pdf/taula.py": {"curs_vigilancia": {"vig"}, "_valors_vigilancia": {"vig"}},
     "pdf/engine.py": {"*": {"vig"}},
     "planificador/publicacio.py": {"_avisa_titulars_absents": {"v"}, "assigna_titulars": {"v"}},
@@ -210,7 +208,7 @@ def test_el_guardia_admet_diccionaris_que_no_son_files():
 
 
 def test_els_moduls_de_files_son_purs():
-    permesos = {"dataclasses", "datetime", "typing", "substitucions.files", "vigilancies.files"}
+    permesos = {"dataclasses", "datetime", "typing", "ordre_curs", "substitucions.files", "vigilancies.files"}
     for path, text in _fonts():
         if not path.endswith("/files.py"):
             continue

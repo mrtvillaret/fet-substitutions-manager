@@ -404,24 +404,6 @@ class ConfiguracioExamenRepository:
         ]
 
     @staticmethod
-    def get_all_as_dict(db: Session) -> dict[str, Any]:
-        """Retorna assignacions en format compatible amb el core de vigilàncies."""
-
-        assignacions = db.query(ConfiguracioExamen).all()
-        result = {"assignatures": {}}
-
-        for config in assignacions:
-            assignatura = config.assignatura
-            if assignatura not in result["assignatures"]:
-                result["assignatures"][assignatura] = {"assignacions": []}
-
-            result["assignatures"][assignatura]["assignacions"].append(
-                {"grup": config.grup or "", "aula": config.aula or "", "titular": config.titular or ""}
-            )
-
-        return result
-
-    @staticmethod
     def create(db: Session, assignatura: str, grup: str, titular: str = None, aula: str = None, ordre: int = 0) -> int:
         """Crea una nova assignació"""
 

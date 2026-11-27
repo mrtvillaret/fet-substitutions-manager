@@ -43,3 +43,10 @@ test('Vigilàncies: el recompte secundari conserva l’avís global si falla',as
  assert.deepEqual(peticions,[['2026-04-20']])
  assert.equal(p.error.value,null)
 })
+test('Vigilàncies: la recàrrega en silenci no mostra la càrrega ni treu la selecció; si falla, hi deixa les dades',async()=>{
+ const p=prepara();p.vigilancies.value=[{id:1}];p.seleccionades.value=[{id:1}]
+ const a=p.carregarVigilancies({silenci:true})
+ assert.equal(p.loading.value,false);assert.deepEqual(p.seleccionades.value,[{id:1}])
+ p.llistes[0].reject(Error('xarxa'));await a
+ assert.deepEqual(p.vigilancies.value,[{id:1}]);assert.equal(p.error.value,null);assert.equal(p.loading.value,false)
+})

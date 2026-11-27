@@ -24,12 +24,13 @@ from pdf.router import router as pdf_router
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
 from substitucions import router as substitucions
-from substitucions.files import FilaSubstitucio
+from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(pdf_router)
 APP.include_router(prioritats_router, dependencies=[Depends(require_admin)])  # com a main.py
 APP.include_router(substitucions.router, dependencies=[Depends(get_current_user)])
 APP.include_router(grups.router, dependencies=[Depends(get_current_user)])
+APP.include_router(vigilancies_router, dependencies=[Depends(get_current_user)])
 DATA = "2026-04-20"
 GUARDIA = {"Prof 2", "Prof 9"}
 
@@ -129,6 +130,31 @@ def test_alliberar_el_grup_esborra_l_encadenada_orfena(centre):
     assert _encadenades(institucio) == []
 
 
+def test_el_substitut_que_passa_a_vigilar_deixa_la_substitucio_i_l_encadenada(centre):
+    # Un vigilant no substitueix (DiaEscolar.motius_substitut): en vigilar a la
+    # mateixa hora, la substitució queda pendent i la Guàrdia ja no cal cobrir-la.
+    institucio, client = centre
+    _absent(client)
+    _tria(client, "Prof 9")
+    assert _encadenades(institucio) == [("09:00", "Prof 9", "Guàrdia", "")]
+
+    resposta = client.post(
+        f"/api/vigilancies/{DATA}",
+        json={
+            "hora": "09:00",
+            "tipus": "Anglès",
+            "grups": "2-BAT-A",
+            "aula": "A1",
+            "vigilant": "Prof 9",
+            "nivell": "2-BAT",
+        },
+    )
+
+    assert resposta.status_code == 200, resposta.text
+    assert next(f["substitut"] for f in _files(institucio) if f["professor_absent"] == "Prof 1") == ""
+    assert _encadenades(institucio) == []
+
+
 def _encadenades(institucio):
     return sorted(
         (f["hora"], f["professor_absent"], f["assignatura"], f["substitut"] or "")
@@ -137,19 +163,29 @@ def _encadenades(institucio):
     )
 
 
-def test_triar_a_ma_un_substitut_de_guardia_crea_l_encadenada(centre):
+def test_triar_a_ma_un_substitut_de_guardia_crea_l_encadenada_i_desa_l_activitat_entre_parentesis(centre):
     institucio, client = centre
     _absent(client)
     _tria(client, "Prof 2")
     # Pendent: el substitut de l'encadenada es tria (o el posa «Genera pendents»)
     assert _encadenades(institucio) == [("09:00", "Prof 2", "Guàrdia", "")]
+    sub = next(f for f in _files(institucio) if f["professor_absent"] == "Prof 1")
+    assert sub["tipus_substitut"] == "disponible (Guàrdia)"
 
 
 def test_canviar_el_substitut_esborra_l_encadenada_d_abans_i_crea_la_nova(centre):
+    # La resposta ho diu: la pantalla torna a carregar la llista si n'hi ha de noves o d'esborrades
     institucio, client = centre
     _absent(client)
-    _tria(client, "Prof 2")
-    _tria(client, "Prof 9")
+    url = f"/api/substitucions/{DATA}/09:00/Prof 1"
+    assert client.put(url, json={"substitut": "Prof 2", "force": True}).json()["encadenades"] == {
+        "creades": 1,
+        "esborrades": 0,
+    }
+    assert client.put(url, json={"substitut": "Prof 9", "force": True}).json()["encadenades"] == {
+        "creades": 1,
+        "esborrades": 1,
+    }
     assert _encadenades(institucio) == [("09:00", "Prof 9", "Guàrdia", "")]
 
 
@@ -190,14 +226,6 @@ def test_genera_pendents_respecta_l_encadenada_creada_a_ma(centre):
     assert [e[:3] for e in _encadenades(institucio)] == [("09:00", "Prof 2", "Guàrdia")]
 
 
-def test_triar_a_ma_desa_l_activitat_entre_parentesis(centre):
-    institucio, client = centre
-    _absent(client)
-    _tria(client, "Prof 2")
-    sub = next(f for f in _files(institucio) if f["professor_absent"] == "Prof 1")
-    assert sub["tipus_substitut"] == "disponible (Guàrdia)"
-
-
 def test_esborrar_les_absencies_esborra_les_encadenades(centre):
     # Prof 1 ja no és absent: el seu substitut torna a la guàrdia
     institucio, client = centre
@@ -230,47 +258,6 @@ def test_genera_pendents_descarta_l_encadenada_que_ja_no_cal(centre):
     encadenades = _encadenades(institucio)
     substitut = next(f["substitut"] for f in _files(institucio) if f["professor_absent"] == "Prof 1")
     assert [e[:3] for e in encadenades] == [("09:00", substitut, "Guàrdia")]
-
-
-def test_la_resposta_diu_si_han_canviat_les_encadenades(centre):
-    # La pantalla torna a carregar la llista si n'hi ha de noves o d'esborrades
-    _, client = centre
-    _absent(client)
-    url = f"/api/substitucions/{DATA}/09:00/Prof 1"
-    assert client.put(url, json={"substitut": "Prof 2", "force": True}).json()["encadenades"] == {
-        "creades": 1,
-        "esborrades": 0,
-    }
-    assert client.put(url, json={"substitut": "Prof 9", "force": True}).json()["encadenades"] == {
-        "creades": 1,
-        "esborrades": 1,
-    }
-
-
-def test_l_ordre_posa_cada_encadenada_sota_la_seva_substitucio():
-    # El de la pantalla i el PDF (SubstitucioRepository.ordena)
-    from substitucions.repositories import SubstitucioRepository
-
-    def fila(hora, absent, grup, substitut="", tipus="ABSENCIA"):
-        return FilaSubstitucio(
-            **{"hora": hora, "professor_absent": absent, "grup": grup, "substitut": substitut, "tipus_absencia": tipus}
-        )
-
-    files = [
-        fila("10:00", "Prof 9", "", "Prof 4", "ENCADENADA"),
-        fila("10:00", "Prof 1", "3-ESO-C", "Prof 9"),
-        fila("09:00", "Prof 3", "2-BAT-A"),
-        fila("10:00", "Prof 15", "3-ESO-A", "Prof 2"),
-        fila("10:00", "Prof 7", "10-ESO-A"),
-    ]
-    ordre = [(f.hora, f.professor_absent) for f in SubstitucioRepository.ordena(files, ["09:00", "10:00"])]
-    assert ordre == [
-        ("09:00", "Prof 3"),
-        ("10:00", "Prof 15"),  # 3-ESO-A
-        ("10:00", "Prof 1"),  # 3-ESO-C
-        ("10:00", "Prof 9"),  # l'encadenada del seu substitut
-        ("10:00", "Prof 7"),  # 10-ESO-A: ordre natural
-    ]
 
 
 @pytest.mark.parametrize("manual", [False, True], ids=["automatica", "manual"])

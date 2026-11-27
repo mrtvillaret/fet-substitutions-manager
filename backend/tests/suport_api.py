@@ -4,6 +4,7 @@ institucions temporals (opcionalment amb l'XML d'exemple) i usuaris de prova.
 Tot viu dins del DATA_DIR temporal que prepara el conftest.
 """
 
+import functools
 import shutil
 from pathlib import Path
 
@@ -70,13 +71,21 @@ def nova_institucio(amb_xml=False, prioritats=PRIORITATS_PER_DEFECTE):
     return nom
 
 
-def crea_usuari(username, institucio, role="user", active=True):
+@functools.cache
+def _prepara_usuaris():
+    """Un cop per procés de tests: l'esquema de l'auth.db i el hash (Argon2, lent a
+    propòsit) de la contrasenya de prova, el mateix per a tots els usuaris de prova."""
     create_auth_tables()
+    return hash_password(CONTRASENYA)
+
+
+def crea_usuari(username, institucio, role="user", active=True):
+    password_hash = _prepara_usuaris()
     with AuthSessionLocal() as db:
         user = UserRepository.create(
             db=db,
             username=username,
-            password_hash=hash_password(CONTRASENYA),
+            password_hash=password_hash,
             institucio=institucio,
             role=role,
             active=active,

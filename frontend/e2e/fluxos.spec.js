@@ -62,7 +62,7 @@ test('assignació tàctil: substitut i vigilant es desen i persisteixen', async 
   await toca(fila.getByRole('cell', { name: 'Prof 15', exact: true }), hasTouch)
   await expect((hasTouch ? page.getByRole('toolbar', { name: 'Accions' }) : fila).getByRole('button', { name: 'Gestiona absències del professor', exact: true })).toBeVisible()
   await toca(fila.getByRole('button', { name: '🔄 Substitut', exact: true }), hasTouch)
-  const guardat = page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes(`/api/substitucions/${data}/10:00/`))
+  const guardat = page.waitForResponse(r => r.request().method() === 'PUT' && decodeURIComponent(r.url()).includes(`/api/substitucions/${data}/10:00/`))
   await toca(page.getByRole('option', { name: /Prof 3\s/ }), hasTouch)
   expect((await guardat).ok()).toBeTruthy()
   await expect(fila.getByRole('button', { name: '🔄 Substitut', exact: true })).toContainText('Prof 3')

@@ -102,9 +102,9 @@ def obtenir_disponibles_vigilancia_batch(
 
 
 @router.get("/{data}", response_model=list[VigilanciaDelDia])
-def obtenir_vigilancies(data: Data, db: Session = Depends(get_db)):
-    """Les vigilàncies del dia: llista plana, amb l'id de la BD."""
-    return [resposta_vigilancia(fila) for fila in services.llista(db, data)]
+def obtenir_vigilancies(db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
+    """Les vigilàncies del dia: llista plana, amb l'id de la BD, en l'ordre de la pantalla."""
+    return [resposta_vigilancia(fila) for fila in services.llista_per_mostrar(db, dia)]
 
 
 @router.get("/{data}/analisi", response_model=list[ProblemaVigilancia])
@@ -168,7 +168,7 @@ def eliminar_vigilancia(
 @router.post("/{data}/assign/titulars", response_model=AssignacioTitularsResponse)
 def assignar_titulars(db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """Assigna NOMÉS els titulars alliberats o disponibles."""
-    return services.assigna_titulars(db, dia, dia.data)
+    return services.assigna_titulars(db, dia)
 
 
 @router.post("/{data}/assign/pendents", response_model=AssignacioResponse)
@@ -180,7 +180,7 @@ def assignar_pendents(disponibles: bool = False, db: Session = Depends(get_db), 
         disponibles: Si True, inclou professors disponibles (guàrdia, etc.)
                      Si False, només alliberats
     """
-    return services.assigna_pendents(db, dia, dia.data, disponibles=disponibles)
+    return services.assigna_pendents(db, dia, disponibles=disponibles)
 
 
 @router.post("/{data}/clear", response_model=NetejaResponse)

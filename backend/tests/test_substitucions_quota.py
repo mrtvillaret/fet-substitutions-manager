@@ -184,6 +184,21 @@ def test_un_pes_nul_zero_o_negatiu_compta_com_1(monkeypatch, pes):
     quota_buida = assignacio.QuotaFranja()
     assert assignacio.escull_candidat_amb_quota(candidats, quota_buida, "10:00", AtzarControlat()) == candidats[0]
 
+    # Al costat d'un alliberat (sense pes) i d'un pes positiu, que es conserva
+    monkeypatch.setattr(constants, "PRIORITATS", {"A": pes, "Positiu": 3})
+    candidats = [("Prof 1", "alliberat", "tenia classe"), ("Prof 2", "A", ""), ("Prof 4", "Positiu", "")]
+
+    class AtzarPonderat:
+        def choices(self, poblacio, *, weights, k):
+            assert poblacio == candidats
+            assert weights == [1, 1, 3]
+            assert k == 1
+            return [poblacio[-1]]
+
+    assert assignacio.escull_candidat_amb_quota(candidats, quota_buida, "09:00", AtzarPonderat()) == candidats[-1]
+    assert assignacio.escull_candidat_amb_quota([], quota_buida, "09:00", AtzarPonderat()) is None
+    assert assignacio.escull_candidat_amb_quota(candidats[:1], quota_buida, "09:00", AtzarPonderat()) == candidats[0]
+
 
 def test_el_pes_configurat_es_fa_servir_tal_qual():
     assert [assignacio.pes_de(tipus) for tipus in ("A", "B", "C")] == [3, 1, 9]

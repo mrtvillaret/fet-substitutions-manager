@@ -1,10 +1,9 @@
 import gettext
-import logging
 import os
 from contextvars import ContextVar
 
-# Dominis de traducció modular
-DOMAINS = ["messages", "gui", "core", "export"]
+# Un sol catàleg per llengua: locales/<llengua>/LC_MESSAGES/messages.mo
+DOMINI = "messages"
 
 # Camí al directori de traduccions
 LOCALE_DIR = os.path.join(os.path.dirname(__file__), "locales")
@@ -23,32 +22,12 @@ _traductors: dict = {}
 
 
 def _carrega(language: str):
-    """Funció gettext per a un idioma, combinant tots els dominis."""
-    if language in _traductors:
-        return _traductors[language]
-    traductor = gettext.gettext
-    try:
-        translations = []
-        for domain in DOMAINS:
-            try:
-                translations.append(
-                    gettext.translation(domain, localedir=LOCALE_DIR, languages=[language], fallback=True)
-                )
-            except FileNotFoundError:
-                logging.warning(f"No s'ha trobat el domini '{domain}' per a l'idioma '{language}'")
-        if translations:
-            combined_translation = translations[0]
-            for trans in translations[1:]:
-                combined_translation.add_fallback(trans)
-            traductor = combined_translation.gettext
-            logging.info(f"Traduccions per a l'idioma '{language}' carregades des de {LOCALE_DIR}.")
-        else:
-            logging.warning(f"No s'ha pogut carregar cap traducció per a '{language}'. S'utilitzarà el text original.")
-    except Exception as e:
-        logging.exception(f"S'ha produït un error en carregar les traduccions: {e}")
-        raise
-    _traductors[language] = traductor
-    return traductor
+    """Funció gettext per a un idioma (sense catàleg, el text original)."""
+    if language not in _traductors:
+        _traductors[language] = gettext.translation(
+            DOMINI, localedir=LOCALE_DIR, languages=[language], fallback=True
+        ).gettext
+    return _traductors[language]
 
 
 def carrega_idioma(language: str) -> None:

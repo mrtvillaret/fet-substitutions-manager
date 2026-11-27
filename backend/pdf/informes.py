@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from auth.dependencies import require_admin
-from database import get_data_dir_for_institucio
+from configuracio.services import cami_logo
 from dependencies import get_db
 from noms import NomNet
 from parametres import Data, HoresTriades
@@ -65,7 +65,6 @@ def informe_direccio(
     lang = services.idioma(db)
     hores_xml, triades = _hores_dels_informes(db, institucio, data_inici, data_final, hores)
     dades = services.dades_direccio(db, data_inici, data_final, hores_xml, lang, hores)
-    logo_path = get_data_dir_for_institucio(institucio) / "logo.png"
     with directori_temporal() as temp_dir:
         pdf_path = generar_informe_pdf(
             dades=dades,
@@ -73,7 +72,7 @@ def informe_direccio(
             data_inici=data_inici,
             data_final=data_final,
             export_dir=str(temp_dir),
-            logo_path=str(logo_path) if logo_path.exists() else None,
+            logo_path=cami_logo(institucio),
             lang=lang,
             hores_triades=triades,
         )

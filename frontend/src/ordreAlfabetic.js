@@ -3,4 +3,5 @@
 // majúscules ni accents. El mateix ordre que noms.ordre_alfabetic al backend.
 const collator = new Intl.Collator('ca', { numeric: true, sensitivity: 'base' })
 
-export const ordenaAlfabeticament = (noms) => [...noms].sort(collator.compare)
+export const comparaAlfabeticament = collator.compare
+export const ordenaAlfabeticament = (noms) => [...noms].sort(comparaAlfabeticament)

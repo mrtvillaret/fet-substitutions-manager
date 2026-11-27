@@ -6,13 +6,13 @@ substitut ja no pot fer la substitució.
 
 import logging
 from collections import defaultdict
-from datetime import date
 from functools import cached_property
+from xml.etree.ElementTree import ParseError
 
+from errors_domini import MissingXmlError
 from grups.disponibilitat import sense_classe
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
-from horari.lector import GestorHorariWeb
 from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.files import FilaVigilancia
@@ -23,11 +23,11 @@ log = logging.getLogger(__name__)
 # Files que es gestionen a part de les absències del motor.
 TIPUS_NO_ABSENCIA = ("VIGILANCIA", "ENCADENADA", "VIGILANCIA_ABSENT")
 TIPUS_ABSENCIA_REAL = ("ABSENCIA", "SERVEI")
+# Les files que cobreixen la classe d'un vigilant o un vigilant absent
+TIPUS_COBERTURA_VIGILANCIA = ("VIGILANCIA", "VIGILANCIA_ABSENT")
 
 
 class DiaEscolar:
-    _horari_carregat: GestorHorariWeb
-
     def __init__(self, db, dia: Dia, *, estricte=False):
         self.dia = dia
         data = dia.data
@@ -57,15 +57,14 @@ class DiaEscolar:
 
         self._estricte = estricte
 
-    @property
+    @cached_property
     def horari(self):
-        """L'horari del Dia; en mode estricte, propaga els errors de càrrega."""
-        if hasattr(self, "_horari_carregat"):
-            return self._horari_carregat
+        """L'horari del Dia. Si l'XML falta o és il·legible, en mode tolerant
+        None (un sol avís; es recorda durant la petició) i en mode estricte
+        l'error. Qualsevol altre error sempre arriba."""
         try:
-            self._horari_carregat = self.dia.horari
-            return self._horari_carregat
-        except Exception:
+            return self.dia.horari
+        except (MissingXmlError, ParseError, OSError):
             if self._estricte:
                 raise
             log.warning("No s'ha pogut carregar l'horari del dia", exc_info=True)
@@ -101,22 +100,22 @@ class DiaEscolar:
 
     @cached_property
     def _absencies_motor(self) -> tuple[dict, dict]:
-        """Absències del motor: hores i primer tipus per professor.
+        """Absències del motor: hores per professor i primer tipus per
+        (professor, hora).
 
         Es conserva el filtre històric de generació, diferent de les
         absències reals que valida absents_per_hora.
         """
         absents: dict[str, list[str]] = {}
-        absents_tipus: dict[str, str] = {}
+        absents_tipus: dict[tuple[str, str], str] = {}
         for sub in self.files:
             professor = sub.professor_absent
             hora = sub.hora
             tipus = sub.tipus_absencia or "ABSENCIA"
             if tipus in TIPUS_NO_ABSENCIA or not professor or not hora:
                 continue
-            if professor not in absents:
-                absents[professor] = []
-                absents_tipus[professor] = tipus
+            absents_tipus.setdefault((professor, hora), tipus)
+            absents.setdefault(professor, [])
             if hora not in absents[professor]:
                 absents[professor].append(hora)
         return absents, absents_tipus
@@ -133,15 +132,6 @@ class DiaEscolar:
     def grups(self) -> dict:
         """Alliberats amb el format de conjunts que espera el motor."""
         return {hora: set(valors) if isinstance(valors, list) else valors for hora, valors in self.alliberats.items()}
-
-    @cached_property
-    def vigilants(self) -> dict:
-        """Vigilants del motor amb els valors originals, com a la generació."""
-        resultat: dict[str, set[str]] = {}
-        for vig in self.vigilancies:
-            if vig.hora and vig.vigilant:
-                resultat.setdefault(vig.hora, set()).add(vig.vigilant)
-        return resultat
 
     def motius_substitut(
         self, substitut: str, hora: str, *, nomes=None, classe_sense_assignatura: bool = False
@@ -175,13 +165,12 @@ class DiaEscolar:
         return motius
 
 
-def substituts_no_valids(db, data: date, dia: DiaEscolar | None = None) -> list:
+def substituts_no_valids(dia: DiaEscolar) -> list:
     """Les files d'un dia amb un substitut que ja no pot fer la substitució
     (DiaEscolar.motius_substitut: vigila un examen, té una absència coberta, és absent o
     hi té classe o ja no és a l'XML vigent). Són canvis posteriors a l'assignació: des de la pantalla no
     es pot desar un substitut que no sigui vàlid. Cada element: {id, hora,
     professor_absent, assignatura, grup, substitut} més el primer motiu."""
-    dia = dia or DiaEscolar(db, Dia.del_centre(data, db.info.get("institucio")))
     resultat = []
     for sub in dia.files:
         hora = (sub.hora or "").strip()

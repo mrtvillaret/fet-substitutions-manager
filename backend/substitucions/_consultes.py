@@ -1,30 +1,32 @@
 """Consultes i presentació de les substitucions d'un dia."""
 
 from collections import defaultdict
-from datetime import date
 
 from sqlalchemy.orm import Session
 
 from config import constants
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
+from noms import ordre_alfabetic
+from prioritats.memoria import categoria_de_prioritat
 from prioritats.repositories import NoSubstituirRepository
 from recomptes.services import fetes_del_curs_per_substitut
+from substitucions.domain import DiaEscolar
+from substitucions.files import ordena_per_mostrar
 from substitucions.repositories import SubstitucioRepository
 from substitucions.schemas import SubstitucioResponse, resposta_substitucio
 from substitucions.visibilitat import es_visible_a_substitucions
-from vigilancies.repositories import VigilanciaRepository
 
 
 def llista_substitucions(
     db: Session,
     dia: Dia,
-    data: date,
     *,
     include_all: bool,
     ordre: str,
 ) -> list[SubstitucioResponse]:
     """Retorna les substitucions visibles o totes les absències editables."""
+    data = dia.data
     horari = dia.horari
     substitucions_list = SubstitucioRepository.get_by_date(db, data)
     result = []
@@ -42,15 +44,14 @@ def llista_substitucions(
             if es_visible_a_substitucions(sub, no_substituir, grups_sense_classe.get(sub.hora, [])):
                 result.append(resposta_substitucio(sub))
 
-    return SubstitucioRepository.ordena(result, horari.hores, valor=getattr, ordre=ordre)
+    return ordena_per_mostrar(result, horari.hores, ordre=ordre)
 
 
-def hores_professor(db: Session, dia: Dia, data: date, professor: str) -> dict:
+def hores_professor(db: Session, dia: Dia, professor: str) -> dict:
     """Classifica les hores amb classe i les activitats no substituïbles."""
     horari = dia.horari
-    weekday_idx = data.weekday()
-    dia_name = horari.get_dia_name(weekday_idx)
-    no_substituir = NoSubstituirRepository.vigents_a(db, data)
+    dia_name = horari.get_dia_name(dia.data.weekday())
+    no_substituir = NoSubstituirRepository.vigents_a(db, dia.data)
 
     hores_amb_classe = []
     hores_al_centre = []
@@ -69,55 +70,44 @@ def hores_professor(db: Session, dia: Dia, data: date, professor: str) -> dict:
     return {"hores_amb_classe": hores_amb_classe, "hores_al_centre": hores_al_centre}
 
 
-def _context_disponibles(db: Session, dia: Dia, data: date) -> dict:
+def _context_disponibles(db: Session, dia: Dia) -> dict:
     """Prepara una vegada les dades comunes a totes les hores del dia."""
-
-    vigilants_per_hora = defaultdict(set)
-    for files in VigilanciaRepository.get_by_date(db, data).values():
-        for vigilancia in files:
-            if vigilancia.vigilant:
-                vigilants_per_hora[vigilancia.hora].add(vigilancia.vigilant)
-
+    estat = DiaEscolar(db, dia)
     substituts_per_hora = defaultdict(set)
-    absents_per_hora = defaultdict(set)
-    for sub in SubstitucioRepository.get_by_date(db, data):
-        hora = sub.hora
-        prof_absent = sub.professor_absent
-        if hora and prof_absent:
-            absents_per_hora[hora].add(prof_absent)
-        if hora and sub.substitut:
-            substituts_per_hora[hora].add(sub.substitut)
+    for sub in estat.files:
+        if sub.hora and sub.substitut:
+            substituts_per_hora[sub.hora].add(sub.substitut)
 
     _, horari, alliberats, _ = dia.gestors()
-    dia_setmana = data.weekday()
+    dia_setmana = dia.data.weekday()
     # El «(n/total)» de cada professor: les seves substitucions fetes del curs
     # a aquesta franja de la setmana i en total, comptades a recomptes/
-    fetes_per_franja, fetes_total = fetes_del_curs_per_substitut(db, data)
+    fetes_per_franja, fetes_total = fetes_del_curs_per_substitut(db, dia.data)
 
     return {
-        "ordre_prioritats": constants.ORDRE_PRIORITATS,
         "get_professor_emoji": constants.get_professor_emoji,
-        "vigilants_per_hora": vigilants_per_hora,
+        "vigilants_per_hora": estat.vigilants_per_hora,
         "substituts_per_hora": substituts_per_hora,
-        "absents_per_hora": absents_per_hora,
+        # Absents de veritat (absència o servei): DiaEscolar.absents_per_hora
+        "absents_per_hora": estat.absents_per_hora,
         "horari": horari,
         "alliberats": alliberats,
         "absents_coberts": horari.absents_coberts,
         "dia_setmana": dia_setmana,
         "dia_name": horari.get_dia_name(dia_setmana),
-        "grups_sense_classe": AlliberatsDelDia.get_by_date(db, data),
+        "grups_sense_classe": estat.alliberats,
         "fetes_per_franja": fetes_per_franja,
         "fetes_total": fetes_total,
     }
 
 
-def disponibles(db: Session, dia: Dia, data: date, hora: str, *, context: dict | None = None) -> dict:
+def disponibles(db: Session, dia: Dia, hora: str, *, context: dict | None = None) -> dict:
     """Professors disponibles i ocupats, amb prioritat, estat i estadístiques.
 
     La ruta individual i la ruta en bloc passen sempre per aquesta funció. En
     bloc, ``context`` evita repetir la preparació comuna per cada hora.
     """
-    context = context or _context_disponibles(db, dia, data)
+    context = context or _context_disponibles(db, dia)
     vigilants_ocupats = context["vigilants_per_hora"][hora]
     substituts_ocupats = context["substituts_per_hora"][hora]
     professors_absents = context["absents_per_hora"][hora]
@@ -127,12 +117,6 @@ def disponibles(db: Session, dia: Dia, data: date, hora: str, *, context: dict |
     )
     fetes_per_franja = context["fetes_per_franja"]
     fetes_total = context["fetes_total"]
-
-    def categoria(tipus_activitat: str) -> int:
-        for i, categoria_prioritat in enumerate(context["ordre_prioritats"]):
-            if tipus_activitat in categoria_prioritat:
-                return i
-        return len(context["ordre_prioritats"])
 
     def color_i_estat(professor: str, tipus: str) -> tuple[str, str]:
         if professor in professors_absents:
@@ -149,7 +133,7 @@ def disponibles(db: Session, dia: Dia, data: date, hora: str, *, context: dict |
 
     resultat = []
     for professor, tipus, detall in disponibles_hora:
-        categoria_professor = categoria(tipus)
+        categoria_professor = categoria_de_prioritat(tipus)
         color, status = color_i_estat(professor, tipus)
         emoji = context["get_professor_emoji"](tipus)
         num_guardies_dia_hora = fetes_per_franja[(professor, context["dia_setmana"], hora.strip())]
@@ -187,11 +171,12 @@ def disponibles(db: Session, dia: Dia, data: date, hora: str, *, context: dict |
             }
         )
 
-    resultat.sort(key=lambda x: (x["de_baixa"], x["ocupat"], x["categoria"], x["professor"]))
+    # L'ordre del desplegable (la pantalla no el toca): a igualtat, per nom natural
+    resultat.sort(key=lambda x: (x["de_baixa"], x["ocupat"], x["categoria"], ordre_alfabetic(x["professor"])))
     return {"disponibles": resultat}
 
 
-def disponibles_en_bloc(db: Session, dia: Dia, data: date, hores: list[str]) -> dict:
+def disponibles_en_bloc(db: Session, dia: Dia, hores: list[str]) -> dict:
     """El mateix resultat que :func:`disponibles` per a totes les hores."""
-    context = _context_disponibles(db, dia, data)
-    return {hora: disponibles(db, dia, data, hora, context=context) for hora in dict.fromkeys(hores)}
+    context = _context_disponibles(db, dia)
+    return {hora: disponibles(db, dia, hora, context=context) for hora in dict.fromkeys(hores)}

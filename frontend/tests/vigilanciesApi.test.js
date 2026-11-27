@@ -16,18 +16,7 @@ import {
   ordenaAmb,
   teOrdreManualAmb
 } from '../src/api/vigilancies.js'
-
-const clientFals = (resposta = {}) => {
-  const peticions = []
-  const client = {}
-  for (const metode of ['get', 'post', 'put', 'delete']) {
-    client[metode] = async (...args) => {
-      peticions.push([metode, ...args])
-      return { data: resposta }
-    }
-  }
-  return { client, peticions }
-}
+import { clientFals } from './support/crides.js'
 
 test('llista i transforma les vigilàncies del dia', async () => {
   const { client, peticions } = clientFals([{ id: 1 }])
@@ -62,13 +51,13 @@ test('esborra amb els paràmetres de concurrència i força', async () => {
 
 test('demana disponibles amb els mateixos paràmetres opcionals a la URL', async () => {
   const { client, peticions } = clientFals([{ value: 'Prof 1' }])
-  const resultat = await disponiblesAmb(client, '2026-04-20', '08:00', {
+  const resultat = await disponiblesAmb(client, '2026-04-20', 'PATI #2', {
     tipus: 'Ordinari', grups: 'Grup A', aula: 'A 1'
   })
   assert.deepEqual(resultat, [{ value: 'Prof 1' }])
   assert.deepEqual(peticions, [[
     'get',
-    '/api/vigilancies/2026-04-20/08:00/disponibles?tipus=Ordinari&grups=Grup+A&aula=A+1'
+    '/api/vigilancies/2026-04-20/PATI%20%232/disponibles?tipus=Ordinari&grups=Grup+A&aula=A+1'
   ]])
 })
 
@@ -85,7 +74,7 @@ test('demana l’ajuda del vigilant en silenci', async () => {
   const { client, peticions } = clientFals({ activitats: [] })
   assert.deepEqual(await ajudaVigilantAmb(client, '2026-04-20', '08:00', 'Prof 1'), { activitats: [] })
   assert.deepEqual(peticions, [[
-    'get', '/api/vigilancies/2026-04-20/08:00/professor',
+    'get', '/api/vigilancies/2026-04-20/08%3A00/professor',
     { params: { nom: 'Prof 1' }, _silent: true }
   ]])
 })

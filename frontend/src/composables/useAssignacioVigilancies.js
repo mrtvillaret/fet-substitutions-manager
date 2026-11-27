@@ -1,9 +1,9 @@
-import { avisaError, detallDError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../api/errors.js'
 import { ref, computed } from 'vue'
 import * as apiVigilancies from '../api/vigilancies.js'
 
-// Extret de la vista: es preserven estat, efectes i ordre de les operacions.
-export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confirm, confirmaEsborrar, carregarVigilancies }) {
+// «Assigna titulars», «Assigna pendents», «Neteja» i «Ordena» de Vigilàncies.
+export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confirm, confirmaEsborrar, carregarVigilancies, recarregaLlistat, siJaNoExisteix }) {
   const titularsHoraLliure = ref([])
 
   const vigilanciesSenseTitular = ref([])
@@ -21,16 +21,19 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
   const posaTitularHoraLliure = async (item) => {
     const vigilancia = vigilancies.value.find(v => String(v.id) === String(item.vigilancia_id))
     posantTitular.value = item.vigilancia_id
+    const treuAvis = () => { titularsHoraLliure.value = titularsHoraLliure.value.filter(x => x.vigilancia_id !== item.vigilancia_id) }
     try {
       await apiVigilancies.edita(dataISO.value, item.vigilancia_id, {
         vigilant: item.titular,
         updated_at: vigilancia?.updated_at
       })
-      titularsHoraLliure.value = titularsHoraLliure.value.filter(x => x.vigilancia_id !== item.vigilancia_id)
+      treuAvis()
       toast.add({ severity: 'success', summary: t('vigilancies.freeHourOwners.assigned'), detail: `${item.titular} · ${item.hora} · ${item.grups}`, life: 3000 })
       await carregarVigilancies()
     } catch (err) {
       console.error('Error posant el titular:', err)
+      // La fila l'ha esborrada un altre dispositiu: com a l'edició, i l'avís ja no hi té res a fer
+      if (await siJaNoExisteix(err)) return treuAvis()
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
@@ -219,8 +222,8 @@ export function useAssignacioVigilancies({ dataISO, vigilancies, toast, t, confi
       })
 
       // Ordenar no canvia qui està disponible ni les substitucions: només cal
-      // el llistat (amb l'ordre i els updated_at nous)
-      vigilancies.value = await apiVigilancies.llista(dataISO.value)
+      // el llistat (amb l'ordre i els updated_at nous), si encara és el dia de la pantalla
+      await recarregaLlistat()
     } catch (err) {
       console.error('Error ordenant vigilàncies:', err)
       avisaError(err, () => toast.add({

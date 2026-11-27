@@ -169,7 +169,7 @@ def test_reassignar_desfa_la_neteja_basica_si_falla_abans_del_final(client, cent
     assert _bolcat(centre) == abans
 
 
-def test_reassignar_conserva_la_base_i_desfa_tota_la_millora_si_aquesta_falla(client, centre, monkeypatch):
+def test_reassignar_desfa_la_base_i_la_millora_si_aquesta_falla(client, centre, monkeypatch):
     assert _marca_absencia(client, hores=["10:00", "11:30"]).status_code == 200
     with get_data_db_session(centre) as db:
         files = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
@@ -203,12 +203,7 @@ def test_reassignar_conserva_la_base_i_desfa_tota_la_millora_si_aquesta_falla(cl
     )
     monkeypatch.setattr(services, "MillorsSubstituts", MilloraQueFalla)
 
-    resposta = client.post(f"{URL}/reassign-problematics")
+    abans = _bolcat(centre)
 
-    assert resposta.status_code == 200, resposta.text
-    assert resposta.json()["avisos"] == [
-        "No s'ha pogut millorar l'assignació segons les prioritats. Revisa les substitucions."
-    ]
-    despres = {fila.id: fila for fila in _bolcat(centre)}
-    assert despres[ids[0]].substitut == ""
-    assert despres[ids[1]].substitut == "Prof 28"
+    assert client.post(f"{URL}/reassign-problematics").status_code == 500
+    assert _bolcat(centre) == abans

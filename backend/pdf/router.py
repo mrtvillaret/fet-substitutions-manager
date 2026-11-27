@@ -57,12 +57,25 @@ def update_pdf_preferences(
 
 @router.get("/{data}/validacions", response_model=ValidacionsPdfResponse)
 def validar_abans_pdf(
+    include_substitutions: bool = True,  # les seccions del PDF complet, com a /complete
+    include_vigilancies: bool = True,
+    nivells: str | None = None,  # la tria del PDF de vigilàncies, com a /vigilancies/{data}
+    inclou_sense_nivell: bool | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
     dia_peticio: Dia = Depends(dia_de_la_peticio),
 ):
-    """Conflictes i avisos d'un dia abans de generar el PDF (pdf/validacions.py)."""
-    return generacio.validacions(db, dia_peticio)
+    """Conflictes i avisos d'un dia abans de generar el PDF (pdf/validacions.py):
+    els que imprimirà el PDF complet amb aquestes seccions (sense seccions, tots)
+    o, amb una tria de nivells, els problemes de vigilàncies del PDF de vigilàncies."""
+    return generacio.validacions(
+        db,
+        dia_peticio,
+        amb_substitucions=include_substitutions,
+        amb_vigilancies=include_vigilancies,
+        nivells=nivells,
+        inclou_sense_nivell=inclou_sense_nivell,
+    )
 
 
 # Les rutes que generen PDF són síncrones: FastAPI les atén en un fil a part i

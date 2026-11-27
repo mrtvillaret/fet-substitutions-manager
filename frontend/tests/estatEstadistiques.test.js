@@ -17,9 +17,9 @@ function prepara(batch = null) {
       hores: ['8h', '9h'], hores_triades: triades, professors_informe: ['Prof 2', 'Prof 1']
     } }
   })
-  const apiPdf = { professorsInforme: async () => ({ data: { professors: ['Prof 2', 'Prof 1'] } }), descarrega: async (...args) => { descarregues.push(args); return { data: 'PDF' } } }
+  const apiPdf = { professorsInforme: async () => ({ data: { professors: ['Prof 2', 'Prof 1'] } }), informeProfessor: async (...args) => { descarregues.push(['professor', ...args]); return { data: 'PDF' } } }
   const p = carregaBlocVista('useEstadistiques', { ...dependents, dependents, ref, computed, watch: (...args) => watchers.push(args), apiConfiguracio, apiEstadistiques, apiPdf, dataTreball: ref(new Date('2026-04-20')), dataIso: d => d?.toLocaleDateString('sv-SE'), ordenaAlfabeticament: xs => [...xs].sort(), localizeBackendDayName: x => x,
-    document: { createElement: () => ({ click() {} }) }, URL: { createObjectURL: () => 'blob:prova', revokeObjectURL() {} }, Blob })
+    desaPdf: (...args) => descarregues.push(['desa', ...args]) })
   return { ...p, peticions, avisos, descarregues, watchers, props }
 }
 test('Estadístiques: el curs fixa el període i una sola consulta conté tots els recomptes i el filtre', async () => {
@@ -31,7 +31,7 @@ test('Estadístiques: el curs fixa el període i una sola consulta conté tots e
   assert.equal(p.watchers.length, 3)
 })
 test('Estadístiques: les franges retiren només hores inexistents i els detalls conserven el filtre', async () => {
-  const p = prepara(); await p.inicialitzarDates(); p.horesTriades.value = ['8h', 'inexistent']; await p.carregarFrangesHorari()
+  const p = prepara(); await p.inicialitzarDates(); p.horesTriades.value = ['8h', 'inexistent']; await p.watchers[1][1]([p.dataInici.value, p.dataFinal.value])
   assert.deepEqual(p.horesTriades.value, ['8h']); await p.onProfessorRowClick({ data: { professor: 'Prof 1' } })
   assert.equal(p.professorDetailVisible.value, true); assert.deepEqual(p.professorDetail.value, { resultat: 'professor' })
   p.classesSeleccionades.value = ['G1']; await p.carregarDetallClasses(); assert.deepEqual(p.classesDetailData.value, { resultat: 'detallClasses' }); assert.deepEqual(p.peticions.at(-1)[1].params.grups, ['G1'])
@@ -40,9 +40,9 @@ test('Estadístiques: sense grups, avís i cap consulta de detall', async () => 
   const p = prepara(); await p.carregarDetallClasses(); assert.equal(p.peticions.length, 0); assert.equal(p.avisos[0].severity, 'warn')
 })
 test('Estadístiques: PDF manté paràmetres, selecció vàlida i ordre alfabètic', async () => {
-  const p = prepara(); await p.inicialitzarDates(); p.informeProfessorSeleccionat.value = 'retirat'; await p.carregarInformeProfessors()
+  const p = prepara(); await p.inicialitzarDates(); p.informeProfessorSeleccionat.value = 'retirat'; await p.watchers[1][1]([p.dataInici.value, p.dataFinal.value])
   assert.equal(p.informeProfessorSeleccionat.value, null); assert.deepEqual(p.informeProfessorsOpcions.value, ['Prof 1', 'Prof 2'])
-  p.informeProfessorSeleccionat.value = 'Prof 1'; await p.generarInformeProfessor(); assert.deepEqual(p.descarregues[0], ['/api/informes/professor', { params: { data_inici: '2026-04-01', data_final: '2026-04-30', mostrar_taules: false, professor: 'Prof 1' }, responseType: 'blob' }])
+  p.informeProfessorSeleccionat.value = 'Prof 1'; await p.generarInformeProfessor(); assert.deepEqual(p.descarregues, [['professor', { data_inici: '2026-04-01', data_final: '2026-04-30', mostrar_taules: false, professor: 'Prof 1' }], ['desa', 'PDF', 'informe_Prof 1_2026-04-01_2026-04-30.pdf']])
   p.tancar(); assert.deepEqual(p.peticions.at(-1), ['update:visible', false])
 })
 test('Estadístiques: percentatges i barres es limiten als extrems existents', () => {
@@ -97,8 +97,7 @@ test('Estadístiques: editar dates només actualitza auxiliars fins a prémer Ac
   await p.inicialitzarDates(); await p.carregarEstadistiques()
   const resum = p.resum.value
   p.dataFinal.value = new Date('2026-05-31')
-  p.watchers[1][1]([p.dataInici.value, p.dataFinal.value])
-  await p.carregarFrangesHorari()
+  await p.watchers[1][1]([p.dataInici.value, p.dataFinal.value])
   assert.equal(p.resum.value, resum)
   assert.equal(p.peticions.filter(([n]) => n === 'settings').length, 1)
   await p.carregarEstadistiques()

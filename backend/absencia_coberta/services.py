@@ -25,7 +25,6 @@ from errors_domini import MissingXmlError, NoTrobat
 from horari.domain import Dia
 from substitucions.absencies import desa_absencies
 from substitucions.cobertures import refresca_cobertures
-from substitucions.domain import DiaEscolar
 from substitucions.reconciliacio import treu_substituts_no_valids
 from substitucions.repositories import SubstitucioRepository
 from textos import nom_net
@@ -84,7 +83,7 @@ def aplica_absencia_coberta(
                 hores_servei=[],
                 gestors=(horari, absencies),
                 gestors_cobertures=gestors,
-                dia_escolar=DiaEscolar(db, dia),
+                dia=dia,
             )
             canvis["absencies_esborrades"] += [{"data": data, "hora": h} for h in hores_absent]
             canvis["substituts_trets"] += resposta.get("substituts_trets", [])
@@ -100,10 +99,7 @@ def aplica_absencia_coberta(
         for hora in sorted(hores_vigilancia):
             refresca_cobertures(data, hora, db, gestors=gestors)
 
-        dia_escolar = DiaEscolar(db, dia)
-        canvis["substituts_trets"] += [
-            {**fila, "data": data} for fila in treu_substituts_no_valids(db, data, dia_escolar)
-        ]
+        canvis["substituts_trets"] += [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data, dia)]
 
     return canvis
 

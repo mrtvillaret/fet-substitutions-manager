@@ -70,7 +70,7 @@
           <div class="bs-field">
             <div class="bs-label-row">
               <label class="bs-label">{{ $t('substitutions.dialogs.absences.normalHoursLabel') }} <span class="bs-type-badge bs-type-badge--normal">{{ $t('substitutions.dialogs.absences.normalBadge') }}</span></label>
-              <button type="button" class="bs-sel-all-btn" @click="emit('toggleTotesAbsencia', $event)">{{ totesTrnadesAbsencia ? $t('substitutions.dialogs.absences.selectNone') : $t('substitutions.dialogs.absences.selectAll') }}</button>
+              <button type="button" class="bs-sel-all-btn" @click="emit('toggleTotesAbsencia', $event)">{{ totesTriadesAbsencia ? $t('substitutions.dialogs.absences.selectNone') : $t('substitutions.dialogs.absences.selectAll') }}</button>
             </div>
             <div class="bs-hours-grid">
               <button
@@ -93,7 +93,7 @@
           <div class="bs-field">
             <div class="bs-label-row">
               <label class="bs-label">{{ $t('substitutions.dialogs.absences.serviceHoursLabel') }} <span class="bs-type-badge bs-type-badge--servei">{{ $t('substitutions.dialogs.absences.serviceBadge') }}</span></label>
-              <button type="button" class="bs-sel-all-btn bs-sel-all-btn--servei" @click="emit('toggleTotesServei', $event)">{{ totesTrnadesServei ? $t('substitutions.dialogs.absences.selectNone') : $t('substitutions.dialogs.absences.selectAll') }}</button>
+              <button type="button" class="bs-sel-all-btn bs-sel-all-btn--servei" @click="emit('toggleTotesServei', $event)">{{ totesTriadesServei ? $t('substitutions.dialogs.absences.selectNone') : $t('substitutions.dialogs.absences.selectAll') }}</button>
             </div>
             <div class="bs-hours-grid">
               <button
@@ -165,8 +165,8 @@ const props = defineProps({
   horesCarregades: { type: Boolean, required: true },
   horesAmbClasse: { type: Array, required: true },
   horesAlCentre: { type: Array, required: true },
-  totesTrnadesAbsencia: { type: Boolean, required: true },
-  totesTrnadesServei: { type: Boolean, required: true },
+  totesTriadesAbsencia: { type: Boolean, required: true },
+  totesTriadesServei: { type: Boolean, required: true },
   absenciesDelDiaAgrupades: { type: Array, required: true },
   loading: { type: Boolean, required: true }
 })

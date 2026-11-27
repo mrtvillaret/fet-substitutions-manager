@@ -123,7 +123,7 @@
 </template>
 
 <script setup>
-import { avisaError, detallDError } from '../../errorsApi.js'
+import { avisaError, detallDError } from '../../api/errors.js'
 import { useId } from 'vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'

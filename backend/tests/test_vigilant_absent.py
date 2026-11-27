@@ -14,6 +14,7 @@ Dilluns 20/04/2026 a les 10:00: Prof 15 fa Anglès amb 3-ESO-A; Prof 3, 21 i
 28 fan guàrdia.
 """
 
+import pytest
 from test_vigilancies_api import (  # noqa: F401  (fixtures)
     URL,
     URL_SUBS,
@@ -217,27 +218,12 @@ def test_generar_cobreix_la_vigilancia_absent_amb_guardies_absents_a_una_altra_h
 # ------------------------------------------------ vigilant absent: estat
 
 
-def test_vigilant_i_despres_absent(client):
-    _crea(client, "Prof 15")
-    _absent(client, "Prof 15")
-    assert _cobertures_classe(client) == [("ABSENCIA", "")]
-    assert _vigilancia_absent_de(client, "Prof 15") == [""]
-
-
-def test_absent_i_despres_vigilant(client):
-    _absent(client, "Prof 15")
-    _crea(client, "Prof 15")
-    assert _cobertures_classe(client) == [("ABSENCIA", "")]
-    assert _vigilancia_absent_de(client, "Prof 15") == [""]
-
-
-def test_absencia_d_un_vigilant(client):
-    _crea(client, "Prof 15")
-    resp = client.put(
-        f"{URL_SUBS}/absencies/Prof 15",
-        json={"hores_absencia": ["10:00"], "updated_at_map": {}},
-    )
-    assert resp.status_code == 200
+@pytest.mark.parametrize(
+    "passos", [(_crea, _absent), (_absent, _crea)], ids=["vigilant i després absent", "absent i després vigilant"]
+)
+def test_un_vigilant_absent_en_qualsevol_ordre(client, passos):
+    for pas in passos:
+        pas(client, "Prof 15")
     assert _cobertures_classe(client) == [("ABSENCIA", "")]
     assert _vigilancia_absent_de(client, "Prof 15") == [""]
 
@@ -312,12 +298,6 @@ def test_generar_no_duplica_la_classe_d_un_vigilant_absent(client):
 # --------------------------------------------- el que no ha de canviar
 
 
-def test_un_vigilant_que_no_es_absent_continua_tenint_la_classe_coberta_per_la_vigilancia(client):
-    _crea(client, "Prof 15")
-    assert _cobertures_classe(client) == [("VIGILANCIA", "")]
-    assert _vigilancia_absent_de(client, "Prof 15") == []
-
-
 def test_un_absent_que_no_vigila_continua_amb_la_seva_absencia(client):
     _absent(client, "Prof 15")
     assert _cobertures_classe(client) == [("ABSENCIA", "")]
@@ -389,3 +369,36 @@ def test_moure_la_vigilancia_d_un_vigilant_absent_treu_la_cobertura_de_l_hora_an
     )
     assert resp.status_code == 200
     assert _vigilancia_absent_de(client, "Prof 15") == []
+
+
+@pytest.mark.parametrize("canvi", [{"aula": "A2"}, {"grups": "2-BAT-B"}])
+def test_editar_la_vigilancia_d_un_vigilant_absent_porta_la_cobertura_a_l_aula_i_el_grup_nous(client, canvi):
+    # La cobertura conservava l'aula i el grup d'abans i l'anàlisi la deixava
+    # de reconèixer: «vigilant absent sense cobertura» amb el substitut posat.
+    _crea(client, "Prof 15")
+    _absent(client, "Prof 15")
+    _posa_substitut(client, "VIGILANCIA_ABSENT", "Prof 21")
+    vig = _vigilancies(client)[0]
+    resp = client.put(f"{URL}/{vig['id']}", json={**canvi, "updated_at": vig["updated_at"]})
+    assert resp.status_code == 200, resp.text
+
+    vig = _vigilancies(client)[0]
+    [cobertura] = [s for s in _files(client) if s["tipus_absencia"] == "VIGILANCIA_ABSENT"]
+    assert (cobertura["grup"], cobertura["aula"], cobertura["substitut"]) == (vig["grups"], vig["aula"], "Prof 21")
+    tipus = [p["tipus"] for p in client.get(f"{URL}/analisi").json() if p["professor"] == "Prof 15"]
+    assert tipus == ["vigilant_absent_cobert"]
+
+
+def test_la_cobertura_que_ja_coincideix_amb_una_vigilancia_de_l_hora_no_es_mou(client):
+    # Dues vigilàncies del mateix vigilant absent a l'hora: la cobertura que ja
+    # és d'una d'elles s'hi queda, encara que l'altra tingui un id més baix.
+    _crea(client, "", grups="2-BAT-A")
+    _crea(client, "Prof 15", grups="2-BAT-B")
+    _absent(client, "Prof 15")
+    _posa_substitut(client, "VIGILANCIA_ABSENT", "Prof 21")
+    vig_a = next(v for v in _vigilancies(client) if v["grups"] == "2-BAT-A")
+    resp = client.put(f"{URL}/{vig_a['id']}", json={"vigilant": "Prof 15", "updated_at": vig_a["updated_at"]})
+    assert resp.status_code == 200, resp.text
+
+    [cobertura] = [s for s in _files(client) if s["tipus_absencia"] == "VIGILANCIA_ABSENT"]
+    assert (cobertura["grup"], cobertura["substitut"]) == ("2-BAT-B", "Prof 21")

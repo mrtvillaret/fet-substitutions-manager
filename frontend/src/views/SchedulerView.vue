@@ -259,7 +259,7 @@
 </template>
 
 <script setup>
-import { avisaError } from '../errorsApi.js'
+import { avisaError } from '../api/errors.js'
 import { avisosDeGrupsSenseNivell, tradueixMissatge } from './scheduler/missatges.js'
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick, provide } from 'vue'
 import * as apiPlanificador from '../api/planificador'

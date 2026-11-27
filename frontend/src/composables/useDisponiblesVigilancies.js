@@ -1,8 +1,8 @@
 import { ref, watch } from 'vue'
 import * as apiVigilancies from '../api/vigilancies.js'
 
-// Extret de la vista: es preserven estat, efectes i ordre de les operacions.
-export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, locale, collator, t }) {
+// Els disponibles de cada hora i fila de vigilància (memòria per consulta) i les opcions del desplegable.
+export function useDisponiblesVigilancies({ dataISO, vigilancies, locale, t }) {
   const disponiblesPerHora = ref({})
 
   let versioDia = 0
@@ -23,45 +23,25 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     return vigilanciaId ? `${clau}|fila:${vigilanciaId}` : clau
   }
 
-  const carregarDisponibles = async (hora, force = false, tipus = null, grups = null, aula = null, vigilanciaId = null) => {
+  // Els disponibles d'una sola consulta (el formulari d'una vigilància nova), a la memòria
+  const carregarDisponibles = async (hora, tipus = null, grups = null, aula = null) => {
     const horaNorm = String(hora || '').trim()
-    if (!horaNorm) return []
+    if (!horaNorm) return
 
     const tipusNorm = normalitzarDisponiblesParam(tipus)
     const grupsNorm = normalitzarDisponiblesParam(grups)
     const aulaNorm = normalitzarDisponiblesParam(aula)
-    const cacheKey = getDisponiblesCacheKey(horaNorm, tipusNorm, grupsNorm, aulaNorm, vigilanciaId)
-
-    // Si ja tenim les dades en cache i no es força, retornar-les
-    if (!force && disponiblesPerHora.value[cacheKey]) {
-      return disponiblesPerHora.value[cacheKey]
-    }
+    const cacheKey = getDisponiblesCacheKey(horaNorm, tipusNorm, grupsNorm, aulaNorm)
+    if (disponiblesPerHora.value[cacheKey]) return
 
     const data = dataISO.value, id = versioDia
     try {
-      const disponibles = await apiVigilancies.disponibles(data, horaNorm, {
-        tipus: tipusNorm,
-        grups: grupsNorm,
-        aula: aulaNorm,
-        ...(vigilanciaId ? { vigilancia_id: String(vigilanciaId) } : {})
-      })
-      if (id !== versioDia || data !== dataISO.value) return []
+      const disponibles = await apiVigilancies.disponibles(data, horaNorm, { tipus: tipusNorm, grups: grupsNorm, aula: aulaNorm })
+      if (id !== versioDia || data !== dataISO.value) return
       disponiblesPerHora.value[cacheKey] = disponibles
-      return disponibles
     } catch (err) {
-      if (id !== versioDia || data !== dataISO.value) return []
+      if (id !== versioDia || data !== dataISO.value) return
       console.error(`Error carregant disponibles per hora ${horaNorm}:`, err)
-      // Fallback: retornar professors sense format
-      return professors.value.map(p => ({
-        value: p,
-        label: p,
-        emoji: '',
-        estat: '',
-        info: '',
-        ordre_tipus: 999,
-        color: '#FFFFFF',
-        ja_assignat: false
-      }))
     }
   }
 
@@ -133,7 +113,7 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     await carregarDisponiblesPerLlista(vigilanciesHora)
   }
 
-  const opcionsOrdenades = new WeakMap()
+  const opcionsDesades = new WeakMap()
 
   const SENSE_DISPONIBLES = []
 
@@ -145,22 +125,8 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
     // Primer la clau de la fila (amb titulars); si no hi és, la genèrica de l'hora,
     // que només s'omple amb la consulta genèrica (mai amb les dades d'una fila)
     const disponibles = disponiblesPerHora.value[cacheKey] || disponiblesPerHora.value[horaNorm] || SENSE_DISPONIBLES
-    const desades = opcionsOrdenades.get(disponibles)
+    const desades = opcionsDesades.get(disponibles)
     if (desades && desades.idioma === locale.value) return desades.opcions
-
-    const ordenats = [...disponibles].sort((a, b) => {
-      const ordreA = Number.isFinite(Number(a.ordre_tipus)) ? Number(a.ordre_tipus) : 999
-      const ordreB = Number.isFinite(Number(b.ordre_tipus)) ? Number(b.ordre_tipus) : 999
-      if (ordreA !== ordreB) {
-        return ordreA - ordreB
-      }
-      const catA = Number.isFinite(Number(a.categoria)) ? Number(a.categoria) : 999
-      const catB = Number.isFinite(Number(b.categoria)) ? Number(b.categoria) : 999
-      if (catA !== catB) {
-        return catA - catB
-      }
-      return collator.value.compare(a.value || a.label || '', b.value || b.label || '')
-    })
 
     // AFEGIR opció buida al principi (estil Softcatalà: "Seleccioneu")
     const opcions = [
@@ -174,9 +140,9 @@ export function useDisponiblesVigilancies({ dataISO, professors, vigilancies, lo
         color: '#F3F4F6',
         ja_assignat: false
       },
-      ...ordenats
+      ...disponibles // en l'ordre del backend (vigilancies/services.py)
     ]
-    opcionsOrdenades.set(disponibles, { idioma: locale.value, opcions })
+    opcionsDesades.set(disponibles, { idioma: locale.value, opcions })
     return opcions
   }
 

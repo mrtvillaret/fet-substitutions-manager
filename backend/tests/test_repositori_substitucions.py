@@ -20,9 +20,15 @@ def _fila(professor="Prof de prova"):
     }
 
 
-def test_crear_i_rollback_no_deixa_res_desat(db_session):
+def test_crear_i_rollback_no_deixa_res_desat_i_una_altra_sessio_no_ho_veu_sense_commit(db_session):
     creada = SubstitucioRepository.create(db_session, _fila())
     assert creada.id is not None
+
+    Sessio = sessionmaker(
+        autocommit=False, autoflush=False, bind=db_session.bind.execution_options(sqlite_lectura=True)
+    )
+    with Sessio() as altra:
+        assert SubstitucioRepository.get_by_date(altra, DATA) == []
 
     db_session.rollback()
 
@@ -47,16 +53,3 @@ def test_esborrar_i_rollback_conserva_la_fila(db_session):
     db_session.rollback()
 
     assert len(SubstitucioRepository.get_by_date(db_session, DATA)) == 1
-
-
-def test_una_altra_sessio_no_veu_els_canvis_sense_commit(db_session):
-    creada = SubstitucioRepository.create(db_session, _fila())
-
-    Sessio = sessionmaker(
-        autocommit=False, autoflush=False, bind=db_session.bind.execution_options(sqlite_lectura=True)
-    )
-    with Sessio() as altra:
-        assert SubstitucioRepository.get_by_date(altra, DATA) == []
-
-    db_session.rollback()
-    assert creada.id is not None

@@ -8,8 +8,6 @@
   },
   "print_profile": "screen",
   "single_page_mode": true,
-  "show_comments_column": false,
-  "show_hours_column": false,
   "print_profiles": {
     "screen": {
       "name": "Pantalla/Digital",

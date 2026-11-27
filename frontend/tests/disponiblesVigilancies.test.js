@@ -4,13 +4,13 @@ import { ref, watch } from 'vue'
 import { carregaBlocVista } from './support/carregaBlocVista.js'
 function prepara({fallarLot=false,fallarIndividual=false}={}) {
   const peticions=[],errors=[]
-  const dependents={dataISO:ref('2026-04-20'),professors:ref(['Prof 1']),vigilancies:ref([]),locale:ref('ca'),collator:ref(new Intl.Collator('ca')),t:x=>x}
-  const apiVigilancies={disponibles:async(...a)=>{peticions.push(['individual',...a]);if(fallarIndividual)throw Error('prova');return [{value:'Prof 2',label:'2',ordre_tipus:2}]},disponiblesEnBloc:async(...a)=>{peticions.push(['lot',...a]);if(fallarLot)throw Error('prova');return {'08|Prova|G1|A1':[{value:'Prof 3',label:'3',ordre_tipus:2},{value:'Prof 2',label:'2',ordre_tipus:1}],'08':[{value:'Prof 4',label:'4',ordre_tipus:1}],'09':[]}}}
+  const dependents={dataISO:ref('2026-04-20'),professors:ref(['Prof 1']),vigilancies:ref([]),locale:ref('ca'),t:x=>x}
+  const apiVigilancies={disponibles:async(...a)=>{peticions.push(['individual',...a]);if(fallarIndividual)throw Error('prova');return [{value:'Prof 2',label:'2',ordre_tipus:2}]},disponiblesEnBloc:async(...a)=>{peticions.push(['lot',...a]);if(fallarLot)throw Error('prova');return {'08|Prova|G1|A1':[{value:'Prof 2',label:'2',ordre_tipus:1},{value:'Prof 3',label:'3',ordre_tipus:2}],'08':[{value:'Prof 4',label:'4',ordre_tipus:1}],'09':[]}}}
   const dependencies={...dependents,dependents,ref,watch,apiVigilancies,console:{error:(...a)=>errors.push(a)}}
   return {...carregaBlocVista('useDisponiblesVigilancies', dependencies),...dependents,peticions,errors}
 }
 test('Disponibles: claus normalitzades, cache específica i genèrica i opcions estables',async()=>{
-  const p=prepara();await p.carregarDisponibles(' 08 ',false,' Prova ','G1',' A1 ');await p.carregarDisponibles('08',false,'Prova','G1','A1');assert.equal(p.peticions.length,1)
+  const p=prepara();await p.carregarDisponibles(' 08 ',' Prova ','G1',' A1 ');await p.carregarDisponibles('08','Prova','G1','A1');assert.equal(p.peticions.length,1)
   assert.equal(p.getVigilantLabel('08','Prof 2','Prova','G1','A1'),'2')
   const opcions=p.getDisponiblesPerHora('08','Prova','G1','A1');assert.equal(opcions[0].value,'');assert.equal(p.getDisponiblesPerHora('08','Prova','G1','A1'),opcions)
   p.locale.value='es';assert.notEqual(p.getDisponiblesPerHora('08','Prova','G1','A1'),opcions)
@@ -41,4 +41,10 @@ test('Disponibles: descarta un lot del dia anterior i buida la cache',async()=>{
 test('Disponibles: refrescar una hora preserva les opcions de les altres',async()=>{
   const p=prepara();p.disponiblesPerHora.value={'08':[],'08|X||':[],'10':[{value:'Prof 1'}]};p.vigilancies.value=[{hora:'08'}]
   const altres=p.getDisponiblesPerHora('10');await p.refrescarDisponiblesHora('08');assert.equal(p.getDisponiblesPerHora('10'),altres);assert.equal(p.disponiblesPerHora.value['08|X||'],undefined)
+})
+test('Disponibles: el desplegable de vigilants manté l’ordre del backend (també el desempat natural)',()=>{
+  const p=prepara()
+  const d=(value,ordre_tipus,categoria)=>({value,label:value,ordre_tipus,categoria})
+  p.disponiblesPerHora.value={'08':[d('Prof 9',0,3),d('Prof 1',2,0),d('Prof 2',2,1),d('Prof 10',2,1)]}
+  assert.deepEqual(p.getDisponiblesPerHora('08').map(x=>x.value),['','Prof 9','Prof 1','Prof 2','Prof 10'])
 })

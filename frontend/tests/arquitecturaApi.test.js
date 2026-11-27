@@ -40,3 +40,19 @@ test('els mòduls de domini comparteixen client.js i només aquest importa axios
     if (nom !== 'errors.js') assert.match(text, /import clientApi from '\.\/client\.js'/, nom)
   }
 })
+
+// Les URL de l'API només són a src/api/. Excepció: el planificador (aparcat), que
+// encara les escriu a la pantalla de catàlegs d'exàmens.
+const AMB_URL_PROPIA = new Set(['composables/useCatalegsExamens.js'])
+
+test("cap URL de l'API fora de src/api/ (excepte el planificador)", () => {
+  const infraccions = []
+  for (const ruta of fitxers(arrel)) {
+    const nom = relative(arrel, ruta)
+    if (nom.startsWith('api/') || AMB_URL_PROPIA.has(nom) || !/\.(?:js|vue|html)$/.test(nom)) continue
+    readFileSync(ruta, 'utf8').split('\n').forEach((linia, i) => {
+      if (/['"`]\/api\//.test(linia)) infraccions.push(`${nom}:${i + 1}`)
+    })
+  }
+  assert.deepEqual(infraccions, [])
+})

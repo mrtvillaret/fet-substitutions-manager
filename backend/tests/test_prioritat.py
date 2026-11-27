@@ -8,14 +8,25 @@ primer els alliberats, després les guàrdies. Quan Prof 3 substitueix, la seva
 guàrdia queda per cobrir (fila encadenada) i en generar s'hi posa un alliberat.
 """
 
-import pytest
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
-from suport_noms import unic
+import xml.etree.ElementTree as ET
+from collections import defaultdict
+from datetime import date
 
+import pytest
+from suport_api import XML_EXEMPLE, client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
+from suport_noms import unic
+from suport_xml import amb_versions
+
+from config import constants
+from database import get_data_db_session, get_data_dir_for_institucio
 from grups import router as grups
 from pdf import router as pdf
+from pdf.validacions import valida_dia
+from prioritats.memoria import categoria_de_prioritat
 from rate_limit import limiter
 from substitucions import router as substitucions
+from substitucions.files import FilaSubstitucio
+from substitucions.prioritat import MillorsSubstituts
 
 APP = crea_app(substitucions.router, grups.router, pdf.router)
 DATA = "2026-04-20"
@@ -91,3 +102,90 @@ def test_un_alliberat_te_mes_prioritat_que_una_guardia(client):
     assert resp.status_code == 200, resp.text
     fila = _fila(client)
     assert fila["substitut"] in ("Prof 1", "Prof 30")
+
+
+def _amb_jornada_intensiva():
+    """L'horari d'exemple fins al 30/04/2026 i, des de l'1/05, el mateix amb el
+    PATI abans de les 10:00 (com una jornada intensiva amb unes altres franges)."""
+    centre = amb_versions(("actual.xml", date(2026, 1, 1), date(2026, 4, 30)), ("futur.xml", date(2026, 5, 1), None))
+    arbre = ET.parse(XML_EXEMPLE)
+    for dia in arbre.getroot().iter("Day"):
+        hores = dia.findall("Hour")
+        pati = next(h for h in hores if h.get("name") == "PATI")
+        dia.remove(pati)
+        dia.insert(list(dia).index(next(h for h in hores if h.get("name") == "10:00")), pati)
+    arbre.write(get_data_dir_for_institucio(centre) / "futur.xml", encoding="utf-8")
+    return centre
+
+
+@pytest.mark.parametrize(
+    "data, ordre",
+    [
+        # El PATI a la seva franja, entre les 10:00 i les 11:30, i no al final
+        ("2026-04-20", ["08:00", "10:00", "PATI", "11:30"]),
+        # Amb l'horari de la data (jornada intensiva), el PATI abans de les 10:00
+        ("2026-05-04", ["08:00", "PATI", "10:00", "11:30"]),
+    ],
+)
+def test_ordre_dels_avisos_de_la_revisio_amb_el_pati(data, ordre):
+    centre = _amb_jornada_intensiva()
+    avisos = {
+        hora: f"• {hora}: Prof {i} (alliberat) disponible en lloc de Prof 3 (Guàrdia)"
+        for i, hora in enumerate(["PATI", "11:30", "10:00", "08:00"])
+    }
+    # Dins d'una hora, l'ordre en què arriben
+    segon_de_les_10 = "• 10:00: Prof 9 (alliberat) disponible en lloc de Prof 8 (Guàrdia)"
+    with get_data_db_session(centre, lectura=True) as db:
+        validacio = valida_dia(
+            db,
+            date.fromisoformat(data),
+            centre,
+            lambda _dia: [*avisos.values(), segon_de_les_10],
+            amb_substitucions=True,
+            amb_vigilancies=True,
+        )
+    esperat = [avisos[hora] for hora in ordre]
+    esperat.insert(ordre.index("10:00") + 1, segon_de_les_10)
+    assert validacio["warnings"] == esperat
+
+
+# ------------------------------ la millora final de «Reassigna problemàtics»
+
+
+class DiaDeProva:
+    nom_del_dia = "Dilluns"
+    files = []
+    alliberats = defaultdict(set)
+    absents_per_hora = defaultdict(set)
+    vigilants_per_hora = defaultdict(set)
+
+
+class MotorDeProva:
+    _obtenir_categoria = staticmethod(categoria_de_prioritat)
+
+
+class DisponiblesDeProva:
+    def get_tots_disponibles(self, _dia, _hora, _grups_alliberats):
+        return [
+            ("Prof Mateix Nivell", "mateix nivell", "mateix nivell"),
+            ("Prof Alliberat", "alliberat", "tenia classe"),
+        ]
+
+
+def test_reassignar_una_guardia_tria_l_alliberat_i_no_el_primer_que_la_millora(monkeypatch):
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}, {"mateix nivell"}, {"Guàrdia"}])
+    monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True, True, True])
+    gestors = (MotorDeProva(), None, DisponiblesDeProva(), None)
+    millors = MillorsSubstituts(DiaDeProva(), gestors)
+
+    millor = millors.millor(
+        FilaSubstitucio(
+            **{
+                "hora": "09:00",
+                "substitut": "Prof Guàrdia",
+                "tipus_substitut": "disponible (Guàrdia)",
+            }
+        )
+    )
+
+    assert millor[:3] == ("Prof Alliberat", "alliberat", "tenia classe")

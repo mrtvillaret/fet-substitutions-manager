@@ -4,7 +4,7 @@ import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
 import Tooltip from 'primevue/tooltip'
 import i18n, { primeLocales } from './i18n'
-import { registraTraductorErrors } from './errorsApi'
+import { registraTraductorErrors } from './api/errors.js'
 
 // Estils de PrimeVue (abans, l'ordre de les capes: el reinici, per sota del tema)
 import './capes.css'

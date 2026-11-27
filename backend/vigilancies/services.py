@@ -8,6 +8,7 @@ netejar i ordenar. Cada canvi de vigilants refresca les cobertures de l'hora
 import random
 from collections import defaultdict
 from datetime import date
+from typing import NamedTuple
 
 from sqlalchemy.orm import Session
 
@@ -17,7 +18,9 @@ from errors_domini import Conflicte, NoTrobat, NoValid
 from grups.disponibilitat import sense_classe
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
+from noms import ordre_alfabetic
 from ordre_curs import clau_curs
+from prioritats.memoria import categoria_de_prioritat
 from substitucions.assignacio import pes_de
 from substitucions.cobertures import refresca_cobertures
 from substitucions.domain import DiaEscolar
@@ -35,7 +38,7 @@ from vigilancies.assignacio import (
 )
 from vigilancies.domain import nivell_obligatori
 from vigilancies.files import FilaVigilancia
-from vigilancies.repositories import VigilanciaRepository
+from vigilancies.repositories import CAMPS_EDITABLES, VigilanciaRepository
 
 
 class ConflicteVigilancia(Conflicte):
@@ -45,18 +48,6 @@ class ConflicteVigilancia(Conflicte):
     def __init__(self, vigilancia: dict):
         super().__init__("Aquest registre ha estat modificat per un altre usuari", codi="vigilancia_modificada")
         self.vigilancia = vigilancia
-
-
-def vigilants_per_hora(vigilancies_dict: dict[str, list[FilaVigilancia]]) -> dict:
-    """{hora: {vigilants}} de les vigilàncies d'un dia ({nivell: [vigilàncies]})."""
-    resultat = defaultdict(set)
-    for vigilancies_list in vigilancies_dict.values():
-        for vig in vigilancies_list:
-            hora = (vig.hora or "").strip()
-            vigilant = (vig.vigilant or "").strip()
-            if hora and vigilant:
-                resultat[hora].add(vigilant)
-    return resultat
 
 
 def _payload(vig) -> dict:
@@ -95,12 +86,10 @@ def config(db: Session, dia: Dia) -> dict:
     grups_per_nivell = {nivell: dades.get("grups", []) for nivell, dades in nivells_data.items()}
     aules = master_config.get("aules", [])
 
-    tipus_examens_list = VigilanciaRepository.get_unique_tipus(db)
+    def amb_vigilancia_primer(tipus: list[str]) -> list[str]:
+        return ["VIGILÀNCIA", *(t for t in tipus if t and t != "VIGILÀNCIA")]
 
-    # Assegurar que VIGILÀNCIA estigui sempre al principi
-    if "VIGILÀNCIA" in tipus_examens_list:
-        tipus_examens_list.remove("VIGILÀNCIA")
-    tipus_examens_list.insert(0, "VIGILÀNCIA")
+    tipus_examens_list = amb_vigilancia_primer(VigilanciaRepository.get_unique_tipus(db))
 
     return {
         "nivells": nivells,
@@ -109,7 +98,11 @@ def config(db: Session, dia: Dia) -> dict:
         "grups_per_nivell": grups_per_nivell,
         "aules": [a for a in aules if a and a.strip()],
         "tipus_examens": tipus_examens_list,
-        "tipus_per_nivell": {nivell: dades.get("assignatures", []) for nivell, dades in nivells_data.items()},
+        # Els tipus del desplegable de cada nivell: les seves assignatures o, si no en té, els ja usats
+        "tipus_per_nivell": {
+            nivell: amb_vigilancia_primer(dades.get("assignatures") or tipus_examens_list)
+            for nivell, dades in nivells_data.items()
+        },
     }
 
 
@@ -125,6 +118,16 @@ def llista(db: Session, data: date) -> list[FilaVigilancia]:
     vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
     result = [v for vigs in vigilancies_dict.values() for v in vigs]
     return sorted(en_ordre(result), key=lambda x: x.hora)
+
+
+def llista_per_mostrar(db: Session, dia: Dia) -> list[FilaVigilancia]:
+    """Les del dia per a la pantalla: per hores en l'ordre de l'horari del dia
+    (una hora que no hi és o sense horari, al final per text) i, dins de cada
+    hora, en l'ordre desat."""
+    dia_escolar = DiaEscolar(db, dia)
+    hores = dia_escolar.horari.hores if dia_escolar.horari is not None else []
+    posicio = {hora: i for i, hora in enumerate(hores)}
+    return sorted(llista(db, dia.data), key=lambda v: (posicio.get(v.hora, len(posicio)), v.hora))
 
 
 # ------------------------------------------------------------ ordre de les files
@@ -181,16 +184,24 @@ def _normalitza_param(value: str | None) -> str | None:
     return cleaned or None
 
 
-def _clau_consulta(hora: str, tipus: str | None, grups: str | None, aula: str | None, vigilancia_id=None) -> str:
-    clau = f"{hora}|{tipus}|{grups or ''}|{aula or ''}" if tipus else hora
-    return f"{clau}|fila:{vigilancia_id}" if vigilancia_id else clau
+class Consulta(NamedTuple):
+    """Una consulta del selector, amb els textos nets (buit: sense valor)."""
 
+    hora: str
+    tipus: str | None
+    grups: str | None
+    aula: str | None
+    vigilancia_id: str | None
 
-def _categoria_prioritat(tipus_activitat: str, ordre_prioritats: list) -> int:
-    for i, categoria in enumerate(ordre_prioritats):
-        if tipus_activitat in categoria:
-            return i
-    return len(ordre_prioritats)
+    @classmethod
+    def neta(cls, hora, tipus=None, grups=None, aula=None, vigilancia_id=None) -> "Consulta":
+        return cls((hora or "").strip(), *map(_normalitza_param, (tipus, grups, aula)), vigilancia_id)
+
+    @property
+    def clau(self) -> str:
+        """La clau de la resposta en lot: «hora» o «hora|tipus|grups|aula», i «|fila:id» si porta fila."""
+        clau = f"{self.hora}|{self.tipus}|{self.grups or ''}|{self.aula or ''}" if self.tipus else self.hora
+        return f"{clau}|fila:{self.vigilancia_id}" if self.vigilancia_id else clau
 
 
 def _context_disponibles(dia: Dia, db: Session, hores_consulta: set[str], necessita_titulars: bool) -> dict:
@@ -200,7 +211,6 @@ def _context_disponibles(dia: Dia, db: Session, hores_consulta: set[str], necess
     dia_name = horari.get_dia_name(data.weekday())
 
     vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
-    vigilants_hora = vigilants_per_hora(vigilancies_dict)
 
     substitucions_data = SubstitucioRepository.get_by_date(db, data)
     absents_per_professor = defaultdict(set)
@@ -219,14 +229,13 @@ def _context_disponibles(dia: Dia, db: Session, hores_consulta: set[str], necess
             continue
 
         if professor and hora_sub:
-            if professor not in absents_tipus:
-                absents_tipus[professor] = tipus_abs
+            absents_tipus.setdefault((professor, hora_sub), tipus_abs)
             absents_per_professor[professor].add(hora_sub)
 
     grups_sense_classe_raw = AlliberatsDelDia.get_by_date(db, data)
     grups_sense_classe_per_hora = {hora: set(grups or []) for hora, grups in grups_sense_classe_raw.items()}
 
-    absents_coberts = dia.horari.absents_coberts  # ja no hi són: no sortiran com a disponibles
+    absents_coberts = horari.absents_coberts  # ja no hi són: no sortiran com a disponibles
 
     activitats_per_hora = {}
     for hora in hores_consulta:
@@ -239,10 +248,9 @@ def _context_disponibles(dia: Dia, db: Session, hores_consulta: set[str], necess
     _, abreviatures, nivells = taules_de_grups(db) if necessita_titulars else (None, None, None)
 
     return {
-        "ordre_prioritats": constants.ORDRE_PRIORITATS,
         "prioritats": set(constants.PRIORITATS),
-        "vigilants_per_hora": vigilants_hora,
         "vigilancies": [v for vs in vigilancies_dict.values() for v in vs],
+        "substitucions": substitucions_data,
         "absents_per_professor": absents_per_professor,
         "absents_tipus": absents_tipus,
         "substituts_ocupats_per_hora": substituts_ocupats_per_hora,
@@ -268,7 +276,7 @@ def estat_a_l_hora(context: dict, hora: str, professor: str) -> dict:
         estat = "DE BAIXA"
     elif hora in context["absents_per_professor"].get(professor, set()):
         estat = "ABSENT"
-        tipus_absencia = context["absents_tipus"].get(professor, "ABSENCIA")
+        tipus_absencia = context["absents_tipus"].get((professor, hora), "ABSENCIA")
     elif assignatura and sense_classe(professor, grup, context["grups_sense_classe_per_hora"].get(hora, set())):
         estat = "ALLIBERAT"
     elif assignatura and not grup:
@@ -284,21 +292,20 @@ def estat_a_l_hora(context: dict, hora: str, professor: str) -> dict:
 def _disponibles_de(
     context: dict, hora: str, tipus: str | None, grups: str | None, aula: str | None, vigilancia_id=None
 ) -> list[dict]:
-    ordre_prioritats = context["ordre_prioritats"]
     substituts_ocupats_hora = context["substituts_ocupats_per_hora"].get(hora, set())
+    vigilants_hora = {
+        (v.vigilant or "").strip() for v in context["vigilancies"] if v.hora == hora and str(v.id) != str(vigilancia_id)
+    }
     config_examens = context["config_examens"]
+    titulars = frozenset()
+    if config_examens is not None and tipus and tipus != "VIGILÀNCIA":
+        titulars, _ = titulars_de(
+            config_examens, tipus, grups or "", aula or "", context["abreviatures"], context["nivells"]
+        )
 
     professors_info = []
     for professor in context["professors_ordenats"]:
-        es_titular = bool(
-            config_examens is not None
-            and tipus
-            and tipus != "VIGILÀNCIA"
-            and professor
-            in titulars_de(config_examens, tipus, grups or "", aula or "", context["abreviatures"], context["nivells"])[
-                0
-            ]
-        )
+        es_titular = professor in titulars
 
         estat_hora = estat_a_l_hora(context, hora, professor)
         estat = estat_hora["estat"]
@@ -328,10 +335,7 @@ def _disponibles_de(
         else:  # LLIURE
             emoji, info, ordre_tipus, color = "⚪", assignatura or "lliure", 4, "#F5F5F5"
 
-        ja_assignat = any(
-            v.hora == hora and (v.vigilant or "").strip() == professor and str(v.id) != str(vigilancia_id)
-            for v in context["vigilancies"]
-        )
+        ja_assignat = professor in vigilants_hora
         if ja_assignat:
             info += " [JA ASSIGNAT]"
         if es_substituint:
@@ -345,7 +349,9 @@ def _disponibles_de(
         elif es_substituint and estat not in ("CLASSE", "ABSENT", "DE BAIXA"):
             color = "#8B8B8B"
 
-        categoria = _categoria_prioritat(assignatura, ordre_prioritats) if assignatura else len(ordre_prioritats)
+        # Regla del selector: sense activitat no es busca la categoria (queda
+        # fora de totes), encara que «» sigui a Prioritats.
+        categoria = categoria_de_prioritat(assignatura) if assignatura else len(constants.ORDRE_PRIORITATS)
         label = f"{base_icon}{emoji} {professor}{titular_text} ({info})"
         professors_info.append(
             {
@@ -362,72 +368,41 @@ def _disponibles_de(
             }
         )
 
-    professors_info.sort(key=lambda x: (x["ordre_tipus"], x["value"]))
+    # L'ordre del desplegable (la pantalla no el toca): tipus, categoria i nom natural
+    professors_info.sort(key=lambda x: (x["ordre_tipus"], x["categoria"], ordre_alfabetic(x["value"])))
     return professors_info
+
+
+def _respon(db: Session, dia: Dia, consultes: list[Consulta]) -> list[list[dict]]:
+    """Els disponibles de cada consulta, amb una sola lectura del dia."""
+    context = _context_disponibles(
+        dia=dia,
+        db=db,
+        hores_consulta={c.hora for c in consultes},
+        necessita_titulars=any(c.tipus and c.tipus != "VIGILÀNCIA" for c in consultes),
+    )
+    return [_disponibles_de(context, *c) for c in consultes]
 
 
 def disponibles(db: Session, dia: Dia, hora: str, tipus=None, grups=None, aula=None, vigilancia_id=None) -> list[dict]:
     """Tots els professors per a una vigilància, amb el que fan a l'hora i
     ordenats per idoneïtat (titular, alliberats, disponibles...). Amb `tipus`,
     `grups` i `aula` es marca el titular de l'examen."""
-    hora_norm = (hora or "").strip()
-    tipus_norm = _normalitza_param(tipus)
-    grups_norm = _normalitza_param(grups)
-    aula_norm = _normalitza_param(aula)
-
-    context = _context_disponibles(
-        dia=dia, db=db, hores_consulta={hora_norm}, necessita_titulars=bool(tipus_norm and tipus_norm != "VIGILÀNCIA")
-    )
-    return _disponibles_de(
-        context=context, hora=hora_norm, tipus=tipus_norm, grups=grups_norm, aula=aula_norm, vigilancia_id=vigilancia_id
-    )
+    return _respon(db, dia, [Consulta.neta(hora, tipus, grups, aula, vigilancia_id)])[0]
 
 
 def disponibles_en_bloc(db: Session, dia: Dia, consultes) -> dict:
     """El mateix que `disponibles` per a moltes consultes alhora:
-    {clau de la consulta: [professors]}. Les repetides es responen un cop."""
-    queries = []
-    keys_seen = set()
-    for query in consultes:
-        hora_norm = (query.hora or "").strip()
-        if not hora_norm:
-            continue
-        tipus_norm = _normalitza_param(query.tipus)
-        grups_norm = _normalitza_param(query.grups)
-        aula_norm = _normalitza_param(query.aula)
-        cache_key = _clau_consulta(hora_norm, tipus_norm, grups_norm, aula_norm, query.vigilancia_id)
-        if cache_key in keys_seen:
-            continue
-        keys_seen.add(cache_key)
-        queries.append(
-            {
-                "hora": hora_norm,
-                "tipus": tipus_norm,
-                "grups": grups_norm,
-                "aula": aula_norm,
-                "cache_key": cache_key,
-                "vigilancia_id": query.vigilancia_id,
-            }
-        )
-
-    if not queries:
+    {clau de la consulta: [professors]}. Les repetides es responen un cop i
+    les que no tenen hora, cap."""
+    uniques: dict[str, Consulta] = {}
+    for q in consultes:
+        consulta = Consulta.neta(q.hora, q.tipus, q.grups, q.aula, q.vigilancia_id)
+        if consulta.hora:
+            uniques.setdefault(consulta.clau, consulta)
+    if not uniques:
         return {}
-
-    hores_consulta = {q["hora"] for q in queries}
-    necessita_titulars = any(q["tipus"] and q["tipus"] != "VIGILÀNCIA" for q in queries)
-    context = _context_disponibles(dia=dia, db=db, hores_consulta=hores_consulta, necessita_titulars=necessita_titulars)
-
-    results = {}
-    for query in queries:
-        results[query["cache_key"]] = _disponibles_de(
-            context=context,
-            hora=query["hora"],
-            tipus=query["tipus"],
-            grups=query["grups"],
-            aula=query["aula"],
-            vigilancia_id=query["vigilancia_id"],
-        )
-    return results
+    return dict(zip(uniques, _respon(db, dia, list(uniques.values())), strict=True))
 
 
 # Els estats de la regla, com els retorna l'ajuda del vigilant (la pantalla els tradueix)
@@ -466,16 +441,11 @@ def ajuda_vigilant(db: Session, dia: Dia, hora: str, professor: str) -> dict:
             "grup": sub.grup,
             "aula": sub.aula,
         }
-        for sub in SubstitucioRepository.get_by_date(db, dia.data)
+        for sub in context["substitucions"]
         if (sub.hora or "").strip() == hora and (sub.substitut or "").strip() == professor
     ]
 
-    del_professor = [
-        vig
-        for vigs in VigilanciaRepository.get_by_date(db, dia.data).values()
-        for vig in vigs
-        if (vig.vigilant or "").strip() == professor
-    ]
+    del_professor = [vig for vig in context["vigilancies"] if (vig.vigilant or "").strip() == professor]
     vigilancies_hora = [
         {"id": vig.id, "tipus": vig.tipus or "", "grups": vig.grups or "", "aula": vig.aula or ""}
         for vig in en_ordre(del_professor)
@@ -550,7 +520,7 @@ def edita(db: Session, data: date, vig_id: int, edicio) -> str | None:
     """Canvia els camps que porta `edicio` i retorna el nou updated_at. Sense
     `force`, l'updated_at ha de ser el que es va llegir."""
     updates = {}
-    for camp in ("hora", "tipus", "grups", "aula", "vigilant", "comentaris", "nivell"):
+    for camp in CAMPS_EDITABLES:
         valor = getattr(edicio, camp)
         if valor is not None:
             updates[camp] = _sense_placeholder(valor) if camp == "vigilant" else valor
@@ -649,13 +619,14 @@ def calcula_assignacio(db: Session, dia: Dia, data: date, amb_guardia: bool, rng
     el motiu]}. Les files que ja tenen vigilant no es toquen."""
 
     rng = rng or _atzar()
-    core = dia.vigilancia_core(db)
     horari = dia.horari
+    core = dia.vigilancia_core(db)
     nom_dia = horari.get_dia_name(data.weekday())
     nivell_de, abreviatures, nivells = taules_de_grups(db)
     propers = {fila["base"]: fila["ordre"] for fila in get_vigilancies_afinitats(db)}
     config = files_configuracio(db)
     n_categories = len(constants.ORDRE_PRIORITATS) + 1
+    professors = sorted(horari.professors)
 
     per_hora = defaultdict(list)
     for vig in llista(db, data):
@@ -686,7 +657,7 @@ def calcula_assignacio(db: Session, dia: Dia, data: date, amb_guardia: bool, rng
         grups_hora = core.grups_sense_classe.get(hora, [])
 
         candidats, sense_activitat = [], set()
-        for professor in sorted(horari.professors):
+        for professor in professors:
             if professor in ocupats or hora in core.absents_actuals.get(professor, []):
                 continue
             activitat = horari.get_activitat(nom_dia, hora, professor) or {}
@@ -706,7 +677,7 @@ def calcula_assignacio(db: Session, dia: Dia, data: date, amb_guardia: bool, rng
                     alliberat=alliberat,
                     grups_classe=grups_classe,
                     nivells={nivell_de[g] for g in grups_classe if g in nivell_de},
-                    preferencia_guardia=(n_categories - core.get_categoria_prioritat(tipus)) * 1000 + pes_de(tipus),
+                    preferencia_guardia=(n_categories - categoria_de_prioritat(tipus)) * 1000 + pes_de(tipus),
                     autoassignable=core.is_activitat_auto_assignable(tipus),
                 )
             )
@@ -758,13 +729,14 @@ def _pendents(db: Session, data: date) -> int:
     return sum(1 for v in llista(db, data) if not (v.vigilant or "").strip())
 
 
-def assigna_titulars(db: Session, dia: Dia, data: date, rng=None) -> dict:
+def assigna_titulars(db: Session, dia: Dia, rng=None) -> dict:
     """Posa NOMÉS els titulars, a la fila que els toca segons l'assignació
     sencera de cada hora (un titular de diversos grups va on deixa més
     professors al seu grup). Els titulars amb l'hora lliure no s'hi posen:
     surten a `titulars_hora_lliure` perquè ho decideixi qui fa les vigilàncies.
     `vigilancies_sense_titular`: les files que la configuració d'exàmens no
     deixa definides (cap fila per al grup, o diversos titulars possibles)."""
+    data = dia.data
     if not VigilanciaRepository.get_by_date(db, data):
         return {"assigned_count": 0, "remaining_count": 0, "message": f"No hi ha vigilàncies per {data}"}
 
@@ -781,10 +753,11 @@ def assigna_titulars(db: Session, dia: Dia, data: date, rng=None) -> dict:
     }
 
 
-def assigna_pendents(db: Session, dia: Dia, data: date, disponibles: bool = False, rng=None) -> dict:
+def assigna_pendents(db: Session, dia: Dia, disponibles: bool = False, rng=None) -> dict:
     """Omple les vigilàncies pendents (veure vigilancies/assignacio.py): amb
     `disponibles`, també amb professors de guàrdia i altres activitats de les
     prioritats; si no, només amb alliberats (i els titulars)."""
+    data = dia.data
     if not VigilanciaRepository.get_by_date(db, data):
         return {"assigned_count": 0, "remaining_count": 0, "message": f"No hi ha vigilàncies per {data}"}
 

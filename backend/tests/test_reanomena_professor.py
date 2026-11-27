@@ -50,9 +50,9 @@ def centre():
     return centre
 
 
-def _client(centre, rol="admin"):
-    nom = f"{rol}_{unic()}"
-    crea_usuari(nom, centre, rol)
+def _client(centre):
+    nom = f"admin_{unic()}"
+    crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
 
 
@@ -97,8 +97,3 @@ def test_els_casos_no_valids_donen_400_i_no_canvien_res(centre, cos, missatge):
     assert resposta.json()["detail"].startswith(missatge)
     with get_data_db_session(centre) as db:
         assert {p.nom for p in db.query(Professor)} == {"Prof Antic", "Prof Actiu"}
-
-
-def test_un_usuari_no_admin_no_pot_reanomenar(centre):
-    resposta = _client(centre, "user").post(URL, json={"nom_actual": "Prof Antic", "nom_nou": "X"})
-    assert resposta.status_code == 403

@@ -31,14 +31,6 @@ msgstr "VIGILÀNCIA"
 msgid "JA ASSIGNAT"
 msgstr "JA ASSIGNAT"
 
-#: core/absencies.py:34 core/substitucions.py:109
-msgid "   🔄 Convertit dia ISO a nom XML: '{}'"
-msgstr "   🔄 Convertit dia ISO a nom XML: '{}'"
-
-#: core/substitucions.py:122
-msgid "   📌 hores carregades de l'XML: {}"
-msgstr "   📌 hores carregades de l'XML: {}"
-
 #: core/substitucions.py:140
 msgid "   📋 get_substitucions_necessaries retorna {} substitucions"
 msgstr "   📋 get_substitucions_necessaries retorna {} substitucions"
@@ -138,10 +130,6 @@ msgstr "VIGILÀNCIES"
 #: pdf/engine.py:244 pdf/engine.py:248
 msgid "SUBSTITUCIONS I VIGILÀNCIES"
 msgstr "SUBSTITUCIONS I VIGILÀNCIES"
-
-#: pdf/engine.py:254
-msgid "DOCUMENT BUIT"
-msgstr "DOCUMENT BUIT"
 
 #: pdf/engine.py:316
 #, python-brace-format
@@ -280,14 +268,6 @@ msgstr ""
 #: gui/configuracio_dialog.py:1064 gui/configuracio_dialog.py:1115
 msgid "alliberat"
 msgstr "alliberat"
-
-#. Botons d'ordenació global
-#: gui/editor_configuracio_examens.py:229
-#: gui/editor_configuracio_examens.py:284
-#: gui/editor_configuracio_examens.py:327
-#: gui/editor_configuracio_examens.py:406
-msgid "▲"
-msgstr "▲"
 
 #. Espai entre botó i anàlisi
 #. Espai

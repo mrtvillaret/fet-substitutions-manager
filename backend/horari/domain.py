@@ -63,8 +63,8 @@ class Dia:
         return get_gestors(self.institucio, data_iso=self.data, horari=self.horari)
 
     def vigilancia_core(self, db):
-        """El nucli de vigilàncies d'aquest dia (titulars, disponibles)."""
-        return get_vigilancia_core(self.data, db, self.institucio, horari=self.horari)
+        """Les absències i els alliberaments del dia per assignar vigilants."""
+        return get_vigilancia_core(self.data, db, self.institucio)
 
     @cached_property
     def xml_path(self) -> str | None:

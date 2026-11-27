@@ -4,6 +4,7 @@ import { ref, computed, nextTick, watch } from 'vue'
 import { carregaBlocVista } from './support/carregaBlocVista.js'
 import { DIALEGS, llegeixAdreca, escriuAdreca, pasHistorial, dataDeIso } from '../src/adreca.js'
 import { dataIso } from '../src/dates.js'
+import { esEntrada } from '../src/api/usuaris.js'
 import { dialegsInterns, registraDialegIntern, dialegInternObert, tancaDialegIntern } from '../src/dialegsInterns.js'
 // Navegador de prova: adreça i historial amb entrades, «Enrere» i popstate
 function navegador(adreca = '/') {
@@ -45,7 +46,7 @@ function prepara({ adreca = '/', rol = 'admin', vueWatch = () => {} } = {}) {
   const dependents={t:x=>x,toast:{add:x=>avisos.push(x)}}
   const window = navegador(adreca)
   const dataTreball = ref(new Date('2026-04-20T12:00:00'))
-  const apiUsuaris={perfil:async()=>{peticions.push('perfil');return{data:{role:rol,idioma:'ca',institucio:'exemple'}}},surt:async()=>{peticions.push('sortir')},entra:async x=>{peticions.push(['login',x]);return{data:{}}},entraDelegacio:async(...x)=>peticions.push(['delegacio',...x])}
+  const apiUsuaris={perfil:async()=>{peticions.push('perfil');return{data:{role:rol,idioma:'ca',institucio:'exemple'}}},surt:async()=>{peticions.push('sortir')},entra:async x=>{peticions.push(['login',x]);return{data:{}}},entraDelegacio:async(...x)=>peticions.push(['delegacio',...x]),esEntrada}
   const p=carregaBlocVista('useAplicacio', {...dependents,dependents,console:{error:(...a)=>errors.push(a)},ref,computed,nextTick,watch:vueWatch,onMounted:x=>mounted.push(x),onBeforeUnmount:x=>unmounted.push(x),window,URLSearchParams,URL,setInterval,clearInterval,dataTreball,ambDataTreball:()=>({params:{data:'2026-04-20'}}),dataIso,apiUsuaris,configuracioHorari:async x=>{peticions.push(['config',x]);return{num_hores:7}},llistaCursos:async()=>[{id:1,nom:'Prova',data_inici:'2026-01-01',data_fi:null}],BASE:'/',esRutaLocal:x=>x.startsWith('/')&&!x.startsWith('//'),vigilaVersio:()=>()=>peticions.push('desmuntat'),clientHttp:{defaults:{},interceptors:{response:{use:(...x)=>interceptors.push(x)}}},setLocale:x=>peticions.push(['idioma',x]),missatgeDError:async()=> 'error',DIALEGS,llegeixAdreca,escriuAdreca,pasHistorial,dataDeIso,dialegInternObert,tancaDialegIntern})
   return{...p,peticions,avisos,errors,mounted,unmounted,interceptors,apiUsuaris,window}
 }
@@ -73,26 +74,30 @@ test('App: la sessió tancada es reconeix pel codi i, sense codi, pel text', asy
  }
 })
 
-test('App: carregarPerfil ignora el 401 a la consola i registra la resta dels errors',async()=>{
+test('App: el perfil ignora el 401 a la consola i registra la resta dels errors',async()=>{
  const p=prepara()
  for(const error of [{response:{status:401}},{response:{status:500}},Error('xarxa')]){
-  p.apiUsuaris.perfil=async()=>{throw error};await p.carregarPerfil()
+  p.apiUsuaris.perfil=async()=>{throw error};await p.handleInstitucioCanviada()
  }
  assert.equal(p.errors.length,2)
  assert.equal(p.errors[0][1].response.status,500)
  assert.equal(p.errors[1][1].message,'xarxa')
 })
 
-for (const cas of ['global', 'pantalla', 'sessio', 'xarxa']) {
+for (const cas of ['global', 'pantalla', 'sessio', 'xarxa', 'estructurat']) {
  test(`App: regla única dels avisos (${cas})`, async () => {
-  const errorsAvisos = await import('../src/errorsApi.js')
+  const errorsAvisos = await import('../src/api/errors.js')
   const p = prepara()
   await p.mounted[0]()
-  const error = cas === 'xarxa' ? {config:{}} : {config:{_silent:cas==='pantalla'},response:{status:cas==='sessio'?401:500,data:{}}}
+  // estructurat: una crida no silenciosa amb un detall objecte (un 409 amb la versió
+  // actual): el missatge el dona la pantalla, no l'interceptor amb «Error inesperat»
+  const error = cas === 'xarxa' ? {config:{}}
+   : cas === 'estructurat' ? {config:{},response:{status:409,data:{detail:{error:'conflict',message:'Ha canviat',current_data:{}}}}}
+   : {config:{_silent:cas==='pantalla'},response:{status:cas==='sessio'?401:500,data:{}}}
   await assert.rejects(p.interceptors[0][1](error), e=>e===error)
   errorsAvisos.avisaError(error,()=>p.avisos.push({detail:'local'}))
   assert.equal(p.avisos.length,cas==='sessio'?0:1)
-  if(cas==='pantalla')assert.equal(p.avisos[0].detail,'local')
+  if(cas==='pantalla'||cas==='estructurat')assert.equal(p.avisos[0].detail,'local')
   else if(cas!=='sessio')assert.equal(p.avisos[0].detail,'error')
  })
 }
@@ -120,7 +125,7 @@ test('App: el 429 d’entrada conserva l’avís concret i el temporitzador sens
 })
 
 test('App: peticions pendents amb 401 no afegeixen toasts a la pantalla d’entrada', async () => {
- const errorsAvisos=await import('../src/errorsApi.js'),p=prepara()
+ const errorsAvisos=await import('../src/api/errors.js'),p=prepara()
  await p.mounted[0]()
  p.autenticat.value=false
  const error={config:{url:'/api/vigilancies/2026-04-20'},response:{status:401,data:{}}}

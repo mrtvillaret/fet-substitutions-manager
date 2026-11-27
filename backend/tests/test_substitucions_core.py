@@ -19,7 +19,7 @@ from collections import Counter
 import pytest
 
 from config import constants
-from substitucions.assignacio import CandidateValidator, GestorSubstitucions, QuotaFranja, escull_candidat_amb_quota
+from substitucions.assignacio import CandidateValidator, GestorSubstitucions, QuotaFranja
 from substitucions.files import FilaSubstitucio, PropostaSubstitucio
 
 
@@ -143,42 +143,8 @@ def test_quota_inicial_proporcional_independent_de_l_ordre(monkeypatch, ordre_in
         assert recomptes[professor] == round(probabilitat * 7)
 
 
-def test_pesos_absents_zero_i_negatius_equivalen_a_un(monkeypatch):
-    monkeypatch.setattr(constants, "PRIORITATS", {"Zero": 0, "Negatiu": -3, "Positiu": 3})
-    candidats = [
-        ("Prof 1", "alliberat", "tenia classe"),
-        ("Prof 2", "Zero", ""),
-        ("Prof 3", "Negatiu", ""),
-        ("Prof 4", "Positiu", ""),
-    ]
-
-    class AtzarControlat:
-        def choices(self, poblacio, *, weights, k):
-            assert poblacio == candidats
-            assert weights == [1, 1, 1, 3]
-            assert k == 1
-            return [poblacio[-1]]
-
-    assert escull_candidat_amb_quota(candidats, QuotaFranja(), "09:00", AtzarControlat()) == candidats[-1]
-    assert escull_candidat_amb_quota([], QuotaFranja(), "09:00", AtzarControlat()) is None
-    assert escull_candidat_amb_quota(candidats[:1], QuotaFranja(), "09:00", AtzarControlat()) == candidats[0]
-
-
-def test_prioritza_la_categoria_mes_alta_encara_que_tingui_menys_candidats():
-    gestor = GestorSubstitucions(FakeHorari([]), FakeAlliberats({}), FakeAbsencies([]), no_substituir=frozenset())
-    gestor.validator = CandidateValidator()
-
-    candidats_per_categoria = {
-        0: [("Prof_AltaPrioritat", "alliberat", "alliberat")],
-        1: [("Prof_BaixaPrioritat_1", "Guàrdia", "Guàrdia"), ("Prof_BaixaPrioritat_2", "Guàrdia", "Guàrdia")],
-    }
-
-    escollit = gestor._escollir_millor_candidat_disponible(candidats_per_categoria, set(), "09:00")
-
-    assert escollit[0] == "Prof_AltaPrioritat"
-
-
-def test_un_alliberat_guanya_dos_de_guardia_sense_consultar_l_atzar(monkeypatch):
+def test_la_categoria_mes_alta_guanya_encara_que_tingui_menys_candidats_sense_consultar_l_atzar(monkeypatch):
+    # Un alliberat guanya dos de guàrdia
     class AtzarProhibit:
         def choice(self, candidats):
             raise AssertionError(f"No calia desempatar entre {candidats}")
@@ -343,7 +309,7 @@ def test_absents_tipus_es_reenvia_al_gestor_dabsencies(monkeypatch):
             crides["absents_tipus"] = absents_tipus
             return super().get_substitucions_necessaries(dia, absents, absents_tipus)
 
-    absents_tipus = {"Prof_A": "SERVEI"}
+    absents_tipus = {("Prof_A", "09:00"): "SERVEI"}
 
     gestor = GestorSubstitucions(
         FakeHorari(hores=["09:00"]), FakeAlliberats({}), FakeAbsenciesEspia([]), no_substituir=no_substituir

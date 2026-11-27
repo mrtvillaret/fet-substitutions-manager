@@ -4,7 +4,7 @@ import pytest
 from test_pdf_api import DATA, centre, client  # noqa: F401
 
 
-@pytest.mark.parametrize("aula,espera_aula", [("A1", True), ("ENLLAÇ", False)])
+@pytest.mark.parametrize("aula,espera_aula", [("A1", True), ("ENLLAÇ", False), ("enllaç", False)])
 @pytest.mark.parametrize("grup2", ["1-ESO-A", "1-ESO-B"])
 def test_vigilant_repetit_sempre_avis_i_aula_enllac_exempt(client, aula, espera_aula, grup2):
     url = f"/api/vigilancies/{DATA}"

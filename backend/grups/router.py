@@ -82,7 +82,7 @@ def franges_activitat_per_defecte(
 def obtenir_grups_sense_classe(db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)):
     """Grups sense classe, professors i activitats alliberats d'una data, i el
     que cal per mostrar la taula (GrupsView.vue)."""
-    return services.dades_del_dia(db, dia_peticio, dia_peticio.data)
+    return services.dades_del_dia(db, dia_peticio)
 
 
 @router.put("/{data}", response_model=DiaDesatResponse, response_model_exclude_unset=True)

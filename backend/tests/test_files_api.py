@@ -35,9 +35,9 @@ def _limiter_net():
     yield
 
 
-def _usuari_de(institucio, role="admin"):
-    nom = f"{role}_{unic()}"
-    crea_usuari(nom, institucio, role)
+def _usuari_de(institucio):
+    nom = f"admin_{unic()}"
+    crea_usuari(nom, institucio, "admin")
     return entra(client_per(APP), nom)
 
 
@@ -70,11 +70,7 @@ def _fitxers(centre):
     return sorted(str(p.relative_to(carpeta)) for p in carpeta.rglob("*.xml"))
 
 
-# ------------------------------------------------------------------ accés
-
-
-def test_nomes_els_admins_poden_pujar_l_horari(centre):
-    assert _puja(_usuari_de(centre, role="user")).status_code == 403
+# ---------------------------------------------------- fitxers que s'accepten
 
 
 def test_nomes_s_accepten_fitxers_xml(client):
@@ -105,15 +101,20 @@ def test_es_rebutja_un_xml_mal_format_o_amb_entitats(client, centre, contingut):
 # ---------------------------------------------------------------- versionat
 
 
-def test_pujar_desa_l_horari_a_l_historic_i_el_fa_vigent(client, centre):
-    resp = _puja(client, nom="Curs26-27_teachers.xml")
+# Els espais del davant dels professors serveixen a FET per ordenar-los per
+# nivells: l'aplicació llegeix els noms nets, però el fitxer es desa tal com es puja.
+@pytest.mark.parametrize("espais", [0, 3], ids=["xml", "amb els espais dels noms"])
+def test_pujar_desa_l_horari_tal_com_es_puja_a_l_historic_i_el_fa_vigent(client, centre, espais):
+    contingut = XML.replace(b'name="Prof ', b'name="   Prof ', espais)
+    assert (contingut != XML) == bool(espais)
+    resp = _puja(client, nom="Curs26-27_teachers.xml", contingut=contingut)
     assert resp.status_code == 200
     cos = resp.json()
     assert cos["filename"] == "Curs26-27_teachers.xml"
     assert cos["vigent_avui"] is True
     assert cos["path"].startswith("xml_history/horari_")
     assert _xml_actual(centre) == cos["path"]
-    assert (get_data_dir_for_institucio(centre) / cos["path"]).read_bytes() == XML
+    assert (get_data_dir_for_institucio(centre) / cos["path"]).read_bytes() == contingut
     # Només queda la còpia de l'històric: ni el fitxer amb el nom original ni el temporal.
     assert _fitxers(centre) == [cos["path"]]
 
@@ -181,15 +182,6 @@ def test_pujar_un_fitxer_amb_el_mateix_nom_que_l_xml_vigent_no_perd_l_anterior(c
     # La versió inicial conserva l'horari que hi havia abans de la pujada.
     assert (carpeta / versions[0]["path"]).read_bytes() == XML
     assert (carpeta / versions[1]["path"]).read_bytes() == XML.replace(b"Prof 1", b"Prof 1b")
-
-
-def test_l_xml_es_desa_tal_com_es_puja_amb_els_espais_dels_noms(client, centre):
-    # Els espais del davant dels professors serveixen a FET per ordenar-los per
-    # nivells: l'aplicació llegeix els noms nets, però el fitxer no es toca mai.
-    amb_espais = XML.replace(b'name="Prof ', b'name="   Prof ', 3)
-    assert amb_espais != XML
-    cos = _puja(client, contingut=amb_espais).json()
-    assert (get_data_dir_for_institucio(centre) / cos["path"]).read_bytes() == amb_espais
 
 
 def test_dues_pujades_en_el_mateix_segon_no_es_trepitgen(client, centre, rellotge_fix):

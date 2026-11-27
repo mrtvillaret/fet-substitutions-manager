@@ -1,4 +1,4 @@
-import { avisaError, detallDError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../api/errors.js'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 import { ruta } from '../basePath.js'

@@ -1,31 +1,26 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError, filaJaNoExisteix } from '../api/errors.js'
 import { ref } from 'vue'
 import * as apiVigilancies from '../api/vigilancies.js'
 import { adaptaVigilanciaAlNivell } from '../vigilanciesNivell.js'
+import { useConflicte } from './useConflicte.js'
 
-// Extret de la vista: es preserven estat, efectes i ordre de les operacions.
+// Edició de les files de Vigilàncies: canvis, altes, esborrats, ordre i conflictes.
 export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigilanciesFiltrades, hores, opcionsFiles, toast, t, confirmaEsborrar, oblidaAjudes, ressalta, carregarVigilancies, carregarSubstitucionsCount, refrescarDisponiblesHora, carregarDisponibles, getDisponiblesPerHora }) {
-  const mostrarDialogConflicte = ref(false)
+  const { mostrarDialogConflicte, obreSiConflicte, gestionarConflicte, executarOverwrite } = useConflicte(carregarVigilancies)
 
-  const conflicteOverwrite = ref(null)
-
-  const obrirDialogConflicte = (overwriteAction) => {
-    conflicteOverwrite.value = overwriteAction
-    mostrarDialogConflicte.value = true
-  }
-
-  const gestionarConflicte = async () => {
+  // Un altre dispositiu ha esborrat la vigilància: es diu i es torna a carregar la llista
+  const siJaNoExisteix = async (error) => {
+    if (!filaJaNoExisteix(error)) return false
+    toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('common.rowGone'), life: 5000 })
     await carregarVigilancies()
+    return true
   }
 
-  const executarOverwrite = async () => {
-    if (conflicteOverwrite.value) {
-      await conflicteOverwrite.value()
-    }
-  }
-
+  // Una resposta d'un dia que ja no és a la pantalla no es publica (com useCarregaVigilancies)
   const recarregaLlistat = async () => {
-    vigilancies.value = await apiVigilancies.llista(dataISO.value)
+    const data = dataISO.value
+    const files = await apiVigilancies.llista(data)
+    if (data === dataISO.value) vigilancies.value = files
   }
 
   const canviaCamp = async (fila, camp, valor) => {
@@ -94,24 +89,18 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
       })
     } catch (err) {
       console.error('Error actualitzant vigilància:', err)
-      if (err.response?.status === 409 && err.response?.data?.detail?.current_data) {
-        const currentData = err.response.data.detail.current_data
-        obrirDialogConflicte(async () => {
-          await apiVigilancies.edita(dataISO.value, vigilancia.id, {
-            hora: vigilancia.hora,
-            tipus: tipusNormalitzat,
-            grups: grupsNormalitzat,
-            aula: aulaNormalitzada,
-            vigilant: vigilancia.vigilant,
-            comentaris: vigilancia.comentaris,
-            nivell: nivellNormalitzat,
-            updated_at: currentData.updated_at,
-            force: true
-          })
-          await carregarVigilancies()
-        })
-        return
-      }
+      if (obreSiConflicte(err, actual => apiVigilancies.edita(dataISO.value, vigilancia.id, {
+        hora: vigilancia.hora,
+        tipus: tipusNormalitzat,
+        grups: grupsNormalitzat,
+        aula: aulaNormalitzada,
+        vigilant: vigilancia.vigilant,
+        comentaris: vigilancia.comentaris,
+        nivell: nivellNormalitzat,
+        updated_at: actual.updated_at,
+        force: true
+      }))) return
+      if (await siJaNoExisteix(err)) return
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
@@ -189,17 +178,10 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
       await carregarVigilancies()
     } catch (err) {
       console.error('Error eliminant vigilància:', err)
-      if (err.response?.status === 409 && err.response?.data?.detail?.current_data) {
-        const currentData = err.response.data.detail.current_data
-        obrirDialogConflicte(async () => {
-          await apiVigilancies.esborra(dataISO.value, vigilancia.id, {
-            updatedAt: currentData.updated_at,
-            force: true
-          })
-          await carregarVigilancies()
-        })
-        return
-      }
+      if (obreSiConflicte(err, actual => apiVigilancies.esborra(dataISO.value, vigilancia.id, {
+        updatedAt: actual.updated_at, force: true
+      }))) return
+      if (await siJaNoExisteix(err)) return
       avisaError(err, () => toast.add({
         severity: 'error',
         summary: t('common.error'),
@@ -226,7 +208,7 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
   }
 
   const disponiblesDelFormulari = async ({ hora, tipus, grups, aula }) => {
-    await carregarDisponibles(hora, false, tipus, grups, aula)
+    await carregarDisponibles(hora, tipus, grups, aula)
     return getDisponiblesPerHora(hora, tipus, grups, aula)
   }
 
@@ -311,5 +293,5 @@ export function useEdicioVigilancies({ dataISO, vigilancies, seleccionades, vigi
     }
   }
 
-  return { mostrarDialogConflicte, gestionarConflicte, executarOverwrite, canviaCamp, confirmarEliminar, confirmarEliminarSeleccionades, mostrarFormulariNova, creantVigilancia, propostaNova, afegirNovaVigilancia, disponiblesDelFormulari, creaVigilancia, afegirVigilanciaDesprés, mouFiles, actualitzarVigilancia }
+  return { mostrarDialogConflicte, gestionarConflicte, executarOverwrite, canviaCamp, confirmarEliminar, confirmarEliminarSeleccionades, mostrarFormulariNova, creantVigilancia, propostaNova, afegirNovaVigilancia, disponiblesDelFormulari, creaVigilancia, afegirVigilanciaDesprés, mouFiles, recarregaLlistat, siJaNoExisteix }
 }

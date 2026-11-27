@@ -47,6 +47,7 @@
     "footerLliure": "software libre"
   },
   "common": {
+    "rowGone": "Esta fila ya no existe; se ha vuelto a cargar",
     "roles": {
       "super_admin": "Administrador global",
       "admin": "Administrador",
@@ -520,7 +521,8 @@
       "onlyToday": "Solo hoy",
       "until": "Hasta el",
       "summary": "{count} día lectivo | {count} días lectivos",
-      "daysRegistered": "días registrados para {teacher}"
+      "daysRegistered": "días registrados para {teacher}",
+      "partial": "Guardados: {desats}. No se han podido guardar: {fallats}"
     },
     "dialogs": {
       "absences": {

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { ESLint } from 'eslint'
-import * as errors from '../src/errorsApi.js'
+import * as errors from '../src/api/errors.js'
 
 const errorApi = (status = 500, silent = false) => ({ isAxiosError: true, config: { _silent: silent }, response: { status } })
 

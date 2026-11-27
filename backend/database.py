@@ -17,8 +17,8 @@ from sqlalchemy.pool import NullPool
 from schema_migrations.runner import initialize_database
 
 BASE_DIR = Path(__file__).resolve().parent
-# DATA_DIR apunta a la carpeta data/ a l'arrel del projecte (dos nivells amunt)
-# Això permet multi-institució: data/centre1, data/centre2, etc.
+# Per defecte (sense DATA_DIR), la carpeta data/ de l'arrel del projecte, al
+# costat de backend/. Una subcarpeta per centre: data/centre1, data/centre2, etc.
 PROJECT_DATA_ROOT = BASE_DIR.parent / "data"
 DATA_BASE_DIR = Path(os.getenv("DATA_DIR", PROJECT_DATA_ROOT))
 
@@ -127,8 +127,7 @@ def _opcions_de_sessio(lectura: bool, nomes_lectura: bool) -> dict:
 
 def get_data_db(institucio: str, *, lectura: bool = False, nomes_lectura: bool = False):
     engine = get_engine_for_institucio(institucio).execution_options(**_opcions_de_sessio(lectura, nomes_lectura))
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal(info={"institucio": institucio})
+    db = Session(bind=engine, autoflush=False, info={"institucio": institucio})
     try:
         yield db
     finally:
@@ -144,12 +143,5 @@ def get_auth_db_session():
         db.close()
 
 
-@contextmanager
-def get_data_db_session(institucio: str, *, lectura: bool = False, nomes_lectura: bool = False):
-    engine = get_engine_for_institucio(institucio).execution_options(**_opcions_de_sessio(lectura, nomes_lectura))
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal(info={"institucio": institucio})
-    try:
-        yield db
-    finally:
-        db.close()
+# La mateixa sessió fora de les rutes: `with get_data_db_session(institucio) as db:`.
+get_data_db_session = contextmanager(get_data_db)

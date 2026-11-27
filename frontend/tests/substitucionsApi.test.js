@@ -11,18 +11,7 @@ import {
   llistaTotesAmb,
   reassignaProblematiquesAmb
 } from '../src/api/substitucions.js'
-
-const clientFals = (resposta = {}) => {
-  const peticions = []
-  const client = {}
-  for (const metode of ['get', 'post', 'put']) {
-    client[metode] = async (...args) => {
-      peticions.push([metode, ...args])
-      return { data: resposta }
-    }
-  }
-  return { client, peticions }
-}
+import { clientFals } from './support/crides.js'
 
 test('llista les substitucions amb les variants exactes de la pantalla', async () => {
   const ordenada = clientFals([{ id: 1 }])
@@ -50,15 +39,16 @@ test('genera pendents o regenera tot i retorna el resultat', async () => {
   ]])
 })
 
-test('actualitza una fila conservant el mode silenciós', async () => {
+test('actualitza una fila codificant l’hora i el professor i conservant el mode silenciós', async () => {
+  // Amb «/», «#» o «?» al nom, sense codificar la URL tindria un altre camí
   const cos = { id: 3, substitut: 'Prof 1' }
   const { client, peticions } = clientFals({ updated_at: 'ara' })
   assert.deepEqual(
-    await actualitzaAmb(client, '2026-04-20', '08:00', 'Prof absent', cos, { silent: true }),
+    await actualitzaAmb(client, '2026-04-20', '08:00', 'Prof / #1?', cos, { silent: true }),
     { updated_at: 'ara' }
   )
   assert.deepEqual(peticions, [[
-    'put', '/api/substitucions/2026-04-20/08:00/Prof absent', cos, { _silent: true }
+    'put', '/api/substitucions/2026-04-20/08%3A00/Prof%20%2F%20%231%3F', cos, { _silent: true }
   ]])
 })
 

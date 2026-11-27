@@ -44,6 +44,8 @@ def test_un_500_no_retorna_el_detall_intern(caplog):
     assert set(resp.json()) == {"error_ref"}
     assert "sqlite3" not in resp.text
     assert _referencia_al_registre(caplog, resp.json()["error_ref"], "no such table")
+    # Cada error té una referència diferent
+    assert CLIENT.get("/prova/500").json()["error_ref"] != resp.json()["error_ref"]
 
 
 def test_una_excepcio_no_controlada_tampoc(caplog):
@@ -51,10 +53,6 @@ def test_una_excepcio_no_controlada_tampoc(caplog):
     assert resp.status_code == 500
     assert set(resp.json()) == {"error_ref"}
     assert _referencia_al_registre(caplog, resp.json()["error_ref"], "detall intern")
-
-
-def test_cada_error_te_una_referencia_diferent():
-    assert CLIENT.get("/prova/500").json()["error_ref"] != CLIENT.get("/prova/500").json()["error_ref"]
 
 
 def test_els_errors_4xx_no_canvien():

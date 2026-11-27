@@ -234,7 +234,7 @@ def _avisos_xml(institucio: str, versio: XMLVersion | None = None) -> dict:
                 dia = Dia(data, institucio, versio_xml=versio)
                 estat = DiaEscolar(db, dia, estricte=True)
                 data_avis = dia.iso
-                subs = substituts_no_valids(db, data, estat)
+                subs = substituts_no_valids(estat)
                 vigs = [p for p in analitza_vigilancies(estat) if p["gravetat"] == "important"]
                 avisos.extend(
                     {

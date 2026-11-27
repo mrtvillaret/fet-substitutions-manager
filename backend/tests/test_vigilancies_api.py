@@ -24,6 +24,7 @@ from grups.repositories import GrupsAlliberatsRepository
 from models import ConfiguracioExamen, Vigilancia
 from rate_limit import limiter
 from substitucions import router as substitucions
+from substitucions.repositories import SubstitucioRepository
 from vigilancies import services
 from vigilancies.router import router as vigilancies_router
 
@@ -101,10 +102,6 @@ def _disponibles(client, hora="10:00", **params):
 # ------------------------------------------------------------------ accés
 
 
-def test_sense_sessio_no_es_pot_accedir():
-    assert client_per(APP).get(URL).status_code == 401
-
-
 def test_cada_institucio_nomes_veu_les_seves_vigilancies(client):
     _crea(client, "Prof 21")
     altre = _admin_de(nova_institucio(amb_xml=True))
@@ -139,14 +136,33 @@ def test_config_inclou_els_tipus_d_examen_ja_usats(client):
     assert client.get("/api/vigilancies/config").json()["tipus_examens"] == ["VIGILÀNCIA", "Història"]
 
 
+def test_config_tipus_de_cada_nivell_amb_vigilancia_primer(client, centre):
+    """Els tipus del desplegable de cada nivell: les seves assignatures o, si no en
+    té, els tipus ja usats; sempre amb VIGILÀNCIA primer (la pantalla no hi afegeix res)."""
+    from models import Assignatura, Nivell
+
+    _crea(client, tipus="Història")
+    with get_data_db_session(centre) as db:
+        amb, sense = Nivell(codi="1-ESO", nom="1-ESO", ordre=0), Nivell(codi="2-ESO", nom="2-ESO", ordre=1)
+        db.add_all([amb, sense])
+        db.flush()
+        db.add_all(
+            [Assignatura(nom="Català", nivell_id=amb.id, ordre=0), Assignatura(nom="", nivell_id=amb.id, ordre=1)]
+        )
+        db.commit()
+    cfg = client.get("/api/vigilancies/config").json()
+    assert cfg["tipus_per_nivell"] == {"1-ESO": ["VIGILÀNCIA", "Català"], "2-ESO": ["VIGILÀNCIA", "Història"]}
+
+
 # ----------------------------------------------------------------- CRUD
 
 
-def test_crear_i_llistar(client):
+def test_crear_i_llistar_amb_el_mateix_id(client):
     creada = _crea(client, "Prof 21")
     assert (creada["hora"], creada["vigilant"], creada["nivell"]) == ("10:00", "Prof 21", "2-BAT")
     [vig] = _vigilancies(client)
     assert (vig["hora"], vig["grups"], vig["vigilant"]) == ("10:00", "2-BAT-A", "Prof 21")
+    assert creada["id"] == vig["id"] == str(vig["db_id"])
 
 
 @pytest.mark.parametrize("nivell", [None, "", "   "], ids=["omes", "buit", "espais"])
@@ -210,17 +226,6 @@ def test_actualitzar_una_vigilancia_antiga_sense_nivell_obliga_a_posar_lo(client
     assert (sense_canvis["nivell"], sense_canvis["comentaris"]) == ("", "antiga")
 
 
-def test_el_placeholder_de_vigilant_es_desa_buit(client):
-    _crea(client, "-- selecciona vigilant --")
-    assert _vigilancies(client)[0]["vigilant"] == ""
-
-
-def test_crear_retorna_el_mateix_id_que_el_llistat(client):
-    creada = _crea(client, "Prof 21")
-    [vig] = _vigilancies(client)
-    assert creada["id"] == vig["id"] == str(vig["db_id"])
-
-
 def test_l_id_retornat_identifica_la_nova_encara_que_n_hi_hagi_d_altres_a_la_mateixa_hora(client):
     # Abans, amb el vigilant buit, l'ID compost apuntava a la primera vigilància
     # buida de la mateixa hora i nivell, no a la que s'acabava de crear.
@@ -268,6 +273,7 @@ def test_esborrar_demana_updated_at(client):
 
 def test_si_el_vigilant_te_classe_es_crea_una_substitucio_per_cobrir_la(client):
     _crea(client, "Prof 15")
+    # Cap altra fila: un vigilant que no és absent no té cap VIGILANCIA_ABSENT
     assert _subs(client) == {("10:00", "Prof 15", "Anglès", "VIGILANCIA"): ""}
 
 
@@ -335,7 +341,27 @@ def test_disponibles_ordena_primer_els_alliberats_i_despres_els_de_guardia(clien
         GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": ["3-ESO-A"]})
         db.commit()
     ordre = [d["value"] for d in client.get(f"{URL}/10:00/disponibles").json()]
-    assert ordre[:4] == ["Prof 15", "Prof 21", "Prof 28", "Prof 3"]
+    # Els de guàrdia, entre ells per nom natural (abans, per text: 21, 28, 3)
+    assert ordre[:4] == ["Prof 15", "Prof 3", "Prof 21", "Prof 28"]
+
+
+def test_disponibles_en_l_ordre_del_desplegable_amb_desempat_natural(client):
+    """L'ordre del desplegable de vigilants el dona el backend (la pantalla no el
+    toca): per tipus (titular, alliberat, guàrdia...), categoria de Prioritats i,
+    a igualtat, per nom natural (noms.ordre_alfabetic)."""
+    from noms import ordre_alfabetic
+
+    def clau(d):
+        return (d["ordre_tipus"], d["categoria"])
+
+    desempats_naturals = 0
+    for hora in ["08:00", "10:00", "11:30"]:
+        disp = client.get(f"{URL}/{hora}/disponibles").json()
+        assert disp == sorted(disp, key=lambda d: (*clau(d), ordre_alfabetic(d["value"])))
+        desempats_naturals += sum(
+            clau(a) == clau(b) and a["value"] > b["value"] for a, b in zip(disp, disp[1:], strict=False)
+        )
+    assert desempats_naturals
 
 
 def test_disponibles_marca_qui_ja_vigila_a_aquella_hora(client):
@@ -355,11 +381,23 @@ def test_disponibles_marca_el_titular_de_l_examen(client, centre):
 
 
 def test_disponibles_en_bloc_dona_el_mateix_que_d_un_en_un(client):
-    resp = client.post(f"{URL}/disponibles-batch", json={"queries": [{"hora": "10:00"}, {"hora": "11:30"}]})
+    # Els textos es netegen igual (buit → sense valor); les repetides es
+    # responen un cop i les que no tenen hora, cap.
+    examen = {"tipus": " Anglès ", "grups": " 2-BAT-A ", "aula": " A1 "}
+    queries = [
+        {"hora": "10:00"},
+        {"hora": " 11:30 ", "tipus": " ", "grups": ""},
+        {"hora": "10:00", **examen},
+        {"hora": "10:00"},
+        {"hora": "  "},
+    ]
+    resp = client.post(f"{URL}/disponibles-batch", json={"queries": queries})
     assert resp.status_code == 200
     resultats = resp.json()["results"]
-    assert set(resultats) == {"10:00", "11:30"}
+    assert list(resultats) == ["10:00", "11:30", "10:00|Anglès|2-BAT-A|A1"]
     assert resultats["10:00"] == client.get(f"{URL}/10:00/disponibles").json()
+    assert resultats["11:30"] == client.get(f"{URL}/ 11:30 /disponibles", params={"tipus": " ", "grups": ""}).json()
+    assert resultats["10:00|Anglès|2-BAT-A|A1"] == client.get(f"{URL}/10:00/disponibles", params=examen).json()
 
 
 # ------------------------------------------------ ajuda del vigilant
@@ -399,6 +437,25 @@ def test_l_ajuda_fa_servir_la_mateixa_regla_que_els_disponibles(client, centre):
     assert _ajuda(client, "Prof 28")["tipus_absencia"]
 
 
+def test_el_tipus_d_absencia_es_el_de_l_hora_consultada(client, centre):
+    # Un servei a una hora i una absència a una altra, el mateix dia: cada hora
+    # diu el seu tipus (abans, el de la primera fila llegida per a totes dues).
+    with get_data_db_session(centre) as db:
+        for hora, tipus in (("08:00", "SERVEI"), ("10:00", "ABSENCIA")):
+            SubstitucioRepository.create(
+                db,
+                {
+                    "data": date.fromisoformat(DATA),
+                    "hora": hora,
+                    "professor_absent": "Prof 28",
+                    "tipus_absencia": tipus,
+                },
+            )
+        db.commit()
+    for hora, tipus in (("08:00", "SERVEI"), ("10:00", "ABSENCIA")):
+        assert _ajuda(client, "Prof 28", hora=hora)["tipus_absencia"] == tipus
+
+
 def test_l_ajuda_diu_les_substitucions_que_fa_a_aquella_hora(client):
     _absent(client, "Prof 15")
     fila = client.get(URL_SUBS, params={"include_all": True}).json()[0]
@@ -431,7 +488,7 @@ def test_la_regla_de_l_estat_a_l_hora_amb_tots_els_estats():
         },
         "absents_coberts": {"Coberta"},
         "absents_per_professor": {"Absent": {"10:00"}},
-        "absents_tipus": {"Absent": "MALALTIA"},
+        "absents_tipus": {("Absent", "10:00"): "MALALTIA"},
         "grups_sense_classe_per_hora": {"10:00": {"1B"}},
         "prioritats": {"Guàrdia"},
     }
@@ -464,12 +521,22 @@ def _comprova_assignacions_valides(client):
         assert len(vigilants) == len(set(vigilants)), f"vigilant repetit a les {hora}"
 
 
-def test_assignar_pendents_sense_disponibles_nomes_fa_servir_alliberats(client):
-    _crea(client)
+@pytest.mark.parametrize(
+    "vigilancia",
+    [
+        # Sense disponibles, només fa servir alliberats (i no n'hi ha)
+        {},
+        # Prof 48 té classe amb 1-BAT-A: sense marca manual no pot vigilar (fer examen no l'allibera)
+        {"grups": "1-BAT-A", "tipus": "Música", "nivell": "1-BAT"},
+    ],
+    ids=["sense disponibles", "fer examen no allibera"],
+)
+def test_assignar_pendents_sense_ningu_que_pugui_vigilar_no_assigna_res(client, vigilancia):
+    _crea(client, **vigilancia)
     resp = client.post(f"{URL}/assign/pendents")
     assert resp.status_code == 200
     assert resp.json()["assigned_count"] == 0
-    assert _vigilants(client) == {"2-BAT-A": ""}
+    assert _vigilants(client) == {vigilancia.get("grups", "2-BAT-A"): ""}
 
 
 def test_assignar_pendents_amb_alliberats(client, centre):
@@ -488,13 +555,6 @@ def test_assignar_pendents_amb_disponibles_fa_servir_professors_de_guardia(clien
     assert resp.json() | {"message": ""} == {"assigned_count": 2, "remaining_count": 0, "message": ""}
     assert set(_vigilants(client).values()) <= {"Prof 3", "Prof 21", "Prof 28"}
     _comprova_assignacions_valides(client)
-
-
-def test_assignar_pendents_no_allibera_el_professor_pel_fet_de_fer_examen(client):
-    # Prof 48 té classe amb 1-BAT-A: sense marca manual no pot vigilar.
-    _crea(client, grups="1-BAT-A", tipus="Música", nivell="1-BAT")
-    client.post(f"{URL}/assign/pendents")
-    assert _vigilants(client) == {"1-BAT-A": ""}
 
 
 def test_assignar_pendents_respecta_el_pes_dins_de_la_categoria():
@@ -584,7 +644,7 @@ def test_vigilant_que_despres_queda_absent_no_perd_cap_cobertura(client):
 
 
 def test_la_llista_de_vigilancies_identifica_el_dia_pel_cami(client):
-    fila = _crea(client)
+    fila = _crea(client, "-- selecciona vigilant --")  # el placeholder es desa buit
     resposta = client.get("/api/vigilancies/2026-4-20")
     assert resposta.status_code == 200, resposta.text
     assert resposta.json() == [

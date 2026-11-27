@@ -251,6 +251,18 @@ def test_desar_l_ordre_d_una_hora_el_llistat_el_segueix(client):
     assert _grups_en_ordre(client, "11:30") == ["1-BAT-A"]
 
 
+def test_el_llistat_va_per_hores_en_l_ordre_de_l_horari(client):
+    """Les hores, en l'ordre de l'horari del dia (la pantalla les mostra tal com
+    arriben); una hora que no hi és, al final."""
+    hores = client.get("/api/vigilancies/config", params={"data": DATA}).json()["hores"]
+    for hora in ["11:30", "PATI", "08:00", "99:99"]:
+        _crea(client, "2-ESO-A", hora=hora)
+    llistat = [v["hora"] for v in client.get(URL).json()]
+    assert llistat == sorted(llistat, key=lambda h: hores.index(h) if h in hores else len(hores))
+    assert llistat != sorted(llistat)  # l'ordre del text posaria PATI al final
+    assert llistat[-1] == "99:99"
+
+
 def test_el_pdf_segueix_l_ordre_desat(client):
     a = _crea(client, "2-ESO-A", tipus="Matemàtiques")
     b = _crea(client, "2-ESO-B", tipus="Socials")

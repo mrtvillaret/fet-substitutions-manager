@@ -6,18 +6,7 @@ import * as baixes from '../src/api/absenciesCobertes.js'
 import * as dades from '../src/api/dades.js'
 import * as prioritats from '../src/api/prioritats.js'
 import * as grups from '../src/api/grups.js'
-
-const clientFals = (resposta = {}) => {
-  const peticions = []
-  const client = {}
-  for (const metode of ['get', 'post', 'put', 'delete']) {
-    client[metode] = async (...args) => {
-      peticions.push([metode, ...args])
-      return { data: resposta }
-    }
-  }
-  return { client, peticions }
-}
+import { clientFals } from './support/crides.js'
 
 const comprova = async (funcio, args, resposta, peticio) => {
   const fals = clientFals(resposta)
@@ -79,8 +68,8 @@ test('prioritats conserva totes les rutes i codifica No substituir', async () =>
   await comprova(prioritats.afegeixNoSubstituirAmb, ['Act 1'], {}, [
     'post', '/api/prioritats/no-substituir', { assignatura: 'Act 1' }
   ])
-  await comprova(prioritats.esborraNoSubstituirAmb, ['Act / 1'], {}, [
-    'delete', '/api/prioritats/no-substituir/Act%20%2F%201'
+  await comprova(prioritats.esborraNoSubstituirAmb, ['Act / #1?'], {}, [
+    'delete', '/api/prioritats/no-substituir/Act%20%2F%20%231%3F'
   ])
   // Amb la data del canvi (vigència per dates)
   await comprova(prioritats.afegeixNoSubstituirAmb, ['Act 1', '2026-09-01'], {}, [

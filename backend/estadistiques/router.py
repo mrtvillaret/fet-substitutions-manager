@@ -30,7 +30,7 @@ def get_estadistiques_classes_detall(
     return services.classes_detall(db, data_inici, data_final, (grups or []) + (grups_bracket or []), hores)
 
 
-@router.get("/professor/{professor}", response_model=DetallProfessorResponse)
+@router.get("/professor/{professor:path}", response_model=DetallProfessorResponse)
 def get_estadistiques_professor_detall(
     professor: NomNet,
     hores: HoresTriades,

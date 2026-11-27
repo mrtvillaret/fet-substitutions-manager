@@ -113,23 +113,32 @@ def test_franja_i_categoria_de_l_historial_i_dates_futures(monkeypatch, data, ho
     assert _sub(client, "10:00")["substitut"] == esperat
 
 
-def test_les_onze_files_amb_la_mateixa_data_tenen_ordre_estable_per_id(monkeypatch):
-    centre, client = _prepara()
-    _historial(centre, professors=["Prof 37", "Prof 3", "Prof 21", "Prof 28"] + ["Prof 99"] * 7)
-    monkeypatch.setattr(services, "_atzar", PrimerEmpat)
-    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
-    assert client.post(f"{URL}/generar").status_code == 200
-    # Prof 37 és a l'11a fila més antiga i ja no compta; els altres sí.
-    assert _sub(client, "10:00")["substitut"] == "Prof 37"
+# Historials (del centre o d'un altre) on Prof 37 queda fora de la finestra o no hi és
+FINESTRES = {
+    # Prof 37 és a l'11a fila més antiga i ja no compta; els altres sí
+    "onze files amb la mateixa data: ordre estable per id": [
+        {"professors": ["Prof 37", "Prof 3", "Prof 21", "Prof 28"] + ["Prof 99"] * 7}
+    ],
+    "ordre per data abans de l'id i aïllament del centre": [
+        {"professors": ["Prof 3", "Prof 21", "Prof 28"] + ["Prof 99"] * 7, "data": "2026-04-27"},
+        # ID més alt però data anterior: ha de quedar fora de la finestra
+        {"professors": ["Prof 37"], "data": "2026-04-13", "tipus": "Pares"},
+        {"altre_centre": True, "professors": ["Prof 37"] * 10, "tipus": "Pares"},
+    ],
+    "una fila pendent no ocupa posició a la finestra": [
+        {"professors": ["Prof 3", "Prof 21", "Prof 28"]},
+        {"professors": [""] * 10},
+    ],
+}
 
 
-def test_ordre_per_data_abans_de_l_id_i_aillament_del_centre(monkeypatch):
+@pytest.mark.parametrize("historials", FINESTRES.values(), ids=FINESTRES)
+def test_la_finestra_son_les_deu_ultimes_files_amb_substitut_del_centre(monkeypatch, historials):
     centre, client = _prepara()
-    _historial(centre, professors=["Prof 3", "Prof 21", "Prof 28"] + ["Prof 99"] * 7, data="2026-04-27")
-    # ID més alt però data anterior: ha de quedar fora de la finestra.
-    _historial(centre, professors=["Prof 37"], data="2026-04-13", tipus="Pares")
     altre, _ = _prepara()
-    _historial(altre, professors=["Prof 37"] * 10, tipus="Pares")
+    for historial in historials:
+        historial = dict(historial)
+        _historial(altre if historial.pop("altre_centre", False) else centre, **historial)
     monkeypatch.setattr(services, "_atzar", PrimerEmpat)
     assert _marca_absencia(client, hores=["10:00"]).status_code == 200
     assert client.post(f"{URL}/generar").status_code == 200
@@ -181,16 +190,6 @@ def test_generar_i_regenerar_no_es_compten_a_si_mateixos(monkeypatch):
     for _ in range(3):
         assert client.post(f"{URL}/generar", params={"regenerar_tot": True}).status_code == 200
         assert _sub(client, "10:00")["substitut"] == "Prof 3"
-
-
-def test_una_fila_pendent_no_ocupa_posicio_a_la_finestra(monkeypatch):
-    centre, client = _prepara()
-    _historial(centre, professors=["Prof 3", "Prof 21", "Prof 28"])
-    _historial(centre, professors=[""] * 10)
-    monkeypatch.setattr(services, "_atzar", PrimerEmpat)
-    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
-    assert client.post(f"{URL}/generar").status_code == 200
-    assert _sub(client, "10:00")["substitut"] == "Prof 37"
 
 
 def test_motor_i_vigilant_absent_comparteixen_la_finestra(monkeypatch):

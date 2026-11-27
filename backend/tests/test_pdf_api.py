@@ -289,6 +289,39 @@ def test_l_espai_a_ma_no_afecta_el_pdf_nomes_de_vigilancies(client):
     assert _hores_del_pdf(client, blank_rows=True, include_substitutions=False) == []
 
 
+def test_el_pdf_de_vigilancies_amb_les_seves_substitucions(client, centre):
+    from database import get_data_db_session
+    from models import Substitucio
+    from vigilancies.repositories import VigilanciaRepository
+
+    vigilancia = {"hora": "10:00", "tipus": "Física", "grups": "2-BAT-A", "aula": "A01", "vigilant": "Prof 21"}
+    with get_data_db_session(centre) as db:
+        VigilanciaRepository.create(db, DATA_DIA, {**vigilancia, "nivell": "2-BAT"})
+        # Les classes que deixen els vigilants: una amb grup i una guàrdia, sense grup
+        for absent, grup, assignatura, substitut in [
+            ("Prof 21", "1-ESO-A", "Anglès", "Prof 31"),
+            ("Prof 22", "", "Guàrdia", "Prof 32"),
+        ]:
+            db.add(
+                Substitucio(
+                    data=DATA_DIA,
+                    hora="10:00",
+                    professor_absent=absent,
+                    grup=grup,
+                    assignatura=assignatura,
+                    substitut=substitut,
+                    tipus_absencia="VIGILANCIA",
+                )
+            )
+        db.commit()
+
+    resp = client.get(f"/api/pdf/vigilancies/{DATA}", params={"include_substitucions": True})
+    assert resp.status_code == 200, resp.text[:300]
+    text = _text_pdf(resp.content)
+    assert "Prof 31" in text
+    assert "Prof 32" in text
+
+
 # ------------------------------------------------ format «taula del dia»
 
 
@@ -316,6 +349,12 @@ def test_format_dia_una_taula_amb_substitucions_i_vigilancies(client):
     assert "Prof 15" in text and "Física" in text and "Prof 21" in text
     assert "Absent / Curs" in text and "Substitut / Vigilant" in text  # una sola capçalera
     assert "Les files en cursiva amb fons de color" in text  # nota de les vigilàncies
+    # Sense espai a mà, només les hores amb files. Abans hi sortien totes les hores
+    # amb classe, amb una fila en blanc (i una hora buida quan les seves absències no es mostraven)
+    linies = [linia.strip() for linia in text.splitlines()]
+    assert "10:00" in linies and "11:30" in linies
+    for hora in ("08:00", "09:00", "12:30", "15:00", "16:00", "17:00", "PATI"):
+        assert hora not in linies
 
 
 @pytest.mark.parametrize(
@@ -348,15 +387,6 @@ def test_format_dia_amb_espai_a_ma_mostra_les_hores_detectades(client):
 
 def test_format_desconegut_dona_400(client):
     assert client.get(f"/api/pdf/complete/{DATA}", params={"format": "x"}).status_code == 400
-
-
-def test_format_dia_sense_espai_a_ma_nomes_mostra_les_hores_amb_files(client):
-    # Abans hi sortien totes les hores amb classe, amb una fila en blanc (i una
-    # hora buida quan les seves absències no es mostraven)
-    linies = [linia.strip() for linia in _text_dia(client).splitlines()]
-    assert "10:00" in linies and "11:30" in linies
-    for hora in ("08:00", "09:00", "12:30", "15:00", "16:00", "17:00", "PATI"):
-        assert hora not in linies
 
 
 def test_format_dia_amb_lletra_mes_gran(client):

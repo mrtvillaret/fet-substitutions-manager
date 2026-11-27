@@ -7,7 +7,7 @@ Dilluns, horari d'exemple: Prof 3 fa guàrdia a les 10:00 i té classe (ViP,
 1-ESO-C) a les 11:30; Prof 15 fa Anglès a les 10:00.
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from fastapi import Depends
@@ -17,10 +17,12 @@ from suport_rellotge import AVUI
 
 from absencia_coberta.router import router as absencia_coberta_router
 from auth.dependencies import get_current_user
+from database import get_data_db_session
 from horari import router as horari
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
 from substitucions import router as substitucions
+from substitucions.repositories import SubstitucioRepository
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(substitucions.router, vigilancies_router, prioritats_router, absencia_coberta_router)
@@ -38,8 +40,12 @@ def _limiter_net():
 
 
 @pytest.fixture
-def client():
-    centre = nova_institucio(amb_xml=True)
+def centre():
+    return nova_institucio(amb_xml=True)
+
+
+@pytest.fixture
+def client(centre):
     nom = f"admin_{unic()}"
     crea_usuari(nom, centre, "admin")
     return entra(client_per(APP), nom)
@@ -109,9 +115,19 @@ def test_la_data_final_mostrada_es_la_mes_tardana_de_les_absencies_vigents(clien
     assert resp.json()["absencies_cobertes"] == [{"professor": "Prof 3", "data_final": "2026-11-12"}]
 
 
-def test_la_baixa_treu_absencies_vigilancies_i_substitucions_d_avui_endavant(client):
+def test_la_baixa_treu_absencies_vigilancies_i_substitucions_d_avui_endavant(client, centre):
     _prepara(client, FUTUR)
     assert any(s["professor_absent"] == "Prof 3" for s in _files(client, FUTUR))
+    # La seva absència de les 12:30 té un substitut que hi té classe (Prof 21,
+    # Català): la fila s'esborra amb l'absència i no surt als substituts trets.
+    with get_data_db_session(centre) as db:
+        fila = next(
+            s
+            for s in SubstitucioRepository.get_by_date(db, date.fromisoformat(FUTUR))
+            if s.professor_absent == "Prof 3" and s.hora == "12:30"
+        )
+        SubstitucioRepository.update(db, int(fila.id), {"substitut": "Prof 21"})
+        db.commit()
 
     canvis = _baixa(client, PASSAT, FUTUR)["canvis"]
 

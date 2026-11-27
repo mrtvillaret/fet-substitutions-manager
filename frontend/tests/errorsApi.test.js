@@ -1,7 +1,7 @@
 // node --test tests/
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { missatgeDError } from '../src/errorsApi.js'
+import { missatgeDError } from '../src/api/errors.js'
 
 const t = (clau) => clau
 
@@ -31,7 +31,7 @@ test('sense resposta, error de connexió', async () => {
 })
 
 test("jaAvisat reflecteix un avís real, també per als errors de xarxa", async () => {
-  const { jaAvisat, marcaAvisat } = await import('../src/errorsApi.js')
+  const { jaAvisat, marcaAvisat } = await import('../src/api/errors.js')
   const error = { isAxiosError: true, config: {} }
   assert.equal(jaAvisat(error), false)
   marcaAvisat(error)

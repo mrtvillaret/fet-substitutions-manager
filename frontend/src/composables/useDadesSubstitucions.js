@@ -1,4 +1,4 @@
-import { avisaError } from '../errorsApi.js'
+import { avisaError } from '../api/errors.js'
 import { ref, computed } from 'vue'
 import * as apiSubstitucions from '../api/substitucions.js'
 import { llista as llistaVigilancies } from '../api/vigilancies.js'
@@ -6,13 +6,13 @@ import * as apiPdf from '../api/pdf.js'
 import * as apiHorari from '../api/horari.js'
 import { ambDataTreball } from '../dataTreball.js'
 import { dataIso } from '../dates.js'
+import { ordenaAlfabeticament } from '../ordreAlfabetic.js'
 
 // Publica el dia complet amb els disponibles i descarta les càrregues antigues.
 export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
   // State
   const avisosEncadenades = ref([])
-  const substitucions = ref([])
-  const substitucionsFiltrades = ref([])
+  const substitucions = ref([]) // les files del dia que es veuen (les tria el backend)
   const totesAbsencies = ref([]) // TOTES les absències (amb i sense grup) per detectar professors absents
   const vigilanciesCount = ref(0)
   const professors = ref([])
@@ -44,14 +44,13 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
     })
   )
 
-  const collator = computed(() => new Intl.Collator(locale.value || 'ca', { sensitivity: 'base' }))
 
   const substitucionsAssignades = computed(() =>
-    substitucionsFiltrades.value.filter(s => s.substitut).length
+    substitucions.value.filter(s => s.substitut).length
   )
 
   const substitucionsPendents = computed(() =>
-    substitucionsFiltrades.value.filter(s => !s.substitut).length
+    substitucions.value.filter(s => !s.substitut).length
   )
 
 
@@ -77,11 +76,15 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
     carregarSubstitucions()
   }
 
-  const carregarSubstitucions = async () => {
+  // `silenci`: la recàrrega en tornar a la pestanya, sense difuminar la taula
+  // i, si falla, deixant-hi les dades que hi havia
+  const carregarSubstitucions = async ({ silenci = false } = {}) => {
     const idCarrega = ++idCarregaSubstitucions
     const data = dataISO.value
-    loading.value = true
-    errorCarregaSubstitucions.value = false
+    if (!silenci) {
+      loading.value = true
+      errorCarregaSubstitucions.value = false
+    }
     // La taula d'abans es queda (difuminada i sense accions) fins que arriben
     // totes les dades: es substitueix de cop, sense parpelleig ni perdre el
     // desplaçament al mòbil
@@ -105,15 +108,14 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
         disponibles: disponiblesPerHora[substitucio.hora]?.disponibles || []
       }))
       substitucions.value = filesAmbDisponibles
-      substitucionsFiltrades.value = filesAmbDisponibles
       totesAbsencies.value = totes
       vigilanciesCount.value = recompteVigilancies
       avisosEncadenades.value = revisio.data.avisos_encadenades || []
     } catch (error) {
       if (idCarrega !== idCarregaSubstitucions) return
       console.error('Error carregant substitucions:', error)
+      if (silenci) return
       substitucions.value = []
-      substitucionsFiltrades.value = []
       totesAbsencies.value = []
       vigilanciesCount.value = 0
       avisosEncadenades.value = []
@@ -153,20 +155,22 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
   }
 
 
+  // Sense XML a la data: un sol avís per visita (el diuen tant les hores com els professors)
+  const avisaSiFaltaXml = (resposta) => {
+    if (!resposta?.xml_missing || xmlMissingNotified.value) return
+    toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('common.xmlMissing'), life: 4000 })
+    xmlMissingNotified.value = true
+  }
+
+  // Com les altres càrregues: una resposta d'un dia que ja no és a la pantalla no es publica
   const carregarProfessors = async () => {
+    const data = dataISO.value
     try {
       const resposta = await apiHorari.professorsHorari(ambDataTreball())
-      if (resposta?.xml_missing && !xmlMissingNotified.value) {
-        toast.add({
-          severity: 'warn',
-          summary: t('common.warning'),
-          detail: t('common.xmlMissing'),
-          life: 4000
-        })
-        xmlMissingNotified.value = true
-      }
+      if (data !== dataISO.value) return
+      avisaSiFaltaXml(resposta)
       const llista = resposta.professors || []
-      professors.value = [...llista].sort((a, b) => collator.value.compare(a, b))
+      professors.value = ordenaAlfabeticament(llista)
       absenciesCobertes.value = resposta.absencies_cobertes || []
     } catch (error) {
       console.error('Error carregant professors:', error)
@@ -175,17 +179,11 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
 
 
   const carregarHores = async () => {
+    const data = dataISO.value
     try {
       const resposta = await apiHorari.hores(ambDataTreball())
-      if (resposta?.xml_missing && !xmlMissingNotified.value) {
-        toast.add({
-          severity: 'warn',
-          summary: t('common.warning'),
-          detail: t('common.xmlMissing'),
-          life: 4000
-        })
-        xmlMissingNotified.value = true
-      }
+      if (data !== dataISO.value) return
+      avisaSiFaltaXml(resposta)
       horesDisponibles.value = resposta.hores
     } catch (error) {
       console.error('Error carregant hores:', error)
@@ -193,5 +191,5 @@ export function useDadesSubstitucions({ dataTreball, locale, toast, t }) {
   }
 
 
-  return { avisosEncadenades, substitucions, substitucionsFiltrades, totesAbsencies, vigilanciesCount, professors, absenciesCobertes, horesDisponibles, xmlMissingNotified, loading, errorCarregaSubstitucions, dataISO, dataFormatada, dataISOCurta, collator, substitucionsAssignades, substitucionsPendents, CLAU_ORDRE, llegeixOrdre, ordreFiles, canviaOrdre, carregarSubstitucions, carregarTotesAbsencies, obtenirVigilanciesCount, carregarProfessors, carregarHores }
+  return { avisosEncadenades, substitucions, totesAbsencies, vigilanciesCount, professors, absenciesCobertes, horesDisponibles, loading, errorCarregaSubstitucions, dataISO, dataFormatada, dataISOCurta, substitucionsAssignades, substitucionsPendents, ordreFiles, canviaOrdre, carregarSubstitucions, carregarTotesAbsencies, carregarProfessors, carregarHores }
 }

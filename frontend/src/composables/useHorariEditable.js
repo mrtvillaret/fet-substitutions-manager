@@ -1,4 +1,4 @@
-import { avisaError, detallDError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../api/errors.js'
 import { ref, computed, watch, onMounted } from 'vue'
 import * as apiPlanificador from '../api/planificador'
 import { debounce } from '../debounce.js'

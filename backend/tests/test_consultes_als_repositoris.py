@@ -1,7 +1,8 @@
 """
 Les consultes a la BD són als repositoris (`repositories.py` de cada mòdul i
 el general): cap altre fitxer del backend no fa `.query(`, `.execute(` ni
-`select(` de SQLAlchemy. Fora: les migracions (SQL directe, a propòsit) i
+`select(` de SQLAlchemy, ni hi afegeix o esborra files (`db.add(`,
+`db.add_all(`, `db.delete(`). Fora: les migracions (SQL directe, a propòsit) i
 `database.py` (la configuració de SQLite).
 """
 
@@ -18,7 +19,7 @@ from models import Substitucio, Vigilancia
 
 BACKEND = Path(__file__).resolve().parent.parent
 EXCLOSOS = {"venv", "venv_old_py313_broken", "tests", "migracions", "__pycache__"}
-CONSULTA = re.compile(r"\.query\(|\.execute\(|(?<![\w.])select\(")
+CONSULTA = re.compile(r"\.query\(|\.execute\(|(?<![\w.])select\(|db\.(?:add|add_all|delete)\(")
 
 
 def _fitxers():

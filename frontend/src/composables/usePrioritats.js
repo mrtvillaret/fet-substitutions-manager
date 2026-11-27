@@ -1,6 +1,7 @@
-import { avisaError, detallDError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../api/errors.js'
 import { ref, computed, onMounted, watch } from 'vue'
 import * as apiPdf from '../api/pdf'
+import { desaPdf } from '../desaPdf.js'
 import { ambDataTreball, dataTreball } from '../dataTreball'
 import { detectaAssignatures } from '../api/horari'
 import * as apiPrioritats from '../api/prioritats'
@@ -479,18 +480,9 @@ export function usePrioritats(dependents) {
     try {
       const response = await apiPdf.creaDisponiblesTotsDies({ data_inici: dataInicialPDF.value || dataISO.value }, { responseType: 'blob' })
 
-      // Crear link de descàrrega
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-
       const filename = response.headers['content-disposition']?.split('filename=')[1]?.replace(/"/g, '') ||
                        `disponibles_tots_dies_${dataIso(new Date())}.pdf`
-
-      link.download = filename
-      link.click()
-      window.URL.revokeObjectURL(url)
+      desaPdf(response.data, filename)
 
       toast.add({
         severity: 'success',

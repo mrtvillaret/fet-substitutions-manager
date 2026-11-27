@@ -103,7 +103,6 @@ def test_un_substitut_no_es_pot_assignar_a_dues_files_simultanies(monkeypatch):
                 substitucions.actualitza_substitut(
                     db,
                     dia,
-                    dia.data,
                     "10:00",
                     ("Prof 15", "Prof 16")[index],
                     SubstitucioUpdate(substitut="Prof 21", force=True),

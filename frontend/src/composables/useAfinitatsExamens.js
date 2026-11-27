@@ -1,4 +1,4 @@
-import { avisaError, detallDError } from '../errorsApi.js'
+import { avisaError, detallDError } from '../api/errors.js'
 import { computed, ref } from 'vue'
 import * as apiExamens from '../api/configuracioExamens.js'
 

@@ -1,81 +1,31 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { provaCrides, COS, LECTURA } from './support/crides.js'
 import * as api from '../src/api/pdf.js'
 
-test('descarrega: URL, mètode, arguments, resposta i errors intactes', async () => {
+for (const [funcio, args, url] of [
+  ['completAmb', ['2026-11-03'], '/api/pdf/complete/2026-11-03'],
+  ['vigilanciesDelDiaAmb', ['2026-11-03'], '/api/pdf/vigilancies/2026-11-03'],
+  ['vigilanciesIntervalAmb', [], '/api/pdf/vigilancies/interval'],
+  ['informeDireccioAmb', [], '/api/informes/direccio'],
+  ['informeProfessorAmb', [], '/api/informes/professor']
+]) test(`${funcio}: URL, Blob amb els paràmetres, resposta i errors intactes`, async () => {
   const resposta = { data: { resultat: true }, headers: { 'content-disposition': 'filename="prova.pdf"' } }
-  const argumentsHttp = [{"params":{"hores":["08:00","09:00"]},"responseType":"blob","_silent":true,"signal":null}]
+  const params = { format: 'hores', ordre: 'curs' }
   const peticions = []
-  const client = { get: async (...args) => { peticions.push(args); return resposta } }
-  const args = ["/api/pdf/complete/2026-11-03?format=A4"]
-  assert.equal(await api.descarregaAmb(client, ...args, ...argumentsHttp), resposta)
-  assert.deepEqual(peticions, [["/api/pdf/complete/2026-11-03?format=A4", ...argumentsHttp]])
+  const client = { get: async (...a) => { peticions.push(a); return resposta } }
+  assert.equal(await api[funcio](client, ...args, params), resposta)
+  assert.deepEqual(peticions, [[url, { params, responseType: 'blob' }]])
   const error = new Error('error original')
   client.get = async () => { throw error }
-  await assert.rejects(api.descarregaAmb(client, ...args, ...argumentsHttp), e => e === error)
+  await assert.rejects(api[funcio](client, ...args, params), e => e === error)
 })
 
-test('creaDisponiblesTotsDies: URL, mètode, arguments, resposta i errors intactes', async () => {
-  const resposta = { data: { resultat: true }, headers: { 'content-disposition': 'filename="prova.pdf"' } }
-  const argumentsHttp = [{"valor":7},{"headers":{"Content-Type":"multipart/form-data"},"timeout":300000,"baseURL":""}]
-  const peticions = []
-  const client = { post: async (...args) => { peticions.push(args); return resposta } }
-  const args = []
-  assert.equal(await api.creaDisponiblesTotsDiesAmb(client, ...args, ...argumentsHttp), resposta)
-  assert.deepEqual(peticions, [["/api/pdf/disponibles-tots-dies", ...argumentsHttp]])
-  const error = new Error('error original')
-  client.post = async () => { throw error }
-  await assert.rejects(api.creaDisponiblesTotsDiesAmb(client, ...args, ...argumentsHttp), e => e === error)
-})
-
-test('preferencies: URL, mètode, arguments, resposta i errors intactes', async () => {
-  const resposta = { data: { resultat: true }, headers: { 'content-disposition': 'filename="prova.pdf"' } }
-  const argumentsHttp = [{"params":{"hores":["08:00","09:00"]},"responseType":"blob","_silent":true,"signal":null}]
-  const peticions = []
-  const client = { get: async (...args) => { peticions.push(args); return resposta } }
-  const args = []
-  assert.equal(await api.preferenciesAmb(client, ...args, ...argumentsHttp), resposta)
-  assert.deepEqual(peticions, [["/api/pdf/preferences", ...argumentsHttp]])
-  const error = new Error('error original')
-  client.get = async () => { throw error }
-  await assert.rejects(api.preferenciesAmb(client, ...args, ...argumentsHttp), e => e === error)
-})
-
-test('desaPreferencies: URL, mètode, arguments, resposta i errors intactes', async () => {
-  const resposta = { data: { resultat: true }, headers: { 'content-disposition': 'filename="prova.pdf"' } }
-  const argumentsHttp = [{"valor":7},{"headers":{"Content-Type":"multipart/form-data"},"timeout":300000,"baseURL":""}]
-  const peticions = []
-  const client = { put: async (...args) => { peticions.push(args); return resposta } }
-  const args = []
-  assert.equal(await api.desaPreferenciesAmb(client, ...args, ...argumentsHttp), resposta)
-  assert.deepEqual(peticions, [["/api/pdf/preferences", ...argumentsHttp]])
-  const error = new Error('error original')
-  client.put = async () => { throw error }
-  await assert.rejects(api.desaPreferenciesAmb(client, ...args, ...argumentsHttp), e => e === error)
-})
-
-test('validacions: URL, mètode, arguments, resposta i errors intactes', async () => {
-  const resposta = { data: { resultat: true }, headers: { 'content-disposition': 'filename="prova.pdf"' } }
-  const argumentsHttp = [{"params":{"hores":["08:00","09:00"]},"responseType":"blob","_silent":true,"signal":null}]
-  const peticions = []
-  const client = { get: async (...args) => { peticions.push(args); return resposta } }
-  const args = ["2026-11-03"]
-  assert.equal(await api.validacionsAmb(client, ...args, ...argumentsHttp), resposta)
-  assert.deepEqual(peticions, [["/api/pdf/2026-11-03/validacions", ...argumentsHttp]])
-  const error = new Error('error original')
-  client.get = async () => { throw error }
-  await assert.rejects(api.validacionsAmb(client, ...args, ...argumentsHttp), e => e === error)
-})
-
-test('comptesSenseNivell: URL, mètode, arguments, resposta i errors intactes', async () => {
-  const resposta = { data: { resultat: true }, headers: { 'content-disposition': 'filename="prova.pdf"' } }
-  const argumentsHttp = [{"params":{"hores":["08:00","09:00"]},"responseType":"blob","_silent":true,"signal":null}]
-  const peticions = []
-  const client = { get: async (...args) => { peticions.push(args); return resposta } }
-  const args = []
-  assert.equal(await api.comptesSenseNivellAmb(client, ...args, ...argumentsHttp), resposta)
-  assert.deepEqual(peticions, [["/api/pdf/vigilancies/comptes-sense-nivell", ...argumentsHttp]])
-  const error = new Error('error original')
-  client.get = async () => { throw error }
-  await assert.rejects(api.comptesSenseNivellAmb(client, ...args, ...argumentsHttp), e => e === error)
-})
+// Cada funció: [funció, mètode HTTP, arguments, URL, arguments HTTP que passen tal qual]
+provaCrides([
+  [api.creaDisponiblesTotsDiesAmb, 'post', [], '/api/pdf/disponibles-tots-dies', COS],
+  [api.preferenciesAmb, 'get', [], '/api/pdf/preferences', LECTURA],
+  [api.desaPreferenciesAmb, 'put', [], '/api/pdf/preferences', COS],
+  [api.validacionsAmb, 'get', ['2026-11-03'], '/api/pdf/2026-11-03/validacions', LECTURA],
+  [api.comptesSenseNivellAmb, 'get', [], '/api/pdf/vigilancies/comptes-sense-nivell', LECTURA]
+])

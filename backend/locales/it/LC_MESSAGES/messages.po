@@ -31,14 +31,6 @@ msgstr "OCCUPATO VIGILANZA"
 msgid "JA ASSIGNAT"
 msgstr "GIÀ ASSEGNATO"
 
-#: core/absencies.py:44 core/substitucions.py:99
-msgid "   🔄 Convertit dia ISO a nom XML: '{}'"
-msgstr "   🔄 Giorno ISO convertito in nome XML: '{}'"
-
-#: core/substitucions.py:112
-msgid "   📌 hores carregades de l'XML: {}"
-msgstr "   📌 ore caricate dall'XML: {}"
-
 #: core/substitucions.py:124
 msgid "   📋 get_substitucions_necessaries retorna {} substitucions"
 msgstr "   📋 get_substitucions_necessaries restituisce {} sostituzioni"
@@ -72,11 +64,11 @@ msgstr ""
 
 #: horari_web.py:298
 msgid "Dissabte"
-msgstr ""
+msgstr "Sabato"
 
 #: horari_web.py:298
 msgid "Diumenge"
-msgstr ""
+msgstr "Domenica"
 
 #: horari_web.py:299
 msgid "Sábado"
@@ -136,10 +128,6 @@ msgstr "SORVEGLIANZE"
 #: pdf/engine.py:245 pdf/engine.py:249
 msgid "SUBSTITUCIONS I VIGILÀNCIES"
 msgstr "SOSTITUZIONI E SORVEGLIANZE"
-
-#: pdf/engine.py:255
-msgid "DOCUMENT BUIT"
-msgstr "DOCUMENTO VUOTO"
 
 #: pdf/taula.py:363
 #, python-brace-format
@@ -285,10 +273,6 @@ msgstr "Assenze proprie"
 #: pdf/informe_direccio.py:509
 msgid "Absències reals"
 msgstr "Assenze effettive"
-
-#: pdf/engine.py:101
-msgid "Avís: No s'ha pogut carregar la partició de paraules: {error}"
-msgstr "Avviso: impossibile caricare la sillabazione: {error}"
 
 #: pdf/informe_direccio.py:982
 msgid "Cada cel·la mostra: <b>absències totals</b> (fons: intensitat = més absències) i <font color='#16a085'>▶ amb substitut (%)</font>"
@@ -458,6 +442,10 @@ msgstr "Sostituzioni fatte (triangolo inf.)"
 msgid "TOTAL"
 msgstr "TOTALE"
 
+#: pdf/informe_direccio.py
+msgid "Total amb grup"
+msgstr "Totale con gruppo"
+
 #: pdf/informe_direccio.py:763
 msgid "Tot."
 msgstr "Tot."
@@ -481,10 +469,6 @@ msgstr "• {time}: {prof} ({type_disp}) disponibile al posto di {sub} ({type_cu
 #: pdf/validacions.py:126
 msgid "ℹ️ {hora}: Vigilant {vigilant} absent (cobert per {substitut})"
 msgstr "ℹ️ {hora}: Sorvegliante {vigilant} assente (coperto da {substitut})"
-
-#: pdf/engine.py:429
-msgid "⚠️ AVÍS: Hi ha professors de major prioritat disponibles:"
-msgstr "⚠️ AVVISO: Ci sono docenti con priorità più alta disponibili:"
 
 #: pdf/validacions.py:231
 msgid "⚠️ {hora}: Substitut {substitut} té classe ({assignatura_sub}, {grup_sub})"
@@ -523,12 +507,12 @@ msgid "🕐 HORA {hora}:"
 msgstr "🕐 ORA {hora}:"
 
 #: pdf/engine.py:651
-msgid "🕐 {professor} → arriba abans a {hora} (primera hora: {primera})"
-msgstr "🕐 {professor} → arriva prima alle {hora} (prima ora: {primera})"
+msgid "🕐 {hora}: {professor} arriba abans (primera hora: {primera})"
+msgstr "🕐 {hora}: {professor} arriva prima (prima ora: {primera})"
 
 #: pdf/engine.py:657
-msgid "🕐 {professor} → queda més estona a {hora} (última hora: {ultima})"
-msgstr "🕐 {professor} → resta più a lungo alle {hora} (ultima ora: {ultima})"
+msgid "🕐 {hora}: {professor} es queda més estona (última hora: {ultima})"
+msgstr "🕐 {hora}: {professor} resta più a lungo (ultima ora: {ultima})"
 
 #: pdf/informe_direccio.py pdf/informe_professors.py
 msgid "Totes les hores amb substitut de la pantalla Substitucions, de qualsevol tipus. No és la cobertura de les absències."
@@ -580,3 +564,26 @@ msgstr "❌ {substitut} non è un docente dell'orario di quel giorno"
 # Vigilant fora de l’XML vigent del dia.
 msgid "❌ {hora}: {vigilant} no és a l’horari d’aquell dia"
 msgstr "❌ {hora}: {vigilant} non è nell'orario di quel giorno"
+
+#: pdf/disponibles.py
+msgid "substitueix"
+msgstr "sostituisce"
+
+#: pdf/disponibles.py
+msgid "vigila"
+msgstr "sorveglia"
+
+msgid "Dilluns"
+msgstr "Lunedì"
+
+msgid "Dimarts"
+msgstr "Martedì"
+
+msgid "Dimecres"
+msgstr "Mercoledì"
+
+msgid "Dijous"
+msgstr "Giovedì"
+
+msgid "Divendres"
+msgstr "Venerdì"

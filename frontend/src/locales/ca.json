@@ -47,6 +47,7 @@
     "footerLliure": "programari lliure"
   },
   "common": {
+    "rowGone": "Aquesta fila ja no existeix; s'ha tornat a carregar",
     "roles": {
       "super_admin": "Administrador global",
       "admin": "Administrador",
@@ -520,7 +521,8 @@
       "onlyToday": "Només avui",
       "until": "Fins al",
       "summary": "{count} dia lectiu | {count} dies lectius",
-      "daysRegistered": "dies registrats per {teacher}"
+      "daysRegistered": "dies registrats per {teacher}",
+      "partial": "Desats: {desats}. No s'han pogut desar: {fallats}"
     },
     "dialogs": {
       "absences": {

@@ -115,7 +115,6 @@ import { useFilaTactil } from '../../composables/useFilaTactil'
 
 const props = defineProps({
   files: { type: Array, required: true }, // les que es veuen (filtrades), en l'ordre desat
-  hores: { type: Array, default: () => [] }, // l'ordre dels blocs (les hores de l'horari)
   data: { type: String, required: true },
   opcions: { type: Object, required: true },
   disponiblesDe: { type: Function, required: true }, // fila -> opcions del vigilant
@@ -129,20 +128,14 @@ const seleccionades = defineModel('seleccionades', { type: Array, default: () =>
 // canvi(fila, camp, valor) · afegeix(fila) · esborra(fila) · mou(hora, ids)
 const emit = defineEmits(['canvi', 'afegeix', 'esborra', 'mou'])
 
-// Blocs per hora, en l'ordre de l'horari (una hora que no hi és, al final)
+// Blocs per hora, en l'ordre en què arriben (el de l'API: el de l'horari)
 const blocs = computed(() => {
   const perHora = new Map()
   for (const fila of props.files) {
     if (!perHora.has(fila.hora)) perHora.set(fila.hora, [])
     perHora.get(fila.hora).push(fila)
   }
-  const posicio = (hora) => {
-    const i = props.hores.indexOf(hora)
-    return i === -1 ? Number.POSITIVE_INFINITY : i
-  }
-  return [...perHora.entries()]
-    .sort(([a], [b]) => posicio(a) - posicio(b) || String(a).localeCompare(String(b)))
-    .map(([hora, files]) => ({ hora, files }))
+  return [...perHora.entries()].map(([hora, files]) => ({ hora, files }))
 })
 
 // ------------------------------------------------------------ selecció

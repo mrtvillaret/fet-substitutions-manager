@@ -185,7 +185,7 @@ import Column from 'primevue/column'
 import Checkbox from 'primevue/checkbox'
 import Divider from 'primevue/divider'
 import Message from 'primevue/message'
-import { detallDError } from '../errorsApi'
+import { detallDError } from '../api/errors.js'
 
 // Avisos de la publicació (codi del backend → text)
 const TEXTOS_AVIS = {

@@ -8,23 +8,13 @@ from collections import Counter, defaultdict, deque
 from fractions import Fraction
 
 from config import constants
-
-# Evitem imports estàtics per no quedar-nos amb valors stale
 from grups.disponibilitat import sense_classe
 from i18n_setup import translate as _
+from prioritats.memoria import categoria_de_prioritat
 from substitucions.encadenades import activitat_encadenada
 from substitucions.files import FilaSubstitucio, PropostaSubstitucio, clau_fila
 
 log = logging.getLogger(__name__)
-
-
-def prioritat_candidat(tipus_activitat: str) -> int:
-    """Retorna l'índex de prioritat d'un tipus (0 = prioritat màxima)."""
-
-    for i, categoria in enumerate(constants.ORDRE_PRIORITATS):
-        if tipus_activitat in categoria:
-            return i
-    return len(constants.ORDRE_PRIORITATS)
 
 
 def absents_a_hora(absents: dict[str, list[str]], hora: str) -> set[str]:
@@ -44,7 +34,7 @@ def candidats_per_categoria(
     for professor, tipus, detall in disponibles:
         if professor in exclosos:
             continue
-        categoria = prioritat_candidat(tipus)
+        categoria = categoria_de_prioritat(tipus)
         if categoria < len(constants.ORDRE_PRIORITATS):
             per_categoria[categoria].append((professor, tipus, detall))
     return per_categoria
@@ -114,13 +104,14 @@ class QuotaFranja:
             self.anota(hora, professor, tipus_real(tipus_guardat))
 
     def anota(self, hora: str, professor: str, tipus: str) -> None:
-        self.finestres[hora, prioritat_candidat(tipus)].append(professor)
+        self.finestres[hora, categoria_de_prioritat(tipus)].append(professor)
 
     def torns(self, candidats: list[tuple[str, str, str]], hora: str) -> list[Fraction]:
-        categories = {prioritat_candidat(tipus) for _, tipus, _ in candidats}
+        categories = {categoria_de_prioritat(tipus) for _, tipus, _ in candidats}
         comptes = {categoria: Counter(self.finestres.get((hora, categoria), ())) for categoria in categories}
         return [
-            Fraction(comptes[prioritat_candidat(tipus)][professor], pes_de(tipus)) for professor, tipus, _ in candidats
+            Fraction(comptes[categoria_de_prioritat(tipus)][professor], pes_de(tipus))
+            for professor, tipus, _ in candidats
         ]
 
 
@@ -184,7 +175,7 @@ class GestorSubstitucions:
         grups_sense_classe: dict[str, set[str]],
         professors_ocupats_examens: dict[str, list[str]] = None,
         substitucions_existents: dict[str, FilaSubstitucio] = None,
-        absents_tipus: dict[str, str] = None,
+        absents_tipus: dict[tuple[str, str], str] = None,
         omplir: bool = True,
         rng=None,
         quota: QuotaFranja = None,
@@ -325,6 +316,18 @@ class GestorSubstitucions:
     def _generar_substitucions_vigilants(
         self, dia: str, absents: dict[str, list[str]] = None
     ) -> list[PropostaSubstitucio]:
+        """Les cobertures dels vigilants per a «Genera pendents» i «Regenera tot»:
+        si el càlcul falla, es registra, s'avisa i la resta de la generació continua."""
+        try:
+            return self.cobertures_de_vigilants(dia, absents)
+        except Exception:
+            log.warning("No s'han pogut generar les substitucions dels vigilants", exc_info=True)
+            self.avisos.append(
+                "No s'han pogut generar les cobertures de classe dels vigilants. Revisa les substitucions pendents."
+            )
+            return []
+
+    def cobertures_de_vigilants(self, dia: str, absents: dict[str, list[str]] = None) -> list[PropostaSubstitucio]:
         """Genera substitucions per professors que fan vigilància però tenen classe assignada.
 
         `absents` ({professor: [hores]}): si el vigilant és absent a aquella hora,
@@ -334,74 +337,66 @@ class GestorSubstitucions:
         substitucions_vigilants = []
         absents = absents or {}
 
-        try:
-            if not self.professors_ocupats_examens:
-                return substitucions_vigilants
+        if not self.professors_ocupats_examens:
+            return substitucions_vigilants
 
-            for hora, vigilants in self.professors_ocupats_examens.items():
-                for vigilant in vigilants:
-                    if hora in absents.get(vigilant, ()):
-                        continue
-                    # Comprova si aquest vigilant té classe assignada a aquesta hora
-                    activitat = self.horari.get_activitat(dia, hora, vigilant)
+        for hora, vigilants in self.professors_ocupats_examens.items():
+            for vigilant in vigilants:
+                if hora in absents.get(vigilant, ()):
+                    continue
+                # Comprova si aquest vigilant té classe assignada a aquesta hora
+                activitat = self.horari.get_activitat(dia, hora, vigilant)
 
-                    if activitat:
-                        grup = activitat.get("grup", "")
-                        assignatura = activitat.get("assignatura", "")
-                        aula = activitat.get("aula", "")
+                if activitat:
+                    grup = activitat.get("grup", "")
+                    assignatura = activitat.get("assignatura", "")
+                    aula = activitat.get("aula", "")
 
-                        # CAS 1: Té classe real amb grup (no està sense classe)
-                        if (
-                            assignatura  # Assignatura no buida = té classe
-                            and grup  # Vigilàncies d'exàmens no tenen grup (grup = "")
-                            and not sense_classe(vigilant, grup, self.grups_sense_classe_dict.get(hora, ()))
-                        ):
-                            # Sempre crea substitució de vigilància (és diferent de l'absència)
-                            # La vigilància és una classe/activitat addicional, no la mateixa que l'absència
+                    # CAS 1: Té classe real amb grup (no està sense classe)
+                    if (
+                        assignatura  # Assignatura no buida = té classe
+                        and grup  # Vigilàncies d'exàmens no tenen grup (grup = "")
+                        and not sense_classe(vigilant, grup, self.grups_sense_classe_dict.get(hora, ()))
+                    ):
+                        # Sempre crea substitució de vigilància (és diferent de l'absència)
+                        # La vigilància és una classe/activitat addicional, no la mateixa que l'absència
+                        substitucions_vigilants.append(
+                            PropostaSubstitucio(
+                                professor=vigilant,
+                                professor_absent=vigilant,
+                                hora=hora,
+                                assignatura=assignatura,
+                                grup=grup,
+                                aula=aula,
+                                substitut="",  # S'assignarà després
+                                tipus_substitut="",
+                                comentaris="",  # Comentaris automàtics eliminats
+                                disponibles=[],  # S'afegiran després
+                                tipus_absencia="VIGILANCIA",  # Marca especial per identificar-la
+                            )
+                        )
+
+                    # CAS 2: Té activitat de PRIORITATS que NO és a «No substituir»
+                    # (si no està alliberat d'aquesta activitat)
+                    elif assignatura and not sense_classe(vigilant, "", self.grups_sense_classe_dict.get(hora, ())):
+                        if assignatura in constants.PRIORITATS and assignatura not in self.no_substituir:
                             substitucions_vigilants.append(
                                 PropostaSubstitucio(
                                     professor=vigilant,
                                     professor_absent=vigilant,
                                     hora=hora,
                                     assignatura=assignatura,
-                                    grup=grup,
+                                    grup="",  # Activitats de PRIORITATS no tenen grup
                                     aula=aula,
                                     substitut="",  # S'assignarà després
                                     tipus_substitut="",
-                                    comentaris="",  # Comentaris automàtics eliminats
-                                    disponibles=[],  # S'afegiran després
-                                    tipus_absencia="VIGILANCIA",  # Marca especial per identificar-la
+                                    comentaris="",
+                                    disponibles=[],
+                                    tipus_absencia="VIGILANCIA",
                                 )
                             )
 
-                        # CAS 2: Té activitat de PRIORITATS que NO és a «No substituir»
-                        # (si no està alliberat d'aquesta activitat)
-                        elif assignatura and not sense_classe(vigilant, "", self.grups_sense_classe_dict.get(hora, ())):
-                            if assignatura in constants.PRIORITATS and assignatura not in self.no_substituir:
-                                substitucions_vigilants.append(
-                                    PropostaSubstitucio(
-                                        professor=vigilant,
-                                        professor_absent=vigilant,
-                                        hora=hora,
-                                        assignatura=assignatura,
-                                        grup="",  # Activitats de PRIORITATS no tenen grup
-                                        aula=aula,
-                                        substitut="",  # S'assignarà després
-                                        tipus_substitut="",
-                                        comentaris="",
-                                        disponibles=[],
-                                        tipus_absencia="VIGILANCIA",
-                                    )
-                                )
-
-            return substitucions_vigilants
-
-        except Exception:
-            log.warning("No s'han pogut generar les substitucions dels vigilants", exc_info=True)
-            self.avisos.append(
-                "No s'han pogut generar les cobertures de classe dels vigilants. Revisa les substitucions pendents."
-            )
-            return []
+        return substitucions_vigilants
 
     def _assignar_substitucions_per_hora(
         self,
@@ -563,4 +558,4 @@ class GestorSubstitucions:
 
     def _obtenir_categoria(self, tipus_activitat: str) -> int:
         """Retorna l'índex de categoria (0 = prioritat màxima)"""
-        return prioritat_candidat(tipus_activitat)
+        return categoria_de_prioritat(tipus_activitat)
