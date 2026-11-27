@@ -7,7 +7,7 @@ generador llegís fitxers del servidor.
 """
 
 import pytest
-from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
+from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
 from suport_noms import unic
 
 from pdf import domain as pdf_domain
@@ -159,6 +159,49 @@ def test_les_descarregues_pdf_porten_un_nom_de_fitxer(client, centre, ruta, pref
     assert disposicio.startswith("attachment;")
     assert prefix in disposicio
     assert disposicio.rstrip('"').endswith(".pdf")
+
+
+def test_pdf_del_dia_i_pantalla_mostren_les_mateixes_substitucions(client, centre):
+    from datetime import date
+
+    from database import get_data_db_session
+    from grups.repositories import GrupsAlliberatsRepository
+    from models import Substitucio
+    from prioritats.repositories import NoSubstituirRepository
+
+    files = [
+        ("Prof 1", "Guàrdia", "1-ESO-A", "ABSENCIA"),
+        ("Prof 2", "Català", " 1-ESO-B ", "ABSENCIA"),
+        ("Prof 3", "VIGILÀNCIA", "1-ESO-B", "VIGILANCIA_ABSENT"),
+    ]
+    with get_data_db_session(centre) as db:
+        NoSubstituirRepository.create(db, "Guàrdia", vigent_des_de=date.fromisoformat(DATA))
+        GrupsAlliberatsRepository.afegeix(db, DATA, "09:00", "1-ESO-B")
+        for professor, assignatura, grup, tipus in files:
+            db.add(
+                Substitucio(
+                    data=date.fromisoformat(DATA),
+                    hora="09:00",
+                    professor_absent=professor,
+                    assignatura=assignatura,
+                    grup=grup,
+                    tipus_absencia=tipus,
+                )
+            )
+        db.commit()
+
+    pantalla = client.get(f"/api/substitucions/{DATA}")
+    assert pantalla.status_code == 200, pantalla.text
+    visibles = [(fila["professor_absent"], fila["tipus_absencia"]) for fila in pantalla.json()]
+    assert visibles == [("Prof 3", "VIGILANCIA_ABSENT")]
+
+    pdf_dia = client.get(
+        f"/api/pdf/complete/{DATA}",
+        params={"format": "dia", "include_vigilancies": False, "show_conflicts": False},
+    )
+    assert pdf_dia.status_code == 200, pdf_dia.text[:300]
+    textos = text_pdf(pdf_dia.content)
+    assert {professor for professor, *_ in files if professor in textos} == {professor for professor, _ in visibles}
 
 
 # ------------------------------------------------ espai per escriure a mà

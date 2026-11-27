@@ -7,25 +7,7 @@ import pytest
 
 from pdf import disponibles, generacio
 from pdf.domain import IntervalNoValid
-from substitucions.files import FilaSubstitucio
 from vigilancies.files import FilaVigilancia
-
-
-def test_les_substitucions_que_surten_al_pdf_del_dia():
-    alliberats = {"08:00": ["1-ESO-B", "professor:Prof 9"]}
-    no_substituir = ["Guàrdia"]
-
-    def surt(**camps):
-        sub = {"hora": "08:00", "professor_absent": "Prof 1", "grup": "1-ESO-A", "assignatura": "Català", **camps}
-        return generacio.es_substitucio_del_pdf(FilaSubstitucio(**sub), alliberats, no_substituir)
-
-    assert surt()
-    assert not surt(grup="1-ESO-B")  # el grup no tenia classe
-    assert not surt(professor_absent="Prof 9")  # alliberat
-    assert surt(grup="1-ESO-B", tipus_absencia="VIGILANCIA_ABSENT")  # sempre
-    assert surt(grup="", assignatura="Reforç")
-    assert not surt(grup="", assignatura="Guàrdia")
-    assert not surt(grup=" ", assignatura="Reforç", professor_absent="Prof 9")
 
 
 def test_dates_de_l_interval():

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from absencia_coberta.domain import absencia_coberta_de, missatge_absencia_coberta
 from database import inicia_escriptura
-from errors_domini import Conflicte, ErrorDeDomini, NoTrobat, NoValid
+from errors_domini import Conflicte, NoTrobat, NoValid
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import translate as _
@@ -168,169 +168,153 @@ def _rebutja_motius_manual(motius: list, substitut: str, hora: str) -> None:
 
 
 def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor: str, update) -> dict:
-    """Assignació manual amb les mateixes comprovacions i ordre que el router antic."""
+    """Assigna un substitut a mà en una sola transacció (regles 1–26)."""
     inicia_escriptura(db)
-    avisos = []
-    substitucions_list = SubstitucioRepository.get_by_date(db, data)
+    files = SubstitucioRepository.get_by_date(db, data)
+    fila = _troba_fila(files, update, data, hora, professor)
+    _comprova_versio(fila, update)
+    files_a_alliberar = _valida_substitut(db, dia, data, fila, update, files)
+    fila_desada, alliberades = _aplica(db, dia, data, fila, update, files_a_alliberar)
+    encadenades = reconcilia_encadenades(db, data)  # regles 24–25
+    db.commit()
+    return {
+        "success": True,
+        "message": "Observacions desades"
+        if update.substitut is None
+        else f"Substitut actualitzat a {update.substitut}",
+        "updated_at": fila_desada.updated_at.isoformat() if fila_desada and fila_desada.updated_at else None,
+        "alliberades": alliberades,
+        "encadenades": encadenades,
+    }
+
+
+def _troba_fila(files: list[FilaSubstitucio], update, data: str, hora: str, professor: str) -> FilaSubstitucio:
+    """Tria la fila per identificador o per hora, professor i versió (regles 1–5)."""
     if update.id is not None:
-        substitucio_actual = next((sub for sub in substitucions_list if sub.id == update.id), None)
-        if substitucio_actual is None:
+        fila = next((sub for sub in files if sub.id == update.id), None)
+        if fila is None:
             raise NoTrobat(
                 f"No s'ha trobat la substitució amb identificador {update.id} per al dia {data}",
                 codi="substitucio_id_no_trobat",
                 params={"id": update.id, "data": data},
             )
-        if substitucio_actual.hora != hora or substitucio_actual.professor_absent != professor:
+        if fila.hora != hora or fila.professor_absent != professor:
             raise NoValid(
                 "La substitució indicada no correspon a la data, l'hora i el professor de la URL",
                 codi="substitucio_id_no_concorda",
             )
-    else:
-        substitucio_actual = None
-        primera_coincidencia = None
-        for sub in substitucions_list:
-            if sub.hora == hora and sub.professor_absent == professor:
-                if primera_coincidencia is None:
-                    primera_coincidencia = sub
-                if update.updated_at and sub.updated_at == update.updated_at:
-                    substitucio_actual = sub
-                    break
-        if substitucio_actual is None:
-            substitucio_actual = primera_coincidencia
+        return fila
 
-    if not substitucio_actual:
-        raise NoTrobat(
-            f"Substitució no trobada: {hora} - {professor}",
-            codi="substitucio_no_trobada",
-            params={"hora": hora, "professor": professor},
-        )
+    coincidencies = [fila for fila in files if fila.hora == hora and fila.professor_absent == professor]
+    if coincidencies:
+        versio = update.updated_at
+        return next((fila for fila in coincidencies if versio and fila.updated_at == versio), coincidencies[0])
+    raise NoTrobat(
+        f"Substitució no trobada: {hora} - {professor}",
+        codi="substitucio_no_trobada",
+        params={"hora": hora, "professor": professor},
+    )
 
+
+def _comprova_versio(fila: FilaSubstitucio, update) -> None:
+    """Comprova la versió llegida, llevat que es forci el canvi (regles 6–8)."""
     if not update.force:
         if not update.updated_at:
-            raise NoValid(
-                "Falta el camp updated_at per comprovar conflictes",
-                codi="falta_updated_at",
-            )
-        if substitucio_actual.updated_at and update.updated_at != substitucio_actual.updated_at:
-            raise ConflicteSubstitucions(substitucio_actual)
+            raise NoValid("Falta el camp updated_at per comprovar conflictes", codi="falta_updated_at")
+        if fila.updated_at and update.updated_at != fila.updated_at:
+            raise ConflicteSubstitucions(fila)
 
-    if update.substitut and update.substitut.strip():
-        substitut_normalitzat = update.substitut.strip()
-        files_a_alliberar = []
-        assignatura_actual = substitucio_actual.assignatura
-        no_substituir = NoSubstituirRepository.vigents_a(db, data)
 
-        if assignatura_actual in no_substituir:
-            raise NoValid(
-                f"❌ No es pot assignar substitut: '{assignatura_actual}' està a la llista d'activitats que NO es substitueixen",
-                codi="activitat_no_substituible",
-                params={"assignatura": assignatura_actual},
-            )
-
-        estat = DiaEscolar(db, dia, estricte=True)
-        _rebutja_motius_manual(
-            estat.motius_substitut(substitut_normalitzat, hora, nomes={"vigilancia"}), substitut_normalitzat, hora
+def _valida_substitut(
+    db: Session, dia: Dia, data: str, fila: FilaSubstitucio, update, files: list[FilaSubstitucio]
+) -> list[FilaSubstitucio]:
+    """Valida la tria en ordre i recull les files a alliberar (regles 10–18 i 20)."""
+    substitut_normalitzat = (update.substitut or "").strip()
+    if not substitut_normalitzat:
+        return []
+    hora = fila.hora
+    assignatura_actual = fila.assignatura
+    if assignatura_actual in NoSubstituirRepository.vigents_a(db, data):
+        raise NoValid(
+            f"❌ No es pot assignar substitut: '{assignatura_actual}' està a la llista d'activitats que NO es substitueixen",
+            codi="activitat_no_substituible",
+            params={"assignatura": assignatura_actual},
         )
 
-        for sub in substitucions_list:
-            if (
-                sub.hora == hora
-                and sub.substitut == substitut_normalitzat
-                and not (sub.hora == hora and sub.professor_absent == professor)
-            ):
-                if update.moure:
-                    files_a_alliberar.append(sub)
-                    continue
-                raise NoValid(
-                    f"❌ {substitut_normalitzat} ja està assignat com a SUBSTITUT per {sub.professor_absent} ({sub.assignatura}, {sub.grup}) a les {hora}",
-                    codi="substitut_repetit",
-                    params={
-                        "substitut": substitut_normalitzat,
-                        "absent": sub.professor_absent,
-                        "assignatura": sub.assignatura,
-                        "grup": sub.grup,
-                        "hora": hora,
-                    },
-                )
+    estat = DiaEscolar(db, dia, estricte=True)
+    motius = estat.motius_substitut(substitut_normalitzat, hora, nomes={"vigilancia"})
+    _rebutja_motius_manual(motius, substitut_normalitzat, hora)
 
-        _rebutja_motius_manual(
-            estat.motius_substitut(substitut_normalitzat, hora, nomes={"absent"}), substitut_normalitzat, hora
-        )
+    files_a_alliberar = []
+    for sub in files:
+        if sub.hora != hora or sub.substitut != substitut_normalitzat or sub.professor_absent == fila.professor_absent:
+            continue
+        if not update.moure:
+            raise NoValid(
+                f"❌ {substitut_normalitzat} ja està assignat com a SUBSTITUT per {sub.professor_absent} ({sub.assignatura}, {sub.grup}) a les {hora}",
+                codi="substitut_repetit",
+                params={
+                    "substitut": substitut_normalitzat,
+                    "absent": sub.professor_absent,
+                    "assignatura": sub.assignatura,
+                    "grup": sub.grup,
+                    "hora": hora,
+                },
+            )
+        files_a_alliberar.append(sub)
 
-        try:
-            # Mateix horari i mateix tractament dels errors de càrrega que abans.
-            if estat.horari is None:
-                raise ValueError("Horari no disponible")
-            _rebutja_motius_manual(
-                estat.motius_substitut(substitut_normalitzat, hora, nomes={"baixa"}), substitut_normalitzat, hora
-            )
-            _rebutja_motius_manual(
-                estat.motius_substitut(substitut_normalitzat, hora, nomes={"fora_horari"}), substitut_normalitzat, hora
-            )
-            _rebutja_motius_manual(
-                estat.motius_substitut(substitut_normalitzat, hora, nomes={"classe"}, classe_sense_assignatura=True),
-                substitut_normalitzat,
-                hora,
-            )
-        except ErrorDeDomini:
-            raise
-        except Exception:
-            log.warning("⚠️ No s'ha pogut validar l'horari del substitut", exc_info=True)
-            avisos.append("No s'ha pogut validar l'horari del substitut. Revisa que l'assignació sigui correcta.")
+    motius = estat.motius_substitut(substitut_normalitzat, hora, nomes={"absent"})
+    _rebutja_motius_manual(motius, substitut_normalitzat, hora)
 
+    _rebutja_motius_manual(
+        estat.motius_substitut(substitut_normalitzat, hora, nomes={"baixa"}), substitut_normalitzat, hora
+    )
+    _rebutja_motius_manual(
+        estat.motius_substitut(substitut_normalitzat, hora, nomes={"fora_horari"}), substitut_normalitzat, hora
+    )
+    _rebutja_motius_manual(
+        estat.motius_substitut(substitut_normalitzat, hora, nomes={"classe"}, classe_sense_assignatura=True),
+        substitut_normalitzat,
+        hora,
+    )
+    return files_a_alliberar
+
+
+def _aplica(db: Session, dia: Dia, data: str, fila: FilaSubstitucio, update, files_a_alliberar: list[FilaSubstitucio]):
+    """Aplica els canvis i desfà l'operació si la versió ha canviat (regles 8–9 i 19–23)."""
+    hora = fila.hora
     alliberades = []
-    for fila in files_a_alliberar if update.substitut and update.substitut.strip() else []:
-        SubstitucioRepository.update(db, int(fila.id), {"substitut": "", "tipus_substitut": ""})
-        alliberades.append({k: getattr(fila, k) for k in ("hora", "professor_absent", "assignatura", "grup")})
+    for altra in files_a_alliberar:
+        SubstitucioRepository.update(db, int(altra.id), {"substitut": "", "tipus_substitut": ""})
+        alliberades.append({k: getattr(altra, k) for k in ("hora", "professor_absent", "assignatura", "grup")})
 
-    updates = {}
+    canvis = {}
     if update.substitut is not None:
-        substitut_nou = update.substitut
-        tipus_substitut_nou = ""
-
-        if substitut_nou.strip():
-            try:
-                _, horari, alliberats, _ = dia.gestors()
-                dia_name = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
-                grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
-                grups_hora = set(grups_sense_classe.get(hora, []))
-                disponibles_hora = alliberats.get_tots_disponibles(dia_name, hora, grups_hora)
-                tipus_map = {prof: (tipus, detall) for prof, tipus, detall in disponibles_hora}
-                # Sense tipus (no és entre els disponibles), el text queda buit.
-                tipus, detall = tipus_map.get(substitut_nou, ("", ""))
-                tipus_substitut_nou = text_tipus_substitut(tipus, detall) if tipus else ""
-            except Exception as exc:
-                log.warning("⚠️ No s'ha pogut calcular tipus_substitut manual: %s", exc)
-
-        updates["substitut"] = substitut_nou
-        updates["tipus_substitut"] = tipus_substitut_nou
+        tipus = _tipus_manual(db, dia, data, hora, update.substitut) if update.substitut.strip() else ""
+        canvis.update(substitut=update.substitut, tipus_substitut=tipus)
 
     if update.comentaris is not None:
-        updates["comentaris"] = update.comentaris
+        canvis["comentaris"] = update.comentaris
 
-    updated_sub = SubstitucioRepository.update(
-        db,
-        int(substitucio_actual.id),
-        updates,
-        updated_at_esperat=None if update.force else update.updated_at,
-    )
-    if updated_sub is None and not update.force:
+    versio_esperada = None if update.force else update.updated_at
+    fila_desada = SubstitucioRepository.update(db, int(fila.id), canvis, updated_at_esperat=versio_esperada)
+    if fila_desada is None and not update.force:
         db.rollback()
-        actual = next(
-            (s for s in SubstitucioRepository.get_by_date(db, data) if s.id == substitucio_actual.id),
-            substitucio_actual,
-        )
+        actual = next((sub for sub in SubstitucioRepository.get_by_date(db, data) if sub.id == fila.id), fila)
         raise ConflicteSubstitucions(actual)
-    encadenades = reconcilia_encadenades(db, data)
-    db.commit()
-    return {
-        "success": True,
-        "message": f"Substitut actualitzat a {update.substitut}",
-        "updated_at": updated_sub.updated_at.isoformat() if updated_sub and updated_sub.updated_at else None,
-        "alliberades": alliberades,
-        "encadenades": encadenades,
-        "avisos": avisos,
+    return fila_desada, alliberades
+
+
+def _tipus_manual(db: Session, dia: Dia, data: str, hora: str, substitut: str) -> str:
+    """El tipus del substitut triat a mà segons els disponibles de l'hora; buit si no hi és (regla 21)."""
+    _, horari, alliberats, _ = dia.gestors()
+    dia_name = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+    grups_hora = set(AlliberatsDelDia.get_by_date(db, data).get(hora, []))
+    tipus_map = {
+        prof: (tipus, detall) for prof, tipus, detall in alliberats.get_tots_disponibles(dia_name, hora, grups_hora)
     }
+    tipus, detall = tipus_map.get(substitut, ("", ""))
+    return text_tipus_substitut(tipus, detall) if tipus else ""
 
 
 def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:

@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from dates import data_completa, parse_date
-from grups.disponibilitat import sense_classe
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import translate
@@ -33,6 +32,7 @@ from substitucions.domain import DiaEscolar
 from substitucions.files import FilaSubstitucio
 from substitucions.prioritat import MillorsSubstituts
 from substitucions.repositories import SubstitucioRepository
+from substitucions.visibilitat import es_visible_a_substitucions
 from vigilancies.analisi import analitza_vigilancies, selecciona_problemes
 from vigilancies.files import FilaVigilancia
 from vigilancies.repositories import VigilanciaRepository
@@ -150,31 +150,13 @@ def omple_aula_substitucions(substitucions_data: list, horari_mgr, date_obj: dat
                 substitucions_data[index] = replace(sub, aula=aula)
 
 
-def es_substitucio_del_pdf(sub: FilaSubstitucio, grups_sense_classe: dict, no_substituir) -> bool:
-    """Les substitucions que surten al PDF del dia:
-    - les de vigilant absent, sempre (el grup pot estar alliberat perquè fa
-      examen, però igualment cal el substitut);
-    - les que tenen grup, si el professor tenia classe (el grup no estava
-      sense classe ni ell alliberat);
-    - les que no tenen grup, si l'activitat no és a «No substituir» i el
-      professor no estava alliberat (p.ex. un reforç alliberat)."""
-    if sub.tipus_absencia == "VIGILANCIA_ABSENT":
-        return True
-    grup = sub.grup
-    grups_hora = grups_sense_classe.get(sub.hora, [])
-    professor = sub.professor_absent or ""
-    if grup and grup.strip():
-        return not sense_classe(professor, grup, grups_hora)
-    return sub.assignatura not in no_substituir and not sense_classe(professor, "", grups_hora)
-
-
 def substitucions_del_pdf(db: Session, data: str) -> list[FilaSubstitucio]:
     grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
     no_substituir = NoSubstituirRepository.vigents_a(db, data)
     return [
         sub
         for sub in SubstitucioRepository.get_by_date(db, data)
-        if es_substitucio_del_pdf(sub, grups_sense_classe, no_substituir)
+        if es_visible_a_substitucions(sub, no_substituir, grups_sense_classe.get(sub.hora, ()))
     ]
 
 

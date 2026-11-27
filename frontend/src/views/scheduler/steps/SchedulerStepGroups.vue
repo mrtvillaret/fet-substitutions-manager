@@ -19,7 +19,7 @@
             />
           </div>
           <div class="actions">
-            <Button :label="t('common.add')" icon="pi pi-plus" outlined @click="obrirDialogAgrupacio" />
+            <Button :label="t('common.add')" icon="pi pi-plus" outlined @click="() => obrirDialogAgrupacio()" />
           </div>
         </div>
       </div>

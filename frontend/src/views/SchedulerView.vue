@@ -252,7 +252,7 @@
     <footer class="footer-nav">
       <Button :label="t('scheduler.view.actions.previous')" icon="pi pi-chevron-left" text @click="pasAnterior" :disabled="pasActiu === 0 || loading" />
       <div class="spacer"></div>
-      <Button id="btn-save" :label="t('scheduler.view.actions.saveChanges')" icon="pi pi-save" outlined :loading="savingRestr" :disabled="!configReady" @click="desarTotAlBackend" />
+      <Button id="btn-save" :label="t('scheduler.view.actions.saveChanges')" icon="pi pi-save" outlined :loading="savingRestr" :disabled="!configReady" @click="() => desarTotAlBackend()" />
       <Button :label="t('scheduler.view.actions.next')" icon="pi pi-chevron-right" iconPos="right" @click="pasSeguent" :disabled="pasActiu === 4 || loading" />
     </footer>
   </div>

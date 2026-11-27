@@ -1,11 +1,14 @@
 """Rollback de les operacions compostes del mòdul de substitucions."""
 
+from datetime import datetime
+
 import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
 
 from database import get_data_db_session
+from models import Substitucio
 from substitucions import router as substitucions_router
 from substitucions import services
 from substitucions.repositories import SubstitucioRepository
@@ -85,6 +88,67 @@ def test_actualitzar_substitut_desfa_tots_els_canvis_si_falla_la_reconciliacio(c
         json={"substitut": "Prof 21", "updated_at": fila.updated_at},
     )
     assert resposta.status_code == 500
+    assert _bolcat(centre) == abans
+
+
+def test_moure_substitut_desfa_l_alliberament_si_la_fila_canvia_abans_de_desar(client, centre, monkeypatch):
+    assert _marca_absencia(client).status_code == 200
+    assert _marca_absencia(client, professor="Prof 30").status_code == 200
+    origen, desti = _bolcat(centre)
+    resposta = client.put(
+        f"{URL}/10:00/{origen.professor_absent}", json={"substitut": "Prof 21", "updated_at": origen.updated_at}
+    )
+    assert resposta.status_code == 200, resposta.text
+    abans = _bolcat(centre)
+    actualitza = SubstitucioRepository.update
+
+    def canvia_abans_de_desar(db, sub_id, canvis, **opcions):
+        if sub_id == int(desti.id):
+            # La petició té la reserva d'escriptura de SQLite. Injectem el canvi
+            # dins de la mateixa transacció, just abans que es comprovi la versió.
+            fila = db.get(Substitucio, sub_id)
+            fila.updated_at = datetime(2026, 4, 20, 8)
+            fila.comentaris = "Canvi intercalat"
+            db.flush()
+        return actualitza(db, sub_id, canvis, **opcions)
+
+    monkeypatch.setattr(SubstitucioRepository, "update", staticmethod(canvia_abans_de_desar))
+
+    resposta = client.put(
+        f"{URL}/10:00/{desti.professor_absent}",
+        json={"substitut": "Prof 21", "updated_at": desti.updated_at, "moure": True, "comentaris": "Canvi rebutjat"},
+    )
+
+    assert resposta.status_code == 409, resposta.text
+    detall = resposta.json()["detail"]
+    assert detall["error"] == "conflict"
+    assert detall["current_data"]["id"] == desti.id
+    assert detall["current_data"]["updated_at"] == desti.updated_at
+    assert detall["current_data"]["comentaris"] == desti.comentaris
+    assert detall["current_data"]["substitut"] == desti.substitut
+    assert _bolcat(centre) == abans
+
+
+def test_moure_substitut_absent_conserva_les_dues_files(client, centre):
+    assert _marca_absencia(client).status_code == 200
+    assert _marca_absencia(client, professor="Prof 30").status_code == 200
+    assert _marca_absencia(client, professor="Prof 21").status_code == 200
+    origen, desti, _ = _bolcat(centre)
+    with get_data_db_session(centre) as db:
+        # Reproduïm una assignació desada que ha quedat invàlida.
+        SubstitucioRepository.update(
+            db, int(origen.id), {"substitut": "Prof 21", "tipus_substitut": "disponible (Guàrdia)"}
+        )
+        db.commit()
+    abans = _bolcat(centre)
+
+    resposta = client.put(
+        f"{URL}/10:00/{desti.professor_absent}",
+        json={"substitut": "Prof 21", "updated_at": desti.updated_at, "moure": True},
+    )
+
+    assert resposta.status_code == 400, resposta.text
+    assert resposta.json()["codi"] == "substitut_absent"
     assert _bolcat(centre) == abans
 
 

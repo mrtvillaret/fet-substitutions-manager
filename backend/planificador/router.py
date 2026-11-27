@@ -121,13 +121,16 @@ def get_assignatures_actives(db: Session = Depends(get_db)):
     return services.examens_actius(db)
 
 
+def _dates_csv(dates: str | None) -> list[str]:
+    return [data_iso(d.strip()).isoformat() for d in (dates or "").split(",") if d.strip()]
+
+
 @router.get("/horari", response_model=HorariPlanificacioResponse)
 def scheduler_horari(dates: str | None = None, current_user=Depends(get_current_user)):
     """Quin horari (XML) fa servir el planificador per a les dates (AAAA-MM-DD
     separades per comes; sense, les desades): la data de referència, des de
     quan és vigent i si dins les dates en comença un altre."""
-    llista = [data_iso(d.strip()).isoformat() for d in (dates or "").split(",") if d.strip()]
-    return horari_de_la_planificacio(current_user.institucio, llista)
+    return horari_de_la_planificacio(current_user.institucio, _dates_csv(dates))
 
 
 @router.get("/ultim-resultat", response_model=dict | None)
@@ -139,7 +142,7 @@ def scheduler_ultim_resultat(db: Session = Depends(get_db)):
 @router.get("/curs-dates", response_model=CursDatesResponse)
 def scheduler_curs_dates(dates: str = "", db: Session = Depends(get_db), avui: Dia = Depends(dia_d_avui)):
     """Avís si les dates (separades per comes) són d'un curs anterior."""
-    return {"curs_anterior": services.cursos_anteriors(db, [d for d in dates.split(",") if d], avui.iso)}
+    return {"curs_anterior": services.cursos_anteriors(db, _dates_csv(dates), avui.iso)}
 
 
 @router.post("/generate", response_model=GeneracioResponse, response_model_exclude_unset=True)

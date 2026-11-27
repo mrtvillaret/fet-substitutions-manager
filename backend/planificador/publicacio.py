@@ -23,6 +23,7 @@ from horari.domain import Dia
 from planificador.config import carrega_config
 from planificador.services import cursos_anteriors
 from substitucions import cobertures
+from substitucions.reconciliacio import treu_substituts_no_valids
 from substitucions.repositories import SubstitucioRepository
 from textos import normalitzar_hora
 from vigilancies.assignacio import titulars_de
@@ -125,6 +126,7 @@ class PublicacioExamens:
             ordena_automaticament(vigs)
         self._allibera_grups(data_iso)
         self.db.flush()
+        treu_substituts_no_valids(self.db, data_iso)
 
     def _esborra_el_dia(self, data_iso: str) -> None:
         """Mode forçat (opció d'emergència): esborra tot el dia i es recrea."""

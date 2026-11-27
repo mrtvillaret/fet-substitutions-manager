@@ -97,7 +97,7 @@
               <p >{{ t('scheduler.steps.restrictions.teachers.description') }}</p>
               <p >{{ t('scheduler.steps.restrictions.teachers.example') }}</p>
             </div>
-            <Button :label="t('common.add')" icon="pi pi-plus" size="small" outlined @click="obrirDialogProfessor" />
+            <Button :label="t('common.add')" icon="pi pi-plus" size="small" outlined @click="() => obrirDialogProfessor()" />
           </div>
           <DataTable :value="restriccionsProfessors" class="p-datatable-sm restriccions-professors-table" stripedRows :emptyMessage="t('scheduler.steps.restrictions.teachers.emptyMessage')">
             <Column field="professor" :header="t('scheduler.steps.restrictions.teachers.columns.professor')" style="width: 15%"></Column>
@@ -132,7 +132,7 @@
               <p class="restriccio-title">{{ t('scheduler.steps.restrictions.daysHours.title') }}</p>
               <p >{{ t('scheduler.steps.restrictions.daysHours.description') }}</p>
             </div>
-            <Button :label="t('common.add')" icon="pi pi-plus" size="small" outlined @click="obrirDialogDiaHora" />
+            <Button :label="t('common.add')" icon="pi pi-plus" size="small" outlined @click="() => obrirDialogDiaHora()" />
           </div>
           <DataTable :value="restriccionsDiesHores" class="p-datatable-sm restriccions-professors-table" stripedRows :emptyMessage="t('scheduler.steps.restrictions.daysHours.emptyMessage')">
             <Column :header="t('scheduler.steps.restrictions.daysHours.columns.type')" style="width: 90px">
@@ -194,7 +194,7 @@
               <p class="restriccio-title">{{ t('scheduler.steps.restrictions.dayPreferences.title') }}</p>
               <p >{{ t('scheduler.steps.restrictions.dayPreferences.description') }}</p>
             </div>
-            <Button :label="t('common.add')" icon="pi pi-plus" size="small" outlined @click="obrirDialogPreferenciaDia" />
+            <Button :label="t('common.add')" icon="pi pi-plus" size="small" outlined @click="() => obrirDialogPreferenciaDia()" />
           </div>
           <DataTable :value="restriccionsPreferencies" class="p-datatable-sm restriccions-professors-table" stripedRows :emptyMessage="t('scheduler.steps.restrictions.dayPreferences.emptyMessage')">
             <Column field="assignatures" :header="t('scheduler.steps.restrictions.dayPreferences.columns.subjects')">
@@ -234,7 +234,7 @@
               <p >{{ t('scheduler.steps.restrictions.incompatibilities.description') }}</p>
               <p >{{ t('scheduler.steps.restrictions.incompatibilities.example') }}</p>
             </div>
-            <Button :label="t('common.add')" icon="pi pi-plus" size="small" outlined @click="obrirDialogIncompatibilitat" />
+            <Button :label="t('common.add')" icon="pi pi-plus" size="small" outlined @click="() => obrirDialogIncompatibilitat()" />
           </div>
           <DataTable :value="restriccionsIncompatibilitats" class="p-datatable-sm restriccions-professors-table" stripedRows :emptyMessage="t('scheduler.steps.restrictions.incompatibilities.emptyMessage')">
             <Column field="nom" :header="t('scheduler.steps.restrictions.incompatibilities.columns.groupName')" style="width: 150px"></Column>

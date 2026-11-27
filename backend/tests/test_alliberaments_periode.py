@@ -417,3 +417,44 @@ def test_dates_afectades_exclou_historial_i_inclou_dies_amb_nomes_vigilancia(db_
     assert AlliberamentsPeriodeRepository.dates_afectades(db_session, des_de, 0) == [
         d for d in DILLUNS[:3] if d >= max(des_de, "2026-04-20")
     ]
+
+
+def test_alliberar_per_periode_buida_el_substitut_des_d_avui(rellotge_fix):
+    from datetime import datetime
+
+    from database import get_data_db_session
+    from substitucions.repositories import SubstitucioRepository
+
+    rellotge_fix.moment = datetime(2026, 4, 20, 12, tzinfo=UTC)
+    centre = nova_institucio(amb_xml=True)
+    nom = f"admin_{unic()}"
+    crea_usuari(nom, centre, "admin")
+    client = entra(client_per(APP), nom)
+    with get_data_db_session(centre) as db:
+        for data in DILLUNS[:3]:
+            SubstitucioRepository.create(
+                db,
+                {
+                    "data": data,
+                    "hora": "09:00",
+                    "professor_absent": "Prof 1",
+                    "assignatura": "E.F.",
+                    "grup": "3-ESO-A",
+                    "tipus_absencia": "SERVEI",
+                    "substitut": "Prof 2",
+                    "tipus_substitut": "disponible (Guàrdia)",
+                },
+            )
+        db.commit()
+
+    _canvi(client, "professor", "Prof 1", ["09:00"], DILLUNS[0])
+
+    for data in DILLUNS[:3]:
+        assert client.get(f"/api/substitucions/{data}").json() == []
+    with get_data_db_session(centre) as db:
+        for data in DILLUNS[:3]:
+            [fila] = SubstitucioRepository.get_by_date(db, data)
+            assert (fila.professor_absent, fila.hora, fila.tipus_absencia) == ("Prof 1", "09:00", "SERVEI")
+            esperat = ("Prof 2", "disponible (Guàrdia)") if data == DILLUNS[0] else ("", "")
+            assert (fila.substitut, fila.tipus_substitut) == esperat
+        assert SubstitucioRepository.historial_quota(db, DILLUNS[3]) == [("09:00", "Prof 2", "disponible (Guàrdia)")]

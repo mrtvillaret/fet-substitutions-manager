@@ -116,7 +116,6 @@ class ActualitzacioSubstitutResponse(BaseModel):
     updated_at: str | None
     alliberades: list[FilaAlliberadaResponse]
     encadenades: EncadenadesResponse
-    avisos: list[str] = Field(default_factory=list)
 
 
 class CanviSubstitutResponse(BaseModel):

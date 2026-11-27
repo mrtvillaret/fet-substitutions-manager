@@ -10,20 +10,24 @@ from substitucions.vigilancia_absent import es_vigilancia_absent
 from textos import nom_net
 
 
+def motiu_per_amagar(
+    fila: FilaSubstitucio, no_substituir: Collection[str], alliberats_hora: Collection[str]
+) -> str | None:
+    """Motiu per amagar la fila, amb preferència per l'alliberament si coincideixen.
+
+    «No substituir» s'avalua amb la llista vigent a la data de la fila.
+    Les vigilàncies de vigilants absents es mostren sempre.
+    """
+    if es_vigilancia_absent(fila):
+        return None
+    if sense_classe(fila.professor_absent or "", (fila.grup or "").strip(), alliberats_hora):
+        return "alliberament"
+    if nom_net(fila.assignatura or "") in no_substituir:
+        return "no_substituir"
+    return None
+
+
 def es_visible_a_substitucions(
     fila: FilaSubstitucio, no_substituir: Collection[str], alliberats_hora: Collection[str]
 ) -> bool:
-    """Si la fila es veu a la pantalla Substitucions:
-    - la vigilància d'un vigilant absent, sempre: no és una hora de l'horari
-      del professor, sinó un tipus de fila que crea el programa quan falta un
-      vigilant d'examen («VIGILÀNCIA» a l'assignatura n'és només l'etiqueta),
-      i «No substituir» decideix quines hores de l'horari cal cobrir;
-    - les altres, no si l'activitat és a «No substituir» (tingui grup o no;
-      el nom buit, el de les hores sense activitat, és un nom més) ni si el
-      professor està alliberat aquella hora (`alliberats_hora`, els
-      alliberats efectius de la data a aquella hora)."""
-    if es_vigilancia_absent(fila):
-        return True
-    if nom_net(fila.assignatura or "") in no_substituir:
-        return False
-    return not sense_classe(fila.professor_absent or "", (fila.grup or "").strip(), alliberats_hora)
+    return motiu_per_amagar(fila, no_substituir, alliberats_hora) is None

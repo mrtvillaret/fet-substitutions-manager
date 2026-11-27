@@ -24,6 +24,7 @@ from prioritats.repositories import NoSubstituirRepository
 from prioritats.router import router as prioritats_router
 from rate_limit import limiter
 from substitucions import router as substitucions
+from substitucions.repositories import SubstitucioRepository
 
 APP = crea_app(substitucions.router, prioritats_router)
 APP.include_router(estadistiques_router, dependencies=[Depends(require_admin)])  # com a main.py
@@ -83,6 +84,81 @@ def _entrades(centre):
             (e.assignatura, *(d.isoformat() if d else None for d in (e.vigent_des_de, e.vigent_fins_a)))
             for e in NoSubstituirRepository.de_l_activitat(db, "Pares")
         ]
+
+
+@pytest.mark.parametrize("inici", [PASSAT, "2026-11-04", FUTUR])
+def test_afegir_no_substituir_buida_les_assignacions_vigents_des_d_avui(client, centre, inici):
+    avui = "2026-11-04"
+    dates = [PASSAT, avui, FUTUR]
+    ids = {}
+    with get_data_db_session(centre) as db:
+        for data in dates:
+            fila = SubstitucioRepository.create(
+                db,
+                {
+                    "data": data,
+                    "hora": "09:00",
+                    "professor_absent": "Prof 1",
+                    "assignatura": "E.F.",
+                    "grup": "3-ESO-A",
+                    "tipus_absencia": "SERVEI",
+                    "substitut": "Prof 2",
+                    "tipus_substitut": "disponible (Guàrdia)",
+                },
+            )
+            ids[data] = str(fila.id)
+        db.commit()
+
+    data_canvi = None if inici == avui else inici
+    assert _afegeix(client, "E.F.", data=data_canvi).status_code == 200
+
+    with get_data_db_session(centre) as db:
+        for data in dates:
+            files = SubstitucioRepository.get_by_date(db, data)
+            fila = next(f for f in files if f.id == ids[data])
+            esperat = ("", "") if data >= max(avui, inici) else ("Prof 2", "disponible (Guàrdia)")
+            assert (fila.substitut, fila.tipus_substitut) == esperat
+            assert (fila.professor_absent, fila.tipus_absencia) == ("Prof 1", "SERVEI")
+    for data in dates:
+        assert ("09:00" in _visibles(client, data)) == (data < inici)
+
+    assert _treu(client, "E.F.", data=data_canvi).status_code == 200
+    for data in dates:
+        if data >= max(avui, inici):
+            [fila] = client.get(f"/api/substitucions/{data}").json()
+            assert str(fila["id"]) == ids[data]
+            assert fila["substitut"] == ""
+
+
+def test_afegir_no_substituir_desfa_el_canvi_si_falla_la_reconciliacio(client, centre, monkeypatch):
+    with get_data_db_session(centre) as db:
+        SubstitucioRepository.create(
+            db,
+            {
+                "data": FUTUR,
+                "hora": "09:00",
+                "professor_absent": "Prof 1",
+                "assignatura": "Pares",
+                "tipus_absencia": "SERVEI",
+                "substitut": "Prof 2",
+            },
+        )
+        db.commit()
+
+    actualitza = SubstitucioRepository.update
+
+    def actualitza_i_falla(*args, **kwargs):
+        actualitza(*args, **kwargs)
+        raise RuntimeError("error simulat després de buidar el substitut")
+
+    monkeypatch.setattr(SubstitucioRepository, "update", actualitza_i_falla)
+    with pytest.raises(RuntimeError, match="error simulat després de buidar el substitut"):
+        _afegeix(client, "Pares", data=FUTUR)
+
+    assert _entrades(centre) == []
+    with get_data_db_session(centre) as db:
+        [fila] = SubstitucioRepository.get_by_date(db, FUTUR)
+        assert fila.substitut == "Prof 2"
 
 
 def test_afegir_una_activitat_avui_no_canvia_els_dies_passats(client):

@@ -4,7 +4,7 @@ import { ref, computed } from 'vue'
 import { carregaBlocVista } from './support/carregaBlocVista.js'
 function prepara({error,resposta={updated_at:'nou'}}={}) {
   const peticions=[], confirmacions=[], conflictes=[], avisos=[]
-  const dependents={dataISO:ref('2026-04-20'),totesAbsencies:ref([{hora:'08:00',substitut:'Prof 2',professor_absent:'Prof 3'}]),substitucionsFiltrades:ref([]),collator:ref(new Intl.Collator('ca')),toast:{add:m=>avisos.push(m)},t:x=>x,confirm:{require:c=>confirmacions.push(c)},obrirDialogConflicte:c=>conflictes.push(c),mostrarAvisos:x=>avisos.push(x),carregarSubstitucions:async()=>peticions.push(['recarrega'])}
+  const dependents={dataISO:ref('2026-04-20'),totesAbsencies:ref([{hora:'08:00',substitut:'Prof 2',professor_absent:'Prof 3'}]),substitucionsFiltrades:ref([]),collator:ref(new Intl.Collator('ca')),toast:{add:m=>avisos.push(m)},t:x=>x,confirm:{require:c=>confirmacions.push(c)},obrirDialogConflicte:c=>conflictes.push(c),carregarSubstitucions:async()=>peticions.push(['recarrega'])}
   const dependencies={...dependents,dependents,computed,console:{error:()=>{}},apiSubstitucions:{actualitza:async(...a)=>{peticions.push(['actualitza',...a]);if(error && peticions.length===1)throw error;return resposta}}}
   const bloc=carregaBlocVista('useEdicioSubstitucions', dependencies)
   return {...bloc,peticions,confirmacions,conflictes,avisos,dependents}

@@ -7,7 +7,7 @@
         <Button
           icon="pi pi-refresh"
           :label="$t('config.groups.detectButton')"
-          @click="detectarGrupsXML"
+          @click="() => detectarGrupsXML()"
           class="p-button-secondary"
           size="small"
         />
@@ -129,7 +129,7 @@
           />
           <small class="field-hint">
             {{ $t('config.groups.selectGroupsHint') }}
-            <Button link class="boto-icona" :label="$t('config.groups.detectInline')" @click="detectarGrupsXML" />
+            <Button link class="boto-icona" :label="$t('config.groups.detectInline')" @click="() => detectarGrupsXML()" />
           </small>
         </div>
 

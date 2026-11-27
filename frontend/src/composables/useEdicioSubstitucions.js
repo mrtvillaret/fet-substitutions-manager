@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import * as apiSubstitucions from '../api/substitucions.js'
 
 // Edició de les files: manté les confirmacions, els conflictes i les recàrregues.
-export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsFiltrades, collator, toast, t, confirm, obrirDialogConflicte, mostrarAvisos, carregarSubstitucions }) {
+export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsFiltrades, collator, toast, t, confirm, obrirDialogConflicte, carregarSubstitucions }) {
   // Si el professor triat ja substitueix algú altre a la mateixa hora (en vermell),
   // es pot moure aquí: l'altra substitució queda pendent.
   const actualitzarSubstitut = (substitucio) => {
@@ -40,7 +40,6 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
       if (resposta?.updated_at) {
         substitucio.updated_at = resposta.updated_at
       }
-      mostrarAvisos(resposta?.avisos)
 
       // Actualitzar estat
       substitucio.estat = substitucio.substitut ? 'assignada' : 'pendent'
@@ -82,7 +81,7 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
         const currentData = error.response.data.detail.current_data
         obrirDialogConflicte(async () => {
           const data = dataISO.value
-          const resposta = await apiSubstitucions.actualitza(
+          await apiSubstitucions.actualitza(
             data,
             substitucio.hora,
             substitucio.professor_absent,
@@ -94,7 +93,6 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
               moure
             }
           )
-          mostrarAvisos(resposta?.avisos)
           await carregarSubstitucions()
         })
         return
@@ -134,7 +132,6 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
       if (resposta?.updated_at) {
         substitucio.updated_at = resposta.updated_at
       }
-      mostrarAvisos(resposta?.avisos)
 
       toast.add({
         severity: 'success',
@@ -148,7 +145,7 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
         const currentData = error.response.data.detail.current_data
         obrirDialogConflicte(async () => {
           const data = dataISO.value
-          const resposta = await apiSubstitucions.actualitza(
+          await apiSubstitucions.actualitza(
             data,
             substitucio.hora,
             substitucio.professor_absent,
@@ -160,7 +157,6 @@ export function useEdicioSubstitucions({ dataISO, totesAbsencies, substitucionsF
               force: true
             }
           )
-          mostrarAvisos(resposta?.avisos)
           await carregarSubstitucions()
         })
         return

@@ -8,12 +8,15 @@ i sortirien pestanyes de nivells que no existeixen.
 """
 
 import json
+from datetime import date
 
 import pytest
+from fastapi.testclient import TestClient
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
 
 from configuracio.repositories import ConfiguracioRepository
+from cursos.repositories import CursRepository
 from database import get_data_db_session
 from models import Nivell
 from planificador import router as scheduler
@@ -78,3 +81,29 @@ def test_nomes_els_admins_veuen_la_configuracio(centre):
     nom = f"user_{unic()}"
     crea_usuari(nom, centre, "user")
     assert entra(client_per(APP), nom).get(URL).status_code == 403
+
+
+@pytest.mark.parametrize("amb_curs_actual", [False, True])
+def test_curs_dates_rebutja_dates_invalides(client, centre, amb_curs_actual):
+    if amb_curs_actual:
+        with get_data_db_session(centre) as db:
+            CursRepository.create(db, "2026-27", date(2026, 9, 7))
+            db.commit()
+    client_http = TestClient(APP, base_url="https://testserver", cookies=client.cookies, raise_server_exceptions=False)
+
+    resposta = client_http.get("/api/scheduler/curs-dates", params={"dates": "ahir"})
+
+    assert resposta.status_code == 400, resposta.text
+    assert resposta.json()["detail"] == "Format de data invàlid. Usa YYYY-MM-DD"
+
+
+def test_curs_dates_avisa_dels_cursos_anteriors_amb_dates_valides(client, centre):
+    with get_data_db_session(centre) as db:
+        CursRepository.create(db, "2025-26", date(2025, 9, 8))
+        CursRepository.create(db, "2026-27", date(2026, 9, 7))
+        db.commit()
+
+    resposta = client.get("/api/scheduler/curs-dates", params={"dates": "2026-04-20,2026-10-01"})
+
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json() == {"curs_anterior": {"cursos": ["2025-26"], "curs_actual": "2026-27"}}

@@ -11,6 +11,8 @@ import rellotge
 from errors_domini import Conflicte, NoTrobat, NoValid
 from prioritats.memoria import carrega_prioritats as carrega_prioritats
 from prioritats.repositories import AssignaturaPrioritatRepository, CategoriaPrioritatRepository, NoSubstituirRepository
+from substitucions.reconciliacio import treu_substituts_no_valids
+from substitucions.repositories import SubstitucioRepository
 
 
 def llista_categories(db: Session) -> list[dict]:
@@ -94,6 +96,10 @@ def afegeix_no_substituir(db: Session, assignatura: str | None, data: str | None
             params={"assignatura": assignatura, "data": fila.vigent_des_de.isoformat(), "inici": inici},
         )
     no_subst_id = NoSubstituirRepository.create(db, assignatura, vigent_des_de=des_de)
+    # Les entrades noves són obertes. Treure una activitat n'escurça la vigència.
+    inici = max(des_de, rellotge.avui()).isoformat()
+    for dia in sorted(SubstitucioRepository.dates_entre(db, inici, date.max.isoformat())):
+        treu_substituts_no_valids(db, dia.isoformat())
     db.commit()
     carrega_prioritats(db)
     return no_subst_id

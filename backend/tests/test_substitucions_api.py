@@ -27,6 +27,7 @@ from suport_api import (
 from suport_noms import unic
 
 from database import get_data_db_session
+from grups.disponibilitat import GestorAlliberats
 from grups.repositories import GrupsAlliberatsRepository
 from horari.domain import Dia
 from horari.lector import GestorHorariWeb
@@ -389,7 +390,7 @@ def test_assignar_a_ma_calcula_el_tipus_de_substitut(client):
     _marca_absencia(client, hores=["10:00"])
     resp = _assigna(client, "10:00", "Prof 21")
     assert resp.status_code == 200
-    assert resp.json()["avisos"] == []
+    assert "avisos" not in resp.json()
     assert resp.json()["updated_at"]
     assert _sub(client, "10:00")["substitut"] == "Prof 21"
 
@@ -443,6 +444,146 @@ def test_assignar_amb_id_actualitza_la_fila_exacta_encara_que_updated_at_no_coin
         files = {f.id: f for f in SubstitucioRepository.get_by_date(db, DATA)}
     assert files[absencia.id].substitut == ""
     assert files[vigilancia.id].substitut == "Prof 21"
+
+
+def test_assignar_amb_id_inexistent_no_modifica_la_fila_de_la_url(client):
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    abans = _subs(client, include_all=True)
+
+    resp = _assigna(client, "10:00", "Prof 21", id="999999")
+
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["codi"] == "substitucio_id_no_trobat"
+    assert resp.json()["params"] == {"id": "999999", "data": DATA}
+    assert _subs(client, include_all=True) == abans
+
+
+@pytest.mark.parametrize(
+    "hora, professor", [("11:30", ABSENT), ("10:00", "Prof 30")], ids=["altra_hora", "altre_professor"]
+)
+def test_assignar_amb_id_que_no_concorda_amb_la_url(client, hora, professor):
+    assert _marca_absencia(client, hores=["10:00", "11:30"]).status_code == 200
+    assert _marca_absencia(client, professor="Prof 30", hores=["10:00"]).status_code == 200
+    fila = _sub(client, "10:00")
+    abans = _subs(client, include_all=True)
+
+    resp = client.put(
+        f"{URL}/{hora}/{professor}",
+        json={"id": fila["id"], "substitut": "Prof 21", "updated_at": fila["updated_at"]},
+    )
+
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["codi"] == "substitucio_id_no_concorda"
+    assert _subs(client, include_all=True) == abans
+
+
+@pytest.mark.parametrize("versio_coincident", [True, False], ids=["versio_coincident", "primera_fila_amb_force"])
+def test_editar_sense_id_tria_la_fila_per_versio(client, centre, versio_coincident):
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    absencia = _sub(client, "10:00")
+    with get_data_db_session(centre) as db:
+        servei = SubstitucioRepository.create(
+            db,
+            {
+                "data": DATA,
+                "hora": "10:00",
+                "professor_absent": ABSENT,
+                "assignatura": "Servei",
+                "tipus_absencia": "SERVEI",
+            },
+        )
+        id_servei, versio_servei = str(servei.id), servei.updated_at.isoformat()
+        db.commit()
+    assert versio_servei != absencia["updated_at"]
+
+    resp = client.put(
+        f"{URL}/10:00/{ABSENT}",
+        json={
+            "comentaris": "Comentari per a una sola fila",
+            "updated_at": versio_servei if versio_coincident else "2000-01-01T00:00:00",
+            "force": not versio_coincident,
+        },
+    )
+
+    assert resp.status_code == 200, resp.text
+    id_editada, id_intacta = (id_servei, absencia["id"]) if versio_coincident else (absencia["id"], id_servei)
+    with get_data_db_session(centre) as db:
+        files = {fila.id: fila for fila in SubstitucioRepository.get_by_date(db, DATA)}
+    assert set(files) == {id_editada, id_intacta}
+    assert files[id_editada].comentaris == "Comentari per a una sola fila"
+    assert files[id_intacta].comentaris == ""
+    assert files[id_editada].updated_at == resp.json()["updated_at"]
+    assert files[id_intacta].updated_at == (absencia["updated_at"] if versio_coincident else versio_servei)
+
+
+@pytest.mark.parametrize(
+    "substitut, tipus_esperat",
+    [
+        ("Prof 21", "disponible (Guàrdia)"),
+        ("Prof 2", ""),
+    ],
+    ids=["disponible", "fora_de_la_llista"],
+)
+def test_assignacio_manual_desa_el_tipus_segon_els_disponibles(client, centre, substitut, tipus_esperat):
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    fila_id = _sub(client, "10:00")["id"]
+    with get_data_db_session(centre) as db:
+        SubstitucioRepository.update(
+            db, int(fila_id), {"substitut": "Prof 28", "tipus_substitut": "Tipus desat anteriorment"}
+        )
+        db.commit()
+
+    resp = _assigna(client, "10:00", substitut)
+
+    assert resp.status_code == 200, resp.text
+    with get_data_db_session(centre) as db:
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.id == fila_id)
+    assert fila.substitut == substitut
+    assert fila.tipus_substitut == tipus_esperat
+
+
+def test_moure_substitut_no_desa_cap_canvi_si_falla_el_calcul_del_tipus(client, centre, monkeypatch):
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    assert _marca_absencia(client, professor="Prof 30", hores=["10:00"]).status_code == 200
+    assert _assigna(client, "10:00", "Prof 21", professor="Prof 30").status_code == 200
+    with get_data_db_session(centre) as db:
+        abans = SubstitucioRepository.get_by_date(db, DATA)
+    desti = next(fila for fila in abans if fila.professor_absent == ABSENT)
+
+    def disponibles_que_falla(*_args):
+        raise RuntimeError("error simulat calculant els disponibles")
+
+    monkeypatch.setattr(GestorAlliberats, "get_tots_disponibles", disponibles_que_falla)
+
+    with pytest.raises(RuntimeError, match="error simulat calculant els disponibles"):
+        client.put(
+            f"{URL}/10:00/{ABSENT}", json={"substitut": "Prof 21", "updated_at": desti.updated_at, "moure": True}
+        )
+
+    with get_data_db_session(centre) as db:
+        assert SubstitucioRepository.get_by_date(db, DATA) == abans
+
+
+def test_editar_nomes_comentaris_conserva_el_substitut_i_el_tipus_desat(client, centre):
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    fila_id = _sub(client, "10:00")["id"]
+    tipus_desat = "Guàrdia (text històric)"
+    with get_data_db_session(centre) as db:
+        SubstitucioRepository.update(db, int(fila_id), {"substitut": "Prof 21", "tipus_substitut": tipus_desat})
+        db.commit()
+        abans = SubstitucioRepository.get_by_date(db, DATA)[0]
+
+    resp = client.put(
+        f"{URL}/10:00/{ABSENT}", json={"comentaris": "Material a la sala de professors", "updated_at": abans.updated_at}
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["message"] == "Observacions desades"
+    with get_data_db_session(centre) as db:
+        despres = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.id == fila_id)
+    assert despres.comentaris == "Material a la sala de professors"
+    assert despres.substitut == abans.substitut == "Prof 21"
+    assert despres.tipus_substitut == abans.tipus_substitut == tipus_desat
 
 
 def test_substitucio_inexistent_dona_404(client):
@@ -503,6 +644,34 @@ def test_no_es_pot_assignar_qui_vigila_un_examen_a_aquella_hora(client, centre):
     resp = _assigna(client, "10:00", "Prof 21")
     assert resp.status_code == 400
     assert "VIGILANT" in resp.json()["detail"]
+
+
+def test_si_el_substitut_vigila_i_es_absent_la_pantalla_rep_l_error_de_vigilancia(client, centre):
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    assert _marca_absencia(client, professor="Prof 21", hores=["10:00"]).status_code == 200
+    with get_data_db_session(centre) as db:
+        VigilanciaRepository.create(
+            db,
+            DATA,
+            {
+                "hora": "10:00",
+                "tipus": "examen",
+                "grups": "2-BAT-A",
+                "aula": "",
+                "vigilant": "Prof 21",
+                "nivell": "2-BAT",
+            },
+        )
+        db.commit()
+    abans = _subs(client, include_all=True)
+
+    resp = _assigna(client, "10:00", "Prof 21")
+
+    # La pantalla veu el primer error: vigilància té precedència sobre absència.
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["codi"] == "substitut_vigilant"
+    assert resp.json()["detail"] == "❌ Prof 21 ja està assignat com a VIGILANT a les 10:00"
+    assert _subs(client, include_all=True) == abans
 
 
 def test_no_es_pot_assignar_substitut_a_una_activitat_que_no_se_substitueix(client, centre):
@@ -587,31 +756,28 @@ def test_reassignar_treu_substituts_que_ara_tenen_classe(client, centre):
     assert _sub(client, "10:00")["substitut"] != "Prof 1"
 
 
-# ----------------------------------------------- errors interns amb avís
+# ----------------------------------------------- errors interns
 
 
-def _te_exc_info(caplog, text):
-    return any(text in record.getMessage() and record.exc_info for record in caplog.records)
-
-
-def test_assignar_avisa_si_no_pot_validar_l_horari(client, monkeypatch, caplog):
-    _marca_absencia(client, hores=["10:00"])
+def test_assignar_no_desa_cap_canvi_si_falla_la_validacio_de_l_horari(client, centre, monkeypatch):
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    with get_data_db_session(centre) as db:
+        abans = SubstitucioRepository.get_by_date(db, DATA)
 
     def horari_que_falla(_dia):
         raise RuntimeError("error simulat de validació")
 
-    # L'updated_at es llegeix abans de simular l'error: el llistat també fa servir l'horari
-    body = {"substitut": "Prof 21", "updated_at": _sub(client, "10:00")["updated_at"]}
-    with monkeypatch.context() as m:
-        m.setattr(Dia, "horari", property(horari_que_falla))
-        resp = client.put(f"{URL}/10:00/{ABSENT}", json=body)
+    monkeypatch.setattr(Dia, "horari", property(horari_que_falla))
 
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["avisos"] == [
-        "No s'ha pogut validar l'horari del substitut. Revisa que l'assignació sigui correcta."
-    ]
-    assert _sub(client, "10:00")["substitut"] == "Prof 21"
-    assert _te_exc_info(caplog, "No s'ha pogut validar l'horari del substitut")
+    with pytest.raises(RuntimeError, match="error simulat de validació"):
+        client.put(f"{URL}/10:00/{ABSENT}", json={"substitut": "Prof 21", "updated_at": abans[0].updated_at})
+
+    with get_data_db_session(centre) as db:
+        assert SubstitucioRepository.get_by_date(db, DATA) == abans
+
+
+def _te_exc_info(caplog, text):
+    return any(text in record.getMessage() and record.exc_info for record in caplog.records)
 
 
 def test_reassignar_avisa_si_falla_la_millora_de_prioritat(client, monkeypatch, caplog):

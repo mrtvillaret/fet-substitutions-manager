@@ -30,6 +30,7 @@ from planificador.repositories import (
 )
 from rate_limit import limiter
 from substitucions import router as substitucions
+from substitucions.repositories import SubstitucioRepository
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(scheduler.router, vigilancies_router, substitucions.router, absencia_coberta_router)
@@ -219,6 +220,52 @@ def test_la_simulacio_no_desa_res(client, centre):
     assert resultat["vigilancies_creades"] == 1
     assert _vigilancies(client) == []
     assert _grups_alliberats(centre) == []
+
+
+@pytest.mark.parametrize("dry_run", [False, True], ids=["publicacio", "prova_en_sec"])
+def test_publicar_un_alliberament_buida_el_substitut(client, centre, dry_run):
+    _alliberaments(centre, "1-BAT", ["10:00"])
+    assignacio = ("Prof 21", "disponible (Guàrdia)")
+    data_quota = "2026-04-27"
+    with get_data_db_session(centre) as db:
+        id_fila = str(
+            SubstitucioRepository.create(
+                db,
+                {
+                    "data": DATA,
+                    "hora": "10:00",
+                    "professor_absent": "Prof 48",
+                    "assignatura": "Filosofia",
+                    "grup": "1-BAT-A",
+                    "tipus_absencia": "SERVEI",
+                    "substitut": assignacio[0],
+                    "tipus_substitut": assignacio[1],
+                    "comentaris": "Material a l'aula",
+                },
+            ).id
+        )
+        db.commit()
+        abans = SubstitucioRepository.get_by_date(db, DATA)
+        assert SubstitucioRepository.historial_quota(db, data_quota) == [("10:00", *assignacio)]
+
+    resultat = _publica(client, _horari(FILOSOFIA_1BAT), dry_run=dry_run, grups_sense_classe=["1-BAT-A"])
+
+    assert resultat["grups_alliberats_creats"] == 1
+    if dry_run:
+        assert _grups_alliberats(centre) == []
+        assert _vigilancies(client) == []
+    visibles = client.get(f"/api/substitucions/{DATA}").json()
+    assert [str(f["id"]) for f in visibles] == ([id_fila] if dry_run else [])
+    with get_data_db_session(centre) as db:
+        files = SubstitucioRepository.get_by_date(db, DATA)
+        if dry_run:
+            assert files == abans
+            assert SubstitucioRepository.historial_quota(db, data_quota) == [("10:00", *assignacio)]
+        else:
+            [fila] = files
+            assert (fila.professor_absent, fila.hora, fila.tipus_absencia) == ("Prof 48", "10:00", "SERVEI")
+            assert (fila.substitut, fila.tipus_substitut) == ("", "")
+            assert SubstitucioRepository.historial_quota(db, data_quota) == []
 
 
 # ------------------------------------------------------ tornar a publicar

@@ -96,6 +96,7 @@ def afegeix_canvi_periode(
     """A partir de `data`, cada setmana el mateix dia (o `dia_setmana`), a les
     `hores` indicades, el professor queda alliberat (o deixa de ser-ho)."""
     data_obj = data_iso(data)
+    data = data_obj.isoformat()
     if tipus not in AlliberamentsPeriodeRepository.TIPUS:
         raise PeriodeNoValid("Tipus desconegut", codi="tipus_desconegut")
     clau = clau.strip()

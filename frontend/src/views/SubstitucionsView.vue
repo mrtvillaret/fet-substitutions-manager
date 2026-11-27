@@ -303,7 +303,7 @@ const regenerarTot = async () => {
 
 const { disponiblesDe, canviaCamp } = useEdicioSubstitucions({
   dataISO, totesAbsencies, substitucionsFiltrades, collator, toast, t, confirm,
-  obrirDialogConflicte, mostrarAvisos, carregarSubstitucions
+  obrirDialogConflicte, carregarSubstitucions
 })
 
 // Esborrar des de la fila: totes les absències d'aquell professor aquell dia

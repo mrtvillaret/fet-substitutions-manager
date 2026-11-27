@@ -271,6 +271,57 @@ def test_no_genera_encadenada_si_lassignatura_esta_a_no_subst(monkeypatch):
     assert resultat[0].substitut == "Prof_B"
 
 
+def test_substitucions_amb_llavor_conserven_l_ordre_i_el_consum_d_atzar(monkeypatch):
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia", "Suport", "Tutoria"}])
+    monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
+    monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1, "Suport": 3, "Tutoria": 1})
+
+    horari = FakeHorari(hores=["09:00", "11:30"])
+    alliberats = FakeAlliberats(
+        {
+            "11:30": [
+                ("Prof_B", "Guàrdia", "Guàrdia"),
+                ("Prof_C", "Suport", "Suport"),
+                ("Prof_D", "Tutoria", "Tutoria"),
+                ("Prof_P", "Guàrdia", "Guàrdia"),
+            ],
+            "09:00": [("Prof_E", "Suport", "Suport"), ("Prof_F", "Tutoria", "Tutoria")],
+        }
+    )
+    absencies = FakeAbsencies(
+        [
+            {"professor_absent": "Prof_A", "hora": "11:30", "assignatura": "Matemàtiques", "grup": "1-ESO-A"},
+            {"professor_absent": "Prof_X", "hora": "09:00", "assignatura": "Anglès", "grup": "2-ESO-A"},
+            {"professor_absent": "Prof_Y", "hora": "11:30", "assignatura": "Física", "grup": "1-ESO-B"},
+        ]
+    )
+    substitucions_existents = {
+        "Prof_Y|11:30|Física|1-ESO-B": FilaSubstitucio(substitut="Prof_P", tipus_substitut="disponible (Guàrdia)")
+    }
+    # Prof_D té un torn previ: la primera encadenada té un mínim únic, Prof_C.
+    quota = QuotaFranja([("11:30", "Prof_D", "disponible (Tutoria)")])
+    # Si s'intercanvien els dos sortejos, guanyen Prof_C a les 11:30 i Prof_E a les 09:00.
+    rng = random.Random(1)
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=frozenset({"Suport", "Tutoria"}))
+    resultat = gestor.assignar_substitucions(
+        dia="Dilluns",
+        absents={"Prof_A": ["11:30"], "Prof_X": ["09:00"], "Prof_Y": ["11:30"]},
+        grups_sense_classe={},
+        substitucions_existents=substitucions_existents,
+        rng=rng,
+        quota=quota,
+    )
+
+    assert [(s.professor_absent, s.hora, s.assignatura, s.grup, s.substitut) for s in resultat] == [
+        ("Prof_A", "11:30", "Matemàtiques", "1-ESO-A", "Prof_B"),
+        ("Prof_X", "09:00", "Anglès", "2-ESO-A", "Prof_F"),
+        ("Prof_Y", "11:30", "Física", "1-ESO-B", "Prof_P"),
+        ("Prof_B", "11:30", "Guàrdia", "", "Prof_C"),
+        ("Prof_P", "11:30", "Guàrdia", "", "Prof_D"),
+    ]
+    assert rng.random() == 0.763774618976614
+
+
 # =====================================================================
 # CHARACTERIZATION TESTS: branques i paràmetres no coberts pels tests
 # anteriors — capturen el comportament real actual, no una idealització.
@@ -308,6 +359,48 @@ def test_absents_tipus_es_reenvia_al_gestor_dabsencies(monkeypatch):
 
 
 # ----- Conservació d'assignacions anteriors (substitucions_existents) -----
+
+
+@pytest.mark.parametrize("omplir", [True, False])
+@pytest.mark.parametrize("substitut_desat", ["Prof_B", ""])
+def test_substitucio_desada_te_preferencia_sobre_una_nova(monkeypatch, omplir, substitut_desat):
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"alliberat"}])
+    monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True])
+    monkeypatch.setattr(constants, "PRIORITATS", {})
+
+    horari = FakeHorari(hores=["09:00"])
+    alliberats = FakeAlliberats({"09:00": [("Prof_B", "alliberat", "tenia classe")]})
+    absencies = FakeAbsencies(
+        [
+            {"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"},
+            {
+                "professor_absent": "Prof_X",
+                "hora": "09:00",
+                "assignatura": "Física",
+                "grup": "1-ESO-B",
+                "tipus_absencia": "SERVEI",
+            },
+        ]
+    )
+    desada = FilaSubstitucio(
+        substitut=substitut_desat, tipus_substitut="manual", tipus_absencia="ABSENCIA", comentaris="Comentari desat"
+    )
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=frozenset())
+    resultat = gestor.assignar_substitucions(
+        dia="Dilluns",
+        absents={"Prof_A": ["09:00"], "Prof_X": ["09:00"]},
+        grups_sense_classe={},
+        substitucions_existents={"Prof_X|09:00|Física|1-ESO-B": desada},
+        omplir=omplir,
+    )
+
+    assert [s.professor_absent for s in resultat] == ["Prof_A", "Prof_X"]
+    nova, conservada = resultat
+    assert nova.substitut == ("Prof_B" if omplir and not substitut_desat else "")
+    assert conservada.substitut == substitut_desat
+    assert conservada.tipus_substitut == ("manual" if substitut_desat else "")
+    assert conservada.comentaris == "Comentari desat"
+    assert conservada.tipus_absencia == "SERVEI"
 
 
 def test_conserva_el_substitut_anterior_si_encara_esta_disponible(monkeypatch):
@@ -430,6 +523,75 @@ def test_conserva_seleccio_buida_anterior_encara_que_hi_hagi_candidat(monkeypatc
 
 
 # ----- Preservació d'encadenades desades a substitucions_existents -----
+
+
+def test_recupera_encadenades_desades_dels_substituts_actius_a_la_mateixa_hora(monkeypatch):
+    monkeypatch.setattr(constants, "ORDRE_PRIORITATS", [{"Guàrdia"}, {"alliberat"}])
+    monkeypatch.setattr(constants, "CATEGORIES_ACTIVES", [True, True])
+    monkeypatch.setattr(constants, "PRIORITATS", {"Guàrdia": 1})
+
+    horari = FakeHorari(hores=["09:00", "11:30"])
+    candidats = [("Prof_B", "Guàrdia", "Guàrdia"), ("Prof_C", "alliberat", "tenia classe")]
+    alliberats = FakeAlliberats({"09:00": candidats})
+    absencies = FakeAbsencies(
+        [
+            {"professor_absent": "Prof_A", "hora": "09:00", "assignatura": "Matemàtiques", "grup": "1-ESO-A"},
+            {"professor_absent": "Prof_X", "hora": "09:00", "assignatura": "Física", "grup": "1-ESO-B"},
+        ]
+    )
+    regenerada = FilaSubstitucio(
+        tipus_absencia="ENCADENADA", substitut="Prof_D", tipus_substitut="manual", comentaris="Comentari regenerat"
+    )
+    recuperable = FilaSubstitucio(
+        tipus_absencia="ENCADENADA",
+        substitut="Prof_C",
+        tipus_substitut="alliberat (tenia classe)",
+        comentaris="Comentari recuperat",
+    )
+    substitucions_existents = {
+        "Prof_D|09:00|Tutoria|1-ESO-C": recuperable,
+        "Prof_D|11:30|Tutoria|1-ESO-C": recuperable,
+        "Prof_D|09:00|Tutoria": recuperable,
+        "Prof_B|09:00|Guàrdia|": regenerada,
+    }
+    gestor = GestorSubstitucions(horari, alliberats, absencies, no_substituir=frozenset())
+    resultat = gestor.assignar_substitucions(
+        dia="Dilluns",
+        absents={"Prof_A": ["09:00"], "Prof_X": ["09:00"]},
+        grups_sense_classe={},
+        substitucions_existents=substitucions_existents,
+    )
+
+    # Comportament actual (sospitós, pendent de decidir): es recupera l'encadenada de Prof_D
+    # encara que l'activitat no sigui a Prioritats i Prof_C ja cobreixi una fila de la mateixa hora.
+    assert [(s.professor_absent, s.hora, s.substitut) for s in resultat] == [
+        ("Prof_A", "09:00", "Prof_B"),
+        ("Prof_X", "09:00", "Prof_C"),
+        ("Prof_B", "09:00", "Prof_D"),
+        ("Prof_D", "09:00", "Prof_C"),
+    ]
+    assert resultat[2:] == [
+        PropostaSubstitucio(
+            professor_absent="Prof_B",
+            hora="09:00",
+            assignatura="Guàrdia",
+            tipus_absencia="ENCADENADA",
+            substitut="Prof_D",
+            tipus_substitut="manual",
+            comentaris="Comentari regenerat",
+            disponibles=candidats,
+        ),
+        PropostaSubstitucio(
+            professor_absent="Prof_D",
+            hora="09:00",
+            assignatura="Tutoria",
+            grup="1-ESO-C",
+            tipus_absencia="ENCADENADA",
+            substitut="Prof_C",
+            tipus_substitut="alliberat (tenia classe)",
+            comentaris="Comentari recuperat",
+        ),
+    ]
 
 
 def test_preserva_encadenada_del_json_quan_el_pare_torna_a_tenir_el_mateix_substitut(monkeypatch):

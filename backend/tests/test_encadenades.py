@@ -115,6 +115,20 @@ def _tria(client, substitut, hora="09:00"):
     assert resp.status_code == 200, resp.text
 
 
+def test_alliberar_el_grup_esborra_l_encadenada_orfena(centre):
+    institucio, client = centre
+    _absent(client)
+    _tria(client, "Prof 2")
+    resposta = client.put(f"/api/substitucions/{DATA}/09:00/Prof 2", json={"substitut": "Prof 9", "force": True})
+    assert resposta.status_code == 200, resposta.text
+    assert _encadenades(institucio) == [("09:00", "Prof 2", "Guàrdia", "Prof 9")]
+
+    resposta = client.put(f"/api/grups/{DATA}", json={"grups": {"09:00": ["3-ESO-A"]}})
+
+    assert resposta.status_code == 200, resposta.text
+    assert _encadenades(institucio) == []
+
+
 def _encadenades(institucio):
     return sorted(
         (f["hora"], f["professor_absent"], f["assignatura"], f["substitut"] or "")
