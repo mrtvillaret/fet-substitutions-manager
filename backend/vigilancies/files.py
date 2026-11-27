@@ -1,6 +1,7 @@
 """La fila de vigilància llegida de persistència, independent de l'ORM."""
 
 from dataclasses import dataclass
+from datetime import date
 
 
 @dataclass(frozen=True, slots=True)
@@ -9,7 +10,7 @@ class FilaVigilancia:
 
     L’id és el de BD en text, també per conservar els empats del motor.
     La lectura diària normalitza vigilant i comentaris. La projecció dels
-    recomptes conserva el vigilant NULL i afegeix la data com a text ISO.
+    recomptes conserva el vigilant NULL.
     """
 
     id: str | None = None
@@ -22,4 +23,4 @@ class FilaVigilancia:
     nivell: str = ""
     ordre: int | None = None
     updated_at: str | None = None
-    data: str = ""
+    data: date | None = None

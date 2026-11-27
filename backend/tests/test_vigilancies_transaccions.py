@@ -1,5 +1,7 @@
 """Atomicitat entre vigilàncies i les substitucions que en deriven."""
 
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
@@ -49,12 +51,35 @@ def _crea(client, hora="10:00", grups="2-BAT-A"):
 
 def _bolcat(centre):
     with get_data_db_session(centre) as db:
-        vigilancies = [v for files in VigilanciaRepository.get_by_date(db, DATA).values() for v in files]
-        substitucions = SubstitucioRepository.get_by_date(db, DATA)
+        vigilancies = [
+            v for files in VigilanciaRepository.get_by_date(db, date.fromisoformat(DATA)).values() for v in files
+        ]
+        substitucions = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
         return {
             "vigilancies": sorted(vigilancies, key=lambda fila: fila.id),
             "substitucions": sorted(substitucions, key=lambda fila: fila.id),
         }
+
+
+@pytest.mark.parametrize("operacio", ["editar", "esborrar"])
+def test_el_conflicte_retorna_la_vigilancia_actual(client, operacio):
+    vigilancia = _crea(client)
+    ruta = f"{URL}/{vigilancia['id']}"
+    versio_antiga = "2000-01-01T00:00:00"
+
+    if operacio == "editar":
+        resposta = client.put(ruta, json={"vigilant": "", "updated_at": versio_antiga})
+    else:
+        resposta = client.delete(ruta, params={"updated_at": versio_antiga})
+
+    assert resposta.status_code == 409, resposta.text
+    assert resposta.json() == {
+        "detail": {
+            "error": "conflict",
+            "message": "Aquest registre ha estat modificat per un altre usuari",
+            "current_data": vigilancia,
+        },
+    }
 
 
 def test_editar_desfa_vigilancia_i_cobertures_si_falla_la_reconciliacio(client, centre, monkeypatch):

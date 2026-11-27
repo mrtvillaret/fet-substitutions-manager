@@ -12,7 +12,7 @@ llista i es pot provar sense BD.
 
 from collections import Counter, defaultdict
 from collections.abc import Collection
-from datetime import date, datetime
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -23,7 +23,6 @@ from horari.domain import Dia
 from horari.repositories import XMLVersionRepository
 from noms import ordre_alfabetic
 from ordre_curs import clau_curs
-from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from recomptes.domain import IntervalNoValid
 from recomptes.repositories import RecomptesRepository
@@ -33,8 +32,8 @@ from textos import normalitzar_hora
 from vigilancies.files import FilaVigilancia
 
 
-def valida_interval(data_inici: str, data_final: str) -> None:
-    if data_iso(data_inici) > data_iso(data_final):
+def valida_interval(data_inici: date, data_final: date) -> None:
+    if data_inici > data_final:
         raise IntervalNoValid("La data inicial ha de ser anterior o igual a la final", codi="interval_informe_invertit")
 
 
@@ -48,7 +47,7 @@ def a_les_hores(hora: str, hores: Collection[str] | None) -> bool:
 
 
 def substitucions_reals(
-    db: Session, data_inici: str, data_final: str, hores: Collection[str] | None = None
+    db: Session, data_inici: date, data_final: date, hores: Collection[str] | None = None
 ) -> list[FilaSubstitucio]:
     """Les files de l'interval que es veuen a la pantalla Substitucions
     (es_visible_a_substitucions, la mateixa regla que la pantalla), de tots
@@ -59,13 +58,15 @@ def substitucions_reals(
     files = [
         s for s in RecomptesRepository.substitucions_entre(db, data_inici, data_final) if a_les_hores(s.hora, hores)
     ]
-    alliberats_per_data = AlliberatsDelDia.get_entre_dates(db, [s.data for s in files])
-    no_sub_per_data = {d: vigencia.a(d) for d in {s.data for s in files}}
-    return [
-        s
-        for s in files
-        if es_visible_a_substitucions(s, no_sub_per_data[s.data], alliberats_per_data[s.data].get(s.hora, []))
-    ]
+    dates = {data_de(s) for s in files}
+    alliberats_per_data = AlliberatsDelDia.get_entre_dates(db, list(dates))
+    no_sub_per_data = {d: vigencia.a(d) for d in dates}
+    visibles = []
+    for fila in files:
+        dia = data_de(fila)
+        if es_visible_a_substitucions(fila, no_sub_per_data[dia], alliberats_per_data[dia].get(fila.hora, [])):
+            visibles.append(fila)
+    return visibles
 
 
 # Les absències (i la cobertura) només compten les hores en què falta un
@@ -76,7 +77,7 @@ TIPUS_D_ABSENCIA = ("ABSENCIA", "SERVEI")
 
 
 def substitucions_fetes(
-    db: Session, data_inici: str | None, data_final: str | None, hores: Collection[str] | None = None
+    db: Session, data_inici: date | None, data_final: date | None, hores: Collection[str] | None = None
 ) -> list[FilaSubstitucio]:
     """Les substitucions fetes de l'interval: totes les files amb substitut,
     de qualsevol tipus (també encadenades i vigilàncies), sense els filtres
@@ -106,8 +107,14 @@ def nom_substitut(s: FilaSubstitucio) -> str:
     return (s.substitut or "").strip()
 
 
+def data_de(fila: FilaSubstitucio | FilaVigilancia) -> date:
+    """La data de les files llegides de la base de dades."""
+    assert fila.data is not None
+    return fila.data
+
+
 def _nom_mes(s: FilaSubstitucio, mesos_nom: dict) -> str:
-    d = datetime.strptime(s.data, "%Y-%m-%d")
+    d = data_de(s)
     return f"{mesos_nom[d.month]} {d.year}"
 
 
@@ -146,9 +153,11 @@ def per_mes(subs_reals: list[FilaSubstitucio], mesos_nom: dict) -> list[dict]:
     """Absències, serveis i substitucions fetes de cada mes, per ordre. Un mes
     només hi surt si té alguna absència o algun servei. La cobertura es
     calcula com la global: fetes / absències + serveis."""
-    per_mes_raw = defaultdict(lambda: {"absencies": 0, "serveis": 0, "substitucions": 0})
+    per_mes_raw: defaultdict[tuple[int, int], dict[str, int]] = defaultdict(
+        lambda: {"absencies": 0, "serveis": 0, "substitucions": 0}
+    )
     for s in subs_reals:
-        d = datetime.strptime(s.data, "%Y-%m-%d")
+        d = data_de(s)
         clau = (d.year, d.month)
         if s.tipus_absencia == "ABSENCIA":
             per_mes_raw[clau]["absencies"] += 1
@@ -181,7 +190,7 @@ def per_comptador(comptador: str = "total"):
 def professors_absencies(subs_reals: list[FilaSubstitucio]) -> list[dict]:
     """Absències i serveis de cada professor absent, de més a menys (els
     empats, per ordre alfabètic)."""
-    per_professor = defaultdict(lambda: {"absencies": 0, "serveis": 0})
+    per_professor: defaultdict[str, dict[str, int]] = defaultdict(lambda: {"absencies": 0, "serveis": 0})
     for s in subs_reals:
         prof = nom_absent(s)
         if not prof:
@@ -199,7 +208,7 @@ def professors_absencies(subs_reals: list[FilaSubstitucio]) -> list[dict]:
 def professors_substitucions(fetes: list[FilaSubstitucio]) -> list[dict]:
     """Substitucions fetes (substitucions_fetes) per cada professor, de més a
     menys (els empats, per ordre alfabètic)."""
-    per_professor = defaultdict(int)
+    per_professor: defaultdict[str, int] = defaultdict(int)
     for s in fetes:
         sub = nom_substitut(s)
         if sub:
@@ -216,21 +225,21 @@ def vigilancies_per_resultat(vigilancies: list[FilaVigilancia], substitucions: l
     Les vigilàncies fetes per professor són només les del vigilant que hi va:
     qui cobreix la fila de vigilant absent ho té a les substitucions fetes."""
 
-    def clau(data, hora, professor):
+    def clau(data: date, hora: str, professor: str | None) -> tuple[date, str, str]:
         return data, normalitzar_hora((hora or "").strip()), (professor or "").strip()
 
     falta, coberta = set(), set()
     for s in substitucions:
-        c = clau(s.data, s.hora, s.professor_absent)
+        c = clau(data_de(s), s.hora, s.professor_absent)
         if s.tipus_absencia in (*TIPUS_D_ABSENCIA, "VIGILANCIA_ABSENT"):
             falta.add(c)
         if s.tipus_absencia == "VIGILANCIA_ABSENT" and nom_substitut(s):
             coberta.add(c)
 
     resultat = {"total": 0, "vigilant": 0, "substitut": 0, "descobertes": 0}
-    fetes = defaultdict(int)
+    fetes: defaultdict[str, int] = defaultdict(int)
     for v in vigilancies:
-        c = clau(v.data, v.hora, v.vigilant)
+        c = clau(data_de(v), v.hora, v.vigilant)
         resultat["total"] += 1
         if c[2] and c not in falta:
             resultat["vigilant"] += 1
@@ -250,7 +259,7 @@ def vigilancies_per_resultat(vigilancies: list[FilaVigilancia], substitucions: l
 
 
 def vigilancies_entre(
-    db: Session, data_inici: str, data_final: str, hores: Collection[str] | None = None
+    db: Session, data_inici: date, data_final: date, hores: Collection[str] | None = None
 ) -> tuple[list[FilaVigilancia], dict]:
     """Les vigilàncies de l'interval (amb `hores`, només les d'aquestes
     franges) i el seu resultat (vigilancies_per_resultat)."""
@@ -271,7 +280,9 @@ def balanc_per_professor(
     fetes − absències (els serveis no resten, són feina per al centre). Cada
     hora compta igual (cap franja, com el pati, no hi té un pes diferent). Per
     balanç i, en empat, per ordre alfabètic."""
-    files = defaultdict(lambda: {"absencies": 0, "serveis": 0, "substitucions_fetes": 0, "vigilancies_fetes": 0})
+    files: defaultdict[str, dict[str, int]] = defaultdict(
+        lambda: {"absencies": 0, "serveis": 0, "substitucions_fetes": 0, "vigilancies_fetes": 0}
+    )
     for s in absencies_reals:
         if prof := nom_absent(s):
             files[prof]["absencies" if s.tipus_absencia == "ABSENCIA" else "serveis"] += 1
@@ -297,10 +308,12 @@ def per_dia_i_hora(subs_reals: list[FilaSubstitucio]) -> tuple[dict, dict]:
     """Substitucions («absencies») i cobertes («substitucions») per hora i per
     dia de la setmana i hora. El dia és l'índex (0 = dilluns): el nom el posa
     el PDF en el seu idioma."""
-    per_hora = defaultdict(lambda: {"absencies": 0, "substitucions": 0})
-    per_dia_hora = defaultdict(lambda: {"absencies": 0, "substitucions": 0})
+    per_hora: defaultdict[str, dict[str, int]] = defaultdict(lambda: {"absencies": 0, "substitucions": 0})
+    per_dia_hora: defaultdict[tuple[int, str], dict[str, int]] = defaultdict(
+        lambda: {"absencies": 0, "substitucions": 0}
+    )
     for s in subs_reals:
-        dia = datetime.strptime(s.data, "%Y-%m-%d").weekday()
+        dia = data_de(s).weekday()
         hora = normalitzar_hora(s.hora or "") or "Desconeguda"
         cobert = bool(nom_substitut(s))
         for comptador in (per_hora[hora], per_dia_hora[(dia, hora)]):
@@ -312,7 +325,7 @@ def per_dia_i_hora(subs_reals: list[FilaSubstitucio]) -> tuple[dict, dict]:
 
 def mesos_de(subs: list[FilaSubstitucio], mesos_nom: dict) -> list[str]:
     """Els mesos (nom i any) de les files, per ordre."""
-    claus = sorted({(int(s.data[:4]), int(s.data[5:7])) for s in subs})
+    claus = sorted({(dia.year, dia.month) for dia in map(data_de, subs)})
     return [f"{mesos_nom[mes]} {any_}" for any_, mes in claus]
 
 
@@ -357,7 +370,7 @@ def grup_de(s: FilaSubstitucio) -> str:
 def per_grup(subs_reals: list[FilaSubstitucio]) -> dict[str, dict]:
     """Substitucions i cobertes de cada grup, en l'ordre en què surten. Les
     substitucions sense grup no hi compten."""
-    grups = defaultdict(lambda: {"absencies": 0, "cobertes": 0})
+    grups: defaultdict[str, dict[str, int]] = defaultdict(lambda: {"absencies": 0, "cobertes": 0})
     for s in subs_reals:
         if grup := grup_de(s):
             grups[grup]["absencies"] += 1
@@ -403,7 +416,7 @@ def impacte_per_grup(subs_reals: list[FilaSubstitucio], mesos: list[str], mesos_
 
 
 def dades_professors(
-    db: Session, data_inici: str, data_final: str, professor: str = None, hores: Collection[str] | None = None
+    db: Session, data_inici: date, data_final: date, professor: str | None = None, hores: Collection[str] | None = None
 ) -> list[dict]:
     """Per a cada professor (per ordre alfabètic), les seves absències i les
     substitucions que ha fet. Amb `professor`, només aquell professor (el nom
@@ -419,7 +432,7 @@ def dades_professors(
 
 
 def detalls_professors(
-    absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio], professor: str = None
+    absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio], professor: str | None = None
 ) -> list[dict]:
     """El mateix detall per a les rutes individuals, els informes i el lot."""
     per_absent = defaultdict(list)
@@ -440,19 +453,19 @@ def detalls_professors(
     ]
 
 
-def franges_de_l_horari(db: Session, institucio: str, data_inici: str, data_final: str) -> list[str]:
+def franges_de_l_horari(db: Session, institucio: str, data_inici: date, data_final: date) -> list[str]:
     """Les franges (hores) de l'horari a l'interval: la unió, pel nom i en
     l'ordre de cada horari, de les versions de l'XML vigents a l'interval
     (la de la data inicial i les que hi comencen)."""
     dates = [data_inici] + [
-        v.data_inici.isoformat()
+        v.data_inici
         for v in XMLVersionRepository.list_all(db)
-        if v.data_inici and data_inici < v.data_inici.isoformat() <= data_final
+        if v.data_inici and data_inici < v.data_inici <= data_final
     ]
     franges = []
     for data in dates:
         try:
-            hores = Dia.de_text(data, institucio).horari.hores
+            hores = Dia.del_centre(data, institucio).horari.hores
         except MissingXmlError:
             continue
         for hora in hores:
@@ -471,23 +484,24 @@ def en_ordre_de_franges(hores, franges: list[str]) -> list[str]:
 # ===== El desplegable de substituts =====
 
 
-def fetes_per_substitut(fetes: list[FilaSubstitucio]) -> tuple[Counter, Counter]:
+def fetes_per_substitut(fetes: list[FilaSubstitucio]) -> tuple[Counter[tuple[str, int, str]], Counter[str]]:
     """(per franja, total): les substitucions fetes de cada substitut a cada
     franja de la setmana, amb clau (substitut, dia de la setmana 0-6, hora),
     i en total, amb clau el substitut."""
-    per_franja, total = Counter(), Counter()
+    per_franja: Counter[tuple[str, int, str]] = Counter()
+    total: Counter[str] = Counter()
     for s in fetes:
         substitut = nom_substitut(s)
-        per_franja[(substitut, date.fromisoformat(s.data).weekday(), (s.hora or "").strip())] += 1
+        per_franja[(substitut, data_de(s).weekday(), (s.hora or "").strip())] += 1
         total[substitut] += 1
     return per_franja, total
 
 
-def fetes_del_curs_per_substitut(db: Session, data: str) -> tuple[Counter, Counter]:
+def fetes_del_curs_per_substitut(db: Session, data: date) -> tuple[Counter[tuple[str, int, str]], Counter[str]]:
     """El «(n/total)» del desplegable de substituts: les substitucions fetes
     (totes les files amb substitut) del curs de `data`, per franja i en total
     (fetes_per_substitut). Sense curs, de tot l'històric."""
     curs = CursRepository.get_for_date(db, data)
-    inici = curs.data_inici.isoformat() if curs else None
-    final = curs.data_fi.isoformat() if curs and curs.data_fi else None
+    inici = curs.data_inici if curs else None
+    final = curs.data_fi if curs else None
     return fetes_per_substitut(RecomptesRepository.franges_amb_substitut_entre(db, inici, final))

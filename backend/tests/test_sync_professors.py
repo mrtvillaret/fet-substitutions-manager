@@ -66,7 +66,7 @@ def test_primera_peticio_del_dia_sincronitza_avui_amb_cache_calenta_i_data_passa
     centre = amb_horari_futur()
     client = _client(centre)
     # La versió futura ja és a la memòria cau abans d'entrar en vigor.
-    get_horari(centre, data_iso=dia(4).isoformat())
+    get_horari(centre, data_iso=dia(4))
     lectura = Mock(wraps=ProfessorRepository.sync_from_xml)
     monkeypatch.setattr(ProfessorRepository, "sync_from_xml", lectura)
     assert client.get("/api/professors", params={"data": dia(-2).isoformat()}).status_code == 200
@@ -106,7 +106,7 @@ def test_llegir_horari_no_escriu_en_una_altra_sessio(monkeypatch):
     centre = nova_institucio(amb_xml=True)
     lectura = Mock(side_effect=AssertionError("una lectura no sincronitza"))
     monkeypatch.setattr(ProfessorRepository, "sync_from_xml", lectura)
-    assert get_horari(centre, data_iso=dia(0).isoformat()).professors
+    assert get_horari(centre, data_iso=dia(0)).professors
     lectura.assert_not_called()
 
 

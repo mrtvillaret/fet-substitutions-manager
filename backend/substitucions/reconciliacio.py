@@ -1,5 +1,7 @@
 """Reconciliació de substituts i encadenades després d’un canvi del dia."""
 
+from datetime import date
+
 from horari.domain import Dia
 from prioritats.repositories import NoSubstituirRepository
 from substitucions.domain import DiaEscolar, substituts_no_valids
@@ -8,10 +10,10 @@ from substitucions.repositories import SubstitucioRepository
 from substitucions.visibilitat import motiu_per_amagar
 
 
-def treu_substituts_no_valids(db, data: str, dia: DiaEscolar = None) -> list:
+def treu_substituts_no_valids(db, data: date, dia: DiaEscolar | None = None) -> list:
     """Buida les assignacions invàlides i les de files amagades.
     Retorna els avisos de les assignacions invàlides de files visibles."""
-    dia = dia or DiaEscolar(db, Dia.de_text(data, db.info.get("institucio")))
+    dia = dia or DiaEscolar(db, Dia.del_centre(data, db.info.get("institucio")))
     no_substituir = NoSubstituirRepository.vigents_a(db, dia.data)
     amagades = {
         fila.id

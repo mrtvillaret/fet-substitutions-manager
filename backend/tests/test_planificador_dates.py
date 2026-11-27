@@ -62,7 +62,7 @@ def client(centre):
 
 
 def _avui_es(centre, data):
-    APP.dependency_overrides[dia_d_avui] = lambda: Dia.de_text(data, centre)
+    APP.dependency_overrides[dia_d_avui] = lambda: Dia(date.fromisoformat(data), centre)
 
 
 def test_el_curs_actual_es_el_del_dia_de_la_peticio(client, centre):
@@ -93,7 +93,9 @@ def test_sense_data_el_recalcul_fa_servir_la_del_planificador(client, centre):
 
 
 def test_generar_sense_horari_ho_diu_en_catala(client, centre, monkeypatch):
-    monkeypatch.setattr(Dia, "de_text", lambda data, institucio=None: DiaSenseHorari(date(2026, 4, 20), centre))
+    from planificador.compartit import preparacio
+
+    monkeypatch.setattr(preparacio, "Dia", DiaSenseHorari)
     resp = client.post("/api/scheduler/generate", json={"data_inici": DATA, "selected_dates": [DATA]})
     assert resp.status_code == 400
     assert resp.json()["detail"] == SENSE_HORARI

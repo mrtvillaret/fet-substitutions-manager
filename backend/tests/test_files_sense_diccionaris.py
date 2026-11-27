@@ -8,6 +8,7 @@ estructures diferents de les files del domini.
 
 import ast
 import os
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -181,8 +182,10 @@ def test_el_repositori_retorna_objectes_i_no_una_capa_de_compatibilitat(db_sessi
     import typing
 
     assert typing.get_type_hints(SubstitucioRepository.get_by_date)["return"] == list[FilaSubstitucio]
-    SubstitucioRepository.create(db_session, {"data": "2026-11-09", "hora": "10:00", "professor_absent": "Prof test"})
-    fila = SubstitucioRepository.get_by_date(db_session, "2026-11-09")[0]
+    SubstitucioRepository.create(
+        db_session, {"data": date.fromisoformat("2026-11-09"), "hora": "10:00", "professor_absent": "Prof test"}
+    )
+    fila = SubstitucioRepository.get_by_date(db_session, date.fromisoformat("2026-11-09"))[0]
     assert isinstance(fila, FilaSubstitucio)
     assert not hasattr(fila, "get") and not hasattr(fila, "__getitem__")
     assert not hasattr(SubstitucioRepository, "get_files_by_date")
@@ -207,7 +210,7 @@ def test_el_guardia_admet_diccionaris_que_no_son_files():
 
 
 def test_els_moduls_de_files_son_purs():
-    permesos = {"dataclasses", "typing", "substitucions.files", "vigilancies.files"}
+    permesos = {"dataclasses", "datetime", "typing", "substitucions.files", "vigilancies.files"}
     for path, text in _fonts():
         if not path.endswith("/files.py"):
             continue

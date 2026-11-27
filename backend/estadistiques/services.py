@@ -17,6 +17,7 @@ from recomptes.services import (
     balanc_per_professor,
     cobertura,
     dades_professors,
+    data_de,
     detalls_professors,
     en_ordre_de_franges,
     franges_de_l_horari,
@@ -55,18 +56,14 @@ class HoraNoValida(NoValid):
     pass
 
 
-def interval(data_inici: str | None, data_final: str | None) -> tuple[str, str]:
+def interval(data_inici: date | None, data_final: date | None) -> tuple[date, date]:
     """L'interval demanat; sense dates, els últims 30 dies fins avui."""
     if not data_final:
-        data_final = rellotge.ara().strftime("%Y-%m-%d")
+        data_final = rellotge.avui()
     if not data_inici:
-        data_inici = (rellotge.ara() - timedelta(days=30)).strftime("%Y-%m-%d")
+        data_inici = rellotge.avui() - timedelta(days=30)
     valida_interval(data_inici, data_final)  # 400, com els informes
     return data_inici, data_final
-
-
-def _data(s: FilaSubstitucio) -> date:
-    return date.fromisoformat(s.data)
 
 
 def _dia_setmana(data: date) -> str:
@@ -84,13 +81,13 @@ def _normalitzar_dia(dia: str) -> str | None:
     return None
 
 
-def _reals(db: Session, data_inici: str, data_final: str, hores: Hores = None) -> list[FilaSubstitucio]:
+def _reals(db: Session, data_inici: date, data_final: date, hores: Hores = None) -> list[FilaSubstitucio]:
     """Les substitucions de l'interval amb els filtres de tots els recomptes
     («No substituir» i qui té classe), com els informes."""
     return substitucions_reals(db, data_inici, data_final, hores)
 
 
-def _resum(data_inici: str, data_final: str, absencies: list[FilaSubstitucio], v: dict) -> dict:
+def _resum(data_inici: date, data_final: date, absencies: list[FilaSubstitucio], v: dict) -> dict:
     """La cobertura de les absències i els serveis (com la portada de
     l'informe de direcció) i les vigilàncies."""
     c = cobertura(absencies)
@@ -121,7 +118,7 @@ def _resum(data_inici: str, data_final: str, absencies: list[FilaSubstitucio], v
 
 
 def _professors(
-    data_inici: str, data_final: str, absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio]
+    data_inici: date, data_final: date, absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio]
 ) -> dict:
     """Els rànquings: absències i serveis (com l'informe de direcció) i
     substitucions fetes."""
@@ -137,8 +134,8 @@ def _professors(
 
 
 def _temporal(
-    data_inici: str,
-    data_final: str,
+    data_inici: date,
+    data_final: date,
     absencies: list[FilaSubstitucio],
     vigilancies: list[FilaVigilancia],
     franges: list[str],
@@ -153,14 +150,14 @@ def _temporal(
         per_dia[dia]["cobertes"] += v["substitucions"]
 
     vigs_per_dia = {dia: 0 for dia in DIES_SETMANA}
-    vigs_per_hora = {}
+    vigs_per_hora: dict[str, int] = {}
     for vig in vigilancies:
         hora = normalitzar_hora((vig.hora or "").strip())
-        vigs_per_dia[_dia_setmana(date.fromisoformat(vig.data))] += 1
+        vigs_per_dia[_dia_setmana(data_de(vig))] += 1
         if hora:
             vigs_per_hora[hora] = vigs_per_hora.get(hora, 0) + 1
 
-    def _hora(hora: str) -> dict:
+    def _fila_hora(hora: str) -> dict:
         v = per_hora.get(hora, {"absencies": 0, "substitucions": 0})
         return {
             "hora": hora,
@@ -180,7 +177,7 @@ def _temporal(
             }
             for i, dia in enumerate(DIES_SETMANA)
         ],
-        "hores": [_hora(hora) for hora in en_ordre_de_franges(set(per_hora) | set(vigs_per_hora), franges)],
+        "hores": [_fila_hora(hora) for hora in en_ordre_de_franges(set(per_hora) | set(vigs_per_hora), franges)],
         "totals": {
             "a_cobrir": sum(v["a_cobrir"] for v in per_dia.values()),
             "cobertes": sum(v["cobertes"] for v in per_dia.values()),
@@ -195,7 +192,7 @@ def _top(comptadors: dict) -> tuple[str, int] | None:
 
 
 def _absencies_per_grup(
-    db: Session, data_inici: str, data_final: str, grups: set | None = None, hores: Hores = None
+    db: Session, data_inici: date, data_final: date, grups: set | None = None, hores: Hores = None
 ) -> list[FilaSubstitucio]:
     """Les absències i els serveis amb grup (`grups`: només aquests)."""
     return [
@@ -205,11 +202,12 @@ def _absencies_per_grup(
     ]
 
 
-def _classes(data_inici: str, data_final: str, absencies: list[FilaSubstitucio]) -> dict:
+def _classes(data_inici: date, data_final: date, absencies: list[FilaSubstitucio]) -> dict:
     """Per grup: hores a cobrir, cobertes i percentatge (com l'informe de
     direcció), l'assignatura més afectada i el professor més absent."""
     absencies = [s for s in absencies if grup_de(s)]
-    assignatures, professors = {}, {}
+    assignatures: dict[str, dict[str, int]] = {}
+    professors: dict[str, dict[str, int]] = {}
     for s in absencies:
         grup = grup_de(s)
         for comptadors, nom in ((assignatures, (s.assignatura or "").strip()), (professors, nom_absent(s))):
@@ -235,16 +233,24 @@ def _classes(data_inici: str, data_final: str, absencies: list[FilaSubstitucio])
     return {"periode": {"data_inici": data_inici, "data_final": data_final}, "classes": files}
 
 
-def classes_detall(db: Session, data_inici: str, data_final: str, grups: list[str], hores: Hores = None) -> dict:
+def classes_detall(
+    db: Session, data_inici: date | None, data_final: date | None, grups: list[str], hores: Hores = None
+) -> dict:
     if not grups:
         raise SenseGrups("Cal indicar almenys un grup", codi="sense_grups")
     data_inici, data_final = interval(data_inici, data_final)
     grups_set = {g.strip() for g in grups if g and g.strip()}
 
     resultats = []
-    per_assignatura, per_professor, per_substitut, per_grup = {}, {}, {}, {}
-    files = sorted(_absencies_per_grup(db, data_inici, data_final, grups_set, hores), key=lambda f: (f.data, f.hora))
+    per_assignatura: dict[str, int] = {}
+    per_professor: dict[str, int] = {}
+    per_substitut: dict[str, int] = {}
+    per_grup: dict[str, int] = {}
+    files = sorted(
+        _absencies_per_grup(db, data_inici, data_final, grups_set, hores), key=lambda f: (data_de(f), f.hora)
+    )
     for s in files:
+        dia = data_de(s)
         hora = (s.hora or "").strip()
         grup = grup_de(s)
         assignatura = (s.assignatura or "").strip()
@@ -252,8 +258,8 @@ def classes_detall(db: Session, data_inici: str, data_final: str, grups: list[st
         substitut = (s.substitut or "").strip()
         resultats.append(
             {
-                "data": s.data,
-                "dia_setmana": _dia_setmana(_data(s)),
+                "data": dia,
+                "dia_setmana": _dia_setmana(dia),
                 "hora": hora,
                 "grup": grup,
                 "assignatura": assignatura,
@@ -292,7 +298,11 @@ def classes_detall(db: Session, data_inici: str, data_final: str, grups: list[st
 
 
 def _taula_professors(
-    data_inici: str, data_final: str, absencies: list[FilaSubstitucio], fetes: list[FilaSubstitucio], vigilancies: dict
+    data_inici: date,
+    data_final: date,
+    absencies: list[FilaSubstitucio],
+    fetes: list[FilaSubstitucio],
+    vigilancies: dict,
 ) -> dict:
     """Per professor: absències, serveis, substitucions fetes, vigilàncies
     fetes i balanç."""
@@ -309,7 +319,7 @@ def _taula_professors(
     }
 
 
-def detall_professor(db: Session, professor: str, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+def detall_professor(db: Session, professor: str, data_inici: date, data_final: date, hores: Hores = None) -> dict:
     """Les absències i els serveis d'un professor i les substitucions que ha
     fet: el mateix que l'informe PDF per professor (dades_professors)."""
     trobat = dades_professors(db, data_inici, data_final, professor, hores)
@@ -317,9 +327,10 @@ def detall_professor(db: Session, professor: str, data_inici: str, data_final: s
     fetes = trobat[0]["substitucions_fetes"] if trobat else []
 
     def _fila(s: FilaSubstitucio) -> dict:
+        dia = data_de(s)
         return {
-            "data": s.data,
-            "dia_setmana": _dia_setmana(_data(s)),
+            "data": dia,
+            "dia_setmana": _dia_setmana(dia),
             "hora": (s.hora or "").strip(),
             "grup": s.grup or "",
             "assignatura": s.assignatura or "",
@@ -346,7 +357,7 @@ def detall_professor(db: Session, professor: str, data_inici: str, data_final: s
     }
 
 
-def franges(db: Session, dia: str, hora: str, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+def franges(db: Session, dia: str, hora: str, data_inici: date, data_final: date, hores: Hores = None) -> dict:
     """Per a una hora d'un dia de la setmana: quantes substitucions fetes
     (substitucions_fetes) hi va haver alhora a cada data i qui les va fer."""
     dia_normalitzat = _normalitzar_dia(dia)
@@ -355,12 +366,13 @@ def franges(db: Session, dia: str, hora: str, data_inici: str, data_final: str, 
     if not hora:
         raise HoraNoValida("Hora invàlida", codi="hora_no_valida")
 
-    slots = {}
+    slots: dict[date, list[str]] = {}
     for s in substitucions_fetes(db, data_inici, data_final, hores):
-        if _dia_setmana(_data(s)) == dia_normalitzat and (s.hora or "").strip() == hora:
-            slots.setdefault(f"{s.data}|{hora}", []).append(nom_substitut(s))
+        data = data_de(s)
+        if _dia_setmana(data) == dia_normalitzat and (s.hora or "").strip() == hora:
+            slots.setdefault(data, []).append(nom_substitut(s))
 
-    per_nombre = {}
+    per_nombre: dict[int, dict[str, int]] = {}
     total_subs = 0
     for subs in slots.values():
         total_subs += len(subs)
@@ -387,7 +399,7 @@ def franges(db: Session, dia: str, hora: str, data_inici: str, data_final: str, 
     }
 
 
-def batch(db: Session, institucio: str, data_inici: str, data_final: str, hores: Hores = None) -> dict:
+def batch(db: Session, institucio: str, data_inici: date, data_final: date, hores: Hores = None) -> dict:
     """Tots els recomptes de la pantalla (resum, professors, temporal,
     classes, taula i les hores de l'horari) amb un sol context de lectura."""
     franges = franges_de_l_horari(db, institucio, data_inici, data_final)

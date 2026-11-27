@@ -11,21 +11,12 @@ import rellotge
 from cursos.repositories import CursRepository
 from errors_domini import NoTrobat, NoValid
 from horari.repositories import XMLVersionRepository
+from models import Curs
 
 
-def fitxa(c) -> dict:
-    return {
-        "id": c.id,
-        "nom": c.nom,
-        "data_inici": c.data_inici.isoformat() if c.data_inici else None,
-        # derivada pel sistema; None = últim curs (obert)
-        "data_fi": c.data_fi.isoformat() if c.data_fi else None,
-    }
-
-
-def llista(db: Session) -> list[dict]:
+def llista(db: Session) -> list[Curs]:
     """Els cursos (més recent primer), amb la data_fi ja derivada."""
-    return [fitxa(c) for c in CursRepository.list_all(db)]
+    return CursRepository.list_all(db)
 
 
 def avisos_xml(db: Session) -> list[dict]:
@@ -50,7 +41,7 @@ def avisos_xml(db: Session) -> list[dict]:
             continue  # curs ja tancat: no accionable
         if c.data_inici == primer_inici:
             continue  # el primer curs no té cap anterior
-        versio = XMLVersionRepository.get_for_date(db, c.data_inici.isoformat())
+        versio = XMLVersionRepository.get_for_date(db, c.data_inici)
         if not versio:
             continue  # sense historial d'XML per aquella data
         if versio.data_inici < c.data_inici:
@@ -58,8 +49,8 @@ def avisos_xml(db: Session) -> list[dict]:
                 {
                     "curs_id": c.id,
                     "curs_nom": c.nom,
-                    "curs_inici": c.data_inici.isoformat(),
-                    "xml_inici": versio.data_inici.isoformat(),
+                    "curs_inici": c.data_inici,
+                    "xml_inici": versio.data_inici,
                     "xml_path": versio.path,
                 }
             )
@@ -67,26 +58,27 @@ def avisos_xml(db: Session) -> list[dict]:
     return avisos
 
 
-def _comprova_inici_lliure(db: Session, data_inici: date, excepte: int = None) -> None:
+def _comprova_inici_lliure(db: Session, data_inici: date, excepte: int | None = None) -> None:
     # Dos cursos el mateix dia deixarien la cadena amb una data de fi anterior a la d'inici
     if CursRepository.comenca_el(db, data_inici, excepte=excepte):
         raise NoValid("Ja hi ha un altre curs que comença aquest dia", codi="curs_mateix_dia")
 
 
-def crea(db: Session, nom: str, data_inici: date) -> dict:
+def crea(db: Session, nom: str, data_inici: date) -> Curs:
     _comprova_inici_lliure(db, data_inici)
     curs = CursRepository.create(db, nom, data_inici)
     db.commit()
-    return fitxa(curs)
+    return curs
 
 
-def edita(db: Session, curs_id: int, nom: str, data_inici: date) -> dict:
-    if not CursRepository.get(db, curs_id):
+def edita(db: Session, curs_id: int, nom: str, data_inici: date) -> Curs:
+    curs = CursRepository.get(db, curs_id)
+    if curs is None:
         raise NoTrobat("Curs no trobat", codi="curs_no_trobat")
     _comprova_inici_lliure(db, data_inici, excepte=curs_id)
-    curs = CursRepository.update(db, curs_id, nom, data_inici)
+    CursRepository.update(db, curs, nom, data_inici)
     db.commit()
-    return fitxa(curs)
+    return curs
 
 
 def esborra(db: Session, curs_id: int) -> None:

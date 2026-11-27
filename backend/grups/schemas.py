@@ -1,8 +1,12 @@
 """Schemas de les rutes de grups (entrades i respostes)."""
 
-from pydantic import BaseModel
+from typing import Self
+
+from fastapi import HTTPException
+from pydantic import BaseModel, ModelWrapValidatorHandler, model_validator
 
 from noms import NomNet
+from parametres import DataResposta, DataTextual
 from substitucions.schemas import SubstitutTretResponse
 
 # ===== Entrades =====
@@ -15,13 +19,25 @@ class AlliberatsDia(BaseModel):
     ocupats: dict[str, list[NomNet]] = {}  # {hora: [reforços sense alumnes que aquell dia sí en tenen]}
 
 
-class CanviPeriode(BaseModel):
+class _CampsCanviPeriode[TipusData](BaseModel):
     tipus: str  # professor (l'únic tipus que hi ha)
     clau: str  # nom del professor
     hores: list[str]
-    data: str  # a partir d'aquest dia
+    data: TipusData  # a partir d'aquest dia
     alliberat: bool = True
     dia_setmana: str = ""  # el dia de la setmana (per defecte, el de `data`)
+
+
+class CanviPeriode(_CampsCanviPeriode[DataTextual]):
+    @model_validator(mode="wrap")
+    @classmethod
+    def valida(cls, dades: object, valida: ModelWrapValidatorHandler[Self]) -> Self:
+        try:
+            return valida(dades)
+        except HTTPException:
+            # El 400 de format venia després dels 422 dels camps del cos.
+            _CampsCanviPeriode[str].model_validate(dades)
+            raise
 
 
 class GrupsAmagatsRequest(BaseModel):
@@ -43,7 +59,7 @@ class CanviPeriodeResponse(BaseModel):
 
 
 class CanviDeFranja(BaseModel):
-    des_de: str
+    des_de: DataResposta
     amb_alumnes: bool
 
 
@@ -51,7 +67,7 @@ class FranjaReforc(BaseModel):
     dia: str
     hora: str
     amb_alumnes: bool
-    des_de: str | None
+    des_de: DataResposta | None
     historial: list[CanviDeFranja]
 
 
@@ -64,7 +80,7 @@ class ReforcResponse(BaseModel):
 class AlliberatPerPeriode(BaseModel):
     tipus: str
     clau: str
-    des_de: str
+    des_de: DataResposta
 
 
 class ProfessorDeReforc(BaseModel):

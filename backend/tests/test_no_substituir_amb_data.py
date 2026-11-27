@@ -10,6 +10,7 @@ sense data.
 
 import ast
 import os
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -117,13 +118,13 @@ def test_cada_entrada_val_entre_les_seves_dates_incloses():
     vigencia = VigenciaNoSubstituir(
         (
             EntradaNoSubstituir(1, "Sempre"),
-            EntradaNoSubstituir(2, "Tancada", vigent_fins_a="2026-11-10"),
-            EntradaNoSubstituir(3, "Nova", vigent_des_de="2026-11-11"),
-            EntradaNoSubstituir(4, "Període", vigent_des_de="2026-09-01", vigent_fins_a="2026-09-30"),
+            EntradaNoSubstituir(2, "Tancada", vigent_fins_a=date(2026, 11, 10)),
+            EntradaNoSubstituir(3, "Nova", vigent_des_de=date(2026, 11, 11)),
+            EntradaNoSubstituir(4, "Període", vigent_des_de=date(2026, 9, 1), vigent_fins_a=date(2026, 9, 30)),
         )
     )
-    assert vigencia.a("2026-08-31") == {"Sempre", "Tancada"}
-    assert vigencia.a("2026-09-01") == {"Sempre", "Tancada", "Període"}
-    assert vigencia.a("2026-09-30") == {"Sempre", "Tancada", "Període"}
-    assert vigencia.a("2026-11-10") == {"Sempre", "Tancada"}
-    assert vigencia.a("2026-11-11") == {"Sempre", "Nova"}
+    assert vigencia.a(date(2026, 8, 31)) == {"Sempre", "Tancada"}
+    assert vigencia.a(date(2026, 9, 1)) == {"Sempre", "Tancada", "Període"}
+    assert vigencia.a(date(2026, 9, 30)) == {"Sempre", "Tancada", "Període"}
+    assert vigencia.a(date(2026, 11, 10)) == {"Sempre", "Tancada"}
+    assert vigencia.a(date(2026, 11, 11)) == {"Sempre", "Nova"}

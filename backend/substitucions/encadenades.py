@@ -10,6 +10,7 @@ substitut no es posa sol) i la que ja no cal s'esborra.
 
 import logging
 import re
+from datetime import date
 
 from config import constants
 from i18n_setup import translate
@@ -38,7 +39,7 @@ def activitat_encadenada(tipus_substitut: str, no_substituir: frozenset[str]) ->
     return activitat if activitat in constants.PRIORITATS and activitat not in no_substituir else None
 
 
-def reconcilia_encadenades(db, data: str) -> dict:
+def reconcilia_encadenades(db, data: date) -> dict:
     """Crea les encadenades que falten (sense substitut) i esborra les que ja
     no calen. Només un nivell, com el motor: el substitut d'una encadenada no
     en fa cap altra. Retorna {"creades": n, "esborrades": n}."""
@@ -65,7 +66,7 @@ def reconcilia_encadenades(db, data: str) -> dict:
             SubstitucioRepository.delete(db, int(fila.id))
             resum["esborrades"] += 1
 
-    for hora, professor, activitat in sorted(cal - hi_son):
+    for hora, professor, activitat in sorted(cal.difference(hi_son)):
         SubstitucioRepository.create(
             db,
             {

@@ -4,12 +4,12 @@ alliberaments per període i els grups amagats.
 Els repositoris no fan commit: el fa qui crida, un cop per operació."""
 
 import json
+from datetime import date
 
 from sqlalchemy.orm import Session
 
 import rellotge
 from configuracio.repositories import ConfiguracioRepository
-from dates import parse_date
 from models import AbreviaturaGrup, AlliberamentPeriode, GrupAlliberat, GrupAmagat, Substitucio, Vigilancia
 
 
@@ -21,11 +21,11 @@ class AlliberamentsPeriodeRepository:
     TIPUS = ("professor",)
 
     @staticmethod
-    def darrers(db: Session, data: str, dia_setmana: str = None) -> dict[tuple, AlliberamentPeriode]:
+    def darrers(db: Session, data: date, dia_setmana: str | None = None) -> dict[tuple, AlliberamentPeriode]:
         """{(tipus, clau, dia_setmana, hora): darrer canvi fet fins a `data`}
         (d'un dia de la setmana, si s'indica). La taula sempre hi és: es crea
         en obrir la BD (database.create_data_tables)."""
-        q = db.query(AlliberamentPeriode).filter(AlliberamentPeriode.des_de <= parse_date(data))
+        q = db.query(AlliberamentPeriode).filter(AlliberamentPeriode.des_de <= data)
         if dia_setmana:
             q = q.filter(AlliberamentPeriode.dia_setmana == dia_setmana)
         canvis = q.order_by(AlliberamentPeriode.des_de, AlliberamentPeriode.id).all()
@@ -35,7 +35,7 @@ class AlliberamentsPeriodeRepository:
         return darrer
 
     @staticmethod
-    def estats(db: Session, data: str, dia_setmana: str) -> dict[str, list[dict]]:
+    def estats(db: Session, data: date, dia_setmana: str) -> dict[str, list[dict]]:
         """{hora: [{tipus, clau, des_de}]} del que està alliberat per període
         en una data (que és un `dia_setmana`)."""
         darrer = {
@@ -45,32 +45,21 @@ class AlliberamentsPeriodeRepository:
         result = {}
         for (tipus, clau, hora), c in darrer.items():
             if c.alliberat:
-                result.setdefault(hora, []).append({"tipus": tipus, "clau": clau, "des_de": c.des_de.isoformat()})
+                result.setdefault(hora, []).append({"tipus": tipus, "clau": clau, "des_de": c.des_de})
         return result
 
     @staticmethod
-    def canvis(db: Session, tipus: str = None, clau: str = None) -> list[dict]:
+    def historial(db: Session, tipus: str | None = None, clau: str | None = None) -> list[AlliberamentPeriode]:
         q = db.query(AlliberamentPeriode)
         if tipus:
             q = q.filter(AlliberamentPeriode.tipus == tipus)
         if clau:
             q = q.filter(AlliberamentPeriode.clau == clau)
-        return [
-            {
-                "id": c.id,
-                "tipus": c.tipus,
-                "clau": c.clau,
-                "dia_setmana": c.dia_setmana,
-                "hora": c.hora,
-                "des_de": c.des_de.isoformat(),
-                "alliberat": bool(c.alliberat),
-            }
-            for c in q.order_by(AlliberamentPeriode.des_de, AlliberamentPeriode.id).all()
-        ]
+        return q.order_by(AlliberamentPeriode.des_de, AlliberamentPeriode.id).all()
 
     @staticmethod
     def afegeix(
-        db: Session, tipus: str, clau: str, dia_setmana: str, hores: list[str], des_de: str, alliberat: bool
+        db: Session, tipus: str, clau: str, dia_setmana: str, hores: list[str], des_de: date, alliberat: bool
     ) -> None:
         # Un sol canvi per (qui, dia, hora, data): el nou substitueix el que hi hagués
         for hora in hores:
@@ -79,7 +68,7 @@ class AlliberamentsPeriodeRepository:
                 AlliberamentPeriode.clau == clau,
                 AlliberamentPeriode.dia_setmana == dia_setmana,
                 AlliberamentPeriode.hora == hora,
-                AlliberamentPeriode.des_de == parse_date(des_de),
+                AlliberamentPeriode.des_de == des_de,
             ).delete()
             db.add(
                 AlliberamentPeriode(
@@ -87,24 +76,24 @@ class AlliberamentsPeriodeRepository:
                     clau=clau,
                     dia_setmana=dia_setmana,
                     hora=hora,
-                    des_de=parse_date(des_de),
+                    des_de=des_de,
                     alliberat=alliberat,
                 )
             )
         db.flush()
 
     @staticmethod
-    def dates_afectades(db: Session, des_de: str, dia_setmana: int) -> list[str]:
+    def dates_afectades(db: Session, des_de: date, dia_setmana: int) -> list[date]:
         """Les dates que un canvi per període pot afectar: a partir de
         `des_de` i mai abans d'avui (rellotge injectable), les del dia de la
         setmana `dia_setmana` (0 = dilluns) que ja tenen alguna substitució o
         vigilància, per ordre. L'historial no es reconcilia."""
-        inici = max(parse_date(des_de), rellotge.avui())
+        inici = max(des_de, rellotge.avui())
         dates = set()
         for model in (Substitucio, Vigilancia):
             for (d,) in db.query(model.data).filter(model.data >= inici).distinct():
                 if d.weekday() == dia_setmana:
-                    dates.add(d.isoformat())
+                    dates.add(d)
         return sorted(dates)
 
 
@@ -112,24 +101,26 @@ class GrupsAlliberatsRepository:
     """Operacions per grups alliberats"""
 
     @staticmethod
-    def llegeix_interval(db: Session, dates: list[str]):
+    def llegeix_interval(
+        db: Session, dates: list[date]
+    ) -> tuple[dict[date, dict[str, list[str]]], list[AlliberamentPeriode]]:
         """Marques i canvis de període, en l’ordre històric de lectura."""
-        resultat = {d: {} for d in dates}
+        resultat: dict[date, dict[str, list[str]]] = {d: {} for d in dates}
         files = (
             db.query(GrupAlliberat)
             .filter(
-                GrupAlliberat.data >= parse_date(dates[0]),
-                GrupAlliberat.data <= parse_date(dates[-1]),
+                GrupAlliberat.data >= dates[0],
+                GrupAlliberat.data <= dates[-1],
             )
             .all()
         )
         for fila in files:
-            d = fila.data.isoformat()
+            d = fila.data
             if d in resultat:
                 resultat[d].setdefault(fila.hora, []).append(fila.grups)
         canvis = (
             db.query(AlliberamentPeriode)
-            .filter(AlliberamentPeriode.des_de <= parse_date(dates[-1]))
+            .filter(AlliberamentPeriode.des_de <= dates[-1])
             .order_by(AlliberamentPeriode.des_de, AlliberamentPeriode.id)
             .all()
         )
@@ -147,9 +138,9 @@ class GrupsAlliberatsRepository:
             return []
 
     @staticmethod
-    def get_dia_by_date(db: Session, data: str) -> dict[str, list[str]]:
+    def get_dia_by_date(db: Session, data: date) -> dict[str, list[str]]:
         """Només el que s'ha marcat aquell dia (sense els alliberaments per període)"""
-        grups = db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).all()
+        grups = db.query(GrupAlliberat).filter(GrupAlliberat.data == data).all()
 
         result = {}
         for g in grups:
@@ -160,28 +151,28 @@ class GrupsAlliberatsRepository:
         return result
 
     @staticmethod
-    def files_del_dia(db: Session, data: str) -> list[GrupAlliberat]:
+    def files_del_dia(db: Session, data: date) -> list[GrupAlliberat]:
         """Els grups marcats aquell dia (sense els dels períodes)."""
-        return db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).all()
+        return db.query(GrupAlliberat).filter(GrupAlliberat.data == data).all()
 
     @staticmethod
-    def esborra_del_dia(db: Session, data: str) -> None:
-        db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).delete(synchronize_session=False)
+    def esborra_del_dia(db: Session, data: date) -> None:
+        db.query(GrupAlliberat).filter(GrupAlliberat.data == data).delete(synchronize_session=False)
 
     @staticmethod
-    def afegeix(db: Session, data: str, hora: str, grup: str) -> None:
-        db.add(GrupAlliberat(data=parse_date(data), hora=hora, grups=grup))
+    def afegeix(db: Session, data: date, hora: str, grup: str) -> None:
+        db.add(GrupAlliberat(data=data, hora=hora, grups=grup))
 
     @staticmethod
-    def set_for_date(db: Session, data: str, grups_per_hora: dict[str, list[str]]):
+    def set_for_date(db: Session, data: date, grups_per_hora: dict[str, list[str]]):
         """Estableix grups alliberats per una data (substitueix existents)"""
         # Eliminar existents
-        db.query(GrupAlliberat).filter(GrupAlliberat.data == parse_date(data)).delete()
+        db.query(GrupAlliberat).filter(GrupAlliberat.data == data).delete()
 
         # Afegir nous
         for hora, grups_list in grups_per_hora.items():
             for grups in grups_list:
-                ga = GrupAlliberat(data=parse_date(data), hora=hora, grups=grups)
+                ga = GrupAlliberat(data=data, hora=hora, grups=grups)
                 db.add(ga)
 
         db.flush()

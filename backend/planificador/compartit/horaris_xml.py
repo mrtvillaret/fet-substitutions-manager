@@ -9,7 +9,7 @@ def horaris_professors(root, ultim_professor: str = "", normalitza_hores: bool =
     classe o activitat. Els professors van en l'ordre de l'XML fins a
     `ultim_professor` inclòs (el límit de "Configuració"); buit, tots."""
     ultim = nom_net(ultim_professor or "")
-    horaris = {}
+    horaris: dict = {}
     for teacher in root.findall("Teacher"):
         nom = nom_net(teacher.get("name"))
         horaris[nom] = {}

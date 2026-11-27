@@ -1,6 +1,6 @@
 """L'absència coberta i tots els seus efectes es desen en una transacció."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -70,11 +70,15 @@ def _prepara_efectes(client):
 
 def _bolcat(centre):
     with get_data_db_session(centre) as db:
-        vigilancies = [v for files in VigilanciaRepository.get_by_date(db, FUTUR).values() for v in files]
+        vigilancies = [
+            v for files in VigilanciaRepository.get_by_date(db, date.fromisoformat(FUTUR)).values() for v in files
+        ]
         return {
             "absencies_cobertes": AbsenciaCobertaRepository.get_all(db),
             "vigilancies": sorted(vigilancies, key=lambda fila: fila.id),
-            "substitucions": sorted(SubstitucioRepository.get_by_date(db, FUTUR), key=lambda fila: fila.id),
+            "substitucions": sorted(
+                SubstitucioRepository.get_by_date(db, date.fromisoformat(FUTUR)), key=lambda fila: fila.id
+            ),
         }
 
 

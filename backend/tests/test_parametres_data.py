@@ -1,6 +1,6 @@
 """
 Els paràmetres de data de les rutes (data, data_inici, data_final, data_fi)
-són DataISO: es validen sols i una data mal escrita o impossible dona 400,
+són Data: es validen sols i una data mal escrita o impossible dona 400,
 en lloc d'una consulta que no troba res o d'un error intern.
 """
 

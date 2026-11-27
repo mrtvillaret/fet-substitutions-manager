@@ -1,10 +1,12 @@
 """El repositori de substitucions deixa la transacció en mans del servei."""
 
+from datetime import date
+
 from sqlalchemy.orm import sessionmaker
 
 from substitucions.repositories import SubstitucioRepository
 
-DATA = "2026-04-20"
+DATA = date(2026, 4, 20)
 
 
 def _fila(professor="Prof de prova"):

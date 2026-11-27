@@ -252,7 +252,7 @@ def test_el_detall_d_un_professor_diu_el_mateix_que_el_pdf_per_professor(centre,
     ]
     with get_data_db_session(centre) as db:
         for professor in ("Prof 5", "Prof 7", "Prof 8"):
-            (pdf,) = dades_professors(db, INTERVAL["data_inici"], INTERVAL["data_final"], professor)
+            (pdf,) = dades_professors(db, date(2026, 3, 1), date(2026, 3, 31), professor)
             web = _get(client, f"professor/{professor}")
             assert len(web["absencies"]) == len(pdf["absencies"])
             assert [f["tipus_absencia"] for f in web["substitucions"]] == [
@@ -420,7 +420,7 @@ def test_el_lot_llegeix_la_visibilitat_un_sol_cop_i_dona_la_llista_del_pdf(centr
         db.commit()
     params = {"hores": hores} if hores else {}
     with get_data_db_session(centre) as db:
-        llista = [p["nom"] for p in dades_professors(db, **INTERVAL, hores=hores)]
+        llista = [p["nom"] for p in dades_professors(db, date(2026, 3, 1), date(2026, 3, 31), hores=hores)]
     original = AlliberatsDelDia.get_entre_dates
     crides = []
 
@@ -452,3 +452,48 @@ def test_batch_retira_hores_inexistents_com_la_pantalla(client):
 )
 def test_batch_valida_dates_com_les_rutes_actuals(client, params):
     assert client.get("/api/estadistiques/batch", params=params).status_code == 400
+
+
+def test_detall_d_estadistiques_amb_un_interval_que_travessa_el_mes(centre, client):
+    with get_data_db_session(centre) as db:
+        for dia in (date(2026, 4, 3), date(2026, 4, 2), date(2026, 3, 31), date(2026, 3, 30)):
+            db.add(
+                Substitucio(
+                    data=dia,
+                    hora="10:00",
+                    professor_absent="Prof 1",
+                    assignatura="Català",
+                    grup="1-ESO-A",
+                    substitut="Prof 2",
+                    tipus_substitut="disponible (Guàrdia)",
+                    tipus_absencia="ABSENCIA",
+                )
+            )
+        db.commit()
+
+    interval = {"data_inici": "2026-03-31", "data_final": "2026-04-02"}
+    cos = _get(client, "classes/detall", **interval, grups="1-ESO-A")
+    assert cos == {
+        "periode": interval,
+        "grups": ["1-ESO-A"],
+        "resultats": [
+            {
+                "data": dia,
+                "dia_setmana": dia_setmana,
+                "hora": "10:00",
+                "grup": "1-ESO-A",
+                "assignatura": "Català",
+                "professor_absent": "Prof 1",
+                "substitut": "Prof 2",
+                "tipus_substitut": "disponible (Guàrdia)",
+            }
+            for dia, dia_setmana in [("2026-03-31", "Dimarts"), ("2026-04-02", "Dijous")]
+        ],
+        "resum": {
+            "total": 2,
+            "per_grup": [{"grup": "1-ESO-A", "total": 2}],
+            "top_assignatura": {"nom": "Català", "total": 2},
+            "top_professor": {"nom": "Prof 1", "total": 2},
+            "top_substitut": {"nom": "Prof 2", "total": 2},
+        },
+    }

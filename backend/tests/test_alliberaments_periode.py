@@ -13,7 +13,7 @@ Horari d'exemple, els dilluns:
 Dilluns de prova: 13/04, 20/04, 27/04 i 04/05/2026.
 """
 
-from datetime import UTC
+from datetime import UTC, date
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
@@ -273,12 +273,22 @@ def test_cada_franja_porta_el_seu_historial(client):
     _configura_reforc_per_defecte(client)
     _amb_alumnes(client, "Prof 18", "Dilluns", "09:00", DILLUNS[1])
     _amb_alumnes(client, "Prof 18", "Dilluns", "09:00", DILLUNS[3], amb_alumnes=False)
-    franges = client.get("/api/grups/reforcos/Reforç", params={"data": DILLUNS[2]}).json()["professors"]["Prof 18"]
-    franja = next(f for f in franges if (f["dia"], f["hora"]) == ("Dilluns", "09:00"))
-    assert franja["historial"] == [
-        {"des_de": DILLUNS[1], "amb_alumnes": True},
-        {"des_de": DILLUNS[3], "amb_alumnes": False},
+    historial = [
+        {"des_de": "2026-04-20", "amb_alumnes": True},
+        {"des_de": "2026-05-04", "amb_alumnes": False},
     ]
+    for data, des_de in ((DILLUNS[0], None), (DILLUNS[2], "2026-04-20")):
+        resposta = client.get("/api/grups/reforcos/Reforç", params={"data": data})
+        assert resposta.status_code == 200, resposta.text
+        franges = resposta.json()["professors"]["Prof 18"]
+        franja = next(f for f in franges if (f["dia"], f["hora"]) == ("Dilluns", "09:00"))
+        assert franja == {
+            "dia": "Dilluns",
+            "hora": "09:00",
+            "amb_alumnes": des_de is not None,
+            "des_de": des_de,
+            "historial": historial,
+        }
 
 
 def test_un_reforc_amb_alumnes_es_pot_alliberar_nomes_un_dia(client):
@@ -383,15 +393,15 @@ def test_un_periode_passat_preserva_historial_i_revisa_nomes_des_d_avui(avui, re
         resp = client.put(f"/api/substitucions/{data}/10:00/Prof 15", json={"substitut": "Prof 1", "force": True})
         assert resp.status_code == 200, resp.text
     with get_data_db_session(centre) as db:
-        abans = {data: SubstitucioRepository.get_by_date(db, data) for data in DILLUNS[:3]}
+        abans = {data: SubstitucioRepository.get_by_date(db, date.fromisoformat(data)) for data in DILLUNS[:3]}
     resultat = _canvi(client, "professor", "Prof 1", ["10:00"], DILLUNS[0], alliberat=False)
     assert sorted({f["data"] for f in resultat["substituts_trets"]}) == [d for d in DILLUNS[:3] if d >= avui]
     with get_data_db_session(centre) as db:
-        canvis = AlliberamentsPeriodeRepository.canvis(db)
+        canvis = AlliberamentsPeriodeRepository.historial(db)
         assert len(canvis) == 1
-        assert canvis[0]["des_de"] == DILLUNS[0]
+        assert canvis[0].des_de.isoformat() == DILLUNS[0]
         for data in DILLUNS[:3]:
-            files = SubstitucioRepository.get_by_date(db, data)
+            files = SubstitucioRepository.get_by_date(db, date.fromisoformat(data))
             if data < avui:
                 assert files == abans[data]
             else:
@@ -408,15 +418,18 @@ def test_dates_afectades_exclou_historial_i_inclou_dies_amb_nomes_vigilancia(db_
 
     rellotge_fix.moment = datetime(2026, 4, 20, 12, tzinfo=UTC)
     for data in DILLUNS[:2]:
-        SubstitucioRepository.create(db_session, {"data": data, "hora": "10:00", "professor_absent": "Prof 15"})
+        SubstitucioRepository.create(
+            db_session, {"data": date.fromisoformat(data), "hora": "10:00", "professor_absent": "Prof 15"}
+        )
     for data in [DILLUNS[2], "2026-04-21"]:
         VigilanciaRepository.create(
-            db_session, data, {"hora": "10:00", "tipus": "examen", "grups": "Grup", "aula": "Aula", "nivell": "Nivell"}
+            db_session,
+            date.fromisoformat(data),
+            {"hora": "10:00", "tipus": "examen", "grups": "Grup", "aula": "Aula", "nivell": "Nivell"},
         )
     db_session.flush()
-    assert AlliberamentsPeriodeRepository.dates_afectades(db_session, des_de, 0) == [
-        d for d in DILLUNS[:3] if d >= max(des_de, "2026-04-20")
-    ]
+    afectades = AlliberamentsPeriodeRepository.dates_afectades(db_session, date.fromisoformat(des_de), 0)
+    assert [data.isoformat() for data in afectades] == [d for d in DILLUNS[:3] if d >= max(des_de, "2026-04-20")]
 
 
 def test_alliberar_per_periode_buida_el_substitut_des_d_avui(rellotge_fix):
@@ -435,7 +448,7 @@ def test_alliberar_per_periode_buida_el_substitut_des_d_avui(rellotge_fix):
             SubstitucioRepository.create(
                 db,
                 {
-                    "data": data,
+                    "data": date.fromisoformat(data),
                     "hora": "09:00",
                     "professor_absent": "Prof 1",
                     "assignatura": "E.F.",
@@ -453,8 +466,28 @@ def test_alliberar_per_periode_buida_el_substitut_des_d_avui(rellotge_fix):
         assert client.get(f"/api/substitucions/{data}").json() == []
     with get_data_db_session(centre) as db:
         for data in DILLUNS[:3]:
-            [fila] = SubstitucioRepository.get_by_date(db, data)
+            [fila] = SubstitucioRepository.get_by_date(db, date.fromisoformat(data))
             assert (fila.professor_absent, fila.hora, fila.tipus_absencia) == ("Prof 1", "09:00", "SERVEI")
             esperat = ("Prof 2", "disponible (Guàrdia)") if data == DILLUNS[0] else ("", "")
             assert (fila.substitut, fila.tipus_substitut) == esperat
-        assert SubstitucioRepository.historial_quota(db, DILLUNS[3]) == [("09:00", "Prof 2", "disponible (Guàrdia)")]
+        assert SubstitucioRepository.historial_quota(db, date.fromisoformat(DILLUNS[3])) == [
+            ("09:00", "Prof 2", "disponible (Guàrdia)")
+        ]
+
+
+def test_la_data_d_inici_del_periode_es_llegeix_en_iso(client):
+    assert _canvi(client, "professor", "Prof 26", ["10:00"], "2026-4-20") == {
+        "success": True,
+        "dia_setmana": "Dilluns",
+        "substituts_trets": [],
+    }
+    assert _canvi(client, "professor", "Prof 26", ["10:00"], DILLUNS[3], alliberat=False)["success"]
+    for data, periode in (
+        (DILLUNS[0], {}),
+        (DILLUNS[1], {"10:00": [{"tipus": "professor", "clau": "Prof 26", "des_de": "2026-04-20"}]}),
+        (DILLUNS[2], {"10:00": [{"tipus": "professor", "clau": "Prof 26", "des_de": "2026-04-20"}]}),
+        (DILLUNS[3], {}),
+    ):
+        resposta = client.get(f"/api/grups/{data}")
+        assert resposta.status_code == 200, resposta.text
+        assert resposta.json()["periode"] == periode

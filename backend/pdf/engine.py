@@ -7,7 +7,10 @@ import logging
 import re
 import traceback
 from collections import defaultdict
+from collections.abc import Sequence
+from datetime import date
 from pathlib import Path
+from typing import cast
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -18,7 +21,7 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, 
 import rellotge
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
-from dates import data_compacta, parse_date
+from dates import data_compacta
 from i18n_setup import translate as _
 from pdf.estils import PDFStyleFactory
 from pdf.files import SubstitucioPdf, VigilanciaPdf
@@ -50,11 +53,13 @@ log = logging.getLogger(__name__)
 class PDFCompletExporter:
     """Exportador de PDF combinat optimitzat"""
 
-    def __init__(self, hores: list[str] = None, export_dir: str = "exports", *, institucio: str):
+    def __init__(self, hores: list[str] | None = None, export_dir: str = "exports", *, institucio: str):
         if not institucio:
             raise ValueError("Cal indicar el centre per generar el PDF")
         self.institucio = institucio
         self.hores = hores if hores is not None else []
+        self.hores_per_data: dict[date, list[str]] = {}
+        self._data_interval_per_titol: dict[str, date] = {}
         self.export_dir = Path(export_dir)
         self.export_dir.mkdir(parents=True, exist_ok=True)
         self.styles = getSampleStyleSheet()
@@ -72,7 +77,7 @@ class PDFCompletExporter:
         self.espai_a_ma = False
         # Hores on hi pot haver alguna substitució (les calcula qui crida, a
         # partir de l'horari): són les que surten amb files en blanc. None = totes.
-        self.hores_amb_classe = None
+        self.hores_amb_classe: set[str] | None = None
         # Format «taula del dia»: una sola taula, l'hora a la primera columna i
         # les vigilàncies dins de cada hora (en comptes d'una secció per hora)
         self.format_dia = False
@@ -82,7 +87,7 @@ class PDFCompletExporter:
         self.dia_per_pagina = False
 
     @staticmethod
-    def _combinada(tipus_pdf: str, substitucions: list[FilaSubstitucio]) -> bool:
+    def _combinada(tipus_pdf: str, substitucions: Sequence[FilaSubstitucio]) -> bool:
         """Substitucions i vigilàncies a la mateixa taula: el PDF complet, i el
         de vigilàncies quan porta les substitucions de vigilància."""
         if tipus_pdf == "complet":
@@ -108,10 +113,10 @@ class PDFCompletExporter:
             self._auto_compression_active = False
 
     def _generate_filename(
-        self, data_iso: str, subs_reals: list[FilaSubstitucio], vigilancies_reals: list[FilaVigilancia]
+        self, data: date | None, subs_reals: Sequence[FilaSubstitucio], vigilancies_reals: Sequence[FilaVigilancia]
     ) -> str:
         """Generate PDF filename"""
-        return self.PDFTypeResolver.get_filename(data_iso, subs_reals, vigilancies_reals)
+        return self.PDFTypeResolver.get_filename(data, subs_reals, vigilancies_reals)
 
     def _create_document(self, filename: str, compact_mode: bool):
         """Create and configure PDF document"""
@@ -137,7 +142,11 @@ class PDFCompletExporter:
         ), output_path
 
     def _generate_titles(
-        self, tipus_pdf: str, data_text: str, subs_reals: list[FilaSubstitucio], vigilancies_reals: list[FilaVigilancia]
+        self,
+        tipus_pdf: str,
+        data_text: str,
+        subs_reals: Sequence[FilaSubstitucio],
+        vigilancies_reals: Sequence[FilaVigilancia],
     ):
         """Generate PDF titles"""
 
@@ -171,12 +180,12 @@ class PDFCompletExporter:
 
         @staticmethod
         def get_filename(
-            data_iso: str, subs_reals: list[FilaSubstitucio], vigilancies_reals: list[FilaVigilancia]
+            data: date | None, subs_reals: Sequence[FilaSubstitucio], vigilancies_reals: Sequence[FilaVigilancia]
         ) -> str:
             timestamp = rellotge.ara().strftime("%y%m%d_%H%M%S")
 
-            if data_iso:
-                data_curta = data_compacta(parse_date(data_iso))
+            if data is not None:
+                data_curta = data_compacta(data)
             else:
                 data_curta = rellotge.ara().strftime("%y%m%d")
 
@@ -191,7 +200,7 @@ class PDFCompletExporter:
 
         @staticmethod
         def get_title(
-            tipus_pdf: str, subs_reals: list[FilaSubstitucio], vigilancies_reals: list[FilaVigilancia]
+            tipus_pdf: str, subs_reals: Sequence[FilaSubstitucio], vigilancies_reals: Sequence[FilaVigilancia]
         ) -> str:
             if tipus_pdf == "substitucions":
                 return _("SUBSTITUCIONS")
@@ -214,11 +223,11 @@ class PDFCompletExporter:
 
     def exportar(
         self,
-        substitucions: list[FilaSubstitucio],
-        vigilancies: list[FilaVigilancia],
+        substitucions: Sequence[FilaSubstitucio],
+        vigilancies: Sequence[FilaVigilancia],
         data_text: str,
-        conflictes: list[str] = None,
-        data_iso: str = None,
+        conflictes: list[str] | None = None,
+        data: date | None = None,
         tipus_pdf: str = "auto",
     ) -> str:
         """Genera PDF combinat organitzat per hores"""
@@ -240,7 +249,7 @@ class PDFCompletExporter:
             vigilancies_reals = vigilancies
 
             # Create document
-            filename = self._generate_filename(data_iso, subs_reals, vigilancies_reals)
+            filename = self._generate_filename(data, subs_reals, vigilancies_reals)
             doc, output_path = self._create_document(filename, compact_mode)
 
             # Generate content
@@ -252,7 +261,11 @@ class PDFCompletExporter:
 
             # Format especial per interval de vigilàncies
             if tipus_pdf == "vigilancies_interval":
-                story.extend(self._generar_contingut_interval_vigilancies(vigilancies_reals, subs_reals))
+                story.extend(
+                    self._generar_contingut_interval_vigilancies(
+                        cast(Sequence[VigilanciaPdf], vigilancies_reals), cast(Sequence[SubstitucioPdf], subs_reals)
+                    )
+                )
             else:
                 # El format triat (taula del dia o una secció per hora), amb els
                 # mateixos estils (pdf/taula.py)
@@ -489,7 +502,7 @@ class PDFCompletExporter:
         return self.hores_amb_classe is None or hora in self.hores_amb_classe
 
     def _organitzar_dades_per_hora(
-        self, substitucions: list[FilaSubstitucio], vigilancies: list[FilaVigilancia]
+        self, substitucions: Sequence[FilaSubstitucio], vigilancies: Sequence[FilaVigilancia]
     ) -> dict:
         """Organitza substitucions i vigilàncies per hora"""
         dades_per_hora = defaultdict(lambda: {"substitucions": [], "vigilancies": []})
@@ -504,39 +517,40 @@ class PDFCompletExporter:
 
         return dades_per_hora
 
-    def _sort_vigilancies_by_date(self, vigilancies: list[VigilanciaPdf]) -> tuple:
+    def _sort_vigilancies_by_date(self, vigilancies: Sequence[VigilanciaPdf]) -> tuple:
         """Sort vigilancies by date and return organized data"""
-        vigilancies_per_dia = defaultdict(lambda: defaultdict(list))
-        dia_iso_map = {}
+        vigilancies_per_dia: defaultdict[str, defaultdict[str, list[VigilanciaPdf]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        dates_per_titol: dict[str, date] = {}
 
         for vig in vigilancies:
             dia = vig.dia_interval
-            data_iso = vig.data_iso
+            data = vig.data
             hora = vig.hora
             if vig.dia_buit:
-                if data_iso:
-                    dia_iso_map[dia] = data_iso
+                if data is not None:
+                    dates_per_titol[dia] = data
                 # Ensure day exists even without hours
                 _ = vigilancies_per_dia[dia]
                 continue
 
             if hora:
                 vigilancies_per_dia[dia][hora].append(vig)
-                if data_iso:
-                    dia_iso_map[dia] = data_iso
+                if data is not None:
+                    dates_per_titol[dia] = data
 
-        dies_ordenats = sorted(vigilancies_per_dia.keys(), key=lambda dia: dia_iso_map.get(dia, "9999-12-31"))
-        self._data_interval_per_titol = dia_iso_map
+        dies_ordenats = sorted(vigilancies_per_dia, key=lambda dia: dates_per_titol.get(dia, date.max))
+        self._data_interval_per_titol = dates_per_titol
 
         return vigilancies_per_dia, dies_ordenats
 
-    def _generate_day_section(self, dia: str, hores_dia: dict, subs_dia: dict = None) -> list:
+    def _generate_day_section(self, dia: str, hores_dia: dict, subs_dia: dict | None = None) -> list:
         """Un dia de l'interval: el títol i, a sota, el format triat."""
 
-        data_iso = getattr(self, "_data_interval_per_titol", {}).get(dia)
-        hores_per_data = getattr(self, "hores_per_data", {})
-        if data_iso in hores_per_data:
-            self.hores = hores_per_data[data_iso]
+        data = self._data_interval_per_titol.get(dia)
+        if data is not None and data in self.hores_per_data:
+            self.hores = self.hores_per_data[data]
 
         comprimit = bool(getattr(self, "_auto_compression_active", False))
         dia_style = ParagraphStyle(
@@ -557,7 +571,7 @@ class PDFCompletExporter:
         return story
 
     def _generar_contingut_interval_vigilancies(
-        self, vigilancies: list[VigilanciaPdf], substitucions: list[SubstitucioPdf] | None = None
+        self, vigilancies: Sequence[VigilanciaPdf], substitucions: Sequence[SubstitucioPdf] | None = None
     ) -> list:
         """Genera contingut per interval de vigilàncies: dies consecutius + format exacte"""
 

@@ -4,7 +4,7 @@ Per a cada professor: grid horari amb absències i substitucions fetes.
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import date
 from pathlib import Path
 
 from reportlab.lib import colors
@@ -53,19 +53,13 @@ def _s(name, **kw):
     return ParagraphStyle(name, **kw)
 
 
-def _fmt_data(d: str) -> str:
-    try:
-        return datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y")
-    except (ValueError, TypeError):
-        return d
+def _fmt_data(d: date | None) -> str:
+    return f"{d:%d/%m/%Y}" if d is not None else ""
 
 
-def _dia_setmana(d: str) -> str:
+def _dia_setmana(d: date | None) -> str:
     dies = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte", "Diumenge"]
-    try:
-        return dies[datetime.strptime(d, "%Y-%m-%d").weekday()]
-    except (ValueError, TypeError):
-        return ""
+    return dies[d.weekday()] if d is not None else ""
 
 
 def _heatmap(value: int, max_val: int, base_color: tuple) -> colors.Color:
@@ -261,7 +255,7 @@ def _kpi_professor(abs_count, serv_count, cobertes, pendents, subs_fetes) -> lis
     return [t, Spacer(1, 0.5 * cm)]
 
 
-def _grid_horari(absencies: list, subs_fetes: list, hores_xml: list) -> list:
+def _grid_horari(absencies: list, subs_fetes: list, hores_xml: list[str] | None) -> list:
     """
     Grid horari (hores × dies) amb cel·les diagonals:
       triangle sup-esq = absències (taronja)
@@ -547,13 +541,13 @@ def _taula_substitucions_fetes(subs: list) -> list:
 def generar_informe_professors_pdf(
     professors_data: list,
     nom_centre: str,
-    data_inici: str,
-    data_final: str,
-    hores_xml: list = None,
+    data_inici: date,
+    data_final: date,
+    hores_xml: list[str] | None = None,
     mostrar_taules: bool = False,
     export_dir: str = "exports",
     lang: str = "ca",
-    hores_triades: list = None,
+    hores_triades: list[str] | None = None,
 ) -> str:
     """Amb `hores_triades` (el filtre per hores), la capçalera de cada
     professor diu quines són."""
@@ -564,13 +558,7 @@ def generar_informe_professors_pdf(
     ts = rellotge.ara().strftime("%y%m%d_%H%M%S")
     filename = export_path / f"informe_professors_{ts}.pdf"
 
-    def fmt(d):
-        try:
-            return datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y")
-        except (ValueError, TypeError):
-            return d
-
-    periode = f"{fmt(data_inici)} – {fmt(data_final)}"
+    periode = f"{_fmt_data(data_inici)} – {_fmt_data(data_final)}"
     timestamp = rellotge.ara().strftime("%d/%m/%Y %H:%M")
 
     doc = SimpleDocTemplate(

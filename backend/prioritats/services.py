@@ -52,11 +52,11 @@ def llista_no_substituir(db: Session) -> dict:
     """Les activitats vigents avui (`assignatures`, en l'ordre en què es van
     afegir) i les entrades que valen avui o més endavant, amb les seves dates
     (`entrades`): així la pantalla diu quan comença o acaba cadascuna."""
-    avui = rellotge.avui().isoformat()
+    avui = rellotge.avui()
     vigencia = NoSubstituirRepository.vigencia(db)
     entrades = sorted(
         (e for e in vigencia.entrades if not e.acaba_abans_de(avui)),
-        key=lambda e: (e.assignatura, e.vigent_des_de or ""),
+        key=lambda e: (e.assignatura, e.vigent_des_de is not None, e.vigent_des_de or date.min),
     )
     return {
         "assignatures": [e.assignatura for e in vigencia.entrades if e.vigent_a(avui)],
@@ -67,18 +67,13 @@ def llista_no_substituir(db: Session) -> dict:
     }
 
 
-def _data_del_canvi(data: str | None) -> date:
-    """Des de quan val un canvi de «No substituir»: la data triada o avui."""
-    return date.fromisoformat(data) if data else rellotge.avui()
-
-
-def afegeix_no_substituir(db: Session, assignatura: str | None, data: str | None = None) -> int:
+def afegeix_no_substituir(db: Session, assignatura: str | None, data: date | None = None) -> int:
     """Una entrada nova que val des de `data` (per defecte avui). Els dies
     d'abans no canvien. No es pot solapar amb cap altra entrada de la mateixa
     activitat. El text buit s'accepta (hi ha activitats sense nom a l'XML)."""
-    if not assignatura and assignatura != "":
+    if assignatura is None:
         raise NoValid("Assignatura requerida", codi="assignatura_requerida")
-    des_de = _data_del_canvi(data)
+    des_de = data or rellotge.avui()
     for fila in NoSubstituirRepository.de_l_activitat(db, assignatura):
         if fila.vigent_fins_a is not None and fila.vigent_fins_a < des_de:
             continue
@@ -88,36 +83,36 @@ def afegeix_no_substituir(db: Session, assignatura: str | None, data: str | None
                 codi="no_substituir_repetida",
                 params={"assignatura": assignatura},
             )
-        inici = fila.vigent_des_de.strftime("%d/%m/%Y")
+        inici_formatat = fila.vigent_des_de.strftime("%d/%m/%Y")
         raise Conflicte(
-            f"L'activitat ja té un període a «No substituir» que comença el {inici}: "
+            f"L'activitat ja té un període a «No substituir» que comença el {inici_formatat}: "
             "per afegir-la abans d'aquesta data, anul·leu primer aquell període",
             codi="no_substituir_solapada",
-            params={"assignatura": assignatura, "data": fila.vigent_des_de.isoformat(), "inici": inici},
+            params={"assignatura": assignatura, "data": fila.vigent_des_de.isoformat(), "inici": inici_formatat},
         )
     no_subst_id = NoSubstituirRepository.create(db, assignatura, vigent_des_de=des_de)
     # Les entrades noves són obertes. Treure una activitat n'escurça la vigència.
-    inici = max(des_de, rellotge.avui()).isoformat()
-    for dia in sorted(SubstitucioRepository.dates_entre(db, inici, date.max.isoformat())):
-        treu_substituts_no_valids(db, dia.isoformat())
+    inici = max(des_de, rellotge.avui())
+    for dia in sorted(SubstitucioRepository.dates_entre(db, inici, date.max)):
+        treu_substituts_no_valids(db, dia)
     db.commit()
     carrega_prioritats(db)
     return no_subst_id
 
 
-def treu_no_substituir(db: Session, assignatura: str, data: str | None = None) -> None:
+def treu_no_substituir(db: Session, assignatura: str, data: date | None = None) -> None:
     """Treu l'entrada que val a `data` (per defecte avui): la fila no
     s'esborra, s'hi posa la data de fi (el dia abans) i els dies d'abans no
     canvien. Si aquella entrada encara no havia començat (comença justament
     `data`), no ha valgut mai cap dia: s'esborra. Les altres entrades de
     l'activitat (p. ex. un període futur programat) no es toquen; per
     anul·lar-ne una de futura, es treu des de la seva data d'inici."""
-    des_de = _data_del_canvi(data)
+    des_de = data or rellotge.avui()
     vigent = next(
         (
             fila
             for fila in NoSubstituirRepository.de_l_activitat(db, assignatura)
-            if NoSubstituirRepository.entrada(fila).vigent_a(des_de.isoformat())
+            if NoSubstituirRepository.entrada(fila).vigent_a(des_de)
         ),
         None,
     )

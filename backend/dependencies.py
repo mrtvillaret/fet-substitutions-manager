@@ -14,7 +14,7 @@ from fastapi import Depends, Request
 from auth.dependencies import get_current_user
 from database import get_data_db
 from horari.domain import Dia
-from parametres import DataISO
+from parametres import Data
 from planificador.config import data_referencia
 
 
@@ -30,17 +30,16 @@ def get_db_lectura(current_user=Depends(get_current_user)):
     yield from get_data_db(current_user.institucio, nomes_lectura=True)
 
 
-def dia_de_la_peticio(data: DataISO, current_user=Depends(get_current_user)) -> Dia:
-    return Dia.de_text(data, current_user.institucio)
+def dia_de_la_peticio(data: Data, current_user=Depends(get_current_user)) -> Dia:
+    return Dia(data, current_user.institucio)
 
 
-def dia_del_calendari(data: DataISO | None = None, current_user=Depends(get_current_user)) -> Dia:
-    return Dia.de_text(data, current_user.institucio) if data else Dia.avui(current_user.institucio)
+def dia_del_calendari(data: Data | None = None, current_user=Depends(get_current_user)) -> Dia:
+    return Dia(data, current_user.institucio) if data is not None else Dia.avui(current_user.institucio)
 
 
 def dia_de_la_planificacio(current_user=Depends(get_current_user)) -> Dia:
-
-    return Dia.de_text(data_referencia(current_user.institucio), current_user.institucio)
+    return Dia(data_referencia(current_user.institucio), current_user.institucio)
 
 
 def dia_d_avui(current_user=Depends(get_current_user)) -> Dia:

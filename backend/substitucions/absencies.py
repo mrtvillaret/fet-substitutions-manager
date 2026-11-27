@@ -4,7 +4,7 @@ de servei, les cobertures de les seves classes si vigila i les de vigilant
 absent. Després es treuen els substituts que ja no poden ser-ho.
 """
 
-from datetime import datetime
+from datetime import date
 
 from substitucions.cobertures import refresca_cobertures
 from substitucions.context import get_gestors
@@ -14,7 +14,7 @@ from substitucions.vigilancia_absent import sincronitzar_vigilancies_absents
 from vigilancies.repositories import VigilanciaRepository
 
 
-def canvia_tipus_cobertures(db, data: str, professor: str, hores, de: str, a: str) -> set:
+def canvia_tipus_cobertures(db, data: date, professor: str, hores, de: str, a: str) -> set:
     """Canvia el tipus de les files d'un professor a unes hores (de → a) i
     retorna les (hora, assignatura, grup) canviades. És la mateixa classe i
     el mateix substitut: només canvia si la cobreix una VIGILANCIA (el
@@ -29,12 +29,12 @@ def canvia_tipus_cobertures(db, data: str, professor: str, hores, de: str, a: st
 
 def desa_absencies(
     db,
-    data: str,
+    data: date,
     professor: str,
     hores_absencia=None,
     hores_servei=None,
     gestors=None,
-    dia_name: str = None,
+    dia_name: str | None = None,
     gestors_cobertures=None,
     dia_escolar=None,
 ) -> dict:
@@ -46,7 +46,7 @@ def desa_absencies(
     else:
         horari, absencies = gestors
     if dia_name is None:
-        dia_name = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+        dia_name = horari.get_dia_name(data.weekday())
     substitucions_list = SubstitucioRepository.get_by_date(db, data)
 
     types_a_processar = []

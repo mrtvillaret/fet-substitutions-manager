@@ -21,7 +21,10 @@ en enviar-los): no n'hi ha cap per purgar.
 
 import json
 import logging
+from collections.abc import Iterable
 from datetime import date
+from pathlib import Path
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -88,14 +91,14 @@ CLAU_DATES_PLANIFICADOR = "scheduler_selected_dates"
 CLAU_ULTIM_HORARI = "scheduler_ultim_resultat"
 
 
-def _json_config(db: Session, clau: str):
+def _json_config(db: Session, clau: str) -> Any:
     try:
         return json.loads(ConfiguracioRepository.get(db, clau) or "null")
     except ValueError:
         return None
 
 
-def _dates_iso(valors) -> list[date]:
+def _dates_iso(valors: Iterable[object] | None) -> list[date]:
     dates = []
     for v in valors or []:
         try:
@@ -109,7 +112,7 @@ def _planificador(db: Session, data_inici: date, data_final: date) -> dict:
     """El que el planificador recorda de l'interval: les dates triades que hi
     cauen i l'últim horari desat si en toca alguna data (s'esborra sencer)."""
 
-    def dins(d):
+    def dins(d: date) -> bool:
         return data_inici <= d <= data_final
 
     dates = _dates_iso(_json_config(db, CLAU_DATES_PLANIFICADOR))
@@ -123,7 +126,7 @@ def _planificador(db: Session, data_inici: date, data_final: date) -> dict:
         if any(dins(d) for d in dates_horari):
             ultim_horari = {
                 "desat": ultim.get("desat"),
-                "dates": [d.isoformat() for d in sorted(dates_horari)],
+                "dates": sorted(dates_horari),
                 "s_esten_fora": not all(dins(d) for d in dates_horari),
             }
     return {
@@ -161,8 +164,8 @@ def analitzar_purga(db: Session, data_inici: date, data_final: date) -> dict:
             {
                 "id": v.id,
                 "path": v.path,
-                "data_inici": v.data_inici.isoformat(),
-                "data_fi": v_fi.isoformat() if v_fi else None,
+                "data_inici": v.data_inici,
+                "data_fi": v_fi,
                 "activa": activa,
                 "s_esten_fora": s_esten_fora,
                 "bloquejat": s_esten_fora,
@@ -174,8 +177,8 @@ def analitzar_purga(db: Session, data_inici: date, data_final: date) -> dict:
     baixes = [
         {
             "professor": b.professor,
-            "data_inici": b.data_inici.isoformat(),
-            "data_final": b.data_final.isoformat(),
+            "data_inici": b.data_inici,
+            "data_final": b.data_final,
             "s_esten_fora": b.data_inici < data_inici or b.data_final > data_final,
         }
         for b in PurgaRepository.absencies_cobertes(db, data_inici, data_final)
@@ -183,7 +186,7 @@ def analitzar_purga(db: Session, data_inici: date, data_final: date) -> dict:
 
     total_bd = sum(bd.values())
     return {
-        "interval": {"inici": data_inici.isoformat(), "final": data_final.isoformat()},
+        "interval": {"inici": data_inici, "final": data_final},
         "bd": bd,
         "total_bd": total_bd,
         "baixes": baixes,
@@ -192,9 +195,7 @@ def analitzar_purga(db: Session, data_inici: date, data_final: date) -> dict:
     }
 
 
-def executar_purga(
-    db: Session, institucio: str | None, data_inici: date, data_final: date, confirmar: bool = False
-) -> dict:
+def executar_purga(db: Session, institucio: str, data_inici: date, data_final: date, confirmar: bool = False) -> dict:
     """
     Executa la purga de l'interval [data_inici, data_final] (inclòs). És
     irreversible: cal `confirmar`.
@@ -235,7 +236,7 @@ def executar_purga(
 
     # Els fitxers s'esborren després del commit: si la BD fallés, les versions
     # i els fitxers hi serien tots dos
-    fitxers_xml: list[tuple] = []  # (camí, path de la versió)
+    fitxers_xml: list[tuple[Path, str]] = []  # (camí, path de la versió)
 
     ids_esborrar = [v["id"] for v in manifest["xml_versions"] if not v["bloquejat"]]
     xml_esborrats: list[dict] = []
@@ -255,8 +256,8 @@ def executar_purga(
             xml_esborrats.append(
                 {
                     "id": v.id,
-                    "data_inici": v.data_inici.isoformat(),
-                    "data_fi": v.data_fi.isoformat() if v.data_fi else None,
+                    "data_inici": v.data_inici,
+                    "data_fi": v.data_fi,
                 }
             )
             db.delete(v)

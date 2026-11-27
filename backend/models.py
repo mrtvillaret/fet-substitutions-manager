@@ -2,12 +2,11 @@
 Models SQLAlchemy per a la base de dades SQLite
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import (
     Boolean,
     Column,
-    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -15,11 +14,13 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 import rellotge
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 def ara_utc() -> datetime:
@@ -89,7 +90,7 @@ class Vigilancia(Base):
     __tablename__ = "vigilancies"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    data = Column(Date, nullable=False)
+    data: Mapped[date] = mapped_column()
     hora = Column(String, nullable=False)
     tipus = Column(String, nullable=False)
     grups = Column(String, nullable=False)
@@ -115,7 +116,7 @@ class Substitucio(Base):
     __tablename__ = "substitucions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    data = Column(Date, nullable=False)
+    data: Mapped[date] = mapped_column()
     hora = Column(String, nullable=False)
     professor_absent = Column(String, nullable=False)
     assignatura = Column(String)
@@ -139,7 +140,7 @@ class GrupAlliberat(Base):
     __tablename__ = "grups_alliberats"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    data = Column(Date, nullable=False)
+    data: Mapped[date] = mapped_column()
     hora = Column(String, nullable=False)
     grups = Column(String, nullable=False)
     created_at = Column(DateTime, default=ara_utc)
@@ -167,7 +168,7 @@ class AlliberamentPeriode(Base):
     clau = Column(String, nullable=False)  # nom del grup, professor o activitat
     dia_setmana = Column(String, nullable=False)  # nom del dia segons l'XML (p.ex. "Dimarts")
     hora = Column(String, nullable=False)
-    des_de = Column(Date, nullable=False)
+    des_de: Mapped[date] = mapped_column()
     alliberat = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=ara_utc)
 
@@ -180,10 +181,10 @@ class AlliberamentPeriode(Base):
 class Configuracio(Base):
     __tablename__ = "configuracio"
 
-    clau = Column(String, primary_key=True)
-    valor = Column(Text)
-    tipus = Column(String, default="string")
-    descripcio = Column(Text)
+    clau: Mapped[str] = mapped_column(String, primary_key=True)
+    valor: Mapped[str | None] = mapped_column(Text)
+    tipus: Mapped[str | None] = mapped_column(String, default="string")
+    descripcio: Mapped[str | None] = mapped_column(Text)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
     __table_args__ = (Index("idx_configuracio_clau", "clau"),)
@@ -197,9 +198,9 @@ class XMLVersion(Base):
     __tablename__ = "xml_versions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    path = Column(String, nullable=False)
-    data_inici = Column(Date, nullable=False)
-    data_fi = Column(Date)
+    path: Mapped[str] = mapped_column(String)
+    data_inici: Mapped[date] = mapped_column()
+    data_fi: Mapped[date | None] = mapped_column()
     hash_contingut = Column(String)
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
@@ -223,9 +224,9 @@ class Curs(Base):
     __tablename__ = "cursos"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    nom = Column(String, nullable=False)  # p.ex. "2025-2026"
-    data_inici = Column(Date, nullable=False)
-    data_fi = Column(Date)  # derivada; NULL = últim curs (obert)
+    nom: Mapped[str] = mapped_column(String)  # p.ex. "2025-2026"
+    data_inici: Mapped[date] = mapped_column()
+    data_fi: Mapped[date | None] = mapped_column()  # derivada; NULL = últim curs (obert)
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
@@ -319,10 +320,10 @@ class Professor(Base):
     __tablename__ = "professors"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    nom = Column(String, unique=True, nullable=False)
-    actiu = Column(Boolean, default=True)
-    primera_aparicio = Column(Date)
-    ultima_aparicio = Column(Date)
+    nom: Mapped[str] = mapped_column(String, unique=True)
+    actiu: Mapped[bool | None] = mapped_column(Boolean, default=True)
+    primera_aparicio: Mapped[date | None] = mapped_column()
+    ultima_aparicio: Mapped[date | None] = mapped_column()
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 
@@ -343,8 +344,8 @@ class AbsenciaCoberta(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     professor = Column(String, nullable=False)
-    data_inici = Column(Date, nullable=False)
-    data_final = Column(Date, nullable=False)
+    data_inici: Mapped[date] = mapped_column()
+    data_final: Mapped[date] = mapped_column()
     motiu = Column(String)  # Opcional: permís, formació...
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
@@ -410,8 +411,8 @@ class NoSubstituir(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     assignatura = Column(String, nullable=False)
-    vigent_des_de = Column(Date)
-    vigent_fins_a = Column(Date)
+    vigent_des_de: Mapped[date | None] = mapped_column()
+    vigent_fins_a: Mapped[date | None] = mapped_column()
     created_at = Column(DateTime, default=ara_utc)
     updated_at = Column(DateTime, default=ara_utc, onupdate=ara_utc)
 

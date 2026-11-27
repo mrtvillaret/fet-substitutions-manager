@@ -4,15 +4,15 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from parametres import Data
+
 
 class AnalisiPurgaRequest(BaseModel):
-    data_inici: date
-    data_final: date
+    data_inici: Data
+    data_final: Data
 
 
-class ExecutarPurgaRequest(BaseModel):
-    data_inici: date
-    data_final: date
+class ExecutarPurgaRequest(AnalisiPurgaRequest):
     confirmar: bool = False
 
 
@@ -22,8 +22,8 @@ class ReanomenaRequest(BaseModel):
 
 
 class Interval(BaseModel):
-    inici: str
-    final: str
+    inici: date
+    final: date
 
 
 class FilesBd(BaseModel):
@@ -35,14 +35,14 @@ class FilesBd(BaseModel):
 
 class AbsenciaCobertaAPurgar(BaseModel):
     professor: str
-    data_inici: str
-    data_final: str
+    data_inici: date
+    data_final: date
     s_esten_fora: bool
 
 
 class UltimHorari(BaseModel):
     desat: str | None
-    dates: list[str]
+    dates: list[date]
     s_esten_fora: bool
 
 
@@ -54,8 +54,8 @@ class PlanificadorAPurgar(BaseModel):
 class VersioXmlAPurgar(BaseModel):
     id: int
     path: str
-    data_inici: str
-    data_fi: str | None
+    data_inici: date
+    data_fi: date | None
     activa: bool
     s_esten_fora: bool
     bloquejat: bool
@@ -77,8 +77,8 @@ class PlanificadorPurgat(BaseModel):
 
 class VersioXmlEsborrada(BaseModel):
     id: int
-    data_inici: str
-    data_fi: str | None
+    data_inici: date
+    data_fi: date | None
 
 
 class PurgaResponse(BaseModel):

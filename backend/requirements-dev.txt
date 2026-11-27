@@ -1,6 +1,7 @@
-# Dependències només per a les proves i la validació (lint, codi mort).
+# Dependències només per a les proves i la validació (lint, tipus, codi mort).
 #   pip install -r requirements.txt -r requirements-dev.txt
 httpx2==2.13.1
+mypy==1.15.0
 pytest==9.1.1
 pytest-cov==7.1.0
 pytest-xdist==3.8.0

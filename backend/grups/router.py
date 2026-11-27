@@ -15,7 +15,7 @@ Rutes del mòdul de grups: només HTTP; la lògica, a services.py.
   «1-BAT-A,1-BAT-B»)
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from auth.dependencies import require_admin
@@ -42,7 +42,7 @@ from grups.schemas import (
 )
 from horari.domain import Dia
 from noms import NomNet
-from parametres import DataISO
+from parametres import Data
 
 router = APIRouter(prefix="/api/grups", tags=["Grups Sense Classe"])
 router_admin = APIRouter()
@@ -63,28 +63,30 @@ def afegeix_canvi_periode(canvi: CanviPeriode, db: Session = Depends(get_db)):
 
 @router.get("/reforcos/{activitat}", response_model=ReforcResponse)
 def franges_activitat_per_defecte(
-    activitat: NomNet, data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)
+    activitat: NomNet,
+    db: Session = Depends(get_db),
+    dia_peticio: Dia = Depends(dia_de_la_peticio),
+    # Conserva les dues entrades «missing» del 422 si falta la consulta.
+    _data: str = Query(alias="data"),
 ):
     """Per a una activitat «alliberada fins que tingui alumnes» (p.ex. Reforç):
     les franges de la setmana de cada professor que la fa, i si en aquella data
     ja tenen alumnes."""
-    return services.franges_reforc(db, dia_peticio.horari, activitat, data)
+    return services.franges_reforc(db, dia_peticio.horari, activitat, dia_peticio.data)
 
 
 # ===== La taula d'un dia =====
 
 
 @router.get("/{data}", response_model=DiaResponse)
-def obtenir_grups_sense_classe(
-    data: DataISO, db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)
-):
+def obtenir_grups_sense_classe(db: Session = Depends(get_db), dia_peticio: Dia = Depends(dia_de_la_peticio)):
     """Grups sense classe, professors i activitats alliberats d'una data, i el
     que cal per mostrar la taula (GrupsView.vue)."""
-    return services.dades_del_dia(db, dia_peticio, data)
+    return services.dades_del_dia(db, dia_peticio, dia_peticio.data)
 
 
 @router.put("/{data}", response_model=DiaDesatResponse, response_model_exclude_unset=True)
-def desar_grups_sense_classe(data: DataISO, payload: AlliberatsDia, db: Session = Depends(get_db)):
+def desar_grups_sense_classe(data: Data, payload: AlliberatsDia, db: Session = Depends(get_db)):
     """Desa el que es marca aquell dia i reconcilia les substitucions (treu
     els substituts que ja no poden fer-les; no n'assigna de nous)."""
     resultat = services.desa_dia(db, data, payload.grups, payload.professors, payload.activitats, payload.ocupats)

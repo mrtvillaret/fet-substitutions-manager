@@ -1,5 +1,7 @@
 """Estat compartit per la generació i la validació de substitucions."""
 
+from datetime import date
+
 import pytest
 
 from horari.domain import Dia
@@ -38,7 +40,7 @@ def estat(monkeypatch):
     monkeypatch.setattr(domain.SubstitucioRepository, "get_by_date", lambda *_: [FilaSubstitucio(**f) for f in files])
     monkeypatch.setattr(domain.AlliberatsDelDia, "get_by_date", lambda *_: {"09": ["G1", "G1"]})
     monkeypatch.setattr(domain.VigilanciaRepository, "get_by_date", lambda *_: vigilancies)
-    dia = Dia.de_text("2026-04-20", "centre_de_prova")
+    dia = Dia(date.fromisoformat("2026-04-20"), "centre_de_prova")
     dia.__dict__["horari"] = Horari()
     return object(), dia
 

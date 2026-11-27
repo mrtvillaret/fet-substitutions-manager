@@ -1,5 +1,7 @@
 """Sense centre explícit ni autenticat, cap operació pot triar un centre per defecte."""
 
+from datetime import date
+
 import pytest
 from suport_api import client_per, crea_app, nova_institucio
 
@@ -32,19 +34,19 @@ def test_peticio_sense_centre_no_fa_servir_cap_fallback(monkeypatch, fallback, p
         if porta == "centre":
             return horari._get_institucio_actual()
         if porta == "dia":
-            return Dia.de_text(DATA).institucio
+            return Dia.del_centre(date.fromisoformat(DATA)).institucio
         if porta == "xml":
-            return Dia.de_text(DATA).xml_path
+            return Dia.del_centre(date.fromisoformat(DATA)).xml_path
         if porta == "horari":
-            return len(horari.get_horari(data_iso=DATA).professors)
+            return len(horari.get_horari(data_iso=date.fromisoformat(DATA)).professors)
         if porta == "gestors":
-            return len(get_gestors(data_iso=DATA)[1].professors)
+            return len(get_gestors(data_iso=date.fromisoformat(DATA))[1].professors)
         if porta == "vigilancies":
             from database import get_data_db_session
             from vigilancies.context import get_vigilancia_core
 
             with get_data_db_session(centre, lectura=True) as db:
-                return len(get_vigilancia_core(DATA, db).professors)
+                return len(get_vigilancia_core(date.fromisoformat(DATA), db).professors)
         return abreviatures.get_abreviatures_cached()
 
     resposta = client_per(app).get("/prova")
@@ -56,14 +58,14 @@ def test_script_sense_centre_tambe_ha_de_ser_explicit(monkeypatch):
     monkeypatch.setattr(context, "_institucio", context.ContextVar("script_sense_centre", default=None))
     monkeypatch.setenv("APP_INSTITUCIO", "exemple")
     with pytest.raises(NoValid) as error:
-        Dia.de_text(DATA)
+        Dia.del_centre(date.fromisoformat(DATA))
     assert error.value.codi == "centre_obligatori"
 
 
 def test_un_script_amb_centre_explicit_no_necessita_context(monkeypatch):
     monkeypatch.setattr(context, "_institucio", context.ContextVar("script_amb_centre", default=None))
     centre = nova_institucio(amb_xml=True)
-    assert Dia.de_text(DATA, centre).horari.professors
+    assert Dia(date.fromisoformat(DATA), centre).horari.professors
 
 
 @pytest.mark.parametrize("generador", [False, True])
@@ -77,5 +79,6 @@ def test_la_sessio_identifica_el_centre_sense_dependre_del_context(monkeypatch, 
     factoria = contextmanager(get_data_db) if generador else get_data_db_session
     with factoria(centre, lectura=True) as db:
         assert db.info.get("institucio") == centre
-        assert AlliberatsDelDia.get_by_date(db, DATA) == {}
-        assert AlliberatsDelDia.get_entre_dates(db, [DATA]) == {DATA: {}}
+        dia = date.fromisoformat(DATA)
+        assert AlliberatsDelDia.get_by_date(db, dia) == {}
+        assert AlliberatsDelDia.get_entre_dates(db, [dia]) == {dia: {}}

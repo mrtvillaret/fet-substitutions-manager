@@ -37,7 +37,7 @@ _textos = APIRouter()
 
 @_textos.get("/api/prova/no-substituir")
 def no_substituir(_usuari=Depends(get_current_user)):
-    return {"no_substituir": sorted(no_substituir_a(rellotge.avui().isoformat())), "institucio": _usuari.institucio}
+    return {"no_substituir": sorted(no_substituir_a(rellotge.avui())), "institucio": _usuari.institucio}
 
 
 @_textos.get("/api/prova/textos")

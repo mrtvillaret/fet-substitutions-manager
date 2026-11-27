@@ -7,6 +7,7 @@ from planificador.compartit.preparacio import prepara_planificacio
 from planificador.motor.compatibilitat import ANALISI
 from planificador.motor.construccio import construeix_problema
 from planificador.motor.textos_analisi import TextosAnalisi
+from planificador.schemas import SchedulerGenerateRequest
 
 
 def _expandir_dies_per_analisi(dies_util: list, dia_a_data_iso: dict) -> list:
@@ -23,8 +24,8 @@ def _expandir_dies_per_analisi(dies_util: list, dia_a_data_iso: dict) -> list:
     return result
 
 
-def analitza(payload, institucio):
-    pla = prepara_planificacio(payload, institucio, dates_de_la_peticio=False)
+def analitza(payload: SchedulerGenerateRequest, institucio: str) -> dict:
+    pla = prepara_planificacio(payload, institucio, dates_de_la_peticio=False).per_al_motor()
     problema = construeix_problema(
         pla.cfg,
         pla.xml_path,

@@ -1,5 +1,7 @@
 """Càrrega pública de prioritats a memòria, sense dependències d'HTTP ni auth."""
 
+from datetime import date
+
 from sqlalchemy.orm import Session
 
 import config.constants as constants
@@ -31,7 +33,7 @@ def carrega_prioritats(db: Session) -> None:
     )
 
 
-def no_substituir_a(data: str) -> frozenset[str]:
+def no_substituir_a(data: date) -> frozenset[str]:
     """«No substituir» de la institució de la petició a `data` (de memòria,
     per al motor, que no té sessió de BD). La regla és la de
     `VigenciaNoSubstituir.a`, la mateixa que llegeix la BD."""

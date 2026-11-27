@@ -6,6 +6,7 @@ informe, amb el que només fan servir els informes (nivells, mesos, idioma).
 import logging
 import xml.etree.ElementTree as ET
 from collections.abc import Collection
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -87,9 +88,9 @@ MAX_PROFESSORS_PER_MES = 20
 
 def dades_direccio(
     db: Session,
-    data_inici: str,
-    data_final: str,
-    hores_xml: list,
+    data_inici: date,
+    data_final: date,
+    hores_xml: list[str],
     lang: str = "ca",
     hores: Collection[str] | None = None,
 ) -> dict:
@@ -155,15 +156,17 @@ def nom_centre(db: Session, institucio: str) -> str:
         return institucio
 
 
-def hores_triades_en_ordre(db: Session, institucio: str, data_inici: str, data_final: str, hores) -> list[str]:
+def hores_triades_en_ordre(
+    db: Session, institucio: str, data_inici: date, data_final: date, hores: Collection[str]
+) -> list[str]:
     """Les hores del filtre en l'ordre de les franges de l'horari de
     l'interval, com les mostra Estadístiques."""
     return en_ordre_de_franges(hores, franges_de_l_horari(db, institucio, data_inici, data_final))
 
 
-def hores_xml(institucio: str, data: str) -> list:
+def hores_xml(institucio: str, data: date) -> list[str]:
     """Les hores, en l'ordre de l'XML, de l'horari vigent a `data`."""
-    xml_path = Dia.de_text(data, institucio).xml_path
+    xml_path = Dia.del_centre(data, institucio).xml_path
     if not xml_path or not Path(xml_path).exists():
         return []
     hores = []
@@ -192,6 +195,6 @@ def preferencies(db) -> dict:
     return PreferenciesPdfRepository.get_all(db)
 
 
-def compta_vigilancies_sense_nivell(db, data_inici, data_final) -> int:
+def compta_vigilancies_sense_nivell(db: Session, data_inici: date, data_final: date) -> int:
     """Recompte per al selector de nivells del PDF."""
     return VigilanciaRepository.compta_sense_nivell(db, data_inici, data_final)

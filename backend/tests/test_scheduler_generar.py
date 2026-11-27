@@ -383,9 +383,8 @@ def test_el_planificador_recorda_l_ultim_horari_generat(un_nivell):
     assert un_nivell.get("/api/scheduler/ultim-resultat").json() is None
     horari = _genera(un_nivell)
     desat = un_nivell.get("/api/scheduler/ultim-resultat").json()
-    assert desat["desat"]
-    assert desat["resultat"]["dies_utilitzar"] == DIES
-    assert _col_locats(desat["resultat"]["horari"]) == _col_locats(horari)
+    assert [dia["data"] for dia in horari["dies"]] == DATES
+    assert desat == {"desat": "2026-11-04T12:00:00", "resultat": {"dies_utilitzar": DIES, "horari": horari}}
 
 
 def test_una_sessio_moguda_i_recalculada_passa_a_ser_l_ultim_horari(un_nivell):
@@ -413,7 +412,10 @@ def test_una_sessio_moguda_i_recalculada_passa_a_ser_l_ultim_horari(un_nivell):
         "/api/scheduler/recalcular-cost", json={"horari": horari, "data_referencia": DATES[0], "selected_dates": DATES}
     )
 
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
+    assert [slot["slot_key"] for slot in resp.json()["slots"]] == [
+        f"{dia['data']}_{franja['hora']}" for dia in horari["dies"] for franja in dia["sessions"]
+    ]
     desat = un_nivell.get("/api/scheduler/ultim-resultat").json()["resultat"]
     assert _col_locats(desat["horari"])[nom][:2] == (data_desti, hora_desti)
     assert _col_locats(desat["horari"]) != abans

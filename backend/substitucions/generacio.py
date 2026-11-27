@@ -10,6 +10,7 @@ Dos modes:
 """
 
 import logging
+from datetime import date
 
 from horari.domain import Dia
 from prioritats.repositories import NoSubstituirRepository
@@ -39,7 +40,7 @@ def _ocupats(estat: DiaEscolar) -> dict:
     return ocupats
 
 
-def _fila_nova(data: str, sub: PropostaSubstitucio, substitut: str, tipus_substitut: str) -> dict:
+def _fila_nova(data: date, sub: PropostaSubstitucio, substitut: str, tipus_substitut: str) -> dict:
     return {
         "data": data,
         "hora": sub.hora,
@@ -54,7 +55,7 @@ def _fila_nova(data: str, sub: PropostaSubstitucio, substitut: str, tipus_substi
     }
 
 
-def _esborra(db, data: str, regenerar_tot: bool) -> None:
+def _esborra(db, data: date, regenerar_tot: bool) -> None:
     """Regenerar tot: totes les files menys les de vigilant absent. Pendents:
     les que no tenen substitut, menys les cobertures de vigilància (que es
     reaprofiten a _desa_files_motor)."""
@@ -67,7 +68,7 @@ def _esborra(db, data: str, regenerar_tot: bool) -> None:
             SubstitucioRepository.delete(db, int(sub.id))
 
 
-def _desa_files_motor(db, data: str, files_motor: list[PropostaSubstitucio], desats: dict) -> None:
+def _desa_files_motor(db, data: date, files_motor: list[PropostaSubstitucio], desats: dict) -> None:
     no_substituir = NoSubstituirRepository.vigents_a(db, data)
 
     # Cobertures de vigilància que han quedat a la BD: les que tenen substitut
@@ -206,7 +207,7 @@ def genera_substitucions_dia(
     """Genera i desa les substitucions del Dia. Amb `omplir=False` no es tria
     cap substitut nou, ni per al motor (GestorSubstitucions.assignar_substitucions) ni per a les
     vigilàncies d'un vigilant absent."""
-    data = dia.iso
+    data = dia.data
     if quota is None:
         quota = QuotaFranja(SubstitucioRepository.historial_quota(db, data) if omplir else ())
     substitucions_mgr, horari, alliberats, _ = dia.gestors()

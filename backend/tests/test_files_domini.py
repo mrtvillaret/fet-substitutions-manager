@@ -1,6 +1,7 @@
 """Contracte de les instantànies de persistència de les files del domini."""
 
 from dataclasses import FrozenInstanceError
+from datetime import date
 
 import pytest
 
@@ -20,14 +21,13 @@ def test_fila_substitucio_es_immutable_i_sense_interficie_de_diccionari():
 
 
 def test_lectura_tipada_conserva_el_contracte_diari(db_session):
-    creada = SubstitucioRepository.create(
-        db_session, {"data": "2026-11-09", "hora": "10:00", "professor_absent": "Prof test"}
-    )
-    files = SubstitucioRepository.get_by_date(db_session, "2026-11-09")
+    data = date(2026, 11, 9)
+    creada = SubstitucioRepository.create(db_session, {"data": data, "hora": "10:00", "professor_absent": "Prof test"})
+    files = SubstitucioRepository.get_by_date(db_session, data)
     assert files == [
         FilaSubstitucio(
             id=str(creada.id),
-            data="2026-11-09",
+            data=data,
             hora="10:00",
             professor_absent="Prof test",
             updated_at=creada.updated_at.isoformat(),
@@ -40,10 +40,10 @@ def test_els_recomptes_conserven_null_id_enter_i_timestamps_sql(db_session):
 
     creada = SubstitucioRepository.create(
         db_session,
-        {"data": "2026-11-09", "hora": "10:00", "professor_absent": "Prof test", "assignatura": None},
+        {"data": date(2026, 11, 9), "hora": "10:00", "professor_absent": "Prof test", "assignatura": None},
     )
-    diaria = SubstitucioRepository.get_by_date(db_session, "2026-11-09")[0]
-    recompte = RecomptesRepository.substitucions_entre(db_session, "2026-11-09", "2026-11-09")[0]
+    diaria = SubstitucioRepository.get_by_date(db_session, date(2026, 11, 9))[0]
+    recompte = RecomptesRepository.substitucions_entre(db_session, date(2026, 11, 9), date(2026, 11, 9))[0]
     assert isinstance(recompte, FilaSubstitucio)
     assert diaria.id == str(creada.id)
     assert recompte.id == creada.id
@@ -73,7 +73,7 @@ def test_vigilancies_conserven_buits_diari_i_null_dels_recomptes(db_session):
 
     creada = VigilanciaRepository.create(
         db_session,
-        "2026-11-09",
+        date(2026, 11, 9),
         {
             "hora": "10:00",
             "tipus": "Prova",
@@ -84,8 +84,8 @@ def test_vigilancies_conserven_buits_diari_i_null_dels_recomptes(db_session):
             "comentaris": None,
         },
     )
-    diaria = VigilanciaRepository.get_by_date(db_session, "2026-11-09")["N1"][0]
-    recompte = RecomptesRepository.vigilancies_entre(db_session, "2026-11-09", "2026-11-09")[0]
+    diaria = VigilanciaRepository.get_by_date(db_session, date(2026, 11, 9))["N1"][0]
+    recompte = RecomptesRepository.vigilancies_entre(db_session, date(2026, 11, 9), date(2026, 11, 9))[0]
     assert isinstance(diaria, FilaVigilancia) and isinstance(recompte, FilaVigilancia)
     assert diaria.id == str(creada.id)
     assert not hasattr(diaria, "db_id")
@@ -95,5 +95,5 @@ def test_vigilancies_conserven_buits_diari_i_null_dels_recomptes(db_session):
     assert resposta["id"] == str(creada.id) and resposta["db_id"] == creada.id
     assert diaria.vigilant == diaria.comentaris == ""
     assert diaria.updated_at == creada.updated_at.isoformat()
-    assert recompte.data == "2026-11-09" and recompte.hora == "10:00"
+    assert recompte.data == date(2026, 11, 9) and recompte.hora == "10:00"
     assert recompte.vigilant is None

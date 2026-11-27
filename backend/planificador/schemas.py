@@ -1,18 +1,19 @@
 """Peticions i respostes de l'API del planificador d'exàmens."""
 
 import re
-from datetime import datetime
-from typing import Literal
+from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from noms import NomNet
-from parametres import MAX_DATES, DataISO
+from parametres import MAX_DATES, DataResposta, DataTextual
 from planificador.compartit.constants import SEGONS_MAXIMS_LIMIT, SEGONS_MAXIMS_PER_DEFECTE
+from planificador.compartit.dates import data_calendari
+from planificador.documents import metadata_amb_dates
 
 # ---------------------------------------------------------------- peticions
 # Un camp d'un tipus que no toca, 422; una data que no és AAAA-MM-DD, 400
-# (DataISO). Els camps que no hi són s'ignoren, com a la resta de l'API
+# (DataTextual). Els camps que no hi són s'ignoren, com a la resta de l'API
 # (la pantalla envia a generar tots els paràmetres dels motors). Una petició
 # antiga amb `epsilon` (tret: no feia res) tampoc no falla.
 
@@ -22,9 +23,9 @@ TipusCost = Literal["substitucio", "abans_jornada", "despres_jornada", "no_treba
 class SchedulerGenerateRequest(BaseModel):
     model_config = ConfigDict(allow_inf_nan=False)
 
-    data_inici: DataISO
-    data_final: DataISO | None = None
-    selected_dates: list[DataISO] | None = Field(default=None, max_length=MAX_DATES)
+    data_inici: DataTextual
+    data_final: DataTextual | None = None
+    selected_dates: list[DataTextual] | None = Field(default=None, max_length=MAX_DATES)
     dies_utilitzar: list[str] | None = Field(default=None, max_length=MAX_DATES)
     nivells_actius: list[str] | None = None
     motor: Literal["v3", "v2", "v2-backtrack"] = "v3"  # els de planificador.motor.cataleg.MOTORS
@@ -59,8 +60,8 @@ class MarquesHora(BaseModel):
 class AlliberamentsNivell(BaseModel):
     """Les hores sense classe d'un nivell marcades al calendari."""
 
-    dates: list[DataISO] = Field(default=[], max_length=MAX_DATES)
-    config: dict[DataISO, dict[str, MarquesHora]] = {}  # data → hora → marques
+    dates: list[DataTextual] = Field(default=[], max_length=MAX_DATES)
+    config: dict[DataTextual, dict[str, MarquesHora]] = {}  # data → hora → marques
 
 
 class DuradaGrup(BaseModel):
@@ -75,11 +76,12 @@ class DuradaGrup(BaseModel):
 class ConfigPlanificadorRequest(BaseModel):
     """Només es desen els camps que hi són."""
 
-    durada_titular: int = Field(default=None, gt=0)
-    durada_examen: int = Field(default=None, gt=0)
-    nivells_actius: list[str] = None
-    alliberaments_per_nivell: dict[str, AlliberamentsNivell] = None
-    durades_grups: list[DuradaGrup] = None
+    # El valor per defecte d’un camp omès; un null explícit es continua rebutjant.
+    durada_titular: int = Field(default=cast(int, None), gt=0)
+    durada_examen: int = Field(default=cast(int, None), gt=0)
+    nivells_actius: list[str] = cast(list[str], None)
+    alliberaments_per_nivell: dict[str, AlliberamentsNivell] = cast(dict[str, AlliberamentsNivell], None)
+    durades_grups: list[DuradaGrup] = cast(list[DuradaGrup], None)
 
 
 class PinItem(BaseModel):
@@ -99,7 +101,7 @@ class SchedulerPinRequest(BaseModel):
 
 
 class SchedulerDatesRequest(BaseModel):
-    selected_dates: list[DataISO] = Field(max_length=MAX_DATES)
+    selected_dates: list[DataTextual] = Field(max_length=MAX_DATES)
 
 
 class CostosProfessorsRequest(BaseModel):
@@ -157,10 +159,9 @@ _DATA_LAXA = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")
 
 def _data_amb_zeros(valor):
     if isinstance(valor, str) and _DATA_LAXA.match(valor.strip()):
-        try:
-            return datetime.strptime(valor.strip(), "%Y-%m-%d").date().isoformat()
-        except ValueError:
-            return valor  # una data que no existeix es queda tal qual, com abans
+        data = data_calendari(valor.strip())
+        if data is not None:
+            return data.isoformat()
     return valor
 
 
@@ -257,7 +258,7 @@ class FranjaHorari(_ModelHorari):
 
 class DiaHorari(_ModelHorari):
     dia: str
-    data: DataISO | None = None
+    data: DataTextual | None = None
     sessions: list[FranjaHorari] = Field(default_factory=list)
 
 
@@ -265,10 +266,15 @@ class HorariPlanificat(_ModelHorari):
     dies: list[DiaHorari] = Field(default_factory=list)
     metadata: dict | None = None
 
+    @field_validator("metadata")
+    @classmethod
+    def _metadata_amb_dates(cls, valor: dict | None) -> dict | None:
+        return metadata_amb_dates(valor)
+
 
 class SchedulerPublicarRequest(BaseModel):
     horari: HorariPlanificat  # Resultat del scheduler (result.horari)
-    setmanes: list[dict[str, DataISO]]  # [{"Dilluns": "2026-02-02", "Dimarts": "2026-02-03"}, ...]
+    setmanes: list[dict[str, DataTextual]]  # [{"Dilluns": "2026-02-02", "Dimarts": "2026-02-03"}, ...]
     grups_sense_classe: list[str] = []  # Grups que no tenen classe (per crear GrupAlliberat)
     opcions: SchedulerPublicarOpcions = SchedulerPublicarOpcions()
     dry_run: bool = False  # Si True, calcula estadístiques sense escriure a la BD
@@ -276,8 +282,8 @@ class SchedulerPublicarRequest(BaseModel):
 
 class HorariRecalcularRequest(BaseModel):
     horari: HorariPlanificat  # Estructura completa de l'horari
-    data_referencia: DataISO | None = None  # Data per carregar l'XML d'horaris
-    selected_dates: list[DataISO] | None = Field(default=None, max_length=MAX_DATES)
+    data_referencia: DataTextual | None = None  # Data per carregar l'XML d'horaris
+    selected_dates: list[DataTextual] | None = Field(default=None, max_length=MAX_DATES)
     # Fals: només previsualitza (l'editor, a cada moviment); l'horari es desa en aplicar
     desa: bool = True
 
@@ -328,10 +334,10 @@ class DatesResponse(BaseModel):
 
 
 class HorariPlanificacioResponse(BaseModel):
-    data_referencia: str
+    data_referencia: DataResposta
     sense_dates: bool
-    versio_des_de: str | None
-    canvi_horari: str | None  # data en què comença un altre horari dins les dates
+    versio_des_de: DataResposta | None
+    canvi_horari: DataResposta | None  # data en què comença un altre horari dins les dates
 
 
 class CursAnterior(BaseModel):
@@ -363,7 +369,7 @@ class AnalisiResponse(BaseModel):
 class PublicacioResponse(BaseModel):
     success: bool
     dry_run: bool
-    dates_processades: list[str]
+    dates_processades: list[DataResposta]
     vigilancies_creades: int
     vigilancies_actualitzades: int
     vigilancies_sense_canvis: int

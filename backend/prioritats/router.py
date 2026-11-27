@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from dependencies import get_db
 from noms import NomNet
-from parametres import DataISO
+from parametres import Data
 from prioritats import services
 from prioritats.schemas import (
     AssignaturesPrioritatResponse,
@@ -61,7 +61,7 @@ def create_no_substituir(data: NoSubstituirRequest, db: Session = Depends(get_db
 
 
 @router.delete("/no-substituir/{assignatura}", response_model=MissatgeResponse)
-def delete_no_substituir(assignatura: NomNet, db: Session = Depends(get_db), data: DataISO | None = None):
+def delete_no_substituir(assignatura: NomNet, db: Session = Depends(get_db), data: Data | None = None):
     """Treu una assignatura de no substituir a partir de `data` (per defecte avui)"""
     services.treu_no_substituir(db, assignatura, data)
     return {"success": True, "message": "Assignatura eliminada de no substituir"}

@@ -4,7 +4,7 @@ en una data. Abans era copiada a deu llocs, i una sola baixa amb dates mal
 escrites aturava el bucle: els professors que venien després no comptaven.
 """
 
-from datetime import date, datetime
+from datetime import date
 
 from absencia_coberta.domain import absents_coberts_en
 
@@ -16,15 +16,14 @@ BAIXES = [
 
 
 def test_dins_del_periode_inclosos_el_primer_i_el_darrer_dia():
-    assert absents_coberts_en(BAIXES, "2026-04-20") == {"Prof 1", "Prof 2"}
-    assert absents_coberts_en(BAIXES, "2026-04-01") == {"Prof 1"}
-    assert absents_coberts_en(BAIXES, "2026-04-30") == {"Prof 1"}
-    assert absents_coberts_en(BAIXES, "2026-06-01") == set()
+    assert absents_coberts_en(BAIXES, date(2026, 4, 20)) == {"Prof 1", "Prof 2"}
+    assert absents_coberts_en(BAIXES, date(2026, 4, 1)) == {"Prof 1"}
+    assert absents_coberts_en(BAIXES, date(2026, 4, 30)) == {"Prof 1"}
+    assert absents_coberts_en(BAIXES, date(2026, 6, 1)) == set()
 
 
-def test_accepta_date_datetime_i_text():
+def test_un_periode_d_un_sol_dia():
     assert absents_coberts_en(BAIXES, date(2026, 5, 2)) == {"Prof 3"}
-    assert absents_coberts_en(BAIXES, datetime(2026, 5, 2, 9, 30)) == {"Prof 3"}
 
 
 def test_una_baixa_mal_escrita_no_atura_les_altres():
@@ -32,4 +31,4 @@ def test_una_baixa_mal_escrita_no_atura_les_altres():
         {"professor": "Prof 9", "data_inici": "01/04/2026", "data_final": "2026-04-30"},
         {"professor": "Prof 8"},
     ] + BAIXES
-    assert absents_coberts_en(baixes, "2026-04-20") == {"Prof 1", "Prof 2"}
+    assert absents_coberts_en(baixes, date(2026, 4, 20)) == {"Prof 1", "Prof 2"}

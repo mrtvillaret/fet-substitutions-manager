@@ -6,17 +6,14 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 from errors_domini import NoTrobat, NoValid
 from recomptes.domain import IntervalNoValid  # noqa: F401  (també és dels PDF)
 
-FormatPdf = Literal["hores", "dia"]
-
 
 @dataclass(frozen=True)
 class OpcionsPdf:
-    format: FormatPdf = "hores"
+    format: str = "hores"
     mida_lletra: float | None = None
     compressio: bool = False
     mostra_comentaris: bool = True

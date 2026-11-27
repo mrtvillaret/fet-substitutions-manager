@@ -40,6 +40,7 @@ CASOS_D_US = {
     "planificador.generacio_nova",
     "planificador.analisi_nova",
     "planificador.motor.recalcul",
+    "planificador.recalcul_frontera",
     "recomptes.services",
 }
 # Les vuit peces compartides del planificador són pures. El servei d'accés a

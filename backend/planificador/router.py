@@ -8,6 +8,9 @@ Les rutes són síncrones: FastAPI les atén en un fil a part i el backend
 continua responent la resta de peticions mentre el motor treballa (segons).
 """
 
+from datetime import date
+from typing import cast
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -15,9 +18,8 @@ from auth.dependencies import get_current_user, require_admin
 from dependencies import dia_d_avui, dia_de_la_planificacio, get_db
 from horari.domain import Dia
 from parametres import data_iso
-from planificador import analisi_nova, generacio_nova, publicacio, services
+from planificador import analisi_nova, generacio_nova, publicacio, recalcul_frontera, services
 from planificador.config import horari_de_la_planificacio
-from planificador.motor import recalcul
 from planificador.schemas import (
     AnalisiResponse,
     AssignaturesTretesResponse,
@@ -112,7 +114,7 @@ def scheduler_dates_update(payload: SchedulerDatesRequest, db: Session = Depends
 
 
 @router.get("/sessions-info", response_model=list[str])
-def get_scheduler_sessions_info(nivells: str = None, db: Session = Depends(get_db)):
+def get_scheduler_sessions_info(nivells: str = cast(str, None), db: Session = Depends(get_db)):
     return services.examens_dels_nivells(db, nivells)
 
 
@@ -121,8 +123,8 @@ def get_assignatures_actives(db: Session = Depends(get_db)):
     return services.examens_actius(db)
 
 
-def _dates_csv(dates: str | None) -> list[str]:
-    return [data_iso(d.strip()).isoformat() for d in (dates or "").split(",") if d.strip()]
+def _dates_csv(dates: str | None) -> list[date]:
+    return [data_iso(d.strip()) for d in (dates or "").split(",") if d.strip()]
 
 
 @router.get("/horari", response_model=HorariPlanificacioResponse)
@@ -142,7 +144,7 @@ def scheduler_ultim_resultat(db: Session = Depends(get_db)):
 @router.get("/curs-dates", response_model=CursDatesResponse)
 def scheduler_curs_dates(dates: str = "", db: Session = Depends(get_db), avui: Dia = Depends(dia_d_avui)):
     """Avís si les dates (separades per comes) són d'un curs anterior."""
-    return {"curs_anterior": services.cursos_anteriors(db, _dates_csv(dates), avui.iso)}
+    return {"curs_anterior": services.cursos_anteriors(db, _dates_csv(dates), avui.data)}
 
 
 @router.post("/generate", response_model=GeneracioResponse, response_model_exclude_unset=True)
@@ -160,7 +162,7 @@ def scheduler_publicar(
     payload: SchedulerPublicarRequest, current_user=Depends(get_current_user), avui: Dia = Depends(dia_d_avui)
 ):
     """Publica l'horari generat com a vigilàncies i grups sense classe."""
-    return publicacio.publica(payload, current_user.institucio, avui.iso)
+    return publicacio.publica(payload, current_user.institucio, avui.data)
 
 
 @router.post("/recalcular-cost", response_model=RecalculResponse)
@@ -170,4 +172,4 @@ def recalcular_cost(
     planificacio: Dia = Depends(dia_de_la_planificacio),
 ):
     """Recalcula el cost d'un horari editat a mà, sense regenerar-lo."""
-    return recalcul.recalcula(payload, current_user.institucio, planificacio)
+    return recalcul_frontera.recalcula(payload, current_user.institucio, planificacio)

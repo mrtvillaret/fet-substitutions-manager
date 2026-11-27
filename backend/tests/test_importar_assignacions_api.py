@@ -8,6 +8,8 @@ Treballen sobre una institució temporal amb l'horari d'exemple, on Prof 15
 fa Anglès amb 3-ESO-A (entre d'altres).
 """
 
+from datetime import date
+
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
@@ -107,7 +109,7 @@ def test_preview_nomes_proposa_nivells_amb_historic_de_substitucions(client, cen
         SubstitucioRepository.create(
             db,
             {
-                "data": "2026-04-20",
+                "data": date.fromisoformat("2026-04-20"),
                 "hora": "10:00",
                 "professor_absent": "Prof 15",
                 "assignatura": "Anglès",

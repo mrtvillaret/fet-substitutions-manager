@@ -2,19 +2,23 @@
 
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
+from parametres import Data
 
 
 class CursInput(BaseModel):
     nom: str
-    data_inici: date
+    data_inici: Data
 
 
 class CursResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     nom: str
-    data_inici: str | None
-    data_fi: str | None  # derivada pel sistema; None = últim curs (obert)
+    data_inici: date | None
+    data_fi: date | None  # derivada pel sistema; None = últim curs (obert)
 
 
 class AvisXmlCursResponse(BaseModel):
@@ -22,8 +26,8 @@ class AvisXmlCursResponse(BaseModel):
 
     curs_id: int
     curs_nom: str
-    curs_inici: str
-    xml_inici: str
+    curs_inici: date
+    xml_inici: date
     xml_path: str
 
 

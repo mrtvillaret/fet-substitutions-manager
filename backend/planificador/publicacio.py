@@ -12,15 +12,17 @@ opcionalment, els titulars com a vigilants.
 
 import logging
 from dataclasses import dataclass, field
+from datetime import date
+from typing import cast
 
 from configuracio_examens.repositories import MasterConfigRepository
 from database import get_data_db_session
-from dates import parse_date
 from errors_domini import NoValid
 from errors_servidor import registra_excepcio
 from grups.repositories import GrupsAlliberatsRepository
 from horari.domain import Dia
-from planificador.config import carrega_config
+from planificador.config import ConfigPlanificador, llegeix_config
+from planificador.schemas import DiaHorari, SchedulerPublicarRequest
 from planificador.services import cursos_anteriors
 from substitucions import cobertures
 from substitucions.reconciliacio import treu_substituts_no_valids
@@ -48,31 +50,26 @@ def error_intern(missatge: str) -> str:
     return f"{missatge} (error intern, ref {registra_excepcio(missatge)})"
 
 
-def data_del_dia(dia_info: dict, setmanes: list) -> str | None:
-    """La data d'un dia de l'horari: la seva o, si no en té, la que li toca
-    pel nom («Dilluns») a la primera setmana que el tingui."""
-    if dia_info.get("data"):
-        return dia_info["data"]
-    dia_nom = dia_info.get("dia", "")
-    return next((setmana[dia_nom] for setmana in setmanes if setmana.get(dia_nom)), None)
+def data_del_dia(dia: DiaHorari, setmanes: list[dict[str, date]]) -> date | None:
+    """La data del dia o la de la primera setmana que conté el seu nom."""
+    return dia.data or next((setmana[dia.dia] for setmana in setmanes if dia.dia in setmana), None)
 
 
-def primera_data(horari: dict, setmanes: list) -> str | None:
-    """La primera data de l'horari, per saber-ne les hores lectives."""
-    for dia_info in horari.get("dies", []):
-        if isinstance(dia_info, dict) and dia_info.get("data"):
-            return dia_info["data"]
+def primera_data(dies: list[DiaHorari], setmanes: list[dict[str, date]]) -> date | None:
+    """La primera data de l’horari, per saber-ne les hores lectives."""
+    for dia in dies:
+        if dia.data:
+            return dia.data
     for setmana in setmanes:
-        for dia_info in horari.get("dies", []):
-            d = setmana.get(dia_info.get("dia", "")) if isinstance(dia_info, dict) else setmana.get(dia_info, "")
-            if d:
-                return d
+        for dia in dies:
+            if data := setmana.get(dia.dia):
+                return data
     return None
 
 
 @dataclass
 class ResumPublicacio:
-    dates: list = field(default_factory=list)
+    dates: list[date] = field(default_factory=list)
     creades: int = 0
     actualitzades: int = 0
     sense_canvis: int = 0
@@ -85,11 +82,13 @@ class ResumPublicacio:
     avisos: list = field(default_factory=list)
     # (data, hora) on s'ha esborrat alguna vigilància: cal refrescar-ne les
     # cobertures de classe dels vigilants (com fa esborrar-la a Vigilàncies)
-    hores_esborrades: set = field(default_factory=set)
+    hores_esborrades: set[tuple[date, str]] = field(default_factory=set)
 
 
 class PublicacioExamens:
-    def __init__(self, db, cfg, totes_hores: list, grups_sense_classe: list, netejar_existents: bool):
+    def __init__(
+        self, db, cfg: ConfigPlanificador, totes_hores: list, grups_sense_classe: list, netejar_existents: bool
+    ):
         """`cfg`: la configuració del planificador (planificador.config.ConfigPlanificador)."""
         self.db = db
         self.cfg = cfg
@@ -100,42 +99,41 @@ class PublicacioExamens:
         self.netejar_existents = netejar_existents
         self.resum = ResumPublicacio()
         # (data, hora, nivell, grup, aula) de les vigilàncies dels exàmens publicats
-        self._publicades = set()
+        self._publicades: set[tuple[date, str, str, str, str]] = set()
 
     # ------------------------------------------------------------ per dia
 
-    def publica_dia(self, dia_info: dict, data_iso: str) -> None:
-        data = parse_date(data_iso)
+    def publica_dia(self, dia_info: dict, data: date) -> None:
         if self.netejar_existents:
-            self._esborra_el_dia(data_iso)
+            self._esborra_el_dia(data)
         nivells_dia = {
             s["curs"]
             for slot in dia_info.get("sessions", [])
             for s in slot.get("sessions_simultanees", [])
             if s.get("curs")
         }
-        manual = te_ordre_manual(VigilanciaRepository.del_dia(self.db, data_iso))
-        self._sincronitza_vigilancies(dia_info, data, data_iso, nivells_dia)
+        manual = te_ordre_manual(VigilanciaRepository.del_dia(self.db, data))
+        self._sincronitza_vigilancies(dia_info, data, nivells_dia)
         self.db.flush()
         # Un dia sense ordre fet a mà surt ordenat automàticament; si n'hi
         # havia, les files noves van al final del bloc de la seva hora
-        vigs = VigilanciaRepository.del_dia(self.db, data_iso)
+        vigs = VigilanciaRepository.del_dia(self.db, data)
         if manual:
             completa_ordre(vigs)
         else:
             ordena_automaticament(vigs)
-        self._allibera_grups(data_iso)
+        self._allibera_grups(data)
         self.db.flush()
-        treu_substituts_no_valids(self.db, data_iso)
+        treu_substituts_no_valids(self.db, data)
 
-    def _esborra_el_dia(self, data_iso: str) -> None:
+    def _esborra_el_dia(self, data: date) -> None:
         """Mode forçat (opció d'emergència): esborra tot el dia i es recrea."""
         db = self.db
-        for hora in VigilanciaRepository.hores_del_dia(db, data_iso):
-            self.resum.hores_esborrades.add((data_iso, hora))
-        self.resum.eliminades += VigilanciaRepository.esborra_del_dia(db, data_iso)
-        GrupsAlliberatsRepository.esborra_del_dia(db, data_iso)
-        SubstitucioRepository.esborra_vigilancies_del_dia(db, data_iso)
+        for hora in VigilanciaRepository.hores_del_dia(db, data):
+            self.resum.hores_esborrades.add((data, hora))
+        self.resum.eliminades += VigilanciaRepository.esborra_del_dia(db, data)
+        GrupsAlliberatsRepository.esborra_del_dia(db, data)
+        SubstitucioRepository.esborra_vigilancies_del_dia(db, data)
         db.flush()
 
     def _hores_seguents(self, hora_inici: str, durada: int) -> list:
@@ -145,17 +143,17 @@ class PublicacioExamens:
             return self.totes_hores[idx : idx + durada]
         return [hora_inici]
 
-    def _sincronitza_vigilancies(self, dia_info: dict, data, data_iso: str, nivells_dia: set) -> None:
+    def _sincronitza_vigilancies(self, dia_info: dict, data: date, nivells_dia: set) -> None:
         """Les vigilàncies dels nivells de l'horari en aquell dia, per (hora,
         nivell, grup, aula): les que ja hi eren es conserven (vigilant i
         comentaris), les noves es creen i les que ja no hi són s'esborren.
         Els nivells que l'horari no toca no es modifiquen."""
         db = self.db
         existents = {
-            (v.hora, v.nivell or "", v.grups or "", v.aula or ""): v
-            for v in VigilanciaRepository.del_dia_dels_nivells(db, data_iso, nivells_dia)
+            cast(tuple[str, str, str, str], (v.hora, v.nivell or "", v.grups or "", v.aula or "")): v
+            for v in VigilanciaRepository.del_dia_dels_nivells(db, data, nivells_dia)
         }
-        noves = {}  # clau → tipus de la primera sessió que l'ocupa
+        noves: dict[tuple[str, str, str, str], str] = {}  # clau → tipus de la primera sessió que l'ocupa
         for slot in dia_info.get("sessions", []):
             hora_inici = slot.get("hora", "")
             if not hora_inici:
@@ -174,9 +172,9 @@ class PublicacioExamens:
                             # Repetida a la mateixa petició: una sola fila. Si és un altre
                             # examen (dos a la mateixa aula i hora), l'usuari ho ha de saber.
                             if noves[clau] != tipus:
-                                self._avisa_aula_ocupada(data_iso, clau, noves[clau], tipus)
+                                self._avisa_aula_ocupada(data, clau, noves[clau], tipus)
                             continue
-                        self._publicades.add((data_iso, *clau))
+                        self._publicades.add((data, *clau))
                         noves[clau] = tipus
                         if clau not in existents:
                             VigilanciaRepository.afegeix(
@@ -198,16 +196,16 @@ class PublicacioExamens:
                             self.resum.sense_canvis += 1
         for clau, v in existents.items():
             if clau not in noves:
-                self.resum.hores_esborrades.add((data_iso, v.hora))
+                self.resum.hores_esborrades.add((data, clau[0]))
                 VigilanciaRepository.esborra(db, v)
                 self.resum.eliminades += 1
 
-    def _avisa_aula_ocupada(self, data_iso: str, clau: tuple, primer: str, segon: str) -> None:
+    def _avisa_aula_ocupada(self, data: date, clau: tuple, primer: str, segon: str) -> None:
         hora, _, grup, aula = clau
         avis = {
             "codi": "examens_mateixa_aula_i_hora",
             "params": {
-                "data": data_iso,
+                "data": data,
                 "hora": hora,
                 "grups": grup,
                 "aula": aula,
@@ -218,44 +216,44 @@ class PublicacioExamens:
         if avis not in self.resum.avisos:
             self.resum.avisos.append(avis)
 
-    def _nivells_marcats(self, data_iso: str) -> list:
+    def _nivells_marcats(self, data: date) -> list:
         """Nivells seleccionats al planificador amb alguna hora marcada sense classe aquell dia."""
         return [
             niv
             for niv in self.nivells_seleccionats
             if any(
                 isinstance(flags, dict) and flags.get("a")
-                for flags in (((self.alliberaments.get(niv) or {}).get("config") or {}).get(data_iso) or {}).values()
+                for flags in (((self.alliberaments.get(niv) or {}).get("config") or {}).get(data) or {}).values()
             )
         ]
 
-    def _allibera_grups(self, data_iso: str) -> None:
+    def _allibera_grups(self, data: date) -> None:
         """Els grups dels nivells seleccionats queden sense classe a les hores
         marcades d'aquell dia, tinguin examen o no (sense repetir els que ja hi són)."""
         db = self.db
-        marcats = self._nivells_marcats(data_iso)
+        marcats = self._nivells_marcats(data)
         grups = (
             [g for g in self.grups_sense_classe if self._nivell_del_grup(g) in marcats]
             if self.grups_sense_classe
             else [g for niv in marcats for g in MasterConfigRepository.grups_actius_del_nivell(db, niv)]
         )
-        existents = {(ga.hora, ga.grups or "") for ga in GrupsAlliberatsRepository.files_del_dia(db, data_iso)}
+        existents = {(ga.hora, ga.grups or "") for ga in GrupsAlliberatsRepository.files_del_dia(db, data)}
         for grup in grups:
             nivell = self._nivell_del_grup(grup)
             if not nivell:
                 continue
-            for hora in self._hores_alliberades(nivell, data_iso):
+            for hora in self._hores_alliberades(nivell, data):
                 if (hora, grup) not in existents:
-                    GrupsAlliberatsRepository.afegeix(db, data_iso, hora, grup)
+                    GrupsAlliberatsRepository.afegeix(db, data, hora, grup)
                     self.resum.grups_alliberats += 1
 
     def _nivell_del_grup(self, grup: str) -> str | None:
         """El nivell d'un grup (p. ex. «1-BAT-A» → «1-BAT»), amb les taules de la configuració d'exàmens."""
         return self.cfg.nivells_dels_grups.nivell(grup)
 
-    def _hores_alliberades(self, nivell: str, data_iso: str) -> list:
+    def _hores_alliberades(self, nivell: str, data: date) -> list:
         """Les hores sense classe (marca «a») d'un nivell aquell dia, en l'ordre de l'horari."""
-        dia_cfg = ((self.alliberaments.get(nivell, {}).get("config")) or {}).get(data_iso, {})
+        dia_cfg = ((self.alliberaments.get(nivell, {}).get("config")) or {}).get(data, {})
         hores = [
             normalitzar_hora(h) for h, flags in (dia_cfg or {}).items() if isinstance(flags, dict) and flags.get("a")
         ]
@@ -266,11 +264,11 @@ class PublicacioExamens:
 
     # ------------------------------------------------------------ titulars
 
-    def _avisa_titulars_absents(self, db, vigilancies: list, institucio: str, data_iso: str) -> None:
+    def _avisa_titulars_absents(self, db, vigilancies: list, institucio: str, data: date) -> None:
         """Un titular amb una absència coberta aquell dia no és a l'horari del
         dia (Dia) i, per tant, no s'assigna: la vigilància queda sense vigilant
         i cal que l'usuari ho sàpiga per assignar-la."""
-        absents = Dia.de_text(data_iso, institucio).horari.absents_coberts
+        absents = Dia(data, institucio).horari.absents_coberts
         if not absents:
             return
         config = files_configuracio(db)
@@ -286,7 +284,7 @@ class PublicacioExamens:
                     {
                         "codi": "titular_amb_absencia_coberta",
                         "params": {
-                            "data": data_iso,
+                            "data": data,
                             "hora": v.hora,
                             "titular": titular,
                             "assignatura": v.tipus,
@@ -298,24 +296,24 @@ class PublicacioExamens:
     def assigna_titulars(self, institucio: str) -> None:
         """Cada examen, amb el seu titular com a vigilant si està lliure."""
         db = self.db
-        for data_iso in sorted(set(self.resum.dates)):
+        for data in sorted(set(self.resum.dates)):
             db.flush()
             # Les vigilàncies dels exàmens publicats (no les d'altres nivells);
             # el titular s'hi posa a les hores que està disponible o alliberat
             vigilancies = [
                 v
-                for vigs in VigilanciaRepository.get_by_date(db, data_iso).values()
+                for vigs in VigilanciaRepository.get_by_date(db, data).values()
                 for v in vigs
-                if (data_iso, v.hora, v.nivell or "", v.grups or "", v.aula or "") in self._publicades
+                if (data, v.hora, v.nivell or "", v.grups or "", v.aula or "") in self._publicades
             ]
             if not vigilancies:
                 continue
             try:
                 # L'assignació sencera de cada hora (com «Assigna titulars»):
                 # se'n desen només els titulars de les files publicades
-                calcul = calcula_assignacio(db, Dia.de_text(data_iso, institucio), data_iso, amb_guardia=False)
+                calcul = calcula_assignacio(db, Dia(data, institucio), data, amb_guardia=False)
                 publicades = {str(v.id) for v in vigilancies}
-                self._avisa_titulars_absents(db, vigilancies, institucio, data_iso)
+                self._avisa_titulars_absents(db, vigilancies, institucio, data)
                 for vig_id, professor in calcul["vigilants"].items():
                     if vig_id not in publicades or professor not in calcul["titulars"].get(vig_id, ()):
                         continue
@@ -324,26 +322,26 @@ class PublicacioExamens:
                         vig.vigilant = professor
                         self.resum.titulars += 1
             except Exception:
-                self.resum.errors.append(error_intern(f"{data_iso}: no s'han pogut assignar els titulars"))
+                self.resum.errors.append(error_intern(f"{data}: no s'han pogut assignar els titulars"))
 
 
-def publica(payload, institucio: str, avui: str) -> dict:
+def publica(payload: SchedulerPublicarRequest, institucio: str, avui: date) -> dict:
     """Publica l'horari generat com a vigilàncies (i grups sense classe) de
     cada data; opcionalment hi posa els titulars. En prova (`dry_run`) o si
     falla algun dia, no desa res."""
-    horari = payload.horari.model_dump(exclude_unset=True, by_alias=True)
+    dies = payload.horari.dies
     setmanes = payload.setmanes
     grups_sense_classe = payload.grups_sense_classe or []
     opcions = payload.opcions
     dry_run = payload.dry_run
 
-    if not horari or not horari.get("dies"):
+    if not dies:
         raise NoValid("L'horari no conté dies", codi="horari_sense_dies")
     if not setmanes:
         raise NoValid("Cal indicar almenys una setmana amb dates", codi="publicacio_sense_setmanes")
 
-    dates_horari = [d.get("data") for d in horari["dies"] if isinstance(d, dict) and d.get("data")]
-    dates_horari += [v for setmana in setmanes for v in setmana.values() if isinstance(v, str)]
+    dates_horari = [dia.data for dia in dies if dia.data is not None]
+    dates_horari += [v for setmana in setmanes for v in setmana.values()]
     with get_data_db_session(institucio, lectura=True) as db:
         anterior = cursos_anteriors(db, dates_horari, avui)
     if anterior:
@@ -357,24 +355,24 @@ def publica(payload, institucio: str, avui: str) -> dict:
 
     # Hores lectives del centre (per allargar els exàmens de més d'una hora)
     totes_hores = []
-    data_hores = primera_data(horari, setmanes)
+    data_hores = primera_data(dies, setmanes)
     if data_hores:
-        totes_hores = Dia.de_text(data_hores, institucio).horari.hores or []
+        totes_hores = Dia(data_hores, institucio).horari.hores or []
 
     with get_data_db_session(institucio) as db:
         publicacio = PublicacioExamens(
-            db, carrega_config(institucio), totes_hores, grups_sense_classe, opcions.netejar_existents
+            db, llegeix_config(institucio), totes_hores, grups_sense_classe, opcions.netejar_existents
         )
         resum = publicacio.resum
-        for dia_info in horari["dies"]:
-            data_iso = data_del_dia(dia_info, setmanes)
-            if not data_iso:
+        for dia in dies:
+            data = data_del_dia(dia, setmanes)
+            if not data:
                 continue
-            resum.dates.append(data_iso)
+            resum.dates.append(data)
             try:
-                publicacio.publica_dia(dia_info, data_iso)
+                publicacio.publica_dia(dia.model_dump(exclude_unset=True, by_alias=True), data)
             except Exception:
-                resum.errors.append(error_intern(f"{data_iso}: no s'ha pogut publicar aquest dia"))
+                resum.errors.append(error_intern(f"{data}: no s'ha pogut publicar aquest dia"))
 
         if opcions.auto_assign_titulars and not resum.errors and not dry_run:
             publicacio.assigna_titulars(institucio)
@@ -385,8 +383,8 @@ def publica(payload, institucio: str, avui: str) -> dict:
             db.flush()
 
             try:
-                for data_iso, hora in sorted(resum.hores_esborrades):
-                    cobertures.refresca_cobertures(data_iso, hora, db)
+                for data, hora in sorted(resum.hores_esborrades):
+                    cobertures.refresca_cobertures(data, hora, db)
             except Exception:
                 # Un error en refrescar les cobertures no desa res (abans, un 500 a mitges)
                 db.rollback()

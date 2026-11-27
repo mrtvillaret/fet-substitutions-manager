@@ -4,6 +4,7 @@ nom visible, dates d'Estadístiques, últim professor), els idiomes i el logo.""
 import io
 import logging
 import os
+from datetime import date
 
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
@@ -32,8 +33,20 @@ IDIOMES = [
 ]
 
 
-def _idioma(config_db: dict) -> str:
-    return config_db.get("idioma") or i18n_setup.IDIOMA_PER_DEFECTE
+def _idioma(valor: str | None) -> str:
+    return valor or i18n_setup.IDIOMA_PER_DEFECTE
+
+
+def _data_desada(valor: str | None) -> date | str | None:
+    if valor is None:
+        return None
+    try:
+        dia = date.fromisoformat(valor)
+    except ValueError:
+        return valor
+    # Les versions anteriors a la validació podien desar qualsevol text.
+    # Es conserva la sortida que veien els clients per a aquests valors.
+    return dia if dia.isoformat() == valor else valor
 
 
 def configuracio_del_centre(db: Session, institucio: str) -> dict:
@@ -43,11 +56,11 @@ def configuracio_del_centre(db: Session, institucio: str) -> dict:
     return {
         # Institució de la petició (la de l'usuari)
         "institucio": institucio,
-        "idioma": _idioma(config_db),
+        "idioma": _idioma(config_db.get("idioma")),
         # Configuració per institució (SQLite)
         "xml_horari_path": config_db.get("xml_horari_path"),
-        "data_inici_estadistiques": config_db.get("data_inici_estadistiques"),
-        "data_final_estadistiques": config_db.get("data_final_estadistiques"),
+        "data_inici_estadistiques": _data_desada(config_db.get("data_inici_estadistiques")),
+        "data_final_estadistiques": _data_desada(config_db.get("data_final_estadistiques")),
         "logo_path": config_db.get("logo_path"),
         "te_logo": cami_logo(institucio, config_db.get("logo_path")) is not None,
         "institucio_display_name": config_db.get("institucio_display_name") or institucio,
@@ -87,8 +100,9 @@ def desa_configuracio(db: Session, canvis: SettingsUpdate, current_user: UsuariA
         raise NoPermes("Només el superadmin pot editar el nom visible", codi="nom_visible_superadmin")
 
     changed = []
+    valors_desats = canvis.model_dump(mode="json", exclude_none=True)
     for camp, descripcio, text in _CAMPS:
-        valor = getattr(canvis, camp)
+        valor = valors_desats.get(camp)
         if valor is not None:
             ConfiguracioRepository.desa(db, camp, valor, tipus="string", descripcio=descripcio)
             changed.append(f"{text} → {valor}")
@@ -104,7 +118,7 @@ def desa_configuracio(db: Session, canvis: SettingsUpdate, current_user: UsuariA
 
 def idiomes(db: Session) -> dict:
     """Els idiomes de la web i el del centre."""
-    return {"idiomes": IDIOMES, "actual": _idioma({"idioma": ConfiguracioRepository.get(db, "idioma")})}
+    return {"idiomes": IDIOMES, "actual": _idioma(ConfiguracioRepository.get(db, "idioma"))}
 
 
 def desa_logo(institucio: str, nom_fitxer: str, contingut: bytes) -> str:
@@ -118,7 +132,7 @@ def desa_logo(institucio: str, nom_fitxer: str, contingut: bytes) -> str:
     # imatge vàlida, sense metadades ni res afegit al fitxer original.
     try:
         # Només els lectors de PNG i JPEG: Pillow no prova cap altre format.
-        imatge = Image.open(io.BytesIO(contingut), formats=["PNG", "JPEG"])
+        imatge: Image.Image = Image.open(io.BytesIO(contingut), formats=["PNG", "JPEG"])
         if imatge.format not in ("PNG", "JPEG"):
             raise ValueError(imatge.format)
         # Abans de descomprimir-la: una imatge petita en bytes pot ocupar

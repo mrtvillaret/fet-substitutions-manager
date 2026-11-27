@@ -6,6 +6,8 @@ Configuració però la pantalla de grups i la de Substitucions no els feien
 servir.
 """
 
+from datetime import date
+
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
@@ -128,20 +130,20 @@ def test_canviar_les_abreviatures_nomes_buida_l_horari_del_centre():
     usuari = f"admin_{unic()}"
     crea_usuari(usuari, centre, "admin")
     client = entra(client_per(app), usuari)
-    de_l_altre = horari_context.get_horari(altre, data_iso=DATA)
-    del_centre = horari_context.get_horari(centre, data_iso=DATA)
+    de_l_altre = horari_context.get_horari(altre, data_iso=date.fromisoformat(DATA))
+    del_centre = horari_context.get_horari(centre, data_iso=date.fromisoformat(DATA))
 
     creada = client.post(
         "/api/config/abreviatures", json={"grups_originals": "1-ESO-A,1-ESO-B", "abreviatura": "1-ESO-X"}
     )
     assert creada.status_code == 200
-    assert horari_context.get_horari(altre, data_iso=DATA) is de_l_altre
-    assert horari_context.get_horari(centre, data_iso=DATA) is not del_centre
+    assert horari_context.get_horari(altre, data_iso=date.fromisoformat(DATA)) is de_l_altre
+    assert horari_context.get_horari(centre, data_iso=date.fromisoformat(DATA)) is not del_centre
 
     for metode, cos in (("put", {"abreviatura": "1-ESO-Y"}), ("delete", None)):
-        de_l_altre = horari_context.get_horari(altre, data_iso=DATA)
+        de_l_altre = horari_context.get_horari(altre, data_iso=date.fromisoformat(DATA))
         resposta = getattr(client, metode)(
             f"/api/config/abreviatures/{creada.json()['id']}", **({"json": cos} if cos else {})
         )
         assert resposta.status_code == 200
-        assert horari_context.get_horari(altre, data_iso=DATA) is de_l_altre
+        assert horari_context.get_horari(altre, data_iso=date.fromisoformat(DATA)) is de_l_altre

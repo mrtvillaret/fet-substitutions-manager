@@ -13,6 +13,8 @@ Tests per al mòdul prioritats (prioritats/):
   es criden les funcions dels endpoints directament (són síncrones).
 """
 
+from datetime import date
+
 import pytest
 
 import config.constants as constants
@@ -40,7 +42,7 @@ def test_recarrega_bd_buida_dona_tot_buit(db_session):
     assert constants.ORDRE_PRIORITATS == []
     assert constants.CATEGORIES_ACTIVES == []
     assert constants.PRIORITATS == {}
-    assert no_substituir_a("2026-11-04") == frozenset()
+    assert no_substituir_a(date(2026, 11, 4)) == frozenset()
 
 
 def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
@@ -58,7 +60,7 @@ def test_els_moduls_que_importen_les_prioritats_veuen_les_actuals(db_session):
     assert dict(constants.PRIORITATS) == {"Guàrdia": 4}  # ja cap mòdul no la importa en carregar-se
     for modul in (vigilancies.prioritats, pdf.disponibles):
         assert modul.ORDRE_PRIORITATS == [["Guàrdia"]], modul.__name__
-    assert no_substituir_a("2026-11-04") == {"Reunió"}
+    assert no_substituir_a(date(2026, 11, 4)) == {"Reunió"}
 
 
 def test_recarrega_construeix_ordre_i_pesos(db_session):
@@ -96,8 +98,6 @@ def test_recarrega_categories_actives_en_el_mateix_ordre_que_ordre_prioritats(db
 
 
 def test_recarrega_no_subst_i_genera_encadenades(db_session):
-    from datetime import date
-
     from substitucions.encadenades import activitat_encadenada
 
     cat = CategoriaPrioritatRepository.create(db_session, "Cat", ordre=0, activa=True)
@@ -108,9 +108,9 @@ def test_recarrega_no_subst_i_genera_encadenades(db_session):
     carrega_prioritats(db_session)
 
     # Abans que «Guàrdia-P» entri a «No substituir», també genera encadenada
-    for data, esperat in (("2026-11-03", {"Normal", "Guàrdia-P"}), ("2026-11-04", {"Normal"})):
+    for data, esperat in ((date(2026, 11, 3), {"Normal", "Guàrdia-P"}), (date(2026, 11, 4), {"Normal"})):
         llista = no_substituir_a(data)
-        assert llista == ({"Guàrdia-P"} if data == "2026-11-04" else frozenset())
+        assert llista == ({"Guàrdia-P"} if data == date(2026, 11, 4) else frozenset())
         assert {a for a in ("Normal", "Guàrdia-P") if activitat_encadenada(f"disponible ({a})", llista)} == esperat
 
 

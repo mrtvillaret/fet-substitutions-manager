@@ -3,6 +3,7 @@
 import json
 import random
 from copy import deepcopy
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -10,16 +11,17 @@ from suport_motor import config_inventada as config_inventada
 from suport_motor import xml_inventat as xml_inventat
 
 from planificador import generacio_nova as nou
-from planificador.compartit.dates import construir_mapa_dia_data_iso
+from planificador.compartit.dates import construir_mapa_dia_data
 from planificador.compartit.preparacio import Preparacio
+from planificador.documents import document_iso
 from planificador.motor.estrategies import base
 from planificador.schemas import SchedulerGenerateRequest
 
-DATA = "2027-03-01"
+DATA = date(2027, 3, 1)
 
 
 def _bytes(dades):
-    return json.dumps(dades, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    return json.dumps(document_iso(dades), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
 
 
 @pytest.mark.parametrize("motor", ["v2-backtrack", "v2", "v3", "V3"])
@@ -52,12 +54,12 @@ def test_un_sol_problema_per_a_diagnostic_cost_i_projeccio(monkeypatch, config_i
     captura = []
 
     def prepara(*args):
-        from planificador.config import aplica_restriccions_derivades  # noqa: PLC0415
+        from planificador.config import deriva_restriccions  # noqa: PLC0415
 
         dades = deepcopy(cfg)
         hores = list(dades.alliberaments["N1"]["config"][DATA])
-        mapa = construir_mapa_dia_data_iso(["Dilluns"], [DATA])
-        aplica_restriccions_derivades(
+        mapa = construir_mapa_dia_data(["Dilluns"], [DATA])
+        deriva_restriccions(
             dades.restriccions, dades.alliberaments, ["N1"], ["Dilluns"], mapa, ["09:00", "PATI", "11:00"]
         )
         return Preparacio(
@@ -65,7 +67,7 @@ def test_un_sol_problema_per_a_diagnostic_cost_i_projeccio(monkeypatch, config_i
         )
 
     monkeypatch.setattr(nou, "prepara_planificacio", prepara)
-    monkeypatch.setattr(nou, "desa_ultim_resultat", lambda _, h, dies: captura.append(deepcopy(h)))
+    monkeypatch.setattr(nou, "desa_horari", lambda _, h, dies: captura.append(deepcopy(h)))
     rellotge = SimpleNamespace(monotonic=lambda: 0)
     monkeypatch.setattr(nou, "time", rellotge)
     monkeypatch.setattr(base, "time", rellotge)

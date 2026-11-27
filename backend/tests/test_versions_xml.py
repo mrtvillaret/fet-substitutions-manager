@@ -10,7 +10,7 @@ from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
 from suport_xml import amb_versions, dia
 
-from auth.dependencies import require_admin
+from auth.dependencies import get_current_user, require_admin
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session, get_data_dir_for_institucio
 from horari import router as horari
@@ -18,6 +18,7 @@ from models import XMLVersion
 from rate_limit import limiter
 
 APP = crea_app()
+APP.include_router(horari.router, dependencies=[Depends(get_current_user)])
 APP.include_router(horari.router_admin, dependencies=[Depends(require_admin)])  # com a main.py
 URL = "/api/settings/xml-versions"
 
@@ -127,3 +128,36 @@ def test_no_esborra_res_de_fora_de_la_carpeta_del_centre(centre):
         db.commit()
     assert _client(centre).delete(f"{URL}/{_id(centre, f'../{altre}/teachers.xml')}").status_code == 200
     assert (get_data_dir_for_institucio(altre) / "teachers.xml").exists()
+
+
+def test_dates_de_l_horari_i_absencies_amb_data_explicita_o_omesa(centre):
+    from datetime import date
+
+    from models import AbsenciaCoberta
+
+    with get_data_db_session(centre) as db:
+        db.add(AbsenciaCoberta(professor="Prof 15", data_inici=date(2026, 11, 3), data_final=date(2026, 11, 5)))
+        db.commit()
+
+    client = _client(centre)
+    ruta = "/api/horari/professors"
+    omesa = client.get(ruta)
+    explicita = client.get(ruta, params={"data": "2026-11-4"})
+    for resposta in (omesa, explicita):
+        assert resposta.status_code == 200, resposta.text
+    professors = omesa.json()["professors"]
+    assert omesa.json() == {"professors": professors, "total": len(professors)}
+    assert "Prof 15" not in professors
+    assert explicita.json() == {
+        **omesa.json(),
+        "absencies_cobertes": [{"professor": "Prof 15", "data_final": "2026-11-05"}],
+    }
+
+    estat = client.get("/api/config")
+    assert estat.status_code == 200, estat.text
+    assert estat.json()["data_actual"] == "2026-11-04"
+
+    # Dins el forat es carrega la primera versió futura.
+    detectats = client.get("/api/horari/grups/detectar", params={"data": "2026-11-04"})
+    assert detectats.status_code == 200, detectats.text
+    assert detectats.json()["xml_data_inici"] == "2026-11-07"

@@ -122,7 +122,7 @@ def test_el_contracte_de_la_pantalla_conserva_identificadors_i_analisi():
     }
     for model in (HorariRecalcularRequest, SchedulerPublicarRequest):
         peticio = model(horari=horari, setmanes=[])
-        assert peticio.model_dump(exclude_unset=True, by_alias=True)["horari"] == horari
+        assert peticio.model_dump(mode="json", exclude_unset=True, by_alias=True)["horari"] == horari
 
 
 @pytest.mark.parametrize(

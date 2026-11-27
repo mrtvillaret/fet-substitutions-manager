@@ -7,7 +7,6 @@ from datetime import date, timedelta
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
-from dates import parse_date
 from models import Curs
 
 
@@ -39,7 +38,7 @@ class CursRepository:
         return db.query(Curs).filter(Curs.id == curs_id).first()
 
     @staticmethod
-    def comenca_el(db: Session, data_inici: date, excepte: int = None) -> bool:
+    def comenca_el(db: Session, data_inici: date, excepte: int | None = None) -> bool:
         """Si algun curs (que no sigui `excepte`) comença aquest dia."""
         q = db.query(Curs).filter(Curs.data_inici == data_inici)
         if excepte is not None:
@@ -47,12 +46,11 @@ class CursRepository:
         return q.first() is not None
 
     @staticmethod
-    def get_for_date(db: Session, data: str) -> Curs | None:
+    def get_for_date(db: Session, data: date) -> Curs | None:
         """Curs al qual pertany una data. Cap si la data és anterior al primer curs."""
-        data_obj = parse_date(data)
         return (
             db.query(Curs)
-            .filter(and_(Curs.data_inici <= data_obj, or_(Curs.data_fi.is_(None), Curs.data_fi >= data_obj)))
+            .filter(and_(Curs.data_inici <= data, or_(Curs.data_fi.is_(None), Curs.data_fi >= data)))
             .order_by(Curs.data_inici.desc())
             .first()
         )
@@ -66,15 +64,11 @@ class CursRepository:
         return nou
 
     @staticmethod
-    def update(db: Session, curs_id: int, nom: str, data_inici: date) -> Curs | None:
-        curs = CursRepository.get(db, curs_id)
-        if not curs:
-            return None
+    def update(db: Session, curs: Curs, nom: str, data_inici: date) -> None:
         curs.nom = nom
         curs.data_inici = data_inici
         db.flush()
         CursRepository._rechain(db)
-        return curs
 
     @staticmethod
     def delete(db: Session, curs_id: int) -> bool:

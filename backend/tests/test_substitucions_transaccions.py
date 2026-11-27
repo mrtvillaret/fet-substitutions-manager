@@ -1,6 +1,6 @@
 """Rollback de les operacions compostes del mòdul de substitucions."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -41,7 +41,7 @@ def _marca_absencia(client, professor=ABSENT, hores=None):
 
 def _bolcat(centre):
     with get_data_db_session(centre) as db:
-        return sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila.id)
+        return sorted(SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)), key=lambda fila: fila.id)
 
 
 def test_generar_desfa_tots_els_canvis_si_falla_despres_de_mutar(client, centre, monkeypatch):
@@ -155,7 +155,7 @@ def test_moure_substitut_absent_conserva_les_dues_files(client, centre):
 def test_reassignar_desfa_la_neteja_basica_si_falla_abans_del_final(client, centre, monkeypatch):
     assert _marca_absencia(client).status_code == 200
     with get_data_db_session(centre) as db:
-        fila = SubstitucioRepository.get_by_date(db, DATA)[0]
+        fila = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))[0]
         SubstitucioRepository.update(db, fila.id, {"substitut": "Prof 1"})
         db.commit()
     abans = _bolcat(centre)
@@ -172,7 +172,7 @@ def test_reassignar_desfa_la_neteja_basica_si_falla_abans_del_final(client, cent
 def test_reassignar_conserva_la_base_i_desfa_tota_la_millora_si_aquesta_falla(client, centre, monkeypatch):
     assert _marca_absencia(client, hores=["10:00", "11:30"]).status_code == 200
     with get_data_db_session(centre) as db:
-        files = SubstitucioRepository.get_by_date(db, DATA)
+        files = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
         SubstitucioRepository.update(db, files[0].id, {"substitut": "Prof 21"})
         SubstitucioRepository.update(db, files[1].id, {"substitut": "Prof 28"})
         db.commit()

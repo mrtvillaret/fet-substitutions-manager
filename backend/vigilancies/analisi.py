@@ -23,7 +23,7 @@ def analitza_vigilancies(dia: DiaEscolar) -> list[dict]:
     El professor absent es reemplaça a la seva vigilància, i es comprova
     també la disponibilitat del vigilant efectiu.
     """
-    resultat = []
+    resultat: list[dict] = []
     per_hora = defaultdict(list)
     absents = defaultdict(set, {h: set(ps) for h, ps in dia.absents_per_hora.items()})
     classes, cobertures = defaultdict(list), defaultdict(list)

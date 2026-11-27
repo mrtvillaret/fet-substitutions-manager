@@ -1,10 +1,12 @@
 """Esquemes de les rutes de l'horari."""
 
+from datetime import date
+
 from pydantic import BaseModel
 
 
 class ConfigResponse(BaseModel):
-    data_actual: str
+    data_actual: date
     horari_carregat: bool
     num_professors: int
     num_hores: int
@@ -12,7 +14,8 @@ class ConfigResponse(BaseModel):
 
 
 class XMLVersionUpdate(BaseModel):
-    data_inici: str | None = None  # la data de fi es calcula (no s'accepta)
+    # Es valida a la ruta un cop trobada la versió. El text buit equival a ometre-la.
+    data_inici: str | None = None
 
 
 class ProfessorsResponse(BaseModel):
@@ -39,7 +42,7 @@ class TotsElsProfessorsResponse(BaseModel):
 
 class AbsenciaCobertaDelDia(BaseModel):
     professor: str
-    data_final: str | None
+    data_final: date | None
 
 
 class ProfessorsDelDiaResponse(BaseModel):
@@ -54,7 +57,7 @@ class GrupsResponse(BaseModel):
     grups: list[str]
     total_raw: int
     total_abreviats: int
-    xml_data_inici: str | None = None
+    xml_data_inici: date | None = None
     xml_missing: bool | None = None
 
 
@@ -63,7 +66,7 @@ class AssignaturesResponse(BaseModel):
     total: int
     te_buits: bool | None = None
     amb_grup: list[str] | None = None
-    xml_data_inici: str | None = None
+    xml_data_inici: date | None = None
     xml_missing: bool | None = None
 
 
@@ -88,7 +91,7 @@ class XmlPujatResponse(BaseModel):
     filename: str
     path: str
     message: str
-    data_inici: str | None = None  # no hi és si l'XML és idèntic i no s'ha creat cap versió
+    data_inici: date | None = None  # no hi és si l'XML és idèntic i no s'ha creat cap versió
     vigent_avui: bool | None = None
     avisos: list[AvisXml]
     recomptes: RecomptesAvisosXml
@@ -97,8 +100,8 @@ class XmlPujatResponse(BaseModel):
 class VersioXml(BaseModel):
     id: int
     path: str
-    data_inici: str
-    data_fi: str | None
+    data_inici: date
+    data_fi: date | None
     hash_contingut: str | None
 
 

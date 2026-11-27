@@ -62,9 +62,13 @@ def test_amb_dates_futures_es_fa_servir_l_horari_d_aquelles_dates(client):
 
 
 def test_si_les_dates_cauen_en_dos_horaris_es_diu_quan_canvia(client):
-    horari = _horari(client, dates=f"{dia(1).isoformat()},{dia(10).isoformat()}")
-    assert horari["data_referencia"] == dia(1).isoformat()
-    assert horari["canvi_horari"] == dia(3).isoformat()
+    horari = _horari(client, dates="2026-11-14,2026-11-5")
+    assert horari == {
+        "data_referencia": "2026-11-05",
+        "sense_dates": False,
+        "versio_des_de": "2026-10-05",
+        "canvi_horari": "2026-11-07",
+    }
 
 
 def test_una_data_mal_escrita_dona_400(client):

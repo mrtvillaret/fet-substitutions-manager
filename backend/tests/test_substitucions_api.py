@@ -14,6 +14,7 @@ Escenari base, dilluns 20/04/2026, Prof 15 absent:
 import contextlib
 import io
 import random
+from datetime import date
 
 import pytest
 from suport_api import (
@@ -219,7 +220,7 @@ def test_la_vista_per_defecte_sempre_mostra_les_vigilancies_d_un_vigilant_absent
 
 def test_la_vista_per_defecte_amaga_grups_alliberats(client, centre):
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": ["3-ESO-A"]})
         db.commit()
     _marca_absencia(client)
     assert "10:00" not in [s["hora"] for s in _subs(client)]
@@ -316,7 +317,9 @@ def test_assignacio_aplica_els_pesos_de_la_bd(monkeypatch, operacio):
     }
     assert _sub(client, "10:00")["substitut"] == escollit[0]
     with get_data_db_session(centre) as db:
-        fila = next(s for s in SubstitucioRepository.get_by_date(db, DATA) if s.professor_absent == ABSENT)
+        fila = next(
+            s for s in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) if s.professor_absent == ABSENT
+        )
         assert fila.substitut == escollit[0]
         assert fila.tipus_substitut == f"disponible ({escollit[1]})"
 
@@ -416,7 +419,7 @@ def test_assignar_amb_id_actualitza_la_fila_exacta_encara_que_updated_at_no_coin
         SubstitucioRepository.create(
             db,
             {
-                "data": DATA,
+                "data": date.fromisoformat(DATA),
                 "hora": "10:00",
                 "professor_absent": ABSENT,
                 "assignatura": "Vigilància",
@@ -425,7 +428,7 @@ def test_assignar_amb_id_actualitza_la_fila_exacta_encara_que_updated_at_no_coin
             },
         )
         db.commit()
-        files = SubstitucioRepository.get_by_date(db, DATA)
+        files = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
         absencia = next(f for f in files if f.tipus_absencia == "ABSENCIA")
         vigilancia = next(f for f in files if f.tipus_absencia == "VIGILANCIA_ABSENT")
 
@@ -441,7 +444,7 @@ def test_assignar_amb_id_actualitza_la_fila_exacta_encara_que_updated_at_no_coin
     assert resp.status_code == 200, resp.text
 
     with get_data_db_session(centre) as db:
-        files = {f.id: f for f in SubstitucioRepository.get_by_date(db, DATA)}
+        files = {f.id: f for f in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))}
     assert files[absencia.id].substitut == ""
     assert files[vigilancia.id].substitut == "Prof 21"
 
@@ -485,7 +488,7 @@ def test_editar_sense_id_tria_la_fila_per_versio(client, centre, versio_coincide
         servei = SubstitucioRepository.create(
             db,
             {
-                "data": DATA,
+                "data": date.fromisoformat(DATA),
                 "hora": "10:00",
                 "professor_absent": ABSENT,
                 "assignatura": "Servei",
@@ -508,7 +511,7 @@ def test_editar_sense_id_tria_la_fila_per_versio(client, centre, versio_coincide
     assert resp.status_code == 200, resp.text
     id_editada, id_intacta = (id_servei, absencia["id"]) if versio_coincident else (absencia["id"], id_servei)
     with get_data_db_session(centre) as db:
-        files = {fila.id: fila for fila in SubstitucioRepository.get_by_date(db, DATA)}
+        files = {fila.id: fila for fila in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))}
     assert set(files) == {id_editada, id_intacta}
     assert files[id_editada].comentaris == "Comentari per a una sola fila"
     assert files[id_intacta].comentaris == ""
@@ -537,7 +540,7 @@ def test_assignacio_manual_desa_el_tipus_segon_els_disponibles(client, centre, s
 
     assert resp.status_code == 200, resp.text
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.id == fila_id)
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) if f.id == fila_id)
     assert fila.substitut == substitut
     assert fila.tipus_substitut == tipus_esperat
 
@@ -547,7 +550,7 @@ def test_moure_substitut_no_desa_cap_canvi_si_falla_el_calcul_del_tipus(client, 
     assert _marca_absencia(client, professor="Prof 30", hores=["10:00"]).status_code == 200
     assert _assigna(client, "10:00", "Prof 21", professor="Prof 30").status_code == 200
     with get_data_db_session(centre) as db:
-        abans = SubstitucioRepository.get_by_date(db, DATA)
+        abans = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
     desti = next(fila for fila in abans if fila.professor_absent == ABSENT)
 
     def disponibles_que_falla(*_args):
@@ -561,7 +564,7 @@ def test_moure_substitut_no_desa_cap_canvi_si_falla_el_calcul_del_tipus(client, 
         )
 
     with get_data_db_session(centre) as db:
-        assert SubstitucioRepository.get_by_date(db, DATA) == abans
+        assert SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) == abans
 
 
 def test_editar_nomes_comentaris_conserva_el_substitut_i_el_tipus_desat(client, centre):
@@ -571,7 +574,7 @@ def test_editar_nomes_comentaris_conserva_el_substitut_i_el_tipus_desat(client, 
     with get_data_db_session(centre) as db:
         SubstitucioRepository.update(db, int(fila_id), {"substitut": "Prof 21", "tipus_substitut": tipus_desat})
         db.commit()
-        abans = SubstitucioRepository.get_by_date(db, DATA)[0]
+        abans = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))[0]
 
     resp = client.put(
         f"{URL}/10:00/{ABSENT}", json={"comentaris": "Material a la sala de professors", "updated_at": abans.updated_at}
@@ -580,7 +583,7 @@ def test_editar_nomes_comentaris_conserva_el_substitut_i_el_tipus_desat(client, 
     assert resp.status_code == 200, resp.text
     assert resp.json()["message"] == "Observacions desades"
     with get_data_db_session(centre) as db:
-        despres = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.id == fila_id)
+        despres = next(f for f in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) if f.id == fila_id)
     assert despres.comentaris == "Material a la sala de professors"
     assert despres.substitut == abans.substitut == "Prof 21"
     assert despres.tipus_substitut == abans.tipus_substitut == tipus_desat
@@ -602,7 +605,7 @@ def test_no_es_pot_assignar_qui_te_classe_a_aquella_hora(client):
 def test_si_el_grup_del_substitut_esta_alliberat_se_li_pot_assignar(client, centre):
     grup = HORARI.get_activitat("Dilluns", "10:00", "Prof 1")["grup"]
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": [grup]})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": [grup]})
         db.commit()
     _marca_absencia(client, hores=["10:00"])
     assert _assigna(client, "10:00", "Prof 1").status_code == 200
@@ -629,7 +632,7 @@ def test_no_es_pot_assignar_qui_vigila_un_examen_a_aquella_hora(client, centre):
     with get_data_db_session(centre) as db:
         VigilanciaRepository.create(
             db,
-            DATA,
+            date.fromisoformat(DATA),
             {
                 "hora": "10:00",
                 "tipus": "examen",
@@ -652,7 +655,7 @@ def test_si_el_substitut_vigila_i_es_absent_la_pantalla_rep_l_error_de_vigilanci
     with get_data_db_session(centre) as db:
         VigilanciaRepository.create(
             db,
-            DATA,
+            date.fromisoformat(DATA),
             {
                 "hora": "10:00",
                 "tipus": "examen",
@@ -746,7 +749,7 @@ def test_reassignar_treu_substituts_que_ara_tenen_classe(client, centre):
     # Prof 1 té classe a les 10:00: l'API no el deixaria assignar, així que es
     # desa directament, com si l'horari hagués canviat després d'assignar-lo.
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.hora == "10:00")
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) if f.hora == "10:00")
         SubstitucioRepository.update(db, int(fila.id), {"substitut": "Prof 1"})
         db.commit()
     resp = client.post(f"{URL}/reassign-problematics")
@@ -762,7 +765,7 @@ def test_reassignar_treu_substituts_que_ara_tenen_classe(client, centre):
 def test_assignar_no_desa_cap_canvi_si_falla_la_validacio_de_l_horari(client, centre, monkeypatch):
     assert _marca_absencia(client, hores=["10:00"]).status_code == 200
     with get_data_db_session(centre) as db:
-        abans = SubstitucioRepository.get_by_date(db, DATA)
+        abans = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
 
     def horari_que_falla(_dia):
         raise RuntimeError("error simulat de validació")
@@ -773,7 +776,7 @@ def test_assignar_no_desa_cap_canvi_si_falla_la_validacio_de_l_horari(client, ce
         client.put(f"{URL}/10:00/{ABSENT}", json={"substitut": "Prof 21", "updated_at": abans[0].updated_at})
 
     with get_data_db_session(centre) as db:
-        assert SubstitucioRepository.get_by_date(db, DATA) == abans
+        assert SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) == abans
 
 
 def _te_exc_info(caplog, text):
@@ -802,7 +805,7 @@ def test_generar_avisa_si_falla_la_cobertura_d_un_vigilant(client, centre, monke
     with get_data_db_session(centre) as db:
         VigilanciaRepository.create(
             db,
-            DATA,
+            date.fromisoformat(DATA),
             {
                 "hora": "10:00",
                 "tipus": "examen",
@@ -834,7 +837,7 @@ def test_dia_escolar_registra_la_traca_si_no_pot_carregar_l_horari(db_session, m
 
     monkeypatch.setattr(Dia, "horari", property(horari_que_falla))
 
-    dia = domain.DiaEscolar(db_session, Dia.de_text(DATA, "centre_de_prova"))
+    dia = domain.DiaEscolar(db_session, Dia(date.fromisoformat(DATA), "centre_de_prova"))
 
     assert dia.horari is None
     assert _te_exc_info(caplog, "No s'ha pogut carregar l'horari del dia")
@@ -850,7 +853,7 @@ def _vigilancia_del_grup_de_prof_1(centre):
     with get_data_db_session(centre) as db:
         VigilanciaRepository.create(
             db,
-            DATA,
+            date.fromisoformat(DATA),
             {
                 "hora": "10:00",
                 "tipus": "examen",
@@ -867,7 +870,7 @@ def _vigilancia_del_grup_de_prof_1(centre):
 def test_reassignar_mante_qui_te_el_grup_sense_classe(client, centre):
     grup = HORARI.get_activitat("Dilluns", "10:00", "Prof 1")["grup"]
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": [grup]})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": [grup]})
         db.commit()
     _marca_absencia(client, hores=["10:00"])
     assert _assigna(client, "10:00", "Prof 1").status_code == 200
@@ -879,7 +882,7 @@ def test_reassignar_no_allibera_per_tenir_el_grup_d_examen(client, centre):
     _vigilancia_del_grup_de_prof_1(centre)
     _marca_absencia(client, hores=["10:00"])
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.hora == "10:00")
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) if f.hora == "10:00")
         SubstitucioRepository.update(db, int(fila.id), {"substitut": "Prof 1"})
         db.commit()
     assert client.post(f"{URL}/reassign-problematics").json()["cleared"] == 1
@@ -1072,13 +1075,13 @@ def test_la_regla_comprova_l_xml_de_la_data_i_no_toca_les_files_existents():
         with get_data_db_session(centre) as db:
             db.add(Substitucio(data=dia(10), hora="10:00", professor_absent=ABSENT, substitut=professor))
             db.commit()
-            abans = SubstitucioRepository.get_by_date(db, dia(10).isoformat())
+            abans = SubstitucioRepository.get_by_date(db, dia(10))
             actual = domain.DiaEscolar(db, Dia(dia(1), centre), estricte=True)
             futur = domain.DiaEscolar(db, Dia(dia(10), centre), estricte=True)
             assert actual.motius_substitut(professor, "10:00", nomes={"fora_horari"}) == []
             assert futur.motius_substitut(professor, "10:00", nomes={"fora_horari"}) == [{"motiu": "fora_horari"}]
             assert domain.substituts_no_valids(db, dia(10).isoformat(), futur)[0]["motiu"] == "fora_horari"
-            assert SubstitucioRepository.get_by_date(db, dia(10).isoformat()) == abans
+            assert SubstitucioRepository.get_by_date(db, dia(10)) == abans
     finally:
         fixa_institucio_peticio(None)
 
@@ -1091,9 +1094,43 @@ def test_el_limit_d_ultim_professor_no_esborra_la_pertinenca_a_l_xml(client, cen
         ConfiguracioRepository.set(db, "ultim_professor_subs", "Prof 3")
         db.commit()
     invalidar_horari(centre)
-    dia = Dia.de_text(DATA, centre)
+    dia = Dia(date.fromisoformat(DATA), centre)
     with get_data_db_session(centre) as db:
         estat = domain.DiaEscolar(db, dia, estricte=True)
         assert "Prof 21" not in dia.horari.professors
         assert "Prof 21" in dia.horari.tots_professors
         assert estat.motius_substitut("Prof 21", "10:00", nomes={"fora_horari"}) == []
+
+
+@pytest.mark.parametrize("operacio", ["substitut", "absencies"])
+def test_cos_del_conflicte_amb_la_data_de_la_fila(client, operacio):
+    assert _marca_absencia(client, hores=["10:00"]).status_code == 200
+    fila = _sub(client, "10:00")
+    actual = {
+        "id": fila["id"],
+        "data": "2026-04-20",
+        "hora": "10:00",
+        "professor_absent": ABSENT,
+        "assignatura": "Anglès",
+        "grup": "3-ESO-A",
+        "aula": fila["aula"],
+        "substitut": "",
+        "tipus_substitut": "",
+        "tipus_absencia": "ABSENCIA",
+        "comentaris": "",
+        "updated_at": fila["updated_at"],
+    }
+    antic = "2000-01-01T00:00:00"
+    if operacio == "substitut":
+        resposta = client.put(f"{URL}/10:00/{ABSENT}", json={"substitut": "Prof 21", "updated_at": antic})
+    else:
+        resposta = _marca_absencia(client, hores=["10:00"], updated_at_map={"10:00": antic})
+
+    assert resposta.status_code == 409, resposta.text
+    assert resposta.json() == {
+        "detail": {
+            "error": "conflict",
+            "message": "Aquest registre ha estat modificat per un altre usuari",
+            "current_data": actual if operacio == "substitut" else [actual],
+        },
+    }

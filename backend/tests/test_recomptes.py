@@ -3,14 +3,19 @@ Els recomptes (recomptes/services.py), sense BD ni PDF: cada apartat a
 partir d'una llista de substitucions.
 """
 
+from datetime import date
+
 from pdf.services import MESOS
 from recomptes import services
 from substitucions.files import FilaSubstitucio
+from vigilancies.files import FilaVigilancia
 
 MESOS_CA = MESOS["ca"]
 
 
-def _sub(data, tipus="ABSENCIA", absent="Prof 1", substitut="", grup="1-ESO-A", hora="08:00", assignatura="Català"):
+def _sub(
+    data: date, tipus="ABSENCIA", absent="Prof 1", substitut="", grup="1-ESO-A", hora="08:00", assignatura="Català"
+):
     return FilaSubstitucio(
         **{
             "data": data,
@@ -32,7 +37,7 @@ def test_una_sola_regla_decideix_quines_files_es_veuen_a_substitucions():
     alliberats_hora = ["1-ESO-B", "professor:Prof 9"]
 
     def visible(no_sub=frozenset({"Guàrdia", ""}), **camps):
-        return es_visible_a_substitucions(_sub("2026-03-02", **camps), no_sub, alliberats_hora)
+        return es_visible_a_substitucions(_sub(date(2026, 3, 2), **camps), no_sub, alliberats_hora)
 
     assert visible()
     assert visible(tipus="SERVEI")
@@ -56,16 +61,16 @@ def test_una_sola_regla_decideix_quines_files_es_veuen_a_substitucions():
 
 def test_els_informes_nomes_compten_absencies_i_serveis():
     tipus = ["ABSENCIA", "SERVEI", "VIGILANCIA_ABSENT", "VIGILANCIA", "ENCADENADA"]
-    subs = [_sub("2026-03-02", tipus=t, substitut="Prof 5") for t in tipus]
+    subs = [_sub(date(2026, 3, 2), tipus=t, substitut="Prof 5") for t in tipus]
 
     assert [s.tipus_absencia for s in services.absencies_i_serveis(subs)] == ["ABSENCIA", "SERVEI"]
 
 
 def test_resum():
     subs = [
-        _sub("2026-03-02", substitut="Prof 5"),
-        _sub("2026-03-02", tipus="SERVEI"),
-        _sub("2026-03-03", tipus="SERVEI", substitut="Prof 6"),
+        _sub(date(2026, 3, 2), substitut="Prof 5"),
+        _sub(date(2026, 3, 2), tipus="SERVEI"),
+        _sub(date(2026, 3, 3), tipus="SERVEI", substitut="Prof 6"),
     ]
 
     assert services.resum(subs, total_baixes=2) == {
@@ -82,8 +87,8 @@ def test_resum():
 
 def test_per_mes_per_ordre():
     subs = [
-        _sub("2026-03-02", substitut="Prof 5"),
-        _sub("2026-02-27", tipus="SERVEI"),
+        _sub(date(2026, 3, 2), substitut="Prof 5"),
+        _sub(date(2026, 2, 27), tipus="SERVEI"),
     ]
 
     assert services.per_mes(subs, MESOS_CA) == [
@@ -94,10 +99,10 @@ def test_per_mes_per_ordre():
 
 def test_la_cobertura_de_cada_mes_es_com_la_global():
     subs = [
-        _sub("2026-03-02", substitut="Prof 5"),
-        _sub("2026-03-03", tipus="SERVEI", substitut="Prof 6"),
-        _sub("2026-03-04"),
-        _sub("2026-03-05", tipus="SERVEI"),
+        _sub(date(2026, 3, 2), substitut="Prof 5"),
+        _sub(date(2026, 3, 3), tipus="SERVEI", substitut="Prof 6"),
+        _sub(date(2026, 3, 4)),
+        _sub(date(2026, 3, 5), tipus="SERVEI"),
     ]
 
     (marc,) = services.per_mes(subs, MESOS_CA)
@@ -106,12 +111,37 @@ def test_la_cobertura_de_cada_mes_es_com_la_global():
     assert marc["cobertura"] == 2 / 4 * 100 == services.resum(subs, total_baixes=0)["cobertura_pct"]
 
 
+def test_la_cobertura_de_vigilancia_compara_data_hora_i_professor():
+    data = date(2026, 3, 2)
+    substitucions = [
+        _sub(data, tipus="VIGILANCIA_ABSENT", substitut="Prof 5"),
+        _sub(data, tipus="ABSENCIA", absent="Prof 2"),
+    ]
+    vigilancies = [
+        FilaVigilancia(data=data, hora="08:00", vigilant="Prof 1"),
+        FilaVigilancia(data=data, hora="08:00", vigilant="Prof 2"),
+        FilaVigilancia(data=data, hora="09:00", vigilant="Prof 1"),
+        FilaVigilancia(data=date(2026, 3, 3), hora="08:00", vigilant="Prof 1"),
+    ]
+
+    assert services.vigilancies_per_resultat(vigilancies, substitucions) == {
+        "total": 4,
+        "vigilant": 2,
+        "substitut": 1,
+        "descobertes": 1,
+        "cobertes": 3,
+        "percentatge": 75.0,
+        "dies": 2,
+        "fetes_per_professor": {"Prof 1": 2},
+    }
+
+
 def test_professors_de_mes_a_menys_i_els_empats_per_ordre_alfabetic():
     subs = [
-        _sub("2026-03-02", absent="Prof 2", substitut="Prof 7"),
-        _sub("2026-03-02", absent="Prof 1", tipus="SERVEI", substitut="Prof 8"),
-        _sub("2026-03-03", absent="Prof 1", substitut=" Prof 8 "),
-        _sub("2026-03-04", absent=""),
+        _sub(date(2026, 3, 2), absent="Prof 2", substitut="Prof 7"),
+        _sub(date(2026, 3, 2), absent="Prof 1", tipus="SERVEI", substitut="Prof 8"),
+        _sub(date(2026, 3, 3), absent="Prof 1", substitut=" Prof 8 "),
+        _sub(date(2026, 3, 4), absent=""),
     ]
 
     assert services.professors_absencies(subs) == [
@@ -123,9 +153,9 @@ def test_professors_de_mes_a_menys_i_els_empats_per_ordre_alfabetic():
 
 def test_per_dia_i_hora_amb_l_hora_normalitzada():
     subs = [
-        _sub("2026-03-02", hora="9:00", substitut="Prof 5"),  # dilluns
-        _sub("2026-03-02", hora="09:00"),
-        _sub("2026-03-04", hora=""),  # dimecres
+        _sub(date(2026, 3, 2), hora="9:00", substitut="Prof 5"),  # dilluns
+        _sub(date(2026, 3, 2), hora="09:00"),
+        _sub(date(2026, 3, 4), hora=""),  # dimecres
     ]
 
     per_hora, per_dia_hora = services.per_dia_i_hora(subs)
@@ -142,12 +172,12 @@ def test_per_dia_i_hora_amb_l_hora_normalitzada():
 
 def test_impacte_per_grup_sense_nivells_i_en_l_ordre_de_substitucions():
     subs = [
-        _sub("2026-03-02", grup="2-ESO-A"),
-        _sub("2026-03-02", grup="1-BAT-A", substitut="Prof 5"),
-        _sub("2026-03-02", grup="1-BAT-A"),
-        _sub("2026-03-02", grup="ALTRE"),
-        _sub("2026-03-02", grup="-"),
-        _sub("2026-04-01", grup="1-BAT-A"),  # abril no és als mesos: no hi surt per mes
+        _sub(date(2026, 3, 2), grup="2-ESO-A"),
+        _sub(date(2026, 3, 2), grup="1-BAT-A", substitut="Prof 5"),
+        _sub(date(2026, 3, 2), grup="1-BAT-A"),
+        _sub(date(2026, 3, 2), grup="ALTRE"),
+        _sub(date(2026, 3, 2), grup="-"),
+        _sub(date(2026, 4, 1), grup="1-BAT-A"),  # abril no és als mesos: no hi surt per mes
     ]
     mesos = ["Març 2026"]
 
@@ -166,7 +196,8 @@ def test_impacte_per_grup_sense_nivells_i_en_l_ordre_de_substitucions():
 
 def test_els_empats_dels_rankings_van_per_ordre_alfabetic_natural():
     subs = [
-        _sub("2026-03-02", absent=a, substitut=f"Prof {n}") for a, n in (("Prof 10", 10), ("Prof 2", 7), ("Àlex", 2))
+        _sub(date(2026, 3, 2), absent=a, substitut=f"Prof {n}")
+        for a, n in (("Prof 10", 10), ("Prof 2", 7), ("Àlex", 2))
     ]
 
     assert [p["nom"] for p in services.professors_absencies(subs)] == ["Àlex", "Prof 2", "Prof 10"]
@@ -175,10 +206,10 @@ def test_els_empats_dels_rankings_van_per_ordre_alfabetic_natural():
 
 def test_el_desplegable_compta_cada_substitut_per_franja_de_la_setmana_i_en_total():
     fetes = [
-        _sub("2026-03-02", substitut="Prof 5", hora="08:00"),  # dilluns
-        _sub("2026-03-09", substitut="Prof 5", hora=" 08:00 ", tipus="ENCADENADA"),  # dilluns
-        _sub("2026-03-10", substitut="Prof 5", hora="08:00"),  # dimarts
-        _sub("2026-03-02", substitut="Prof 6", hora="10:00", tipus="VIGILANCIA"),
+        _sub(date(2026, 3, 2), substitut="Prof 5", hora="08:00"),  # dilluns
+        _sub(date(2026, 3, 9), substitut="Prof 5", hora=" 08:00 ", tipus="ENCADENADA"),  # dilluns
+        _sub(date(2026, 3, 10), substitut="Prof 5", hora="08:00"),  # dimarts
+        _sub(date(2026, 3, 2), substitut="Prof 6", hora="10:00", tipus="VIGILANCIA"),
     ]
 
     per_franja, total = services.fetes_per_substitut(fetes)

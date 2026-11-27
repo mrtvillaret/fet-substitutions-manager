@@ -237,7 +237,7 @@ def test_informatius_es_conserven_a_la_revisio_pero_no_als_tres_pdf(tipus_info, 
     from grups.repositories import GrupsAlliberatsRepository
 
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, data, {"10:00": ["professor:Prof 15"]})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(data), {"10:00": ["professor:Prof 15"]})
         db.commit()
     if classe:
         with get_data_db_session(centre) as db:

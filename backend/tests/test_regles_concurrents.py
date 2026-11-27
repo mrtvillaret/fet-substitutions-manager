@@ -99,10 +99,11 @@ def test_un_substitut_no_es_pot_assignar_a_dues_files_simultanies(monkeypatch):
         token = fixa_institucio_peticio(centre)
         try:
             with get_data_db_session(centre) as db:
+                dia = Dia(date.fromisoformat(DATA), centre)
                 substitucions.actualitza_substitut(
                     db,
-                    Dia.de_text(DATA, centre),
-                    DATA,
+                    dia,
+                    dia.data,
                     "10:00",
                     ("Prof 15", "Prof 16")[index],
                     SubstitucioUpdate(substitut="Prof 21", force=True),
@@ -117,7 +118,9 @@ def test_un_substitut_no_es_pot_assignar_a_dues_files_simultanies(monkeypatch):
     )
     assert sorted(resultat.values()) == ["ok", "substitut_repetit"], resultat
     with get_data_db_session(centre) as db:
-        assert sum(s.substitut == "Prof 21" for s in SubstitucioRepository.get_by_date(db, DATA)) == 1
+        assert (
+            sum(s.substitut == "Prof 21" for s in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))) == 1
+        )
 
 
 @pytest.mark.parametrize("accio", ["desactivar", "esborrar", "treure_rol", "canviar_centre"])

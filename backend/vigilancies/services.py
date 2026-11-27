@@ -7,7 +7,7 @@ netejar i ordenar. Cada canvi de vigilants refresca les cobertures de l'hora
 
 import random
 from collections import defaultdict
-from datetime import datetime
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -119,7 +119,7 @@ def en_ordre(vigs: list[FilaVigilancia]) -> list[FilaVigilancia]:
     return sorted(vigs, key=lambda v: (v.ordre is None, v.ordre or 0, int(v.id or 0)))
 
 
-def llista(db: Session, data: str) -> list[FilaVigilancia]:
+def llista(db: Session, data: date) -> list[FilaVigilancia]:
     """Les vigilàncies del dia en una llista plana: per hora i, dins de cada
     hora, en l'ordre desat."""
     vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
@@ -195,10 +195,9 @@ def _categoria_prioritat(tipus_activitat: str, ordre_prioritats: list) -> int:
 
 def _context_disponibles(dia: Dia, db: Session, hores_consulta: set[str], necessita_titulars: bool) -> dict:
 
-    data = dia.iso
+    data = dia.data
     horari = dia.horari
-    date_obj = datetime.strptime(data, "%Y-%m-%d")
-    dia_name = horari.get_dia_name(date_obj.weekday())
+    dia_name = horari.get_dia_name(data.weekday())
 
     vigilancies_dict = VigilanciaRepository.get_by_date(db, data)
     vigilants_hora = vigilants_per_hora(vigilancies_dict)
@@ -467,13 +466,13 @@ def ajuda_vigilant(db: Session, dia: Dia, hora: str, professor: str) -> dict:
             "grup": sub.grup,
             "aula": sub.aula,
         }
-        for sub in SubstitucioRepository.get_by_date(db, dia.iso)
+        for sub in SubstitucioRepository.get_by_date(db, dia.data)
         if (sub.hora or "").strip() == hora and (sub.substitut or "").strip() == professor
     ]
 
     del_professor = [
         vig
-        for vigs in VigilanciaRepository.get_by_date(db, dia.iso).values()
+        for vigs in VigilanciaRepository.get_by_date(db, dia.data).values()
         for vig in vigs
         if (vig.vigilant or "").strip() == professor
     ]
@@ -498,7 +497,7 @@ def ajuda_vigilant(db: Session, dia: Dia, hora: str, professor: str) -> dict:
 # ------------------------------------------------------------ crear, editar i esborrar
 
 
-def crea(db: Session, data: str, vigilancia) -> dict:
+def crea(db: Session, data: date, vigilancia) -> dict:
     """Desa una vigilància nova i retorna com ha quedat (amb l'id de la BD)."""
     vigilancia_data = {
         "hora": vigilancia.hora,
@@ -520,7 +519,7 @@ def crea(db: Session, data: str, vigilancia) -> dict:
     return _payload(nova_vig)
 
 
-def _posa_despres_de(db: Session, data: str, nova, referencia: str) -> None:
+def _posa_despres_de(db: Session, data: date, nova, referencia: str) -> None:
     """Mou la fila `nova` (que acaba de crear-se al final del bloc) just a sota
     de la fila `referencia`, que ha de ser de la mateixa hora (no fa commit).
     Només canvia l'ordre de les files que es mouen."""
@@ -547,7 +546,7 @@ def _comprova_versio(vig_abans, updated_at, falta: str) -> None:
         raise ConflicteVigilancia(_payload(vig_abans))
 
 
-def edita(db: Session, data: str, vig_id: int, edicio) -> str | None:
+def edita(db: Session, data: date, vig_id: int, edicio) -> str | None:
     """Canvia els camps que porta `edicio` i retorna el nou updated_at. Sense
     `force`, l'updated_at ha de ser el que es va llegir."""
     updates = {}
@@ -596,7 +595,7 @@ def edita(db: Session, data: str, vig_id: int, edicio) -> str | None:
     return vig_updated.updated_at.isoformat() if vig_updated.updated_at else None
 
 
-def esborra(db: Session, data: str, vig_id: int, updated_at: str = None, force: bool = False) -> None:
+def esborra(db: Session, data: date, vig_id: int, updated_at: str = None, force: bool = False) -> None:
     vig_abans = VigilanciaRepository.get_by_id(db, data, vig_id)
 
     if not force:
@@ -642,7 +641,7 @@ def taules_de_grups(db: Session):
     return nivell_de, abreviatures, nivells
 
 
-def calcula_assignacio(db: Session, dia: Dia, data: str, amb_guardia: bool, rng=None) -> dict:
+def calcula_assignacio(db: Session, dia: Dia, data: date, amb_guardia: bool, rng=None) -> dict:
     """L'assignació sencera del dia, hora per hora, sense desar res:
     {"vigilants": {id de la fila: professor}, "titulars": {id: titulars
     possibles}, "hora_lliure": [titulars que no s'hi han posat perquè tenien
@@ -652,7 +651,7 @@ def calcula_assignacio(db: Session, dia: Dia, data: str, amb_guardia: bool, rng=
     rng = rng or _atzar()
     core = dia.vigilancia_core(db)
     horari = dia.horari
-    nom_dia = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+    nom_dia = horari.get_dia_name(data.weekday())
     nivell_de, abreviatures, nivells = taules_de_grups(db)
     propers = {fila["base"]: fila["ordre"] for fila in get_vigilancies_afinitats(db)}
     config = files_configuracio(db)
@@ -742,7 +741,7 @@ def calcula_assignacio(db: Session, dia: Dia, data: str, amb_guardia: bool, rng=
     return {"vigilants": vigilants, "titulars": titulars, "hora_lliure": hora_lliure, "sense_titular": sense_titular}
 
 
-def _desa(db: Session, data: str, posar: dict) -> None:
+def _desa(db: Session, data: date, posar: dict) -> None:
     """Desa els vigilants {id: professor} i refresca les cobertures de les
     hores que han canviat."""
     hores = set()
@@ -755,11 +754,11 @@ def _desa(db: Session, data: str, posar: dict) -> None:
     db.commit()
 
 
-def _pendents(db: Session, data: str) -> int:
+def _pendents(db: Session, data: date) -> int:
     return sum(1 for v in llista(db, data) if not (v.vigilant or "").strip())
 
 
-def assigna_titulars(db: Session, dia: Dia, data: str, rng=None) -> dict:
+def assigna_titulars(db: Session, dia: Dia, data: date, rng=None) -> dict:
     """Posa NOMÉS els titulars, a la fila que els toca segons l'assignació
     sencera de cada hora (un titular de diversos grups va on deixa més
     professors al seu grup). Els titulars amb l'hora lliure no s'hi posen:
@@ -782,7 +781,7 @@ def assigna_titulars(db: Session, dia: Dia, data: str, rng=None) -> dict:
     }
 
 
-def assigna_pendents(db: Session, dia: Dia, data: str, disponibles: bool = False, rng=None) -> dict:
+def assigna_pendents(db: Session, dia: Dia, data: date, disponibles: bool = False, rng=None) -> dict:
     """Omple les vigilàncies pendents (veure vigilancies/assignacio.py): amb
     `disponibles`, també amb professors de guàrdia i altres activitats de les
     prioritats; si no, només amb alliberats (i els titulars)."""
@@ -803,7 +802,7 @@ def assigna_pendents(db: Session, dia: Dia, data: str, disponibles: bool = False
 # ------------------------------------------------------------ netejar i ordenar
 
 
-def buida_vigilants(db: Session, data: str) -> int:
+def buida_vigilants(db: Session, data: date) -> int:
     """Treu tots els vigilants del dia (es queden tipus, grups i aules) i
     retorna quants n'ha tret."""
     vigilancies = VigilanciaRepository.amb_vigilant(db, data)
@@ -821,24 +820,25 @@ def buida_vigilants(db: Session, data: str) -> int:
     return len(vigilancies)
 
 
-def ordena(db: Session, data: str) -> int:
+def ordena(db: Session, data: date) -> int:
     """«Ordena»: desa l'ordre automàtic (dins de cada hora, nivell, grup i
     aula) i retorna quantes files hi ha. Els retocs fets a mà es perden: la
     pantalla ho ha de confirmar abans si `ordre_manual`."""
     vigs = VigilanciaRepository.del_dia(db, data)
     if not vigs:
-        raise NoTrobat(f"No hi ha vigilàncies per {data}", codi="sense_vigilancies", params={"data": data})
+        data_iso = data.isoformat()
+        raise NoTrobat(f"No hi ha vigilàncies per {data_iso}", codi="sense_vigilancies", params={"data": data_iso})
     ordena_automaticament(vigs)
     db.commit()
     return len(vigs)
 
 
-def ordre_manual(db: Session, data: str) -> bool:
+def ordre_manual(db: Session, data: date) -> bool:
     """Si l'ordre desat del dia té retocs fets a mà (no és l'automàtic)."""
     return te_ordre_manual(VigilanciaRepository.del_dia(db, data))
 
 
-def desa_ordre(db: Session, data: str, hora: str, ids: list) -> None:
+def desa_ordre(db: Session, data: date, hora: str, ids: list) -> None:
     """L'ordre de les files d'una hora, tal com ve (`ids`, de la primera a
     l'última). Han de ser exactament les files d'aquella hora: una fila d'una
     altra hora és un error (400); si en falta o en sobra alguna, algú ha

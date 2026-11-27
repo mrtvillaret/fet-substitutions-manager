@@ -1,8 +1,10 @@
 """
 Entrades del planificador amb esquema: un camp d'un tipus que no toca, 422;
-una data que no és AAAA-MM-DD, 400 (parametres.DataISO). Els noms d'examen
+una data que no és AAAA-MM-DD, 400 (parametres.DataTextual). Els noms d'examen
 (fixats, preferències, grups de durada) i de professor arriben nets.
 """
+
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
@@ -112,16 +114,16 @@ def test_els_grups_de_durada_tenen_els_noms_nets(client):
 
 
 def test_dates_sense_zeros_es_normalitzen_a_la_peticio_de_generar():
-    """«2027-3-1» arriba com a «2027-03-01» (abans: 500 o 422 segons el camp)."""
+    """Les dates sense zeros es validen i arriben com a dates de calendari."""
     from planificador.schemas import SchedulerGenerateRequest
 
     peticio = SchedulerGenerateRequest.model_validate(
         {"data_inici": "2027-3-1", "data_final": "2027-03-02", "selected_dates": ["2027-3-2"]}
     )
     assert (peticio.data_inici, peticio.data_final, peticio.selected_dates) == (
-        "2027-03-01",
-        "2027-03-02",
-        ["2027-03-02"],
+        date(2027, 3, 1),
+        date(2027, 3, 2),
+        [date(2027, 3, 2)],
     )
 
 

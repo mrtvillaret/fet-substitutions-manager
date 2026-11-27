@@ -1,5 +1,7 @@
 """La publicació i les cobertures derivades es confirmen alhora."""
 
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 from suport_api import crea_app, crea_usuari, entra, nova_institucio
@@ -86,7 +88,9 @@ def _bolcat(centre):
                 for fila in vigilancies
             ],
             "grups": [(fila.id, fila.hora, fila.grups) for fila in grups],
-            "substitucions": sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila.id),
+            "substitucions": sorted(
+                SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)), key=lambda fila: fila.id
+            ),
         }
 
 

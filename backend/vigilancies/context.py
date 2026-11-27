@@ -4,7 +4,7 @@ Contains all non-UI logic for exam vigilance assignment.
 """
 
 import logging
-from datetime import datetime
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -79,7 +79,9 @@ class VigilanciaCore:
         return True
 
 
-def get_vigilancia_core(data: str, db: Session = None, institucio: str = None, *, horari=None) -> VigilanciaCore:
+def get_vigilancia_core(
+    data: date, db: Session | None = None, institucio: str | None = None, *, horari=None
+) -> VigilanciaCore:
     """Crea i configura VigilanciaCore per una data específica"""
     instit = institucio or _get_institucio_actual()
 
@@ -94,10 +96,9 @@ def get_vigilancia_core(data: str, db: Session = None, institucio: str = None, *
 
     # Carregar configuració d'exàmens des de SQLite
     assignatures_config = ConfiguracioExamenRepository.get_all_as_dict(db)
-    date_obj = datetime.strptime(data, "%Y-%m-%d")
 
     substitucions_data = SubstitucioRepository.get_by_date(db, data)
-    absents = {}
+    absents: dict[str, list[str]] = {}
     absents_tipus = {}
 
     for sub in substitucions_data:
@@ -119,7 +120,7 @@ def get_vigilancia_core(data: str, db: Session = None, institucio: str = None, *
     grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
 
     # Dia de la setmana
-    weekday_idx = date_obj.weekday()
+    weekday_idx = data.weekday()
     dia_name = horari.get_dia_name(weekday_idx)
 
     # Configurar core

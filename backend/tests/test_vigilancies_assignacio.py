@@ -17,6 +17,7 @@ només si es diu. Un examen sol no allibera.
 
 import itertools
 import random
+from datetime import date
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
@@ -80,7 +81,7 @@ def _centre(config=(), alliberats=(), absents=(), abreviatures=(), afinitats=())
         for originals, abreviatura in abreviatures:
             db.add(AbreviaturaGrup(grups_originals=originals, abreviatura=abreviatura))
         if alliberats:
-            GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": list(alliberats)})
+            GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": list(alliberats)})
         if afinitats:
             save_vigilancies_afinitats(db, list(afinitats))
         db.commit()
@@ -108,9 +109,9 @@ def _crea(client, grups, tipus="Castellà", aula="A1", nivell=None):
         nom = client.get("/api/users/profile").json()["username"]
         centre = UserRepository.get_by_username(auth, nom).institucio
     with get_data_db_session(centre) as db:
-        marques = AlliberatsDelDia.get_by_date(db, DATA)
+        marques = AlliberatsDelDia.get_by_date(db, date.fromisoformat(DATA))
         marques.setdefault("10:00", []).append(grups)
-        GrupsAlliberatsRepository.set_for_date(db, DATA, marques)
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), marques)
         db.commit()
 
 

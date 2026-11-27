@@ -11,12 +11,15 @@ tingui substitucions o vigilàncies:
 Els dies passats no es toquen: són historial (PDF ja repartits, informes).
 """
 
-import logging
-from datetime import date, datetime, timedelta
+from collections.abc import Collection
+from datetime import date, timedelta
+from typing import Unpack
+
+from sqlalchemy.orm import Session
 
 import rellotge
 from absencia_coberta.domain import absents_coberts, absents_coberts_en, sense_absents_coberts
-from absencia_coberta.repositories import AbsenciaCobertaRepository
+from absencia_coberta.repositories import AbsenciaCobertaFitxa, AbsenciaCobertaRepository, CanvisAbsenciaCoberta
 from database import get_data_db_session
 from errors_domini import MissingXmlError, NoTrobat
 from horari.domain import Dia
@@ -28,52 +31,45 @@ from substitucions.repositories import SubstitucioRepository
 from textos import nom_net
 from vigilancies.repositories import VigilanciaRepository
 
-log = logging.getLogger(__name__)
 
-
-def _dies_afectats(db, data_inici: str, data_final: str, avui: date) -> list:
-    try:
-        inici = datetime.strptime(data_inici, "%Y-%m-%d").date()
-        final = datetime.strptime(data_final, "%Y-%m-%d").date()
-    except (TypeError, ValueError):
-        return []
-    inici = max(inici, avui)
-    if inici > final:
+def _dies_afectats(db: Session, data_inici: date, data_final: date, avui: date) -> list[date]:
+    inici = max(data_inici, avui)
+    if inici > data_final:
         return []
     dates = set()
     for repositori in (SubstitucioRepository, VigilanciaRepository):
-        dates |= repositori.dates_entre(db, inici.isoformat(), final.isoformat())
-    return sorted(d.isoformat() for d in dates)
+        dates |= repositori.dates_entre(db, inici, data_final)
+    return sorted(dates)
 
 
-def _dia_amb_absencies_pendents(db, institucio: str, data_iso: str) -> Dia:
+def _dia_amb_absencies_pendents(db: Session, institucio: str, data: date) -> Dia:
     """Dia amb l'horari que veu també la transacció actual."""
-    dia = Dia.de_text(data_iso, institucio)
+    dia = Dia(data, institucio)
     horari_sencer = dia.horari_amb_tothom
     # La mateixa memòria cau de Dia.horari, amb la vista dels canvis pendents.
-    dia.__dict__["horari"] = sense_absents_coberts(horari_sencer, absents_coberts(db, data_iso))
+    dia.__dict__["horari"] = sense_absents_coberts(horari_sencer, absents_coberts(db, data))
     return dia
 
 
 def aplica_absencia_coberta(
-    db, professor: str, data_inici: str, data_final: str, avui: date = None, institucio: str = None
+    db: Session, professor: str, data_inici: date, data_final: date, *, institucio: str, avui: date | None = None
 ) -> dict:
     """Aplica la baixa (veure el docstring del mòdul) i retorna el que ha canviat.
     Cal cridar-la després de desar-la: l'horari de cada dia ja no la hi té."""
 
     professor = (professor or "").strip()
-    canvis = {"absencies_esborrades": [], "vigilancies_buidades": [], "substituts_trets": []}
+    canvis: dict[str, list[dict]] = {"absencies_esborrades": [], "vigilancies_buidades": [], "substituts_trets": []}
     if not professor:
         return canvis
 
-    for d in _dies_afectats(db, data_inici, data_final, avui or rellotge.avui()):
-        dia = _dia_amb_absencies_pendents(db, institucio, d)
+    for data in _dies_afectats(db, data_inici, data_final, avui or rellotge.avui()):
+        dia = _dia_amb_absencies_pendents(db, institucio, data)
         gestors = dia.gestors()
         _, horari, _, absencies = gestors
         hores_absent = sorted(
             {
                 s.hora
-                for s in SubstitucioRepository.get_by_date(db, d)
+                for s in SubstitucioRepository.get_by_date(db, data)
                 if s.professor_absent == professor and s.tipus_absencia in ("ABSENCIA", "SERVEI")
             }
         )
@@ -82,7 +78,7 @@ def aplica_absencia_coberta(
             # (també treu els substituts que ja no són vàlids, com ell mateix)
             resposta = desa_absencies(
                 db,
-                d,
+                data,
                 professor,
                 hores_absencia=[],
                 hores_servei=[],
@@ -90,26 +86,29 @@ def aplica_absencia_coberta(
                 gestors_cobertures=gestors,
                 dia_escolar=DiaEscolar(db, dia),
             )
-            canvis["absencies_esborrades"] += [{"data": d, "hora": h} for h in hores_absent]
+            canvis["absencies_esborrades"] += [{"data": data, "hora": h} for h in hores_absent]
             canvis["substituts_trets"] += resposta.get("substituts_trets", [])
 
         hores_vigilancia = set()
-        for vigs in VigilanciaRepository.get_by_date(db, d).values():
+        for vigs in VigilanciaRepository.get_by_date(db, data).values():
             for vig in vigs:
                 if (vig.vigilant or "").strip() == professor:
-                    VigilanciaRepository.update_by_id(db, d, vig.id, {"vigilant": ""})
+                    assert vig.id is not None  # la fila ve de la BD
+                    VigilanciaRepository.update_by_id(db, data, vig.id, {"vigilant": ""})
                     hores_vigilancia.add(vig.hora)
-                    canvis["vigilancies_buidades"].append({"data": d, "hora": vig.hora, "tipus": vig.tipus})
+                    canvis["vigilancies_buidades"].append({"data": data, "hora": vig.hora, "tipus": vig.tipus})
         for hora in sorted(hores_vigilancia):
-            refresca_cobertures(d, hora, db, gestors=gestors)
+            refresca_cobertures(data, hora, db, gestors=gestors)
 
         dia_escolar = DiaEscolar(db, dia)
-        canvis["substituts_trets"] += [{**fila, "data": d} for fila in treu_substituts_no_valids(db, d, dia_escolar)]
+        canvis["substituts_trets"] += [
+            {**fila, "data": data} for fila in treu_substituts_no_valids(db, data, dia_escolar)
+        ]
 
     return canvis
 
 
-def absencies_cobertes_del_dia(institucio: str, data_iso: str, professors) -> list:
+def absencies_cobertes_del_dia(institucio: str, data: date, professors: Collection[str]) -> list[dict]:
     """Per mostrar-los (no per decidir res): dels `professors` (els que
     l'horari del dia ha tret), fins quan dura la seva absència coberta.
     [{professor, data_final}], per nom."""
@@ -119,30 +118,25 @@ def absencies_cobertes_del_dia(institucio: str, data_iso: str, professors) -> li
     resultat = []
     for professor in sorted(professors):
         finals = [
-            a.get("data_final")
+            a["data_final"]
             for a in absencies
-            if nom_net(a.get("professor") or "") == professor and absents_coberts_en([a], data_iso)
+            if nom_net(a["professor"] or "") == professor and absents_coberts_en([a], data)
         ]
         resultat.append({"professor": professor, "data_final": max(finals) if finals else None})
     return resultat
 
 
-def classes_sense_substitut(institucio: str, professor: str, data_inici: str, data_final: str) -> list:
+def classes_sense_substitut(institucio: str, professor: str, data_inici: date, data_final: date) -> list[dict]:
     """Les classes de `professor` durant el període que, a l'XML vigent cada
     dia, no tenen cap altre professor amb el mateix grup a la mateixa hora: si
     hi fos el substitut extern, n'hi hauria un. És un avís, no bloqueja res.
     Cada classe surt un cop per dia de la setmana i horari: {dia, hora, grup,
     assignatura}."""
 
-    professor = nom_net(professor or "")
-    try:
-        inici = datetime.strptime(data_inici, "%Y-%m-%d").date()
-        final = datetime.strptime(data_final, "%Y-%m-%d").date()
-    except (TypeError, ValueError):
-        return []
+    professor = nom_net(professor) or ""
     vistos, resultat = set(), []
-    data = inici
-    for _ in range(min((final - inici).days + 1, 400)):  # un curs, com a molt
+    data = data_inici
+    for _ in range(min((data_final - data_inici).days + 1, 400)):  # un curs, com a molt
         try:
             vista = Dia(data, institucio).horari
         except MissingXmlError:
@@ -167,12 +161,13 @@ def classes_sense_substitut(institucio: str, professor: str, data_inici: str, da
 # ------------------------------------------------------------ alta, edició i baixa
 
 
-def llista(db) -> list:
+def llista(db: Session) -> list[AbsenciaCobertaFitxa]:
     return AbsenciaCobertaRepository.get_all(db)
 
 
-def _aplica_i_avisa(db, absencia_id: int, institucio: str) -> dict:
+def _aplica_i_avisa(db: Session, absencia_id: int, institucio: str) -> dict:
     absencia = AbsenciaCobertaRepository.get_by_id(db, absencia_id)
+    assert absencia is not None  # la mateixa transacció l'acaba de desar
     canvis = aplica_absencia_coberta(
         db,
         absencia["professor"],
@@ -185,7 +180,7 @@ def _aplica_i_avisa(db, absencia_id: int, institucio: str) -> dict:
     return {"canvis": canvis, "avisos": avisos}
 
 
-def crea(db, institucio: str, professor: str, data_inici: str, data_final: str, motiu: str = "") -> dict:
+def crea(db: Session, institucio: str, professor: str, data_inici: date, data_final: date, motiu: str = "") -> dict:
     """Desa una absència coberta i l'aplica. Retorna {id, canvis, avisos}."""
     absencia_id = AbsenciaCobertaRepository.create(db, professor, data_inici, data_final, motiu)
     resultat = {"id": absencia_id, **_aplica_i_avisa(db, absencia_id, institucio)}
@@ -193,7 +188,7 @@ def crea(db, institucio: str, professor: str, data_inici: str, data_final: str, 
     return resultat
 
 
-def edita(db, institucio: str, absencia_id: int, **camps) -> dict:
+def edita(db: Session, institucio: str, absencia_id: int, **camps: Unpack[CanvisAbsenciaCoberta]) -> dict:
     """Canvia els camps donats (professor, data_inici, data_final, motiu) i
     l'aplica de nou. Retorna {canvis, avisos}."""
     if not AbsenciaCobertaRepository.update(db, absencia_id, **camps):
@@ -203,7 +198,7 @@ def edita(db, institucio: str, absencia_id: int, **camps) -> dict:
     return resultat
 
 
-def esborra(db, absencia_id: int) -> None:
+def esborra(db: Session, absencia_id: int) -> None:
     if not AbsenciaCobertaRepository.delete(db, absencia_id):
         raise NoTrobat("Absència coberta no trobada", codi="absencia_coberta_no_trobada")
     db.commit()

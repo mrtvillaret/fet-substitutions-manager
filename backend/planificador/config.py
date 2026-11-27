@@ -3,7 +3,11 @@ Configuració del planificador d'exàmens d'un centre, tal com la fan servir
 generar, analitzar i recalcular el cost: es llegeix d'un sol lloc.
 """
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import date
+
+from sqlalchemy.orm import Session
 
 import rellotge
 from configuracio.repositories import ConfiguracioRepository
@@ -13,18 +17,24 @@ from horari.repositories import XMLVersionRepository
 from planificador import restriccions
 from planificador.alliberaments import (
     _build_slots_valids_from_alliberaments,
-    _build_slots_valids_iso_from_alliberaments,
+    _build_slots_valids_per_data,
     _merge_slots_valids,
     _selected_dates_from_alliberaments,
 )
 from planificador.compartit.constants import DEFAULT_DURADA_TITULAR
+from planificador.compartit.dates import data_calendari
 from planificador.compartit.missatges import missatge
 from planificador.compartit.nivells import NivellsDelsGrups
+from planificador.documents import (
+    alliberaments_amb_dates,
+    data_desada,
+    document_iso,
+    llegeix_alliberaments,
+    llegeix_dates,
+)
 from planificador.examens import nivells_dels_grups, nivells_master
 from planificador.motor.durades import examen as hores_examen
 from planificador.repositories import (
-    SCHEDULER_ALLIBERAMENTS_KEY,
-    SCHEDULER_DATES_KEY,
     SCHEDULER_DURADA_EXAMEN_KEY,
     SCHEDULER_DURADA_KEY,
     SCHEDULER_DURADES_GRUPS_KEY,
@@ -43,7 +53,7 @@ class ConfigPlanificador:
     durada_examen: int  # hores que dura l'examen per a l'alumnat (general)
     nivells_configurats: list
     nivells_master: list
-    dates_configurades: list
+    dates_configurades: list[date]
     alliberaments: dict  # per nivell: dates, hores sense classe i d'inici
     durades_per_sessio: dict  # hores de vigilància de cada examen amb durada pròpia
     durades_examen_per_sessio: dict  # hores d'examen (≥ les de vigilància)
@@ -58,7 +68,7 @@ class ConfigPlanificador:
             examen, self.durades_examen_per_sessio, self.durades_per_sessio, self.durada_examen, self.durada_titular
         )
 
-    def nivells_actius(self, demanats=None) -> list:
+    def nivells_actius(self, demanats: list[str] | None = None) -> list[str]:
         return demanats or self.nivells_configurats or self.nivells_master
 
     def avisos(self, nivells: list | None = None) -> list:
@@ -100,7 +110,7 @@ class ConfigPlanificador:
             for grup, noms in sorted(per_grup.items())
         ]
 
-    def dates(self, demanades, nivells) -> list:
+    def dates(self, demanades: list[date] | None, nivells: list[str]) -> list[date]:
         """Les dates dels alliberaments dels nivells si n'hi ha; si no, les
         demanades o les desades a la configuració."""
         return (
@@ -132,7 +142,7 @@ def _positiu(valor) -> int | None:
         return None
 
 
-def _durades(db) -> tuple[dict, dict]:
+def _durades(db: Session) -> tuple[dict, dict]:
     """(vigilància, examen) per assignatura, dels grups de durada."""
     vigilancia, examen = {}, {}
     for grup in llegeix_json(db, SCHEDULER_DURADES_GRUPS_KEY, None) or []:
@@ -161,16 +171,16 @@ def _config_dels_motors(assignacions, taules: NivellsDelsGrups) -> dict:
     return config
 
 
-def carrega_config(institucio: str) -> ConfigPlanificador:
+def llegeix_config(institucio: str) -> ConfigPlanificador:
     with get_data_db_session(institucio, lectura=True) as db:
         durada = ConfiguracioRepository.get(db, SCHEDULER_DURADA_KEY)
         durada_titular = int(durada) if durada else DEFAULT_DURADA_TITULAR
         durada_examen = _positiu(ConfiguracioRepository.get(db, SCHEDULER_DURADA_EXAMEN_KEY)) or durada_titular
         durades_per_sessio, durades_examen_per_sessio = _durades(db)
-        alliberaments = llegeix_json(db, SCHEDULER_ALLIBERAMENTS_KEY, {})
+        alliberaments = llegeix_alliberaments(db)
         nivells_configurats = llegeix_json(db, SCHEDULER_NIVELLS_KEY, [])
         nivells = nivells_configurats or nivells_master(db)
-        dates_configurades = llegeix_json(db, SCHEDULER_DATES_KEY, [])
+        dates_configurades = llegeix_dates(db)
         # «No substituir», el de la mateixa data que l'horari (XML) del
         # planificador: la primera data planificada o, sense dates, avui.
         dates = _selected_dates_from_alliberaments(alliberaments, nivells) or dates_configurades
@@ -193,8 +203,34 @@ def carrega_config(institucio: str) -> ConfigPlanificador:
         )
 
 
-def aplica_restriccions_derivades(
-    restriccions: dict, alliberaments: dict, nivells: list, dies: list, dia_a_data_iso: dict, hores: list
+class ConfigMotor:
+    """Projecció textual de la configuració que consumeix el motor."""
+
+    def __init__(self, cfg: ConfigPlanificador):
+        self._cfg = cfg
+        self.alliberaments = document_iso(cfg.alliberaments)
+        self.restriccions = document_iso(cfg.restriccions)
+
+    def __getattr__(self, camp: str):
+        return getattr(self._cfg, camp)
+
+    def dates(self, demanades: list[str] | None, nivells: list[str]) -> list[str]:
+        dates = [data for valor in demanades or [] if (data := data_calendari(valor))]
+        return document_iso(self._cfg.dates(dates, nivells))
+
+
+def carrega_config(institucio: str) -> ConfigMotor:
+    """Punt d’entrada de la configuració per al recàlcul del motor."""
+    return ConfigMotor(llegeix_config(institucio))
+
+
+def deriva_restriccions(
+    restriccions: dict,
+    alliberaments: dict,
+    nivells: list[str],
+    dies: list[str],
+    dia_a_data: Mapping[str, Sequence[date | str]],
+    hores: list[str],
 ) -> None:
     """Afegeix a les restriccions dures les que surten dels alliberaments: on
     pot començar l'examen de cada nivell (per dia i per data) i les dates de
@@ -204,36 +240,53 @@ def aplica_restriccions_derivades(
         alliberaments_cfg=alliberaments,
         nivells_actius=nivells,
         dies_utilitzar=dies,
-        dia_a_data_iso=dia_a_data_iso,
+        dia_a_data=dia_a_data,
         hores_disponibles=hores,
     )
     dures["slots_valids_per_nivell"] = _merge_slots_valids(dures.get("slots_valids_per_nivell") or {}, derivats)
     dates_per_nivell = {
-        niv: [d for d in (alliberaments.get(niv) or {}).get("dates", []) if isinstance(d, str)]
+        niv: [d for d in (alliberaments.get(niv) or {}).get("dates", []) if isinstance(d, (date, str))]
         for niv in (nivells or [])
         if isinstance((alliberaments or {}).get(niv), dict) and (alliberaments[niv].get("dates") or [])
     }
     if dates_per_nivell:
         dures["dates_per_nivell"] = dates_per_nivell
-    slots_iso = _build_slots_valids_iso_from_alliberaments(alliberaments, nivells, hores)
-    if slots_iso:
-        dures["slots_valids_iso_per_nivell"] = slots_iso
+    slots_per_data = _build_slots_valids_per_data(alliberaments, nivells, hores)
+    if slots_per_data:
+        dures["slots_valids_iso_per_nivell"] = slots_per_data
 
 
-def _data_de_referencia(dates) -> str:
+def aplica_restriccions_derivades(
+    restriccions: dict,
+    alliberaments: dict,
+    nivells: list[str],
+    dies: list[str],
+    dia_a_data_iso: dict[str, list[str] | str],
+    hores: list[str],
+) -> None:
+    """El motor del recàlcul demana les restriccions a partir de dades textuals."""
+    dates = {
+        dia: [data_desada(d) for d in ([valors] if isinstance(valors, str) else valors)]
+        for dia, valors in dia_a_data_iso.items()
+    }
+    deriva_restriccions(restriccions, alliberaments_amb_dates(alliberaments), nivells, dies, dates, hores)
+    restriccions["restriccions_dures"] = document_iso(restriccions["restriccions_dures"])
+
+
+def _data_de_referencia(dates: list[date]) -> date:
     """La data de l'horari del planificador: la primera de les planificades;
     sense dates, avui."""
     dates = sorted(d for d in (dates or []) if d)
-    return dates[0] if dates else rellotge.avui().isoformat()
+    return dates[0] if dates else rellotge.avui()
 
 
-def horari_de_la_planificacio(institucio: str, dates: list | None = None) -> dict:
+def horari_de_la_planificacio(institucio: str, dates: list[date] | None = None) -> dict:
     """Quin horari (XML) fa servir el planificador: el vigent a la primera de
     les dates planificades (les donades o, si no, les desades); sense dates,
     el d'avui. També si les dates cauen en més d'un horari: es planifica amb
     el de la primera i cal avisar-ho."""
     if not dates:
-        cfg = carrega_config(institucio)
+        cfg = llegeix_config(institucio)
         dates = cfg.dates(None, cfg.nivells_actius())
     dates = sorted(d for d in (dates or []) if d)
     referencia = _data_de_referencia(dates)
@@ -247,12 +300,12 @@ def horari_de_la_planificacio(institucio: str, dates: list | None = None) -> dic
     return {
         "data_referencia": referencia,
         "sense_dates": not dates,
-        "versio_des_de": inicis[0].isoformat() if inicis else None,
+        "versio_des_de": inicis[0] if inicis else None,
         # Data en què comença un altre horari dins les dates planificades
-        "canvi_horari": inicis[1].isoformat() if len(inicis) > 1 else None,
+        "canvi_horari": inicis[1] if len(inicis) > 1 else None,
     }
 
 
-def data_referencia(institucio: str) -> str:
+def data_referencia(institucio: str) -> date:
     """La data de l'horari del planificador (primera data planificada o avui)."""
     return horari_de_la_planificacio(institucio)["data_referencia"]

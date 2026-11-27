@@ -8,7 +8,6 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 import rellotge
-from dates import parse_date
 from models import Configuracio, Professor, XMLVersion
 
 
@@ -24,7 +23,7 @@ class XMLVersionRepository:
         return db.query(XMLVersion).filter(XMLVersion.id == version_id).first()
 
     @staticmethod
-    def comenca_el(db: Session, data_inici: date, excepte: int = None) -> bool:
+    def comenca_el(db: Session, data_inici: date, excepte: int | None = None) -> bool:
         """Si alguna versió (que no sigui `excepte`) comença aquest dia."""
         q = db.query(XMLVersion).filter(XMLVersion.data_inici == data_inici)
         if excepte is not None:
@@ -46,36 +45,30 @@ class XMLVersionRepository:
         return db.query(XMLVersion).filter(XMLVersion.data_fi.is_(None)).order_by(XMLVersion.data_inici.desc()).first()
 
     @staticmethod
-    def vigent(db: Session, data: str = None) -> XMLVersion | None:
+    def vigent(db: Session, data: date | None = None) -> XMLVersion | None:
         """La versió vigent a `data` (per defecte avui). Si aquell dia no en
         cobreix cap: la primera que comenci després (p. ex. només s'ha pujat
         l'horari d'un curs que encara no ha començat) o, si no, la darrera."""
-        data = data or rellotge.avui().isoformat()
-        versio = XMLVersionRepository.get_for_date(db, data)
+        data_obj = data if data is not None else rellotge.avui()
+        versio = XMLVersionRepository.get_for_date(db, data_obj)
         if versio:
             return versio
-        data_obj = parse_date(data)
         return (
             db.query(XMLVersion).filter(XMLVersion.data_inici > data_obj).order_by(XMLVersion.data_inici).first()
             or db.query(XMLVersion).order_by(XMLVersion.data_inici.desc()).first()
         )
 
     @staticmethod
-    def get_for_date(db: Session, data: str) -> XMLVersion | None:
-        data_obj = parse_date(data)
+    def get_for_date(db: Session, data: date) -> XMLVersion | None:
         return (
             db.query(XMLVersion)
-            .filter(
-                and_(
-                    XMLVersion.data_inici <= data_obj, or_(XMLVersion.data_fi.is_(None), XMLVersion.data_fi >= data_obj)
-                )
-            )
+            .filter(and_(XMLVersion.data_inici <= data, or_(XMLVersion.data_fi.is_(None), XMLVersion.data_fi >= data)))
             .order_by(XMLVersion.data_inici.desc())
             .first()
         )
 
     @staticmethod
-    def create(db: Session, path: str, data_inici: date, hash_contingut: str = None) -> XMLVersion:
+    def create(db: Session, path: str, data_inici: date, hash_contingut: str | None = None) -> XMLVersion:
         """Una versió nova (la data de fi la posa encadena(); el commit, qui crida)."""
         nova = XMLVersion(path=path, data_inici=data_inici, hash_contingut=hash_contingut)
         db.add(nova)

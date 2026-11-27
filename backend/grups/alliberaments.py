@@ -1,9 +1,11 @@
 """Resolució dels alliberaments del dia i dels períodes, sense consultes."""
 
+from datetime import date
+
 from grups.disponibilitat import activitats_de, clau_ocupat, clau_professor, ocupats_de
 
 
-def resol_alliberats(result, horari, data, darrers, per_defecte):
+def resol_alliberats(result, horari, data: date, darrers, per_defecte):
     dia = horari.get_dia_name(data.weekday())
 
     for (_tipus, professor, dia_canvi, hora), canvi in darrers.items():

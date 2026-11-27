@@ -24,8 +24,8 @@ def test_cada_dia_te_l_horari_vigent_aquell_dia(centre):
 
 
 def test_la_versio_de_l_horari_i_des_de_quan_es_vigent(centre):
-    assert Dia(dia(10), centre).versio_des_de == dia(3).isoformat()
-    assert Dia(dia(1), centre).versio_des_de == dia(-30).isoformat()
+    assert Dia(dia(10), centre).versio_des_de == dia(3)
+    assert Dia(dia(1), centre).versio_des_de == dia(-30)
 
 
 def test_versio_explicita_per_revisar_un_xml_encara_no_vigent(centre, monkeypatch):
@@ -39,7 +39,7 @@ def test_versio_explicita_per_revisar_un_xml_encara_no_vigent(centre, monkeypatc
     monkeypatch.setattr(XMLVersionRepository, "vigent", no_consultar)
     d = Dia(dia(1), centre, versio_xml=versio_nova)
     assert d.versio is versio_nova
-    assert d.versio_des_de == dia(3).isoformat()
+    assert d.versio_des_de == dia(3)
     assert d.xml_path.endswith("futur.xml")
     assert professor_que_plega() not in d.horari.professors
 

@@ -2,10 +2,12 @@
 
 from pydantic import BaseModel
 
+from parametres import DataResposta
+
 
 class Periode(BaseModel):
-    data_inici: str
-    data_final: str
+    data_inici: DataResposta
+    data_final: DataResposta
 
 
 class Cobertura(BaseModel):
@@ -103,7 +105,7 @@ class ClassesResponse(BaseModel):
 
 
 class FilaClasse(BaseModel):
-    data: str
+    data: DataResposta
     dia_setmana: str
     hora: str
     grup: str
@@ -154,7 +156,7 @@ class TaulaProfessorsResponse(BaseModel):
 
 
 class AbsenciaProfessor(BaseModel):
-    data: str
+    data: DataResposta
     dia_setmana: str
     hora: str
     grup: str
@@ -164,7 +166,7 @@ class AbsenciaProfessor(BaseModel):
 
 
 class SubstitucioProfessor(BaseModel):
-    data: str
+    data: DataResposta
     dia_setmana: str
     hora: str
     grup: str

@@ -3,8 +3,9 @@
 import logging
 import os
 from bisect import bisect_right
+from collections.abc import Callable
 from contextlib import nullcontext
-from datetime import timedelta
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,7 @@ from database import get_data_db_session, get_data_dir_for_institucio
 from errors_domini import MissingXmlError, NoValid
 from horari.lector import GestorHorariWeb  # Versió web que llegeix de SQLite
 from horari.repositories import XMLVersionRepository
+from models import XMLVersion
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +28,13 @@ log = logging.getLogger(__name__)
 # hi fixa la seva data i els seus vigilants, i compartits entre peticions es
 # podrien trepitjar.
 _horari: dict[str, GestorHorariWeb] = {}
-_SENSE_VALOR = object()
+
+
+class _SenseValor:
+    pass
+
+
+_SENSE_VALOR = _SenseValor()
 
 
 def _cache_key(institucio: str, xml_path: str) -> str:
@@ -42,7 +50,7 @@ def _get_institucio_actual() -> str:
     return institucio
 
 
-def invalidar_horari(institucio: str = None):
+def invalidar_horari(institucio: str | None = None) -> None:
     """Invalida el singleton de l'horari per forçar recàrrega"""
     global _horari
     if institucio:
@@ -56,23 +64,24 @@ def invalidar_horari(institucio: str = None):
     log.debug("🔄 Singleton d'horari invalidat - es recarregarà en proper ús")
 
 
-def avui() -> str:
-    """La data d'avui (AAAA-MM-DD). L'horari sempre es demana per a una data:
-    qui vol el d'avui ho ha de dir."""
-    return rellotge.avui().isoformat()
+def avui() -> date:
+    """La data d'avui. L'horari sempre es demana per a una data."""
+    return rellotge.avui()
 
 
-def _resolve_xml_path(institucio: str, data_iso: str, *, versio=_SENSE_VALOR, db=None) -> str | None:
-    if not data_iso:
+def _resolve_xml_path(
+    institucio: str, data: date, *, versio: XMLVersion | None | _SenseValor = _SENSE_VALOR, db: Session | None = None
+) -> str | None:
+    if not data:
         # Sense data no se sap quin horari: abans s'agafava un per defecte en
         # silenci i l'error passava desapercebut
         raise ValueError("Cal la data per saber quin horari (XML) fer servir")
     xml_path = None
     # Només l'absència de dades activa les alternatives. Els errors de BD
     # es propaguen: no s'ha de treballar amb un altre XML en silenci.
-    if versio is _SENSE_VALOR:
+    if isinstance(versio, _SenseValor):
         with nullcontext(db) if db is not None else get_data_db_session(institucio, lectura=True) as sessio:
-            versio = XMLVersionRepository.vigent(sessio, data_iso)
+            versio = XMLVersionRepository.vigent(sessio, data)
     if versio:
         xml_path = versio.path
 
@@ -97,12 +106,13 @@ def _resolve_xml_path(institucio: str, data_iso: str, *, versio=_SENSE_VALOR, db
     return xml_path
 
 
-def get_horari(institucio: str = None, *, data_iso: str, xml_path=_SENSE_VALOR) -> GestorHorariWeb:
-    """L'horari vigent a `data_iso` (de memòria cau). Sense institució, la de
-    la petició en curs."""
+def get_horari(
+    institucio: str | None = None, *, data_iso: date, xml_path: str | None | _SenseValor = _SENSE_VALOR
+) -> GestorHorariWeb:
+    """L'horari vigent el dia demanat (de memòria cau). Sense institució, la de la petició en curs."""
     global _horari
     institucio = institucio or _get_institucio_actual()
-    if xml_path is _SENSE_VALOR:
+    if isinstance(xml_path, _SenseValor):
         xml_path = _resolve_xml_path(institucio, data_iso)
     if not xml_path or not os.path.exists(xml_path):
         raise MissingXmlError(institucio, xml_path)
@@ -126,15 +136,15 @@ def get_horari(institucio: str = None, *, data_iso: str, xml_path=_SENSE_VALOR) 
     return _del_dia(horari, institucio, data_iso)
 
 
-def _del_dia(horari: GestorHorariWeb, institucio: str, data_iso: str) -> GestorHorariWeb:
+def _del_dia(horari: GestorHorariWeb, institucio: str, data: date) -> GestorHorariWeb:
     """L'horari tal com és aquell dia: sense els professors amb una absència
     coberta (el punt únic de la regla; absencia_coberta.domain)."""
 
     with get_data_db_session(institucio, lectura=True) as db:
-        return sense_absents_coberts(horari, absents_coberts(db, data_iso))
+        return sense_absents_coberts(horari, absents_coberts(db, data))
 
 
-def horaris_per_dates(db: Session):
+def horaris_per_dates(db: Session) -> Callable[[date], GestorHorariWeb]:
     """Lector d'horaris per a una operació d'interval. Reutilitza l'XML
     entre canvis de versió, però aplica les absències cobertes de cada dia.
     També respecta els forats i el fallback a la versió més propera."""
@@ -143,26 +153,26 @@ def horaris_per_dates(db: Session):
     versions = XMLVersionRepository.list_all(db)
     limits = sorted(
         {
-            d.isoformat()
+            d
             for v in versions
             for d in (v.data_inici, v.data_fi + timedelta(days=1) if v.data_fi else None)
             if d is not None
         }
     )
     vista = vista_per_data(db)
-    horaris = {}
+    horaris: dict[int, GestorHorariWeb | MissingXmlError] = {}
 
-    def horari_de(data):
+    def horari_de(data: date) -> GestorHorariWeb:
         tram = bisect_right(limits, data)
         if tram not in horaris:
             try:
-                h = get_horari(institucio, data_iso=data)
-                horaris[tram] = getattr(h, "sencer", h)
+                horari = get_horari(institucio, data_iso=data)
+                horaris[tram] = getattr(horari, "sencer", horari)
             except MissingXmlError as error:
                 horaris[tram] = error
-        h = horaris[tram]
-        if isinstance(h, MissingXmlError):
-            raise h
-        return vista(h, data)
+        resultat = horaris[tram]
+        if isinstance(resultat, MissingXmlError):
+            raise resultat
+        return vista(resultat, data)
 
     return horari_de

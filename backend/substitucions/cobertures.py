@@ -4,7 +4,7 @@ vigilant absent (VIGILANCIA_ABSENT): es refan per a una hora quan canvien
 les vigilàncies, les absències o els alliberats.
 """
 
-from datetime import datetime
+from datetime import date
 
 from grups.lectures import AlliberatsDelDia
 from substitucions.context import get_gestors
@@ -14,7 +14,7 @@ from substitucions.vigilancia_absent import crear_vigilancia_absent
 from vigilancies.repositories import VigilanciaRepository
 
 
-def allibera_substitucions_en_conflicte(data: str, db, hores: set | None = None) -> int:
+def allibera_substitucions_en_conflicte(data: date, db, hores: set | None = None) -> int:
     """
     Política A: vigilàncies tenen prioritat sobre substitucions.
     Si un professor està assignat com a vigilant a una hora, no pot quedar de substitut a la mateixa hora.
@@ -43,7 +43,7 @@ def allibera_substitucions_en_conflicte(data: str, db, hores: set | None = None)
     return cleared
 
 
-def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
+def refresca_cobertures(data: date, hora: str, db, gestors=None) -> None:
     """Refresca substitucions derivades de vigilàncies per una hora concreta."""
     hora = (hora or "").strip()
     if not hora:
@@ -92,8 +92,7 @@ def refresca_cobertures(data: str, hora: str, db, gestors=None) -> None:
         return
 
     substitucions_mgr, horari, _, _ = gestors or get_gestors(db.info.get("institucio"), data_iso=data)
-    date_obj = datetime.strptime(data, "%Y-%m-%d")
-    dia_name = horari.get_dia_name(date_obj.weekday())
+    dia_name = horari.get_dia_name(data.weekday())
 
     grups_sense_classe = AlliberatsDelDia.get_by_date(db, data)
     grups_hora = grups_sense_classe.get(hora, [])

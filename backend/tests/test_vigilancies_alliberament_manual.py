@@ -1,5 +1,7 @@
 """Un examen no allibera: només les marques manuals permeten assignar."""
 
+from datetime import date
+
 import pytest
 from test_vigilancies_assignacio import DATA, URL, _centre, _pendents, _titulars, _vigilants
 
@@ -48,7 +50,7 @@ def test_examen_no_allibera_automatic_ni_revisio_ni_selector(marca):
     )
     # Sense fila de cobertura, la revisió ha de veure la classe real.
     with get_data_db_session(centre) as db:
-        dia = DiaEscolar(db, Dia.de_text(DATA, centre))
+        dia = DiaEscolar(db, Dia(date.fromisoformat(DATA), centre))
         dia.files = []
         problemes = analitza_vigilancies(dia)
         assert any(p["tipus"] == "classe_sense_cobertura" for p in problemes) == (marca is None)

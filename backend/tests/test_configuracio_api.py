@@ -3,6 +3,8 @@ Configuració del centre (/api/settings): què es desa, qui ho pot desar i què
 en surt.
 """
 
+from datetime import date
+
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
@@ -64,15 +66,15 @@ def test_canviar_l_ultim_professor_nomes_buida_l_horari_del_centre():
     # Abans es buidava la memòria cau de l'horari de tots els centres
     centre, altre = nova_institucio(amb_xml=True), nova_institucio(amb_xml=True)
     del_centre, de_l_altre = (
-        horari_context.get_horari(centre, data_iso=DILLUNS),
-        horari_context.get_horari(altre, data_iso=DILLUNS),
+        horari_context.get_horari(centre, data_iso=date.fromisoformat(DILLUNS)),
+        horari_context.get_horari(altre, data_iso=date.fromisoformat(DILLUNS)),
     )
 
     resposta = _client(centre).put(URL, json={"ultim_professor_subs": "Prof 12"})
 
     assert resposta.status_code == 200, resposta.text
-    assert horari_context.get_horari(altre, data_iso=DILLUNS) is de_l_altre
-    nou = horari_context.get_horari(centre, data_iso=DILLUNS)
+    assert horari_context.get_horari(altre, data_iso=date.fromisoformat(DILLUNS)) is de_l_altre
+    nou = horari_context.get_horari(centre, data_iso=date.fromisoformat(DILLUNS))
     assert nou is not del_centre and "Prof 13" not in nou.professors
 
 

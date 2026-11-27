@@ -1,9 +1,11 @@
 """Entrades i sortides de les rutes de prioritats, baixes i activitats alliberables."""
 
+from datetime import date
+
 from pydantic import BaseModel
 
 from noms import NomNet
-from parametres import DataISO
+from parametres import DataTextual
 
 
 class PrioritatsRequest(BaseModel):
@@ -19,7 +21,7 @@ class NoSubstituirRequest(BaseModel):
     # de sempre (prioritats.services) i no un 422. El text buit s'accepta.
     assignatura: NomNet | None = None
     # Des de quan val (AAAA-MM-DD); sense, avui. Els dies d'abans no canvien.
-    data: DataISO | None = None
+    data: DataTextual | None = None
 
 
 # Sortides
@@ -51,8 +53,8 @@ class AssignaturesPrioritatResponse(BaseModel):
 
 class EntradaNoSubstituirResponse(BaseModel):
     assignatura: str
-    vigent_des_de: str | None = None  # nul: des de sempre
-    vigent_fins_a: str | None = None  # nul: sense final (inclòs)
+    vigent_des_de: date | None = None  # nul: des de sempre
+    vigent_fins_a: date | None = None  # nul: sense final (inclòs)
 
 
 class NoSubstituirResponse(BaseModel):

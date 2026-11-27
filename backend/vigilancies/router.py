@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from dependencies import dia_de_la_peticio, dia_del_calendari, get_db, get_db_lectura
 from horari.domain import Dia
 from noms import NomNet
-from parametres import DataISO
+from parametres import Data
 from vigilancies import services
 from vigilancies.schemas import (
     AfinitatsDesadesResponse,
@@ -64,7 +64,6 @@ def obtenir_config_vigilancies(db: Session = Depends(get_db), dia: Dia = Depends
 
 @router.get("/{data}/{hora}/disponibles", response_model=list[ProfessorDisponible])
 def obtenir_disponibles_vigilancia(
-    data: DataISO,  # noqa: ARG001 (valida la data del camí; el dia ve de dia_de_la_peticio)
     hora: str,
     tipus: str = None,
     grups: str = None,
@@ -82,7 +81,6 @@ def obtenir_disponibles_vigilancia(
 
 @router.get("/{data}/{hora}/professor", response_model=AjudaVigilantResponse)
 def obtenir_ajuda_vigilant(
-    data: DataISO,  # noqa: ARG001 (valida la data del camí; el dia ve de dia_de_la_peticio)
     hora: str,
     nom: NomNet,
     db: Session = Depends(get_db),
@@ -95,7 +93,6 @@ def obtenir_ajuda_vigilant(
 
 @router.post("/{data}/disponibles-batch", response_model=DisponiblesEnBlocResponse)
 def obtenir_disponibles_vigilancia_batch(
-    data: DataISO,  # noqa: ARG001 (valida la data del camí; el dia ve de dia_de_la_peticio)
     payload: DisponiblesEnBlocRequest,
     db: Session = Depends(get_db_lectura),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -105,14 +102,13 @@ def obtenir_disponibles_vigilancia_batch(
 
 
 @router.get("/{data}", response_model=list[VigilanciaDelDia])
-def obtenir_vigilancies(data: DataISO, db: Session = Depends(get_db)):
+def obtenir_vigilancies(data: Data, db: Session = Depends(get_db)):
     """Les vigilàncies del dia: llista plana, amb l'id de la BD."""
     return [resposta_vigilancia(fila) for fila in services.llista(db, data)]
 
 
 @router.get("/{data}/analisi", response_model=list[ProblemaVigilancia])
 def analitzar_vigilancies(
-    data: DataISO,  # noqa: ARG001 (valida la data del camí; el dia ve de dia_de_la_peticio)
     db: Session = Depends(get_db),
     dia: Dia = Depends(dia_de_la_peticio),
 ):
@@ -120,7 +116,7 @@ def analitzar_vigilancies(
 
 
 @router.post("/{data}", response_model=VigilanciaCreadaResponse)
-def crear_vigilancia(data: DataISO, vigilancia: VigilanciaRequest, db: Session = Depends(get_db)):
+def crear_vigilancia(data: Data, vigilancia: VigilanciaRequest, db: Session = Depends(get_db)):
     """Afegeix una vigilància al dia."""
     return {
         "success": True,
@@ -130,14 +126,14 @@ def crear_vigilancia(data: DataISO, vigilancia: VigilanciaRequest, db: Session =
 
 
 @router.get("/{data}/ordre", response_model=OrdreManualResponse)
-def obtenir_ordre_manual(data: DataISO, db: Session = Depends(get_db)):
+def obtenir_ordre_manual(data: Data, db: Session = Depends(get_db)):
     """Si l'ordre de les files del dia té retocs fets a mà (no és l'automàtic):
     «Ordena» els perdria."""
     return {"ordre_manual": services.ordre_manual(db, data)}
 
 
 @router.put("/{data}/ordre", response_model=SuccessResponse)
-def desar_ordre(data: DataISO, ordre: OrdreRequest, db: Session = Depends(get_db)):
+def desar_ordre(data: Data, ordre: OrdreRequest, db: Session = Depends(get_db)):
     """Desa l'ordre de les files d'una hora (400 si n'hi ha d'una altra hora;
     409 si les files de l'hora han canviat mentrestant)."""
     services.desa_ordre(db, data, ordre.hora, ordre.ids)
@@ -145,7 +141,7 @@ def desar_ordre(data: DataISO, ordre: OrdreRequest, db: Session = Depends(get_db
 
 
 @router.put("/{data}/{vig_id}", response_model=VigilanciaEditadaResponse)
-def actualitzar_vigilancia(data: DataISO, vig_id: int, update: EdicioVigilanciaRequest, db: Session = Depends(get_db)):
+def actualitzar_vigilancia(data: Data, vig_id: int, update: EdicioVigilanciaRequest, db: Session = Depends(get_db)):
     """Actualitza una vigilància (per l'id de la BD)."""
     try:
         updated_at = services.edita(db, data, vig_id, update)
@@ -156,7 +152,7 @@ def actualitzar_vigilancia(data: DataISO, vig_id: int, update: EdicioVigilanciaR
 
 @router.delete("/{data}/{vig_id}", response_model=MissatgeResponse)
 def eliminar_vigilancia(
-    data: DataISO, vig_id: int, updated_at: str = None, force: bool = False, db: Session = Depends(get_db)
+    data: Data, vig_id: int, updated_at: str = None, force: bool = False, db: Session = Depends(get_db)
 ):
     """Elimina una vigilància (per l'id de la BD)."""
     try:
@@ -170,15 +166,13 @@ def eliminar_vigilancia(
 
 
 @router.post("/{data}/assign/titulars", response_model=AssignacioTitularsResponse)
-def assignar_titulars(data: DataISO, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
+def assignar_titulars(db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """Assigna NOMÉS els titulars alliberats o disponibles."""
-    return services.assigna_titulars(db, dia, data)
+    return services.assigna_titulars(db, dia, dia.data)
 
 
 @router.post("/{data}/assign/pendents", response_model=AssignacioResponse)
-def assignar_pendents(
-    data: DataISO, disponibles: bool = False, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)
-):
+def assignar_pendents(disponibles: bool = False, db: Session = Depends(get_db), dia: Dia = Depends(dia_de_la_peticio)):
     """
     Assigna les vigilàncies pendents.
 
@@ -186,11 +180,11 @@ def assignar_pendents(
         disponibles: Si True, inclou professors disponibles (guàrdia, etc.)
                      Si False, només alliberats
     """
-    return services.assigna_pendents(db, dia, data, disponibles=disponibles)
+    return services.assigna_pendents(db, dia, dia.data, disponibles=disponibles)
 
 
 @router.post("/{data}/clear", response_model=NetejaResponse)
-def netejar_assignacions(data: DataISO, db: Session = Depends(get_db)):
+def netejar_assignacions(data: Data, db: Session = Depends(get_db)):
     """Treu tots els vigilants del dia (es queden tipus, grups i aules)."""
     cleared_count = services.buida_vigilants(db, data)
     return {
@@ -201,7 +195,7 @@ def netejar_assignacions(data: DataISO, db: Session = Depends(get_db)):
 
 
 @router.post("/{data}/sort", response_model=OrdenacioResponse)
-def ordenar_per_hora(data: DataISO, db: Session = Depends(get_db)):
+def ordenar_per_hora(data: Data, db: Session = Depends(get_db)):
     """Desa l'ordre automàtic del dia (dins de cada hora: nivell, grup, aula).
     404 si el dia no té vigilàncies."""
     sorted_count = services.ordena(db, data)

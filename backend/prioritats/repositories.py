@@ -4,6 +4,7 @@ Els repositoris no fan commit: el fa el servei, un cop per operació (com a
 auth/repositories.py)."""
 
 from datetime import date
+from typing import cast
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -28,7 +29,7 @@ class CategoriaPrioritatRepository:
         ]
 
     @staticmethod
-    def create(db: Session, nom: str, ordre: int = None, activa: bool = True) -> int:
+    def create(db: Session, nom: str, ordre: int | None = None, activa: bool = True) -> int:
         """Crea una categoria (sense ordre, al final: l'ordre és únic, i comptar
         les que hi ha podia donar el d'una que ja existeix)"""
         if ordre is None:
@@ -36,7 +37,7 @@ class CategoriaPrioritatRepository:
         nova_cat = CategoriaPrioritat(nom=nom, ordre=ordre, activa=activa)
         db.add(nova_cat)
         db.flush()
-        return nova_cat.id
+        return cast(int, nova_cat.id)
 
     @staticmethod
     def esborra_totes(db: Session) -> None:
@@ -76,7 +77,12 @@ class AssignaturaPrioritatRepository:
 
     @staticmethod
     def create(
-        db: Session, assignatura: str, categoria_id: int, pes: int = 1, ordre: int = None, auto_assignada: bool = False
+        db: Session,
+        assignatura: str,
+        categoria_id: int,
+        pes: int = 1,
+        ordre: int | None = None,
+        auto_assignada: bool = False,
     ) -> int:
         """Crea una assignatura dins d'una categoria (sense ordre, al final)"""
         if ordre is None:
@@ -91,7 +97,7 @@ class AssignaturaPrioritatRepository:
         )
         db.add(nova_assig)
         db.flush()
-        return nova_assig.id
+        return cast(int, nova_assig.id)
 
 
 class NoSubstituirRepository:
@@ -111,14 +117,14 @@ class NoSubstituirRepository:
     def entrada(fila: NoSubstituir) -> EntradaNoSubstituir:
         """La fila com a valor del domini (amb la regla de les dates)."""
         return EntradaNoSubstituir(
-            id=fila.id,
-            assignatura=fila.assignatura,
-            vigent_des_de=fila.vigent_des_de.isoformat() if fila.vigent_des_de else None,
-            vigent_fins_a=fila.vigent_fins_a.isoformat() if fila.vigent_fins_a else None,
+            id=cast(int, fila.id),
+            assignatura=cast(str, fila.assignatura),
+            vigent_des_de=fila.vigent_des_de,
+            vigent_fins_a=fila.vigent_fins_a,
         )
 
     @staticmethod
-    def vigents_a(db: Session, data: str) -> frozenset[str]:
+    def vigents_a(db: Session, data: date) -> frozenset[str]:
         return NoSubstituirRepository.vigencia(db).a(data)
 
     @staticmethod
@@ -131,7 +137,7 @@ class NoSubstituirRepository:
         nova = NoSubstituir(assignatura=assignatura, vigent_des_de=vigent_des_de)
         db.add(nova)
         db.flush()
-        return nova.id
+        return cast(int, nova.id)
 
     @staticmethod
     def tanca(db: Session, fila: NoSubstituir, vigent_fins_a: date) -> None:

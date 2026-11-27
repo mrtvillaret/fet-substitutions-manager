@@ -6,6 +6,8 @@ importa, perquè dins de cada hora surten en l'ordre en què s'afegeixen.
 
 import logging
 from collections import defaultdict
+from datetime import date
+from typing import cast
 
 from grups.disponibilitat import sense_classe
 from horari.domain import Dia
@@ -51,7 +53,7 @@ def _absencies_sense_substitut(dia: DiaEscolar, conflicts: list, problemes: list
     for sub in dia.files:
         if _cobertura_ja_analitzada(sub, problemes):
             continue
-        hora, grup = sub.hora, sub.grup
+        hora, grup = sub.hora, cast(str, sub.grup)
         prof_absent = sub.professor_absent
         if (sub.substitut or "").strip() or not grup.strip():
             continue
@@ -67,9 +69,9 @@ def _baixes_i_substituts_no_valids(dia: DiaEscolar, conflicts: list, warnings: l
     # Substituts que ja no poden fer la substitució (la mateixa regla que
     # «Reassignar problemàtics»). Les cobertures de vigilàncies ja les comprova analitza_vigilancies.
     motius = [
-        (sub, dia.motius_substitut(sub.substitut.strip(), sub.hora))
+        (sub, dia.motius_substitut(substitut, sub.hora))
         for sub in dia.files
-        if (sub.substitut or "").strip() and not _cobertura_ja_analitzada(sub, problemes)
+        if (substitut := (sub.substitut or "").strip()) and not _cobertura_ja_analitzada(sub, problemes)
     ]
     for sub, mots in motius:
         if any(m["motiu"] == "baixa" for m in mots):
@@ -108,11 +110,12 @@ def _clau_hora(text: str):
     return (99, 99)
 
 
-def valida_dia(db, data: str, institucio: str, avisos_prioritat) -> dict:
+def valida_dia(db, data: date, institucio: str, avisos_prioritat) -> dict:
     """`avisos_prioritat(dia)`: els avisos de substituts
     que es podrien canviar per un altre de més prioritat."""
-    dia = DiaEscolar(db, Dia.de_text(data, institucio))
-    conflicts, warnings = [], []
+    dia = DiaEscolar(db, Dia.del_centre(data, institucio))
+    conflicts: list[str] = []
+    warnings: list[str] = []
 
     problemes = analitza_vigilancies(dia)
     conflicts.extend(p["missatge"] for p in problemes if p["gravetat"] == "important")

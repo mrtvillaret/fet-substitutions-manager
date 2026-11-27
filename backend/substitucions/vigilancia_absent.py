@@ -13,6 +13,7 @@ teclat inclòs). Ara s'usa el camp tipus_absencia='VIGILANCIA_ABSENT' directamen
 """
 
 from collections import defaultdict
+from datetime import date
 
 from config import constants
 from substitucions.assignacio import (
@@ -33,7 +34,7 @@ def es_vigilancia_absent(sub: FilaSubstitucio) -> bool:
     return (sub.tipus_absencia or "").upper() == "VIGILANCIA_ABSENT"
 
 
-def crear_vigilancia_absent(db, data: str, professor: str, hora: str, grup: str, aula: str) -> None:
+def crear_vigilancia_absent(db, data: date, professor: str, hora: str, grup: str, aula: str) -> None:
     """Crea un registre de vigilancia absent (Tipus A) a la BD."""
     SubstitucioRepository.create(
         db,
@@ -53,7 +54,7 @@ def crear_vigilancia_absent(db, data: str, professor: str, hora: str, grup: str,
 
 
 def sincronitzar_vigilancies_absents(
-    db, data: str, professor: str, substitucions_list: list, hores_actives: set
+    db, data: date, professor: str, substitucions_list: list, hores_actives: set
 ) -> int:
     """
     Sincronitza els registres Tipus A per a un professor i data:
@@ -87,14 +88,14 @@ def sincronitzar_vigilancies_absents(
 
 def assignar_substituts_pendents(
     db,
-    data: str,
+    data: date,
     dia_name: str,
     alliberats,
     absents: dict,
     professors_ocupats: dict,
-    grups_sense_classe: dict = None,
+    grups_sense_classe: dict | None = None,
     rng=None,
-    quota: QuotaFranja = None,
+    quota: QuotaFranja | None = None,
 ) -> int:
     """
     Assigna substituts als registres Tipus A pendents (vigilant absent → cobrir slot).
@@ -104,7 +105,7 @@ def assignar_substituts_pendents(
     """
     all_subs = SubstitucioRepository.get_by_date(db, data)
 
-    pendents = [s for s in all_subs if es_vigilancia_absent(s) and not s.substitut.strip()]
+    pendents = [s for s in all_subs if es_vigilancia_absent(s) and not (s.substitut or "").strip()]
     if not pendents:
         return 0
 

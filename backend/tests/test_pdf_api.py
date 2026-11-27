@@ -6,6 +6,8 @@ a text, no interpretat com a etiquetes de ReportLab. Abans, un simple
 generador llegís fitxers del servidor.
 """
 
+from datetime import date
+
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio, text_pdf
 from suport_noms import unic
@@ -18,7 +20,8 @@ from substitucions import router as substitucions
 from vigilancies.router import router as vigilancies_router
 
 APP = crea_app(vigilancies_router, substitucions.router, pdf.router, informes.router)
-DATA = "2026-04-20"  # dilluns
+DATA_DIA = date(2026, 4, 20)  # dilluns
+DATA = DATA_DIA.isoformat()
 TEXT_PERILLÓS = "Aula <font"  # etiqueta sense tancar
 IMATGE = "<img src='/etc/hostname' width='9' height='9'/>"
 MARCATGE = "<b>negreta</b>"
@@ -88,8 +91,6 @@ def _prepara(client, valor, centre):
 
 
 def test_compta_les_vigilancies_sense_nivell_de_l_interval(client, centre):
-    from datetime import date
-
     from database import get_data_db_session
     from models import Vigilancia
 
@@ -162,8 +163,6 @@ def test_les_descarregues_pdf_porten_un_nom_de_fitxer(client, centre, ruta, pref
 
 
 def test_pdf_del_dia_i_pantalla_mostren_les_mateixes_substitucions(client, centre):
-    from datetime import date
-
     from database import get_data_db_session
     from grups.repositories import GrupsAlliberatsRepository
     from models import Substitucio
@@ -176,7 +175,7 @@ def test_pdf_del_dia_i_pantalla_mostren_les_mateixes_substitucions(client, centr
     ]
     with get_data_db_session(centre) as db:
         NoSubstituirRepository.create(db, "Guàrdia", vigent_des_de=date.fromisoformat(DATA))
-        GrupsAlliberatsRepository.afegeix(db, DATA, "09:00", "1-ESO-B")
+        GrupsAlliberatsRepository.afegeix(db, DATA_DIA, "09:00", "1-ESO-B")
         for professor, assignatura, grup, tipus in files:
             db.add(
                 Substitucio(
@@ -233,8 +232,6 @@ def test_el_curs_de_la_vigilancia_es_el_nivell_sense_deduccions(vigilancia, espe
 
 
 def test_l_informe_de_direccio_no_llegeix_la_configuracio_d_examens(centre, monkeypatch):
-    from datetime import date
-
     from configuracio_examens.repositories import MasterConfigRepository
     from database import get_data_db_session
     from models import Substitucio
@@ -264,7 +261,7 @@ def test_l_informe_de_direccio_no_llegeix_la_configuracio_d_examens(centre, monk
             raise AssertionError("l'informe no ha de llegir la configuració d'exàmens")
 
         monkeypatch.setattr(MasterConfigRepository, "get_master_config", falla)
-        dades = services.dades_direccio(db, DATA, DATA, [])
+        dades = services.dades_direccio(db, DATA_DIA, DATA_DIA, [])
 
     assert [g["nom"] for g in dades["grups_data"]["grups_ordenats"]] == ["1-BAT-A", "2-ESO-A"]
     assert all("nivell" not in grup for grup in dades["grups_data"]["grups_ordenats"])
@@ -448,10 +445,10 @@ def test_el_pdf_de_disponibles_amb_una_data_mal_escrita_dona_400(client):
 
 
 def test_disponibles_informa_del_dia_que_falla_i_esborra_el_temporal(client, monkeypatch, tmp_path):
-    def falla_dia(data, institucio):
+    def falla_dia(self):
         raise RuntimeError("fallada simulada")
 
-    monkeypatch.setattr(pdf.Dia, "de_text", falla_dia)
+    monkeypatch.setattr(pdf.Dia, "gestors", falla_dia)
     monkeypatch.setattr(pdf_domain.tempfile, "gettempdir", lambda: str(tmp_path))
 
     resposta = client.post("/api/pdf/disponibles-tots-dies", json={"data_inici": DATA})
@@ -507,20 +504,20 @@ def test_interval_carrega_l_horari_vigent_de_cada_data(client, monkeypatch):
         )
         assert resposta.status_code == 200, resposta.text
 
-    original = pdf.Dia.de_text
+    original = pdf.Dia.del_centre
     dates_carregades = []
 
     def registra_data(data, institucio):
         dates_carregades.append(data)
         return original(data, institucio)
 
-    monkeypatch.setattr(pdf.Dia, "de_text", registra_data)
+    monkeypatch.setattr(pdf.Dia, "del_centre", registra_data)
     resposta = client.get(
         "/api/pdf/vigilancies/interval",
         params={"data_inici": DATA, "data_final": data_seguent},
     )
     assert resposta.status_code == 200, resposta.text[:300]
-    assert set(dates_carregades) >= {DATA, data_seguent}
+    assert set(dates_carregades) >= {date.fromisoformat(DATA), date.fromisoformat(data_seguent)}
 
 
 def test_interval_informa_si_l_exportador_no_genera_fitxer(client, monkeypatch, tmp_path):
@@ -580,7 +577,7 @@ def test_informe_direccio_compta_nomes_les_absencies_cobertes_de_l_interval(clie
     conn.close()
 
     with get_data_db_session(centre) as db:
-        dades = services.dades_direccio(db, DATA, DATA, [])
+        dades = services.dades_direccio(db, DATA_DIA, DATA_DIA, [])
 
     assert dades["stats"]["total_baixes"] == 1
 
@@ -588,8 +585,6 @@ def test_informe_direccio_compta_nomes_les_absencies_cobertes_de_l_interval(clie
 def test_els_informes_llegeixen_les_substitucions_per_data(centre):
     # Una substitució creada més tard d'un dia anterior va abans: l'ordre
     # decideix els empats dels rànquings de l'informe de direcció
-    from datetime import date
-
     from database import get_data_db_session
     from models import Substitucio
     from recomptes.repositories import RecomptesRepository
@@ -598,15 +593,13 @@ def test_els_informes_llegeixen_les_substitucions_per_data(centre):
         for dia, professor in ((date(2026, 3, 3), "Prof 2"), (date(2026, 3, 2), "Prof 1")):
             db.add(Substitucio(data=dia, hora="08:00", professor_absent=professor, tipus_absencia="ABSENCIA"))
         db.commit()
-        files = RecomptesRepository.substitucions_entre(db, "2026-03-01", "2026-03-31")
+        files = RecomptesRepository.substitucions_entre(db, date(2026, 3, 1), date(2026, 3, 31))
 
-    assert [(f.data, f.professor_absent) for f in files] == [("2026-03-02", "Prof 1"), ("2026-03-03", "Prof 2")]
+    assert [(f.data, f.professor_absent) for f in files] == [(date(2026, 3, 2), "Prof 1"), (date(2026, 3, 3), "Prof 2")]
 
 
 def test_l_informe_d_un_professor_nomes_inclou_aquell_professor(centre):
     # Abans filtrava per un tros del nom: «Prof 1» també treia Prof 10 i Prof 15
-    from datetime import date
-
     from database import get_data_db_session
     from models import Substitucio
 
@@ -625,7 +618,7 @@ def test_l_informe_d_un_professor_nomes_inclou_aquell_professor(centre):
         db.commit()
 
         def noms(professor):
-            return [p["nom"] for p in services.dades_professors(db, DATA, DATA, professor)]
+            return [p["nom"] for p in services.dades_professors(db, DATA_DIA, DATA_DIA, professor)]
 
         assert noms("Prof 1") == ["Prof 1"]
         assert noms(" prof 1 ") == ["Prof 1"]
@@ -638,8 +631,6 @@ def test_l_informe_de_direccio_absencies_i_cobertura_de_absencies_i_serveis_i_fe
     # vigilant absent es pot resoldre reassignant-la, sense substitució).
     # Substitucions fetes: totes les files amb substitut, la feina de cada
     # professor (FUNCIONAMENT.md, apartat 6)
-    from datetime import date
-
     from database import get_data_db_session
     from models import Substitucio
 
@@ -664,7 +655,7 @@ def test_l_informe_de_direccio_absencies_i_cobertura_de_absencies_i_serveis_i_fe
                 )
             )
         db.commit()
-        dades = services.dades_direccio(db, DATA, DATA, [])
+        dades = services.dades_direccio(db, DATA_DIA, DATA_DIA, [])
 
     stats = dades["stats"]
     assert (stats["total_absencies"], stats["total_serveis"]) == (1, 1)
@@ -687,8 +678,6 @@ def test_l_informe_de_direccio_absencies_i_cobertura_de_absencies_i_serveis_i_fe
 
 def test_l_informe_per_professor_absencies_i_serveis_i_fetes_de_tots_els_tipus(centre):
     # El mateix criteri que l'informe de direcció (FUNCIONAMENT.md, apartat 6)
-    from datetime import date
-
     from database import get_data_db_session
     from models import Substitucio
 
@@ -712,7 +701,7 @@ def test_l_informe_per_professor_absencies_i_serveis_i_fetes_de_tots_els_tipus(c
                 )
             )
         db.commit()
-        dades = {p["nom"]: p for p in services.dades_professors(db, DATA, DATA)}
+        dades = {p["nom"]: p for p in services.dades_professors(db, DATA_DIA, DATA_DIA)}
 
     assert set(dades) == {"Prof 1", "Prof 5", "Prof 6", "Prof 7"}
     assert [s.tipus_absencia for s in dades["Prof 1"]["absencies"]] == ["ABSENCIA"]
@@ -722,8 +711,6 @@ def test_l_informe_per_professor_absencies_i_serveis_i_fetes_de_tots_els_tipus(c
 
 def test_l_informe_per_professor_va_per_ordre_alfabetic_natural(centre):
     # Abans, per text: «Prof 10» abans de «Prof 6», i els accents al final
-    from datetime import date
-
     from database import get_data_db_session
     from models import Substitucio
 
@@ -740,7 +727,7 @@ def test_l_informe_per_professor_va_per_ordre_alfabetic_natural(centre):
                 )
             )
         db.commit()
-        noms = [p["nom"] for p in services.dades_professors(db, DATA, DATA)]
+        noms = [p["nom"] for p in services.dades_professors(db, DATA_DIA, DATA_DIA)]
 
     assert noms == ["Àlex", "Prof 6", "Prof 10", "Zoe"]
 
@@ -759,8 +746,6 @@ def test_l_informe_d_un_professor_sense_res_a_l_interval_ho_diu(client):
 
 def _absencies_a_les_08_i_a_les_10(centre):
     """Prof 1 falta a les 08:00 (i el cobreix Prof 3) i Prof 2, a les 10:00."""
-    from datetime import date
-
     from database import get_data_db_session
     from models import Substitucio
 
@@ -817,3 +802,24 @@ def test_un_professor_sense_res_a_les_hores_triades_ho_diu(client, centre):
     assert resposta.json()["detail"] == (
         "Prof 2 no té absències ni substitucions fetes entre el 20/04/2026 i el 20/04/2026 a les hores triades"
     )
+
+
+def test_el_pdf_d_interval_dona_format_als_extrems_i_als_dies(client, centre):
+    _prepara(client, "Física", centre)
+
+    resposta = client.get(
+        "/api/pdf/vigilancies/interval",
+        params={"data_inici": "2026-4-20", "data_final": "2026-4-21", "include_empty_days": "true"},
+    )
+
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.headers["content-type"] == "application/pdf"
+    assert resposta.headers["content-disposition"] == (
+        "attachment; filename=vigilancies_interval_2026-04-20_a_2026-04-21_20261104_120000.pdf"
+    )
+    textos = text_pdf(resposta.content)
+    assert any("20/04/2026 - 21/04/2026" in text for text in textos)
+    assert [t for t in textos if t.startswith(("Dilluns,", "Dimarts,"))] == [
+        r"Dilluns, 20 d\222abril del 2026",
+        r"Dimarts, 21 d\222abril del 2026",
+    ]

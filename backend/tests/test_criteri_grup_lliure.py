@@ -10,6 +10,8 @@ Dilluns 20/04/2026 a les 10:00, Prof 26 fa classe a l'agrupació
 alumnes de 2-BAT-B.
 """
 
+from datetime import date
+
 import pytest
 from suport_api import (
     XML_EXEMPLE,
@@ -60,7 +62,7 @@ def client(centre):
 
 def _sense_classe(centre, grups):
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {HORA: grups})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {HORA: grups})
         db.commit()
 
 
@@ -69,7 +71,7 @@ def _examen(centre, grups, vigilant=""):
     with get_data_db_session(centre) as db:
         VigilanciaRepository.create(
             db,
-            DATA,
+            date.fromisoformat(DATA),
             {
                 "hora": HORA,
                 "tipus": "examen",
@@ -89,7 +91,7 @@ def _prof_26_substitut(client, centre):
     )
     assert resp.status_code == 200, resp.text
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.hora == HORA)
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) if f.hora == HORA)
         SubstitucioRepository.update(db, int(fila.id), {"substitut": PROFESSOR})
         db.commit()
 

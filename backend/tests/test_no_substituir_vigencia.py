@@ -12,6 +12,8 @@ Avui és el 04/11/2026 (rellotge de la suite). Prof 15 fa, cada dilluns:
   12:30  Pares            (activitat sense grup)
 """
 
+from datetime import date
+
 import pytest
 from fastapi import Depends
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
@@ -96,7 +98,7 @@ def test_afegir_no_substituir_buida_les_assignacions_vigents_des_d_avui(client, 
             fila = SubstitucioRepository.create(
                 db,
                 {
-                    "data": data,
+                    "data": date.fromisoformat(data),
                     "hora": "09:00",
                     "professor_absent": "Prof 1",
                     "assignatura": "E.F.",
@@ -114,7 +116,7 @@ def test_afegir_no_substituir_buida_les_assignacions_vigents_des_d_avui(client, 
 
     with get_data_db_session(centre) as db:
         for data in dates:
-            files = SubstitucioRepository.get_by_date(db, data)
+            files = SubstitucioRepository.get_by_date(db, date.fromisoformat(data))
             fila = next(f for f in files if f.id == ids[data])
             esperat = ("", "") if data >= max(avui, inici) else ("Prof 2", "disponible (Guàrdia)")
             assert (fila.substitut, fila.tipus_substitut) == esperat
@@ -135,7 +137,7 @@ def test_afegir_no_substituir_desfa_el_canvi_si_falla_la_reconciliacio(client, c
         SubstitucioRepository.create(
             db,
             {
-                "data": FUTUR,
+                "data": date.fromisoformat(FUTUR),
                 "hora": "09:00",
                 "professor_absent": "Prof 1",
                 "assignatura": "Pares",
@@ -157,7 +159,7 @@ def test_afegir_no_substituir_desfa_el_canvi_si_falla_la_reconciliacio(client, c
 
     assert _entrades(centre) == []
     with get_data_db_session(centre) as db:
-        [fila] = SubstitucioRepository.get_by_date(db, FUTUR)
+        [fila] = SubstitucioRepository.get_by_date(db, date.fromisoformat(FUTUR))
         assert fila.substitut == "Prof 2"
 
 
@@ -286,3 +288,23 @@ def test_el_solapament_diu_la_data_del_periode_que_hi_ha(client):
     assert cos["codi"] == "no_substituir_solapada"
     assert cos["params"] == {"assignatura": "Pares", "data": "2026-12-15", "inici": "15/12/2026"}
     assert "15/12/2026" in cos["detail"]
+
+
+def test_els_dos_extrems_de_la_vigencia_son_inclosos(client):
+    assert _afegeix(client, "Pares", data=FUTUR).status_code == 200
+    assert _treu(client, "Pares", data="2026-11-17").status_code == 200
+
+    resposta = client.get(NS)
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json() == {
+        "assignatures": [],
+        "entrades": [{"assignatura": "Pares", "vigent_des_de": FUTUR, "vigent_fins_a": MES_ENDAVANT}],
+    }
+    for data, hores in (
+        ("2026-11-02", HORES),
+        (FUTUR, HORES[:2]),
+        (MES_ENDAVANT, HORES[:2]),
+        ("2026-11-23", HORES),
+    ):
+        _marca_absencia(client, data)
+        assert _visibles(client, data) == hores

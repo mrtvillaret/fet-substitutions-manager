@@ -1,12 +1,11 @@
 """Repositori de substitucions."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from cursos.repositories import CursRepository
-from dates import parse_date
 from models import Substitucio
 from ordre_curs import clau_curs, natural
 from substitucions.files import FilaSubstitucio
@@ -76,13 +75,13 @@ class SubstitucioRepository:
         return ordenades
 
     @staticmethod
-    def get_by_date(db: Session, data: str) -> list[FilaSubstitucio]:
+    def get_by_date(db: Session, data: date) -> list[FilaSubstitucio]:
         """Totes les files del dia, en el mateix ordre i amb els mateixos buits."""
-        subs = db.query(Substitucio).filter(Substitucio.data == parse_date(data)).all()
+        subs = db.query(Substitucio).filter(Substitucio.data == data).all()
         return [
             FilaSubstitucio(
                 id=str(sub.id),
-                data=str(sub.data),
+                data=sub.data,
                 hora=sub.hora,
                 professor_absent=sub.professor_absent,
                 assignatura=sub.assignatura or "",
@@ -98,7 +97,7 @@ class SubstitucioRepository:
         ]
 
     @staticmethod
-    def historial_quota(db: Session, data: str) -> list[tuple[str, str, str]]:
+    def historial_quota(db: Session, data: date) -> list[tuple[str, str, str]]:
         """Una lectura per centre/dia del mateix dia de la setmana, també dates
         futures; exclou el mateix dia. Només el curs del dia; sense curs definit,
         els dos últims anys (HISTORIAL_QUOTA).
@@ -106,7 +105,6 @@ class SubstitucioRepository:
         Projecció mínima en ordre cronològic amb ID com a desempat estable.
         El domini separa categories i reté només les deu últimes de cadascuna.
         """
-        dia = parse_date(data)
         curs = CursRepository.get_for_date(db, data)
         consulta = db.query(Substitucio.hora, Substitucio.substitut, Substitucio.tipus_substitut)
         if curs:
@@ -114,11 +112,11 @@ class SubstitucioRepository:
             if curs.data_fi:
                 consulta = consulta.filter(Substitucio.data <= curs.data_fi)
         else:
-            consulta = consulta.filter(Substitucio.data >= dia - HISTORIAL_QUOTA)
+            consulta = consulta.filter(Substitucio.data >= data - HISTORIAL_QUOTA)
         files = (
             consulta.filter(
-                Substitucio.data != dia,
-                func.strftime("%w", Substitucio.data) == dia.strftime("%w"),
+                Substitucio.data != data,
+                func.strftime("%w", Substitucio.data) == data.strftime("%w"),
                 Substitucio.substitut.isnot(None),
                 Substitucio.substitut != "",
             )
@@ -128,11 +126,9 @@ class SubstitucioRepository:
         return [(hora, professor, tipus or "") for hora, professor, tipus in files]
 
     @staticmethod
-    def dates_entre(db: Session, inici: str, final: str) -> set:
+    def dates_entre(db: Session, inici: date, final: date) -> set[date]:
         """Les dates (date) entre `inici` i `final`, incloses, que tenen alguna fila."""
-        files = db.query(Substitucio.data).filter(
-            Substitucio.data >= parse_date(inici), Substitucio.data <= parse_date(final)
-        )
+        files = db.query(Substitucio.data).filter(Substitucio.data >= inici, Substitucio.data <= final)
         return {d for (d,) in files.distinct()}
 
     @staticmethod
@@ -142,13 +138,13 @@ class SubstitucioRepository:
         return {g for (g,) in files.distinct()}
 
     @staticmethod
-    def get_by_date_hour_and_type(db: Session, data: str, hora: str, tipus_absencia: str) -> list[Substitucio]:
+    def get_by_date_hour_and_type(db: Session, data: date, hora: str, tipus_absencia: str) -> list[Substitucio]:
         """Retorna les files d'una data i hora amb el tipus indicat."""
         return (
             db.query(Substitucio)
             .filter(
                 and_(
-                    Substitucio.data == parse_date(data),
+                    Substitucio.data == data,
                     Substitucio.hora == hora,
                     Substitucio.tipus_absencia == tipus_absencia,
                 )
@@ -157,13 +153,13 @@ class SubstitucioRepository:
         )
 
     @staticmethod
-    def get_absences_by_date_and_hour(db: Session, data: str, hora: str) -> list[Substitucio]:
+    def get_absences_by_date_and_hour(db: Session, data: date, hora: str) -> list[Substitucio]:
         """Retorna absències i serveis, sense les files derivades."""
         return (
             db.query(Substitucio)
             .filter(
                 and_(
-                    Substitucio.data == parse_date(data),
+                    Substitucio.data == data,
                     Substitucio.hora == hora,
                     Substitucio.tipus_absencia.notin_(["VIGILANCIA", "ENCADENADA", "VIGILANCIA_ABSENT"]),
                 )
@@ -180,7 +176,7 @@ class SubstitucioRepository:
     def create(db: Session, sub_data: dict) -> Substitucio:
         """Crea una nova substitució"""
         sub = Substitucio(
-            data=parse_date(sub_data["data"]),
+            data=sub_data["data"],
             hora=sub_data["hora"],
             professor_absent=sub_data["professor_absent"],
             assignatura=sub_data.get("assignatura", ""),
@@ -197,7 +193,7 @@ class SubstitucioRepository:
         return sub
 
     @staticmethod
-    def update(db: Session, sub_id: int, updates: dict, *, updated_at_esperat: str = None) -> Substitucio | None:
+    def update(db: Session, sub_id: int, updates: dict, *, updated_at_esperat: str | None = None) -> Substitucio | None:
         """Actualitza una substitució"""
         sub = db.query(Substitucio).filter(Substitucio.id == sub_id).first()
         if not sub:
@@ -238,8 +234,8 @@ class SubstitucioRepository:
         return True
 
     @staticmethod
-    def esborra_vigilancies_del_dia(db: Session, data: str) -> None:
+    def esborra_vigilancies_del_dia(db: Session, data: date) -> None:
         """Les files de vigilant absent (tipus VIGILANCIA) d'un dia."""
-        db.query(Substitucio).filter(
-            Substitucio.data == parse_date(data), Substitucio.tipus_absencia == "VIGILANCIA"
-        ).delete(synchronize_session=False)
+        db.query(Substitucio).filter(Substitucio.data == data, Substitucio.tipus_absencia == "VIGILANCIA").delete(
+            synchronize_session=False
+        )

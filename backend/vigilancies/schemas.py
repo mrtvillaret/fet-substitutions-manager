@@ -1,7 +1,7 @@
 """Schemas d'entrada i de sortida de les rutes de vigilàncies."""
 
 from dataclasses import asdict
-from typing import Literal
+from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -274,4 +274,5 @@ class ProblemaVigilancia(BaseModel):
 
 def resposta_vigilancia(fila: FilaVigilancia) -> VigilanciaDelDia:
     """Un únic ID de BD al domini; dos camps històrics al contracte HTTP."""
-    return VigilanciaDelDia(**{**asdict(fila), "id": str(fila.id), "db_id": int(fila.id)})
+    id_desat = cast(str, fila.id)  # Les files d'aquesta resposta vénen de la BD.
+    return VigilanciaDelDia(**{**asdict(fila), "id": str(id_desat), "db_id": int(id_desat)})

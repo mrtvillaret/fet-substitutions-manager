@@ -1,11 +1,13 @@
 """Schemas d'entrada i de sortida de les rutes de substitucions."""
 
-from typing import Annotated
+from datetime import date
+from typing import Annotated, cast
 
 from fastapi import HTTPException
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from noms import NomNet
+from parametres import DataResposta
 from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
 
@@ -83,7 +85,7 @@ class SubstitutTretResponse(BaseModel):
     grup: str
     substitut: str
     motiu: str
-    data: str
+    data: DataResposta
     classe_assignatura: str | None = None
     classe_grup: str | None = None
 
@@ -169,12 +171,13 @@ class DisponiblesEnBlocResponse(BaseModel):
 
 
 def resposta_substitucio(sub: FilaSubstitucio) -> SubstitucioResponse:
+    # El repositori diari retorna l'ID en text i normalitza els camps buits.
     return SubstitucioResponse(
-        id=sub.id,
+        id=cast(str, sub.id),
         hora=sub.hora,
         professor_absent=sub.professor_absent,
-        assignatura=sub.assignatura,
-        grup=sub.grup,
+        assignatura=cast(str, sub.assignatura),
+        grup=cast(str, sub.grup),
         aula=sub.aula,
         substitut=sub.substitut,
         comentaris=sub.comentaris,
@@ -189,7 +192,7 @@ class FilaDesadaResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
     id: str
-    data: str
+    data: date
     hora: str
     professor_absent: str
     assignatura: str
@@ -204,5 +207,5 @@ class FilaDesadaResponse(BaseModel):
 
 def resposta_conflicte(files: FilaSubstitucio | list[FilaSubstitucio]):
     if isinstance(files, list):
-        return [FilaDesadaResponse.model_validate(f).model_dump() for f in files]
-    return FilaDesadaResponse.model_validate(files).model_dump()
+        return [FilaDesadaResponse.model_validate(f).model_dump(mode="json") for f in files]
+    return FilaDesadaResponse.model_validate(files).model_dump(mode="json")

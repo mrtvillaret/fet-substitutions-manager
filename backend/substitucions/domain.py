@@ -6,11 +6,13 @@ substitut ja no pot fer la substitució.
 
 import logging
 from collections import defaultdict
+from datetime import date
 from functools import cached_property
 
 from grups.disponibilitat import sense_classe
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
+from horari.lector import GestorHorariWeb
 from substitucions.files import FilaSubstitucio
 from substitucions.repositories import SubstitucioRepository
 from vigilancies.files import FilaVigilancia
@@ -24,9 +26,11 @@ TIPUS_ABSENCIA_REAL = ("ABSENCIA", "SERVEI")
 
 
 class DiaEscolar:
+    _horari_carregat: GestorHorariWeb
+
     def __init__(self, db, dia: Dia, *, estricte=False):
         self.dia = dia
-        data = dia.iso
+        data = dia.data
         self.data = data
         self.institucio = dia.institucio
         self.files: list[FilaSubstitucio] = SubstitucioRepository.get_by_date(db, data)
@@ -102,7 +106,8 @@ class DiaEscolar:
         Es conserva el filtre històric de generació, diferent de les
         absències reals que valida absents_per_hora.
         """
-        absents, absents_tipus = {}, {}
+        absents: dict[str, list[str]] = {}
+        absents_tipus: dict[str, str] = {}
         for sub in self.files:
             professor = sub.professor_absent
             hora = sub.hora
@@ -132,7 +137,7 @@ class DiaEscolar:
     @cached_property
     def vigilants(self) -> dict:
         """Vigilants del motor amb els valors originals, com a la generació."""
-        resultat = {}
+        resultat: dict[str, set[str]] = {}
         for vig in self.vigilancies:
             if vig.hora and vig.vigilant:
                 resultat.setdefault(vig.hora, set()).add(vig.vigilant)
@@ -170,13 +175,13 @@ class DiaEscolar:
         return motius
 
 
-def substituts_no_valids(db, data: str, dia: DiaEscolar = None) -> list:
+def substituts_no_valids(db, data: date, dia: DiaEscolar | None = None) -> list:
     """Les files d'un dia amb un substitut que ja no pot fer la substitució
     (DiaEscolar.motius_substitut: vigila un examen, té una absència coberta, és absent o
     hi té classe o ja no és a l'XML vigent). Són canvis posteriors a l'assignació: des de la pantalla no
     es pot desar un substitut que no sigui vàlid. Cada element: {id, hora,
     professor_absent, assignatura, grup, substitut} més el primer motiu."""
-    dia = dia or DiaEscolar(db, Dia.de_text(data, db.info.get("institucio")))
+    dia = dia or DiaEscolar(db, Dia.del_centre(data, db.info.get("institucio")))
     resultat = []
     for sub in dia.files:
         hora = (sub.hora or "").strip()

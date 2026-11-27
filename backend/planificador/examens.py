@@ -29,7 +29,7 @@ def examens(assignacions, taules: NivellsDelsGrups, only_nivells: list[str] | No
         grup = a.get("grup") if isinstance(a, dict) else a.grup
         if not nom:
             continue
-        nivells = taules.nivells(grup)
+        nivells = taules.nivells(grup or "")
         for nivell in nivells:
             if not only_nivells or nivell in only_nivells:
                 options.add(f"{nom} ({nivell})")

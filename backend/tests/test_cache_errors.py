@@ -1,5 +1,6 @@
 """Una fallada transitòria no pot convertir-se en un resultat buit permanent."""
 
+from datetime import date
 from unittest.mock import Mock
 
 import pytest
@@ -27,9 +28,9 @@ def test_horari_no_es_memoritza_si_falla_una_lectura(monkeypatch, repositori):
     lectura = Mock(side_effect=[OSError("lectura de prova"), []])
     monkeypatch.setattr(repositori, "get_all", lectura)
     with pytest.raises(OSError):
-        context.get_horari(centre, data_iso="2026-04-20", xml_path=str(XML_EXEMPLE))
+        context.get_horari(centre, data_iso=date(2026, 4, 20), xml_path=str(XML_EXEMPLE))
     assert not any(k.startswith(centre + ":") for k in context._horari)
-    assert context.get_horari(centre, data_iso="2026-04-20", xml_path=str(XML_EXEMPLE)).professors
+    assert context.get_horari(centre, data_iso=date(2026, 4, 20), xml_path=str(XML_EXEMPLE)).professors
 
 
 def test_traduccions_reintenten_despres_d_error(monkeypatch):
@@ -49,7 +50,6 @@ def test_traduccions_reintenten_despres_d_error(monkeypatch):
 
 
 def test_dia_tolerant_reintenta_despres_d_error(db_session):
-    from datetime import date
     from types import SimpleNamespace
 
     from substitucions.domain import DiaEscolar

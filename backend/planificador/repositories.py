@@ -5,6 +5,7 @@
 Els repositoris no fan commit: el fa el servei, un cop per operació."""
 
 import json
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -65,10 +66,10 @@ class RestriccioRepository:
         )
 
     @staticmethod
-    def fixa(db: Session, tipus: str, nom: str, valor) -> None:
+    def fixa(db: Session, tipus: str, nom: str, valor: str | date) -> None:
         """Fixa el dia o l'hora (`tipus`) d'un examen: actualitza la que ja hi
         és o en crea una de nova."""
-        configuracio = json.dumps(valor, ensure_ascii=False)
+        configuracio = json.dumps(valor.isoformat() if isinstance(valor, date) else valor, ensure_ascii=False)
         existent = db.query(ExamRestriccio).filter(ExamRestriccio.tipus == tipus, ExamRestriccio.clau == nom).first()
         if existent:
             existent.configuracio = configuracio

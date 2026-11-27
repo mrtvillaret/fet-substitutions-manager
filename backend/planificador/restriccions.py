@@ -8,14 +8,28 @@ import re
 
 from sqlalchemy.orm import Session
 
+from planificador.documents import data_desada, document_iso
 from planificador.repositories import RestriccioRepository, carrega_json
 from planificador.schemas import Restriccions
+
+
+def _amb_dates(tipus: str, valor):
+    """Dates en restriccions que també poden identificar un dia per nom."""
+    if tipus == "assignatures_dia_fix":
+        return data_desada(valor)
+    if tipus == "assignatures_slot_prohibit" and isinstance(valor, dict) and "dia" in valor:
+        return dict(valor, dia=data_desada(valor["dia"]))
+    if tipus == "professors_limit_dies_especifics" and isinstance(valor, dict):
+        dies = valor.get("dies_restringits")
+        if isinstance(dies, list):
+            return dict(valor, dies_restringits=[data_desada(dia) for dia in dies])
+    return valor
 
 
 def llegeix(db: Session) -> dict:
     """Les restriccions desades, amb l'estructura que fan servir la pantalla i
     els motors; cada restricció té el seu propi pes (0-100%)."""
-    data = {
+    data: dict = {
         "restriccions_dures": {
             "no_mateix_dia": [],
             "no_mateix_slot": {},
@@ -34,7 +48,8 @@ def llegeix(db: Session) -> dict:
     # Llegir restriccions amb pes individual
     rows = RestriccioRepository.actives(db)
     for r in rows:
-        t, val = r.tipus, carrega_json(r.configuracio, None)
+        t = r.tipus
+        val = _amb_dates(t, carrega_json(r.configuracio, None))
         pes = r.pes if hasattr(r, "pes") and r.pes is not None else 100
 
         # Tipus que van a restriccions_dures
@@ -76,7 +91,7 @@ def desa(db: Session, payload: dict) -> None:
     commit), cadascuna amb el seu pes."""
 
     # Abans de cap esborrat, també per a les crides internes sense router.
-    payload = Restriccions.model_validate(payload).model_dump(exclude_unset=True)
+    payload = Restriccions.model_validate(document_iso(payload)).model_dump(exclude_unset=True)
 
     def _coerce_pes(value, default=100):
         if isinstance(value, list):

@@ -1,6 +1,7 @@
 """Cap estat del dia no es comparteix entre peticions simultànies."""
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 from threading import Barrier
 from types import SimpleNamespace
 
@@ -24,11 +25,11 @@ def test_dos_dies_simultanis_tenen_nuclis_independents(monkeypatch):
     monkeypatch.setattr(vigilancia_context, "get_gestors", gestors)
     monkeypatch.setattr(vigilancia_context.ConfiguracioExamenRepository, "get_all_as_dict", lambda *_: {})
     monkeypatch.setattr(vigilancia_context.SubstitucioRepository, "get_by_date", lambda *_: [])
-    monkeypatch.setattr(vigilancia_context.AlliberatsDelDia, "get_by_date", lambda _, data: {"09": [data]})
+    monkeypatch.setattr(vigilancia_context.AlliberatsDelDia, "get_by_date", lambda _, data: {"09": [data.isoformat()]})
     with ThreadPoolExecutor(2) as fils:
         futures = [
             fils.submit(vigilancia_context.get_vigilancia_core, data, object(), "temporal")
-            for data in ("2026-04-20", "2026-04-21")
+            for data in (date(2026, 4, 20), date(2026, 4, 21))
         ]
         primer, segon = [f.result() for f in futures]
     assert primer is not segon
@@ -37,7 +38,7 @@ def test_dos_dies_simultanis_tenen_nuclis_independents(monkeypatch):
 
 
 def test_dia_escolar_reutilitza_el_dia_i_el_seu_horari(db_session, monkeypatch):
-    dia = Dia.de_text("2026-04-20", "temporal")
+    dia = Dia(date.fromisoformat("2026-04-20"), "temporal")
     lectures = []
     horari = SimpleNamespace(get_dia_name=lambda _: "Dilluns")
 
@@ -48,7 +49,7 @@ def test_dia_escolar_reutilitza_el_dia_i_el_seu_horari(db_session, monkeypatch):
     monkeypatch.setattr(Dia, "horari", property(llegeix))
     estat = DiaEscolar(db_session, dia)
     assert lectures == []
-    assert estat.data == dia.iso
+    assert estat.data == dia.data
     assert estat.horari is horari
     assert estat.horari is horari
     assert lectures == [dia.iso]
@@ -66,7 +67,7 @@ def test_errors_d_horari_conserven_el_mode_i_els_reintents(db_session, monkeypat
         raise error
 
     monkeypatch.setattr(Dia, "horari", property(falla))
-    estat = DiaEscolar(db_session, Dia.de_text("2026-04-20", "temporal"), estricte=estricte)
+    estat = DiaEscolar(db_session, Dia(date.fromisoformat("2026-04-20"), "temporal"), estricte=estricte)
     assert lectures == []
     for _ in range(2):
         if estricte:

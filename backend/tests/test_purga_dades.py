@@ -99,13 +99,31 @@ INTACTE = {
 def test_l_analisi_diu_que_s_esborraria_sense_esborrar_res(admin, centre):
     resp = admin.post("/api/dades/purga/analitzar", json=INTERVAL)
     assert resp.status_code == 200, resp.text
-    m = resp.json()
-    assert m["bd"] == {"substitucions": 1, "vigilancies": 1, "grups_alliberats": 1, "baixes": 2}
-    assert not any(k.startswith("pdf") for k in m)  # els PDF no es desen enlloc
-    assert {v["path"]: v["bloquejat"] for v in m["xml_versions"]} == {
-        "dins.xml": False,
-        "solapa.xml": True,
-        "activa.xml": True,
+    assert resp.json() == {
+        "interval": {"inici": "2026-03-01", "final": "2026-03-31"},
+        "bd": {"substitucions": 1, "vigilancies": 1, "grups_alliberats": 1, "baixes": 2},
+        "total_bd": 5,
+        "baixes": [
+            {"professor": "Prof 4", "data_inici": "2026-02-20", "data_final": "2026-03-05", "s_esten_fora": True},
+            {"professor": "Prof 3", "data_inici": "2026-03-10", "data_final": "2026-03-12", "s_esten_fora": False},
+        ],
+        "planificador": {"dates_seleccionades": 0, "ultim_horari": None},
+        "xml_versions": [
+            {
+                "id": id_versio,
+                "path": path,
+                "data_inici": inici,
+                "data_fi": fi,
+                "activa": fi is None,
+                "s_esten_fora": bloquejat,
+                "bloquejat": bloquejat,
+            }
+            for id_versio, path, inici, fi, bloquejat in [
+                (2, "solapa.xml", "2026-02-01", "2026-03-01", True),
+                (1, "dins.xml", "2026-03-02", "2026-03-20", False),
+                (3, "activa.xml", "2026-03-21", None, True),
+            ]
+        ],
     }
     assert _queda(centre) == INTACTE
 
@@ -121,6 +139,8 @@ def test_esborra_el_de_dins_l_interval_i_res_mes(admin, centre):
     assert resp.status_code == 200, resp.text
     informe = resp.json()
     assert informe["total_bd"] == 5 and informe["errors"] == []
+    assert informe["interval"] == {"inici": "2026-03-01", "final": "2026-03-31"}
+    assert informe["xml_esborrats"] == [{"id": 1, "data_inici": "2026-03-02", "data_fi": "2026-03-20"}]
     assert _queda(centre) == {
         "substitucions": [ABANS, DESPRES],
         "vigilancies": [ABANS, DESPRES],
@@ -326,7 +346,7 @@ def test_purgar_una_versio_d_xml_buida_la_memoria_cau_i_resincronitza_els_profes
     assert client.post("/api/dades/purga/analitzar", json=INTERVAL).status_code == 200
     plega = professor_que_plega()
     assert plega not in _actius(centre)  # futur.xml no el té
-    abans = get_horari(centre, data_iso=dia(0).isoformat())
+    abans = get_horari(centre, data_iso=dia(0))
     assert plega not in abans.professors
     clau_purgada = next(k for k in context._horari if k.startswith(f"{centre}:") and k.endswith("futur.xml"))
 
@@ -337,10 +357,26 @@ def test_purgar_una_versio_d_xml_buida_la_memoria_cau_i_resincronitza_els_profes
 
     assert _actius(centre)[plega] is True
     assert clau_purgada not in context._horari
-    despres = get_horari(centre, data_iso=dia(0).isoformat())
+    despres = get_horari(centre, data_iso=dia(0))
     assert despres is not abans and plega in despres.professors
 
 
 def _actius(centre):
     with get_data_db_session(centre) as db:
         return {p.nom: p.actiu for p in db.query(Professor)}
+
+
+def test_informe_de_purga_normalitza_dates_d_un_horari_antic(admin, centre):
+    _planificador(
+        centre,
+        ["ahir", "2026-03-16T00:00:00", "2026-04-02"],
+        [{"data": "2026-03-16T12:00:00"}, {"data": "ahir"}, {"data": "2026-04-02"}],
+        desat=None,
+    )
+
+    resposta = admin.post("/api/dades/purga/analitzar", json=INTERVAL)
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["planificador"] == {
+        "dates_seleccionades": 1,
+        "ultim_horari": {"desat": None, "dates": ["2026-03-16", "2026-04-02"], "s_esten_fora": True},
+    }

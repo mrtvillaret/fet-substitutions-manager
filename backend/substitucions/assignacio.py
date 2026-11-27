@@ -8,7 +8,6 @@ from collections import Counter, defaultdict, deque
 from fractions import Fraction
 
 from config import constants
-from dates import parse_date
 
 # Evitem imports estàtics per no quedar-nos amb valors stale
 from grups.disponibilitat import sense_classe
@@ -205,12 +204,6 @@ class GestorSubstitucions:
         logger.debug(
             f"🔵 assignar_substitucions() START: dia='{dia}', absents={len(absents)}, horari={bool(self.horari)}"
         )
-
-        # Converteix dia de format ISO a nom del dia XML si cal
-        if isinstance(dia, str) and len(dia) == 10 and "-" in dia:
-            weekday_idx = parse_date(dia).weekday()
-            dia = self.horari.get_dia_name(weekday_idx)
-            logger.info(_("   🔄 Convertit dia ISO a nom XML: '{}'").format(dia))
 
         # Guarda info dels professors ocupats i substitucions existents
         self.professors_ocupats_examens = professors_ocupats_examens or {}

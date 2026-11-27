@@ -62,7 +62,13 @@ def desa_files(centre, dates):
 
 def instantania(centre, dates):
     with get_data_db_session(centre) as db:
-        return [(SubstitucioRepository.get_by_date(db, d), VigilanciaRepository.get_by_date(db, d)) for d in dates]
+        return [
+            (
+                SubstitucioRepository.get_by_date(db, date.fromisoformat(d)),
+                VigilanciaRepository.get_by_date(db, date.fromisoformat(d)),
+            )
+            for d in dates
+        ]
 
 
 @pytest.mark.parametrize(
@@ -137,7 +143,7 @@ def test_avisa_de_tots_els_motius_existents_i_nomes_problemes_importants(centre)
         "baixa",
     }
     with get_data_db_session(centre) as db:
-        dia = DiaEscolar(db, Dia.de_text(dates[0], centre), estricte=True)
+        dia = DiaEscolar(db, Dia(date.fromisoformat(dates[0]), centre), estricte=True)
         assert sum(bool(a.get("motiu")) for a in cos["avisos"]) == len(substituts_no_valids(db, dates[0], dia))
         assert [a["tipus"] for a in cos["avisos"] if a.get("tipus")] == [
             p["tipus"] for p in analitza_vigilancies(dia) if p["gravetat"] == "important"
@@ -154,6 +160,12 @@ def test_sense_dades_o_xml_identic_retorna_llista_i_recomptes_buits(centre, repe
     cos = _puja(client, contingut=xml_nou(), data_inici="2026-11-16").json()
     assert cos["avisos"] == []
     assert cos["recomptes"] == {"dies": 0, "substitucions": 0, "vigilancies": 0}
+    if repetit:
+        assert "data_inici" not in cos
+        assert "vigent_avui" not in cos
+    else:
+        assert cos["data_inici"] == "2026-11-16"
+        assert cos["vigent_avui"] is False
 
 
 def test_el_dia_abans_de_la_versio_seguent_es_el_darrer_que_es_revisa(centre):

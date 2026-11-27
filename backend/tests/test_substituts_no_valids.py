@@ -90,6 +90,7 @@ def test_qui_perd_la_condicio_d_alliberat_deixa_de_ser_substitut(client):
         "classe",
     )
     assert tret["classe_grup"] == "3-ESO-C"
+    assert tret["data"] == "2026-10-19"
 
 
 def test_el_professor_alliberat_que_deixa_de_ser_ho_deixa_de_ser_substitut(client):
@@ -111,7 +112,7 @@ def test_qui_passa_a_ser_absent_deixa_de_ser_substitut(client):
 
     assert _fila(client)["substitut"] == ""
     [tret] = resp["substituts_trets"]
-    assert (tret["substitut"], tret["motiu"]) == ("Prof 3", "absent")
+    assert (tret["substitut"], tret["motiu"], tret["data"]) == ("Prof 3", "absent", "2026-10-19")
 
 
 def test_un_canvi_del_dia_no_assigna_cap_substitut(client):

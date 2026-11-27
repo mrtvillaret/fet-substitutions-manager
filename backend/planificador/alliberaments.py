@@ -3,62 +3,30 @@ calendari del planificador: d'on surten les dates, les hores on pot començar
 un examen i les franges vàlides de cada nivell."""
 
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from collections.abc import Mapping, Sequence
+from datetime import date
 
+from planificador.compartit.dates import DIES_CAT, data_calendari
 from planificador.compartit.normalitzacio import normalitzar_dia
 from textos import normalitzar_hora as _normalitzar_hora
 
 
-def _selected_dates_from_alliberaments(alliberaments_cfg: dict, nivells_actius: list[str] | None = None) -> list[str]:
-    """
-    Extreu les dates ISO (YYYY-MM-DD) des de scheduler_alliberaments_per_nivell.
-    Prioritza `dates`; si no n'hi ha, usa claus de `config`.
-    """
-    if not isinstance(alliberaments_cfg, dict) or not alliberaments_cfg:
+def _selected_dates_from_alliberaments(alliberaments_cfg: dict, nivells_actius: list[str] | None = None) -> list[date]:
+    """Dates dels nivells actius. Només un camp «dates» absent fa servir les claus de «config»."""
+    if not isinstance(alliberaments_cfg, dict):
         return []
-
     allowed = set(nivells_actius or [])
-    out = set()
-
-    for nivell, data in alliberaments_cfg.items():
-        if allowed and nivell not in allowed:
+    dates: set[date] = set()
+    for nivell, dades in alliberaments_cfg.items():
+        if (allowed and nivell not in allowed) or not isinstance(dades, dict):
             continue
-        if not isinstance(data, dict):
-            continue
-
-        has_dates_field = "dates" in data
-        raw_dates = data.get("dates") or []
-        parsed = []
-        for d in raw_dates:
-            if not isinstance(d, str):
-                continue
-            try:
-                parsed.append(datetime.strptime(d, "%Y-%m-%d").strftime("%Y-%m-%d"))
-            except ValueError:
-                continue
-
-        # Si la clau `dates` existeix (encara que sigui buida), és la font de veritat.
-        # Només fem fallback a `config` per compatibilitat amb dades antigues sense `dates`.
-        if has_dates_field:
-            if parsed:
-                out.update(parsed)
-            continue
-
-        if parsed:
-            out.update(parsed)
-            continue
-
-        cfg = data.get("config") or {}
-        if isinstance(cfg, dict):
-            for d in cfg.keys():
-                if not isinstance(d, str):
-                    continue
-                try:
-                    out.add(datetime.strptime(d, "%Y-%m-%d").strftime("%Y-%m-%d"))
-                except ValueError:
-                    continue
-
-    return sorted(out)
+        if "dates" in dades:
+            valors = dades["dates"] or []
+        else:
+            config = dades.get("config")
+            valors = config if isinstance(config, dict) else []
+        dates.update(data for valor in valors if (data := data_calendari(valor)))
+    return sorted(dates)
 
 
 def _hores_lectives_des_de_xml(xml_path: str, fallback: list[str] | None = None) -> list[str]:
@@ -87,7 +55,7 @@ def _hores_lectives_des_de_xml(xml_path: str, fallback: list[str] | None = None)
     return sorted(hores, key=_to_minutes)
 
 
-def extreure_hores_examen_des_alliberaments(alliberaments: dict) -> tuple[list, dict]:
+def extreure_hores_examen_des_alliberaments(alliberaments: dict) -> tuple[list[str], dict[str, list[str]]]:
     """
     Deriva les hores d'examen únicament de les marques ``i=true`` als alliberaments.
 
@@ -136,7 +104,7 @@ def _build_slots_valids_from_alliberaments(
     alliberaments_cfg: dict,
     nivells_actius: list[str],
     dies_utilitzar: list[str],
-    dia_a_data_iso: dict[str, list[str]],
+    dia_a_data: Mapping[str, Sequence[date | str]],
     hores_disponibles: list[str],
 ) -> dict:
     """
@@ -145,8 +113,6 @@ def _build_slots_valids_from_alliberaments(
     Utilitza les dates seleccionades del propi nivell (camp 'dates') per construir
     el mapa dia→data, ja que cada nivell pot tenir exàmens en setmanes diferents.
     """
-
-    _DIES_CAT = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte", "Diumenge"]
 
     if not isinstance(alliberaments_cfg, dict) or not alliberaments_cfg:
         return {}
@@ -161,32 +127,23 @@ def _build_slots_valids_from_alliberaments(
 
         # Construir mapa dia→[dates] específic per aquest nivell (suporta dates repetides)
         nivell_dates = nivell_data.get("dates") or []
-        dia_a_data_nivell: dict[str, list[str]] = {}
-        for d_str in nivell_dates:
-            try:
-                dt = datetime.strptime(d_str, "%Y-%m-%d")
-                dia_norm = normalitzar_dia(_DIES_CAT[dt.weekday()])
-                dia_a_data_nivell.setdefault(dia_norm, []).append(d_str)
-            except (ValueError, IndexError):
-                continue
-
-        # Fallback al mapa global si el nivell no té dates pròpies
-        if not dia_a_data_nivell:
-            dia_a_data_nivell = dia_a_data_iso
+        dia_a_data_nivell: dict[str, list[date | str]] = {}
+        for valor in nivell_dates:
+            if data := data_calendari(valor):
+                dia_norm = normalitzar_dia(DIES_CAT[data.weekday()])
+                dia_a_data_nivell.setdefault(dia_norm, []).append(valor)
 
         cfg = nivell_data.get("config") or {}
         per_dia = {}
         for dia in dies_utilitzar or []:
             dia_norm = normalitzar_dia(dia)
-            dates_dia = dia_a_data_nivell.get(dia_norm) or []
-            if isinstance(dates_dia, str):
-                dates_dia = [dates_dia]
+            dates_dia = (dia_a_data_nivell or dia_a_data).get(dia_norm) or []
             if not dates_dia:
                 continue
             # Recollir totes les hores d'inici de totes les dates d'aquest dia
             hores_inici = []
-            for data_iso in dates_dia:
-                cfg_dia = cfg.get(data_iso) or {}
+            for data_dia in dates_dia:
+                cfg_dia = cfg.get(data_dia) or {}
                 for h in hores_ord:
                     info = cfg_dia.get(h)
                     if isinstance(info, dict) and info.get("i") is True and h not in hores_inici:
@@ -200,13 +157,13 @@ def _build_slots_valids_from_alliberaments(
     return result
 
 
-def _build_slots_valids_iso_from_alliberaments(
+def _build_slots_valids_per_data(
     alliberaments_cfg: dict,
     nivells_actius: list[str],
     hores_disponibles: list[str],
 ) -> dict:
     """
-    Retorna {nivell: {data_iso: [hores_inici]}} per fer lookup exacte per data.
+    Retorna {nivell: {data: [hores_inici]}} per fer lookup exacte per data.
     Separat de slots_valids_per_nivell per no interferir amb _merge_slots_valids.
     """
     if not isinstance(alliberaments_cfg, dict) or not alliberaments_cfg:
@@ -221,12 +178,12 @@ def _build_slots_valids_iso_from_alliberaments(
             continue
         cfg = nivell_data.get("config") or {}
         per_data = {}
-        for d_str in nivell_data.get("dates") or []:
-            if not isinstance(d_str, str):
+        for data in nivell_data.get("dates") or []:
+            if not isinstance(data, (date, str)):
                 continue
-            cfg_dia = cfg.get(d_str) or {}
+            cfg_dia = cfg.get(data) or {}
             hores = [h for h in hores_ord if isinstance(cfg_dia.get(h), dict) and cfg_dia[h].get("i") is True]
-            per_data[d_str] = hores  # llista buida = dia configurat però sense inici d'examen
+            per_data[data] = hores  # llista buida = dia configurat però sense inici d'examen
         if per_data:
             result[nivell] = per_data
 

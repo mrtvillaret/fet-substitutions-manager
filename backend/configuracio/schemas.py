@@ -1,9 +1,12 @@
 """Esquemes d'entrada de les rutes de configuració del centre."""
 
-from pydantic import BaseModel
+from datetime import date
+
+from pydantic import BaseModel, field_validator
+from pydantic_core import PydanticCustomError
 
 from noms import NomNet
-from parametres import DataISO
+from parametres import Data
 
 
 class SettingsUpdate(BaseModel):
@@ -11,18 +14,26 @@ class SettingsUpdate(BaseModel):
     `institucio`, que s'ignora (el centre per defecte no es canvia d'aquí)."""
 
     idioma: str | None = None
-    data_inici_estadistiques: DataISO | None = None  # 400 si no és AAAA-MM-DD
-    data_final_estadistiques: DataISO | None = None
+    data_inici_estadistiques: Data | None = None
+    data_final_estadistiques: Data | None = None
     ultim_professor_subs: NomNet | None = None
     institucio_display_name: str | None = None
+
+    @field_validator("data_inici_estadistiques", "data_final_estadistiques", mode="before")
+    @classmethod
+    def _tipus_dates_estadistiques(cls, valor: object) -> object:
+        # Contracte de /api/settings per a una data textual: un número en JSON dona 422.
+        if valor is not None and not isinstance(valor, (str, date)):
+            raise PydanticCustomError("string_type", "Input should be a valid string")
+        return valor
 
 
 class ConfiguracioResponse(BaseModel):
     institucio: str
     idioma: str
     xml_horari_path: str | None
-    data_inici_estadistiques: str | None
-    data_final_estadistiques: str | None
+    data_inici_estadistiques: date | str | None
+    data_final_estadistiques: date | str | None
     logo_path: str | None
     te_logo: bool
     institucio_display_name: str

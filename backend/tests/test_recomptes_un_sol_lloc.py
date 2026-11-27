@@ -100,8 +100,11 @@ def test_la_web_i_els_informes_donen_el_mateix(hores):
 
     triades = frozenset(hores) if hores else None
     with get_data_db_session(centre) as db:
-        direccio = informes.dades_direccio(db, INICI, FINAL, [], hores=triades)
-        professors = {p["nom"]: p for p in informes.dades_professors(db, INICI, FINAL, hores=triades)}
+        direccio = informes.dades_direccio(db, date.fromisoformat(INICI), date.fromisoformat(FINAL), [], hores=triades)
+        professors = {
+            p["nom"]: p
+            for p in informes.dades_professors(db, date.fromisoformat(INICI), date.fromisoformat(FINAL), hores=triades)
+        }
 
     stats = direccio["stats"]
     cobertura = web("resum")["cobertura"]
@@ -187,6 +190,35 @@ def test_el_desplegable_de_substituts_compta_les_substitucions_fetes_com_estadis
     assert {(p, h): total for (p, h), (_, total) in desplegable.items()} == {
         (p, h): fetes.get(p, 0) for (p, h) in desplegable
     }
+
+
+def test_els_recomptes_mensuals_mantenen_l_any_i_els_extrems_de_l_interval():
+    centre, _ = _centre()
+    with get_data_db_session(centre) as db:
+        for dia, tipus, substitut in [
+            (date(2027, 1, 1), "SERVEI", ""),
+            (date(2026, 12, 31), "ABSENCIA", "Prof 5"),
+            (date(2027, 1, 2), "ABSENCIA", "Prof 5"),
+        ]:
+            db.add(
+                Substitucio(
+                    data=dia,
+                    hora="08:00",
+                    professor_absent="Prof 1",
+                    assignatura="Català",
+                    grup="1-ESO-A",
+                    tipus_absencia=tipus,
+                    substitut=substitut,
+                )
+            )
+        db.commit()
+        dades = informes.dades_direccio(db, date(2026, 12, 31), date(2027, 1, 1), [])
+
+    assert dades["mesos_ordenats"] == ["Desembre 2026", "Gener 2027"]
+    assert [(m["mes"], m["absencies"], m["serveis"], m["substitucions"]) for m in dades["per_mes"]] == [
+        ("Desembre 2026", 1, 0, 1),
+        ("Gener 2027", 0, 1, 0),
+    ]
 
 
 # Els fitxers que donen recomptes a la pantalla i als informes: només

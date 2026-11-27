@@ -12,10 +12,10 @@ import uuid
 import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
-import defusedxml.ElementTree as SafeET
-from defusedxml import DefusedXmlException
+import defusedxml.ElementTree as SafeET  # type: ignore[import-untyped]
+from defusedxml import DefusedXmlException  # type: ignore[import-untyped]
 from sqlalchemy.orm import Session
 
 import rellotge
@@ -29,7 +29,7 @@ from horari.lector import GestorHorariWeb
 from horari.repositories import XMLVersionRepository
 from horari.sincronitzacio import sincronitza_professors
 from i18n_setup import translate as _
-from parametres import data_iso
+from models import XMLVersion
 from substitucions.domain import DiaEscolar, substituts_no_valids
 from substitucions.repositories import SubstitucioRepository
 from textos import nom_net
@@ -48,14 +48,14 @@ def estat(dia: Dia) -> dict:
         horari = dia.horari
     except MissingXmlError:
         return {
-            "data_actual": rellotge.ara().strftime("%Y-%m-%d"),
+            "data_actual": rellotge.ara().date(),
             "horari_carregat": False,
             "num_professors": 0,
             "num_hores": 0,
             "xml_missing": True,
         }
     return {
-        "data_actual": rellotge.ara().strftime("%Y-%m-%d"),
+        "data_actual": rellotge.ara().date(),
         "horari_carregat": True,
         "num_professors": len(horari.professors),
         "num_hores": len(horari.hores),
@@ -110,17 +110,19 @@ def tots_els_professors(dia: Dia) -> dict:
         return {"professors": [], "total": 0, "xml_missing": True}
 
 
-def professors_del_dia(dia: Dia, data: str | None) -> dict:
-    """Els professors amb el límit de l'últim professor i, amb `data`, a part
+def professors_del_dia(dia: Dia, *, inclou_absencies: bool) -> dict:
+    """Els professors amb el límit de l'últim professor i, si es demanen, a part
     els que hi tenen una absència coberta (amb la data de fi)."""
     try:
         horari = dia.horari
 
         resposta = {"professors": horari.professors, "total": len(horari.professors)}
-        if data:
+        if inclou_absencies:
             # Els que tenen una absència coberta aquell dia: ja no són a la llista,
             # però la pantalla els mostra a part (sense que es puguin triar)
-            resposta["absencies_cobertes"] = absencies_cobertes_del_dia(dia.institucio, data, horari.absents_coberts)
+            resposta["absencies_cobertes"] = absencies_cobertes_del_dia(
+                dia.institucio, dia.data, horari.absents_coberts
+            )
         return resposta
     except MissingXmlError:
         return {"professors": [], "total": 0, "xml_missing": True}
@@ -213,16 +215,16 @@ def _relatiu(cami: Path, data_dir: str) -> str:
         return str(cami)
 
 
-def _avisos_xml(institucio: str, versio=None) -> dict:
+def _avisos_xml(institucio: str, versio: XMLVersion | None = None) -> dict:
     """Revisa només dies desats del tram de la versió nova; no modifica cap fila.
 
     Sense versió nova (XML idèntic), no hi ha res a revisar.
     """
-    avisos = []
+    avisos: list[dict] = []
     recomptes = {"dies": 0, "substitucions": 0, "vigilancies": 0}
     if versio is not None:
-        inici = max(versio.data_inici, rellotge.avui()).isoformat()
-        final = (versio.data_fi or date.max).isoformat()
+        inici = max(versio.data_inici, rellotge.avui())
+        final = versio.data_fi or date.max
         with get_data_db_session(institucio, lectura=True) as db:
             dates = SubstitucioRepository.dates_entre(db, inici, final) | VigilanciaRepository.dates_entre(
                 db, inici, final
@@ -231,11 +233,12 @@ def _avisos_xml(institucio: str, versio=None) -> dict:
                 # El mateix XML nou, també si encara no és vigent avui.
                 dia = Dia(data, institucio, versio_xml=versio)
                 estat = DiaEscolar(db, dia, estricte=True)
-                subs = substituts_no_valids(db, dia.iso, estat)
+                data_avis = dia.iso
+                subs = substituts_no_valids(db, data, estat)
                 vigs = [p for p in analitza_vigilancies(estat) if p["gravetat"] == "important"]
                 avisos.extend(
                     {
-                        "data": dia.iso,
+                        "data": data_avis,
                         "hora": s["hora"],
                         "professor": s["substitut"],
                         "motiu": s["motiu"],
@@ -245,7 +248,7 @@ def _avisos_xml(institucio: str, versio=None) -> dict:
                 )
                 avisos.extend(
                     {
-                        "data": dia.iso,
+                        "data": data_avis,
                         "hora": p["hora"],
                         "professor": p["professor"],
                         "tipus": p["tipus"],
@@ -259,7 +262,7 @@ def _avisos_xml(institucio: str, versio=None) -> dict:
     return {"avisos": avisos, "recomptes": recomptes}
 
 
-def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str | None) -> dict:
+def puja_xml(institucio: str, nom_fitxer: str | None, fitxer: BinaryIO, data_inici: date | None) -> dict:
     """
     Desa un XML de FET i el versiona a partir d'una data de vigència.
 
@@ -280,10 +283,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str
             raise NoValid("El fitxer ha de ser XML", codi="xml_extensio")
 
         # Data de vigència de la nova versió
-        if data_inici:
-            vigent_des_de = data_iso(data_inici)
-        else:
-            vigent_des_de = rellotge.avui()
+        vigent_des_de = data_inici or rellotge.avui()
 
         data_dir = str(get_data_dir_for_institucio(institucio))
         os.makedirs(data_dir, exist_ok=True)
@@ -400,7 +400,7 @@ def puja_xml(institucio: str, nom_fitxer: str, fitxer: BinaryIO, data_inici: str
             "success": True,
             "filename": nom_original,
             "path": stored_path,
-            "data_inici": vigent_des_de.isoformat(),
+            "data_inici": vigent_des_de,
             "vigent_avui": es_vigent_avui,
             "message": f"Fitxer '{nom_original}' pujat correctament",
             **_avisos_xml(institucio, nova_versio),
@@ -429,8 +429,8 @@ def llista_versions(db: Session) -> dict:
             {
                 "id": v.id,
                 "path": v.path,
-                "data_inici": v.data_inici.isoformat(),
-                "data_fi": v.data_fi.isoformat() if v.data_fi else None,
+                "data_inici": v.data_inici,
+                "data_fi": v.data_fi,
                 "hash_contingut": v.hash_contingut,
             }
             for v in XMLVersionRepository.list_all(db)
@@ -438,25 +438,20 @@ def llista_versions(db: Session) -> dict:
     }
 
 
-def _versio(db: Session, version_id: int):
+def versio_per_id(db: Session, version_id: int) -> XMLVersion:
     versio = XMLVersionRepository.get(db, version_id)
     if not versio:
         raise NoTrobat("Versió XML no trobada", codi="versio_xml_no_trobada")
     return versio
 
 
-def canvia_inici(db: Session, institucio: str, version_id: int, data_inici: str | None) -> None:
+def canvia_inici(db: Session, institucio: str, versio: XMLVersion, data_inici: date) -> None:
     """Canvia quan comença una versió; les dates de fi es recalculen totes (el
     dia abans que comenci la següent): no es poden posar a mà."""
-    versio = _versio(db, version_id)
-    if not data_inici:
-        return
-
-    nova = data_iso(data_inici)
-    if XMLVersionRepository.comenca_el(db, nova, excepte=version_id):
+    if XMLVersionRepository.comenca_el(db, data_inici, excepte=cast(int, versio.id)):
         raise NoValid("Ja hi ha una altra versió d'XML que comença aquest dia", codi="versio_xml_mateix_dia")
 
-    versio.data_inici = nova
+    versio.data_inici = data_inici
     encadena_i_sincronitza(db, institucio)
     db.commit()
 
@@ -464,7 +459,7 @@ def canvia_inici(db: Session, institucio: str, version_id: int, data_inici: str 
 def esborra_versio(db: Session, institucio: str, version_id: int) -> None:
     """Esborra una versió i el seu fitxer; les altres s'encadenen de nou
     (sense forats)."""
-    versio = _versio(db, version_id)
+    versio = versio_per_id(db, version_id)
     path = versio.path
     XMLVersionRepository.delete(db, versio)
     encadena_i_sincronitza(db, institucio)

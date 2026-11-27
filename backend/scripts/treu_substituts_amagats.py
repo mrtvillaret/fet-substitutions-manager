@@ -50,7 +50,7 @@ def _processa_centre(centre: str, aplica: bool) -> tuple[int, int, int, int]:
     orfenes = sense_horari = 0
     with database.get_data_db_session(centre, nomes_lectura=not aplica) as db:
         carrega_prioritats(db)
-        for data in sorted(SubstitucioRepository.dates_entre(db, date.min.isoformat(), date.max.isoformat())):
+        for data in sorted(SubstitucioRepository.dates_entre(db, date.min, date.max)):
             dia = DiaEscolar(db, Dia(data, centre))
             no_substituir = NoSubstituirRepository.vigents_a(db, dia.data)
             amagades = [

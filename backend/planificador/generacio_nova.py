@@ -9,6 +9,7 @@ from errors_servidor import registra_excepcio
 from planificador.compartit.constants import DEFAULT_NIVELLS_ACTIUS, SEGONS_MAXIMS_PER_DEFECTE
 from planificador.compartit.missatges import missatge, unics
 from planificador.compartit.preparacio import prepara_planificacio
+from planificador.documents import horari_amb_dates
 from planificador.motor.avaluador import cost
 from planificador.motor.compatibilitat import BACKTRACKING, GREEDY, RECUIT
 from planificador.motor.construccio import construeix_problema, graella_cost_de_hores
@@ -23,7 +24,8 @@ from planificador.motor.model import HorariEditable, congela
 from planificador.motor.registre import FORMAT_INCIDENCIES, ValidadorHorari
 from planificador.motor.regles import construeix_regles
 from planificador.motor.sortida import horari_backtracking, horari_greedy, horari_recuit
-from planificador.services import desa_ultim_resultat
+from planificador.schemas import SchedulerGenerateRequest
+from planificador.services import desa_horari
 from textos import normalitzar_hora
 
 RECOMPTES = ("total_substitucions", "professors_abans", "professors_despres", "professors_no_treballa")
@@ -61,9 +63,9 @@ def _problema_cost_mostrat(problema):
     )
 
 
-def genera(payload, institucio):
+def genera(payload: SchedulerGenerateRequest, institucio: str) -> dict:
     motor = (payload.motor or "v3").lower()
-    pla = prepara_planificacio(payload, institucio)
+    pla = prepara_planificacio(payload, institucio).per_al_motor()
     if not pla.dates:
         raise NoValid("Cal triar les dates dels exàmens", codi="planificacio_sense_dates")
     if motor not in ("v2", "v3", "v2-backtrack"):
@@ -88,6 +90,7 @@ def genera(payload, institucio):
         registra_excepcio("No s'ha pogut fer la comprovació prèvia de viabilitat")
         incompatibilitats = []
     resultat = None
+    horari: dict
     if incompatibilitats:
         horari = {
             "dies": [],
@@ -152,7 +155,7 @@ def genera(payload, institucio):
     meta = horari["metadata"]
     if not meta.get("viable", True):
         diagnostic.explica_no_viable(horari, pla, resultat.causes if resultat else [], bool(incompatibilitats))
-        return {"status": "ok", "horari": horari}
+        return {"status": "ok", "horari": horari_amb_dates(horari)}
     # El cost, el desglossament i els recomptes, els mateixos que el recàlcul:
     # la pantalla no ha de recalcular just després de generar
     info = cost(HorariEditable(horari), mostrat).a_info()
@@ -160,12 +163,14 @@ def genera(payload, institucio):
     meta["cost_desglossament"] = info["cost_desglossament"]
     meta.update({clau: info[clau] for clau in RECOMPTES if clau in info})
     validacio = ValidadorHorari(
-        horari, problema.regles.a_diccionari(), problema.no_substituir, pla.dia_a_data_iso
+        horari, problema.regles.a_diccionari(), set(problema.no_substituir), pla.dia_a_data_iso
     ).validar()
     logs = [linia.strip() for linia in meta.get("logs", []) if linia.strip()]
+    assert resultat is not None
     logs += [linia.strip() for linia in resultat.registre if linia.strip()]
     logs += validacio["logs"]
     meta["logs"] = pla.cfg.avisos(pla.nivells) + unics(logs)
     meta["format_incidencies"] = FORMAT_INCIDENCIES
-    desa_ultim_resultat(institucio, horari, pla.dies)
+    horari = horari_amb_dates(horari)
+    desa_horari(institucio, horari, pla.dies)
     return {"dies_utilitzar": pla.dies, "horari": horari}

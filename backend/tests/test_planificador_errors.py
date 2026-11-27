@@ -81,10 +81,7 @@ def test_si_no_es_poden_llegir_els_costos_es_un_error_intern(client, monkeypatch
 
 
 def test_si_no_es_poden_llegir_les_hores_lectives_publicar_es_un_error_intern(client, monkeypatch, caplog):
-    class DiaQueFalla:
-        de_text = staticmethod(_falla)
-
-    monkeypatch.setattr(publicacio, "Dia", DiaQueFalla)
+    monkeypatch.setattr(publicacio, "Dia", _falla)
     resp = _publica(client)
     assert resp.status_code == 500
     assert set(resp.json()) == {"error_ref"}

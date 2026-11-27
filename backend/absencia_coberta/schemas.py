@@ -1,22 +1,24 @@
 """Entrades i sortides de les rutes de les absències cobertes."""
 
+from datetime import date
+
 from pydantic import BaseModel
 
 from noms import NomNet
-from parametres import DataISO
+from parametres import DataTextual
 
 
 class AbsenciaCobertaRequest(BaseModel):
     professor: NomNet
-    data_inici: DataISO  # AAAA-MM-DD; si no, 400
-    data_final: DataISO
+    data_inici: DataTextual  # AAAA-MM-DD; si no, 400
+    data_final: DataTextual
     motiu: str = ""
 
 
 class EdicioAbsenciaCobertaRequest(BaseModel):
     professor: NomNet | None = None
-    data_inici: DataISO | None = None
-    data_final: DataISO | None = None
+    data_inici: DataTextual | None = None
+    data_final: DataTextual | None = None
     motiu: str | None = None
 
 
@@ -26,8 +28,8 @@ class EdicioAbsenciaCobertaRequest(BaseModel):
 class AbsenciaCobertaResponse(BaseModel):
     id: int
     professor: str
-    data_inici: str
-    data_final: str
+    data_inici: date
+    data_final: date
     motiu: str
 
 

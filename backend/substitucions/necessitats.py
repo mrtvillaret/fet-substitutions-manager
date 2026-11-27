@@ -4,8 +4,6 @@ Gestió d'absències de professors
 
 import logging
 
-from dates import parse_date
-from i18n_setup import _
 from substitucions.files import PropostaSubstitucio
 
 
@@ -21,12 +19,12 @@ class GestorAbsencies:
         self,
         dia: str,
         absents: dict[str, list[str]],
-        absents_tipus: dict[str, str] = None,
+        absents_tipus: dict[str, str] | None = None,
     ) -> list[PropostaSubstitucio]:
         """
         Calcula quines substitucions calen segons les absències
         Args:
-            dia: Dia de la setmana (nom de l'XML) o format ISO (YYYY-MM-DD)
+            dia: Dia de la setmana (nom de l'XML)
             absents: {professor: [hores]}
             absents_tipus: {professor: tipus_absencia} - 'SERVEI' o 'ABSENCIA'
         Returns: [{professor, hora, assignatura, grup, tipus_absencia}, ...]
@@ -34,14 +32,6 @@ class GestorAbsencies:
 
         logger = logging.getLogger(__name__)
         logger.debug(f"🟢 get_substitucions_necessaries() START: dia='{dia}', absents={len(absents)}")
-
-        # Assegura que dia està en format nom dia XML, no ISO
-        if isinstance(dia, str) and len(dia) == 10 and "-" in dia:
-            # Rebut format ISO (2025-08-11), converteix a nom dia XML
-
-            weekday_idx = parse_date(dia).weekday()
-            dia = self.horari.get_dia_name(weekday_idx)
-            logger.info(_("   🔄 Convertit dia ISO a nom XML: '{}'").format(dia))
 
         substitucions = []
         absents_tipus = absents_tipus or {}

@@ -30,7 +30,7 @@ def test_compta_fins_al_limit_i_les_futures_i_no_el_mateix_dia(db_session):
     _fila(db_session, DIA + timedelta(days=1), "Prof dimarts")
     db_session.commit()
 
-    assert SubstitucioRepository.historial_quota(db_session, DIA.isoformat()) == [
+    assert SubstitucioRepository.historial_quota(db_session, DIA) == [
         ("10:00", "Prof límit", "G"),
         ("10:00", "Prof passat", "G"),
         ("10:00", "Prof futur", "G"),
@@ -46,7 +46,7 @@ def test_la_consulta_fa_servir_l_index_de_la_data(db_session):
 
     event.listen(db_session.bind, "before_cursor_execute", recull)
     try:
-        SubstitucioRepository.historial_quota(db_session, DIA.isoformat())
+        SubstitucioRepository.historial_quota(db_session, DIA)
     finally:
         event.remove(db_session.bind, "before_cursor_execute", recull)
     ((statement, parameters),) = consultes
@@ -66,7 +66,7 @@ def test_amb_curs_nomes_compta_el_curs_del_dia(db_session):
     _fila(db_session, date(2026, 7, 6), "Prof curs següent")  # dilluns, curs següent
     db_session.commit()
 
-    assert SubstitucioRepository.historial_quota(db_session, DIA.isoformat()) == [
+    assert SubstitucioRepository.historial_quota(db_session, DIA) == [
         ("10:00", "Prof inici", "G"),
         ("10:00", "Prof futur", "G"),
     ]

@@ -19,7 +19,7 @@ from substitucions.files import FilaSubstitucio
 
 
 class MillorsSubstituts:
-    def __init__(self, dia: DiaEscolar, gestors, rng=None, quota: QuotaFranja = None):
+    def __init__(self, dia: DiaEscolar, gestors, rng=None, quota: QuotaFranja | None = None):
         """`gestors`: el que retorna substitucions.context.get_gestors per a aquell dia."""
         self.dia = dia
         self.motor, _, self.alliberats, _ = gestors

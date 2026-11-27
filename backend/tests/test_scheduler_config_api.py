@@ -16,7 +16,7 @@ from suport_planificador import (
 from configuracio.repositories import ConfiguracioRepository
 from database import get_data_db_session
 from horari.context import invalidar_horari
-from planificador.config import carrega_config
+from planificador.config import llegeix_config
 from planificador.motor.durades import vigilancia
 from rate_limit import limiter
 
@@ -66,7 +66,7 @@ def test_les_durades_nomes_es_llegeixen_dels_grups_de_durada(centre, client):
         ConfiguracioRepository.set(db, "scheduler_durades_per_sessio", '{"Anglès (1-BAT)": 2}', tipus="json")
         db.commit()
     assert client.get("/api/scheduler/config").json()["durades_grups"] == []
-    cfg = carrega_config(centre[0])
+    cfg = llegeix_config(centre[0])
     assert (cfg.durades_per_sessio, cfg.durades_examen_per_sessio) == ({}, {})
 
 
@@ -78,7 +78,7 @@ def test_un_grup_sense_durada_d_examen_fa_servir_la_del_grup(centre, client, dur
     if durada_examen == "absent":
         del grup["durada_examen"]
     configura(client, durada_titular=1, durada_examen=4, durades_grups=[grup])
-    cfg = carrega_config(centre[0])
+    cfg = llegeix_config(centre[0])
     # La vigilància, amb la regla única del motor (motor/durades.py)
     vigila = vigilancia("Anglès (1-BAT)", cfg.durades_per_sessio, cfg.durada_titular)
     assert (vigila, cfg.durada_examen_de("Anglès (1-BAT)")) == (3, 3)
@@ -114,6 +114,32 @@ def test_les_dates_es_desen_i_es_tornen(client):
     assert client.get("/api/scheduler/dates").json() == {"selected_dates": []}
     assert client.put("/api/scheduler/dates", json={"selected_dates": DATES}).status_code == 200
     assert client.get("/api/scheduler/dates").json() == {"selected_dates": DATES}
+
+
+def test_les_dates_desades_conserven_l_ordre_i_els_duplicats(centre, client):
+    import json
+
+    from planificador.repositories import SCHEDULER_DATES_KEY
+
+    triades = ["2026-04-27", "2026-04-20", "2026-04-27"]
+    assert client.put("/api/scheduler/dates", json={"selected_dates": triades}).status_code == 200
+    with get_data_db_session(centre[0], lectura=True) as db:
+        assert json.loads(ConfiguracioRepository.get(db, SCHEDULER_DATES_KEY)) == triades
+    assert client.get("/api/scheduler/dates").json() == {"selected_dates": triades}
+    assert client.get("/api/scheduler/horari").json()["data_referencia"] == "2026-04-20"
+
+
+def test_les_claus_equivalents_dels_alliberaments_conserven_l_ultima_marca(client):
+    ruta = "/api/scheduler/config"
+    primeres = {"09:00": {"a": True, "i": True}}
+    ultimes = {"10:00": {"a": True, "i": True}}
+    for primera, ultima in [("2026-4-20", "2026-04-20"), ("2026-04-20", "2026-4-20")]:
+        alliberaments = {"dates": ["2026-4-20"], "config": {primera: primeres, ultima: ultimes}}
+        resposta = client.put(ruta, json={"alliberaments_per_nivell": {"1-BAT": alliberaments}})
+        assert resposta.status_code == 200, resposta.text
+        assert client.get(ruta).json()["alliberaments_per_nivell"] == {
+            "1-BAT": {"dates": ["2026-04-20"], "config": {"2026-04-20": ultimes}}
+        }
 
 
 # ----------------------------------------------------------- restriccions
@@ -479,6 +505,62 @@ def test_no_substituir_del_planificador_es_el_de_la_primera_data_planificada(cen
         NoSubstituirRepository.tanca(db, fila, date(2026, 6, 30))
         NoSubstituirRepository.create(db, "Ara", vigent_des_de=date(2026, 11, 1))
         db.commit()
-    assert carrega_config(centre[0]).no_substituir == {"Ara"}
+    assert llegeix_config(centre[0]).no_substituir == {"Ara"}
     configura(client)
-    assert carrega_config(centre[0]).no_substituir == {"Abans"}
+    assert llegeix_config(centre[0]).no_substituir == {"Abans"}
+
+
+def test_dates_i_claus_dels_alliberaments_es_desen_en_iso(client):
+    ruta = "/api/scheduler/config"
+    marques = {"09:00": {"a": True, "i": True}, "10:00": {"a": True, "i": False}}
+    resposta = client.put(
+        ruta,
+        json={
+            "nivells_actius": ["1-BAT"],
+            "durada_titular": 1,
+            "durada_examen": 2,
+            "alliberaments_per_nivell": {
+                "1-BAT": {"dates": ["2026-4-20"], "config": {"2026-4-20": marques, "2026-04-20": marques}}
+            },
+        },
+    )
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json() == {"success": True}
+
+    llegit = client.get(ruta)
+    assert llegit.status_code == 200, llegit.text
+    assert llegit.json() == {
+        "nivells": ["1-BAT"],
+        "hores_examen": ["09:00"],
+        "durada_titular": 1,
+        "durada_examen": 2,
+        "nivells_seleccionats": ["1-BAT"],
+        "hores_per_nivell": {"1-BAT": ["09:00"]},
+        "alliberaments_per_nivell": {"1-BAT": {"dates": ["2026-04-20"], "config": {"2026-04-20": marques}}},
+        "durades_grups": [],
+    }
+
+
+@pytest.mark.parametrize("dates", [{}, {"dates": []}], ids=["absent", "buida"])
+def test_alliberaments_antics_amb_dates_absents_o_buides(centre, client, dates):
+    import json
+
+    from planificador.repositories import SCHEDULER_ALLIBERAMENTS_KEY
+
+    llegat = {"1-BAT": {**dates, "config": {"2026-4-20": {"09:00": {"a": True, "i": True}}}}}
+    with get_data_db_session(centre[0]) as db:
+        ConfiguracioRepository.set(db, SCHEDULER_ALLIBERAMENTS_KEY, json.dumps(llegat), tipus="json")
+        db.commit()
+
+    assert client.put("/api/scheduler/dates", json={"selected_dates": ["2026-04-21"]}).status_code == 200
+    config = client.get("/api/scheduler/config")
+    assert config.status_code == 200, config.text
+    assert config.json()["alliberaments_per_nivell"] == llegat
+    resposta = client.get("/api/scheduler/horari")
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json() == {
+        "data_referencia": "2026-04-21" if dates else "2026-04-20",
+        "sense_dates": False,
+        "versio_des_de": None,
+        "canvi_horari": None,
+    }

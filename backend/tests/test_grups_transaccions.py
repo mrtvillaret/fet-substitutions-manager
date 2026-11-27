@@ -1,6 +1,6 @@
 """Els canvis d'alliberats i la reconciliació formen una sola transacció."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -63,7 +63,9 @@ def _bolcat(centre):
                 )
                 for fila in periode
             ],
-            "substitucions": sorted(SubstitucioRepository.get_by_date(db, DATA), key=lambda fila: fila.id),
+            "substitucions": sorted(
+                SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)), key=lambda fila: fila.id
+            ),
         }
 
 
@@ -132,12 +134,30 @@ def test_afegir_periode_accepta_una_data_sense_zeros(client, centre):
     assert curta.json() == normalitzada.json()
 
 
+def test_un_periode_amb_camps_incomplets_retorna_422_abans_de_validar_la_data(client):
+    cos = {"tipus": "professor", "clau": "Prof 21", "data": "2026-02-30"}
+    resposta = client.post("/api/grups/periode", json=cos)
+
+    assert resposta.status_code == 422, resposta.text
+    assert resposta.json() == {
+        "detail": [{"type": "missing", "loc": ["body", "hores"], "msg": "Field required", "input": cos}]
+    }
+
+
+def test_franges_de_reforc_sense_data_retorna_el_cos_historic_del_422(client):
+    resposta = client.get("/api/grups/reforcos/Reforç")
+    error = {"type": "missing", "loc": ["query", "data"], "msg": "Field required", "input": None}
+
+    assert resposta.status_code == 422, resposta.text
+    assert resposta.json() == {"detail": [error, error]}
+
+
 def _desa_absencia(centre, **canvis):
     with get_data_db_session(centre) as db:
         fila = SubstitucioRepository.create(
             db,
             {
-                "data": DATA,
+                "data": date.fromisoformat(DATA),
                 "hora": "09:00",
                 "professor_absent": "Prof 1",
                 "assignatura": "E.F.",
@@ -161,7 +181,7 @@ def _desa_grups(client, **marques):
 @pytest.mark.parametrize("marques", [{"grups": {"09:00": ["3-ESO-A"]}}, {"professors": {"09:00": ["Prof 1"]}}])
 def test_alliberar_buida_el_substitut_i_la_quota_i_conserva_l_absencia(client, centre, marques):
     _desa_absencia(centre, grup=" 3-ESO-A ")
-    data_quota = "2026-04-27"
+    data_quota = date(2026, 4, 27)
     with get_data_db_session(centre) as db:
         assert SubstitucioRepository.historial_quota(db, data_quota) == [("09:00", "Prof 2", "disponible (Guàrdia)")]
 
@@ -169,7 +189,7 @@ def test_alliberar_buida_el_substitut_i_la_quota_i_conserva_l_absencia(client, c
 
     assert client.get(f"/api/substitucions/{DATA}").json() == []
     with get_data_db_session(centre) as db:
-        [fila] = SubstitucioRepository.get_by_date(db, DATA)
+        [fila] = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
         assert (fila.substitut, fila.tipus_substitut) == ("", "")
         assert (fila.professor_absent, fila.hora, fila.tipus_absencia) == ("Prof 1", "09:00", "SERVEI")
         assert SubstitucioRepository.historial_quota(db, data_quota) == []
@@ -195,10 +215,10 @@ def test_no_substituir_buida_el_substitut_sense_avis_i_preserva_el_vigilant_abse
     with get_data_db_session(centre) as db:
         NoSubstituirRepository.create(db, "E.F.")
         NoSubstituirRepository.create(db, "VIGILÀNCIA")
-        GrupsAlliberatsRepository.afegeix(db, DATA, "09:00", "1-BAT-A")
+        GrupsAlliberatsRepository.afegeix(db, date.fromisoformat(DATA), "09:00", "1-BAT-A")
         VigilanciaRepository.create(
             db,
-            DATA,
+            date.fromisoformat(DATA),
             {
                 "hora": "09:00",
                 "tipus": "Examen",
@@ -208,14 +228,14 @@ def test_no_substituir_buida_el_substitut_sense_avis_i_preserva_el_vigilant_abse
                 "nivell": "3-ESO",
             },
         )
-        assert treu_substituts_no_valids(db, DATA) == []
+        assert treu_substituts_no_valids(db, date.fromisoformat(DATA)) == []
         db.commit()
 
     visibles = {str(f["id"]) for f in client.get(f"/api/substitucions/{DATA}").json()}
     assert vigilancia in visibles
     assert no_substituir not in visibles
     with get_data_db_session(centre) as db:
-        files = SubstitucioRepository.get_by_date(db, DATA)
+        files = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
         assert {f.id: (f.substitut, f.tipus_substitut) for f in files if f.tipus_absencia != "ENCADENADA"} == {
             no_substituir: ("", ""),
             vigilancia: ("Prof 2", "disponible (Guàrdia)"),
@@ -226,7 +246,7 @@ def test_alliberar_la_classe_d_un_vigilant_treu_la_cobertura_i_l_encadenada(clie
     with get_data_db_session(centre) as db:
         VigilanciaRepository.create(
             db,
-            DATA,
+            date.fromisoformat(DATA),
             {
                 "hora": "10:00",
                 "tipus": "Examen",
@@ -250,7 +270,7 @@ def test_alliberar_la_classe_d_un_vigilant_treu_la_cobertura_i_l_encadenada(clie
 
     assert client.get(f"/api/substitucions/{DATA}").json() == []
     with get_data_db_session(centre) as db:
-        assert SubstitucioRepository.get_by_date(db, DATA) == []
+        assert SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) == []
 
     _desa_grups(client)
 

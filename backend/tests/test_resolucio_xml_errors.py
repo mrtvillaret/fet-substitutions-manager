@@ -1,5 +1,6 @@
 """Sense versió hi ha alternativa; un error de BD no és absència de dades."""
 
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -31,22 +32,22 @@ def test_un_error_de_bd_no_activa_cap_alternativa_xml(monkeypatch, lectura):
         monkeypatch.setattr(horari_context, "get_data_db_session", falla)
         monkeypatch.setattr(horari_domain, "get_data_db_session", falla)
     with pytest.raises(OperationalError, match="BD simulada"):
-        _ = Dia.de_text(DATA, centre).xml_path
+        _ = Dia(date.fromisoformat(DATA), centre).xml_path
 
 
 def test_sense_versions_es_conserva_el_cami_de_configuracio(monkeypatch):
     centre = nova_institucio(amb_xml=True)
     monkeypatch.delenv("APP_XML_PATH", raising=False)
-    assert Path(Dia.de_text(DATA, centre).xml_path) == get_data_dir_for_institucio(centre) / "teachers.xml"
+    assert Path(Dia(date.fromisoformat(DATA), centre).xml_path) == get_data_dir_for_institucio(centre) / "teachers.xml"
 
 
 def test_sense_versions_ni_configuracio_es_conserva_l_alternativa_d_entorn(monkeypatch):
     centre = nova_institucio()
     monkeypatch.setenv("APP_XML_PATH", str(XML_EXEMPLE))
-    assert Dia.de_text(DATA, centre).xml_path == str(XML_EXEMPLE)
+    assert Dia(date.fromisoformat(DATA), centre).xml_path == str(XML_EXEMPLE)
 
 
 def test_sense_cap_xml_retorna_none(monkeypatch):
     centre = nova_institucio()
     monkeypatch.delenv("APP_XML_PATH", raising=False)
-    assert Dia.de_text(DATA, centre).xml_path is None
+    assert Dia(date.fromisoformat(DATA), centre).xml_path is None

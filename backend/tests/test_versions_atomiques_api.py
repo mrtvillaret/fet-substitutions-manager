@@ -6,6 +6,7 @@ Les curses dins del servei es comproven amb fils a test_regles_concurrents.
 """
 
 from contextlib import contextmanager
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -34,11 +35,19 @@ def _fila(centre, tipus):
     with get_data_db_session(centre) as db:
         if tipus == "substitucions":
             fila = SubstitucioRepository.create(
-                db, {"data": DATA, "hora": "10:00", "professor_absent": "Prof 15", "tipus_absencia": "ABSENCIA"}
+                db,
+                {
+                    "data": date.fromisoformat(DATA),
+                    "hora": "10:00",
+                    "professor_absent": "Prof 15",
+                    "tipus_absencia": "ABSENCIA",
+                },
             )
         else:
             fila = VigilanciaRepository.create(
-                db, DATA, {"hora": "10:00", "tipus": "Examen", "grups": "2-BAT-A", "aula": "A1", "nivell": "2-BAT"}
+                db,
+                date.fromisoformat(DATA),
+                {"hora": "10:00", "tipus": "Examen", "grups": "2-BAT-A", "aula": "A1", "nivell": "2-BAT"},
             )
         db.commit()
         return str(fila.id), fila.updated_at.isoformat()
@@ -83,9 +92,9 @@ def test_actualitzacio_no_trepitja_una_versio_antiga(context, tipus, force):
     assert resp.status_code == (200 if force else 409), resp.text
     with get_data_db_session(centre) as db:
         if tipus == "substitucions":
-            actual = SubstitucioRepository.get_by_date(db, DATA)[0]
+            actual = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))[0]
         else:
-            actual = next(iter(VigilanciaRepository.get_by_date(db, DATA).values()))[0]
+            actual = next(iter(VigilanciaRepository.get_by_date(db, date.fromisoformat(DATA)).values()))[0]
     assert actual.comentaris == ("segona escriptura" if force else "primera escriptura")
     if not force:
         assert resp.json()["detail"]["error"] == "conflict"
@@ -102,7 +111,7 @@ def test_el_mapa_de_versions_d_absencies_tambe_es_atomic(context):
         )
     assert resp.status_code == 409, resp.text
     with get_data_db_session(centre) as db:
-        files = SubstitucioRepository.get_by_date(db, DATA)
+        files = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
         assert len(files) == 1
         assert files[0].comentaris == "primera escriptura"
 

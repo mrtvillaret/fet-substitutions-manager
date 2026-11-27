@@ -1,6 +1,7 @@
 """La fila de substitució llegida de persistència, independent de l'ORM."""
 
 from dataclasses import dataclass, field
+from datetime import date
 
 
 def clau_fila(professor_absent: str, hora: str, assignatura: str, grup: str) -> str:
@@ -17,7 +18,7 @@ class FilaSubstitucio:
     """
 
     id: str | int = ""
-    data: str = ""
+    data: date | None = None
     hora: str = ""
     professor_absent: str = ""
     assignatura: str | None = ""

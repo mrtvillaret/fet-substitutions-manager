@@ -7,6 +7,7 @@ Generar i analitzar són a generacio.py; el cost d'un horari editat, a
 cost.py; publicar-lo com a vigilàncies, a publicacio.py."""
 
 import json
+from datetime import date
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
@@ -20,6 +21,14 @@ from errors_domini import NoValid
 from planificador import restriccions as regles
 from planificador.alliberaments import extreure_hores_examen_des_alliberaments
 from planificador.compartit.constants import DEFAULT_COST_PROFESSORS, DEFAULT_DURADA_TITULAR
+from planificador.documents import (
+    data_desada,
+    document_iso,
+    horari_amb_dates,
+    llegeix_alliberaments,
+    llegeix_dates,
+    resultat_amb_dates,
+)
 from planificador.examens import examens, nivells_dels_grups
 from planificador.motor.cataleg import informacio_motors
 from planificador.repositories import (
@@ -54,7 +63,7 @@ def config(db: Session) -> dict:
     de_raw = ConfiguracioRepository.get(db, SCHEDULER_DURADA_EXAMEN_KEY)
     de = int(de_raw) if de_raw else d  # per defecte = durada_titular
     n = llegeix_json(db, SCHEDULER_NIVELLS_KEY, [])
-    alliberaments = llegeix_json(db, SCHEDULER_ALLIBERAMENTS_KEY, {})
+    alliberaments = llegeix_alliberaments(db)
     durades_grups = llegeix_json(db, SCHEDULER_DURADES_GRUPS_KEY, None) or []
     nivells = list(master.get("nivells", {}).keys())
     # La selecció desada pot ser d'un horari anterior: els nivells que ja no
@@ -85,17 +94,17 @@ def desa_config(db: Session, payload: dict) -> None:
     }
     for camp, (clau, tipus) in claus.items():
         if camp in payload:
-            valor = str(payload[camp]) if tipus == "integer" else json.dumps(payload[camp])
+            valor = str(payload[camp]) if tipus == "integer" else json.dumps(document_iso(payload[camp]))
             ConfiguracioRepository.desa(db, clau, valor, tipus=tipus)
     db.commit()
 
 
-def dates(db: Session) -> list:
-    return llegeix_json(db, SCHEDULER_DATES_KEY, [])
+def dates(db: Session) -> list[date]:
+    return llegeix_dates(db)
 
 
-def desa_dates(db: Session, dates: list) -> None:
-    ConfiguracioRepository.set(db, SCHEDULER_DATES_KEY, json.dumps(dates or []), tipus="json")
+def desa_dates(db: Session, dates: list[date]) -> None:
+    ConfiguracioRepository.set(db, SCHEDULER_DATES_KEY, json.dumps(document_iso(dates or [])), tipus="json")
     db.commit()
 
 
@@ -122,7 +131,7 @@ def _assignatures_inexistents(db: Session, restr: dict) -> list[str]:
     Un nom sense nivell ("Anglès") val si hi ha aquesta assignatura a algun nivell."""
     assignacions = ConfiguracioExamenRepository.get_all(db)
     actuals = set(examens(assignacions, nivells_dels_grups(db)))
-    actuals |= {a.get("assignatura") if isinstance(a, dict) else a.assignatura for a in assignacions}
+    actuals.update(nom for a in assignacions if (nom := a.get("assignatura") if isinstance(a, dict) else a.assignatura))
     return sorted(n for n in regles.assignatures_de(restr) if n not in actuals)
 
 
@@ -162,7 +171,9 @@ def fixa_examens(db: Session, pins: list, unpins: list) -> None:
         RestriccioRepository.desfixa(db, nom)
     for pin in pins:
         for tipus, valor in zip(TIPUS_FIXATS, (pin.dia, pin.hora), strict=True):
-            RestriccioRepository.fixa(db, tipus, pin.nom, valor)
+            RestriccioRepository.fixa(
+                db, tipus, pin.nom, data_desada(valor) if tipus == "assignatures_dia_fix" else valor
+            )
     db.commit()
 
 
@@ -188,15 +199,20 @@ def desa_costos(db: Session, payload: dict) -> None:
 
 def ultim_resultat(db: Session):
     """L'últim horari generat o editat ({desat, resultat}), o None."""
-    return llegeix_json(db, SCHEDULER_ULTIM_RESULTAT_KEY, None)
+    return resultat_amb_dates(llegeix_json(db, SCHEDULER_ULTIM_RESULTAT_KEY, None))
 
 
 def desa_ultim_resultat(institucio: str, horari: dict, dies_utilitzar: list | None = None) -> None:
+    """Franja de sortida del recàlcul del motor cap a la persistència."""
+    desa_horari(institucio, horari_amb_dates(horari), dies_utilitzar)
+
+
+def desa_horari(institucio: str, horari: dict, dies_utilitzar: list | None = None) -> None:
     if not isinstance(horari, dict) or not horari.get("dies"):
         return  # un intent no viable no substitueix l'últim horari bo
     with get_data_db_session(institucio) as db:
         if dies_utilitzar is None:
-            anterior = llegeix_json(db, SCHEDULER_ULTIM_RESULTAT_KEY, {}) or {}
+            anterior = ultim_resultat(db) or {}
             dies_utilitzar = (anterior.get("resultat") or {}).get("dies_utilitzar")
 
         ConfiguracioRepository.set(
@@ -219,13 +235,13 @@ def desa_ultim_resultat(institucio: str, horari: dict, dies_utilitzar: list | No
 # ---------------------------------------------------------------- cursos
 
 
-def cursos_anteriors(db: Session, dates: list[str], avui: str) -> dict | None:
+def cursos_anteriors(db: Session, dates: list[date], avui: date) -> dict | None:
     """Si alguna data és d'un curs anterior a l'actual, {cursos, curs_actual}.
 
     La configuració d'exàmens i les restriccions són les del curs actual: amb
     dates d'un curs anterior es barrejarien amb l'horari d'aquell curs, i
     publicar escriuria vigilàncies damunt de l'històric. Sense cursos definits
-    no es comprova res. El curs actual és el d'`avui` (AAAA-MM-DD).
+    no es comprova res. El curs actual és el d'`avui`.
     """
     actual = CursRepository.get_for_date(db, avui)
     if not actual:

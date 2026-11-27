@@ -1,12 +1,12 @@
 """Accés a dades necessari per generar PDF i informes."""
 
 import json
+from datetime import date
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from configuracio.repositories import ConfiguracioRepository
-from dates import parse_date
 from models import AbsenciaCoberta
 
 
@@ -46,13 +46,13 @@ class PreferenciesPdfRepository:
 
 class InformesRepository:
     @staticmethod
-    def compta_absencies_cobertes(db: Session, data_inici: str, data_final: str) -> int:
+    def compta_absencies_cobertes(db: Session, data_inici: date, data_final: date) -> int:
         """Absències cobertes que toquen l'interval (n'hi ha prou amb un dia)."""
         return (
             db.query(AbsenciaCoberta)
             .filter(
-                AbsenciaCoberta.data_inici <= parse_date(data_final),
-                AbsenciaCoberta.data_final >= parse_date(data_inici),
+                AbsenciaCoberta.data_inici <= data_final,
+                AbsenciaCoberta.data_final >= data_inici,
             )
             .count()
         )

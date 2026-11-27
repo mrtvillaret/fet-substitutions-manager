@@ -1,32 +1,53 @@
-"""Validació dels paràmetres comuns de les rutes."""
+"""Valida els paràmetres comuns de les rutes.
+
+`Data` i `DataTextual` converteixen les dates de l’API en `date`, amb el 400
+històric per als textos invàlids. `DataTextual` conserva el 422 quan el cos
+no porta text. `DataResposta` conserva l’esquema de sortida de tipus string.
+"""
 
 from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query
-from pydantic import AfterValidator
+from pydantic import BeforeValidator, WithJsonSchema
+from pydantic_core import PydanticCustomError
 
 from textos import normalitzar_hora
 
 
-def data_iso(valor: str) -> date:
+def data_iso(valor: object) -> date:
     """La data AAAA-MM-DD d'una petició; si no té aquest format, error 400."""
     try:
-        return datetime.strptime(valor, "%Y-%m-%d").date()
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD") from None
+        if isinstance(valor, str):
+            return datetime.strptime(valor, "%Y-%m-%d").date()
+    except ValueError:
+        pass
+    raise HTTPException(status_code=400, detail="Format de data invàlid. Usa YYYY-MM-DD")
 
 
-def _comprova_data_iso(valor):
-    # Normalitzada (2027-3-1 → 2027-03-01): la resta del codi la compara com a
-    # text i la llegeix amb date.fromisoformat, que no accepta dates sense zeros.
-    return data_iso(valor).isoformat() if valor is not None else None
+def _comprova_data(valor: object) -> date | None:
+    # El nul obligatori el valida Pydantic. Un datetime ha de passar pel
+    # mateix rebuig que un text amb hora.
+    if valor is None or type(valor) is date:
+        return valor
+    return data_iso(valor)
 
 
-# Tipus per als paràmetres de data de les rutes: es validen sols (400 si no
-# són AAAA-MM-DD o no existeixen) i arriben com a text AAAA-MM-DD amb zeros.
-#   def ruta(data: DataISO) / def ruta(data_inici: Optional[DataISO] = None)
-DataISO = Annotated[str, AfterValidator(_comprova_data_iso)]
+Data = Annotated[date, BeforeValidator(_comprova_data, json_schema_input_type=str)]
+
+
+def _exigeix_text_de_data(valor: object) -> object:
+    if not isinstance(valor, str) and type(valor) is not date:
+        raise PydanticCustomError("string_type", "Input should be a valid string")
+    return valor
+
+
+# Cossos JSON que tenen un 422 de camp textual per a valors d'altres tipus.
+DataTextual = Annotated[Data, BeforeValidator(_exigeix_text_de_data, json_schema_input_type=str)]
+
+# Dates de respostes que ja es declaraven com a cadenes a l'OpenAPI.
+DataResposta = Annotated[date, WithJsonSchema({"type": "string"}, mode="serialization")]
+
 
 # Sostre de les llistes de dates d'una petició: un any sencer. Cap pantalla
 # n'envia tantes; sense sostre, una llista enorme ocuparia el servidor.

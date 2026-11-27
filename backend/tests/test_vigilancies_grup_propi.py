@@ -10,6 +10,8 @@ Els quatre grups fan examen (són sense classe), i el titular de l'examen de
 2-ESO-A és un altre professor.
 """
 
+from datetime import date
+
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
 from suport_noms import unic
@@ -35,7 +37,7 @@ def _limiter_net():
 def _assigna(titular, ordre=EXAMENS, alliberats=("2-ESO-A", "2-ESO-B", "2-ESO-C", "3-ESO-B")):
     centre = nova_institucio(amb_xml=True)
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": list(alliberats)})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": list(alliberats)})
         db.add(ConfiguracioExamen(assignatura="Matemàtiques", grup="2-ESO-A", titular=titular, aula=""))
         db.commit()
     nom = f"admin_{unic()}"

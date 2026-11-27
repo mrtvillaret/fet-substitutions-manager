@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from dataclasses import replace
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -13,7 +14,9 @@ from suport_motor import xml_inventat as xml_inventat
 
 from errors_domini import NoValid
 from horari.domain import Dia
+from planificador import recalcul_frontera
 from planificador.compartit.franja import franja
+from planificador.config import ConfigMotor
 from planificador.motor import recalcul
 from planificador.motor.avaluador import causa_dura, cost, cost_sessio
 from planificador.motor.compatibilitat import BACKTRACKING, GREEDY, RECUIT
@@ -53,7 +56,7 @@ def _horari(sessions=None, hora="09:00"):
 
 def _prepara(monkeypatch, cfg, xml):
     desats = []
-    monkeypatch.setattr(recalcul, "carrega_config", lambda _: deepcopy(cfg))
+    monkeypatch.setattr(recalcul, "carrega_config", lambda _: ConfigMotor(deepcopy(cfg)))
     monkeypatch.setattr(recalcul, "xml_del_dia", lambda _: xml)
     monkeypatch.setattr(recalcul, "desa_ultim_resultat", lambda _, document: desats.append(deepcopy(document)))
     return desats
@@ -153,8 +156,8 @@ def test_recalcul_desa_un_document_i_no_modifica_la_peticio(
         dades.update(data_referencia=DATA, selected_dates=[DATA])
     payload = HorariRecalcularRequest.model_validate(dades)
     abans = payload.model_dump()
-    dia = Dia.de_text(DATA, "inventat")
-    resposta = recalcul.recalcula(payload, "inventat", dia)
+    dia = Dia(date.fromisoformat(DATA), "inventat")
+    resposta = recalcul_frontera.recalcula(payload, "inventat", dia)
     assert resposta["cost_total"] == desats[0]["metadata"]["cost_total"]
     assert len(desats) == 1
     assert payload.model_dump() == abans
@@ -179,7 +182,7 @@ def test_els_errors_del_recalcul_no_desen_cap_resultat(monkeypatch, config_inven
     desats = _prepara(monkeypatch, config_inventada, xml_inventat)
     payload = HorariRecalcularRequest.model_validate(dades)
     with pytest.raises(Exception) as captura:
-        recalcul.recalcula(payload, "inventat", Dia.de_text(DATA, "inventat"))
+        recalcul_frontera.recalcula(payload, "inventat", Dia(date.fromisoformat(DATA), "inventat"))
     assert (type(captura.value), str(captura.value)) == (tipus, text)
     assert desats == []
 
@@ -187,7 +190,7 @@ def test_els_errors_del_recalcul_no_desen_cap_resultat(monkeypatch, config_inven
 def test_referencia_sense_zeros_es_normalitza_en_entrar():
     """Abans `data_referencia` «2027-3-1» passava l'esquema i petava al recàlcul (500)."""
     payload = HorariRecalcularRequest.model_validate({"horari": _horari(), "data_referencia": "2027-3-1"})
-    assert payload.data_referencia == "2027-03-01"
+    assert payload.data_referencia == date(2027, 3, 1)
 
 
 def test_oracle_petit_cost_espera_pati_deduplicacio_i_registre(config_inventada, xml_inventat):
@@ -254,8 +257,8 @@ def test_un_camp_extra_no_canvia_el_servei_de_l_api(monkeypatch):
     crides = []
     monkeypatch.setattr(recalcul, "recalcula", lambda *_: crides.append("nou") or {})
     payload = HorariRecalcularRequest.model_validate({"horari": _horari(), "selector_intern": 1})
-    router.recalcular_cost(payload, SimpleNamespace(institucio="inventat"), Dia.de_text(DATA, "inventat"))
-    router.recalcular_cost(payload, SimpleNamespace(institucio="inventat"), Dia.de_text(DATA, "inventat"))
+    router.recalcular_cost(payload, SimpleNamespace(institucio="inventat"), Dia(date.fromisoformat(DATA), "inventat"))
+    router.recalcular_cost(payload, SimpleNamespace(institucio="inventat"), Dia(date.fromisoformat(DATA), "inventat"))
     assert crides == ["nou", "nou"]
 
 

@@ -6,18 +6,15 @@ i cada diagnòstic la desfeia pel seu compte (`_parse_prefix` ×4).
 """
 
 from dataclasses import dataclass
-from datetime import datetime
 
-from planificador.compartit.dates import DIES_CAT
+from planificador.compartit.dates import DIES_CAT, data_calendari
 
 
 def dia_de_prefix(prefix: str) -> tuple[str, str | None]:
     """(nom del dia, data ISO) d'un prefix: si és una data, el seu dia de la
     setmana i la data; si no, el prefix tal qual (ja és un nom de dia) i None."""
-    try:
-        return DIES_CAT[datetime.strptime(prefix, "%Y-%m-%d").weekday()], prefix
-    except (TypeError, ValueError):
-        return prefix, None
+    data = data_calendari(prefix)
+    return (DIES_CAT[data.weekday()], prefix) if data else (prefix, None)
 
 
 @dataclass(frozen=True)

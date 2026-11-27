@@ -52,10 +52,10 @@ def test_les_dates_d_una_absencia_coberta_i_els_grups_de_l_historial():
             )
         )
         db.commit()
-        assert _dies_afectats(db, "2026-04-21", "2026-05-04", date(2026, 4, 1)) == [
-            "2026-04-22",
-            "2026-04-27",
-            "2026-05-04",
+        assert _dies_afectats(db, date(2026, 4, 21), date(2026, 5, 4), date(2026, 4, 1)) == [
+            date(2026, 4, 22),
+            date(2026, 4, 27),
+            date(2026, 5, 4),
         ]
-        assert _dies_afectats(db, "2026-04-01", "2026-04-30", date(2026, 4, 23)) == ["2026-04-27"]
+        assert _dies_afectats(db, date(2026, 4, 1), date(2026, 4, 30), date(2026, 4, 23)) == [date(2026, 4, 27)]
         assert nivells_amb_substitucions(db) == {"1-ESO", "2-BAT"}

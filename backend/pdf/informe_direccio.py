@@ -3,7 +3,7 @@ Generador d'informe de direcció en PDF
 Informe complet d'absències, substitucions i vigilàncies
 """
 
-from datetime import datetime
+from datetime import date
 from pathlib import Path
 
 from reportlab.lib import colors
@@ -119,21 +119,20 @@ def _linia_hores(hores_triades) -> str:
 
 
 def _header_block(
-    nom_centre: str, data_inici: str, data_final: str, timestamp: str, logo_path: str = None, hores_triades=None
+    nom_centre: str,
+    data_inici: date,
+    data_final: date,
+    timestamp: str,
+    logo_path: str | None = None,
+    hores_triades=None,
 ) -> list:
     """Bloc de capçalera amb fons fosc, logo opcional i nom del centre"""
-
-    def fmt(d):
-        try:
-            return datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y")
-        except (ValueError, TypeError):
-            return d
 
     text_cell = [
         Paragraph(_("Informe de Substitucions"), STYLES["title"]),
         Paragraph(
             f"<font size='13'><b>{_text(nom_centre)}</b></font><br/>"
-            f"<font size='9' color='#a8c8e8'>{_('Període')}: {fmt(data_inici)} – {fmt(data_final)}"
+            f"<font size='9' color='#a8c8e8'>{_('Període')}: {data_inici:%d/%m/%Y} – {data_final:%d/%m/%Y}"
             f" &nbsp;|&nbsp; {_('Generat')}: {timestamp}</font>"
             f"{_linia_hores(hores_triades)}",
             STYLES["subtitle"],
@@ -798,7 +797,7 @@ def _taula_matriu_grups_mesos(grups_data: dict) -> list:
     return elems
 
 
-def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list = None) -> list:
+def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list[str] | None = None) -> list:
     """Matriu hores × dies amb heatmap d'absències"""
     elems = _section_title(_("Distribució per dia de la setmana i hora"))
 
@@ -948,12 +947,12 @@ def _taula_matriu_dia_hora(per_dia_hora: dict, per_hora: dict, hores_xml: list =
 def generar_informe_pdf(
     dades: dict,
     nom_centre: str,
-    data_inici: str,
-    data_final: str,
+    data_inici: date,
+    data_final: date,
     export_dir: str = "exports",
-    logo_path: str = None,
+    logo_path: str | None = None,
     lang: str = "ca",
-    hores_triades: list = None,
+    hores_triades: list[str] | None = None,
 ) -> str:
     """
     Genera l'informe de direcció en PDF. Amb `hores_triades` (el filtre per

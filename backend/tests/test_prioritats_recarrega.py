@@ -4,7 +4,7 @@ llistes que fan servir el motor i les validacions (config.constants) es
 recarreguen de seguida, sense haver de reiniciar ni desar les prioritats.
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from fastapi import APIRouter, Depends
@@ -29,7 +29,7 @@ _no_substituir = APIRouter()
 
 @_no_substituir.get("/api/prova/no-substituir")
 def no_substituir_a_memoria(_usuari=Depends(get_current_user)):
-    return sorted(no_substituir_a(rellotge.avui().isoformat()))
+    return sorted(no_substituir_a(rellotge.avui()))
 
 
 APP = crea_app(substitucions.router, pdf.router, prioritats_router, absencia_coberta_router, _no_substituir)
@@ -67,7 +67,7 @@ def test_una_baixa_nova_es_te_en_compte_de_seguida(client, centre):
     )
     assert resp.status_code == 200, resp.text
     with get_data_db_session(centre) as db:
-        fila = next(f for f in SubstitucioRepository.get_by_date(db, DATA) if f.hora == "10:00")
+        fila = next(f for f in SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA)) if f.hora == "10:00")
         SubstitucioRepository.update(db, int(fila.id), {"substitut": "Prof 3"})
         db.commit()
     assert not _avis_baixa(client)

@@ -2,7 +2,7 @@
 
 import logging
 import random
-from datetime import datetime
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,6 @@ from errors_domini import Conflicte, NoTrobat, NoValid
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
 from i18n_setup import translate as _
-from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from substitucions import _consultes
 from substitucions.absencies import desa_absencies
@@ -54,21 +53,18 @@ def _atzar():
 def genera_substitucions(
     db: Session,
     dia: Dia,
-    data: str,
     *,
     regenerar_tot: bool,
     omplir: bool,
 ) -> dict:
-    data_iso(data)
     resultat = genera_substitucions_dia(db, dia, regenerar_tot, omplir, rng=_atzar())
     db.commit()
     return resultat
 
 
-def actualitza_absencies(db: Session, dia: Dia, data: str, professor: str, update) -> dict:
-    data_iso(data)
+def actualitza_absencies(db: Session, dia: Dia, data: date, professor: str, update) -> dict:
     _, horari, _, absencies = dia.gestors()
-    dia_name = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+    dia_name = horari.get_dia_name(data.weekday())
     substitucions_list = SubstitucioRepository.get_by_date(db, data)
 
     if not update.force and update.updated_at_map is None:
@@ -167,7 +163,7 @@ def _rebutja_motius_manual(motius: list, substitut: str, hora: str) -> None:
                 )
 
 
-def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor: str, update) -> dict:
+def actualitza_substitut(db: Session, dia: Dia, data: date, hora: str, professor: str, update) -> dict:
     """Assigna un substitut a mà en una sola transacció (regles 1–26)."""
     inicia_escriptura(db)
     files = SubstitucioRepository.get_by_date(db, data)
@@ -188,15 +184,16 @@ def actualitza_substitut(db: Session, dia: Dia, data: str, hora: str, professor:
     }
 
 
-def _troba_fila(files: list[FilaSubstitucio], update, data: str, hora: str, professor: str) -> FilaSubstitucio:
+def _troba_fila(files: list[FilaSubstitucio], update, data: date, hora: str, professor: str) -> FilaSubstitucio:
     """Tria la fila per identificador o per hora, professor i versió (regles 1–5)."""
     if update.id is not None:
         fila = next((sub for sub in files if sub.id == update.id), None)
         if fila is None:
+            data_iso = data.isoformat()
             raise NoTrobat(
-                f"No s'ha trobat la substitució amb identificador {update.id} per al dia {data}",
+                f"No s'ha trobat la substitució amb identificador {update.id} per al dia {data_iso}",
                 codi="substitucio_id_no_trobat",
-                params={"id": update.id, "data": data},
+                params={"id": update.id, "data": data_iso},
             )
         if fila.hora != hora or fila.professor_absent != professor:
             raise NoValid(
@@ -226,7 +223,7 @@ def _comprova_versio(fila: FilaSubstitucio, update) -> None:
 
 
 def _valida_substitut(
-    db: Session, dia: Dia, data: str, fila: FilaSubstitucio, update, files: list[FilaSubstitucio]
+    db: Session, dia: Dia, data: date, fila: FilaSubstitucio, update, files: list[FilaSubstitucio]
 ) -> list[FilaSubstitucio]:
     """Valida la tria en ordre i recull les files a alliberar (regles 10–18 i 20)."""
     substitut_normalitzat = (update.substitut or "").strip()
@@ -280,7 +277,7 @@ def _valida_substitut(
     return files_a_alliberar
 
 
-def _aplica(db: Session, dia: Dia, data: str, fila: FilaSubstitucio, update, files_a_alliberar: list[FilaSubstitucio]):
+def _aplica(db: Session, dia: Dia, data: date, fila: FilaSubstitucio, update, files_a_alliberar: list[FilaSubstitucio]):
     """Aplica els canvis i desfà l'operació si la versió ha canviat (regles 8–9 i 19–23)."""
     hora = fila.hora
     alliberades = []
@@ -288,7 +285,7 @@ def _aplica(db: Session, dia: Dia, data: str, fila: FilaSubstitucio, update, fil
         SubstitucioRepository.update(db, int(altra.id), {"substitut": "", "tipus_substitut": ""})
         alliberades.append({k: getattr(altra, k) for k in ("hora", "professor_absent", "assignatura", "grup")})
 
-    canvis = {}
+    canvis: dict[str, str] = {}
     if update.substitut is not None:
         tipus = _tipus_manual(db, dia, data, hora, update.substitut) if update.substitut.strip() else ""
         canvis.update(substitut=update.substitut, tipus_substitut=tipus)
@@ -305,10 +302,10 @@ def _aplica(db: Session, dia: Dia, data: str, fila: FilaSubstitucio, update, fil
     return fila_desada, alliberades
 
 
-def _tipus_manual(db: Session, dia: Dia, data: str, hora: str, substitut: str) -> str:
+def _tipus_manual(db: Session, dia: Dia, data: date, hora: str, substitut: str) -> str:
     """El tipus del substitut triat a mà segons els disponibles de l'hora; buit si no hi és (regla 21)."""
     _, horari, alliberats, _ = dia.gestors()
-    dia_name = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+    dia_name = horari.get_dia_name(data.weekday())
     grups_hora = set(AlliberatsDelDia.get_by_date(db, data).get(hora, []))
     tipus_map = {
         prof: (tipus, detall) for prof, tipus, detall in alliberats.get_tots_disponibles(dia_name, hora, grups_hora)
@@ -317,10 +314,13 @@ def _tipus_manual(db: Session, dia: Dia, data: str, hora: str, substitut: str) -
     return text_tipus_substitut(tipus, detall) if tipus else ""
 
 
-def reassigna_problematiques(db: Session, dia: Dia, data: str) -> dict:
+def reassigna_problematiques(db: Session, dia: Dia, data: date) -> dict:
     substitucions_data = SubstitucioRepository.get_by_date(db, data)
     if not substitucions_data:
-        raise NoTrobat(f"No hi ha substitucions per {data}", codi="dia_sense_substitucions", params={"data": data})
+        data_iso = data.isoformat()
+        raise NoTrobat(
+            f"No hi ha substitucions per {data_iso}", codi="dia_sense_substitucions", params={"data": data_iso}
+        )
 
     substituts_abans = {str(sub.id): (sub.substitut or "").strip() for sub in substitucions_data if sub.id}
     cleared = len(treu_substituts_no_valids(db, data))

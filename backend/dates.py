@@ -21,7 +21,7 @@ def data_compacta(data: date | datetime) -> str:
     return data.strftime("%y%m%d")
 
 
-def parse_date(date_str: str) -> date:
+def parse_date(date_str: date | str) -> date:
     """Converteix string YYYY-MM-DD a objecte date de Python"""
     if isinstance(date_str, date):
         return date_str

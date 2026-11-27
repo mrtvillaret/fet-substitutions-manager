@@ -13,7 +13,9 @@ Rutes de l'horari (XML de FET): només HTTP; la lògica, a services.py.
   comencen, esborrar)
 """
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from auth.dependencies import require_admin
@@ -33,7 +35,7 @@ from horari.schemas import (
     XmlPujatResponse,
     XMLVersionUpdate,
 )
-from parametres import DataISO
+from parametres import Data, data_iso
 
 router = APIRouter()
 router_admin = APIRouter()
@@ -78,14 +80,14 @@ def get_all_professors(dia: Dia = Depends(dia_del_calendari)):
     response_model=ProfessorsDelDiaResponse,
     response_model_exclude_unset=True,
 )
-def get_professors_filtered(data: DataISO = None, dia: Dia = Depends(dia_del_calendari)):
+def get_professors_filtered(request: Request, dia: Dia = Depends(dia_del_calendari)):
     """
     Retorna professors amb el límit ultim_professor_subs aplicat. Amb `data`
     (AAAA-MM-DD), els de l'horari vigent aquell dia i, a part, els que hi
     tenen una absència coberta, amb la data de fi (no se'ls posen absències);
     sense, els de l'horari vigent avui.
     """
-    return services.professors_del_dia(dia, data)
+    return services.professors_del_dia(dia, inclou_absencies="data" in request.query_params)
 
 
 @router.get(
@@ -128,7 +130,7 @@ def detectar_assignatures(dia: Dia = Depends(dia_del_calendari)):
     "/api/files/upload-xml", tags=["Fitxers"], response_model=XmlPujatResponse, response_model_exclude_unset=True
 )
 def upload_xml(
-    file: UploadFile = File(...), data_inici: DataISO | None = Form(None), current_user=Depends(require_admin)
+    file: UploadFile = File(...), data_inici: Annotated[Data | None, Form()] = None, current_user=Depends(require_admin)
 ):
     """
     Puja un fitxer XML de FET i el versiona a partir d'una data de vigència.
@@ -170,7 +172,9 @@ def update_xml_version(
     Canvia quan comença una versió d'XML. Les dates de fi es recalculen totes
     (el dia abans que comenci la següent): no es poden posar a mà.
     """
-    services.canvia_inici(db, current_user.institucio, version_id, payload.data_inici)
+    versio = services.versio_per_id(db, version_id)
+    if payload.data_inici:
+        services.canvia_inici(db, current_user.institucio, versio, data_iso(payload.data_inici))
     return {"success": True}
 
 

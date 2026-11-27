@@ -320,7 +320,7 @@ def test_qui_passa_a_vigilant_deixa_la_substitucio_de_la_mateixa_hora(client):
 
 def test_disponibles_classifica_cada_professor_segons_el_que_fa(client, centre):
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": ["3-ESO-A"]})
         db.commit()
     _absent(client, "Prof 28")
     disp = _disponibles(client)
@@ -332,7 +332,7 @@ def test_disponibles_classifica_cada_professor_segons_el_que_fa(client, centre):
 
 def test_disponibles_ordena_primer_els_alliberats_i_despres_els_de_guardia(client, centre):
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": ["3-ESO-A"]})
         db.commit()
     ordre = [d["value"] for d in client.get(f"{URL}/10:00/disponibles").json()]
     assert ordre[:4] == ["Prof 15", "Prof 21", "Prof 28", "Prof 3"]
@@ -384,7 +384,7 @@ def test_l_ajuda_diu_la_classe_i_les_vigilancies_de_l_hora_i_del_dia(client):
 
 def test_l_ajuda_fa_servir_la_mateixa_regla_que_els_disponibles(client, centre):
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": ["3-ESO-A"]})
         db.commit()
     _absent(client, "Prof 28")
     disponibles = _disponibles(client)
@@ -474,7 +474,7 @@ def test_assignar_pendents_sense_disponibles_nomes_fa_servir_alliberats(client):
 
 def test_assignar_pendents_amb_alliberats(client, centre):
     with get_data_db_session(centre) as db:
-        GrupsAlliberatsRepository.set_for_date(db, DATA, {"10:00": ["3-ESO-A"]})
+        GrupsAlliberatsRepository.set_for_date(db, date.fromisoformat(DATA), {"10:00": ["3-ESO-A"]})
         db.commit()
     _crea(client)
     assert client.post(f"{URL}/assign/pendents").json()["assigned_count"] == 1
@@ -581,3 +581,27 @@ def test_vigilant_que_despres_queda_absent_no_perd_cap_cobertura(client):
     assert despres[("10:00", "Prof 15", "Anglès", "ABSENCIA")] == ""
     tipus_a = {k: v for k, v in despres.items() if k[3] == "VIGILANCIA_ABSENT"}
     assert list(tipus_a.values()) == ["Prof 3"]
+
+
+def test_la_llista_de_vigilancies_identifica_el_dia_pel_cami(client):
+    fila = _crea(client)
+    resposta = client.get("/api/vigilancies/2026-4-20")
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json() == [
+        {
+            "id": fila["id"],
+            "db_id": 1,
+            "hora": "10:00",
+            "tipus": "Anglès",
+            "grups": "2-BAT-A",
+            "aula": "A1",
+            "vigilant": "",
+            "comentaris": "",
+            "nivell": "2-BAT",
+            "ordre": 0,
+            "updated_at": fila["updated_at"],
+        }
+    ]
+    seguent = client.get("/api/vigilancies/2026-04-21")
+    assert seguent.status_code == 200, seguent.text
+    assert seguent.json() == []

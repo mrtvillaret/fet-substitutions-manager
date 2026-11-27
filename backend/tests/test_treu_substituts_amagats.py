@@ -20,7 +20,7 @@ def test_recompte_i_aplica_amb_bd_temporals(tmp_path, monkeypatch, capsys):
     centre = nova_institucio(amb_xml=True)
     sense_horari = nova_institucio()
     mare = {
-        "data": DATA,
+        "data": date.fromisoformat(DATA),
         "hora": "09:00",
         "professor_absent": "Prof 1",
         "grup": "3-ESO-A",
@@ -30,7 +30,9 @@ def test_recompte_i_aplica_amb_bd_temporals(tmp_path, monkeypatch, capsys):
         "tipus_absencia": "SERVEI",
     }
     with database.get_data_db_session(centre) as db:
-        AlliberamentsPeriodeRepository.afegeix(db, "professor", "Prof 1", "Dilluns", ["09:00"], DATA, True)
+        AlliberamentsPeriodeRepository.afegeix(
+            db, "professor", "Prof 1", "Dilluns", ["09:00"], date.fromisoformat(DATA), True
+        )
         NoSubstituirRepository.create(db, "E.F.")
         SubstitucioRepository.create(db, mare)
         SubstitucioRepository.create(
@@ -46,7 +48,7 @@ def test_recompte_i_aplica_amb_bd_temporals(tmp_path, monkeypatch, capsys):
         )
         db.commit()
     with database.get_data_db_session(sense_horari) as db:
-        GrupsAlliberatsRepository.afegeix(db, DATA, "09:00", "3-ESO-A")
+        GrupsAlliberatsRepository.afegeix(db, date.fromisoformat(DATA), "09:00", "3-ESO-A")
         SubstitucioRepository.create(db, mare)
         dia = date.fromisoformat(DATA)
         NoSubstituirRepository.create(db, "Pares", vigent_des_de=dia)
@@ -54,7 +56,7 @@ def test_recompte_i_aplica_amb_bd_temporals(tmp_path, monkeypatch, capsys):
         NoSubstituirRepository.tanca(db, entrada, dia)
         pares = mare | {"assignatura": "Pares", "grup": "", "professor_absent": "Prof 3"}
         for data in (ABANS, DATA, DESPRES):
-            SubstitucioRepository.create(db, pares | {"data": data})
+            SubstitucioRepository.create(db, pares | {"data": date.fromisoformat(data)})
         tipus_vigilancia = "alliberat (tenia E.F.)"
         SubstitucioRepository.create(
             db,
@@ -82,13 +84,13 @@ def test_recompte_i_aplica_amb_bd_temporals(tmp_path, monkeypatch, capsys):
     assert main(["--aplica"]) == 0
     for nom in centres:
         with database.get_data_db_session(nom) as db:
-            files = SubstitucioRepository.get_by_date(db, DATA)
+            files = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
             esperades = {("Prof 1", "09:00", "SERVEI"): ("", "")}
             if nom == sense_horari:
                 esperades[("Prof 3", "09:00", "SERVEI")] = ("", "")
                 esperades[("Prof 4", "09:00", "VIGILANCIA_ABSENT")] = ("Prof 2", tipus_vigilancia)
                 for data in (ABANS, DESPRES):
-                    [fila] = SubstitucioRepository.get_by_date(db, data)
+                    [fila] = SubstitucioRepository.get_by_date(db, date.fromisoformat(data))
                     assert (fila.substitut, fila.tipus_substitut) == ("Prof 2", "disponible (Guàrdia)")
             assert {
                 (fila.professor_absent, fila.hora, fila.tipus_absencia): (fila.substitut, fila.tipus_substitut)

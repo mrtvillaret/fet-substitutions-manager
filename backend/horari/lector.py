@@ -18,7 +18,8 @@ class GestorHorariWeb:
 
     # Els professors amb una absència coberta que s'han tret d'aquest horari
     # (absencia_coberta.domain.sense_absents_coberts); el de l'XML, cap
-    absents_coberts = frozenset()
+    absents_coberts: frozenset[str] = frozenset()
+    sencer: "GestorHorariWeb"  # només en una vista d'un dia amb absències cobertes
 
     def __init__(self, xml_path: str, ultim_professor_subs: str | None = None, institucio: str | None = None):
         """
@@ -31,21 +32,21 @@ class GestorHorariWeb:
         self.xml_path = xml_path
         self.institucio = institucio
         self.ultim_professor_subs = ultim_professor_subs
-        self.horari = {}  # {dia: {hora: {professor: dades}}}
-        self.professors = []
+        self.horari: dict[str, dict[str, dict[str, dict]]] = {}  # {dia: {hora: {professor: dades}}}
+        self.professors: list[str] = []
         # Tots els professors de l'XML: sense el límit de l'«últim professor» i
         # amb els que tenen una absència coberta (el dia no els treu d'aquí)
-        self.tots_professors = []
-        self.grups = set()  # Grups visibles (tots menys els amagats; amb abreviatures)
-        self.tots_grups = set()  # TOTS els grups detectats a l'XML (per al selector)
-        self.tots_grups_raw = set()  # TOTS els grups detectats, versió RAW
-        self.hores = []  # Hores extretes del XML en ordre cronològic
-        self.dies = []  # Dies extrets del XML
-        self._abreviatures_cache = None  # Cache d'abreviatures de la BD
-        self._grups_amagats = None  # Grups amagats (llista d'exclusió; buit = cap)
+        self.tots_professors: list[str] = []
+        self.grups: set[str] = set()  # Grups visibles (tots menys els amagats; amb abreviatures)
+        self.tots_grups: set[str] = set()  # TOTS els grups detectats a l'XML (per al selector)
+        self.tots_grups_raw: set[str] = set()  # TOTS els grups detectats, versió RAW
+        self.hores: list[str] = []  # Hores extretes del XML en ordre cronològic
+        self.dies: list[str] = []  # Dies extrets del XML
+        self._abreviatures_cache: dict[str, str] | None = None  # Cache d'abreviatures de la BD
+        self._grups_amagats: set[str] | None = None  # Grups amagats (llista d'exclusió; buit = cap)
         self.carregar()
 
-    def _carregar_grups_amagats_bd(self) -> set:
+    def _carregar_grups_amagats_bd(self) -> set[str]:
         """Carrega la llista de grups amagats des de la BD (buit = no s'amaga cap)."""
         if self._grups_amagats is not None:
             return self._grups_amagats

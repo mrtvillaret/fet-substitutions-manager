@@ -14,6 +14,7 @@ from functools import cached_property
 import rellotge
 from database import get_data_db_session
 from horari.context import _get_institucio_actual, _resolve_xml_path, get_horari
+from horari.lector import GestorHorariWeb
 from horari.repositories import XMLVersionRepository
 from models import XMLVersion
 from substitucions.context import get_gestors
@@ -31,22 +32,26 @@ class Dia:
         return cls(rellotge.avui(), institucio)
 
     @classmethod
-    def de_text(cls, data_iso: str, institucio: str = None) -> "Dia":
-        """El dia d'una data AAAA-MM-DD; sense institució, la de la petició en curs."""
-        return cls(date.fromisoformat(data_iso), institucio or _get_institucio_actual())
+    def de_text(cls, data_iso: str, institucio: str | None = None) -> "Dia":
+        """Converteix la referència ISO del recàlcul del motor en un dia d’horari."""
+        return cls.del_centre(date.fromisoformat(data_iso), institucio)
+
+    @classmethod
+    def del_centre(cls, data: date, institucio: str | None = None) -> "Dia":
+        return cls(data, institucio or _get_institucio_actual())
 
     @property
     def iso(self) -> str:
-        """La data com a AAAA-MM-DD (el format de l'API i de la BD)."""
+        """La data com a AAAA-MM-DD per a les fronteres de text."""
         return self.data.isoformat()
 
     @cached_property
-    def horari(self):
+    def horari(self) -> GestorHorariWeb:
         """L'horari vigent aquest dia (MissingXmlError si no n'hi ha cap)."""
-        return get_horari(self.institucio, data_iso=self.iso, xml_path=self.xml_path)
+        return get_horari(self.institucio, data_iso=self.data, xml_path=self.xml_path)
 
     @property
-    def horari_amb_tothom(self):
+    def horari_amb_tothom(self) -> GestorHorariWeb:
         """L'horari vigent aquest dia amb tothom, també els que hi tenen una
         absència coberta (Dia.horari ja no els té): per a la configuració del
         curs (p.ex. els exàmens), no per decidir qui hi és aquell dia."""
@@ -55,28 +60,28 @@ class Dia:
     def gestors(self):
         """(substitucions, horari, alliberats, absències) d'aquest dia: nous a
         cada crida, perquè cada petició hi fixa el seu estat."""
-        return get_gestors(self.institucio, data_iso=self.iso, horari=self.horari)
+        return get_gestors(self.institucio, data_iso=self.data, horari=self.horari)
 
     def vigilancia_core(self, db):
         """El nucli de vigilàncies d'aquest dia (titulars, disponibles)."""
-        return get_vigilancia_core(self.iso, db, self.institucio, horari=self.horari)
+        return get_vigilancia_core(self.data, db, self.institucio, horari=self.horari)
 
     @cached_property
-    def xml_path(self):
-        return _resolve_xml_path(self.institucio, self.iso, versio=self.versio)
+    def xml_path(self) -> str | None:
+        return _resolve_xml_path(self.institucio, self.data, versio=self.versio)
 
     @cached_property
-    def versio(self):
+    def versio(self) -> XMLVersion | None:
         """La versió de l'XML vigent aquest dia (o la més propera), o None."""
         if self.versio_xml is not None:
             return self.versio_xml
         with get_data_db_session(self.institucio, lectura=True) as db:
-            versio = XMLVersionRepository.vigent(db, self.iso)
+            versio = XMLVersionRepository.vigent(db, self.data)
             if versio is not None:
                 db.expunge(versio)
             return versio
 
     @property
-    def versio_des_de(self):
-        """Data d'inici (AAAA-MM-DD) de la versió de l'XML, per indicar-la."""
-        return self.versio.data_inici.isoformat() if self.versio and self.versio.data_inici else None
+    def versio_des_de(self) -> date | None:
+        """Data d'inici de la versió de l'XML, per indicar-la."""
+        return self.versio.data_inici if self.versio else None

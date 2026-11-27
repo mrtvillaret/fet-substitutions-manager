@@ -15,7 +15,6 @@ from dependencies import dia_de_la_peticio, get_db, get_db_lectura
 from errors_domini import MissingXmlError
 from horari.domain import Dia
 from noms import NomNet
-from parametres import DataISO
 from substitucions import services
 from substitucions.schemas import (
     ActualitzacioAbsenciesResponse,
@@ -53,7 +52,6 @@ def _conflicte(exc: services.ConflicteSubstitucions) -> HTTPException:
 
 @router.get("/{data}", response_model=list[SubstitucioResponse])
 def get_substitucions(
-    data: DataISO,
     include_all: bool = False,
     ordre: OrdreSubstitucions = "curs",
     db: Session = Depends(get_db),
@@ -74,14 +72,13 @@ def get_substitucions(
                      Útil per editar absències i veure totes les hores marcades
     """
     try:
-        return services.llista_substitucions(db, dia, data, include_all=include_all, ordre=ordre)
+        return services.llista_substitucions(db, dia, dia.data, include_all=include_all, ordre=ordre)
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
 
 @router.post("/{data}/generar", response_model=GeneracioSubstitucionsResponse)
 def generar_substitucions(
-    data: DataISO,
     regenerar_tot: bool = False,
     db: Session = Depends(get_db),
     omplir: bool = True,
@@ -96,7 +93,6 @@ def generar_substitucions(
         return services.genera_substitucions(
             db,
             dia,
-            data,
             regenerar_tot=regenerar_tot,
             omplir=omplir,
         )
@@ -110,7 +106,6 @@ def generar_substitucions(
     response_model_exclude_unset=True,
 )
 def actualitzar_absencies_professor(
-    data: DataISO,
     professor: NomNet,
     update: ActualitzarAbsenciesRequest,
     db: Session = Depends(get_db),
@@ -123,7 +118,7 @@ def actualitzar_absencies_professor(
     - Actualitza el tipus d'absència per totes les hores
     """
     try:
-        return services.actualitza_absencies(db, dia, data, professor, update)
+        return services.actualitza_absencies(db, dia, dia.data, professor, update)
     except services.ConflicteSubstitucions as exc:
         raise _conflicte(exc) from None
     except MissingXmlError as exc:
@@ -132,7 +127,6 @@ def actualitzar_absencies_professor(
 
 @router.put("/{data}/{hora}/{professor}", response_model=ActualitzacioSubstitutResponse)
 def update_substitucio(
-    data: DataISO,
     hora: str,
     professor: NomNet,
     update: SubstitucioUpdate,
@@ -144,14 +138,13 @@ def update_substitucio(
     Valida que el substitut NO estigui ocupat, absent o amb classe
     """
     try:
-        return services.actualitza_substitut(db, dia, data, hora, professor, update)
+        return services.actualitza_substitut(db, dia, dia.data, hora, professor, update)
     except services.ConflicteSubstitucions as exc:
         raise _conflicte(exc) from None
 
 
 @router.post("/{data}/reassign-problematics", response_model=ReassignacioSubstitucionsResponse)
 def reassignar_problematics(
-    data: DataISO,
     db: Session = Depends(get_db),
     dia: Dia = Depends(dia_de_la_peticio),
 ):
@@ -159,28 +152,26 @@ def reassignar_problematics(
     Reassigna substitucions problemàtiques (vigilant, absent, de baixa o amb classe).
     """
     try:
-        return services.reassigna_problematiques(db, dia, data)
+        return services.reassigna_problematiques(db, dia, dia.data)
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
 
 @router.get("/{data}/hores-professor/{professor}", response_model=HoresProfessorResponse)
 def get_hores_professor(
-    data: DataISO,
     professor: NomNet,
     db: Session = Depends(get_db),
     dia: Dia = Depends(dia_de_la_peticio),
 ):
     """Retorna les hores on el professor té classe, i les hores que és al centre sense classe."""
     try:
-        return services.hores_professor(db, dia, data, professor)
+        return services.hores_professor(db, dia, dia.data, professor)
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
 
 @router.get("/{data}/{hora}/disponibles", response_model=DisponiblesResponse)
 def get_disponibles(
-    data: DataISO,
     hora: str,
     db: Session = Depends(get_db),
     dia: Dia = Depends(dia_de_la_peticio),
@@ -190,20 +181,19 @@ def get_disponibles(
     ordenats per prioritat amb informació del que estan fent.
     """
     try:
-        return services.disponibles(db, dia, data, hora)
+        return services.disponibles(db, dia, dia.data, hora)
     except MissingXmlError as exc:
         _raise_missing_xml(exc)
 
 
 @router.post("/{data}/disponibles-batch", response_model=DisponiblesEnBlocResponse)
 def get_disponibles_batch(
-    data: DataISO,
     payload: DisponiblesEnBlocRequest,
     db: Session = Depends(get_db_lectura),
     dia: Dia = Depends(dia_de_la_peticio),
 ):
     """Retorna els disponibles de totes les hores en una sola operació."""
     try:
-        return {"results": services.disponibles_en_bloc(db, dia, data, payload.hores)}
+        return {"results": services.disponibles_en_bloc(db, dia, dia.data, payload.hores)}
     except MissingXmlError as exc:
         _raise_missing_xml(exc)

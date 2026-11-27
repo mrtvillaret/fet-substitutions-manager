@@ -99,6 +99,16 @@ def _baixa(client, inici, final):
     return resp.json()
 
 
+def test_la_data_final_mostrada_es_la_mes_tardana_de_les_absencies_vigents(client):
+    _baixa(client, "2026-11-01", "2026-11-12")
+    _baixa(client, "2026-11-03", "2026-11-07")
+    _baixa(client, "2026-11-05", "2026-11-25")
+
+    resp = client.get("/api/horari/professors", params={"data": "2026-11-04"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["absencies_cobertes"] == [{"professor": "Prof 3", "data_final": "2026-11-12"}]
+
+
 def test_la_baixa_treu_absencies_vigilancies_i_substitucions_d_avui_endavant(client):
     _prepara(client, FUTUR)
     assert any(s["professor_absent"] == "Prof 3" for s in _files(client, FUTUR))

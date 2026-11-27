@@ -3,21 +3,22 @@ Helpers per construir mapes dia -> data ISO (YYYY-MM-DD).
 """
 
 from collections.abc import Iterable
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from planificador.compartit.normalitzacio import normalitzar_dia
 
 DIES_CAT = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte", "Diumenge"]
-_DIES_CAT = DIES_CAT  # àlies privat per compatibilitat interna
 
 
-def _parse_iso_date(date_str: str) -> datetime | None:
-    if not date_str:
-        return None
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except (TypeError, ValueError):
-        return None
+def data_calendari(valor: object) -> date | None:
+    if isinstance(valor, date):
+        return valor
+    if isinstance(valor, str):
+        try:
+            return datetime.strptime(valor, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return None
 
 
 def _normalitza_dies(dies: Iterable[str] | None) -> list[str]:
@@ -33,42 +34,35 @@ def _normalitza_dies(dies: Iterable[str] | None) -> list[str]:
     return out
 
 
+def construir_mapa_dia_data(
+    dies_utilitzar: Iterable[str] | None = None,
+    selected_dates: Iterable[date] | None = None,
+    data_inici: date | None = None,
+) -> dict[str, list[date]]:
+    """Mapa de dies a dates, amb duplicats i fallback seqüencial des de l’inici."""
+    dies_norm = _normalitza_dies(dies_utilitzar)
+    allowed = set(dies_norm)
+    mapa: dict[str, list[date]] = {}
+    for data in sorted(selected_dates or ()):
+        dia = normalitzar_dia(DIES_CAT[data.weekday()])
+        if not allowed or dia in allowed:
+            mapa.setdefault(dia, []).append(data)
+
+    if not mapa and data_inici:
+        for idx, dia in enumerate(dies_norm):
+            mapa.setdefault(dia, []).append(data_inici + timedelta(days=idx))
+    return mapa
+
+
+def mapa_per_al_motor(mapa: dict[str, list[date]]) -> dict[str, list[str]]:
+    return {dia: [data.strftime("%Y-%m-%d") for data in dates] for dia, dates in mapa.items()}
+
+
 def construir_mapa_dia_data_iso(
     dies_utilitzar: Iterable[str] | None = None,
     selected_dates: Iterable[str] | None = None,
     data_inici_iso: str | None = None,
 ) -> dict[str, list[str]]:
-    """
-    Construeix un mapa {dia_normalitzat: [YYYY-MM-DD, ...]}.
-
-    Prioritat:
-    1) Si hi ha selected_dates, es fa servir la data real de cada dia (suporta repetits).
-    2) Si no hi ha selected_dates, es fa fallback seqencial des de data_inici_iso.
-    """
-    dies_norm = _normalitza_dies(dies_utilitzar)
-    allowed = set(dies_norm) if dies_norm else None
-    mapa: dict[str, list[str]] = {}
-
-    parsed_dates = []
-    for raw in selected_dates or []:
-        dt = _parse_iso_date(raw)
-        if dt:
-            parsed_dates.append((dt, dt.strftime("%Y-%m-%d")))
-    parsed_dates.sort(key=lambda x: x[0])
-
-    for dt, iso in parsed_dates:
-        dia_norm = normalitzar_dia(_DIES_CAT[dt.weekday()])
-        if allowed and dia_norm not in allowed:
-            continue
-        mapa.setdefault(dia_norm, []).append(iso)
-
-    if mapa or not data_inici_iso:
-        return mapa
-
-    base = _parse_iso_date(data_inici_iso)
-    if not base:
-        return mapa
-
-    for idx, dia_norm in enumerate(dies_norm):
-        mapa.setdefault(dia_norm, []).append((base + timedelta(days=idx)).strftime("%Y-%m-%d"))
-    return mapa
+    """Entrada i sortida textuals que fa servir el motor."""
+    dates = [data for valor in selected_dates or () if (data := data_calendari(valor))]
+    return mapa_per_al_motor(construir_mapa_dia_data(dies_utilitzar, dates, data_calendari(data_inici_iso)))

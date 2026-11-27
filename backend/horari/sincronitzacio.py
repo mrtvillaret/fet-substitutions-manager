@@ -2,8 +2,11 @@
 
 import logging
 import time
+from datetime import date
 from pathlib import Path
 from threading import Lock
+
+from sqlalchemy.orm import Session
 
 import rellotge
 from configuracio.repositories import ConfiguracioRepository
@@ -12,8 +15,8 @@ from horari.context import _resolve_xml_path
 from horari.lector import GestorHorariWeb
 from horari.repositories import ProfessorRepository
 
-_ultim_dia = {}
-_ultim_error = {}
+_ultim_dia: dict[str, date] = {}
+_ultim_error: dict[str, float] = {}
 # Un bloqueig per centre: la sincronització d'un centre no fa esperar els altres
 _locks: dict[str, Lock] = {}
 _locks_lock = Lock()
@@ -24,14 +27,14 @@ REINTENT_DESPRES_D_ERROR = 300
 log = logging.getLogger(__name__)
 
 
-def sincronitza_professors(db, institucio: str) -> None:
+def sincronitza_professors(db: Session, institucio: str) -> None:
     """Mateixa sessió i transacció que el canvi de versió; commit del servei.
 
     Només necessita els professors: no llegeix grups ni abreviatures i no
     obre sessions paral·leles. Manté el límit de professor configurat.
     """
     data = rellotge.avui()
-    path = _resolve_xml_path(institucio, data.isoformat(), db=db)
+    path = _resolve_xml_path(institucio, data, db=db)
     if not path or not Path(path).exists():
         return  # Centre encara sense horari (la pantalla permet pujar-lo).
     limit = ConfiguracioRepository.get(db, "ultim_professor_subs") or None
@@ -44,7 +47,7 @@ def _lock_de(institucio: str) -> Lock:
         return _locks.setdefault(institucio, Lock())
 
 
-def _cal_sincronitzar(institucio: str, data) -> bool:
+def _cal_sincronitzar(institucio: str, data: date) -> bool:
     if _ultim_dia.get(institucio) == data:
         return False
     error = _ultim_error.get(institucio)

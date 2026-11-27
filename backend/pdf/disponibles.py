@@ -42,7 +42,7 @@ _DIES_PER_INDEX = (
 class DiaNoGenerat(Exception):
     """No s'ha pogut preparar el full d'un dia (el motiu, a la traça)."""
 
-    def __init__(self, dia: str):
+    def __init__(self, dia: date):
         super().__init__(dia)
         self.dia = dia
 
@@ -81,12 +81,12 @@ def dies_laborables(institucio: str, primer_dia: date) -> list[date]:
     return dies
 
 
-def ocupacio_del_dia(db: Session, dia_iso: str) -> tuple[dict, dict]:
+def ocupacio_del_dia(db: Session, dia: date) -> tuple[dict, dict]:
     """Per hora: els professors absents i els ocupats (fan una substitució o
     una vigilància)."""
     absents = defaultdict(set)
     ocupats = defaultdict(set)
-    for sub in SubstitucioRepository.get_by_date(db, dia_iso):
+    for sub in SubstitucioRepository.get_by_date(db, dia):
         h = sub.hora
         substitut = sub.substitut
         absent = sub.professor_absent
@@ -95,7 +95,7 @@ def ocupacio_del_dia(db: Session, dia_iso: str) -> tuple[dict, dict]:
         if h and absent:
             absents[h].add(absent)
     try:
-        for nivell_vigs in VigilanciaRepository.get_by_date(db, dia_iso).values():
+        for nivell_vigs in VigilanciaRepository.get_by_date(db, dia).values():
             for vig in nivell_vigs:
                 h = vig.hora
                 vigilant = vig.vigilant
@@ -186,11 +186,10 @@ class _Estils:
 
 def _full_del_dia(db: Session, institucio: str, dia: date, estils: _Estils) -> list:
     """Els blocs de cada hora del dia (cada un, sencer a la mateixa pàgina)."""
-    dia_iso = dia.strftime("%Y-%m-%d")
-    _, horari_mgr, alliberats_mgr, _ = Dia.de_text(dia_iso, institucio).gestors()
+    _, horari_mgr, alliberats_mgr, _ = Dia.del_centre(dia, institucio).gestors()
     dia_name_xml = nom_dia_xml(horari_mgr, dia)
-    absents, ocupats = ocupacio_del_dia(db, dia_iso)
-    grups_alliberats = AlliberatsDelDia.get_by_date(db, dia_iso)
+    absents, ocupats = ocupacio_del_dia(db, dia)
+    grups_alliberats = AlliberatsDelDia.get_by_date(db, dia)
 
     blocs = []
     for hora in horari_mgr.hores:
@@ -234,8 +233,8 @@ def genera_pdf_disponibles(db: Session, institucio: str, primer_dia: date, pdf_p
         try:
             story.extend(_full_del_dia(db, institucio, dia, estils))
         except Exception as exc:
-            log.warning("Error processant el dia %s del PDF de disponibles", dia.strftime("%Y-%m-%d"), exc_info=True)
-            raise DiaNoGenerat(dia.strftime("%Y-%m-%d")) from exc
+            log.warning("Error processant el dia %s del PDF de disponibles", dia, exc_info=True)
+            raise DiaNoGenerat(dia) from exc
         if idx < len(dies) - 1:  # cada dia en una pàgina
             story.append(PageBreak())
 

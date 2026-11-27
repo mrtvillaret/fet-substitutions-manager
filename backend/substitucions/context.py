@@ -1,5 +1,7 @@
 """Gestors de substitucions nous per a cada petició."""
 
+from datetime import date
+
 from grups.disponibilitat import GestorAlliberats
 from horari.context import _get_institucio_actual, get_horari
 from prioritats.memoria import no_substituir_a
@@ -7,7 +9,7 @@ from substitucions.assignacio import GestorSubstitucions
 from substitucions.necessitats import GestorAbsencies
 
 
-def get_gestors(institucio: str = None, *, data_iso: str, horari=None):
+def get_gestors(institucio: str | None = None, *, data_iso: date, horari=None):
     """Retorna (substitucions, horari, alliberats, absencies) per a una petició.
 
     L'horari surt de la memòria cau (get_horari). Els altres tres gestors es

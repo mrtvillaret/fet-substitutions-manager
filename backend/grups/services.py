@@ -5,7 +5,8 @@ alliberat, es reconcilien les substitucions i les cobertures dels dies
 afectats."""
 
 import json
-from datetime import datetime
+from datetime import date
+from typing import cast
 
 from sqlalchemy.orm import Session
 
@@ -30,7 +31,6 @@ from grups.repositories import (
 )
 from horari.context import invalidar_horari
 from horari.domain import Dia
-from parametres import data_iso
 from substitucions.cobertures import refresca_cobertures
 from substitucions.generacio import genera_substitucions_dia
 from substitucions.reconciliacio import treu_substituts_no_valids
@@ -52,7 +52,7 @@ def activitats_alliberables(db: Session) -> list[str]:
 # ===== Reconciliació després d'un canvi =====
 
 
-def _reconcilia_dia(db: Session, data: str, hores_afectades: set) -> list:
+def _reconcilia_dia(db: Session, data: date, hores_afectades: set) -> list:
     """Després de canviar què està alliberat un dia: treu els substituts que ja
     no poden fer la substitució (p. ex. han perdut la condició d'alliberat),
     actualitza les files del dia sense assignar cap substitut nou i reconcilia
@@ -61,7 +61,7 @@ def _reconcilia_dia(db: Session, data: str, hores_afectades: set) -> list:
 
     trets = [{**fila, "data": data} for fila in treu_substituts_no_valids(db, data)]
     # Les files que han quedat sense substitut queden pendents: no s'omplen soles.
-    genera_substitucions_dia(db, Dia.de_text(data, db.info.get("institucio")), regenerar_tot=False, omplir=False)
+    genera_substitucions_dia(db, Dia.del_centre(data, db.info.get("institucio")), regenerar_tot=False, omplir=False)
 
     # Reconciliar les cobertures de vigilància (Tipus B) de les hores afectades.
     # En alliberar un grup, un professor que abans "calia substituir" pot quedar alliberat
@@ -78,7 +78,7 @@ def _reconcilia_dia(db: Session, data: str, hores_afectades: set) -> list:
     return trets
 
 
-def _reconcilia_dies_afectats(db: Session, des_de: str, dia_setmana: int, hores: set) -> list:
+def _reconcilia_dies_afectats(db: Session, des_de: date, dia_setmana: int, hores: set) -> list:
     """Revisa els dies amb files, des de l'inici del canvi i mai abans d'avui.
     La data desada del període es conserva; els dies passats són historial."""
     trets = []
@@ -91,12 +91,10 @@ def _reconcilia_dies_afectats(db: Session, des_de: str, dia_setmana: int, hores:
 
 
 def afegeix_canvi_periode(
-    db: Session, tipus: str, clau: str, hores: list[str], data: str, alliberat: bool, dia_setmana: str
+    db: Session, tipus: str, clau: str, hores: list[str], data: date, alliberat: bool, dia_setmana: str
 ) -> dict:
     """A partir de `data`, cada setmana el mateix dia (o `dia_setmana`), a les
     `hores` indicades, el professor queda alliberat (o deixa de ser-ho)."""
-    data_obj = data_iso(data)
-    data = data_obj.isoformat()
     if tipus not in AlliberamentsPeriodeRepository.TIPUS:
         raise PeriodeNoValid("Tipus desconegut", codi="tipus_desconegut")
     clau = clau.strip()
@@ -104,7 +102,7 @@ def afegeix_canvi_periode(
     if not clau or not hores:
         raise PeriodeNoValid("Cal indicar qui i a quines hores", codi="periode_incomplet")
 
-    horari = Dia.de_text(data, db.info.get("institucio")).horari
+    horari = Dia.del_centre(data, db.info.get("institucio")).horari
     if dia_setmana:
         dia = dia_setmana.strip()
         dies = {horari.get_dia_name(i): i for i in range(7) if horari.get_dia_name(i) in horari.dies}
@@ -112,7 +110,7 @@ def afegeix_canvi_periode(
             raise PeriodeNoValid("Dia de la setmana desconegut", codi="dia_setmana_desconegut")
         num_dia = dies[dia]
     else:
-        num_dia = data_obj.weekday()
+        num_dia = data.weekday()
         dia = horari.get_dia_name(num_dia)
     AlliberamentsPeriodeRepository.afegeix(db, tipus, clau, dia, hores, data, alliberat)
     trets = _reconcilia_dies_afectats(db, data, num_dia, set(hores))
@@ -120,7 +118,7 @@ def afegeix_canvi_periode(
     return {"dia_setmana": dia, "substituts_trets": trets}
 
 
-def franges_reforc(db: Session, horari, activitat: str, data: str) -> dict:
+def franges_reforc(db: Session, horari, activitat: str, data: date) -> dict:
     """Per a una activitat «alliberada fins que tingui alumnes» (p.ex. Reforç):
     les franges de la setmana de cada professor que la fa, i si en aquella data
     ja tenen alumnes."""
@@ -128,12 +126,12 @@ def franges_reforc(db: Session, horari, activitat: str, data: str) -> dict:
         raise ActivitatNoConfigurada("Activitat no configurada", codi="activitat_no_configurada")
     darrers = AlliberamentsPeriodeRepository.darrers(db, data)
     # Historial de cada franja (tots els canvis, també posteriors a `data`)
-    historial = {}
-    for c in AlliberamentsPeriodeRepository.canvis(db, tipus="professor"):
-        historial.setdefault((c["clau"], c["dia_setmana"], c["hora"]), []).append(
-            {"des_de": c["des_de"], "amb_alumnes": not c["alliberat"]}
-        )
-    professors = {}
+    historial: dict[tuple[str, str, str], list[dict[str, date | bool]]] = {}
+    for c in AlliberamentsPeriodeRepository.historial(db, tipus="professor"):
+        # L'ORM encara declara aquests tres camps de text amb Column.
+        clau_franja = cast(tuple[str, str, str], (c.clau, c.dia_setmana, c.hora))
+        historial.setdefault(clau_franja, []).append({"des_de": c.des_de, "amb_alumnes": not c.alliberat})
+    professors: dict[str, list[dict]] = {}
     for dia in horari.dies:
         for hora in horari.hores:
             for professor in sorted(horari.professors):
@@ -147,7 +145,7 @@ def franges_reforc(db: Session, horari, activitat: str, data: str) -> dict:
                         "dia": dia,
                         "hora": hora,
                         "amb_alumnes": amb_alumnes,
-                        "des_de": canvi.des_de.isoformat() if canvi is not None else None,
+                        "des_de": canvi.des_de if canvi is not None else None,
                         "historial": historial.get((professor, dia, hora), []),
                     }
                 )
@@ -157,7 +155,7 @@ def franges_reforc(db: Session, horari, activitat: str, data: str) -> dict:
 # ===== La taula d'un dia =====
 
 
-def dades_del_dia(db: Session, dia_peticio: Dia, data: str) -> dict:
+def dades_del_dia(db: Session, dia_peticio: Dia, data: date) -> dict:
     """El que s'ha marcat `data`, el que ve d'alliberaments per període i el
     que cal per mostrar la taula (GrupsView.vue)."""
     _, horari, _, _ = dia_peticio.gestors()
@@ -172,7 +170,7 @@ def dades_del_dia(db: Session, dia_peticio: Dia, data: str) -> dict:
     # Hores del dia: les que algun grup visible té classe o algú fa una
     # activitat alliberable (la taula només en té files), i les que ja
     # tenen alguna cosa marcada aquell dia (perquè es pugui desmarcar)
-    dia = horari.get_dia_name(datetime.strptime(data, "%Y-%m-%d").weekday())
+    dia = horari.get_dia_name(data.weekday())
     grups_de_la_taula = set(horari.grups)
     activitats_de_la_taula = set(activitats_alliberables(db))
 
@@ -192,7 +190,7 @@ def dades_del_dia(db: Session, dia_peticio: Dia, data: str) -> dict:
     professors_per_grup_hora = {}
     grups_visibles = set(tots_grups)
     for hora in hores:
-        per_grup = {}
+        per_grup: dict[str, list[str]] = {}
         for professor in sorted(horari.professors):
             activitat = horari.get_activitat(dia, hora, professor) or {}
             grup = activitat.get("grup", "")
@@ -206,7 +204,7 @@ def dades_del_dia(db: Session, dia_peticio: Dia, data: str) -> dict:
     # cada professor: {activitat: {hora: [{professor, amb_alumnes}]}}. Els que
     # tenen alumnes es poden alliberar només aquell dia (👤).
     per_defecte = GrupsAlliberatsRepository.activitats_per_defecte(db)
-    reforcs_del_dia = {}
+    reforcs_del_dia: dict[str, dict[str, list[dict[str, str | bool]]]] = {}
     if per_defecte:
         darrers = AlliberamentsPeriodeRepository.darrers(db, data, dia)
         for hora in hores:
@@ -226,7 +224,7 @@ def dades_del_dia(db: Session, dia_peticio: Dia, data: str) -> dict:
     # Activitats alliberables (Prioritats) que algú fa aquell dia: {activitat: {hora: [professors]}}
     # Les «alliberades fins que tenen alumnes» no hi surten: es gestionen a part
     configurades = set(activitats_alliberables(db)) - set(per_defecte)
-    activitats_per_hora = {}
+    activitats_per_hora: dict[str, dict[str, list[str]]] = {}
     if configurades:
         for hora in hores:
             for professor in sorted(horari.professors):
@@ -262,7 +260,7 @@ def dades_del_dia(db: Session, dia_peticio: Dia, data: str) -> dict:
 
 def desa_dia(
     db: Session,
-    data: str,
+    data: date,
     grups: dict[str, list[str]],
     professors: dict[str, list[str]],
     activitats: dict[str, list[str]],
@@ -370,7 +368,7 @@ def _abreviatures_canviades(institucio: str) -> None:
     invalidar_cache_abreviatures(institucio)
 
 
-def _comprova_que_no_es_repeteix(db: Session, grups_originals, abreviatura, excepte: int = None) -> None:
+def _comprova_que_no_es_repeteix(db: Session, grups_originals, abreviatura, excepte: int | None = None) -> None:
     # Una sola abreviatura per a cada llista de grups (restricció de la BD), i
     # un sol text per a cada abreviatura (si no, representaria dues llistes)
     if grups_originals is not None:

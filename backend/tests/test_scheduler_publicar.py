@@ -8,7 +8,7 @@ una institució temporal amb l'horari d'exemple. Dilluns 20/04/2026:
 """
 
 import json
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from suport_api import client_per, crea_app, crea_usuari, entra, nova_institucio
@@ -216,8 +216,19 @@ def test_les_hores_d_un_examen_llarg_son_les_seguents_de_l_horari_del_centre(cli
 def test_la_simulacio_no_desa_res(client, centre):
     _alliberaments(centre, "1-BAT", ["10:00"])
     resultat = _publica(client, _horari(FILOSOFIA_1BAT), dry_run=True, grups_sense_classe=["1-BAT-A"])
-    assert resultat["dry_run"] is True
-    assert resultat["vigilancies_creades"] == 1
+    assert resultat == {
+        "success": True,
+        "dry_run": True,
+        "dates_processades": ["2026-04-20"],
+        "vigilancies_creades": 1,
+        "vigilancies_actualitzades": 0,
+        "vigilancies_sense_canvis": 0,
+        "vigilancies_eliminades": 0,
+        "grups_alliberats_creats": 1,
+        "titulars_assignats": 0,
+        "errors": None,
+        "avisos": None,
+    }
     assert _vigilancies(client) == []
     assert _grups_alliberats(centre) == []
 
@@ -226,13 +237,13 @@ def test_la_simulacio_no_desa_res(client, centre):
 def test_publicar_un_alliberament_buida_el_substitut(client, centre, dry_run):
     _alliberaments(centre, "1-BAT", ["10:00"])
     assignacio = ("Prof 21", "disponible (Guàrdia)")
-    data_quota = "2026-04-27"
+    data_quota = date(2026, 4, 27)
     with get_data_db_session(centre) as db:
         id_fila = str(
             SubstitucioRepository.create(
                 db,
                 {
-                    "data": DATA,
+                    "data": date.fromisoformat(DATA),
                     "hora": "10:00",
                     "professor_absent": "Prof 48",
                     "assignatura": "Filosofia",
@@ -245,7 +256,7 @@ def test_publicar_un_alliberament_buida_el_substitut(client, centre, dry_run):
             ).id
         )
         db.commit()
-        abans = SubstitucioRepository.get_by_date(db, DATA)
+        abans = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
         assert SubstitucioRepository.historial_quota(db, data_quota) == [("10:00", *assignacio)]
 
     resultat = _publica(client, _horari(FILOSOFIA_1BAT), dry_run=dry_run, grups_sense_classe=["1-BAT-A"])
@@ -257,7 +268,7 @@ def test_publicar_un_alliberament_buida_el_substitut(client, centre, dry_run):
     visibles = client.get(f"/api/substitucions/{DATA}").json()
     assert [str(f["id"]) for f in visibles] == ([id_fila] if dry_run else [])
     with get_data_db_session(centre) as db:
-        files = SubstitucioRepository.get_by_date(db, DATA)
+        files = SubstitucioRepository.get_by_date(db, date.fromisoformat(DATA))
         if dry_run:
             assert files == abans
             assert SubstitucioRepository.historial_quota(db, data_quota) == [("10:00", *assignacio)]
@@ -419,7 +430,7 @@ def test_sense_l_opcio_no_s_assignen_titulars(client, titular_alliberat):
 
 def test_un_titular_amb_absencia_coberta_no_s_assigna_i_hi_ha_un_avis(client, centre, titular_alliberat):
     with get_data_db_session(centre) as db:
-        AbsenciaCobertaRepository.create(db, "Prof 48", DATA, DATA, "Llarga")
+        AbsenciaCobertaRepository.create(db, "Prof 48", date.fromisoformat(DATA), date.fromisoformat(DATA), "Llarga")
         db.commit()
     resultat = _publica(client, _horari(FILOSOFIA_1BAT), auto_assign=True, grups_sense_classe=["1-BAT-A"])
     assert resultat["titulars_assignats"] == 0
@@ -503,6 +514,15 @@ def test_no_es_pot_publicar_en_dates_d_un_curs_anterior(client, amb_cursos):
     resp = client.post(URL, json={"horari": _horari(FILOSOFIA_1BAT), "setmanes": SETMANES})
     assert resp.status_code == 400
     assert "Curs anterior" in resp.json()["detail"] and "Curs actual" in resp.json()["detail"]
+    assert _vigilancies(client) == []
+
+
+def test_una_data_antiga_nomes_a_setmanes_tambe_bloqueja_la_publicacio(client, amb_cursos):
+    horari = _horari(FILOSOFIA_1BAT)
+    horari["dies"][0]["data"] = amb_cursos.isoformat()
+    resposta = client.post(URL, json={"horari": horari, "setmanes": SETMANES})
+    assert resposta.status_code == 400
+    assert "Curs anterior" in resposta.json()["detail"]
     assert _vigilancies(client) == []
 
 

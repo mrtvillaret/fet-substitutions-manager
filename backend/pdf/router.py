@@ -20,7 +20,7 @@ import rellotge
 from auth.dependencies import get_current_user
 from dependencies import dia_de_la_peticio, get_db, get_db_lectura
 from horari.domain import Dia
-from parametres import DataISO, data_iso
+from parametres import Data, DataTextual
 from pdf import disponibles, generacio, services
 from pdf.domain import OpcionsPdf, directori_temporal, esborra_directori
 from pdf.schemas import (
@@ -57,14 +57,12 @@ def update_pdf_preferences(
 
 @router.get("/{data}/validacions", response_model=ValidacionsPdfResponse)
 def validar_abans_pdf(
-    data: DataISO,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
     dia_peticio: Dia = Depends(dia_de_la_peticio),
 ):
     """Conflictes i avisos d'un dia abans de generar el PDF (pdf/validacions.py)."""
-    data_iso(data)
-    return generacio.validacions(db, data, current_user.institucio, dia_peticio)
+    return generacio.validacions(db, dia_peticio)
 
 
 # Les rutes que generen PDF són síncrones: FastAPI les atén en un fil a part i
@@ -88,7 +86,6 @@ def _marca_de_temps() -> str:
 
 @router.get("/complete/{data}")
 def generar_pdf_complet(
-    data: DataISO,
     include_substitutions: bool = True,
     include_vigilancies: bool = True,
     compress: bool = False,
@@ -108,13 +105,10 @@ def generar_pdf_complet(
     """
     if not include_substitutions and not include_vigilancies:
         raise HTTPException(status_code=400, detail="Cal incloure almenys una secció al PDF")
-    data_iso(data)
 
     pdf = generacio.genera_pdf_complet(
         db,
         dia,
-        data,
-        current_user.institucio,
         OpcionsPdf(format, mida_lletra, compress, show_comments, show_hours),
         amb_substitucions=include_substitutions,
         amb_vigilancies=include_vigilancies,
@@ -125,7 +119,7 @@ def generar_pdf_complet(
     if not pdf.nom:
         esborra_directori(pdf.directori)
         raise HTTPException(status_code=500, detail="Error intern en generar el PDF")
-    return _resposta_pdf(pdf.directori, pdf.nom, f"complet_{data}_{_marca_de_temps()}.pdf")
+    return _resposta_pdf(pdf.directori, pdf.nom, f"complet_{dia.iso}_{_marca_de_temps()}.pdf")
 
 
 # ===== PDF VIGILÀNCIES =====
@@ -133,8 +127,8 @@ def generar_pdf_complet(
 
 @router.get("/vigilancies/comptes-sense-nivell", response_model=VigilanciesSenseNivellResponse)
 def comptar_vigilancies_sense_nivell(
-    data_inici: DataISO,
-    data_final: DataISO,
+    data_inici: Data,
+    data_final: Data,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -144,8 +138,8 @@ def comptar_vigilancies_sense_nivell(
 
 @router.get("/vigilancies/interval")
 def generar_pdf_interval(
-    data_inici: DataISO,
-    data_final: DataISO,
+    data_inici: Data,
+    data_final: Data,
     nivells: str = "",
     inclou_sense_nivell: bool | None = None,
     include_weekends: bool = False,
@@ -189,7 +183,6 @@ def generar_pdf_interval(
 
 @router.get("/vigilancies/{data}")
 def generar_pdf_vigilancies(
-    data: DataISO,
     nivells: str = "",  # Comma-separated: "1-BATX,2-BATX"
     inclou_sense_nivell: bool | None = None,
     compress: bool = False,
@@ -205,12 +198,10 @@ def generar_pdf_vigilancies(
     """
     Genera PDF de vigilàncies per un dia amb selecció de nivells (SQLite)
     """
-    data_iso(data)  # valida la data (400 si no és vàlida)
 
     pdf = generacio.genera_pdf_vigilancies(
         db,
         dia,
-        data,
         OpcionsPdf(format, mida_lletra, compress, show_comments, show_hours),
         nivells=nivells,
         inclou_sense_nivell=inclou_sense_nivell,
@@ -219,12 +210,12 @@ def generar_pdf_vigilancies(
     if not pdf.nom:
         esborra_directori(pdf.directori)
         raise HTTPException(status_code=500, detail="Error intern en generar el PDF")
-    return _resposta_pdf(pdf.directori, pdf.nom, f"vigilancies_{data}_{_marca_de_temps()}.pdf")
+    return _resposta_pdf(pdf.directori, pdf.nom, f"vigilancies_{dia.iso}_{_marca_de_temps()}.pdf")
 
 
 @router.post("/disponibles-tots-dies")
 def generar_pdf_disponibles_tots_dies(
-    data_inici: DataISO | None = Body(None, embed=True),
+    data_inici: DataTextual | None = Body(None, embed=True),
     db: Session = Depends(get_db_lectura),
     current_user=Depends(get_current_user),
 ):
@@ -233,7 +224,7 @@ def generar_pdf_disponibles_tots_dies(
     un full per dia. Comença des de data_inici (o avui si no s'especifica).
     """
     # Data d'inici: la proporcionada (la pantalla hi posa la del calendari) o avui
-    primer_dia = data_iso(data_inici) if data_inici else rellotge.avui()
+    primer_dia = data_inici or rellotge.avui()
 
     pdf_filename = f"disponibles_tots_dies_{_marca_de_temps()}.pdf"
     try:
@@ -242,6 +233,6 @@ def generar_pdf_disponibles_tots_dies(
     except disponibles.DiaNoGenerat as error:
         return JSONResponse(
             status_code=500,
-            content={"detail": f"No s'ha pogut generar el PDF de disponibles per al dia {error.dia}"},
+            content={"detail": f"No s'ha pogut generar el PDF de disponibles per al dia {error.dia:%Y-%m-%d}"},
         )
     return _resposta_pdf(temp_dir, pdf_filename, pdf_filename)

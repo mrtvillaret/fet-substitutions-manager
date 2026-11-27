@@ -6,7 +6,7 @@ Els repositoris no fan commit: el fa qui crida, un cop per operació."""
 from collections.abc import Iterable
 from datetime import date
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 
 from models import (
     AbsenciaCoberta,
@@ -24,7 +24,9 @@ class PurgaRepository:
     """Les files d'un interval [data_inici, data_final] (inclòs)."""
 
     @staticmethod
-    def _per_interval(db: Session, data_inici: date, data_final: date) -> dict:
+    def _per_interval(
+        db: Session, data_inici: date, data_final: date
+    ) -> dict[str, Query[Substitucio] | Query[Vigilancia] | Query[GrupAlliberat] | Query[AbsenciaCoberta]]:
         # Substitucions, vigilàncies i grups alliberats, per la columna `data`;
         # les absències cobertes que se solapen amb l'interval
         return {

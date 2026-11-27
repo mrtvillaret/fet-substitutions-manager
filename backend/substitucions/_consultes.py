@@ -1,14 +1,13 @@
 """Consultes i presentació de les substitucions d'un dia."""
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import date
 
 from sqlalchemy.orm import Session
 
 from config import constants
 from grups.lectures import AlliberatsDelDia
 from horari.domain import Dia
-from parametres import data_iso
 from prioritats.repositories import NoSubstituirRepository
 from recomptes.services import fetes_del_curs_per_substitut
 from substitucions.repositories import SubstitucioRepository
@@ -20,13 +19,12 @@ from vigilancies.repositories import VigilanciaRepository
 def llista_substitucions(
     db: Session,
     dia: Dia,
-    data: str,
+    data: date,
     *,
     include_all: bool,
     ordre: str,
 ) -> list[SubstitucioResponse]:
     """Retorna les substitucions visibles o totes les absències editables."""
-    data_iso(data)
     horari = dia.horari
     substitucions_list = SubstitucioRepository.get_by_date(db, data)
     result = []
@@ -47,10 +45,10 @@ def llista_substitucions(
     return SubstitucioRepository.ordena(result, horari.hores, valor=getattr, ordre=ordre)
 
 
-def hores_professor(db: Session, dia: Dia, data: str, professor: str) -> dict:
+def hores_professor(db: Session, dia: Dia, data: date, professor: str) -> dict:
     """Classifica les hores amb classe i les activitats no substituïbles."""
     horari = dia.horari
-    weekday_idx = datetime.strptime(data, "%Y-%m-%d").weekday()
+    weekday_idx = data.weekday()
     dia_name = horari.get_dia_name(weekday_idx)
     no_substituir = NoSubstituirRepository.vigents_a(db, data)
 
@@ -71,10 +69,9 @@ def hores_professor(db: Session, dia: Dia, data: str, professor: str) -> dict:
     return {"hores_amb_classe": hores_amb_classe, "hores_al_centre": hores_al_centre}
 
 
-def _context_disponibles(db: Session, dia: Dia, data: str) -> dict:
+def _context_disponibles(db: Session, dia: Dia, data: date) -> dict:
     """Prepara una vegada les dades comunes a totes les hores del dia."""
 
-    data_iso(data)
     vigilants_per_hora = defaultdict(set)
     for files in VigilanciaRepository.get_by_date(db, data).values():
         for vigilancia in files:
@@ -92,7 +89,7 @@ def _context_disponibles(db: Session, dia: Dia, data: str) -> dict:
             substituts_per_hora[hora].add(sub.substitut)
 
     _, horari, alliberats, _ = dia.gestors()
-    dia_setmana = datetime.strptime(data, "%Y-%m-%d").weekday()
+    dia_setmana = data.weekday()
     # El «(n/total)» de cada professor: les seves substitucions fetes del curs
     # a aquesta franja de la setmana i en total, comptades a recomptes/
     fetes_per_franja, fetes_total = fetes_del_curs_per_substitut(db, data)
@@ -114,7 +111,7 @@ def _context_disponibles(db: Session, dia: Dia, data: str) -> dict:
     }
 
 
-def disponibles(db: Session, dia: Dia, data: str, hora: str, *, context: dict | None = None) -> dict:
+def disponibles(db: Session, dia: Dia, data: date, hora: str, *, context: dict | None = None) -> dict:
     """Professors disponibles i ocupats, amb prioritat, estat i estadístiques.
 
     La ruta individual i la ruta en bloc passen sempre per aquesta funció. En
@@ -194,7 +191,7 @@ def disponibles(db: Session, dia: Dia, data: str, hora: str, *, context: dict | 
     return {"disponibles": resultat}
 
 
-def disponibles_en_bloc(db: Session, dia: Dia, data: str, hores: list[str]) -> dict:
+def disponibles_en_bloc(db: Session, dia: Dia, data: date, hores: list[str]) -> dict:
     """El mateix resultat que :func:`disponibles` per a totes les hores."""
     context = _context_disponibles(db, dia, data)
     return {hora: disponibles(db, dia, data, hora, context=context) for hora in dict.fromkeys(hores)}

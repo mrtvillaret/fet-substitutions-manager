@@ -134,7 +134,7 @@ class GestorAlliberats:
         Retorna professors alliberats per grups sense classe
         Returns: [(professor, "alliberat", "tenia Assignatura - Grup"), ...]
         """
-        alliberats = []
+        alliberats: list[tuple[str, str, str]] = []
 
         if not grups_sense_classe:
             return alliberats

@@ -1,5 +1,6 @@
 # Configuració de les eines de qualitat del backend.
 #   ruff check .
+#   python -m mypy
 
 [tool.ruff]
 # La versió de la imatge Docker (Dockerfile: python:3.13-slim).
@@ -35,3 +36,81 @@ quote-style = "double"
 "tests/conftest.py" = ["E402"]
 # i aquest test, que també s'executa sol (unittest), després d'afegir backend/ al sys.path.
 "tests/test_scheduler_regression.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.13"
+files = [
+    "dates.py",
+    "parametres.py",
+    "models.py",
+    "cursos",
+    "dades",
+    "configuracio",
+    "dependencies.py",
+    "horari",
+    "prioritats",
+    "absencia_coberta",
+    "grups/__init__.py",
+    "grups/abreviatures.py",
+    "grups/alliberaments.py",
+    "grups/disponibilitat.py",
+    "grups/domain.py",
+    "grups/lectures.py",
+    "grups/router.py",
+    "grups/schemas.py",
+    "grups/services.py",
+    "substitucions/__init__.py",
+    "substitucions/_consultes.py",
+    "substitucions/absencies.py",
+    "substitucions/context.py",
+    "substitucions/domain.py",
+    "substitucions/encadenades.py",
+    "substitucions/files.py",
+    "substitucions/necessitats.py",
+    "substitucions/prioritat.py",
+    "substitucions/reconciliacio.py",
+    "substitucions/router.py",
+    "substitucions/schemas.py",
+    "substitucions/services.py",
+    "substitucions/vigilancia_absent.py",
+    "substitucions/visibilitat.py",
+    "vigilancies/__init__.py",
+    "vigilancies/analisi.py",
+    "vigilancies/context.py",
+    "vigilancies/domain.py",
+    "vigilancies/files.py",
+    "vigilancies/prioritats.py",
+    "vigilancies/schemas.py",
+    "recomptes",
+    "estadistiques",
+    "pdf/__init__.py",
+    "pdf/dies.py",
+    "pdf/domain.py",
+    "pdf/files.py",
+    "pdf/generacio.py",
+    "pdf/icones.py",
+    "pdf/informes.py",
+    "pdf/repositories.py",
+    "pdf/router.py",
+    "pdf/schemas.py",
+    "pdf/services.py",
+    "pdf/text.py",
+    "pdf/validacions.py",
+    "planificador/__init__.py",
+    "planificador/alliberaments.py",
+    "planificador/analisi_nova.py",
+    "planificador/compartit",
+    "planificador/config.py",
+    "planificador/documents.py",
+    "planificador/examens.py",
+    "planificador/generacio_nova.py",
+    "planificador/publicacio.py",
+    "planificador/recalcul_frontera.py",
+    "planificador/restriccions.py",
+    "planificador/router.py",
+    "planificador/schemas.py",
+    "planificador/services.py",
+]
+follow_imports = "silent"
+check_untyped_defs = true
+strict_equality = true
